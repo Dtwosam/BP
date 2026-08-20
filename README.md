@@ -4,8 +4,9 @@ Research-first system for estimating short-duration BTC Polymarket Up/Down proba
 
 ## Current status
 
-**Phase 0 complete:** repository foundation.  
-**Next:** Phase 1 — automatic Polymarket BTC Up/Down market discovery.  
+**Phase 0:** complete.  
+**Phase 1:** complete and live-verified against Polymarket Gamma.  
+**Current phase:** Phase 2 — 24/7 BTC + Polymarket raw recorder.  
 **Trading mode:** `RESEARCH`. Live trading is disabled.
 
 The ~80% accuracy discussed for this project is a research target, not an assumed or proven capability.
@@ -63,3 +64,7 @@ migrations/              Future database migrations
 data/                     Local/generated data (ignored)
 docs/                     Source of truth, build order, decisions, plans
 ```
+
+## Phase 1 live verification
+
+The local sandbox used for this build cannot resolve external DNS, so Phase 1 used a GitHub Actions workflow (`Live Gamma Smoke`) for the external check. That workflow successfully queried current public Gamma 5m/15m BTC markets and committed an authentic response capture into `tests/fixtures/polymarket/live/`. Focused parser fixtures now use authentic captured IDs and token metadata.
