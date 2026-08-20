@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   gamma-smoke:
@@ -35,3 +35,18 @@ jobs:
           name: gamma-smoke-capture
           path: gamma-smoke-capture.json
           if-no-files-found: ignore
+
+      - name: Persist successful live capture
+        if: success()
+        run: |
+          mkdir -p tests/fixtures/polymarket/live
+          cp gamma-smoke-capture.json tests/fixtures/polymarket/live/gamma-smoke-capture.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- tests/fixtures/polymarket/live/gamma-smoke-capture.json
+          if git diff --cached --quiet; then
+            echo "Live Gamma capture unchanged."
+          else
+            git commit -m "test: capture live Gamma market fixtures [skip ci]"
+            git push origin HEAD:build/phase-1-market-discovery
+          fi
