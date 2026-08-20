@@ -26,7 +26,7 @@ def test_subscription_builders_deduplicate_asset_ids() -> None:
     }
 
 
-def test_parse_book_preserves_market_asset_and_source_timestamp() -> None:
+def test_parse_book_preserves_snapshot_timestamp_only_in_raw_payload() -> None:
     received_at = datetime(2026, 8, 20, 21, 30, tzinfo=UTC)
 
     events = parse_polymarket_message(load("book.json"), received_at=received_at)
@@ -38,7 +38,8 @@ def test_parse_book_preserves_market_asset_and_source_timestamp() -> None:
     assert event.event_type == "book"
     assert event.market_id == "0xbd31dc8a20211944f6b70f31557f1001557b59905b7738480ca09bd4532f84af"
     assert event.asset_id is not None
-    assert event.source_timestamp == datetime.fromtimestamp(1757908892.351, tz=UTC)
+    assert event.source_timestamp is None
+    assert event.payload["timestamp"] == "1757908892351"
     assert event.payload["bids"][0] == {"price": "0.48", "size": "30"}
 
 

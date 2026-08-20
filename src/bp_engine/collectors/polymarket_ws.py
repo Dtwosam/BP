@@ -27,7 +27,12 @@ def build_subscription_update(
     return {"operation": operation, "assets_ids": _asset_ids(asset_ids)}
 
 
-def _source_timestamp(payload: Mapping[str, Any]) -> datetime | None:
+def _source_timestamp(payload: Mapping[str, Any], event_type: str) -> datetime | None:
+    # A book frame is a state snapshot. Its timestamp describes the snapshot state,
+    # not necessarily the instant the WebSocket frame was emitted. Keep that value
+    # in the raw payload, but don't treat it as transport latency/clock evidence.
+    if event_type == "book":
+        return None
     value = payload.get("timestamp")
     if value in (None, ""):
         return None
@@ -52,7 +57,7 @@ def _parse_one(payload: Mapping[str, Any], received_at: datetime) -> RawEvent | 
         stream="market",
         instrument=instrument,
         event_type=event_type,
-        source_timestamp=_source_timestamp(payload),
+        source_timestamp=_source_timestamp(payload, event_type),
         received_at=received_at,
         market_id=str(market_id) if market_id is not None else None,
         asset_id=str(asset_id) if asset_id is not None else None,
