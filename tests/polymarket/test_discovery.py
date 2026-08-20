@@ -49,20 +49,22 @@ class FakeGammaClient:
 
 @pytest.mark.asyncio
 async def test_discovery_parses_and_deduplicates_markets() -> None:
-    now = datetime(2026, 8, 20, 4, 1, tzinfo=UTC)
+    now = datetime(2026, 8, 20, 21, 16, tzinfo=UTC)
     payload = load_fixture("btc_updown_5m_gamma.json")
     client = FakeGammaClient(
         {
-            "btc-updown-5m-1787198400": payload,
-            "btc-updown-5m-1787198700": payload,
+            "btc-updown-5m-1787260500": payload,
+            "btc-updown-5m-1787260800": payload,
         }
     )
 
     markets = await discover_btc_markets(client, now, horizons=("5m",), offsets=(0, 1))
 
     assert client.requested == [
-        "btc-updown-5m-1787198400",
-        "btc-updown-5m-1787198700",
+        "btc-updown-5m-1787260500",
+        "btc-updown-5m-1787260800",
     ]
     assert len(markets) == 1
-    assert markets[0].condition_id == "0xtest-condition-5m"
+    assert markets[0].condition_id == (
+        "0x3b04d4ca0dd684c6571e41b401fa68f91a1ef3dbfef6a8204ab721b2e0144d53"
+    )
