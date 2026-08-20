@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.2 — 21 August 2026
+
+Phase 2 reached the pre-host recorder checkpoint. The phase remains open pending the required genuine 24-hour always-on soak test.
+
+Verified on commit `cf85c9139cfd887188bb10b60d6a75cf98e0e389`:
+
+- CI passed with 74 automated tests and Ruff clean;
+- live recorder smoke passed against Polymarket, Bybit spot, Bybit perpetual, and Coinbase spot;
+- PostgreSQL-backed short soak passed with 17,506 live events and no health failures;
+- Polymarket book snapshot timestamps are preserved in raw payloads without being misclassified as transport clock-skew evidence;
+- Coinbase secondary feed uses ticker/top-of-book plus market trades and heartbeats, while Bybit remains the primary deep-book source;
+- SQLAlchemy PostgreSQL connections use the installed psycopg v3 driver;
+- secure always-on Ubuntu deployment assets were added;
+- production PostgreSQL is bound to localhost only;
+- the recorder runs as a dedicated unprivileged systemd user without Docker-socket access;
+- host NTP synchronization remains required;
+- CI validates deployment shell syntax and production Docker Compose configuration;
+- a formal 24-hour soak report command and protected evidence location are documented.
+
+Sanitized pre-host evidence is stored in `docs/evidence/phase-2-prehost-short-soak.json`; operator instructions are in `docs/PHASE-2-DEPLOYMENT.md`.
+
+No model training, paper trading, or live trading has been added. `LIVE_TRADING_ENABLED` remains false and Phase 3 must not begin until the actual 24-hour Phase 2 host gate is passed and documented.
+
 ## 0.2.1 — 20 August 2026
 
 Phase 1 market discovery closed and Phase 2 opened.

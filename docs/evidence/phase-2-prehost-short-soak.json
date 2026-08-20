@@ -1,0 +1,60 @@
+{
+  "evidence_type": "phase_2_prehost_short_soak",
+  "recorded_at_utc": "2026-08-20T23:12:25.847509Z",
+  "source_commit": "cf85c9139cfd887188bb10b60d6a75cf98e0e389",
+  "github_actions": {
+    "workflow": "Recorder Short Soak",
+    "run_id": 32427562624,
+    "job_id": 96612539024,
+    "conclusion": "success"
+  },
+  "window": {
+    "start_at": "2026-08-20T23:11:49.847509Z",
+    "end_at": "2026-08-20T23:12:25.847509Z",
+    "duration_seconds": 36,
+    "minimum_duration_seconds": 28
+  },
+  "feeds": {
+    "bybit/linear": {
+      "event_count": 1411,
+      "first_received_at": "2026-08-20T23:11:49.856020Z",
+      "last_received_at": "2026-08-20T23:12:15.456170Z"
+    },
+    "bybit/spot": {
+      "event_count": 732,
+      "first_received_at": "2026-08-20T23:11:49.958609Z",
+      "last_received_at": "2026-08-20T23:12:15.418387Z"
+    },
+    "coinbase/spot": {
+      "event_count": 254,
+      "first_received_at": "2026-08-20T23:11:49.928107Z",
+      "last_received_at": "2026-08-20T23:12:15.326819Z"
+    },
+    "polymarket/market": {
+      "event_count": 15109,
+      "first_received_at": "2026-08-20T23:11:49.849339Z",
+      "last_received_at": "2026-08-20T23:12:15.457006Z"
+    }
+  },
+  "total_event_count": 17506,
+  "incidents": {
+    "bybit/linear": {
+      "disconnected": 1
+    },
+    "bybit/spot": {
+      "disconnected": 1
+    },
+    "coinbase/spot": {
+      "disconnected": 1
+    },
+    "polymarket/market": {
+      "disconnected": 1
+    }
+  },
+  "passed": true,
+  "failures": [],
+  "notes": [
+    "Each disconnected incident corresponds to the workflow's deliberate recorder shutdown after the short soak window.",
+    "This is pre-host evidence only and does not satisfy the required 24-hour Phase 2 acceptance gate."
+  ]
+}
