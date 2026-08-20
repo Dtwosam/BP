@@ -198,11 +198,11 @@ def build_default_recorder_service(settings: object) -> RecorderService:
         build_coinbase_subscriptions,
         parse_coinbase_message,
     )
-    from bp_engine.collectors.reliability import ClockSkewGuard, FeedWatchdog
     from bp_engine.collectors.polymarket_ws import (
         build_market_subscription,
         parse_polymarket_message,
     )
+    from bp_engine.collectors.reliability import ClockSkewGuard, FeedWatchdog
     from bp_engine.collectors.websocket_runner import WebSocketCollectorRunner
     from bp_engine.polymarket.gamma import GammaClient
     from bp_engine.polymarket.service import MarketDiscoveryService

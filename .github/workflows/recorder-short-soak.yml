@@ -51,13 +51,23 @@ jobs:
       - name: Run recorder for 45 seconds
         shell: bash
         run: |
-          set -euo pipefail
+          set -u -o pipefail
           python -m bp_engine.recorder > recorder-short-soak.log 2>&1 &
           pid=$!
-          sleep 45
+          for _ in $(seq 1 45); do
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo "Recorder exited before soak window completed"
+              cat recorder-short-soak.log
+              wait "$pid"
+              exit $?
+            fi
+            sleep 1
+          done
           kill -TERM "$pid"
-          wait "$pid"
+          status=0
+          wait "$pid" || status=$?
           cat recorder-short-soak.log
+          exit "$status"
 
       - name: Evaluate persisted feed health
         run: python scripts/soak_report.py --hours 0.01 --minimum-hours 0.008
