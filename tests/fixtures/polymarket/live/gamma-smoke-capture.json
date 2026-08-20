@@ -1,6 +1,6 @@
 [
   {
-    "captured_at": "2026-08-20T21:33:06.366108+00:00",
+    "captured_at": "2026-08-20T21:33:29.253456+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
@@ -166,7 +166,7 @@
     }
   },
   {
-    "captured_at": "2026-08-20T21:33:06.366108+00:00",
+    "captured_at": "2026-08-20T21:33:29.253456+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
@@ -331,7 +331,7 @@
     }
   },
   {
-    "captured_at": "2026-08-20T21:33:06.366108+00:00",
+    "captured_at": "2026-08-20T21:33:29.253456+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
@@ -495,7 +495,7 @@
     }
   },
   {
-    "captured_at": "2026-08-20T21:33:06.366108+00:00",
+    "captured_at": "2026-08-20T21:33:29.253456+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
@@ -662,7 +662,7 @@
     }
   },
   {
-    "captured_at": "2026-08-20T21:33:06.366108+00:00",
+    "captured_at": "2026-08-20T21:33:29.253456+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
@@ -827,7 +827,7 @@
     }
   },
   {
-    "captured_at": "2026-08-20T21:33:06.366108+00:00",
+    "captured_at": "2026-08-20T21:33:29.253456+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
