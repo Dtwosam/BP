@@ -17,6 +17,6 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
-Phase 1: build automatic Polymarket BTC Up/Down market discovery, then begin Phase 2: the 24/7 raw recorder.
+Phase 2: build the 24/7 BTC + Polymarket raw recorder. Phase 1 market discovery is complete and live-verified.
 
 Do not start by training a model.
