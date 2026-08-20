@@ -1,0 +1,37 @@
+name: Live Gamma Smoke
+
+on:
+  push:
+    branches:
+      - build/phase-1-market-discovery
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gamma-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+
+      - name: Query live Polymarket Gamma markets
+        run: python scripts/gamma_smoke.py
+
+      - name: Upload captured Gamma responses
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gamma-smoke-capture
+          path: gamma-smoke-capture.json
+          if-no-files-found: ignore
