@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - build/phase-2-recorder
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -40,7 +43,7 @@ jobs:
         run: python scripts/recorder_smoke.py
 
       - name: Commit public smoke evidence when changed
-        if: always()
+        if: always() && github.event_name == 'push'
         run: |
           if git diff --quiet -- tests/fixtures/recorder/live/; then
             echo "No smoke evidence change"
