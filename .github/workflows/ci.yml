@@ -29,5 +29,11 @@ jobs:
       - name: Test
         run: pytest
 
+      - name: Validate deployment assets
+        run: |
+          bash -n scripts/deploy/bootstrap_ubuntu.sh
+          bash -n scripts/deploy/phase2_soak_report.sh
+          docker compose --env-file deploy/bp.env.example -f docker-compose.prod.yml config -q
+
       - name: Health check
         run: python -m bp_engine.health

@@ -1,0 +1,31 @@
+[Unit]
+Description=BP Phase 2 BTC/Polymarket recorder
+Requires=bp-postgres.service
+After=bp-postgres.service network-online.target chrony.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bp
+Group=bp
+WorkingDirectory=/opt/bp
+EnvironmentFile=/etc/bp/bp.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/bp/.venv/bin/python -m bp_engine.recorder
+Restart=always
+RestartSec=5
+TimeoutStartSec=90
+TimeoutStopSec=60
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-recorder
+
+[Install]
+WantedBy=multi-user.target
