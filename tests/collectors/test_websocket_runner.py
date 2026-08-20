@@ -1,5 +1,5 @@
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime
 
 import pytest
 
@@ -190,6 +190,7 @@ async def test_runner_serializes_mapping_heartbeat_compactly() -> None:
 
     assert ws.sent[0] == '{"op":"subscribe","args":["publicTrade.BTCUSDT"]}'
     assert '{"op":"ping"}' in ws.sent
+
 
 @pytest.mark.asyncio
 async def test_runner_sends_dynamic_control_messages_without_reconnecting() -> None:

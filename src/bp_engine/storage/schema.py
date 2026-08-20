@@ -1,6 +1,17 @@
 from __future__ import annotations
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, MetaData, String, Table, Text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Integer,
+    JSON,
+    MetaData,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+)
 
 metadata = MetaData()
 
@@ -28,8 +39,6 @@ polymarket_markets = Table(
     Column("discovered_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
 )
-
-from sqlalchemy import JSON, UniqueConstraint
 
 raw_market_events = Table(
     "raw_market_events",

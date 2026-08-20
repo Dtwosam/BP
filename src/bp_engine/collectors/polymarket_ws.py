@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
-from typing import Any, Literal, Mapping, Sequence
+from typing import Any, Literal
 
 from bp_engine.recorder.models import RawEvent
 

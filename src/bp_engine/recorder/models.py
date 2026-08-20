@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any, Mapping
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
@@ -100,7 +101,7 @@ class RawEvent(BaseModel):
         sequence: str | int | None = None,
         market_id: str | None = None,
         asset_id: str | None = None,
-    ) -> "RawEvent":
+    ) -> RawEvent:
         payload_dict = dict(payload)
         return cls(
             source=source,
