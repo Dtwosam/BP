@@ -28,7 +28,7 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://bp:bp_ci_only@localhost:5432/bp
+      DATABASE_URL: postgresql+psycopg://bp:bp_ci_only@localhost:5432/bp
       RECORDER_REQUIRE_NTP_SYNC: "false"
       MODE: research
       LIVE_TRADING_ENABLED: "false"

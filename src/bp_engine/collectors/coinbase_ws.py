@@ -12,7 +12,7 @@ def build_coinbase_subscriptions(product_ids: Sequence[str]) -> list[dict[str, o
     if not products:
         raise ValueError("at least one Coinbase product id is required")
     return [
-        {"type": "subscribe", "product_ids": products, "channel": "level2"},
+        {"type": "subscribe", "product_ids": products, "channel": "ticker"},
         {"type": "subscribe", "product_ids": products, "channel": "market_trades"},
         {"type": "subscribe", "channel": "heartbeats"},
     ]
@@ -38,6 +38,11 @@ def _instrument(channel: str, event: Mapping[str, Any]) -> str | None:
     if channel in {"l2_data", "level2"}:
         product_id = event.get("product_id")
         return str(product_id) if product_id else None
+    if channel == "ticker":
+        tickers = event.get("tickers")
+        if isinstance(tickers, list) and tickers and isinstance(tickers[0], Mapping):
+            product_id = tickers[0].get("product_id")
+            return str(product_id) if product_id else None
     if channel == "market_trades":
         trades = event.get("trades")
         if isinstance(trades, list) and trades and isinstance(trades[0], Mapping):
@@ -54,7 +59,7 @@ def parse_coinbase_message(
     channel = payload.get("channel")
     if not isinstance(channel, str) or channel in {"heartbeats", "subscriptions"}:
         return []
-    if channel not in {"l2_data", "level2", "market_trades"}:
+    if channel not in {"l2_data", "level2", "ticker", "market_trades"}:
         return []
 
     event = _first_event(payload)
@@ -65,7 +70,12 @@ def parse_coinbase_message(
         return []
 
     kind = str(event.get("type") or "update")
-    prefix = "level2" if channel in {"l2_data", "level2"} else "market_trades"
+    if channel in {"l2_data", "level2"}:
+        prefix = "level2"
+    elif channel == "ticker":
+        prefix = "ticker"
+    else:
+        prefix = "market_trades"
     return [
         RawEvent.build(
             source="coinbase",

@@ -1,0 +1,22 @@
+{
+  "channel": "ticker",
+  "timestamp": "2026-08-20T22:20:00.123456Z",
+  "sequence_num": 44,
+  "events": [
+    {
+      "type": "snapshot",
+      "tickers": [
+        {
+          "type": "ticker",
+          "product_id": "BTC-USD",
+          "price": "72690.015",
+          "volume_24_h": "10000",
+          "best_bid": "72690.01",
+          "best_bid_quantity": "1.25",
+          "best_ask": "72690.02",
+          "best_ask_quantity": "1.10"
+        }
+      ]
+    }
+  ]
+}
