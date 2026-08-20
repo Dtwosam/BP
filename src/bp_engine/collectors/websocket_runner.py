@@ -3,11 +3,12 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
-from bp_engine.collectors.reliability import ReconnectPolicy
+from bp_engine.collectors.reliability import ClockSkewGuard, FeedWatchdog, ReconnectPolicy
 from bp_engine.recorder.models import FeedIncident, RawEvent
 
 
@@ -21,6 +22,7 @@ Parser = Callable[[object, datetime], list[RawEvent]]
 EventSink = Callable[[RawEvent], Awaitable[None] | None]
 IncidentSink = Callable[[FeedIncident], Awaitable[None] | None]
 NowFactory = Callable[[], datetime]
+MonotonicFactory = Callable[[], float]
 
 
 def _wire_message(payload: object) -> str:
@@ -65,6 +67,9 @@ class WebSocketCollectorRunner:
         reconnect_policy: ReconnectPolicy | None = None,
         now: NowFactory | None = None,
         outbound_messages: asyncio.Queue[object] | None = None,
+        watchdog: FeedWatchdog | None = None,
+        clock_skew_guard: ClockSkewGuard | None = None,
+        monotonic: MonotonicFactory | None = None,
     ) -> None:
         if (heartbeat_message is None) != (heartbeat_interval_seconds is None):
             raise ValueError("heartbeat message and interval must be configured together")
@@ -83,6 +88,9 @@ class WebSocketCollectorRunner:
         self.reconnect_policy = reconnect_policy or ReconnectPolicy()
         self.now = now or (lambda: datetime.now(UTC))
         self.outbound_messages = outbound_messages
+        self.watchdog = watchdog
+        self.clock_skew_guard = clock_skew_guard
+        self.monotonic = monotonic or time.monotonic
 
     async def _incident(self, incident_type: str, details: dict[str, object]) -> None:
         await _call_sink(
@@ -116,6 +124,16 @@ class WebSocketCollectorRunner:
             if self.outbound_messages is not None
             else None
         )
+        watchdog_task = None
+        if self.watchdog is not None:
+            self.watchdog.observe(
+                self.source,
+                self.stream,
+                monotonic_time=self.monotonic(),
+                observed_at=self.now(),
+            )
+            interval = max(min(self.watchdog.stale_after_seconds / 2, 1.0), 0.001)
+            watchdog_task = asyncio.create_task(asyncio.sleep(interval))
 
         try:
             while True:
@@ -124,6 +142,8 @@ class WebSocketCollectorRunner:
                     wait_tasks.add(heartbeat_task)
                 if outbound_task is not None:
                     wait_tasks.add(outbound_task)
+                if watchdog_task is not None:
+                    wait_tasks.add(watchdog_task)
                 done, _ = await asyncio.wait(
                     wait_tasks,
                     return_when=asyncio.FIRST_COMPLETED,
@@ -144,11 +164,45 @@ class WebSocketCollectorRunner:
                     await websocket.send(_wire_message(outbound_task.result()))
                     outbound_task = asyncio.create_task(self.outbound_messages.get())
 
+                if watchdog_task is not None and watchdog_task in done:
+                    assert self.watchdog is not None
+                    incident = self.watchdog.check(
+                        self.source,
+                        self.stream,
+                        monotonic_time=self.monotonic(),
+                        observed_at=self.now(),
+                    )
+                    if incident is not None:
+                        await _call_sink(self.incident_sink, incident)
+                    interval = max(
+                        min(self.watchdog.stale_after_seconds / 2, 1.0),
+                        0.001,
+                    )
+                    watchdog_task = asyncio.create_task(asyncio.sleep(interval))
+
                 if recv_task in done:
                     message = recv_task.result()
                     received_at = self.now()
+                    if self.watchdog is not None:
+                        recovery = self.watchdog.observe(
+                            self.source,
+                            self.stream,
+                            monotonic_time=self.monotonic(),
+                            observed_at=received_at,
+                        )
+                        if recovery is not None:
+                            await _call_sink(self.incident_sink, recovery)
                     events = self.parser(_decode_message(message), received_at)
                     for event in events:
+                        if self.clock_skew_guard is not None:
+                            incident = self.clock_skew_guard.check(
+                                source=self.source,
+                                stream=self.stream,
+                                source_timestamp=event.source_timestamp,
+                                received_at=event.received_at,
+                            )
+                            if incident is not None:
+                                await _call_sink(self.incident_sink, incident)
                         await _call_sink(self.event_sink, event)
                     if stop.is_set():
                         return
@@ -159,6 +213,8 @@ class WebSocketCollectorRunner:
                 tasks.append(heartbeat_task)
             if outbound_task is not None:
                 tasks.append(outbound_task)
+            if watchdog_task is not None:
+                tasks.append(watchdog_task)
             for task in tasks:
                 if not task.done():
                     task.cancel()

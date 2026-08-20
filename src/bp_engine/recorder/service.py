@@ -198,6 +198,7 @@ def build_default_recorder_service(settings: object) -> RecorderService:
         build_coinbase_subscriptions,
         parse_coinbase_message,
     )
+    from bp_engine.collectors.reliability import ClockSkewGuard, FeedWatchdog
     from bp_engine.collectors.polymarket_ws import (
         build_market_subscription,
         parse_polymarket_message,
@@ -247,6 +248,8 @@ def build_default_recorder_service(settings: object) -> RecorderService:
             heartbeat_message="PING",
             heartbeat_interval_seconds=10.0,
             outbound_messages=outbound_messages,
+            watchdog=FeedWatchdog(settings.recorder_stale_after_seconds),
+            clock_skew_guard=ClockSkewGuard(settings.recorder_max_clock_skew_seconds),
         )
 
     polymarket = PolymarketCollectorComponent(
@@ -276,6 +279,8 @@ def build_default_recorder_service(settings: object) -> RecorderService:
         incident_sink=database_sink.record_incident,
         heartbeat_message={"op": "ping"},
         heartbeat_interval_seconds=20.0,
+        watchdog=FeedWatchdog(settings.recorder_stale_after_seconds),
+        clock_skew_guard=ClockSkewGuard(settings.recorder_max_clock_skew_seconds),
     )
     bybit_linear = WebSocketCollectorRunner(
         source="bybit",
@@ -290,6 +295,8 @@ def build_default_recorder_service(settings: object) -> RecorderService:
         incident_sink=database_sink.record_incident,
         heartbeat_message={"op": "ping"},
         heartbeat_interval_seconds=20.0,
+        watchdog=FeedWatchdog(settings.recorder_stale_after_seconds),
+        clock_skew_guard=ClockSkewGuard(settings.recorder_max_clock_skew_seconds),
     )
 
     coinbase_spot = WebSocketCollectorRunner(
@@ -305,6 +312,8 @@ def build_default_recorder_service(settings: object) -> RecorderService:
         incident_sink=database_sink.record_incident,
         heartbeat_message=None,
         heartbeat_interval_seconds=None,
+        watchdog=FeedWatchdog(settings.recorder_stale_after_seconds),
+        clock_skew_guard=ClockSkewGuard(settings.recorder_max_clock_skew_seconds),
     )
 
     return RecorderService(

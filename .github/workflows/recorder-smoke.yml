@@ -38,8 +38,6 @@ jobs:
           python -m compileall -q src
 
       - name: Capture live public feeds
-        id: live_smoke
-        continue-on-error: true
         run: python scripts/recorder_smoke.py
 
       - name: Commit public smoke evidence when changed
@@ -54,7 +52,3 @@ jobs:
           git add -- tests/fixtures/recorder/live/
           git commit -m "test: capture live recorder smoke evidence [skip ci]"
           git push origin HEAD:build/phase-2-recorder
-
-      - name: Enforce live smoke result
-        if: steps.live_smoke.outcome != 'success'
-        run: exit 1
