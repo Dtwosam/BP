@@ -1,6 +1,6 @@
 [
   {
-    "captured_at": "2026-08-20T21:32:10.123131+00:00",
+    "captured_at": "2026-08-20T21:33:06.366108+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
@@ -166,7 +166,7 @@
     }
   },
   {
-    "captured_at": "2026-08-20T21:32:10.123131+00:00",
+    "captured_at": "2026-08-20T21:33:06.366108+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
@@ -331,7 +331,7 @@
     }
   },
   {
-    "captured_at": "2026-08-20T21:32:10.123131+00:00",
+    "captured_at": "2026-08-20T21:33:06.366108+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
@@ -495,7 +495,7 @@
     }
   },
   {
-    "captured_at": "2026-08-20T21:32:10.123131+00:00",
+    "captured_at": "2026-08-20T21:33:06.366108+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
@@ -662,7 +662,7 @@
     }
   },
   {
-    "captured_at": "2026-08-20T21:32:10.123131+00:00",
+    "captured_at": "2026-08-20T21:33:06.366108+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
@@ -827,7 +827,7 @@
     }
   },
   {
-    "captured_at": "2026-08-20T21:32:10.123131+00:00",
+    "captured_at": "2026-08-20T21:33:06.366108+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
@@ -880,8 +880,8 @@
           "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/BTC+fullsize.png",
           "id": "877652",
           "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/BTC+fullsize.png",
-          "liquidity": 14941.681,
-          "liquidityClob": 14941.681,
+          "liquidity": 12458.6284,
+          "liquidityClob": 12458.6284,
           "negRisk": false,
           "negRiskAugmented": false,
           "new": false,
@@ -898,7 +898,7 @@
           "startTime": "2026-08-20T21:45:00Z",
           "ticker": "btc-updown-15m-1787262300",
           "title": "Bitcoin Up or Down - August 20, 5:45PM-6:00PM ET",
-          "updatedAt": "2026-08-20T21:23:45.760533Z",
+          "updatedAt": "2026-08-20T21:29:44.373596Z",
           "version": "v1",
           "volume": 39.313721,
           "volume1mo": 39.313721,
@@ -924,9 +924,9 @@
       "id": "3731485",
       "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/BTC+fullsize.png",
       "lastTradePrice": 0.51,
-      "liquidity": "14031.561",
-      "liquidityClob": 14031.561,
-      "liquidityNum": 14031.561,
+      "liquidity": "11202.6284",
+      "liquidityClob": 11202.6284,
+      "liquidityNum": 11202.6284,
       "makerBaseFee": 1000,
       "makerRebatesFeeShareBps": 10000,
       "manualActivation": false,
@@ -957,7 +957,7 @@
       "startDateIso": "2026-08-19",
       "takerBaseFee": 1000,
       "umaResolutionStatuses": "[]",
-      "updatedAt": "2026-08-20T21:23:20.961024Z",
+      "updatedAt": "2026-08-20T21:29:19.916954Z",
       "version": "v1",
       "volume": "39.313721",
       "volume1mo": 39.313721,
