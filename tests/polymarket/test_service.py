@@ -33,7 +33,7 @@ async def test_service_uses_only_active_horizons_and_persists_discovered_market(
     metadata.create_all(engine)
     service = MarketDiscoveryService(settings=settings, client=client, engine=engine)
 
-    markets = await service.discover_and_store(datetime(2026, 8, 20, 4, 1, tzinfo=UTC))
+    markets = await service.discover_and_store(datetime(2026, 8, 20, 21, 16, tzinfo=UTC))
 
     with engine.connect() as connection:
         count = connection.scalar(select(func.count()).select_from(polymarket_markets))
