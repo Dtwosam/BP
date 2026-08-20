@@ -22,9 +22,9 @@ Verified initial Polymarket BTC Up/Down horizons are 5m and 15m. 10m is desired 
 
 ## D-004 — Resolution-target alignment
 **Date:** 20 Aug 2026  
-**Status:** Active
+**Status:** Superseded by D-009
 
-Train and evaluate against the official Polymarket outcome. Current verified examples use Chainlink BTC/USD and resolve Up when end >= start.
+Train and evaluate against the official Polymarket outcome. Early checked examples used Chainlink BTC/USD and end-price-versus-start-price wording; current rules are versioned per D-009.
 
 ## D-005 — $0-first infrastructure
 **Date:** 20 Aug 2026  
@@ -49,3 +49,15 @@ The engine does not blindly learn after every trade. Live history enters a versi
 **Status:** Active
 
 Progression is Research → Paper → Live. Live trading requires documented validation, security/risk readiness, geographic eligibility checks, and explicit user authorization.
+
+## D-009 — Resolution rules are versioned market data
+**Date:** 20 Aug 2026  
+**Status:** Active
+
+Current checked BTC 5m/15m Rules use the Chainlink BTC/USD 60-second TWAP stream and TWAP-over-range wording, while older short markets used the regular BTC/USD stream and end-price-versus-start-price wording. The engine must preserve exact rules text/source and a rules fingerprint for every market. Official Polymarket resolution remains the authoritative label.
+
+## D-010 — Phase 2 primary BTC venue starts with Bybit
+**Date:** 20 Aug 2026  
+**Status:** Active
+
+Phase 2 begins with Bybit public BTCUSDT spot and linear-perpetual WebSocket feeds as the primary BTC venue because the official V5 API exposes real-time public trades, ordered snapshot/delta books, matching-engine timestamps, and separate spot/linear streams without private credentials. A secondary venue is added after the primary path is stable; Coinbase Advanced Trade is the initial secondary candidate because its public `level2`, `market_trades`, and heartbeat channels are available without authentication.
