@@ -15,6 +15,7 @@ from bp_engine.polymarket.gamma import GammaClient
 from bp_engine.recorder.models import RawEvent
 
 OUTPUT = Path("tests/fixtures/recorder/live/recorder-smoke-capture.json")
+REPORT = Path("tests/fixtures/recorder/live/recorder-smoke-report.json")
 
 
 async def capture_one(runner: WebSocketCollectorRunner, *, timeout: float = 30.0) -> RawEvent:
@@ -125,5 +126,21 @@ async def main() -> None:
     print(json.dumps({"status": "ok", "sources": ["polymarket", "bybit_spot", "bybit_linear"]}))
 
 
+def write_report(status: str, **details: object) -> None:
+    REPORT.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "status": status,
+        "recorded_at": datetime.now(UTC).isoformat(),
+        **details,
+    }
+    REPORT.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as exc:
+        write_report("error", error_type=type(exc).__name__, error=str(exc))
+        raise
+    else:
+        write_report("ok", sources=["polymarket", "bybit_spot", "bybit_linear"])
