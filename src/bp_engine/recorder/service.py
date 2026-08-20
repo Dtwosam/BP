@@ -194,6 +194,10 @@ def build_default_recorder_service(settings: object) -> RecorderService:
     from websockets.asyncio.client import connect
 
     from bp_engine.collectors.bybit_ws import build_bybit_subscription, parse_bybit_message
+    from bp_engine.collectors.coinbase_ws import (
+        build_coinbase_subscriptions,
+        parse_coinbase_message,
+    )
     from bp_engine.collectors.polymarket_ws import (
         build_market_subscription,
         parse_polymarket_message,
@@ -201,6 +205,7 @@ def build_default_recorder_service(settings: object) -> RecorderService:
     from bp_engine.collectors.websocket_runner import WebSocketCollectorRunner
     from bp_engine.polymarket.gamma import GammaClient
     from bp_engine.polymarket.service import MarketDiscoveryService
+    from bp_engine.recorder.polymarket_coordinator import PolymarketSubscriptionCoordinator
     from bp_engine.recorder.writer import BatchWriter, EventBuffer
     from bp_engine.storage.recorder import RecorderRepository
     from bp_engine.storage.schema import metadata
@@ -287,11 +292,27 @@ def build_default_recorder_service(settings: object) -> RecorderService:
         heartbeat_interval_seconds=20.0,
     )
 
+    coinbase_spot = WebSocketCollectorRunner(
+        source="coinbase",
+        stream="spot",
+        url=settings.coinbase_spot_ws_url,
+        connector=connect,
+        subscription=build_coinbase_subscriptions(["BTC-USD"]),
+        parser=lambda message, received_at: parse_coinbase_message(
+            message, received_at=received_at
+        ),
+        event_sink=event_sink,
+        incident_sink=database_sink.record_incident,
+        heartbeat_message=None,
+        heartbeat_interval_seconds=None,
+    )
+
     return RecorderService(
         {
             "writer": _BatchWriterComponent(writer),
             "polymarket": polymarket,
             "bybit_spot": bybit_spot,
             "bybit_linear": bybit_linear,
+            "coinbase_spot": coinbase_spot,
         }
     )

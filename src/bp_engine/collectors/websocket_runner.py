@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
@@ -56,17 +56,19 @@ class WebSocketCollectorRunner:
         stream: str,
         url: str,
         connector: Callable[[str], Any],
-        subscription: Mapping[str, object] | str,
+        subscription: Mapping[str, object] | str | Sequence[Mapping[str, object] | str],
         parser: Parser,
         event_sink: EventSink,
         incident_sink: IncidentSink,
-        heartbeat_message: Mapping[str, object] | str,
-        heartbeat_interval_seconds: float,
+        heartbeat_message: Mapping[str, object] | str | None,
+        heartbeat_interval_seconds: float | None,
         reconnect_policy: ReconnectPolicy | None = None,
         now: NowFactory | None = None,
         outbound_messages: asyncio.Queue[object] | None = None,
     ) -> None:
-        if heartbeat_interval_seconds <= 0:
+        if (heartbeat_message is None) != (heartbeat_interval_seconds is None):
+            raise ValueError("heartbeat message and interval must be configured together")
+        if heartbeat_interval_seconds is not None and heartbeat_interval_seconds <= 0:
             raise ValueError("heartbeat_interval_seconds must be greater than zero")
         self.source = source
         self.stream = stream
@@ -95,10 +97,20 @@ class WebSocketCollectorRunner:
         )
 
     async def _run_connection(self, websocket: WebSocketLike, stop: asyncio.Event) -> None:
-        await websocket.send(_wire_message(self.subscription))
+        subscriptions = (
+            [self.subscription]
+            if isinstance(self.subscription, (str, Mapping))
+            else list(self.subscription)
+        )
+        for subscription in subscriptions:
+            await websocket.send(_wire_message(subscription))
         recv_task = asyncio.create_task(websocket.recv())
         stop_task = asyncio.create_task(stop.wait())
-        heartbeat_task = asyncio.create_task(asyncio.sleep(self.heartbeat_interval_seconds))
+        heartbeat_task = (
+            asyncio.create_task(asyncio.sleep(self.heartbeat_interval_seconds))
+            if self.heartbeat_interval_seconds is not None
+            else None
+        )
         outbound_task = (
             asyncio.create_task(self.outbound_messages.get())
             if self.outbound_messages is not None
@@ -107,7 +119,9 @@ class WebSocketCollectorRunner:
 
         try:
             while True:
-                wait_tasks = {recv_task, stop_task, heartbeat_task}
+                wait_tasks = {recv_task, stop_task}
+                if heartbeat_task is not None:
+                    wait_tasks.add(heartbeat_task)
                 if outbound_task is not None:
                     wait_tasks.add(outbound_task)
                 done, _ = await asyncio.wait(
@@ -118,7 +132,9 @@ class WebSocketCollectorRunner:
                 if stop_task in done and stop_task.result():
                     return
 
-                if heartbeat_task in done:
+                if heartbeat_task is not None and heartbeat_task in done:
+                    assert self.heartbeat_message is not None
+                    assert self.heartbeat_interval_seconds is not None
                     await websocket.send(_wire_message(self.heartbeat_message))
                     heartbeat_task = asyncio.create_task(
                         asyncio.sleep(self.heartbeat_interval_seconds)
@@ -138,7 +154,9 @@ class WebSocketCollectorRunner:
                         return
                     recv_task = asyncio.create_task(websocket.recv())
         finally:
-            tasks = [recv_task, stop_task, heartbeat_task]
+            tasks = [recv_task, stop_task]
+            if heartbeat_task is not None:
+                tasks.append(heartbeat_task)
             if outbound_task is not None:
                 tasks.append(outbound_task)
             for task in tasks:
@@ -174,9 +192,7 @@ class WebSocketCollectorRunner:
                 if stop.is_set():
                     break
                 delay = self.reconnect_policy.delay_for_attempt(attempt)
-                await self._incident(
-                    "reconnect", {"attempt": attempt, "delay_seconds": delay}
-                )
+                await self._incident("reconnect", {"attempt": attempt, "delay_seconds": delay})
                 attempt += 1
                 await self._wait_before_reconnect(stop, delay)
             finally:

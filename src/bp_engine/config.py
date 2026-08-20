@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     polymarket_ws_url: str = "wss://ws-subscriptions-clob.polymarket.com/ws/market"
     bybit_spot_ws_url: str = "wss://stream.bybit.com/v5/public/spot"
     bybit_linear_ws_url: str = "wss://stream.bybit.com/v5/public/linear"
+    coinbase_spot_ws_url: str = "wss://advanced-trade-ws.coinbase.com"
 
 
 @lru_cache(maxsize=1)

@@ -1,0 +1,6 @@
+{
+  "channel": "heartbeats",
+  "timestamp": "2026-08-20T22:19:52.000000Z",
+  "sequence_num": 44,
+  "events": [{"current_time": "2026-08-20 22:19:52 +0000 UTC", "heartbeat_counter": "99"}]
+}

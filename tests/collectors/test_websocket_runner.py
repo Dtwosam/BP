@@ -230,3 +230,39 @@ async def test_runner_sends_dynamic_control_messages_without_reconnecting() -> N
 
     assert connector.urls == ["wss://example.test/ws"]
     assert '{"operation":"subscribe","assets_ids":["new"]}' in ws.sent
+
+
+@pytest.mark.asyncio
+async def test_runner_sends_multiple_initial_subscriptions_without_client_heartbeat() -> None:
+    ws = FakeWebSocket(['{"channel":"heartbeats","sequence_num":1,"events":[]}'])
+    connector = FakeConnector([ws])
+    stop = asyncio.Event()
+
+    def parser(message: object, received_at: datetime) -> list[RawEvent]:
+        stop.set()
+        return []
+
+    runner = WebSocketCollectorRunner(
+        source="coinbase",
+        stream="spot",
+        url="wss://example.test/ws",
+        connector=connector,
+        subscription=[
+            {"type": "subscribe", "product_ids": ["BTC-USD"], "channel": "level2"},
+            {"type": "subscribe", "product_ids": ["BTC-USD"], "channel": "market_trades"},
+            {"type": "subscribe", "channel": "heartbeats"},
+        ],
+        parser=parser,
+        event_sink=lambda event: None,
+        incident_sink=lambda incident: None,
+        heartbeat_message=None,
+        heartbeat_interval_seconds=None,
+    )
+
+    await asyncio.wait_for(runner.run(stop), timeout=1)
+
+    assert ws.sent == [
+        '{"type":"subscribe","product_ids":["BTC-USD"],"channel":"level2"}',
+        '{"type":"subscribe","product_ids":["BTC-USD"],"channel":"market_trades"}',
+        '{"type":"subscribe","channel":"heartbeats"}',
+    ]

@@ -8,6 +8,10 @@ from pathlib import Path
 from websockets.asyncio.client import connect
 
 from bp_engine.collectors.bybit_ws import build_bybit_subscription, parse_bybit_message
+from bp_engine.collectors.coinbase_ws import (
+    build_coinbase_subscriptions,
+    parse_coinbase_message,
+)
 from bp_engine.collectors.polymarket_ws import build_market_subscription, parse_polymarket_message
 from bp_engine.collectors.websocket_runner import WebSocketCollectorRunner
 from bp_engine.polymarket.discovery import discover_btc_markets
@@ -107,10 +111,26 @@ async def main() -> None:
         heartbeat_interval_seconds=20,
     )
 
-    pm_event, spot_event, linear_event = await asyncio.gather(
+    coinbase_spot = WebSocketCollectorRunner(
+        source="coinbase",
+        stream="spot",
+        url="wss://advanced-trade-ws.coinbase.com",
+        connector=connect,
+        subscription=build_coinbase_subscriptions(["BTC-USD"]),
+        parser=lambda message, received_at: parse_coinbase_message(
+            message, received_at=received_at
+        ),
+        event_sink=lambda event: None,
+        incident_sink=incidents.append,
+        heartbeat_message=None,
+        heartbeat_interval_seconds=None,
+    )
+
+    pm_event, spot_event, linear_event, coinbase_event = await asyncio.gather(
         capture_one(polymarket),
         capture_one(bybit_spot),
         capture_one(bybit_linear),
+        capture_one(coinbase_spot),
     )
     payload = {
         "captured_at": datetime.now(UTC).isoformat(),
@@ -119,11 +139,19 @@ async def main() -> None:
             pm_event.model_dump(mode="json"),
             spot_event.model_dump(mode="json"),
             linear_event.model_dump(mode="json"),
+            coinbase_event.model_dump(mode="json"),
         ],
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-    print(json.dumps({"status": "ok", "sources": ["polymarket", "bybit_spot", "bybit_linear"]}))
+    print(
+        json.dumps(
+            {
+                "status": "ok",
+                "sources": ["polymarket", "bybit_spot", "bybit_linear", "coinbase_spot"],
+            }
+        )
+    )
 
 
 def write_report(status: str, **details: object) -> None:
@@ -143,4 +171,4 @@ if __name__ == "__main__":
         write_report("error", error_type=type(exc).__name__, error=str(exc))
         raise
     else:
-        write_report("ok", sources=["polymarket", "bybit_spot", "bybit_linear"])
+        write_report("ok", sources=["polymarket", "bybit_spot", "bybit_linear", "coinbase_spot"])
