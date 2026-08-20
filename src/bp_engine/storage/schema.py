@@ -28,3 +28,48 @@ polymarket_markets = Table(
     Column("discovered_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
 )
+
+from sqlalchemy import JSON, UniqueConstraint
+
+raw_market_events = Table(
+    "raw_market_events",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("source", String(32), nullable=False),
+    Column("stream", String(64), nullable=False),
+    Column("instrument", String(128), nullable=False),
+    Column("event_type", String(64), nullable=False),
+    Column("source_timestamp", DateTime(timezone=True), nullable=True),
+    Column("received_at", DateTime(timezone=True), nullable=False),
+    Column("sequence", String(128), nullable=True),
+    Column("market_id", Text, nullable=True),
+    Column("asset_id", Text, nullable=True),
+    Column("payload", JSON, nullable=False),
+    Column("dedupe_key", String(80), nullable=False),
+    UniqueConstraint("dedupe_key", name="uq_raw_market_events_dedupe_key"),
+)
+
+feed_incidents = Table(
+    "feed_incidents",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("source", String(32), nullable=False),
+    Column("stream", String(64), nullable=False),
+    Column("incident_type", String(64), nullable=False),
+    Column("observed_at", DateTime(timezone=True), nullable=False),
+    Column("details", JSON, nullable=False),
+)
+
+feed_status = Table(
+    "feed_status",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("source", String(32), nullable=False),
+    Column("stream", String(64), nullable=False),
+    Column("status", String(32), nullable=False),
+    Column("last_received_at", DateTime(timezone=True), nullable=True),
+    Column("last_source_timestamp", DateTime(timezone=True), nullable=True),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    Column("details", JSON, nullable=False),
+    UniqueConstraint("source", "stream", name="uq_feed_status_source_stream"),
+)
