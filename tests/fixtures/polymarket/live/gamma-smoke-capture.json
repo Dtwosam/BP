@@ -1,6 +1,6 @@
 [
   {
-    "captured_at": "2026-08-20T21:33:29.253456+00:00",
+    "captured_at": "2026-08-20T21:34:19.242353+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
@@ -9,13 +9,12 @@
       "approved": true,
       "archived": false,
       "automaticallyActive": true,
-      "bestAsk": 0.66,
-      "bestBid": 0.65,
+      "bestAsk": 0.001,
       "clearBookOnStart": false,
       "clobTokenIds": "[\"35539839460256651698005360927216081305607121834128979678996942226583711301672\", \"52322340607006573081942834216818365727808547177954271068468409133397140984705\"]",
       "closed": false,
       "comboStatus": "disabled",
-      "competitive": 0.9765386587241522,
+      "competitive": 0.8003199679231757,
       "conditionId": "0xe3bec5e583c245912146e091832600f8726981649d5d3623770698c20c465236",
       "createdAt": "2026-08-19T21:32:39.231862Z",
       "cryptoMarketConfig": {
@@ -40,7 +39,7 @@
           "automaticallyActive": true,
           "closed": false,
           "commentCount": 0,
-          "competitive": 0.9869476177551876,
+          "competitive": 0.9765386587241522,
           "createdAt": "2026-08-19T21:32:39.107824Z",
           "creationDate": "2026-08-19T21:36:05.284236Z",
           "cyom": false,
@@ -49,12 +48,15 @@
           "enableNegRisk": false,
           "enableOrderBook": true,
           "endDate": "2026-08-20T21:30:00Z",
+          "eventMetadata": {
+            "priceToBeat": 72699.55192109419
+          },
           "featured": false,
           "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/BTC+fullsize.png",
           "id": "877590",
           "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/BTC+fullsize.png",
-          "liquidity": 4639.5982,
-          "liquidityClob": 4639.5982,
+          "liquidity": 8262.5688,
+          "liquidityClob": 8262.5688,
           "negRisk": false,
           "negRiskAugmented": false,
           "new": false,
@@ -71,7 +73,7 @@
           "startTime": "2026-08-20T21:25:00Z",
           "ticker": "btc-updown-5m-1787261100",
           "title": "Bitcoin Up or Down - August 20, 5:25PM-5:30PM ET",
-          "updatedAt": "2026-08-20T21:27:48.337291Z",
+          "updatedAt": "2026-08-20T21:30:00.577987Z",
           "version": "v1",
           "volume": 2,
           "volume1mo": 2,
@@ -96,10 +98,10 @@
       "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/BTC+fullsize.png",
       "id": "3731310",
       "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/BTC+fullsize.png",
-      "lastTradePrice": 0.69,
-      "liquidity": "8262.5688",
-      "liquidityClob": 8262.5688,
-      "liquidityNum": 8262.5688,
+      "lastTradePrice": 0.001,
+      "liquidity": "252701.09088",
+      "liquidityClob": 252701.09088,
+      "liquidityNum": 252701.09088,
       "makerBaseFee": 1000,
       "makerRebatesFeeShareBps": 10000,
       "manualActivation": false,
@@ -107,10 +109,10 @@
       "negRisk": false,
       "negRiskOther": false,
       "new": false,
-      "oneHourPriceChange": 0.15,
+      "oneHourPriceChange": -0.5045,
       "orderMinSize": 5,
-      "orderPriceMinTickSize": 0.01,
-      "outcomePrices": "[\"0.015\", \"0.985\"]",
+      "orderPriceMinTickSize": 0.001,
+      "outcomePrices": "[\"0.0005\", \"0.9995\"]",
       "outcomes": "[\"Up\", \"Down\"]",
       "pagerDutyNotificationEnabled": false,
       "pendingDeployment": false,
@@ -120,30 +122,30 @@
       "requiresTranslation": false,
       "resolutionSource": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
       "restricted": true,
-      "rewardsMaxSpread": 1.5,
-      "rewardsMinSize": 50,
+      "rewardsMaxSpread": 0,
+      "rewardsMinSize": 0,
       "rfqEnabled": false,
       "showGmpOutcome": false,
       "showGmpSeries": false,
       "slug": "btc-updown-5m-1787261100",
-      "spread": 0.01,
+      "spread": 0.001,
       "startDate": "2026-08-19T21:33:40.996901Z",
       "startDateIso": "2026-08-19",
       "takerBaseFee": 1000,
       "umaResolutionStatuses": "[]",
-      "updatedAt": "2026-08-20T21:28:44.443025Z",
+      "updatedAt": "2026-08-20T21:31:29.005481Z",
       "version": "v1",
-      "volume": "2",
-      "volume1mo": 2,
-      "volume1moClob": 2,
-      "volume1wk": 2,
-      "volume1wkClob": 2,
-      "volume1yr": 2,
-      "volume1yrClob": 2,
-      "volume24hr": 2,
-      "volume24hrClob": 2,
-      "volumeClob": 2,
-      "volumeNum": 2
+      "volume": "51292.39429499996",
+      "volume1mo": 51292.39429499997,
+      "volume1moClob": 51292.39429499997,
+      "volume1wk": 51292.39429499997,
+      "volume1wkClob": 51292.39429499997,
+      "volume1yr": 51292.39429499997,
+      "volume1yrClob": 51292.39429499997,
+      "volume24hr": 51292.39429499997,
+      "volume24hrClob": 51292.39429499997,
+      "volumeClob": 51292.39429499996,
+      "volumeNum": 51292.39429499996
     },
     "normalized": {
       "accepting_orders": true,
@@ -166,7 +168,7 @@
     }
   },
   {
-    "captured_at": "2026-08-20T21:33:29.253456+00:00",
+    "captured_at": "2026-08-20T21:34:19.242353+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
@@ -331,7 +333,7 @@
     }
   },
   {
-    "captured_at": "2026-08-20T21:33:29.253456+00:00",
+    "captured_at": "2026-08-20T21:34:19.242353+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
@@ -495,7 +497,7 @@
     }
   },
   {
-    "captured_at": "2026-08-20T21:33:29.253456+00:00",
+    "captured_at": "2026-08-20T21:34:19.242353+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
@@ -662,7 +664,7 @@
     }
   },
   {
-    "captured_at": "2026-08-20T21:33:29.253456+00:00",
+    "captured_at": "2026-08-20T21:34:19.242353+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
@@ -827,7 +829,7 @@
     }
   },
   {
-    "captured_at": "2026-08-20T21:33:29.253456+00:00",
+    "captured_at": "2026-08-20T21:34:19.242353+00:00",
     "gamma_payload": {
       "$schema": "https://gamma-api.polymarket.com/schemas/Market.json",
       "acceptingOrders": true,
