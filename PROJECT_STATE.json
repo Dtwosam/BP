@@ -1,19 +1,26 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.1.0",
-  "updated_at": "2026-08-20T21:59:00+01:00",
-  "current_phase": 1,
-  "current_phase_name": "Polymarket market discovery",
-  "status": "PHASE_0_COMPLETE_READY_FOR_PHASE_1",
+  "source_of_truth_version": "0.2.1",
+  "updated_at": "2026-08-20T21:35:00Z",
+  "current_phase": 2,
+  "current_phase_name": "24/7 raw recorder",
+  "status": "PHASE_1_COMPLETE_READY_FOR_PHASE_2",
   "trading_mode": "RESEARCH",
   "live_trading_enabled": false,
-  "verified_polymarket_horizons": ["5m", "15m"],
-  "desired_unverified_horizons": ["10m"],
+  "verified_polymarket_horizons": [
+    "5m",
+    "15m"
+  ],
+  "desired_unverified_horizons": [
+    "10m"
+  ],
   "resolution_alignment": {
-    "verified_current_source": "Chainlink BTC/USD data stream",
-    "up_rule": "end_price >= start_price",
-    "note": "Re-verify official rules for every target market and before live trading."
+    "verified_current_source": "Chainlink BTC/USD TWAP 60s data stream",
+    "current_rules_summary": "Up if the Chainlink-generated BTC TWAP over the stated market range is greater than or equal to the price at the beginning of that range; otherwise Down.",
+    "historical_rule_versions_exist": true,
+    "authoritative_label": "Official resolved Polymarket outcome",
+    "note": "Preserve exact resolutionSource/rules text and rules hash per market; re-verify before live trading."
   },
   "research_goal": {
     "desired_accuracy": 0.8,
@@ -31,15 +38,35 @@
     "Phase 0 repository foundation implemented",
     "Safe configuration defaults and health command verified",
     "Local PostgreSQL Docker Compose service defined",
-    "GitHub Actions CI defined"
+    "GitHub Actions CI defined",
+    "Phase 1 deterministic BTC 5m/15m slug discovery implemented",
+    "Official Gamma market-by-slug client implemented",
+    "Strict Up/Down CLOB token mapping and rules fingerprinting implemented",
+    "polymarket_markets schema/repository and rule-change guard implemented",
+    "Phase 1 local automated suite implemented (15 tests passing before final doc edits)",
+    "Live Gamma smoke workflow prepared for GitHub Actions",
+    "Phase 1 live Gamma smoke succeeded on GitHub Actions",
+    "Authentic 5m and 15m Gamma payloads captured and inspected",
+    "Synthetic parser fixture identifiers replaced with authentic captured Gamma values",
+    "Phase 1 full local suite passes with authentic fixtures (15 tests)"
   ],
-  "not_completed": ["24/7 recorder", "Historical backfill", "Feature engine", "Model training", "Backtesting", "Live prediction", "Paper trading", "Live trading"],
+  "not_completed": [
+    "24/7 recorder",
+    "24-hour recorder soak test",
+    "Historical backfill",
+    "Feature engine",
+    "Model training",
+    "Backtesting",
+    "Live prediction",
+    "Paper trading",
+    "Live trading"
+  ],
   "next_actions": [
-    "Build Gamma API client for Polymarket market discovery",
-    "Discover recurring BTC Up/Down markets automatically",
-    "Parse and persist market horizon, start/end timestamps, token IDs, and rules",
-    "Add real API fixtures and unit tests for market parsing",
-    "Then begin the 24/7 BTC + Polymarket recorder"
+    "Build Phase 2 Polymarket CLOB market WebSocket collector",
+    "Build Phase 2 primary BTC feed collector beginning with Bybit public BTCUSDT feeds",
+    "Add raw event persistence, reconnect/gap logging, stale-feed detection, heartbeats, and graceful shutdown",
+    "Add a secondary BTC venue after the primary collector is stable",
+    "Run live network smoke tests, then deploy for the required 24-hour soak test"
   ],
   "open_questions": [
     "Current/recurring availability of a 10m BTC Up/Down Polymarket market",
