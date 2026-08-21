@@ -28,7 +28,7 @@ def test_watchdog_emits_stale_once_then_recovered_on_next_event() -> None:
     assert recovered is not None and recovered.incident_type == "recovered"
 
 
-def test_clock_skew_guard_warns_only_beyond_threshold() -> None:
+def test_clock_skew_guard_allows_delayed_events_but_rejects_future_source_time() -> None:
     guard = ClockSkewGuard(max_abs_skew_seconds=2)
     received_at = datetime(2026, 8, 20, 21, 30, 10, tzinfo=UTC)
 
@@ -36,7 +36,17 @@ def test_clock_skew_guard_warns_only_beyond_threshold() -> None:
         guard.check(
             source="bybit",
             stream="linear",
-            source_timestamp=received_at - timedelta(seconds=1),
+            source_timestamp=received_at - timedelta(seconds=30),
+            received_at=received_at,
+        )
+        is None
+    )
+
+    assert (
+        guard.check(
+            source="bybit",
+            stream="linear",
+            source_timestamp=received_at + timedelta(seconds=1),
             received_at=received_at,
         )
         is None
@@ -45,10 +55,10 @@ def test_clock_skew_guard_warns_only_beyond_threshold() -> None:
     incident = guard.check(
         source="bybit",
         stream="linear",
-        source_timestamp=received_at - timedelta(seconds=3),
+        source_timestamp=received_at + timedelta(seconds=3),
         received_at=received_at,
     )
 
     assert incident is not None
     assert incident.incident_type == "clock_skew"
-    assert incident.details["skew_seconds"] == 3.0
+    assert incident.details["skew_seconds"] == -3.0
