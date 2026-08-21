@@ -86,7 +86,10 @@ class ClockSkewGuard:
         if source_timestamp is None:
             return None
         skew_seconds = (received_at - source_timestamp).total_seconds()
-        if abs(skew_seconds) <= self.max_abs_skew_seconds:
+        # A positive value is ordinary event age: source event time plus server,
+        # network, and local processing latency. With an NTP-synchronized host,
+        # clock-skew evidence is a source timestamp materially in the future.
+        if skew_seconds >= -self.max_abs_skew_seconds:
             return None
         return FeedIncident(
             source=source,
