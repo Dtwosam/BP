@@ -72,7 +72,7 @@ async def test_runner_emits_stale_incident_when_connected_feed_goes_quiet() -> N
 
 
 @pytest.mark.asyncio
-async def test_runner_emits_clock_skew_incident_for_parsed_event() -> None:
+async def test_runner_emits_clock_skew_incident_for_future_source_time() -> None:
     ws = FakeWebSocket(['{"sequence": 9}'])
     stop = asyncio.Event()
     incidents: list[FeedIncident] = []
@@ -85,7 +85,7 @@ async def test_runner_emits_clock_skew_incident_for_parsed_event() -> None:
                 stream="market",
                 instrument="BTC",
                 event_type="trade",
-                source_timestamp=received_at - timedelta(seconds=10),
+                source_timestamp=received_at + timedelta(seconds=10),
                 received_at=received_at,
                 sequence=9,
                 payload={"sequence": 9},
