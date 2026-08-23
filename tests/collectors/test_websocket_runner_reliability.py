@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -69,6 +69,52 @@ async def test_runner_emits_stale_incident_when_connected_feed_goes_quiet() -> N
     await asyncio.wait_for(runner.run(stop), timeout=1)
 
     assert "stale" in [incident.incident_type for incident in incidents]
+
+
+@pytest.mark.asyncio
+async def test_runner_emits_recovered_when_reconnect_clears_stale_watchdog() -> None:
+    watchdog = FeedWatchdog(stale_after_seconds=1)
+    observed_at = datetime(2026, 8, 23, tzinfo=UTC)
+    watchdog.observe(
+        "bybit",
+        "spot",
+        monotonic_time=0,
+        observed_at=observed_at,
+    )
+    stale = watchdog.check(
+        "bybit",
+        "spot",
+        monotonic_time=2,
+        observed_at=observed_at + timedelta(seconds=2),
+    )
+    assert stale is not None
+    assert stale.incident_type == "stale"
+
+    ws = FakeWebSocket(['{"type":"snapshot"}'])
+    stop = asyncio.Event()
+    incidents: list[FeedIncident] = []
+
+    def parser(message: object, received_at: datetime) -> list[RawEvent]:
+        stop.set()
+        return []
+
+    runner = WebSocketCollectorRunner(
+        source="bybit",
+        stream="spot",
+        url="wss://example.test/ws",
+        connector=FakeConnector(ws),
+        subscription={"op": "subscribe", "args": ["orderbook.1.BTCUSDT"]},
+        parser=parser,
+        event_sink=lambda event: None,
+        incident_sink=incidents.append,
+        heartbeat_message=None,
+        heartbeat_interval_seconds=None,
+        watchdog=watchdog,
+    )
+
+    await asyncio.wait_for(runner.run(stop), timeout=1)
+
+    assert "recovered" in [incident.incident_type for incident in incidents]
 
 
 @pytest.mark.asyncio
