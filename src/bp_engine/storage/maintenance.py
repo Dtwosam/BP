@@ -4,17 +4,21 @@ import gzip
 import hashlib
 import json
 import os
+import shutil
 import tempfile
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import Engine, func, select
+from sqlalchemy import Engine, func, select, text
+from sqlalchemy.exc import SQLAlchemyError
 
 from bp_engine.storage.recorder import RecorderRepository
 from bp_engine.storage.schema import market_state_1s, raw_market_events
 
+GIB = 1024**3
 REQUIRED_COMPACT_FEEDS = (
     ("bybit", "spot"),
     ("bybit", "linear"),
@@ -328,3 +332,161 @@ def prune_expired_state(
         deleted_total += deleted
         if deleted < batch_size:
             return deleted_total
+
+
+def _disk_health_from_usage(
+    path: Path | str,
+    usage: object,
+    *,
+    warning_free_gib: int | float,
+    critical_free_gib: int | float,
+) -> dict[str, Any]:
+    if warning_free_gib < 0 or critical_free_gib < 0:
+        raise ValueError("disk thresholds must be non-negative")
+    if warning_free_gib < critical_free_gib:
+        raise ValueError("warning threshold must be greater than or equal to critical threshold")
+
+    warning_free_bytes = int(warning_free_gib * GIB)
+    critical_free_bytes = int(critical_free_gib * GIB)
+    total = int(getattr(usage, "total"))
+    used = int(getattr(usage, "used"))
+    free = int(getattr(usage, "free"))
+    if free <= critical_free_bytes:
+        status = "critical"
+    elif free <= warning_free_bytes:
+        status = "warning"
+    else:
+        status = "ok"
+
+    return {
+        "path": str(Path(path)),
+        "status": status,
+        "total_bytes": total,
+        "used_bytes": used,
+        "free_bytes": free,
+        "free_percent": (free / total * 100.0) if total else 0.0,
+        "warning_free_bytes": warning_free_bytes,
+        "critical_free_bytes": critical_free_bytes,
+    }
+
+
+def disk_health(
+    path: Path | str,
+    warning_free_gib: int | float,
+    critical_free_gib: int | float,
+) -> dict[str, Any]:
+    return _disk_health_from_usage(
+        path,
+        shutil.disk_usage(path),
+        warning_free_gib=warning_free_gib,
+        critical_free_gib=critical_free_gib,
+    )
+
+
+def project_raw_bytes_per_day(
+    *,
+    recent_event_count: int,
+    recent_window_hours: float,
+    average_bytes_per_event: int | float,
+) -> int:
+    if recent_event_count < 0 or average_bytes_per_event < 0:
+        raise ValueError("event count and average bytes must be non-negative")
+    if recent_window_hours <= 0:
+        raise ValueError("recent_window_hours must be greater than zero")
+    return int((recent_event_count / recent_window_hours) * 24 * average_bytes_per_event)
+
+
+def _postgres_raw_total_bytes(engine: Engine) -> int | None:
+    if engine.dialect.name != "postgresql":
+        return None
+    try:
+        with engine.connect() as connection:
+            value = connection.execute(
+                text("SELECT pg_total_relation_size('raw_market_events')")
+            ).scalar_one()
+    except SQLAlchemyError:
+        return None
+    return int(value) if value is not None else None
+
+
+def build_storage_report(
+    engine: Engine,
+    archive_dir: Path | str,
+    settings: object,
+    *,
+    disk_usage_fn: Callable[[Path | str], object] = shutil.disk_usage,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    now_at = datetime.now(UTC) if now is None else _require_aware_utc(now, field="now")
+    archive_path = Path(archive_dir)
+    archive_path.mkdir(parents=True, exist_ok=True)
+
+    with engine.connect() as connection:
+        raw_count, first_received_at, last_received_at = connection.execute(
+            select(
+                func.count(raw_market_events.c.id),
+                func.min(raw_market_events.c.received_at),
+                func.max(raw_market_events.c.received_at),
+            )
+        ).one()
+        recent_24h_count = connection.execute(
+            select(func.count(raw_market_events.c.id)).where(
+                raw_market_events.c.received_at >= now_at - timedelta(hours=24),
+                raw_market_events.c.received_at <= now_at,
+            )
+        ).scalar_one()
+        state_count, first_bucket_at, last_bucket_at = connection.execute(
+            select(
+                func.count(market_state_1s.c.id),
+                func.min(market_state_1s.c.bucket_at),
+                func.max(market_state_1s.c.bucket_at),
+            )
+        ).one()
+
+    total_bytes = _postgres_raw_total_bytes(engine)
+    average_bytes_per_event: float | None = None
+    projected_bytes_per_day: int | None = None
+    if total_bytes is not None and raw_count:
+        average_bytes_per_event = total_bytes / int(raw_count)
+        projected_bytes_per_day = project_raw_bytes_per_day(
+            recent_event_count=int(recent_24h_count),
+            recent_window_hours=24,
+            average_bytes_per_event=average_bytes_per_event,
+        )
+
+    archive_files = list(archive_path.glob("*.jsonl.gz"))
+    archive_bytes = sum(path.stat().st_size for path in archive_files)
+    disk = _disk_health_from_usage(
+        archive_path,
+        disk_usage_fn(archive_path),
+        warning_free_gib=settings.storage_warning_free_gib,
+        critical_free_gib=settings.storage_critical_free_gib,
+    )
+
+    return {
+        "generated_at": _iso_utc(now_at),
+        "raw": {
+            "count": int(raw_count),
+            "first_received_at": _iso_utc(first_received_at),
+            "last_received_at": _iso_utc(last_received_at),
+            "recent_24h_count": int(recent_24h_count),
+            "total_bytes": total_bytes,
+            "average_bytes_per_event": average_bytes_per_event,
+            "projected_bytes_per_day": projected_bytes_per_day,
+        },
+        "state": {
+            "count": int(state_count),
+            "first_bucket_at": _iso_utc(first_bucket_at),
+            "last_bucket_at": _iso_utc(last_bucket_at),
+        },
+        "archives": {
+            "count": len(archive_files),
+            "bytes": archive_bytes,
+        },
+        "disk": disk,
+        "retention": {
+            "hot_raw_hours": settings.storage_hot_raw_hours,
+            "archive_retention_hours": settings.storage_archive_retention_hours,
+            "state_retention_days": settings.storage_state_retention_days,
+        },
+    }
