@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.3 — 23 August 2026
+
+Phase 2 closed after the genuine 24-hour always-on recorder gate and continuity review.
+
+The accepted frozen window is `2026-08-22T20:12:57.033984Z` through `2026-08-23T20:12:57.033984Z`. Revalidation of that exact window passed with 45,669,676 persisted events across Polymarket, Bybit spot, Bybit linear/perpetual, and Coinbase spot.
+
+Continuity review found:
+
+- zero systemd recorder restarts during the run;
+- zero unresolved disconnects;
+- zero `clock_skew` incidents;
+- zero internal `backpressure` incidents;
+- all 35 recorded disconnects followed by prompt reconnects;
+- bounded and explicitly logged Bybit stale gaps of 30.734 s (spot) and 51.229 s (linear), followed by resumed ingestion.
+
+The original formal report remains preserved as failed evidence because a stale-recovery incident persistence bug incorrectly left the two Bybit stale states unresolved in the incident table. The defect was reproduced test-first, fixed, and verified. Final reliability/evaluator commit `8c4c35b654b46a8bd8235daa2a03d43496693c2a` passed CI run 79 with Ruff clean and 77 tests, Live Recorder Smoke run 48, and Recorder Short Soak run 16.
+
+The earlier host attempt that filled the original 40 GB disk is also retained as failed evidence and is not counted toward acceptance. That storage failure directly motivates Phase 3 retention/aggregation work.
+
+Sanitized closeout evidence is stored in `docs/evidence/phase-2-host-soak-20260823.json`; the narrative closeout is `docs/PHASE-2-CLOSEOUT.md`.
+
+Phase 3 — retention and aggregation — is now the next permitted build-order phase. Live trading remains disabled.
+
 ## 0.2.2 — 21 August 2026
 
 Phase 2 reached the pre-host recorder checkpoint. The phase remains open pending the required genuine 24-hour always-on soak test.
