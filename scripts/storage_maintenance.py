@@ -142,7 +142,9 @@ def _run_command(args: argparse.Namespace) -> int:
         return 1
 
     with engine.connect() as connection:
-        earliest = connection.execute(func.min(raw_market_events.c.received_at).select()).scalar_one()
+        earliest = connection.execute(
+            select(func.min(raw_market_events.c.received_at))
+        ).scalar_one()
 
     raw_intervals: list[dict[str, object]] = []
     hot_cutoff = now - timedelta(hours=settings.storage_hot_raw_hours)
