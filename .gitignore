@@ -1,0 +1,33 @@
+# Secrets / local environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Runtime data
+/data/*
+!/data/.gitkeep
+*.log
+
+# Local database / docker overrides
+postgres-data/
+docker-compose.override.yml
+
+# Worktrees
+.worktrees/
+worktrees/

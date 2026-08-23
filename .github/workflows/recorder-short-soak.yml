@@ -1,0 +1,73 @@
+name: Recorder Short Soak
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  short-soak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: bp
+          POSTGRES_USER: bp
+          POSTGRES_PASSWORD: bp_ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bp -d bp"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://bp:bp_ci_only@localhost:5432/bp
+      RECORDER_REQUIRE_NTP_SYNC: "false"
+      MODE: research
+      LIVE_TRADING_ENABLED: "false"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: build/phase-2-recorder
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run recorder for 45 seconds
+        shell: bash
+        run: |
+          set -u -o pipefail
+          python -m bp_engine.recorder > recorder-short-soak.log 2>&1 &
+          pid=$!
+          for _ in $(seq 1 45); do
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo "Recorder exited before soak window completed"
+              cat recorder-short-soak.log
+              wait "$pid"
+              exit $?
+            fi
+            sleep 1
+          done
+          kill -TERM "$pid"
+          status=0
+          wait "$pid" || status=$?
+          cat recorder-short-soak.log
+          exit "$status"
+
+      - name: Evaluate persisted feed health
+        run: python scripts/soak_report.py --hours 0.01 --minimum-hours 0.008

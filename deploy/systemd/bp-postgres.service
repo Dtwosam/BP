@@ -1,0 +1,18 @@
+[Unit]
+Description=BP PostgreSQL container
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/bp
+EnvironmentFile=/etc/bp/bp.env
+ExecStart=/bin/sh -c '/usr/bin/docker compose --env-file /etc/bp/bp.env -f /opt/bp/docker-compose.prod.yml up -d postgres; for i in $(seq 1 60); do /usr/bin/docker compose --env-file /etc/bp/bp.env -f /opt/bp/docker-compose.prod.yml exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" && exit 0; sleep 1; done; exit 1'
+ExecStop=/usr/bin/docker compose --env-file /etc/bp/bp.env -f /opt/bp/docker-compose.prod.yml stop postgres
+TimeoutStartSec=120
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

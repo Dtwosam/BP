@@ -1,0 +1,167 @@
+{
+  "phase": 2,
+  "gate": "24-hour always-on recorder soak",
+  "status": "passed_after_transparent_revalidation",
+  "window": {
+    "start_at": "2026-08-22T20:12:57.033984Z",
+    "end_at": "2026-08-23T20:12:57.033984Z",
+    "duration_seconds": 86400,
+    "minimum_duration_seconds": 86400
+  },
+  "host": {
+    "service": "bp-recorder",
+    "systemd_nrestarts": 0,
+    "systemd_result": "success",
+    "exec_main_start_timestamp": "2026-08-22T20:06:16Z",
+    "exec_main_exit_timestamp": "2026-08-23T20:21:09Z",
+    "journal_window_result": "no entries",
+    "journal_note": "The unit routes stdout/stderr to journald, but the recorder emits no routine stdout/stderr lines during normal operation; continuity was independently checked with systemd state and persisted feed incidents."
+  },
+  "capture": {
+    "commit": "cd150668a6189467d4b663c719f8b33f576f5791",
+    "first_formal_report": {
+      "path_on_host": "/var/lib/bp/evidence/phase2-soak-20260823T201256Z.json",
+      "sha256": "8a41df56bdd3a270e49f982086f183211f326682cd3905e7df53d3c30a53b3c1",
+      "passed": false,
+      "failures": [
+        "bybit/spot has unresolved stale state",
+        "bybit/linear has unresolved stale state"
+      ],
+      "note": "Preserved unchanged. The failures were traced to a stale-recovery incident persistence bug, not to continued feed outage."
+    },
+    "revalidation": {
+      "code_commit": "8c4c35b654b46a8bd8235daa2a03d43496693c2a",
+      "path_on_host": "/var/lib/bp/evidence/phase2-soak-revalidated-20260823T201257Z.json",
+      "sha256": "a9f5b13a26da1d657f33c92653221d019bffa4af0849c3886e18a9c33f1e20eb",
+      "passed": true,
+      "failures": [],
+      "note": "The exact same frozen 24-hour window was evaluated. Later raw events after each stale incident are accepted as recovery evidence; the original failed report remains preserved."
+    }
+  },
+  "feeds": {
+    "bybit/linear": {
+      "event_count": 4074066,
+      "first_received_at": "2026-08-22T20:12:57.108698Z",
+      "last_received_at": "2026-08-23T20:12:56.986390Z"
+    },
+    "bybit/spot": {
+      "event_count": 2707330,
+      "first_received_at": "2026-08-22T20:12:57.055011Z",
+      "last_received_at": "2026-08-23T20:12:56.769945Z"
+    },
+    "coinbase/spot": {
+      "event_count": 1126086,
+      "first_received_at": "2026-08-22T20:12:57.056437Z",
+      "last_received_at": "2026-08-23T20:12:56.937658Z"
+    },
+    "polymarket/market": {
+      "event_count": 37762194,
+      "first_received_at": "2026-08-22T20:12:57.034144Z",
+      "last_received_at": "2026-08-23T20:12:57.032468Z"
+    }
+  },
+  "total_event_count": 45669676,
+  "incidents": {
+    "bybit/linear": {
+      "disconnected": 1,
+      "connected": 1,
+      "error": 1,
+      "stale": 1,
+      "reconnect": 1
+    },
+    "bybit/spot": {
+      "reconnect": 1,
+      "stale": 1,
+      "error": 1,
+      "disconnected": 1,
+      "connected": 1
+    },
+    "coinbase/spot": {
+      "disconnected": 2,
+      "reconnect": 2,
+      "connected": 2,
+      "error": 2
+    },
+    "polymarket/market": {
+      "connected": 31,
+      "stale": 12,
+      "error": 31,
+      "recovered": 12,
+      "reconnect": 31,
+      "disconnected": 31
+    }
+  },
+  "health_failures": {
+    "clock_skew_incidents": 0,
+    "backpressure_incidents": 0,
+    "unresolved_disconnects": 0
+  },
+  "reconnect_review": {
+    "bybit/linear": {
+      "disconnects": 1,
+      "max_reconnect_seconds": 0.799,
+      "unresolved_disconnects": 0
+    },
+    "bybit/spot": {
+      "disconnects": 1,
+      "max_reconnect_seconds": 0.835,
+      "unresolved_disconnects": 0
+    },
+    "coinbase/spot": {
+      "disconnects": 2,
+      "max_reconnect_seconds": 0.267,
+      "unresolved_disconnects": 0
+    },
+    "polymarket/market": {
+      "disconnects": 31,
+      "max_reconnect_seconds": 0.444,
+      "unresolved_disconnects": 0
+    }
+  },
+  "bybit_stale_gap_review": {
+    "bybit/linear": {
+      "stale_at": "2026-08-23T12:53:32.721871Z",
+      "last_event_before_stale": "2026-08-23T12:53:21.774230Z",
+      "first_event_after_stale": "2026-08-23T12:54:13.003541Z",
+      "raw_gap_seconds": 51.229
+    },
+    "bybit/spot": {
+      "stale_at": "2026-08-23T12:44:35.495455Z",
+      "last_event_before_stale": "2026-08-23T12:44:25.203491Z",
+      "first_event_after_stale": "2026-08-23T12:44:55.937915Z",
+      "raw_gap_seconds": 30.734
+    }
+  },
+  "error_review": {
+    "classification": "explained transient feed/network disconnects",
+    "polymarket_slow_consumer_events": 1,
+    "polymarket_slow_consumer_message": "received 1013 (try again later) slow consumer: send buffer full",
+    "note": "All recorded disconnects had a subsequent connected incident. The two Bybit stale periods have bounded raw-data gaps and resumed ingest. No recorder process restart occurred."
+  },
+  "known_defect_and_fix": {
+    "defect": "At WebSocket connection start, FeedWatchdog.observe() cleared stale state and returned a recovered incident whose return value was ignored, so a later data message could not persist recovered.",
+    "red_test_commit": "a0b01cba4a8bed9cbaf055ce2cc41db3540c571b",
+    "final_verified_commit": "8c4c35b654b46a8bd8235daa2a03d43496693c2a",
+    "final_ci": {
+      "run_number": 79,
+      "passed": true,
+      "tests": 77,
+      "ruff": "clean",
+      "live_recorder_smoke_run_number": 48,
+      "live_recorder_smoke_passed": true,
+      "short_soak_run_number": 16,
+      "short_soak_passed": true
+    }
+  },
+  "failed_first_host_attempt": {
+    "note": "An earlier host soak attempt did not reach 24 hours because the original 40 GB disk filled. It is not counted as passing evidence.",
+    "pre_rerun_dump_path_on_host": "/var/lib/bp/evidence/pre-phase2-rerun-20260822.dump",
+    "pre_rerun_dump_sha256": "80c867ee2458ed0a2684658bd23f46ec09df7372c574e42f343f04acefcd0e59"
+  },
+  "acceptance": {
+    "24_hour_soak": true,
+    "no_unexplained_data_gaps": true,
+    "gaps_and_reconnects_explicitly_logged": true,
+    "phase_2_passed": true
+  }
+}
