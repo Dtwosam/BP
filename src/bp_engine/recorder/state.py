@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+import asyncio
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -79,7 +80,9 @@ class MarketStateReducer:
             parts.append(effective_asset)
         return "/".join(parts)
 
-    def _touch(self, event: RawEvent, *, asset_id: str | None = None) -> tuple[str, _TrackedState]:
+    def _touch(
+        self, event: RawEvent, *, asset_id: str | None = None
+    ) -> tuple[str, _TrackedState]:
         key = self._state_key(event, asset_id)
         effective_asset = asset_id or event.asset_id
         tracked = self._states.get(key)
@@ -246,14 +249,22 @@ class MarketStateReducer:
     def _observe_coinbase(self, event: RawEvent) -> None:
         payload = event.payload
         events = payload.get("events")
-        if not isinstance(events, list) or not events or not isinstance(events[0], Mapping):
+        if (
+            not isinstance(events, list)
+            or not events
+            or not isinstance(events[0], Mapping)
+        ):
             return
         first = events[0]
         _, tracked = self._touch(event)
 
         if event.event_type.startswith("ticker_"):
             tickers = first.get("tickers")
-            if not isinstance(tickers, list) or not tickers or not isinstance(tickers[0], Mapping):
+            if (
+                not isinstance(tickers, list)
+                or not tickers
+                or not isinstance(tickers[0], Mapping)
+            ):
                 return
             ticker = tickers[0]
             field_map = {
@@ -272,7 +283,11 @@ class MarketStateReducer:
 
         if event.event_type.startswith("market_trades_"):
             trades = first.get("trades")
-            if not isinstance(trades, list) or not trades or not isinstance(trades[-1], Mapping):
+            if (
+                not isinstance(trades, list)
+                or not trades
+                or not isinstance(trades[-1], Mapping)
+            ):
                 return
             trade = trades[-1]
             field_map = {
@@ -310,3 +325,41 @@ class MarketStateReducer:
             )
             for key, tracked in sorted(self._states.items())
         ]
+
+
+SnapshotWriter = Callable[[list[MarketStateSnapshot]], Awaitable[None]]
+NowFactory = Callable[[], datetime]
+
+
+class MarketStateSnapshotter:
+    """Persist the reducer's current state at a fixed cadence and on shutdown."""
+
+    def __init__(
+        self,
+        *,
+        reducer: MarketStateReducer,
+        write_snapshots: SnapshotWriter,
+        interval_seconds: float = 1.0,
+        now: NowFactory | None = None,
+    ) -> None:
+        if interval_seconds <= 0:
+            raise ValueError("interval_seconds must be greater than zero")
+        self._reducer = reducer
+        self._write_snapshots = write_snapshots
+        self._interval_seconds = interval_seconds
+        self._now = now or (lambda: datetime.now(UTC))
+
+    async def _flush(self) -> None:
+        snapshots = self._reducer.snapshots(self._now())
+        if snapshots:
+            await self._write_snapshots(snapshots)
+
+    async def run(self, stop: asyncio.Event) -> None:
+        while not stop.is_set():
+            try:
+                await asyncio.wait_for(stop.wait(), timeout=self._interval_seconds)
+            except TimeoutError:
+                await self._flush()
+                continue
+            break
+        await self._flush()

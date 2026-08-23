@@ -149,6 +149,13 @@ def test_default_builder_assembles_primary_recorder_components_without_network(t
     service = build_default_recorder_service(settings)
 
     assert service.component_names == frozenset(
-        {"writer", "polymarket", "bybit_spot", "bybit_linear", "coinbase_spot"}
+        {
+            "writer",
+            "state_snapshotter",
+            "polymarket",
+            "bybit_spot",
+            "bybit_linear",
+            "coinbase_spot",
+        }
     )
     assert settings.live_trading_enabled is False
