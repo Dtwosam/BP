@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 
+from bp_engine.recorder.state import MarketStateSnapshot
 from sqlalchemy import create_engine, select
 
-from bp_engine.recorder.state import MarketStateSnapshot
 from bp_engine.storage.recorder import RecorderRepository
 from bp_engine.storage.schema import market_state_1s, metadata
 
