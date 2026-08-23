@@ -4,14 +4,14 @@ import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import create_engine, delete, select
-
-from bp_engine.recorder.models import RawEvent
 from bp_engine.storage.maintenance import (
     ArchiveVerificationError,
     archive_interval,
     verify_archive,
 )
+from sqlalchemy import create_engine, delete, select
+
+from bp_engine.recorder.models import RawEvent
 from bp_engine.storage.recorder import RecorderRepository
 from bp_engine.storage.schema import metadata, raw_market_events
 
