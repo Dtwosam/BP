@@ -140,10 +140,10 @@ def verify_archive(archive_path: Path | str, manifest_path: Path | str) -> Archi
     manifest = _manifest_from_payload(payload)
     if manifest.archive_name != archive.name:
         raise ArchiveVerificationError("archive name does not match manifest")
-    if archive.stat().st_size != manifest.compressed_bytes:
-        raise ArchiveVerificationError("archive compressed byte count does not match manifest")
     if _sha256(archive) != manifest.sha256:
         raise ArchiveVerificationError("archive SHA-256 does not match manifest")
+    if archive.stat().st_size != manifest.compressed_bytes:
+        raise ArchiveVerificationError("archive compressed byte count does not match manifest")
     if _gzip_row_count(archive) != manifest.row_count:
         raise ArchiveVerificationError("archive row count does not match manifest")
     return manifest
