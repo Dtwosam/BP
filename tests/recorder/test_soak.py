@@ -75,6 +75,42 @@ def test_soak_report_passes_when_all_feeds_have_events_and_stale_recovers() -> N
     assert report.incidents["bybit/spot"]["stale"] == 1
 
 
+def test_soak_report_treats_event_after_stale_as_recovery_evidence() -> None:
+    engine, repo = setup_db()
+    start = datetime(2026, 8, 20, 20, 0, tzinfo=UTC)
+    end = start + timedelta(hours=1)
+    required = [FeedKey("bybit", "spot")]
+
+    with engine.begin() as connection:
+        repo.insert_events(
+            connection,
+            [
+                event("bybit", "spot", start + timedelta(minutes=1), "1"),
+                event("bybit", "spot", start + timedelta(minutes=20), "2"),
+            ],
+        )
+        repo.record_incident(
+            connection,
+            FeedIncident(
+                source="bybit",
+                stream="spot",
+                incident_type="stale",
+                observed_at=start + timedelta(minutes=10),
+                details={"age_seconds": 11},
+            ),
+        )
+        report = build_soak_report(
+            connection,
+            start_at=start,
+            end_at=end,
+            required_feeds=required,
+            minimum_duration_seconds=3600,
+        )
+
+    assert report.passed is True
+    assert report.failures == []
+
+
 def test_soak_report_fails_missing_feed_unresolved_stale_and_backpressure() -> None:
     engine, repo = setup_db()
     start = datetime(2026, 8, 20, 20, 0, tzinfo=UTC)
