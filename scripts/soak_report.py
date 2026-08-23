@@ -25,7 +25,23 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--hours", type=float, default=24.0)
     parser.add_argument("--minimum-hours", type=float, default=None)
+    parser.add_argument(
+        "--end-at",
+        default=None,
+        help="Fixed timezone-aware ISO-8601 window end; defaults to current UTC time",
+    )
     return parser.parse_args()
+
+
+def _parse_end_at(value: str) -> datetime:
+    normalized = f"{value[:-1]}+00:00" if value.endswith("Z") else value
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        raise SystemExit("--end-at must be a valid ISO-8601 timestamp") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise SystemExit("--end-at must include a timezone")
+    return parsed.astimezone(UTC)
 
 
 def main() -> int:
@@ -38,7 +54,7 @@ def main() -> int:
     if minimum_hours < 0:
         raise SystemExit("--minimum-hours must be non-negative")
 
-    end = datetime.now(UTC)
+    end = datetime.now(UTC) if args.end_at is None else _parse_end_at(args.end_at)
     start = end - timedelta(hours=args.hours)
     engine = create_engine(args.database_url)
     with engine.connect() as connection:
