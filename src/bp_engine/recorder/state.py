@@ -350,7 +350,8 @@ class MarketStateSnapshotter:
         self._now = now or (lambda: datetime.now(UTC))
 
     async def _flush(self) -> None:
-        snapshots = self._reducer.snapshots(self._now())
+        bucket = _utc(self._now()).replace(microsecond=0)
+        snapshots = self._reducer.snapshots(bucket)
         if snapshots:
             await self._write_snapshots(snapshots)
 
