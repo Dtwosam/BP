@@ -87,13 +87,15 @@ Do not proceed if a required feed is absent or its `latest` timestamp is not adv
 
 ## 4. Capture the pre-maintenance storage report
 
-Run the evidence report and disk-health check before deleting anything:
+Run the evidence report and disk-health check before deleting anything. The explicit env file makes the manual commands use the same host database and storage configuration as systemd.
 
 ```bash
 sudo -u bp /opt/bp/.venv/bin/python /opt/bp/scripts/storage_maintenance.py report \
+  --env-file /etc/bp/bp.env \
   | sudo tee /var/lib/bp/evidence/phase3-storage-before.json
 
 sudo -u bp /opt/bp/.venv/bin/python /opt/bp/scripts/storage_maintenance.py disk-health \
+  --env-file /etc/bp/bp.env \
   | sudo tee /var/lib/bp/evidence/phase3-disk-before.json
 ```
 
@@ -105,6 +107,7 @@ The maintenance command first prunes only expired archives that still verify and
 
 ```bash
 sudo -u bp /opt/bp/.venv/bin/python /opt/bp/scripts/storage_maintenance.py run \
+  --env-file /etc/bp/bp.env \
   | sudo tee /var/lib/bp/evidence/phase3-maintenance-first.json
 ```
 
@@ -140,6 +143,7 @@ Capture a second report:
 
 ```bash
 sudo -u bp /opt/bp/.venv/bin/python /opt/bp/scripts/storage_maintenance.py report \
+  --env-file /etc/bp/bp.env \
   | sudo tee /var/lib/bp/evidence/phase3-storage-after.json
 ```
 
