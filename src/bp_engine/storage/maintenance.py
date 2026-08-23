@@ -6,13 +6,21 @@ import json
 import os
 import tempfile
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine, func, select
 
-from bp_engine.storage.schema import raw_market_events
+from bp_engine.storage.recorder import RecorderRepository
+from bp_engine.storage.schema import market_state_1s, raw_market_events
+
+REQUIRED_COMPACT_FEEDS = (
+    ("bybit", "spot"),
+    ("bybit", "linear"),
+    ("coinbase", "spot"),
+    ("polymarket", "market"),
+)
 
 
 class ArchiveVerificationError(RuntimeError):
@@ -219,3 +227,104 @@ def archive_interval(
         return verify_archive(archive_path, manifest_path)
     finally:
         temp_archive.unlink(missing_ok=True)
+
+
+def delete_verified_interval(
+    engine: Engine,
+    archive_path: Path | str,
+    manifest_path: Path | str,
+    *,
+    batch_size: int,
+) -> int:
+    manifest = verify_archive(archive_path, manifest_path)
+    repository = RecorderRepository()
+    deleted_total = 0
+
+    while True:
+        with engine.begin() as connection:
+            deleted = repository.delete_raw_interval_batch(
+                connection,
+                start_at=manifest.start_at,
+                end_at=manifest.end_at,
+                batch_size=batch_size,
+            )
+        deleted_total += deleted
+        if deleted < batch_size:
+            return deleted_total
+
+
+def _compact_feeds_advanced(
+    engine: Engine,
+    end_at: datetime,
+    required_feeds: tuple[tuple[str, str], ...],
+) -> bool:
+    with engine.connect() as connection:
+        for source, stream in required_feeds:
+            latest = connection.execute(
+                select(func.max(market_state_1s.c.last_event_at)).where(
+                    market_state_1s.c.source == source,
+                    market_state_1s.c.stream == stream,
+                )
+            ).scalar_one()
+            if latest is None or _utc(latest) <= end_at:
+                return False
+    return True
+
+
+def prune_expired_archives(
+    engine: Engine,
+    archive_dir: Path | str,
+    *,
+    now: datetime,
+    retention_hours: int,
+    required_feeds: tuple[tuple[str, str], ...] = REQUIRED_COMPACT_FEEDS,
+) -> list[str]:
+    if retention_hours < 0:
+        raise ValueError("retention_hours must be zero or greater")
+    now_at = _require_aware_utc(now, field="now")
+    cutoff = now_at - timedelta(hours=retention_hours)
+    directory = Path(archive_dir)
+    if not directory.exists():
+        return []
+
+    removed: list[str] = []
+    for manifest_path in sorted(directory.glob("*.jsonl.gz.manifest.json")):
+        archive_path = directory / manifest_path.name.removesuffix(".manifest.json")
+        try:
+            manifest = verify_archive(archive_path, manifest_path)
+        except ArchiveVerificationError:
+            continue
+        if manifest.end_at > cutoff:
+            continue
+        if not _compact_feeds_advanced(engine, manifest.end_at, required_feeds):
+            continue
+        manifest_path.unlink()
+        archive_path.unlink()
+        removed.append(manifest.archive_name)
+    return removed
+
+
+def prune_expired_state(
+    engine: Engine,
+    *,
+    now: datetime,
+    retention_days: int,
+    batch_size: int,
+) -> int:
+    if retention_days < 0:
+        raise ValueError("retention_days must be zero or greater")
+    now_at = _require_aware_utc(now, field="now")
+    cutoff = now_at - timedelta(days=retention_days)
+    repository = RecorderRepository()
+    deleted_total = 0
+
+    while True:
+        with engine.begin() as connection:
+            deleted = repository.delete_state_before_batch(
+                connection,
+                cutoff_at=cutoff,
+                batch_size=batch_size,
+            )
+        deleted_total += deleted
+        if deleted < batch_size:
+            return deleted_total
