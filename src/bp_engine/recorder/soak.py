@@ -117,10 +117,13 @@ def build_soak_report(
         .order_by(feed_incidents.c.observed_at)
     ).mappings()
     latest_stale_state: dict[str, str] = {}
+    latest_stale_at: dict[str, datetime] = {}
     for row in stale_rows:
-        latest_stale_state[f"{row['source']}/{row['stream']}"] = str(
-            row["incident_type"]
-        )
+        label = f"{row['source']}/{row['stream']}"
+        incident_type = str(row["incident_type"])
+        latest_stale_state[label] = incident_type
+        if incident_type == "stale":
+            latest_stale_at[label] = row["observed_at"]
 
     duration_seconds = int((end - start).total_seconds())
     failures: list[str] = []
@@ -141,7 +144,10 @@ def build_soak_report(
         if counts.get("clock_skew", 0):
             failures.append(f"{label} recorded clock skew")
         if latest_stale_state.get(label) == "stale":
-            failures.append(f"{label} has unresolved stale state")
+            stale_at = latest_stale_at[label]
+            last_event_at = stats.last_received_at if stats is not None else None
+            if last_event_at is None or last_event_at <= stale_at:
+                failures.append(f"{label} has unresolved stale state")
 
     return SoakReport(
         start_at=start,
