@@ -2,10 +2,10 @@
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
   "source_of_truth_version": "0.2.1",
-  "updated_at": "2026-08-20T23:13:00Z",
-  "current_phase": 2,
-  "current_phase_name": "24/7 raw recorder",
-  "status": "PHASE_2_PREHOST_GATES_GREEN_AWAITING_24H_HOST_SOAK",
+  "updated_at": "2026-08-23T21:13:00Z",
+  "current_phase": 3,
+  "current_phase_name": "retention and aggregation",
+  "status": "PHASE_2_COMPLETE_PHASE_3_READY",
   "trading_mode": "RESEARCH",
   "live_trading_enabled": false,
   "verified_polymarket_horizons": [
@@ -33,12 +33,12 @@
     "portable_with_docker": true
   },
   "phase_2_checkpoint": {
-    "verified_commit": "cf85c9139cfd887188bb10b60d6a75cf98e0e389",
-    "automated_tests_passing": 74,
+    "soak_capture_commit": "cd150668a6189467d4b663c719f8b33f576f5791",
+    "post_soak_fix_and_revalidation_commit": "8c4c35b654b46a8bd8235daa2a03d43496693c2a",
+    "automated_tests_passing": 77,
     "ci_passed": true,
     "live_four_feed_smoke_passed": true,
     "postgres_short_soak_passed": true,
-    "latest_short_soak_event_count": 17506,
     "required_live_feeds": [
       "polymarket/market",
       "bybit/spot",
@@ -46,7 +46,15 @@
       "coinbase/spot"
     ],
     "always_on_deployment_package_ready": true,
-    "formal_24h_host_soak_passed": false
+    "formal_24h_host_soak_passed": true,
+    "formal_window_start": "2026-08-22T20:12:57.033984Z",
+    "formal_window_end": "2026-08-23T20:12:57.033984Z",
+    "formal_window_event_count": 45669676,
+    "systemd_restarts_during_run": 0,
+    "unresolved_disconnects": 0,
+    "clock_skew_incidents": 0,
+    "backpressure_incidents": 0,
+    "sanitized_evidence": "docs/evidence/phase-2-host-soak-20260823.json"
   },
   "completed": [
     "Concept and long-term Polymarket objective agreed",
@@ -69,14 +77,15 @@
     "Polymarket book snapshot timestamp semantics corrected while preserving immutable raw payloads",
     "Four-feed live GitHub Actions smoke gate passed",
     "PostgreSQL-backed short soak gate passed with 17,506 events and no health failures",
-    "Phase 2 automated suite passes with 74 tests",
     "Secure always-on Ubuntu deployment package and 24-hour soak evidence command implemented",
-    "Deployment shell syntax and production Compose configuration validated in CI"
+    "Recorder deployed to an always-on Ubuntu host",
+    "24-hour Phase 2 host soak completed with all four required feeds",
+    "Host continuity review found zero systemd restarts and zero unresolved disconnects",
+    "Known stale-recovery incident persistence defect reproduced, fixed, and regression-tested",
+    "Frozen 24-hour window revalidated with explicit post-stale event evidence",
+    "Phase 2 closeout evidence recorded"
   ],
   "not_completed": [
-    "Deployment of the recorder to an always-on host",
-    "24-hour recorder soak test on the always-on host",
-    "Phase 2 closeout evidence and closeout note",
     "Retention and aggregation",
     "Historical backfill",
     "Official outcome/label pipeline",
@@ -88,12 +97,11 @@
     "Live trading"
   ],
   "next_actions": [
-    "Provision a zero-cost always-on Ubuntu host, with Oracle Cloud Always Free A1 preferred when available",
-    "Deploy the exact green Phase 2 recorder commit using docs/PHASE-2-DEPLOYMENT.md",
-    "Keep that commit unchanged for a genuine 24-hour observation window",
-    "Run scripts/deploy/phase2_soak_report.sh and inspect the recorder journal for unexplained gaps or restart loops",
-    "Commit sanitized 24-hour evidence and close Phase 2 only if the acceptance gate passes",
-    "Begin Phase 3 retention and aggregation only after Phase 2 closeout"
+    "Begin Phase 3 retention and aggregation",
+    "Define bounded hot PostgreSQL retention for high-rate raw feeds",
+    "Add compact derived market-state storage, partition/index strategy, and disk-space alerts",
+    "Measure disk growth per day and estimate safe retention on the current host",
+    "Do not begin historical backfill or model work until Phase 3 acceptance is recorded"
   ],
   "open_questions": [
     "Current/recurring availability of a 10m BTC Up/Down Polymarket market",
