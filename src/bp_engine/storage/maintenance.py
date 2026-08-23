@@ -196,7 +196,12 @@ def archive_interval(
     row_count = 0
     try:
         with engine.connect() as connection, temp_archive.open("wb") as raw_handle:
-            with gzip.GzipFile(fileobj=raw_handle, mode="wb", mtime=0) as compressed:
+            with gzip.GzipFile(
+                filename="",
+                fileobj=raw_handle,
+                mode="wb",
+                mtime=0,
+            ) as compressed:
                 for row in connection.execute(statement).mappings():
                     compressed.write(_serialize_row(dict(row)))
                     row_count += 1
