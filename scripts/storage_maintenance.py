@@ -20,6 +20,7 @@ from bp_engine.storage.schema import metadata, raw_market_events
 
 
 def _add_storage_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--env-file", default=None)
     parser.add_argument("--database-url", default=None)
     parser.add_argument("--archive-dir", default=None)
     parser.add_argument("--warning-free-gib", type=float, default=None)
@@ -38,6 +39,7 @@ def parse_args() -> argparse.Namespace:
     run.add_argument("--delete-batch-size", type=int, default=None)
 
     health = subparsers.add_parser("disk-health", help="Report free-space status")
+    health.add_argument("--env-file", default=None)
     health.add_argument("--path", default=None)
     health.add_argument("--warning-free-gib", type=float, default=None)
     health.add_argument("--critical-free-gib", type=float, default=None)
@@ -48,7 +50,8 @@ def parse_args() -> argparse.Namespace:
 
 
 def _settings(args: argparse.Namespace) -> Settings:
-    settings = Settings()
+    env_file = getattr(args, "env_file", None)
+    settings = Settings(_env_file=env_file) if env_file is not None else Settings()
     updates: dict[str, object] = {}
     if getattr(args, "database_url", None) is not None:
         updates["database_url"] = args.database_url
