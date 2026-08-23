@@ -348,9 +348,9 @@ def _disk_health_from_usage(
 
     warning_free_bytes = int(warning_free_gib * GIB)
     critical_free_bytes = int(critical_free_gib * GIB)
-    total = int(getattr(usage, "total"))
-    used = int(getattr(usage, "used"))
-    free = int(getattr(usage, "free"))
+    total = int(usage.total)
+    used = int(usage.used)
+    free = int(usage.free)
     if free <= critical_free_bytes:
         status = "critical"
     elif free <= warning_free_bytes:
