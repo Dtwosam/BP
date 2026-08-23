@@ -49,7 +49,7 @@ def test_disk_health_timer_checks_every_five_minutes_without_restart_loop() -> N
     assert "Unit=bp-storage-disk-health.service" in timer
 
 
-def test_bootstrap_installs_storage_environment_archive_dir_and_timers() -> None:
+def test_bootstrap_installs_storage_environment_archive_dir_and_timer_units() -> None:
     bootstrap = read(BOOTSTRAP)
 
     assert "STORAGE_HOT_RAW_HOURS=24" in bootstrap
@@ -62,8 +62,8 @@ def test_bootstrap_installs_storage_environment_archive_dir_and_timers() -> None
     assert "/var/lib/bp/archive/raw" in bootstrap
     assert "bp-storage-maintenance.timer" in bootstrap
     assert "bp-storage-disk-health.timer" in bootstrap
-    assert "systemctl enable --now bp-storage-maintenance.timer" in bootstrap
-    assert "systemctl enable --now bp-storage-disk-health.timer" in bootstrap
+    assert "systemctl enable --now bp-storage-maintenance.timer" not in bootstrap
+    assert "systemctl enable --now bp-storage-disk-health.timer" not in bootstrap
 
 
 def test_phase3_runbook_keeps_trading_disabled_and_requires_manual_archive_verification() -> None:
