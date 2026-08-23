@@ -1,3 +1,6 @@
+import json
+import subprocess
+import sys
 from collections import namedtuple
 from datetime import UTC, datetime, timedelta
 
@@ -104,3 +107,47 @@ def test_project_raw_bytes_per_day_uses_recent_rate_and_average_size() -> None:
     )
 
     assert projected == 6_000_000
+
+
+def test_storage_report_cli_loads_explicit_env_file(tmp_path) -> None:
+    database_path = tmp_path / "cli.db"
+    archive_dir = tmp_path / "cli-archive"
+    env_file = tmp_path / "bp.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                f"DATABASE_URL=sqlite+pysqlite:///{database_path}",
+                f"STORAGE_ARCHIVE_DIR={archive_dir}",
+                "STORAGE_HOT_RAW_HOURS=36",
+                "STORAGE_ARCHIVE_RETENTION_HOURS=12",
+                "STORAGE_STATE_RETENTION_DAYS=60",
+                "STORAGE_WARNING_FREE_GIB=0",
+                "STORAGE_CRITICAL_FREE_GIB=0",
+                "STORAGE_DELETE_BATCH_SIZE=1234",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/storage_maintenance.py",
+            "report",
+            "--env-file",
+            str(env_file),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    assert report["retention"] == {
+        "hot_raw_hours": 36,
+        "archive_retention_hours": 12,
+        "state_retention_days": 60,
+    }
+    assert report["disk"]["path"] == str(archive_dir)
