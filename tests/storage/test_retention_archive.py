@@ -101,6 +101,29 @@ def test_archive_interval_contains_only_requested_hour_and_verifies(tmp_path) ->
     assert [row["sequence"] for row in rows] == ["2", "3"]
 
 
+def test_identical_intervals_produce_identical_compressed_bytes(tmp_path) -> None:
+    first_root = tmp_path / "first"
+    second_root = tmp_path / "second"
+    first_root.mkdir()
+    second_root.mkdir()
+    first_engine, start = seeded_engine(first_root)
+    second_engine, second_start = seeded_engine(second_root)
+    end = start + timedelta(hours=1)
+
+    first = archive_interval(first_engine, first_root / "archive", start, end)
+    second = archive_interval(
+        second_engine,
+        second_root / "archive",
+        second_start,
+        second_start + timedelta(hours=1),
+    )
+    first_path, _ = archive_files(first_root / "archive", first)
+    second_path, _ = archive_files(second_root / "archive", second)
+
+    assert first.sha256 == second.sha256
+    assert first_path.read_bytes() == second_path.read_bytes()
+
+
 def test_verify_archive_rejects_corrupt_compressed_bytes(tmp_path) -> None:
     engine, start = seeded_engine(tmp_path)
     archive_dir = tmp_path / "archive"
