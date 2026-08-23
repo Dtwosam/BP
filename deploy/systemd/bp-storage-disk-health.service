@@ -1,0 +1,21 @@
+[Unit]
+Description=BP Phase 3 storage disk health check
+
+[Service]
+Type=oneshot
+User=bp
+Group=bp
+WorkingDirectory=/opt/bp
+EnvironmentFile=/etc/bp/bp.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/bp/.venv/bin/python /opt/bp/scripts/storage_maintenance.py disk-health
+TimeoutStartSec=2min
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-storage-disk-health
