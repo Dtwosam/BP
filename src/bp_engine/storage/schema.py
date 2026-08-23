@@ -5,6 +5,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Index,
     Integer,
     MetaData,
     String,
@@ -56,6 +57,40 @@ raw_market_events = Table(
     Column("payload", JSON, nullable=False),
     Column("dedupe_key", String(80), nullable=False),
     UniqueConstraint("dedupe_key", name="uq_raw_market_events_dedupe_key"),
+)
+
+Index(
+    "ix_raw_market_events_received_at_brin",
+    raw_market_events.c.received_at,
+    postgresql_using="brin",
+)
+
+market_state_1s = Table(
+    "market_state_1s",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("bucket_at", DateTime(timezone=True), nullable=False),
+    Column("state_key", String(512), nullable=False),
+    Column("source", String(32), nullable=False),
+    Column("stream", String(64), nullable=False),
+    Column("instrument", String(128), nullable=False),
+    Column("market_id", Text, nullable=True),
+    Column("asset_id", Text, nullable=True),
+    Column("last_event_at", DateTime(timezone=True), nullable=False),
+    Column("state", JSON, nullable=False),
+    UniqueConstraint(
+        "bucket_at",
+        "state_key",
+        name="uq_market_state_1s_bucket_state_key",
+    ),
+)
+
+Index("ix_market_state_1s_bucket_at", market_state_1s.c.bucket_at)
+Index(
+    "ix_market_state_1s_feed_bucket",
+    market_state_1s.c.source,
+    market_state_1s.c.stream,
+    market_state_1s.c.bucket_at,
 )
 
 feed_incidents = Table(

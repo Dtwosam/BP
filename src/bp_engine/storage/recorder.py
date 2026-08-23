@@ -5,7 +5,8 @@ from collections.abc import Sequence
 from sqlalchemy import Connection, insert
 
 from bp_engine.recorder.models import FeedIncident, RawEvent
-from bp_engine.storage.schema import feed_incidents, raw_market_events
+from bp_engine.recorder.state import MarketStateSnapshot
+from bp_engine.storage.schema import feed_incidents, market_state_1s, raw_market_events
 
 
 class RecorderRepository:
@@ -28,6 +29,55 @@ class RecorderRepository:
             statement = statement.on_conflict_do_nothing(index_elements=["dedupe_key"])
         else:
             statement = insert(raw_market_events).values(rows)
+
+        result = connection.execute(statement)
+        return int(result.rowcount or 0)
+
+    def upsert_state_snapshots(
+        self,
+        connection: Connection,
+        snapshots: Sequence[MarketStateSnapshot],
+    ) -> int:
+        if not snapshots:
+            return 0
+
+        rows = [self._state_values(snapshot) for snapshot in snapshots]
+        dialect = connection.dialect.name
+
+        if dialect == "sqlite":
+            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+            statement = sqlite_insert(market_state_1s).values(rows)
+            statement = statement.on_conflict_do_update(
+                index_elements=["bucket_at", "state_key"],
+                set_={
+                    "source": statement.excluded.source,
+                    "stream": statement.excluded.stream,
+                    "instrument": statement.excluded.instrument,
+                    "market_id": statement.excluded.market_id,
+                    "asset_id": statement.excluded.asset_id,
+                    "last_event_at": statement.excluded.last_event_at,
+                    "state": statement.excluded.state,
+                },
+            )
+        elif dialect == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert as postgres_insert
+
+            statement = postgres_insert(market_state_1s).values(rows)
+            statement = statement.on_conflict_do_update(
+                index_elements=["bucket_at", "state_key"],
+                set_={
+                    "source": statement.excluded.source,
+                    "stream": statement.excluded.stream,
+                    "instrument": statement.excluded.instrument,
+                    "market_id": statement.excluded.market_id,
+                    "asset_id": statement.excluded.asset_id,
+                    "last_event_at": statement.excluded.last_event_at,
+                    "state": statement.excluded.state,
+                },
+            )
+        else:
+            statement = insert(market_state_1s).values(rows)
 
         result = connection.execute(statement)
         return int(result.rowcount or 0)
@@ -57,4 +107,18 @@ class RecorderRepository:
             "asset_id": event.asset_id,
             "payload": event.payload,
             "dedupe_key": event.dedupe_key,
+        }
+
+    @staticmethod
+    def _state_values(snapshot: MarketStateSnapshot) -> dict[str, object]:
+        return {
+            "bucket_at": snapshot.bucket_at,
+            "state_key": snapshot.state_key,
+            "source": snapshot.source,
+            "stream": snapshot.stream,
+            "instrument": snapshot.instrument,
+            "market_id": snapshot.market_id,
+            "asset_id": snapshot.asset_id,
+            "last_event_at": snapshot.last_event_at,
+            "state": snapshot.state,
         }
