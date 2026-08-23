@@ -1,0 +1,10 @@
+[Unit]
+Description=Run BP Phase 3 storage maintenance hourly
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+Unit=bp-storage-maintenance.service
+
+[Install]
+WantedBy=timers.target
