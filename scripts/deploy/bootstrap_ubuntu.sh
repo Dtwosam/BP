@@ -12,6 +12,7 @@ BP_GROUP=${BP_GROUP:-bp}
 ENV_DIR=/etc/bp
 ENV_FILE=${ENV_DIR}/bp.env
 EVIDENCE_DIR=/var/lib/bp/evidence
+ARCHIVE_DIR=/var/lib/bp/archive/raw
 
 if [[ ! -f ${BP_ROOT}/pyproject.toml ]]; then
   echo "Expected the BP repository at ${BP_ROOT}. Clone it there before running bootstrap." >&2
@@ -59,7 +60,10 @@ python3 -m venv "${BP_ROOT}/.venv"
 "${BP_ROOT}/.venv/bin/python" -m pip install --disable-pip-version-check -e "${BP_ROOT}"
 
 install -d -m 0750 -o root -g "${BP_GROUP}" "${ENV_DIR}"
-install -d -m 0750 -o "${BP_USER}" -g "${BP_GROUP}" /var/lib/bp "${EVIDENCE_DIR}"
+install -d -m 0750 -o "${BP_USER}" -g "${BP_GROUP}" \
+  /var/lib/bp \
+  "${EVIDENCE_DIR}" \
+  "${ARCHIVE_DIR}"
 
 if [[ ! -f ${ENV_FILE} ]]; then
   db_password=$(openssl rand -hex 24)
@@ -81,12 +85,36 @@ POLYMARKET_SUBSCRIPTION_GRACE_SECONDS=30
 RECORDER_STALE_AFTER_SECONDS=10
 RECORDER_MAX_CLOCK_SKEW_SECONDS=5
 RECORDER_REQUIRE_NTP_SYNC=true
+STORAGE_HOT_RAW_HOURS=24
+STORAGE_ARCHIVE_RETENTION_HOURS=24
+STORAGE_STATE_RETENTION_DAYS=90
+STORAGE_ARCHIVE_DIR=/var/lib/bp/archive/raw
+STORAGE_WARNING_FREE_GIB=25
+STORAGE_CRITICAL_FREE_GIB=15
+STORAGE_DELETE_BATCH_SIZE=50000
 POLYMARKET_WS_URL=wss://ws-subscriptions-clob.polymarket.com/ws/market
 BYBIT_SPOT_WS_URL=wss://stream.bybit.com/v5/public/spot
 BYBIT_LINEAR_WS_URL=wss://stream.bybit.com/v5/public/linear
 COINBASE_SPOT_WS_URL=wss://advanced-trade-ws.coinbase.com
 EOF
 fi
+
+ensure_env_default() {
+  local key=$1
+  local value=$2
+  if ! grep -q "^${key}=" "${ENV_FILE}"; then
+    printf '%s=%s\n' "${key}" "${value}" >>"${ENV_FILE}"
+  fi
+}
+
+ensure_env_default STORAGE_HOT_RAW_HOURS 24
+ensure_env_default STORAGE_ARCHIVE_RETENTION_HOURS 24
+ensure_env_default STORAGE_STATE_RETENTION_DAYS 90
+ensure_env_default STORAGE_ARCHIVE_DIR /var/lib/bp/archive/raw
+ensure_env_default STORAGE_WARNING_FREE_GIB 25
+ensure_env_default STORAGE_CRITICAL_FREE_GIB 15
+ensure_env_default STORAGE_DELETE_BATCH_SIZE 50000
+
 chown root:"${BP_GROUP}" "${ENV_FILE}"
 chmod 0640 "${ENV_FILE}"
 
@@ -99,6 +127,18 @@ install -m 0644 \
 install -m 0644 \
   "${BP_ROOT}/deploy/systemd/bp-recorder.service" \
   /etc/systemd/system/bp-recorder.service
+install -m 0644 \
+  "${BP_ROOT}/deploy/systemd/bp-storage-maintenance.service" \
+  /etc/systemd/system/bp-storage-maintenance.service
+install -m 0644 \
+  "${BP_ROOT}/deploy/systemd/bp-storage-maintenance.timer" \
+  /etc/systemd/system/bp-storage-maintenance.timer
+install -m 0644 \
+  "${BP_ROOT}/deploy/systemd/bp-storage-disk-health.service" \
+  /etc/systemd/system/bp-storage-disk-health.service
+install -m 0644 \
+  "${BP_ROOT}/deploy/systemd/bp-storage-disk-health.timer" \
+  /etc/systemd/system/bp-storage-disk-health.timer
 
 systemctl daemon-reload
 systemctl enable --now bp-postgres.service
@@ -114,4 +154,5 @@ systemctl is-active --quiet bp-recorder.service
 
 echo "BP recorder deployment is active."
 echo "Check logs with: journalctl -u bp-recorder -f"
-echo "Run the formal gate after 24 hours with: sudo ${BP_ROOT}/scripts/deploy/phase2_soak_report.sh"
+echo "Phase 3 storage timer units are installed but intentionally not enabled."
+echo "Verify storage manually before enabling them; see docs/PHASE-3-DEPLOYMENT.md."
