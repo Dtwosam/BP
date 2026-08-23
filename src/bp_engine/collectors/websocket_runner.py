@@ -126,12 +126,14 @@ class WebSocketCollectorRunner:
         )
         watchdog_task = None
         if self.watchdog is not None:
-            self.watchdog.observe(
+            recovery = self.watchdog.observe(
                 self.source,
                 self.stream,
                 monotonic_time=self.monotonic(),
                 observed_at=self.now(),
             )
+            if recovery is not None:
+                await _call_sink(self.incident_sink, recovery)
             interval = max(min(self.watchdog.stale_after_seconds / 2, 1.0), 0.001)
             watchdog_task = asyncio.create_task(asyncio.sleep(interval))
 
