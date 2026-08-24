@@ -3,13 +3,13 @@ from decimal import Decimal
 
 import httpx
 import pytest
+from sqlalchemy import create_engine, func, select
+
 from bp_engine.backfill.polymarket_prices import (
     PolymarketPriceHistoryClient,
     PriceHistoryResponse,
     backfill_polymarket_prices,
 )
-from sqlalchemy import create_engine, func, select
-
 from bp_engine.polymarket.parsing import parse_gamma_market
 from bp_engine.storage.polymarket_markets import PolymarketMarketRepository
 from bp_engine.storage.schema import (
