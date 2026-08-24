@@ -3,13 +3,13 @@ from decimal import Decimal
 
 import httpx
 import pytest
-from sqlalchemy import create_engine, func, select
-
 from bp_engine.backfill.coinbase import (
     CoinbaseCandleResponse,
     CoinbaseHistoryClient,
     backfill_coinbase_candles,
 )
+from sqlalchemy import create_engine, func, select
+
 from bp_engine.storage.schema import btc_candles, historical_backfill_artifacts, metadata
 
 
