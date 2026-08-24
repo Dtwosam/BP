@@ -37,6 +37,15 @@ class Settings(BaseSettings):
     recorder_stale_after_seconds: float = 10.0
     recorder_max_clock_skew_seconds: float = 5.0
     recorder_require_ntp_sync: bool = True
+
+    storage_hot_raw_hours: int = 24
+    storage_archive_retention_hours: int = 24
+    storage_state_retention_days: int = 90
+    storage_archive_dir: str = "/var/lib/bp/archive/raw"
+    storage_warning_free_gib: int = 25
+    storage_critical_free_gib: int = 15
+    storage_delete_batch_size: int = 50_000
+
     polymarket_ws_url: str = "wss://ws-subscriptions-clob.polymarket.com/ws/market"
     bybit_spot_ws_url: str = "wss://stream.bybit.com/v5/public/spot"
     bybit_linear_ws_url: str = "wss://stream.bybit.com/v5/public/linear"

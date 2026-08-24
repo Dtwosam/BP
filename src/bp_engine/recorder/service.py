@@ -154,6 +154,13 @@ class _DatabaseSink:
 
         await asyncio.to_thread(write)
 
+    async def write_state_snapshots(self, snapshots: list[object]) -> None:
+        def write() -> None:
+            with self._engine.begin() as connection:
+                self._repository.upsert_state_snapshots(connection, snapshots)
+
+        await asyncio.to_thread(write)
+
     async def record_incident(self, incident: object) -> None:
         def write() -> None:
             with self._engine.begin() as connection:
@@ -163,9 +170,21 @@ class _DatabaseSink:
 
 
 class _BufferedEventSink:
-    def __init__(self, buffer: object, incident_sink: Callable[[object], object]) -> None:
+    def __init__(
+        self,
+        buffer: object,
+        incident_sink: Callable[[object], object],
+        *,
+        state_reducer: object | None = None,
+    ) -> None:
         self._buffer = buffer
         self._incident_sink = incident_sink
+        self._state_reducer = state_reducer
+
+    async def _record_incident(self, incident: object) -> None:
+        result = self._incident_sink(incident)
+        if asyncio.iscoroutine(result):
+            await result
 
     async def __call__(self, event: object) -> None:
         from bp_engine.recorder.models import FeedIncident
@@ -173,23 +192,39 @@ class _BufferedEventSink:
 
         try:
             self._buffer.put_nowait(event)
-            return
         except QueueBackpressure:
-            incident = FeedIncident(
-                source=event.source,
-                stream=event.stream,
-                incident_type="backpressure",
-                observed_at=event.received_at,
-                details={"queue_size": self._buffer.qsize()},
+            await self._record_incident(
+                FeedIncident(
+                    source=event.source,
+                    stream=event.stream,
+                    incident_type="backpressure",
+                    observed_at=event.received_at,
+                    details={"queue_size": self._buffer.qsize()},
+                )
             )
-            result = self._incident_sink(incident)
-            if asyncio.iscoroutine(result):
-                await result
-        await self._buffer.put(event)
+            await self._buffer.put(event)
+
+        if self._state_reducer is None:
+            return
+        try:
+            self._state_reducer.observe(event)
+        except Exception as exc:
+            await self._record_incident(
+                FeedIncident(
+                    source=event.source,
+                    stream=event.stream,
+                    incident_type="state_reducer_error",
+                    observed_at=event.received_at,
+                    details={
+                        "error_type": type(exc).__name__,
+                        "message": str(exc),
+                    },
+                )
+            )
 
 
 def build_default_recorder_service(settings: object) -> RecorderService:
-    """Assemble the Phase 2 recorder without opening network connections."""
+    """Assemble the recorder without opening network connections."""
     from sqlalchemy import create_engine
     from websockets.asyncio.client import connect
 
@@ -207,6 +242,7 @@ def build_default_recorder_service(settings: object) -> RecorderService:
     from bp_engine.polymarket.gamma import GammaClient
     from bp_engine.polymarket.service import MarketDiscoveryService
     from bp_engine.recorder.polymarket_coordinator import PolymarketSubscriptionCoordinator
+    from bp_engine.recorder.state import MarketStateReducer, MarketStateSnapshotter
     from bp_engine.recorder.writer import BatchWriter, EventBuffer
     from bp_engine.storage.recorder import RecorderRepository
     from bp_engine.storage.schema import metadata
@@ -216,12 +252,22 @@ def build_default_recorder_service(settings: object) -> RecorderService:
     repository = RecorderRepository()
     database_sink = _DatabaseSink(engine, repository)
     buffer = EventBuffer(maxsize=settings.recorder_queue_maxsize)
-    event_sink = _BufferedEventSink(buffer, database_sink.record_incident)
+    state_reducer = MarketStateReducer()
+    event_sink = _BufferedEventSink(
+        buffer,
+        database_sink.record_incident,
+        state_reducer=state_reducer,
+    )
     writer = BatchWriter(
         buffer=buffer,
         sink=database_sink.write_events,
         batch_size=settings.recorder_batch_size,
         flush_interval_seconds=settings.recorder_flush_interval_seconds,
+    )
+    state_snapshotter = MarketStateSnapshotter(
+        reducer=state_reducer,
+        write_snapshots=database_sink.write_state_snapshots,
+        interval_seconds=1.0,
     )
 
     discovery_service = MarketDiscoveryService(settings, GammaClient(), engine)
@@ -319,6 +365,7 @@ def build_default_recorder_service(settings: object) -> RecorderService:
     return RecorderService(
         {
             "writer": _BatchWriterComponent(writer),
+            "state_snapshotter": state_snapshotter,
             "polymarket": polymarket,
             "bybit_spot": bybit_spot,
             "bybit_linear": bybit_linear,

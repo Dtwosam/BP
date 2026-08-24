@@ -14,7 +14,7 @@ def test_settings_use_safe_project_defaults() -> None:
 
 
 def test_recorder_defaults_are_bounded_and_keep_trading_disabled() -> None:
-    settings = Settings()
+    settings = Settings(_env_file=None)
 
     assert settings.recorder_queue_maxsize > 0
     assert settings.recorder_batch_size > 0
@@ -22,3 +22,36 @@ def test_recorder_defaults_are_bounded_and_keep_trading_disabled() -> None:
     assert settings.polymarket_refresh_interval_seconds > 0
     assert settings.database_url.startswith("postgresql+psycopg://")
     assert settings.live_trading_enabled is False
+
+
+def test_storage_defaults_bound_raw_data_and_protect_disk() -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.storage_hot_raw_hours == 24
+    assert settings.storage_archive_retention_hours == 24
+    assert settings.storage_state_retention_days == 90
+    assert settings.storage_archive_dir == "/var/lib/bp/archive/raw"
+    assert settings.storage_warning_free_gib == 25
+    assert settings.storage_critical_free_gib == 15
+    assert settings.storage_delete_batch_size == 50_000
+    assert settings.storage_warning_free_gib > settings.storage_critical_free_gib
+
+
+def test_storage_settings_accept_environment_overrides(monkeypatch) -> None:
+    monkeypatch.setenv("STORAGE_HOT_RAW_HOURS", "36")
+    monkeypatch.setenv("STORAGE_ARCHIVE_RETENTION_HOURS", "12")
+    monkeypatch.setenv("STORAGE_STATE_RETENTION_DAYS", "60")
+    monkeypatch.setenv("STORAGE_ARCHIVE_DIR", "/tmp/bp-archive")
+    monkeypatch.setenv("STORAGE_WARNING_FREE_GIB", "30")
+    monkeypatch.setenv("STORAGE_CRITICAL_FREE_GIB", "20")
+    monkeypatch.setenv("STORAGE_DELETE_BATCH_SIZE", "1234")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.storage_hot_raw_hours == 36
+    assert settings.storage_archive_retention_hours == 12
+    assert settings.storage_state_retention_days == 60
+    assert settings.storage_archive_dir == "/tmp/bp-archive"
+    assert settings.storage_warning_free_gib == 30
+    assert settings.storage_critical_free_gib == 20
+    assert settings.storage_delete_batch_size == 1234
