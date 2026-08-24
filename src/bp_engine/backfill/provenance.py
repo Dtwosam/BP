@@ -173,9 +173,11 @@ class ProvenanceRepository:
         run_id: str,
         completed_at: datetime,
         error: str,
-        stats: BackfillStats = BackfillStats(),
+        stats: BackfillStats | None = None,
     ) -> None:
         self._require_aware(completed_at, "completed_at")
+        if stats is None:
+            stats = BackfillStats()
         result = connection.execute(
             update(historical_backfill_runs)
             .where(historical_backfill_runs.c.run_id == run_id)
