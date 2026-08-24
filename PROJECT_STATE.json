@@ -1,11 +1,11 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.2.1",
-  "updated_at": "2026-08-23T21:13:00Z",
-  "current_phase": 3,
-  "current_phase_name": "retention and aggregation",
-  "status": "PHASE_2_COMPLETE_PHASE_3_READY",
+  "source_of_truth_version": "0.3.0",
+  "updated_at": "2026-08-24T21:47:00Z",
+  "current_phase": 4,
+  "current_phase_name": "historical backfill",
+  "status": "PHASE_3_COMPLETE_PHASE_4_READY",
   "trading_mode": "RESEARCH",
   "live_trading_enabled": false,
   "verified_polymarket_horizons": [
@@ -56,6 +56,46 @@
     "backpressure_incidents": 0,
     "sanitized_evidence": "docs/evidence/phase-2-host-soak-20260823.json"
   },
+  "phase_3_checkpoint": {
+    "host_validated_commit": "d90919a29f7beca7c7b1b5ba4cfd2964c11747c4",
+    "retention_semantics_fix_commit": "6d329b2707b7897cbd73baa2aae5a87990fe7975",
+    "ci_run": 206,
+    "ci_passed": true,
+    "live_recorder_smoke_run": 114,
+    "live_recorder_smoke_passed": true,
+    "recorder_short_soak_run": 78,
+    "recorder_short_soak_passed": true,
+    "hot_raw_hours": 24,
+    "archive_retention_hours_after_hot_store": 24,
+    "full_raw_recoverability_target_hours": 48,
+    "host_revalidation_verdict": "PHASE3_RETENTION_SEMANTICS_HOST_REVALIDATION_PASS",
+    "manual_maintenance_status": "ok",
+    "premature_archives_removed": 0,
+    "archive_delete_parity": true,
+    "managed_archive_verification_passed": true,
+    "compact_feed_count": 4,
+    "recorder_active": true,
+    "recorder_warning_lines": 0,
+    "disk_status": "ok",
+    "maintenance_service_result": "success",
+    "maintenance_service_exit": 0,
+    "maintenance_timer_enabled": true,
+    "disk_health_timer_enabled": true,
+    "forensic_incident_sha256": "423f22c58ed356a207684b794f401537ba60e009f08aa89fe54fc7f58efbe9ef",
+    "known_damaged_raw_interval": {
+      "start": "2026-08-22T20:00:00Z",
+      "end": "2026-08-22T21:00:00Z",
+      "missing_events": 250000,
+      "training_policy": "Exclude from raw-dependent training unless independently recovered from a trustworthy source."
+    },
+    "rollout_coverage_limitation": {
+      "local_raw_or_archive_coverage_not_proven_start": "2026-08-23T21:00:00Z",
+      "compact_state_first_observed": "2026-08-24T10:00:00Z",
+      "first_raw_row_after_final_revalidation": "2026-08-24T10:18:16.692122Z",
+      "interpretation": "Surviving VM artifacts do not prove whether the earlier local raw absence was pruning history or capture downtime. Treat this rollout-era interval as unavailable for raw-dependent research unless independently reacquired; compact-state absence before rollout is not evidence by itself of recorder downtime."
+    },
+    "sanitized_evidence": "docs/evidence/phase-3-closeout-20260824.json"
+  },
   "completed": [
     "Concept and long-term Polymarket objective agreed",
     "Initial source-of-truth pack created",
@@ -83,10 +123,19 @@
     "Host continuity review found zero systemd restarts and zero unresolved disconnects",
     "Known stale-recovery incident persistence defect reproduced, fixed, and regression-tested",
     "Frozen 24-hour window revalidated with explicit post-stale event evidence",
-    "Phase 2 closeout evidence recorded"
+    "Phase 2 closeout evidence recorded",
+    "Phase 3 compact one-second market state implemented",
+    "Verified gzip raw-hour archive-before-delete path implemented",
+    "Bounded raw and compact-state retention implemented",
+    "Storage indexes and index-only retention scans deployed",
+    "Disk-health and storage-growth reporting implemented",
+    "Hourly storage maintenance and five-minute disk-health timers deployed",
+    "Interrupted-maintenance archive-pruning bug reproduced, fixed, and regression-tested",
+    "Archive retention semantics corrected to 24 hot hours plus 24 additional archive hours",
+    "Final Phase 3 host revalidation passed with recorder, archive, disk, feed, timer, and forensic checks",
+    "Phase 3 closeout evidence recorded"
   ],
   "not_completed": [
-    "Retention and aggregation",
     "Historical backfill",
     "Official outcome/label pipeline",
     "Feature engine",
@@ -97,11 +146,12 @@
     "Live trading"
   ],
   "next_actions": [
-    "Begin Phase 3 retention and aggregation",
-    "Define bounded hot PostgreSQL retention for high-rate raw feeds",
-    "Add compact derived market-state storage, partition/index strategy, and disk-space alerts",
-    "Measure disk growth per day and estimate safe retention on the current host",
-    "Do not begin historical backfill or model work until Phase 3 acceptance is recorded"
+    "Begin Phase 4 historical backfill",
+    "Build reproducible Polymarket market/event and historical token-price backfill",
+    "Build reproducible BTC historical backfill using only genuinely available history",
+    "Store source parameters, download timestamps, versions/checksums where practical",
+    "Preserve the Phase 3 damaged/raw-unavailable interval exclusions in every raw-dependent dataset",
+    "Do not begin feature/model work until Phase 4 acceptance is recorded"
   ],
   "open_questions": [
     "Current/recurring availability of a 10m BTC Up/Down Polymarket market",
