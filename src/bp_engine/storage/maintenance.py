@@ -280,6 +280,17 @@ def _compact_feeds_advanced(
     return True
 
 
+def _raw_interval_is_empty(engine: Engine, start_at: datetime, end_at: datetime) -> bool:
+    with engine.connect() as connection:
+        remaining = connection.execute(
+            select(raw_market_events.c.id)
+            .where(raw_market_events.c.received_at >= start_at)
+            .where(raw_market_events.c.received_at < end_at)
+            .limit(1)
+        ).first()
+    return remaining is None
+
+
 def prune_expired_archives(
     engine: Engine,
     archive_dir: Path | str,
@@ -304,6 +315,8 @@ def prune_expired_archives(
         except ArchiveVerificationError:
             continue
         if manifest.end_at > cutoff:
+            continue
+        if not _raw_interval_is_empty(engine, manifest.start_at, manifest.end_at):
             continue
         if not _compact_feeds_advanced(engine, manifest.end_at, required_feeds):
             continue
