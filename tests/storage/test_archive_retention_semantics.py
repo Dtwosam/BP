@@ -1,8 +1,16 @@
+import importlib.util
+from pathlib import Path
 from types import SimpleNamespace
 
 from sqlalchemy import create_engine
 
-import scripts.storage_maintenance as storage_maintenance
+
+SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "storage_maintenance.py"
+SCRIPT_SPEC = importlib.util.spec_from_file_location("storage_maintenance_script", SCRIPT_PATH)
+assert SCRIPT_SPEC is not None
+assert SCRIPT_SPEC.loader is not None
+storage_maintenance = importlib.util.module_from_spec(SCRIPT_SPEC)
+SCRIPT_SPEC.loader.exec_module(storage_maintenance)
 
 
 def test_run_counts_archive_retention_after_hot_storage(monkeypatch, tmp_path, capsys) -> None:
