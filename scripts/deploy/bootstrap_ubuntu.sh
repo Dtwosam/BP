@@ -142,6 +142,9 @@ install -m 0644 \
 
 systemctl daemon-reload
 systemctl enable --now bp-postgres.service
+sudo -u "${BP_USER}" "${BP_ROOT}/.venv/bin/python" \
+  "${BP_ROOT}/scripts/deploy/ensure_storage_indexes.py" \
+  --env-file "${ENV_FILE}"
 systemctl enable --now bp-recorder.service
 
 ntp_state=$(timedatectl show -p NTPSynchronized --value 2>/dev/null || true)
