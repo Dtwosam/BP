@@ -41,6 +41,7 @@ if [[ "$live_trading" != "false" || "$max_trade" != "0" || "$max_loss" != "0" ]]
   exit 3
 fi
 
+acceptance_started=$(date +%s)
 install -d -o bp -g bp "$EVIDENCE_ROOT"
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 run_dir="$EVIDENCE_ROOT/$stamp"
@@ -66,8 +67,9 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \
 sudo -u bp "$PY" "$REPO/scripts/historical_backfill_smoke.py" --require-all \
   | tee "$run_dir/live-source-smoke.json"
 
-baseline_runs=$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \
-  psql -U bp -d bp -At -c "SELECT count(*) FROM historical_backfill_runs;" | tr -d '[:space:]')
+baseline_max_id=$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \
+  psql -U bp -d bp -At -c "SELECT COALESCE(max(id), 0) FROM historical_backfill_runs;" \
+  | tr -d '[:space:]')
 
 sudo -u bp "$PY" "$REPO/scripts/historical_backfill.py" standard \
   --start "$START" --end "$END" --env-file "$ENV_FILE" \
@@ -90,9 +92,9 @@ if [[ "$second_inserted" != "0" ]]; then
   exit 5
 fi
 
-runs_after=$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \
-  psql -U bp -d bp -At -c "SELECT count(*) FROM historical_backfill_runs;" | tr -d '[:space:]')
-new_runs=$((runs_after - baseline_runs))
+new_runs=$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \
+  psql -U bp -d bp -At -c "SELECT count(*) FROM historical_backfill_runs WHERE id > $baseline_max_id;" \
+  | tr -d '[:space:]')
 if [[ "$new_runs" -ne 10 ]]; then
   echo "expected 10 new dataset run records across two standard runs, found $new_runs" >&2
   exit 5
@@ -102,7 +104,7 @@ failed_new_runs=$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec 
   psql -U bp -d bp -At -c "
 SELECT count(*)
 FROM historical_backfill_runs
-WHERE id > (SELECT COALESCE(max(id), 0) - $new_runs FROM historical_backfill_runs)
+WHERE id > $baseline_max_id
   AND status <> 'success';" | tr -d '[:space:]')
 if [[ "$failed_new_runs" != "0" ]]; then
   echo "one or more Phase 4 acceptance runs are not successful" >&2
@@ -125,10 +127,10 @@ SELECT count(*) AS price_rows,
 FROM polymarket_price_history
 WHERE observed_at >= TIMESTAMPTZ '$START' AND observed_at < TIMESTAMPTZ '$END';
 
-SELECT dataset, source, status, rows_inserted, rows_existing, chunks_fetched
+SELECT id, dataset, source, status, rows_inserted, rows_existing, chunks_fetched
 FROM historical_backfill_runs
-ORDER BY id DESC
-LIMIT 10;
+WHERE id > $baseline_max_id
+ORDER BY id;
 " > "$run_dir/database-summary.txt"
 
 storage_report=$(sudo -u bp "$PY" "$REPO/scripts/storage_maintenance.py" report --env-file "$ENV_FILE")
@@ -146,7 +148,7 @@ if [[ "$recorder_after" != "active" ]]; then
   exit 6
 fi
 
-if journalctl -u bp-recorder --since "@$(( $(date +%s) - 3600 ))" --no-pager \
+if journalctl -u bp-recorder --since "@$acceptance_started" --no-pager \
   | grep -Eiq 'traceback|fatal|panic'; then
   echo "recorder journal contains a fatal error signature during acceptance window" >&2
   exit 6
