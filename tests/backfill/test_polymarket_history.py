@@ -1,9 +1,9 @@
 from datetime import UTC, datetime
 
 import pytest
-from bp_engine.backfill.polymarket import backfill_polymarket_markets
 from sqlalchemy import create_engine, func, select
 
+from bp_engine.backfill.polymarket import backfill_polymarket_markets
 from bp_engine.polymarket.gamma import GammaMarketPage
 from bp_engine.storage.schema import (
     historical_backfill_artifacts,
