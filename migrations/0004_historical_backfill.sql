@@ -25,8 +25,8 @@ CREATE TABLE IF NOT EXISTS historical_backfill_artifacts (
     downloaded_at TIMESTAMPTZ NOT NULL,
     response_sha256 VARCHAR(80) NOT NULL,
     row_count INTEGER NOT NULL,
-    CONSTRAINT uq_historical_backfill_artifacts_run_key
-        UNIQUE (run_id, artifact_key)
+    CONSTRAINT uq_historical_backfill_artifacts_run_key_sha
+        UNIQUE (run_id, artifact_key, response_sha256)
 );
 
 CREATE INDEX IF NOT EXISTS ix_historical_backfill_artifacts_source_dataset
