@@ -7,7 +7,11 @@ from typing import Any, Literal
 
 from sqlalchemy import Connection, insert, select
 
-from bp_engine.storage.schema import btc_candles, polymarket_price_history
+from bp_engine.storage.schema import (
+    btc_candles,
+    polymarket_market_snapshots,
+    polymarket_price_history,
+)
 
 
 class HistoricalDataConflict(RuntimeError):
@@ -17,6 +21,16 @@ class HistoricalDataConflict(RuntimeError):
 @dataclass(frozen=True)
 class StoreResult:
     created: bool
+
+
+@dataclass(frozen=True)
+class PolymarketMarketSnapshot:
+    condition_id: str
+    gamma_market_id: str
+    slug: str
+    downloaded_at: datetime
+    payload_sha256: str
+    payload: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -47,6 +61,33 @@ class BtcCandle:
 
 
 class HistoricalRepository:
+    def store_polymarket_market_snapshot(
+        self,
+        connection: Connection,
+        snapshot: PolymarketMarketSnapshot,
+    ) -> StoreResult:
+        self._require_aware(snapshot.downloaded_at, "downloaded_at")
+        existing = connection.execute(
+            select(polymarket_market_snapshots).where(
+                polymarket_market_snapshots.c.condition_id == snapshot.condition_id,
+                polymarket_market_snapshots.c.payload_sha256 == snapshot.payload_sha256,
+            )
+        ).mappings().one_or_none()
+        if existing is not None:
+            return StoreResult(created=False)
+
+        connection.execute(
+            insert(polymarket_market_snapshots).values(
+                condition_id=snapshot.condition_id,
+                gamma_market_id=snapshot.gamma_market_id,
+                slug=snapshot.slug,
+                downloaded_at=snapshot.downloaded_at,
+                payload_sha256=snapshot.payload_sha256,
+                payload=snapshot.payload,
+            )
+        )
+        return StoreResult(created=True)
+
     def store_polymarket_price(
         self,
         connection: Connection,
