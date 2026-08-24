@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from scripts import historical_backfill
+from bp_engine.backfill import cli as historical_backfill
 
 
 def test_parse_datetime_requires_timezone_and_normalizes_to_utc() -> None:
