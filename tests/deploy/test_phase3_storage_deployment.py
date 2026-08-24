@@ -78,7 +78,10 @@ def test_existing_hosts_install_ordered_raw_retention_index_before_recorder_star
     recorder_start = bootstrap.index("systemctl enable --now bp-recorder.service")
 
     assert postgres_start < migration_run < recorder_start
-    assert "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_raw_market_events_received_at_id" in migration
+    assert (
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_raw_market_events_received_at_id"
+        in migration
+    )
     assert "ix_raw_market_events_received_at_id" in schema
     assert "raw_market_events.c.received_at" in schema
     assert "raw_market_events.c.id" in schema
