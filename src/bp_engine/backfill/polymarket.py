@@ -106,10 +106,12 @@ async def backfill_polymarket_markets(
             if not isinstance(slug, str):
                 continue
             try:
-                horizon_seconds, _ = parse_horizon_slug(slug)
+                horizon_seconds, window_start = parse_horizon_slug(slug)
             except GammaMarketError:
                 continue
             if horizon_seconds not in allowed:
+                continue
+            if window_start < start or window_start >= end:
                 continue
 
             market = parse_gamma_market(payload)
