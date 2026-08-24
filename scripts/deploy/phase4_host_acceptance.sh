@@ -4,10 +4,11 @@ set -Eeuo pipefail
 EXPECTED_HEAD="${1:-}"
 START="${PHASE4_ACCEPTANCE_START:-2026-08-24T18:00:00Z}"
 END="${PHASE4_ACCEPTANCE_END:-2026-08-24T19:00:00Z}"
-REPO=/opt/bp
+HOST_REPO=/opt/bp
+REPO="${BP_REPO:-$HOST_REPO}"
 ENV_FILE=/etc/bp/bp.env
-COMPOSE_FILE=/opt/bp/docker-compose.prod.yml
-PY=/opt/bp/.venv/bin/python
+COMPOSE_FILE="$HOST_REPO/docker-compose.prod.yml"
+PY="$HOST_REPO/.venv/bin/python"
 EVIDENCE_ROOT=/var/lib/bp/evidence/phase4-historical-backfill
 FORENSIC_FILE=/var/lib/bp/evidence/phase3-data-integrity-incident/raw-20260822T200000Z-20260822T210000Z.jsonl.gz
 FORENSIC_SHA=423f22c58ed356a207684b794f401537ba60e009f08aa89fe54fc7f58efbe9ef
@@ -28,9 +29,18 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 2
 fi
 
+if [[ ! -x "$PY" ]]; then
+  echo "missing host virtualenv Python at $PY" >&2
+  exit 2
+fi
+
 read_env() {
   local key=$1
   awk -F= -v key="$key" '$1 == key {sub(/^[^=]*=/, ""); print; exit}' "$ENV_FILE"
+}
+
+candidate_python() {
+  sudo -u bp env PYTHONPATH="$REPO/src" "$PY" "$@"
 }
 
 live_trading=$(read_env LIVE_TRADING_ENABLED)
@@ -64,18 +74,18 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \
   psql -v ON_ERROR_STOP=1 -U bp -d bp < "$REPO/migrations/0004_historical_backfill.sql" \
   > "$run_dir/migration.txt"
 
-sudo -u bp "$PY" "$REPO/scripts/historical_backfill_smoke.py" --require-all \
+candidate_python "$REPO/scripts/historical_backfill_smoke.py" --require-all \
   | tee "$run_dir/live-source-smoke.json"
 
 baseline_max_id=$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \
   psql -U bp -d bp -At -c "SELECT COALESCE(max(id), 0) FROM historical_backfill_runs;" \
   | tr -d '[:space:]')
 
-sudo -u bp "$PY" "$REPO/scripts/historical_backfill.py" standard \
+candidate_python "$REPO/scripts/historical_backfill.py" standard \
   --start "$START" --end "$END" --env-file "$ENV_FILE" \
   | tee "$run_dir/standard-first.json"
 
-sudo -u bp "$PY" "$REPO/scripts/historical_backfill.py" standard \
+candidate_python "$REPO/scripts/historical_backfill.py" standard \
   --start "$START" --end "$END" --env-file "$ENV_FILE" \
   | tee "$run_dir/standard-second.json"
 
@@ -162,7 +172,9 @@ WHERE id > $baseline_max_id
 ORDER BY id;
 " > "$run_dir/database-summary.txt"
 
-storage_report=$(sudo -u bp "$PY" "$REPO/scripts/storage_maintenance.py" report --env-file "$ENV_FILE")
+# Keep the Phase 3 storage-health check on the deployed recorder checkout. The acceptance
+# worktree must not replace the running recorder's code or service configuration.
+storage_report=$(sudo -u bp "$PY" "$HOST_REPO/scripts/storage_maintenance.py" report --env-file "$ENV_FILE")
 printf '%s\n' "$storage_report" > "$run_dir/storage-report.json"
 disk_status=$(printf '%s' "$storage_report" | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["disk"]["status"])')
 disk_free=$(printf '%s' "$storage_report" | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["disk"]["free_bytes"])')
@@ -193,6 +205,8 @@ cat > "$run_dir/final-summary.txt" <<EOF
 PHASE4 HOST ACCEPTANCE
 VERDICT=PASS
 HEAD=$actual_head
+CANDIDATE_REPO=$REPO
+DEPLOYED_RECORDER_REPO=$HOST_REPO
 WINDOW_START=$START
 WINDOW_END=$END
 LIVE_TRADING_ENABLED=$live_trading
