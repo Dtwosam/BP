@@ -1,0 +1,71 @@
+{
+  "phase": 3,
+  "closed_at": "2026-08-24T21:47:00Z",
+  "live_trading_enabled": false,
+  "host_validated_commit": "d90919a29f7beca7c7b1b5ba4cfd2964c11747c4",
+  "retention_semantics_fix_commit": "6d329b2707b7897cbd73baa2aae5a87990fe7975",
+  "gates": {
+    "ci_206": "success",
+    "live_recorder_smoke_114": "success",
+    "recorder_short_soak_78": "success",
+    "host_verdict": "PHASE3_RETENTION_SEMANTICS_HOST_REVALIDATION_PASS"
+  },
+  "retention": {
+    "hot_raw_hours": 24,
+    "archive_retention_hours_after_hot_store": 24,
+    "full_raw_recoverability_target_hours": 48,
+    "host_removed_archives_during_semantics_proof": 0,
+    "archive_delete_parity": true,
+    "managed_archive_verification": "pass",
+    "stale_temp_files": 0
+  },
+  "host": {
+    "target_hot_cutoff": "2026-08-23T21:00:00Z",
+    "earliest_raw_after_revalidation": "2026-08-24T10:18:16.692122Z",
+    "recorder": "active",
+    "compact_feeds": 4,
+    "disk_status": "ok",
+    "recorder_warning_lines": 0,
+    "maintenance_service_result": "success",
+    "maintenance_service_exit": 0,
+    "maintenance_timer": "enabled",
+    "disk_health_timer": "enabled"
+  },
+  "storage_measurement": {
+    "measured_at": "2026-08-24T16:45:28.993443Z",
+    "raw_rows": 18604144,
+    "recent_24h_raw_rows": 13625762,
+    "raw_table_total_bytes": 53960613888,
+    "raw_avg_bytes_per_event": 2900.462,
+    "projected_raw_bytes_per_day": 39521005761,
+    "archive_bytes": 1895599649,
+    "disk_free_bytes": 33386487808,
+    "disk_status": "ok"
+  },
+  "maintenance_runtime": {
+    "near_steady_state_seconds": 1375,
+    "service_timeout_minutes": 55,
+    "scheduled_start": "2026-08-24T18:00:04Z",
+    "scheduled_end": "2026-08-24T18:21:27Z",
+    "scheduled_result": "success"
+  },
+  "known_damaged_interval": {
+    "start": "2026-08-22T20:00:00Z",
+    "end": "2026-08-22T21:00:00Z",
+    "missing_events": 250000,
+    "forensic_sha256": "423f22c58ed356a207684b794f401537ba60e009f08aa89fe54fc7f58efbe9ef",
+    "policy": "Exclude from raw-dependent model training unless independently recovered from a trustworthy source."
+  },
+  "rollout_coverage_limitation": {
+    "surviving_archives": [
+      "raw-20260823T180000Z-20260823T190000Z.jsonl.gz",
+      "raw-20260823T190000Z-20260823T200000Z.jsonl.gz",
+      "raw-20260823T200000Z-20260823T210000Z.jsonl.gz"
+    ],
+    "first_observed_compact_state_hour": "2026-08-24T10:00:00Z",
+    "feeds_in_first_observed_hour": 4,
+    "policy": "Surviving VM artifacts cannot prove whether unavailable local raw coverage after 2026-08-23T21:00Z and before compact-state rollout was earlier pruning history or capture downtime. Exclude unavailable local raw coverage from raw-dependent research unless independently reacquired; compact-state absence before rollout is not by itself evidence of recorder downtime."
+  },
+  "acceptance": "PASS",
+  "next_phase": 4
+}
