@@ -82,11 +82,16 @@ async def backfill_polymarket_markets(
         )
         chunks += 1
 
+        page_artifact_key = artifact_key(
+            "polymarket_gamma",
+            "markets_keyset",
+            page.request_params,
+        )
         provenance_repository.record_artifact(
             connection,
             BackfillArtifact(
                 run_id=run_id,
-                artifact_key=artifact_key("polymarket_gamma", "markets_keyset", page.request_params),
+                artifact_key=page_artifact_key,
                 source="polymarket_gamma",
                 dataset="markets_keyset",
                 request_params=page.request_params,
