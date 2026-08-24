@@ -2,8 +2,6 @@ import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
 
-from sqlalchemy import create_engine
-
 
 SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "storage_maintenance.py"
 SCRIPT_SPEC = importlib.util.spec_from_file_location("storage_maintenance_script", SCRIPT_PATH)
@@ -27,11 +25,8 @@ def test_run_counts_archive_retention_after_hot_storage(monkeypatch, tmp_path, c
     captured: dict[str, int] = {}
 
     monkeypatch.setattr(storage_maintenance, "_settings", lambda args: settings)
-    monkeypatch.setattr(
-        storage_maintenance,
-        "create_engine",
-        lambda url: create_engine("sqlite://"),
-    )
+    monkeypatch.setattr(storage_maintenance, "create_engine", lambda url: object())
+    monkeypatch.setattr(storage_maintenance.metadata, "create_all", lambda engine: None)
 
     def capture_prune(engine, archive_dir, *, now, retention_hours):
         captured["retention_hours"] = retention_hours
