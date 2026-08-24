@@ -3,6 +3,7 @@ from pathlib import Path
 SYSTEMD = Path("deploy/systemd")
 BOOTSTRAP = Path("scripts/deploy/bootstrap_ubuntu.sh")
 RUNBOOK = Path("docs/PHASE-3-DEPLOYMENT.md")
+SCHEMA = Path("src/bp_engine/storage/schema.py")
 
 
 def read(path: Path) -> str:
@@ -64,6 +65,16 @@ def test_bootstrap_installs_storage_environment_archive_dir_and_timer_units() ->
     assert "bp-storage-disk-health.timer" in bootstrap
     assert "systemctl enable --now bp-storage-maintenance.timer" not in bootstrap
     assert "systemctl enable --now bp-storage-disk-health.timer" not in bootstrap
+
+
+def test_existing_hosts_install_ordered_raw_retention_index() -> None:
+    bootstrap = read(BOOTSTRAP)
+    schema = read(SCHEMA)
+
+    assert "ensure_storage_indexes.py" in bootstrap
+    assert "ix_raw_market_events_received_at_id" in schema
+    assert "raw_market_events.c.received_at" in schema
+    assert "raw_market_events.c.id" in schema
 
 
 def test_phase3_runbook_keeps_trading_disabled_and_requires_manual_archive_verification() -> None:
