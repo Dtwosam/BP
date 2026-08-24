@@ -3,10 +3,10 @@ from decimal import Decimal
 
 import pytest
 
-from bp_engine.backfill.live_smoke import find_recent_closed_btc_market, run_live_source_smoke
-from bp_engine.backfill.polymarket_prices import PriceHistoryPoint, PriceHistoryResponse
 from bp_engine.backfill.bybit import BybitKlineResponse
 from bp_engine.backfill.coinbase import CoinbaseCandleResponse
+from bp_engine.backfill.live_smoke import find_recent_closed_btc_market, run_live_source_smoke
+from bp_engine.backfill.polymarket_prices import PriceHistoryPoint, PriceHistoryResponse
 
 
 def gamma_payload(slug: str) -> dict[str, object]:
