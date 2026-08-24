@@ -3,14 +3,14 @@ from decimal import Decimal
 
 import httpx
 import pytest
+from sqlalchemy import create_engine, func, select
+
 from bp_engine.backfill.bybit import (
     BybitHistoryClient,
     BybitKlineResponse,
     backfill_bybit_candles,
     iter_candle_windows,
 )
-from sqlalchemy import create_engine, func, select
-
 from bp_engine.storage.schema import btc_candles, historical_backfill_artifacts, metadata
 
 
