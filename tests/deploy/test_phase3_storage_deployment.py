@@ -2,6 +2,7 @@ from pathlib import Path
 
 SYSTEMD = Path("deploy/systemd")
 BOOTSTRAP = Path("scripts/deploy/bootstrap_ubuntu.sh")
+INDEX_MIGRATION = Path("scripts/deploy/ensure_storage_indexes.py")
 RUNBOOK = Path("docs/PHASE-3-DEPLOYMENT.md")
 SCHEMA = Path("src/bp_engine/storage/schema.py")
 
@@ -67,11 +68,17 @@ def test_bootstrap_installs_storage_environment_archive_dir_and_timer_units() ->
     assert "systemctl enable --now bp-storage-disk-health.timer" not in bootstrap
 
 
-def test_existing_hosts_install_ordered_raw_retention_index() -> None:
+def test_existing_hosts_install_ordered_raw_retention_index_before_recorder_start() -> None:
     bootstrap = read(BOOTSTRAP)
+    migration = read(INDEX_MIGRATION)
     schema = read(SCHEMA)
 
-    assert "ensure_storage_indexes.py" in bootstrap
+    postgres_start = bootstrap.index("systemctl enable --now bp-postgres.service")
+    migration_run = bootstrap.index("ensure_storage_indexes.py")
+    recorder_start = bootstrap.index("systemctl enable --now bp-recorder.service")
+
+    assert postgres_start < migration_run < recorder_start
+    assert "CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_raw_market_events_received_at_id" in migration
     assert "ix_raw_market_events_received_at_id" in schema
     assert "raw_market_events.c.received_at" in schema
     assert "raw_market_events.c.id" in schema
