@@ -90,10 +90,11 @@ class FakeCoinbaseClient:
         del limit
         rows = []
         cursor = start
+        missing_bucket = datetime(2026, 8, 20, 0, 1, tzinfo=UTC)
         while cursor < end:
-            # Deliberately omit one bucket. Coinbase documents that intervals with no ticks
-            # may be absent; the backfill must preserve that gap instead of synthesizing data.
-            if cursor != start + timedelta(minutes=1):
+            # Deliberately omit one global bucket. Coinbase documents that intervals with no
+            # ticks may be absent; the backfill must preserve that gap instead of synthesizing.
+            if cursor != missing_bucket:
                 rows.append(
                     {
                         "start": str(int(cursor.timestamp())),
