@@ -88,8 +88,10 @@ class FakePriceClient:
         base = Decimal("0.6") if asset_id == "asset-up" else Decimal("0.4")
         raw = {
             "history": [
+                {"t": int(start.timestamp()) - 60, "p": float(base)},
                 {"t": int(start.timestamp()) + 60, "p": float(base)},
                 {"t": int(start.timestamp()) + 120, "p": float(base + Decimal("0.01"))},
+                {"t": int(end.timestamp()), "p": float(base)},
             ]
         }
         return PriceHistoryResponse.from_payload(
