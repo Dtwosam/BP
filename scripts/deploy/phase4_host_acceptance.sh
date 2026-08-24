@@ -79,14 +79,43 @@ sudo -u bp "$PY" "$REPO/scripts/historical_backfill.py" standard \
   --start "$START" --end "$END" --env-file "$ENV_FILE" \
   | tee "$run_dir/standard-second.json"
 
-second_inserted=$("$PY" - "$run_dir/standard-second.json" <<'PY'
+read -r first_covered second_covered second_inserted < <(
+  "$PY" - "$run_dir/standard-first.json" "$run_dir/standard-second.json" <<'PY'
 import json
 import sys
 from pathlib import Path
-payload = json.loads(Path(sys.argv[1]).read_text())
-print(sum(int(item["rows_inserted"]) for item in payload.values()))
+
+expected = {
+    "polymarket_markets",
+    "polymarket_prices",
+    "bybit_spot",
+    "bybit_linear",
+    "coinbase_spot",
+}
+first = json.loads(Path(sys.argv[1]).read_text())
+second = json.loads(Path(sys.argv[2]).read_text())
+first_covered = expected == set(first) and all(
+    int(first[name]["rows_inserted"]) + int(first[name]["rows_existing"]) > 0
+    and int(first[name]["chunks_fetched"]) > 0
+    for name in expected
+)
+second_covered = expected == set(second) and all(
+    int(second[name]["rows_existing"]) > 0
+    and int(second[name]["chunks_fetched"]) > 0
+    for name in expected
+)
+second_inserted = sum(int(second[name]["rows_inserted"]) for name in expected if name in second)
+print(int(first_covered), int(second_covered), second_inserted)
 PY
 )
+if [[ "$first_covered" != "1" ]]; then
+  echo "first standard backfill did not return non-empty coverage for every dataset" >&2
+  exit 5
+fi
+if [[ "$second_covered" != "1" ]]; then
+  echo "second standard backfill did not return existing coverage for every dataset" >&2
+  exit 5
+fi
 if [[ "$second_inserted" != "0" ]]; then
   echo "second standard backfill inserted $second_inserted rows; rerun is not idempotent" >&2
   exit 5
@@ -173,6 +202,8 @@ RECORDER_BEFORE=$recorder_before
 RECORDER_AFTER=$recorder_after
 MAINTENANCE_TIMER=$maint_timer
 DISK_TIMER=$disk_timer
+FIRST_RUN_ALL_DATASETS_NONEMPTY=$first_covered
+SECOND_RUN_ALL_DATASETS_EXISTING=$second_covered
 SECOND_RUN_ROWS_INSERTED=$second_inserted
 NEW_BACKFILL_RUNS=$new_runs
 FAILED_NEW_RUNS=$failed_new_runs
