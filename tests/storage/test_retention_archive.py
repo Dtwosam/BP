@@ -258,6 +258,23 @@ def test_archive_pruning_waits_for_all_required_compact_feeds(tmp_path) -> None:
         now=end + timedelta(hours=2),
         retention_hours=1,
     )
+    assert removed == []
+    assert archive_path.exists()
+    assert manifest_path.exists()
+
+    assert delete_verified_interval(
+        engine,
+        archive_path,
+        manifest_path,
+        batch_size=1,
+    ) == 2
+
+    removed = prune_expired_archives(
+        engine,
+        archive_dir,
+        now=end + timedelta(hours=2),
+        retention_hours=1,
+    )
     assert removed == [manifest.archive_name]
     assert not archive_path.exists()
     assert not manifest_path.exists()
