@@ -1,0 +1,41 @@
+name: Historical Backfill Smoke
+
+on:
+  push:
+    branches:
+      - build/phase-4-historical-backfill
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  historical-source-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+
+      - name: Live historical source smoke
+        run: python scripts/historical_backfill_smoke.py | tee historical-backfill-smoke.json
+
+      - name: Upload sanitized smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: historical-backfill-smoke
+          path: historical-backfill-smoke.json
+          if-no-files-found: error
