@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import httpx
+
 from bp_engine.backfill.bybit import BybitHistoryClient
 from bp_engine.backfill.coinbase import CoinbaseHistoryClient
 from bp_engine.backfill.polymarket_prices import PolymarketPriceHistoryClient
@@ -57,6 +59,51 @@ def _count_in_window(candles: tuple[Any, ...], start: datetime, end: datetime) -
     return sum(1 for candle in candles if start <= candle.bucket_at < end)
 
 
+async def _bybit_smoke(
+    client: BybitHistoryClient,
+    *,
+    start: datetime,
+    end: datetime,
+) -> dict[str, Any]:
+    try:
+        spot = await client.get_klines(
+            category="spot",
+            symbol="BTCUSDT",
+            interval="1",
+            start=start,
+            end=end,
+            limit=10,
+        )
+        linear = await client.get_klines(
+            category="linear",
+            symbol="BTCUSDT",
+            interval="1",
+            start=start,
+            end=end,
+            limit=10,
+        )
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code != 403:
+            raise
+        return {
+            "status": "environment_blocked_http_403",
+            "spot_candles": None,
+            "linear_candles": None,
+        }
+
+    spot_count = _count_in_window(spot.candles, start, end)
+    linear_count = _count_in_window(linear.candles, start, end)
+    if spot_count == 0:
+        raise RuntimeError("Bybit spot historical smoke returned no complete BTC candles")
+    if linear_count == 0:
+        raise RuntimeError("Bybit linear historical smoke returned no complete BTC candles")
+    return {
+        "status": "ok",
+        "spot_candles": spot_count,
+        "linear_candles": linear_count,
+    }
+
+
 async def run_live_source_smoke(
     *,
     now: datetime | None = None,
@@ -89,22 +136,7 @@ async def run_live_source_smoke(
 
     btc_end = checked_at.replace(second=0, microsecond=0) - timedelta(minutes=2)
     btc_start = btc_end - timedelta(minutes=3)
-    bybit_spot = await bybit_client.get_klines(
-        category="spot",
-        symbol="BTCUSDT",
-        interval="1",
-        start=btc_start,
-        end=btc_end,
-        limit=10,
-    )
-    bybit_linear = await bybit_client.get_klines(
-        category="linear",
-        symbol="BTCUSDT",
-        interval="1",
-        start=btc_start,
-        end=btc_end,
-        limit=10,
-    )
+    bybit = await _bybit_smoke(bybit_client, start=btc_start, end=btc_end)
     coinbase_spot = await coinbase_client.get_candles(
         product_id="BTC-USD",
         granularity="ONE_MINUTE",
@@ -112,19 +144,13 @@ async def run_live_source_smoke(
         end=btc_end,
         limit=10,
     )
-
-    bybit_spot_count = _count_in_window(bybit_spot.candles, btc_start, btc_end)
-    bybit_linear_count = _count_in_window(bybit_linear.candles, btc_start, btc_end)
     coinbase_spot_count = _count_in_window(coinbase_spot.candles, btc_start, btc_end)
-    if bybit_spot_count == 0:
-        raise RuntimeError("Bybit spot historical smoke returned no complete BTC candles")
-    if bybit_linear_count == 0:
-        raise RuntimeError("Bybit linear historical smoke returned no complete BTC candles")
     if coinbase_spot_count == 0:
         raise RuntimeError("Coinbase historical smoke returned no complete BTC-USD candles")
 
+    status = "ok" if bybit["status"] == "ok" else "environment_limited"
     return {
-        "status": "ok",
+        "status": status,
         "checked_at": checked_at.isoformat().replace("+00:00", "Z"),
         "polymarket": {
             "slug": market.slug,
@@ -137,9 +163,6 @@ async def run_live_source_smoke(
             "start": btc_start.isoformat().replace("+00:00", "Z"),
             "end": btc_end.isoformat().replace("+00:00", "Z"),
         },
-        "bybit": {
-            "spot_candles": bybit_spot_count,
-            "linear_candles": bybit_linear_count,
-        },
-        "coinbase": {"spot_candles": coinbase_spot_count},
+        "bybit": bybit,
+        "coinbase": {"status": "ok", "spot_candles": coinbase_spot_count},
     }
