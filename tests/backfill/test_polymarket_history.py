@@ -50,27 +50,32 @@ class FakeGammaClient:
 
 
 @pytest.mark.asyncio
-async def test_market_backfill_filters_horizons_versions_snapshot_and_records_page() -> None:
+async def test_market_backfill_filters_horizons_window_versions_snapshot_and_records_page() -> None:
     start = datetime(2026, 8, 20, tzinfo=UTC)
     end = datetime(2026, 8, 21, tzinfo=UTC)
     downloaded_at = datetime(2026, 8, 24, 22, 0, tzinfo=UTC)
     valid = gamma_payload(
         market_id="m5",
-        slug="btc-updown-5m-1755648000",
+        slug="btc-updown-5m-1787184000",
         condition_id="condition-5m",
     )
     unsupported_horizon = gamma_payload(
         market_id="m10",
-        slug="btc-updown-10m-1755648000",
+        slug="btc-updown-10m-1787184000",
         condition_id="condition-10m",
+    )
+    outside_window = gamma_payload(
+        market_id="m-old",
+        slug="btc-updown-5m-1787183700",
+        condition_id="condition-old",
     )
     unrelated = {"id": "other", "slug": "some-other-market"}
     raw_page = {
-        "markets": [valid, unsupported_horizon, unrelated],
+        "markets": [valid, unsupported_horizon, outside_window, unrelated],
         "next_cursor": "cursor-2",
     }
     page1 = GammaMarketPage(
-        markets=(valid, unsupported_horizon, unrelated),
+        markets=(valid, unsupported_horizon, outside_window, unrelated),
         next_cursor="cursor-2",
         request_params={"limit": "100", "after_cursor": "cursor-1"},
         raw_payload=raw_page,
