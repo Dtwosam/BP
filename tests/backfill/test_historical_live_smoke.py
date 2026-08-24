@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+import httpx
 import pytest
 
 from bp_engine.backfill.bybit import BybitKlineResponse
@@ -85,6 +86,14 @@ class FakeBybitClient:
         )
 
 
+class BlockedBybitClient:
+    async def get_klines(self, **kwargs):
+        del kwargs
+        request = httpx.Request("GET", "https://api.bybit.com/v5/market/kline")
+        response = httpx.Response(403, request=request)
+        raise httpx.HTTPStatusError("blocked", request=request, response=response)
+
+
 class FakeCoinbaseClient:
     async def get_candles(self, *, product_id, granularity, start, end, limit):
         del product_id, granularity, limit
@@ -105,15 +114,17 @@ class FakeCoinbaseClient:
         )
 
 
+def _gamma_for(now: datetime) -> FakeGammaClient:
+    aligned = int(now.timestamp()) - (int(now.timestamp()) % 300)
+    return FakeGammaClient(f"btc-updown-5m-{aligned - 600}")
+
+
 @pytest.mark.asyncio
 async def test_live_source_smoke_returns_sanitized_nonempty_counts() -> None:
     now = datetime(2026, 8, 24, 22, 47, tzinfo=UTC)
-    expected_epoch = int(datetime(2026, 8, 24, 22, 35, tzinfo=UTC).timestamp())
-    gamma = FakeGammaClient(f"btc-updown-5m-{expected_epoch}")
-
     report = await run_live_source_smoke(
         now=now,
-        gamma_client=gamma,
+        gamma_client=_gamma_for(now),
         price_client=FakePriceClient(),
         bybit_client=FakeBybitClient(),
         coinbase_client=FakeCoinbaseClient(),
@@ -122,8 +133,29 @@ async def test_live_source_smoke_returns_sanitized_nonempty_counts() -> None:
     assert report["status"] == "ok"
     assert report["polymarket"]["up_price_points"] == 1
     assert report["polymarket"]["down_price_points"] == 1
+    assert report["bybit"]["status"] == "ok"
     assert report["bybit"]["spot_candles"] == 1
     assert report["bybit"]["linear_candles"] == 1
     assert report["coinbase"]["spot_candles"] == 1
     assert "asset-up" not in str(report)
     assert "asset-down" not in str(report)
+
+
+@pytest.mark.asyncio
+async def test_live_source_smoke_marks_bybit_403_as_environment_limited() -> None:
+    now = datetime(2026, 8, 24, 22, 47, tzinfo=UTC)
+    report = await run_live_source_smoke(
+        now=now,
+        gamma_client=_gamma_for(now),
+        price_client=FakePriceClient(),
+        bybit_client=BlockedBybitClient(),
+        coinbase_client=FakeCoinbaseClient(),
+    )
+
+    assert report["status"] == "environment_limited"
+    assert report["bybit"] == {
+        "status": "environment_blocked_http_403",
+        "spot_candles": None,
+        "linear_candles": None,
+    }
+    assert report["coinbase"]["status"] == "ok"
