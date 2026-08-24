@@ -1,15 +1,16 @@
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import create_engine, func, select
+
 from bp_engine.storage.historical import (
     BtcCandle,
     HistoricalDataConflict,
     HistoricalRepository,
     PolymarketPricePoint,
 )
-from sqlalchemy import create_engine, func, select
-
 from bp_engine.storage.schema import btc_candles, metadata, polymarket_price_history
 
 
@@ -36,7 +37,7 @@ def test_polymarket_price_insert_is_idempotent_and_conflicts_fail_closed() -> No
         second = repository.store_polymarket_price(connection, point)
         count = connection.scalar(select(func.count()).select_from(polymarket_price_history))
 
-        changed = PolymarketPricePoint(**{**point.__dict__, "price": Decimal("0.7000")})
+        changed = replace(point, price=Decimal("0.7000"))
         with pytest.raises(HistoricalDataConflict, match="asset-up"):
             repository.store_polymarket_price(connection, changed)
 
@@ -70,7 +71,7 @@ def test_btc_candle_insert_is_idempotent_and_market_type_is_part_of_key() -> Non
         second_market = repository.store_btc_candle(connection, linear)
         count = connection.scalar(select(func.count()).select_from(btc_candles))
 
-        changed = BtcCandle(**{**spot.__dict__, "close": Decimal("60051")})
+        changed = replace(spot, close=Decimal("60051"))
         with pytest.raises(HistoricalDataConflict, match="BTCUSDT"):
             repository.store_btc_candle(connection, changed)
 
