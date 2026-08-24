@@ -57,17 +57,16 @@ class PriceHistoryResponse:
                 raise PolymarketPriceHistoryError("price-history timestamp must be numeric")
             try:
                 price = Decimal(str(price_value))
-            except (InvalidOperation, ValueError) as exc:
-                raise PolymarketPriceHistoryError("price-history price must be decimal") from exc
+                observed_at = datetime.fromtimestamp(timestamp, tz=UTC)
+            except (InvalidOperation, ValueError, OverflowError, OSError) as exc:
+                raise PolymarketPriceHistoryError(
+                    "price-history entry contains invalid timestamp or price"
+                ) from exc
             if not price.is_finite() or price < 0 or price > 1:
                 raise PolymarketPriceHistoryError("price-history price must be between 0 and 1")
-            points.append(
-                PriceHistoryPoint(
-                    observed_at=datetime.fromtimestamp(timestamp, tz=UTC),
-                    price=price,
-                )
-            )
+            points.append(PriceHistoryPoint(observed_at=observed_at, price=price))
 
+        points.sort(key=lambda point: point.observed_at)
         return cls(
             points=tuple(points),
             request_params=dict(request_params),
@@ -196,6 +195,8 @@ async def backfill_polymarket_prices(
             )
 
             for point in response.points:
+                if point.observed_at < market_start or point.observed_at >= market_end:
+                    continue
                 result = historical_repository.store_polymarket_price(
                     connection,
                     PolymarketPricePoint(
