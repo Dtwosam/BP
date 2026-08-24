@@ -64,6 +64,11 @@ Index(
     raw_market_events.c.received_at,
     postgresql_using="brin",
 )
+Index(
+    "ix_raw_market_events_received_at_id",
+    raw_market_events.c.received_at,
+    raw_market_events.c.id,
+)
 
 market_state_1s = Table(
     "market_state_1s",
