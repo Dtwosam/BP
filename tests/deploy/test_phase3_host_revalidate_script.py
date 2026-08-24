@@ -1,5 +1,5 @@
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 
 def test_phase3_host_revalidate_script_has_valid_bash_syntax() -> None:
