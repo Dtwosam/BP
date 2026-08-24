@@ -1,5 +1,7 @@
 from datetime import UTC, datetime
 
+from sqlalchemy import create_engine, func, select
+
 from bp_engine.backfill.provenance import (
     BackfillArtifact,
     BackfillRun,
@@ -8,8 +10,6 @@ from bp_engine.backfill.provenance import (
     artifact_key,
     canonical_json_sha256,
 )
-from sqlalchemy import create_engine, func, select
-
 from bp_engine.storage.schema import (
     historical_backfill_artifacts,
     historical_backfill_runs,
