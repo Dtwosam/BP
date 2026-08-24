@@ -125,7 +125,9 @@ def _run_command(args: argparse.Namespace) -> int:
         engine,
         archive_dir,
         now=now,
-        retention_hours=settings.storage_archive_retention_hours,
+        retention_hours=(
+            settings.storage_hot_raw_hours + settings.storage_archive_retention_hours
+        ),
     )
     health = disk_health(
         archive_dir,
