@@ -158,7 +158,8 @@ historical_backfill_artifacts = Table(
     UniqueConstraint(
         "run_id",
         "artifact_key",
-        name="uq_historical_backfill_artifacts_run_key",
+        "response_sha256",
+        name="uq_historical_backfill_artifacts_run_key_sha",
     ),
 )
 
