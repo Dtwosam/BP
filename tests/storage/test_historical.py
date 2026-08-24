@@ -2,7 +2,6 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-
 from bp_engine.storage.historical import (
     BtcCandle,
     HistoricalDataConflict,
