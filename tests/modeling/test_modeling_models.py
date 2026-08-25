@@ -4,6 +4,7 @@ from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime
 
 import pytest
+
 from bp_engine.modeling.models import (
     DATASET_VERSION,
     SPLIT_VERSION,
