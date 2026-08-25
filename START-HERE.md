@@ -17,8 +17,10 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
-Phase 8: build the **walk-forward backtester** from the Phase 7 accepted baseline-modeling outputs. Phase 7 is production-host accepted on candidate `66bae5c71eab5e2c154cff1144ce509101d6e985` with 288 labeled 5m markets, 96 labeled 15m markets, deterministic dataset/split/model reruns, zero partition leakage, and verified external artifact hashes.
+Phase 9: build the **probability calibration + edge engine** from the Phase 8 accepted walk-forward outputs. Phase 8 is production-host accepted on candidate `69d3f9f8967dfcd1c1a68c640c242bd2b77cc089` with deterministic semantic reruns, zero partition overlap, zero ordinary-test reuse, zero prediction-coverage violations, and zero execution-semantic violations.
 
-The Phase 7 validation champion for both verified horizons is the simple Polymarket `market_price` baseline; XGBoost did not satisfy the promotion rule for either horizon. Phase 8 should therefore focus on chronological walk-forward evaluation, purging/embargo, timing/regime breakdown, and realistic executable prices rather than adding model complexity.
+The accepted Phase 8 5m walk-forward report covered 144 ordinary OOS markets at 0.8264 accuracy, but observed selected-side best-ask execution coverage was 0.4306 and gross P&L before costs was -1.465; the untouched 5m final holdout was 0.8333 accurate with gross P&L -0.26. The 15m report reached 0.9792 ordinary OOS accuracy on 48 markets, but the untouched final holdout fell to 0.625 accuracy and gross P&L -0.47. Treat these as evidence that prediction accuracy alone is not a trade-selection rule and do not cherry-pick the high 15m ordinary-OOS headline or individual timing slices.
 
-Live prediction, paper trading, and live trading remain blocked by later phase gates. Live trading remains disabled and trade/loss limits remain zero.
+Phase 9 should calibrate probabilities using only permitted training/validation data, compare them to the observed executable selected-side price, explicitly account for spread/fees/slippage/uncertainty/staleness, and abstain whenever a configured minimum edge is not met. Missing or stale executable books remain no-fill/unavailable; no midpoint or synthetic fill is allowed.
+
+Live prediction, paper trading, and live trading remain blocked by later phase gates. `LIVE_TRADING_ENABLED=false` and trade-size/daily-loss limits remain zero.
