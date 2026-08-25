@@ -43,7 +43,7 @@ async def backfill_polymarket_markets(
     end: datetime,
     horizons: tuple[str, ...],
     downloaded_at: datetime,
-    initial_cursor: str | None = None,
+    initial_offset: int = 0,
     market_repository: PolymarketMarketRepository | None = None,
     historical_repository: HistoricalRepository | None = None,
     provenance_repository: ProvenanceRepository | None = None,
@@ -56,6 +56,8 @@ async def backfill_polymarket_markets(
         raise ValueError("downloaded_at must be timezone-aware")
     if start >= end:
         raise ValueError("start must be before end")
+    if initial_offset < 0:
+        raise ValueError("initial_offset must be non-negative")
 
     allowed = _allowed_horizon_seconds(horizons)
     market_repository = market_repository or PolymarketMarketRepository()
@@ -65,26 +67,25 @@ async def backfill_polymarket_markets(
     inserted = 0
     existing = 0
     chunks = 0
-    cursor = initial_cursor
-    seen_cursors: set[str] = set()
+    offset = initial_offset
+    seen_offsets: set[int] = set()
 
     while True:
-        if cursor is not None:
-            if cursor in seen_cursors:
-                raise RuntimeError(f"Gamma keyset cursor repeated: {cursor}")
-            seen_cursors.add(cursor)
+        if offset in seen_offsets:
+            raise RuntimeError(f"Gamma market offset repeated: {offset}")
+        seen_offsets.add(offset)
 
-        page = await client.list_markets_page(
+        page = await client.list_markets_offset_page(
             start=start,
             end=end,
             limit=100,
-            after_cursor=cursor,
+            offset=offset,
         )
         chunks += 1
 
         page_artifact_key = artifact_key(
             "polymarket_gamma",
-            "markets_keyset",
+            "markets_offset",
             page.request_params,
         )
         provenance_repository.record_artifact(
@@ -93,7 +94,7 @@ async def backfill_polymarket_markets(
                 run_id=run_id,
                 artifact_key=page_artifact_key,
                 source="polymarket_gamma",
-                dataset="markets_keyset",
+                dataset="markets_offset",
                 request_params=page.request_params,
                 downloaded_at=downloaded_at,
                 response_sha256=canonical_json_sha256(page.raw_payload),
@@ -133,12 +134,12 @@ async def backfill_polymarket_markets(
                 ),
             )
 
-        next_cursor = page.next_cursor
-        if next_cursor is None:
+        next_offset = page.next_offset
+        if next_offset is None:
             break
-        if next_cursor == cursor:
-            raise RuntimeError(f"Gamma keyset cursor did not advance: {next_cursor}")
-        cursor = next_cursor
+        if next_offset <= offset:
+            raise RuntimeError(f"Gamma market offset did not advance: {next_offset}")
+        offset = next_offset
 
     return BackfillStats(
         rows_inserted=inserted,
