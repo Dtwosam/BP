@@ -150,7 +150,7 @@ SELECT count(*)
 FROM market_features AS f
 JOIN market_labels AS l
   ON l.condition_id = f.condition_id
-CROSS JOIN LATERAL json_each_text(f.source_cutoffs) AS cutoff(key, value)
+CROSS JOIN LATERAL jsonb_each_text(f.source_cutoffs) AS cutoff(key, value)
 WHERE l.market_start_at >= '$START'::timestamptz
   AND l.market_start_at < '$END'::timestamptz
   AND l.label_version = 'official-outcome-v1'
