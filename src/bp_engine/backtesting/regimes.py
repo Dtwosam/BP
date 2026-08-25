@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import asdict
+from datetime import UTC
 from statistics import median
 from typing import Any
 
@@ -19,7 +20,7 @@ def utc_session_regime(row: SupervisedRow) -> str:
     value = row.market_start_at
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("market_start_at must be timezone-aware")
-    hour = value.astimezone().astimezone(__import__("datetime").UTC).hour
+    hour = value.astimezone(UTC).hour
     if hour < 6:
         return "00-06"
     if hour < 12:
@@ -109,7 +110,11 @@ def regime_metrics(
         volatility_regime(row, volatility_threshold) for row in rows
     )
     execution_labels = tuple(
-        "executable" if selected_observed_ask(row, probability) is not None else "unavailable"
+        (
+            "executable"
+            if selected_observed_ask(row, probability) is not None
+            else "unavailable"
+        )
         for row, probability in zip(rows, probabilities, strict=True)
     )
     return {
