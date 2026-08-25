@@ -11,7 +11,6 @@ from bp_engine.backtesting.predictor import (
     load_model_spec,
 )
 from sqlalchemy import create_engine
-
 from bp_engine.modeling.models import (
     MetricSummary,
     ModelEvaluation,
