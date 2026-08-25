@@ -22,6 +22,14 @@ class GammaMarketPage:
     raw_payload: dict[str, Any]
 
 
+@dataclass(frozen=True)
+class GammaMarketOffsetPage:
+    markets: tuple[dict[str, Any], ...]
+    next_offset: int | None
+    request_params: dict[str, str]
+    raw_payload: list[dict[str, Any]]
+
+
 class GammaClient:
     BASE_URL = "https://gamma-api.polymarket.com"
     KEYSET_MAX_ATTEMPTS = 3
@@ -55,14 +63,7 @@ class GammaClient:
         limit: int = 100,
         after_cursor: str | None = None,
     ) -> GammaMarketPage:
-        if start.tzinfo is None or start.utcoffset() is None:
-            raise ValueError("start must be timezone-aware")
-        if end.tzinfo is None or end.utcoffset() is None:
-            raise ValueError("end must be timezone-aware")
-        if start >= end:
-            raise ValueError("start must be before end")
-        if limit < 1 or limit > 100:
-            raise ValueError("limit must be between 1 and 100")
+        self._validate_market_window(start, end, limit)
 
         params = {
             "limit": str(limit),
@@ -88,21 +89,59 @@ class GammaClient:
         if not isinstance(markets_payload, list):
             raise GammaResponseError("markets keyset response must contain a markets array")
 
-        markets: list[dict[str, Any]] = []
-        for market in markets_payload:
-            if not isinstance(market, Mapping):
-                raise GammaResponseError("markets keyset entries must be JSON objects")
-            markets.append(dict(market))
+        markets = self._normalize_market_entries(markets_payload, "markets keyset")
 
         next_cursor = payload.get("next_cursor")
         if next_cursor is not None and not isinstance(next_cursor, str):
             raise GammaResponseError("next_cursor must be a string when present")
 
         return GammaMarketPage(
-            markets=tuple(markets),
+            markets=markets,
             next_cursor=next_cursor,
             request_params=params,
             raw_payload=dict(payload),
+        )
+
+    async def list_markets_offset_page(
+        self,
+        *,
+        start: datetime,
+        end: datetime,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> GammaMarketOffsetPage:
+        self._validate_market_window(start, end, limit)
+        if offset < 0:
+            raise ValueError("offset must be non-negative")
+
+        params = {
+            "limit": str(limit),
+            "offset": str(offset),
+            "order": "startDate",
+            "ascending": "true",
+            "closed": "true",
+            "start_date_min": self._iso_z(start),
+            "start_date_max": self._iso_z(end),
+        }
+
+        if self._http_client is not None:
+            response = await self._http_client.get("/markets", params=params)
+        else:
+            async with httpx.AsyncClient(base_url=self.BASE_URL, timeout=10.0) as client:
+                response = await client.get("/markets", params=params)
+
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, list):
+            raise GammaResponseError("markets offset response must be a JSON array")
+
+        markets = self._normalize_market_entries(payload, "markets offset")
+        next_offset = offset + limit if len(markets) == limit else None
+        return GammaMarketOffsetPage(
+            markets=markets,
+            next_offset=next_offset,
+            request_params=params,
+            raw_payload=[dict(market) for market in markets],
         )
 
     async def _get_keyset_with_retry(
@@ -118,6 +157,29 @@ class GammaClient:
             delay = self.KEYSET_RETRY_BASE_DELAY_SECONDS * (2**attempt)
             await asyncio.sleep(delay)
         raise AssertionError("unreachable Gamma keyset retry state")
+
+    @staticmethod
+    def _validate_market_window(start: datetime, end: datetime, limit: int) -> None:
+        if start.tzinfo is None or start.utcoffset() is None:
+            raise ValueError("start must be timezone-aware")
+        if end.tzinfo is None or end.utcoffset() is None:
+            raise ValueError("end must be timezone-aware")
+        if start >= end:
+            raise ValueError("start must be before end")
+        if limit < 1 or limit > 100:
+            raise ValueError("limit must be between 1 and 100")
+
+    @staticmethod
+    def _normalize_market_entries(
+        payload: list[Any],
+        context: str,
+    ) -> tuple[dict[str, Any], ...]:
+        markets: list[dict[str, Any]] = []
+        for market in payload:
+            if not isinstance(market, Mapping):
+                raise GammaResponseError(f"{context} entries must be JSON objects")
+            markets.append(dict(market))
+        return tuple(markets)
 
     @staticmethod
     def _iso_z(value: datetime) -> str:
