@@ -8,6 +8,7 @@ from sqlalchemy import (
     Index,
     Integer,
     MetaData,
+    Numeric,
     String,
     Table,
     Text,
@@ -121,4 +122,132 @@ feed_status = Table(
     Column("updated_at", DateTime(timezone=True), nullable=False),
     Column("details", JSON, nullable=False),
     UniqueConstraint("source", "stream", name="uq_feed_status_source_stream"),
+)
+
+historical_backfill_runs = Table(
+    "historical_backfill_runs",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("run_id", String(36), nullable=False, unique=True),
+    Column("dataset", String(64), nullable=False),
+    Column("source", String(64), nullable=False),
+    Column("requested_start", DateTime(timezone=True), nullable=False),
+    Column("requested_end", DateTime(timezone=True), nullable=False),
+    Column("parameters", JSON, nullable=False),
+    Column("started_at", DateTime(timezone=True), nullable=False),
+    Column("completed_at", DateTime(timezone=True), nullable=True),
+    Column("status", String(24), nullable=False),
+    Column("rows_inserted", Integer, nullable=False, default=0),
+    Column("rows_existing", Integer, nullable=False, default=0),
+    Column("chunks_fetched", Integer, nullable=False, default=0),
+    Column("error", Text, nullable=True),
+)
+
+historical_backfill_artifacts = Table(
+    "historical_backfill_artifacts",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("run_id", String(36), nullable=False),
+    Column("artifact_key", String(80), nullable=False),
+    Column("source", String(64), nullable=False),
+    Column("dataset", String(64), nullable=False),
+    Column("request_params", JSON, nullable=False),
+    Column("downloaded_at", DateTime(timezone=True), nullable=False),
+    Column("response_sha256", String(80), nullable=False),
+    Column("row_count", Integer, nullable=False),
+    UniqueConstraint(
+        "run_id",
+        "artifact_key",
+        "response_sha256",
+        name="uq_historical_backfill_artifacts_run_key_sha",
+    ),
+)
+
+Index(
+    "ix_historical_backfill_artifacts_source_dataset",
+    historical_backfill_artifacts.c.source,
+    historical_backfill_artifacts.c.dataset,
+)
+
+polymarket_market_snapshots = Table(
+    "polymarket_market_snapshots",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("condition_id", Text, nullable=False),
+    Column("gamma_market_id", String(128), nullable=False),
+    Column("slug", String(256), nullable=False),
+    Column("downloaded_at", DateTime(timezone=True), nullable=False),
+    Column("payload_sha256", String(80), nullable=False),
+    Column("payload", JSON, nullable=False),
+    UniqueConstraint(
+        "condition_id",
+        "payload_sha256",
+        name="uq_polymarket_market_snapshots_condition_sha",
+    ),
+)
+
+Index(
+    "ix_polymarket_market_snapshots_downloaded_at",
+    polymarket_market_snapshots.c.downloaded_at,
+)
+
+polymarket_price_history = Table(
+    "polymarket_price_history",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("source", String(64), nullable=False),
+    Column("condition_id", Text, nullable=False),
+    Column("asset_id", Text, nullable=False),
+    Column("outcome", String(8), nullable=False),
+    Column("observed_at", DateTime(timezone=True), nullable=False),
+    Column("price", Numeric(24, 12), nullable=False),
+    Column("fidelity_minutes", Integer, nullable=False),
+    UniqueConstraint(
+        "asset_id",
+        "observed_at",
+        "fidelity_minutes",
+        name="uq_polymarket_price_history_asset_time_fidelity",
+    ),
+)
+
+Index(
+    "ix_polymarket_price_history_condition_time",
+    polymarket_price_history.c.condition_id,
+    polymarket_price_history.c.observed_at,
+)
+Index("ix_polymarket_price_history_observed_at", polymarket_price_history.c.observed_at)
+
+btc_candles = Table(
+    "btc_candles",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("source", String(32), nullable=False),
+    Column("market_type", String(32), nullable=False),
+    Column("symbol", String(32), nullable=False),
+    Column("interval_seconds", Integer, nullable=False),
+    Column("bucket_at", DateTime(timezone=True), nullable=False),
+    Column("open", Numeric(24, 12), nullable=False),
+    Column("high", Numeric(24, 12), nullable=False),
+    Column("low", Numeric(24, 12), nullable=False),
+    Column("close", Numeric(24, 12), nullable=False),
+    Column("volume", Numeric(38, 18), nullable=False),
+    Column("turnover", Numeric(38, 18), nullable=True),
+    Column("raw_payload", JSON, nullable=False),
+    UniqueConstraint(
+        "source",
+        "market_type",
+        "symbol",
+        "interval_seconds",
+        "bucket_at",
+        name="uq_btc_candles_source_market_symbol_interval_bucket",
+    ),
+)
+
+Index(
+    "ix_btc_candles_series_bucket",
+    btc_candles.c.source,
+    btc_candles.c.market_type,
+    btc_candles.c.symbol,
+    btc_candles.c.interval_seconds,
+    btc_candles.c.bucket_at,
 )

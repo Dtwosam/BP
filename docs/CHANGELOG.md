@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.0 — 25 August 2026
+
+Phase 4 — historical backfill — closed after production-host acceptance of deterministic Polymarket market discovery, official token-price history, Coinbase BTC-USD candles, immutable/idempotent historical storage, provenance/checksums, and environment-aware Bybit handling.
+
+The host-accepted operational candidate was `29fa75b500858ae50f50b863d0c62ff2acb4ec52`. Fresh exact-head gates passed before closeout: CI #421, Historical Backfill Smoke #112, Live Recorder Smoke #220, and Recorder Short Soak #184. Production acceptance used the fixed half-open window `2026-08-24T18:00:00Z <= t < 2026-08-24T19:00:00Z` and returned `VERDICT=PASS`.
+
+Polymarket historical market discovery now deterministically enumerates aligned `btc-updown-<horizon>-<window_start_epoch>` slugs for verified 5m/15m horizons and fetches each exact Gamma market-by-slug payload. This replaces list/date-filter discovery after production acceptance repeatedly exposed HTTP 500 behavior on Gamma keyset queries and live verification showed the regular dated market list did not reliably include a known recent BTC market. A missing exact slug is an explicit coverage gap; a returned slug/window mismatch fails closed; exact-slug HTTP 500/503 responses receive bounded retries.
+
+Historical Up/Down token prices use the official Polymarket CLOB `/prices-history` endpoint and persist only observations inside the market's half-open window while retaining provenance for the complete fetched response. Coinbase public BTC-USD candles are the mandatory core BTC historical series for Phase 4.
+
+Bybit spot and linear BTCUSDT historical kline support is implemented, but the production GCP host and GitHub US-hosted runners receive documented HTTP 403 restrictions from Bybit. Standard backfill therefore records only that narrowly classified condition as audited `unavailable` with zero rows/chunks; explicit Bybit-only commands and `standard --require-bybit` remain strict. The project does not route around provider restrictions.
+
+The production host gate verified 10 new dataset-run records across two standard runs, zero invalid terminal statuses, four audited Bybit-unavailable runs, zero rows inserted by the second run, non-empty/existing core-source coverage, recorder active before and after acceptance, maintenance and disk-health timers enabled, disk status `ok`, and the preserved Phase 3 forensic SHA-256 unchanged. The boot disk was safely expanded to 200 GiB after PostgreSQL growth crossed the Phase 3 warning threshold; no protected research data was deleted.
+
+No verified first-party historical Polymarket L2/order-book endpoint was found for this phase. Historical depth is therefore marked unavailable/unverified and is never synthesized. Phase 3 raw-data exclusions remain binding for downstream raw-dependent research.
+
+Sanitized closeout evidence is stored in `docs/evidence/phase-4-closeout-20260825.json`. Phase 5 — official outcome/label pipeline — is now the next permitted build-order phase. Feature engineering, model training, backtesting, paper trading, and live trading remain blocked by their later phase gates; live trading remains disabled.
+
 ## 0.3.0 — 24 August 2026
 
 Phase 3 — retention and aggregation — closed after host validation of bounded raw retention, verified archive-before-delete behavior, compact one-second state, disk protection, and scheduled maintenance.
