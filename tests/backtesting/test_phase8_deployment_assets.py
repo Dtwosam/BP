@@ -78,6 +78,15 @@ def test_phase8_host_execution_source_probe_matches_dynamic_selected_side_lookup
     assert '"pm_down_best_ask",' not in host
 
 
+def test_phase8_host_uses_bounded_disk_health_for_preflight_and_postflight() -> None:
+    text = _required_text(HOST)
+
+    assert text.count('storage_maintenance.py" disk-health') == 2
+    assert 'storage_maintenance.py" report' not in text
+    assert "storage-disk-health-before.json" in text
+    assert "storage-disk-health-after.json" in text
+
+
 def test_phase8_cloudshell_wrapper_uses_verified_export_architecture() -> None:
     text = _required_text(CLOUD)
 
