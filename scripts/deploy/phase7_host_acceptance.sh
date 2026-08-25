@@ -63,12 +63,12 @@ stamp=$(date -u +%Y%m%dT%H%M%SZ)
 run_dir="$EVIDENCE_ROOT/$stamp"
 install -d -o bp -g bp "$run_dir"
 
-PRE_REPORT=$(sudo -u bp "$HOST_PY" "$HOST_REPO/scripts/storage_maintenance.py" report \
+PRE_DISK=$(sudo -u bp "$HOST_PY" "$HOST_REPO/scripts/storage_maintenance.py" disk-health \
   --env-file "$ENV_FILE")
-printf '%s\n' "$PRE_REPORT" > "$run_dir/storage-report-before.json"
+printf '%s\n' "$PRE_DISK" > "$run_dir/storage-disk-health-before.json"
 read -r DISK_STATUS_BEFORE DISK_FREE_BYTES_BEFORE < <(
-  printf '%s' "$PRE_REPORT" |
-    "$HOST_PY" -c 'import json,sys; d=json.load(sys.stdin)["disk"]; print(d["status"], d["free_bytes"])'
+  printf '%s' "$PRE_DISK" |
+    "$HOST_PY" -c 'import json,sys; d=json.load(sys.stdin); print(d["status"], d["free_bytes"])'
 )
 if [[ "$DISK_STATUS_BEFORE" != "ok" ]]; then
   echo "disk status is $DISK_STATUS_BEFORE before Phase 7 acceptance" >&2
