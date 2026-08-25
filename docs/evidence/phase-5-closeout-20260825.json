@@ -1,0 +1,77 @@
+{
+  "phase": 5,
+  "name": "official outcome/label pipeline",
+  "status": "complete",
+  "recorded_at": "2026-08-25T13:40:00Z",
+  "host_accepted_commit": "3c39b626a37c7ac7c0a9c10caaabd4d0b6cf0325",
+  "acceptance_window": {
+    "start": "2026-08-24T18:00:00Z",
+    "end": "2026-08-24T19:00:00Z"
+  },
+  "pre_host_exact_head_gates": {
+    "ci": {
+      "run_number": 483,
+      "passed": true
+    },
+    "historical_backfill_smoke": {
+      "run_number": 145,
+      "passed": true
+    },
+    "live_recorder_smoke": {
+      "run_number": 249,
+      "passed": true
+    },
+    "recorder_short_soak": {
+      "run_number": 213,
+      "passed": true
+    }
+  },
+  "host_acceptance": {
+    "verdict": "PASS",
+    "first_run": {
+      "conditions_considered": 16,
+      "inserted": 16,
+      "existing": 0,
+      "skipped": 0
+    },
+    "second_run": {
+      "conditions_considered": 16,
+      "inserted": 0,
+      "existing": 16,
+      "skipped": 0
+    },
+    "target_labels": 16,
+    "first_run_nonempty": true,
+    "second_run_idempotent": true,
+    "considered_match": true,
+    "invalid_leakage": 0,
+    "invalid_reference_prices": 0,
+    "invalid_contract": 0,
+    "missing_provenance": 0,
+    "duplicate_keys": 0,
+    "recorder_before": "active",
+    "recorder_after": "active"
+  },
+  "label_contract": {
+    "authoritative_outcome": "Official resolved Polymarket outcome parsed from preserved Gamma market snapshots",
+    "label_version": "official-outcome-v1",
+    "label_source": "polymarket_gamma_snapshot",
+    "eligibility": "Only resolved evidence observed at or after market end may become a label",
+    "canonical_source": "Earliest eligible resolved snapshot ordered by downloaded_at then snapshot id",
+    "conflict_policy": "Contradictory resolved snapshots or semantic relabel attempts fail closed",
+    "rerun_policy": "Identical natural-key reruns are no-ops/existing rows",
+    "network_dependency": false,
+    "start_reference_policy": "NULL unless independently verified from first-party resolution data",
+    "end_reference_policy": "NULL unless independently verified from first-party resolution data"
+  },
+  "safety": {
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0
+  },
+  "downstream_constraints": [
+    "Phase 3 raw-data exclusions remain binding for raw-dependent feature datasets.",
+    "Phase 4 source-availability metadata, including unavailable historical L2 and audited Bybit HTTP 403 gaps, must remain explicit downstream.",
+    "Phase 6 features may use only data available at the feature timestamp and must carry explicit missing-data flags."
+  ]
+}
