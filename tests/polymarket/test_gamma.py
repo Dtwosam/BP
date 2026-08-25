@@ -83,3 +83,55 @@ async def test_gamma_client_lists_closed_markets_with_keyset_date_filters() -> N
     )
     assert page.next_cursor == "cursor-2"
     assert page.request_params == seen[0][1]
+
+
+@pytest.mark.asyncio
+async def test_gamma_keyset_retries_documented_server_error_then_succeeds() -> None:
+    attempts = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(500, json={"error": "temporary server error"})
+        return httpx.Response(
+            200,
+            json={
+                "markets": [{"id": "market-1", "slug": "btc-updown-5m-1787227200"}],
+                "next_cursor": None,
+            },
+        )
+
+    async with httpx.AsyncClient(
+        base_url="https://gamma-api.polymarket.com",
+        transport=httpx.MockTransport(handler),
+    ) as http_client:
+        page = await GammaClient(http_client=http_client).list_markets_page(
+            start=datetime(2026, 8, 20, tzinfo=UTC),
+            end=datetime(2026, 8, 21, tzinfo=UTC),
+        )
+
+    assert attempts == 2
+    assert page.markets[0]["id"] == "market-1"
+
+
+@pytest.mark.asyncio
+async def test_gamma_keyset_does_not_retry_client_validation_errors() -> None:
+    attempts = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        return httpx.Response(422, json={"error": "invalid query"})
+
+    async with httpx.AsyncClient(
+        base_url="https://gamma-api.polymarket.com",
+        transport=httpx.MockTransport(handler),
+    ) as http_client:
+        with pytest.raises(httpx.HTTPStatusError):
+            await GammaClient(http_client=http_client).list_markets_page(
+                start=datetime(2026, 8, 20, tzinfo=UTC),
+                end=datetime(2026, 8, 21, tzinfo=UTC),
+            )
+
+    assert attempts == 1
