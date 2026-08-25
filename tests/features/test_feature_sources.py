@@ -4,7 +4,6 @@ import importlib
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-import pytest
 from sqlalchemy import create_engine, insert
 
 from bp_engine.storage.schema import (
@@ -123,7 +122,7 @@ def test_closed_candles_require_full_interval_to_have_elapsed() -> None:
     assert at_close[0].effective_at == bucket_at + timedelta(seconds=60)
 
 
-def test_latest_state_rejects_candidate_with_future_last_event() -> None:
+def test_latest_state_excludes_candidate_with_future_last_event() -> None:
     sources = _sources()
     engine = _engine()
     feature_at = datetime(2026, 8, 25, 10, 2, tzinfo=UTC)
@@ -142,14 +141,62 @@ def test_latest_state_rejects_candidate_with_future_last_event() -> None:
                 state={"last_price": "64000"},
             )
         )
-        with pytest.raises(sources.FeatureLeakageError, match="last_event_at"):
-            sources.FeatureSourceReader().latest_state(
-                connection,
-                source="coinbase",
-                stream="ticker",
-                instrument="BTC-USD",
-                feature_at=feature_at,
-            )
+        observation = sources.FeatureSourceReader().latest_state(
+            connection,
+            source="coinbase",
+            stream="ticker",
+            instrument="BTC-USD",
+            feature_at=feature_at,
+        )
+
+    assert observation is None
+
+
+def test_latest_state_falls_back_when_latest_bucket_contains_future_event() -> None:
+    sources = _sources()
+    engine = _engine()
+    feature_at = datetime(2026, 8, 25, 10, 2, tzinfo=UTC)
+    safe_at = feature_at - timedelta(seconds=1)
+
+    with engine.begin() as connection:
+        connection.execute(
+            insert(market_state_1s),
+            [
+                {
+                    "bucket_at": safe_at,
+                    "state_key": "coinbase/ticker/BTC-USD",
+                    "source": "coinbase",
+                    "stream": "ticker",
+                    "instrument": "BTC-USD",
+                    "market_id": None,
+                    "asset_id": None,
+                    "last_event_at": safe_at,
+                    "state": {"last_price": "63999"},
+                },
+                {
+                    "bucket_at": feature_at,
+                    "state_key": "coinbase/ticker/BTC-USD",
+                    "source": "coinbase",
+                    "stream": "ticker",
+                    "instrument": "BTC-USD",
+                    "market_id": None,
+                    "asset_id": None,
+                    "last_event_at": feature_at + timedelta(microseconds=1),
+                    "state": {"last_price": "64000"},
+                },
+            ],
+        )
+        observation = sources.FeatureSourceReader().latest_state(
+            connection,
+            source="coinbase",
+            stream="ticker",
+            instrument="BTC-USD",
+            feature_at=feature_at,
+        )
+
+    assert observation is not None
+    assert observation.last_event_at == safe_at
+    assert observation.state["last_price"] == "63999"
 
 
 def test_latest_state_returns_stale_observation_with_fresh_false() -> None:
