@@ -77,6 +77,15 @@ if [[ "$FETCHED" != "$EXPECTED_HEAD" ]]; then
   exit 2
 fi
 
+if [[ -f "$LOG" ]] &&
+   grep -q "^VERDICT=PASS$" "$LOG" &&
+   grep -q "^HEAD=$EXPECTED_HEAD$" "$LOG"; then
+  echo "Existing host acceptance already passed for $EXPECTED_HEAD; surfacing recorded result."
+  echo "PHASE4_HOST_ACCEPTANCE=PASS"
+  tail -n 60 "$LOG"
+  exit 0
+fi
+
 WT="/var/tmp/bp-phase4-${EXPECTED_HEAD:0:12}-$$"
 git -C "$HOST_REPO" worktree prune
 git -C "$HOST_REPO" worktree add --detach "$WT" "$EXPECTED_HEAD"
@@ -101,8 +110,17 @@ fi
 SUMMARY=$(
   find /var/lib/bp/evidence/phase4-historical-backfill \
     -type f -name 'final-summary.txt' -printf '%T@ %p\n' |
-    sort -nr | head -n 1 | cut -d' ' -f2-
+    sort -nr |
+    awk 'NR == 1 {sub(/^[^ ]+ /, ""); print}'
 )
+
+if [[ -z "$SUMMARY" || ! -f "$SUMMARY" ]]; then
+  echo "PHASE4_HOST_ACCEPTANCE=FAIL"
+  echo "REASON=missing_final_summary"
+  echo "LOG=$LOG"
+  tail -n 120 "$LOG"
+  exit 9
+fi
 
 echo "PHASE4_HOST_ACCEPTANCE=PASS"
 cat "$SUMMARY"
