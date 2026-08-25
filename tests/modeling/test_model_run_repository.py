@@ -126,3 +126,27 @@ def test_training_run_repository_is_idempotent_and_conflict_safe() -> None:
     assert first.created is True and first.existing is False
     assert second.created is False and second.existing is True
     assert stored_created_at.replace(tzinfo=UTC) == created_at
+
+
+def test_training_run_repository_get_returns_stored_provenance() -> None:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    metadata.create_all(engine)
+    repository = ModelTrainingRunRepository()
+    report = _report(datetime(2026, 8, 25, 17, 0, tzinfo=UTC))
+
+    with engine.begin() as connection:
+        repository.store(connection, report)
+        stored = repository.get(connection, report.run_id)
+        missing = repository.get(connection, "missing-run")
+
+    assert stored is not None
+    assert stored["run_id"] == report.run_id
+    assert stored["validation_champion"] == "logistic"
+    assert stored["horizon_seconds"] == 300
+    assert stored["dataset_version"] == "supervised-core-v1"
+    assert stored["feature_version"] == "core-v1"
+    assert stored["label_version"] == "official-outcome-v1"
+    assert stored["split_version"] == "chronological-market-v1"
+    assert stored["model_configs"] == {"logistic": {"solver": "lbfgs"}}
+    assert stored["semantic_sha256"] == "e" * 64
+    assert missing is None
