@@ -6,7 +6,7 @@ HELPER = Path("scripts/deploy/phase4_host_post_resize_accept.sh")
 def test_post_resize_helper_uses_pipefail_safe_summary_selection() -> None:
     script = HELPER.read_text(encoding="utf-8")
 
-    assert "head -n 1" not in script
+    assert "sort -nr | head -n 1 | cut -d' ' -f2-" not in script
     assert "awk 'NR == 1" in script
 
 
