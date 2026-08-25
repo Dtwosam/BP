@@ -77,3 +77,35 @@ An archive may be pruned only after the archive and manifest verify, compact sta
 The exact interval `2026-08-22T20:00:00Z` through `2026-08-22T21:00:00Z` is excluded from raw-dependent model training because 250,000 events are known to be missing from both PostgreSQL and the surviving forensic archive. It may be admitted only if independently recovered from a trustworthy source and revalidated.
 
 A separate Phase 3 rollout-era local coverage limitation is also excluded from raw-dependent research unless independently reacquired. Surviving VM artifacts do not prove whether unavailable local raw coverage after `2026-08-23T21:00:00Z` and before the compact-state rollout was earlier pruning history or capture downtime. Compact state was first observed with all four feeds in the `2026-08-24T10:00:00Z` hour, so absence of compact rows before that rollout is not, by itself, evidence of recorder downtime. Future dataset builders must carry these exclusions explicitly rather than silently treating missing local raw data as complete history.
+
+## D-013 — Historical observations are immutable and reruns fail closed on conflicts
+**Date:** 25 Aug 2026  
+**Status:** Active
+
+Phase 4 historical storage uses immutable natural keys. Re-fetching an identical historical observation is a no-op/existing-row result. If the same natural key later carries a different value, the backfill raises `HistoricalDataConflict` instead of silently rewriting history.
+
+Every external historical chunk records source/dataset identity, exact request parameters, download timestamp, row count, and canonical SHA-256 provenance. This contract is required for reproducibility and must be preserved by downstream dataset builders.
+
+## D-014 — Bybit historical REST is optional only when a documented host restriction is explicitly audited
+**Date:** 25 Aug 2026  
+**Status:** Active
+
+Bybit V5 spot and linear BTCUSDT historical candle support remains implemented, but Bybit documents HTTP 403 restrictions for US IP addresses. Both GitHub US-hosted runners and the production GCP `us-east1` recorder host produced that condition during Phase 4 validation.
+
+In standard historical backfill, only the narrowly classified Bybit HTTP 403 restriction may terminate as `unavailable`, with zero rows/chunks and a durable reason. `standard --require-bybit` and explicit Bybit-only commands remain strict. The project will not bypass, tunnel around, or otherwise evade provider geographic/service restrictions. Coinbase BTC-USD public candles are the mandatory verified core BTC historical series for Phase 4.
+
+## D-015 — Phase 4 Polymarket historical market discovery uses deterministic exact BTC slugs
+**Date:** 25 Aug 2026  
+**Status:** Active
+
+Phase 4 does not depend on Gamma keyset/date-filter market listing for BTC 5m/15m historical coverage. Production acceptance repeatedly received HTTP 500 from the bounded keyset query even with retry, while a separate regular dated market-list live check did not reliably include a recent completed BTC market that exact slug lookup had already returned.
+
+Historical discovery therefore enumerates aligned `btc-updown-<horizon>-<window_start_epoch>` slugs for the verified 5m and 15m horizons and fetches each exact Gamma market-by-slug payload. A 404 is an explicit coverage gap; any returned slug/window mismatch fails closed; HTTP 500/503 exact-slug responses receive only bounded retries. This discovery contract is reproducible and directly matches the recurring market naming contract already validated in Phase 1.
+
+## D-016 — Unavailable historical order-book depth must remain unavailable, never synthesized
+**Date:** 25 Aug 2026  
+**Status:** Active
+
+Phase 4 did not verify a current first-party Polymarket endpoint that provides historical L2/order-book depth for the required past BTC markets. Historical L2 is therefore represented as unavailable/unverified data, not reconstructed from token prices, trades, compact snapshots, or assumptions.
+
+Downstream feature work must distinguish genuinely observed live/retained book data from historical periods where depth was not captured. Missing historical order-book information must remain explicit rather than being fabricated to create apparent coverage.
