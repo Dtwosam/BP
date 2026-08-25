@@ -109,3 +109,19 @@ Historical discovery therefore enumerates aligned `btc-updown-<horizon>-<window_
 Phase 4 did not verify a current first-party Polymarket endpoint that provides historical L2/order-book depth for the required past BTC markets. Historical L2 is therefore represented as unavailable/unverified data, not reconstructed from token prices, trades, compact snapshots, or assumptions.
 
 Downstream feature work must distinguish genuinely observed live/retained book data from historical periods where depth was not captured. Missing historical order-book information must remain explicit rather than being fabricated to create apparent coverage.
+
+## D-017 — Official labels are immutable, post-resolution derivatives of preserved Gamma snapshots
+**Date:** 25 Aug 2026  
+**Status:** Active
+
+Phase 5 labels use the official resolved Polymarket outcome parsed from preserved Phase 4 Gamma snapshots. Label generation is offline and network-free. A snapshot is eligible only when the market is closed, the official outcome is unambiguous, and the snapshot was observed at or after the market end; any apparently resolved snapshot observed before market end is treated as leakage/data-integrity failure.
+
+For each condition, the canonical source is the earliest eligible resolved snapshot ordered by `downloaded_at` and snapshot id. All eligible snapshots must agree on market identity, window, rules fingerprint/source, and resolved outcome. Contradictory official-resolution evidence raises a source conflict. Stored labels are versioned by `(condition_id, label_version)`; identical reruns are no-ops and semantic relabel attempts fail closed.
+
+## D-018 — Unverified official start/end reference prices remain NULL
+**Date:** 25 Aug 2026  
+**Status:** Active
+
+Phase 5 does not infer or substitute the official market-resolution start/end reference prices from Coinbase candles, Bybit candles, Polymarket token prices, trades, or other secondary observations. The preserved Gamma evidence used for V1 labels does not independently verify a first-party start/end reference-price field, so `start_reference` and `end_reference` remain NULL in `official-outcome-v1`.
+
+Future work may populate those fields only when a trustworthy first-party resolution source is explicitly verified and provenance/versioning are defined. Market/BTC prices remain valid candidate features under Phase 6 feature-time rules, but they are not silently promoted into the authoritative label contract.
