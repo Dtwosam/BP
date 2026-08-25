@@ -23,12 +23,19 @@ def test_phase7_cloudshell_helper_hands_candidate_to_bp_before_install() -> None
     assert worktree_index < ownership_index < acceptance_index
 
 
+def test_phase7_host_acceptance_reads_candidate_head_as_bp() -> None:
+    source = Path("scripts/deploy/phase7_host_acceptance.sh").read_text(encoding="utf-8")
+
+    assert 'actual_head=$(sudo -u bp git -C "$REPO" rev-parse HEAD)' in source
+    assert 'actual_head=$(git -C "$REPO" rev-parse HEAD)' not in source
+
+
 def test_phase7_host_acceptance_contains_research_and_safety_gates() -> None:
     source = Path("scripts/deploy/phase7_host_acceptance.sh").read_text(encoding="utf-8")
 
     required = (
         "EXPECTED_HEAD",
-        "git -C \"$REPO\" rev-parse HEAD",
+        "sudo -u bp git -C \"$REPO\" rev-parse HEAD",
         "LIVE_TRADING_ENABLED",
         "MAX_TRADE_SIZE_USD",
         "MAX_DAILY_LOSS_USD",
