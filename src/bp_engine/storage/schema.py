@@ -320,3 +320,34 @@ Index(
     market_features.c.condition_id,
     market_features.c.feature_at,
 )
+
+model_training_runs = Table(
+    "model_training_runs",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("run_id", String(128), nullable=False),
+    Column("dataset_version", String(64), nullable=False),
+    Column("split_version", String(64), nullable=False),
+    Column("feature_version", String(64), nullable=False),
+    Column("label_version", String(64), nullable=False),
+    Column("horizon_seconds", Integer, nullable=False),
+    Column("requested_start", DateTime(timezone=True), nullable=False),
+    Column("requested_end", DateTime(timezone=True), nullable=False),
+    Column("dataset_sha256", String(64), nullable=False),
+    Column("split_sha256", String(64), nullable=False),
+    Column("predictor_names", JSON, nullable=False),
+    Column("dropped_all_missing", JSON, nullable=False),
+    Column("model_configs", JSON, nullable=False),
+    Column("validation_champion", String(64), nullable=False),
+    Column("report", JSON, nullable=False),
+    Column("artifact_manifest", JSON, nullable=False),
+    Column("semantic_sha256", String(64), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("horizon_seconds > 0", name="ck_model_training_runs_positive_horizon"),
+    CheckConstraint(
+        "requested_end > requested_start", name="ck_model_training_runs_window_order"
+    ),
+    UniqueConstraint("run_id", name="uq_model_training_runs_run_id"),
+)
+
+Index("ix_model_training_runs_horizon_created", model_training_runs.c.horizon_seconds, model_training_runs.c.created_at)
