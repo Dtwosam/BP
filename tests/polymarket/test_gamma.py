@@ -26,8 +26,12 @@ async def test_gamma_client_uses_official_market_by_slug_endpoint() -> None:
 
 
 @pytest.mark.asyncio
-async def test_gamma_client_returns_none_for_missing_slug() -> None:
+async def test_gamma_client_returns_none_for_missing_slug_without_retry() -> None:
+    attempts = 0
+
     def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
         return httpx.Response(404, json={"error": "not found"})
 
     async with httpx.AsyncClient(
@@ -38,6 +42,30 @@ async def test_gamma_client_returns_none_for_missing_slug() -> None:
         payload = await client.get_market_by_slug("btc-updown-5m-123")
 
     assert payload is None
+    assert attempts == 1
+
+
+@pytest.mark.asyncio
+async def test_gamma_market_by_slug_retries_transient_server_error_then_succeeds() -> None:
+    attempts = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(500, json={"error": "temporary server error"})
+        return httpx.Response(200, json={"id": "market-1", "slug": "btc-updown-5m-123"})
+
+    async with httpx.AsyncClient(
+        base_url="https://gamma-api.polymarket.com",
+        transport=httpx.MockTransport(handler),
+    ) as http_client:
+        payload = await GammaClient(http_client=http_client).get_market_by_slug(
+            "btc-updown-5m-123"
+        )
+
+    assert attempts == 2
+    assert payload == {"id": "market-1", "slug": "btc-updown-5m-123"}
 
 
 @pytest.mark.asyncio
