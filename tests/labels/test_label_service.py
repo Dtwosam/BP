@@ -2,13 +2,13 @@ import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import create_engine, insert, select
-
 from bp_engine.labels.service import (
     LabelLeakageError,
     LabelSourceConflict,
     generate_labels,
 )
+from sqlalchemy import create_engine, insert, select
+
 from bp_engine.storage.schema import market_labels, metadata, polymarket_market_snapshots
 
 
