@@ -22,14 +22,6 @@ class GammaMarketPage:
     raw_payload: dict[str, Any]
 
 
-@dataclass(frozen=True)
-class GammaMarketOffsetPage:
-    markets: tuple[dict[str, Any], ...]
-    next_offset: int | None
-    request_params: dict[str, str]
-    raw_payload: list[dict[str, Any]]
-
-
 class GammaClient:
     BASE_URL = "https://gamma-api.polymarket.com"
     MAX_TRANSIENT_ATTEMPTS = 3
@@ -108,48 +100,6 @@ class GammaClient:
             next_cursor=next_cursor,
             request_params=params,
             raw_payload=dict(payload),
-        )
-
-    async def list_markets_offset_page(
-        self,
-        *,
-        start: datetime,
-        end: datetime,
-        limit: int = 100,
-        offset: int = 0,
-    ) -> GammaMarketOffsetPage:
-        self._validate_market_window(start, end, limit)
-        if offset < 0:
-            raise ValueError("offset must be non-negative")
-
-        params = {
-            "limit": str(limit),
-            "offset": str(offset),
-            "order": "startDate",
-            "ascending": "true",
-            "closed": "true",
-            "start_date_min": self._iso_z(start),
-            "start_date_max": self._iso_z(end),
-        }
-
-        if self._http_client is not None:
-            response = await self._http_client.get("/markets", params=params)
-        else:
-            async with httpx.AsyncClient(base_url=self.BASE_URL, timeout=10.0) as client:
-                response = await client.get("/markets", params=params)
-
-        response.raise_for_status()
-        payload = response.json()
-        if not isinstance(payload, list):
-            raise GammaResponseError("markets offset response must be a JSON array")
-
-        markets = self._normalize_market_entries(payload, "markets offset")
-        next_offset = offset + limit if len(markets) == limit else None
-        return GammaMarketOffsetPage(
-            markets=markets,
-            next_offset=next_offset,
-            request_params=params,
-            raw_payload=[dict(market) for market in markets],
         )
 
     async def _get_with_transient_retry(
