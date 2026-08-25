@@ -46,6 +46,13 @@ def test_phase6_host_acceptance_contains_all_fail_closed_gates() -> None:
         assert needle in source
 
 
+def test_phase6_host_acceptance_uses_jsonb_cutoff_iterator() -> None:
+    source = Path("scripts/deploy/phase6_host_acceptance.sh").read_text(encoding="utf-8")
+
+    assert "jsonb_each_text(f.source_cutoffs)" in source
+    assert "json_each_text(f.source_cutoffs)" not in source
+
+
 def test_phase6_host_acceptance_uses_phase5_window_and_evidence_root() -> None:
     source = Path("scripts/deploy/phase6_host_acceptance.sh").read_text(encoding="utf-8")
 
