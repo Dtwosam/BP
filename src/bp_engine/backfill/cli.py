@@ -9,7 +9,11 @@ from uuid import uuid4
 
 from sqlalchemy import Engine, create_engine
 
-from bp_engine.backfill.bybit import BybitHistoryClient, backfill_bybit_candles
+from bp_engine.backfill.bybit import (
+    BybitHistoryClient,
+    BybitHistoryUnavailableError,
+    backfill_bybit_candles,
+)
 from bp_engine.backfill.coinbase import CoinbaseHistoryClient, backfill_coinbase_candles
 from bp_engine.backfill.polymarket import backfill_polymarket_markets
 from bp_engine.backfill.polymarket_prices import (
@@ -116,6 +120,14 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common_options(standard)
     standard.add_argument("--fidelity-minutes", type=int, default=1)
     standard.add_argument("--interval-seconds", type=int, default=60)
+    standard.add_argument(
+        "--require-bybit",
+        action="store_true",
+        help=(
+            "fail if Bybit historical REST is unavailable; by default an HTTP 403 is "
+            "audited as unavailable while core sources continue"
+        ),
+    )
     return parser
 
 
@@ -219,6 +231,7 @@ async def _run_named_dataset(
     fidelity_minutes: int,
     interval_seconds: int,
     horizons: tuple[str, ...] | None = None,
+    allow_unavailable: bool = False,
 ) -> dict[str, Any]:
     validate_window(start, end)
     if fidelity_minutes <= 0:
@@ -265,6 +278,22 @@ async def _run_named_dataset(
                 horizons=horizons,
             )
             provenance.finish_run(connection, run_id, datetime.now(UTC), stats)
+    except BybitHistoryUnavailableError as exc:
+        reason = f"{type(exc).__name__}: {exc}"
+        with engine.begin() as connection:
+            provenance.mark_unavailable(connection, run_id, datetime.now(UTC), reason)
+        if not allow_unavailable:
+            raise
+        return {
+            "run_id": run_id,
+            "dataset": name,
+            "source": source,
+            "status": "unavailable",
+            "reason": reason,
+            "rows_inserted": 0,
+            "rows_existing": 0,
+            "chunks_fetched": 0,
+        }
     except Exception as exc:
         with engine.begin() as connection:
             provenance.fail_run(
@@ -295,6 +324,7 @@ async def _run_standard(
     downloaded_at: datetime,
     fidelity_minutes: int,
     interval_seconds: int,
+    require_bybit: bool = False,
 ) -> dict[str, dict[str, Any]]:
     results: dict[str, dict[str, Any]] = {}
     for name in STANDARD_SEQUENCE:
@@ -307,6 +337,7 @@ async def _run_standard(
             downloaded_at=downloaded_at,
             fidelity_minutes=fidelity_minutes,
             interval_seconds=interval_seconds,
+            allow_unavailable=name.startswith("bybit_") and not require_bybit,
         )
     return results
 
@@ -329,6 +360,7 @@ async def _run_args(args: argparse.Namespace) -> dict[str, Any]:
             downloaded_at=downloaded_at,
             fidelity_minutes=fidelity_minutes,
             interval_seconds=interval_seconds,
+            require_bybit=args.require_bybit,
         )
 
     if args.command == "polymarket-markets":
