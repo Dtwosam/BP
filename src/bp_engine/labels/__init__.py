@@ -1,0 +1,1 @@
+"""Official Polymarket outcome labels."""

@@ -251,3 +251,32 @@ Index(
     btc_candles.c.interval_seconds,
     btc_candles.c.bucket_at,
 )
+
+market_labels = Table(
+    "market_labels",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("condition_id", Text, nullable=False),
+    Column("gamma_market_id", String(128), nullable=False),
+    Column("slug", String(256), nullable=False),
+    Column("horizon_seconds", Integer, nullable=False),
+    Column("market_start_at", DateTime(timezone=True), nullable=False),
+    Column("market_end_at", DateTime(timezone=True), nullable=False),
+    Column("official_outcome", String(8), nullable=False),
+    Column("start_reference", Numeric(24, 12), nullable=True),
+    Column("end_reference", Numeric(24, 12), nullable=True),
+    Column("resolution_source", Text, nullable=False),
+    Column("rules_hash", String(80), nullable=False),
+    Column("label_source", String(64), nullable=False),
+    Column("label_version", String(64), nullable=False),
+    Column("source_snapshot_sha256", String(80), nullable=False),
+    Column("source_observed_at", DateTime(timezone=True), nullable=False),
+    Column("generated_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint(
+        "condition_id",
+        "label_version",
+        name="uq_market_labels_condition_version",
+    ),
+)
+
+Index("ix_market_labels_market_start_at", market_labels.c.market_start_at)

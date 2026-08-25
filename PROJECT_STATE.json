@@ -1,11 +1,11 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.4.0",
-  "updated_at": "2026-08-25T11:58:00Z",
-  "current_phase": 5,
-  "current_phase_name": "official outcome/label pipeline",
-  "status": "PHASE_4_COMPLETE_PHASE_5_READY",
+  "source_of_truth_version": "0.5.0",
+  "updated_at": "2026-08-25T13:40:00Z",
+  "current_phase": 6,
+  "current_phase_name": "feature engine",
+  "status": "PHASE_5_COMPLETE_PHASE_6_READY",
   "trading_mode": "RESEARCH",
   "live_trading_enabled": false,
   "verified_polymarket_horizons": [
@@ -134,6 +134,39 @@
     "forensic_incident_sha256": "423f22c58ed356a207684b794f401537ba60e009f08aa89fe54fc7f58efbe9ef",
     "sanitized_evidence": "docs/evidence/phase-4-closeout-20260825.json"
   },
+  "phase_5_checkpoint": {
+    "host_accepted_operational_commit": "3c39b626a37c7ac7c0a9c10caaabd4d0b6cf0325",
+    "ci_run": 483,
+    "ci_passed": true,
+    "historical_backfill_smoke_run": 145,
+    "historical_backfill_smoke_passed": true,
+    "live_recorder_smoke_run": 249,
+    "live_recorder_smoke_passed": true,
+    "recorder_short_soak_run": 213,
+    "recorder_short_soak_passed": true,
+    "host_acceptance_verdict": "PASS",
+    "host_acceptance_window_start": "2026-08-24T18:00:00Z",
+    "host_acceptance_window_end": "2026-08-24T19:00:00Z",
+    "label_version": "official-outcome-v1",
+    "label_source": "polymarket_gamma_snapshot",
+    "canonical_source_policy": "Earliest eligible resolved Gamma snapshot observed at or after market end; contradictory resolution evidence fails closed.",
+    "first_run_conditions_considered": 16,
+    "first_run_rows_inserted": 16,
+    "first_run_rows_existing": 0,
+    "second_run_conditions_considered": 16,
+    "second_run_rows_inserted": 0,
+    "second_run_rows_existing": 16,
+    "unresolved_or_skipped": 0,
+    "invalid_leakage": 0,
+    "invalid_reference_prices": 0,
+    "invalid_contract": 0,
+    "missing_provenance": 0,
+    "duplicate_keys": 0,
+    "reference_price_policy": "Official start/end references remain NULL in V1 unless independently verified from first-party resolution data.",
+    "network_dependency": false,
+    "recorder_active_before_and_after": true,
+    "sanitized_evidence": "docs/evidence/phase-5-closeout-20260825.json"
+  },
   "completed": [
     "Concept and long-term Polymarket objective agreed",
     "Initial source-of-truth pack created",
@@ -179,10 +212,15 @@
     "Immutable/idempotent historical natural-key storage and provenance implemented",
     "Historical first-party L2 absence represented explicitly without synthesis",
     "Phase 4 production host acceptance passed with idempotent rerun, recorder health, disk health, and forensic checks",
-    "Phase 4 closeout evidence recorded"
+    "Phase 4 closeout evidence recorded",
+    "Phase 5 immutable official-outcome label schema and repository implemented",
+    "Phase 5 leakage-safe offline Gamma snapshot label selection implemented",
+    "Phase 5 deterministic network-free label generation CLI implemented",
+    "Phase 5 PostgreSQL rerun, provenance, conflict, and leakage acceptance implemented",
+    "Phase 5 production host acceptance passed with 16 deterministic labels and an existing-only immediate rerun",
+    "Phase 5 closeout evidence recorded"
   ],
   "not_completed": [
-    "Official outcome/label pipeline",
     "Feature engine",
     "Model training",
     "Backtesting",
@@ -191,12 +229,12 @@
     "Live trading"
   ],
   "next_actions": [
-    "Begin Phase 5 official outcome/label pipeline",
-    "Build labels only from authoritative official Polymarket resolved outcomes and preserved market rule versions",
-    "Version label generation and make reruns reproducible and idempotent",
-    "Carry Phase 3 raw-data exclusions and Phase 4 source-availability metadata into downstream dataset eligibility",
-    "Prove labels cannot leak future outcome information into feature-time records",
-    "Do not begin Phase 6 feature engineering or model work until Phase 5 acceptance is recorded"
+    "Begin Phase 6 feature engine",
+    "Build deterministic versioned features starting with Polymarket state, BTC price/momentum, basic trade flow, order-book imbalance, volatility, and time remaining/reference distance",
+    "Use only information available at each feature timestamp and prove future data cannot enter feature rows",
+    "Carry explicit missing-data/source-availability flags, including historical L2 absence and audited source gaps",
+    "Carry Phase 3 raw-data exclusion metadata into raw-dependent dataset eligibility",
+    "Do not begin Phase 7 model training until Phase 6 acceptance is recorded"
   ],
   "open_questions": [
     "Current/recurring availability of a 10m BTC Up/Down Polymarket market",
