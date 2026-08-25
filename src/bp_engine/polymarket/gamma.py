@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -23,6 +24,9 @@ class GammaMarketPage:
 
 class GammaClient:
     BASE_URL = "https://gamma-api.polymarket.com"
+    KEYSET_MAX_ATTEMPTS = 3
+    KEYSET_RETRY_STATUSES = frozenset({500, 503})
+    KEYSET_RETRY_BASE_DELAY_SECONDS = 0.25
 
     def __init__(self, http_client: httpx.AsyncClient | None = None) -> None:
         self._http_client = http_client
@@ -70,10 +74,10 @@ class GammaClient:
             params["after_cursor"] = after_cursor
 
         if self._http_client is not None:
-            response = await self._http_client.get("/markets/keyset", params=params)
+            response = await self._get_keyset_with_retry(self._http_client, params)
         else:
             async with httpx.AsyncClient(base_url=self.BASE_URL, timeout=10.0) as client:
-                response = await client.get("/markets/keyset", params=params)
+                response = await self._get_keyset_with_retry(client, params)
 
         response.raise_for_status()
         payload = response.json()
@@ -100,6 +104,20 @@ class GammaClient:
             request_params=params,
             raw_payload=dict(payload),
         )
+
+    async def _get_keyset_with_retry(
+        self,
+        client: httpx.AsyncClient,
+        params: dict[str, str],
+    ) -> httpx.Response:
+        for attempt in range(self.KEYSET_MAX_ATTEMPTS):
+            response = await client.get("/markets/keyset", params=params)
+            retryable = response.status_code in self.KEYSET_RETRY_STATUSES
+            if not retryable or attempt == self.KEYSET_MAX_ATTEMPTS - 1:
+                return response
+            delay = self.KEYSET_RETRY_BASE_DELAY_SECONDS * (2**attempt)
+            await asyncio.sleep(delay)
+        raise AssertionError("unreachable Gamma keyset retry state")
 
     @staticmethod
     def _iso_z(value: datetime) -> str:
