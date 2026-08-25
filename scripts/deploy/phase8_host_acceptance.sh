@@ -445,12 +445,12 @@ print("NONFINITE_METRIC_VIOLATIONS=0")
 print("EXECUTION_SEMANTIC_VIOLATIONS=0")
 PY
 
-POST_REPORT=$(sudo -u bp "$HOST_PY" "$HOST_REPO/scripts/storage_maintenance.py" report \
+POST_DISK=$(sudo -u bp "$HOST_PY" "$HOST_REPO/scripts/storage_maintenance.py" disk-health \
   --env-file "$ENV_FILE")
-printf '%s\n' "$POST_REPORT" > "$run_dir/storage-report-after.json"
+printf '%s\n' "$POST_DISK" > "$run_dir/storage-disk-health-after.json"
 read -r DISK_STATUS DISK_FREE_BYTES < <(
-  printf '%s' "$POST_REPORT" |
-    "$HOST_PY" -c 'import json,sys; d=json.load(sys.stdin)["disk"]; print(d["status"], d["free_bytes"])'
+  printf '%s' "$POST_DISK" |
+    "$HOST_PY" -c 'import json,sys; d=json.load(sys.stdin); print(d["status"], d["free_bytes"])'
 )
 if [[ "$DISK_STATUS" != "ok" ]]; then
   echo "disk status is $DISK_STATUS after Phase 8 acceptance" >&2
