@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5.0 — 25 August 2026
+
+Phase 5 — official outcome/label pipeline — closed after production-host acceptance of deterministic, immutable, leakage-safe labels derived only from preserved official Polymarket Gamma resolution evidence.
+
+The host-accepted operational candidate was `3c39b626a37c7ac7c0a9c10caaabd4d0b6cf0325`. Fresh exact-head pre-host gates passed on that commit: CI #483, Historical Backfill Smoke #145, Live Recorder Smoke #249, and Recorder Short Soak #213. Production acceptance used the fixed half-open market-start window `2026-08-24T18:00:00Z <= t < 2026-08-24T19:00:00Z` and returned `VERDICT=PASS`.
+
+The label pipeline stores immutable `official-outcome-v1` rows keyed by `(condition_id, label_version)`. Labels are generated offline from the Phase 4 `polymarket_market_snapshots` store, not from a live HTTP dependency. A snapshot may become label evidence only when the market is closed, the official outcome is unambiguous, and the snapshot was observed at or after market end. For each condition the canonical source is the earliest eligible resolved snapshot ordered by download time and snapshot id. Conflicting official-resolution semantics or attempts to change an existing semantic label fail closed rather than rewriting history.
+
+Production acceptance generated 16 labels on the first pass and then immediately reran the exact same window with zero inserts and 16 existing rows. The gate verified zero leakage violations, zero contract violations, zero missing exact snapshot-provenance joins, zero duplicate natural keys, and matching condition coverage across the two runs. The recorder remained active before and after acceptance.
+
+Official start/end reference prices remain NULL in V1. The preserved Gamma payloads and current Phase 5 evidence do not establish independently verified first-party start/end reference-price fields, so Coinbase, Bybit, CLOB token prices, or inferred prices are not substituted into the authoritative label contract. Downstream feature work may use market/BTC observations as features only under its own timestamp and provenance rules; those observations do not become official label references.
+
+Phase 3 raw-data exclusions and Phase 4 source-availability limitations remain binding downstream. In particular, unavailable/unverified historical Polymarket L2 remains unavailable rather than synthesized, and audited source gaps must remain explicit through feature missing-data flags.
+
+Sanitized closeout evidence is stored in `docs/evidence/phase-5-closeout-20260825.json`. Phase 6 — feature engine — is now the next permitted build-order phase. Model training, backtesting, live prediction, paper trading, and live trading remain blocked by later phase gates; live trading remains disabled.
+
 ## 0.4.0 — 25 August 2026
 
 Phase 4 — historical backfill — closed after production-host acceptance of deterministic Polymarket market discovery, official token-price history, Coinbase BTC-USD candles, immutable/idempotent historical storage, provenance/checksums, and environment-aware Bybit handling.
@@ -75,8 +91,6 @@ Verified on commit `cf85c9139cfd887188bb10b60d6a75cf98e0e389`:
 - host NTP synchronization remains required;
 - CI validates deployment shell syntax and production Docker Compose configuration;
 - a formal 24-hour soak report command and protected evidence location are documented.
-
-Sanitized pre-host evidence is stored in `docs/evidence/phase-2-prehost-short-soak.json`; operator instructions are in `docs/PHASE-2-DEPLOYMENT.md`.
 
 No model training, paper trading, or live trading has been added. `LIVE_TRADING_ENABLED` remains false and Phase 3 must not begin until the actual 24-hour Phase 2 host gate is passed and documented.
 
