@@ -23,6 +23,10 @@ class BybitHistoryError(ValueError):
     """Raised when Bybit historical data cannot be normalized safely."""
 
 
+class BybitHistoryUnavailableError(BybitHistoryError):
+    """Raised when the Bybit historical REST source is unavailable to this environment."""
+
+
 @dataclass(frozen=True)
 class BybitKline:
     bucket_at: datetime
@@ -144,6 +148,10 @@ class BybitHistoryClient:
         else:
             async with httpx.AsyncClient(base_url=self.BASE_URL, timeout=20.0) as client:
                 response = await client.get("/v5/market/kline", params=params)
+        if response.status_code == 403:
+            raise BybitHistoryUnavailableError(
+                "Bybit REST unavailable from this environment (HTTP 403)"
+            )
         response.raise_for_status()
         payload = response.json()
         if not isinstance(payload, Mapping):
