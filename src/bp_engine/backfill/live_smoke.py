@@ -125,6 +125,20 @@ async def run_live_source_smoke(
     coinbase_client = coinbase_client or CoinbaseHistoryClient()
 
     market = await find_recent_closed_btc_market(gamma_client, now=checked_at)
+    listing = await gamma_client.list_markets_offset_page(
+        start=market.window_start_at,
+        end=market.window_end_at,
+        limit=100,
+        offset=0,
+    )
+    listed_slugs = {
+        payload.get("slug")
+        for payload in listing.markets
+        if isinstance(payload.get("slug"), str)
+    }
+    if market.slug not in listed_slugs:
+        raise RuntimeError("Gamma historical market listing did not include probed BTC market")
+
     up_history = await price_client.get_history(
         market.up_token_id,
         start=market.window_start_at,
@@ -162,6 +176,7 @@ async def run_live_source_smoke(
             "slug": market.slug,
             "horizon_seconds": market.horizon_seconds,
             "resolved_outcome": market.resolved_outcome,
+            "historical_listing_markets": len(listing.markets),
             "up_price_points": len(up_history.points),
             "down_price_points": len(down_history.points),
         },
