@@ -7,6 +7,7 @@ HOST = ROOT / "scripts" / "deploy" / "phase8_host_acceptance.sh"
 CLOUD = ROOT / "scripts" / "deploy" / "phase8_cloudshell_accept.sh"
 RUNBOOK = ROOT / "docs" / "PHASE-8-DEPLOYMENT.md"
 CI = ROOT / ".github" / "workflows" / "ci.yml"
+EXECUTION = ROOT / "src" / "bp_engine" / "backtesting" / "execution.py"
 
 SOURCE_5M = "phase7-300-0a822e17ceced11742bf6d3bc8214f44"
 SOURCE_15M = "phase7-900-e36d978aecc29816c5b9e2b67b30d6e2"
@@ -56,6 +57,25 @@ def test_phase8_host_acceptance_contract_is_fail_closed() -> None:
     assert "safe.directory" not in text
     assert "httpx" not in text
     assert "websockets" not in text
+
+
+def test_phase8_host_execution_source_probe_matches_dynamic_selected_side_lookup() -> None:
+    host = _required_text(HOST)
+    execution = _required_text(EXECUTION)
+    required_patterns = (
+        'prefix = "pm_up" if probability >= 0.5 else "pm_down"',
+        'row.predictors.get(f"{prefix}_best_ask")',
+        "missing__{prefix}_book_missing",
+        "missing__{prefix}_book_stale",
+        "gross_execution_pnl_before_costs",
+    )
+
+    for pattern in required_patterns:
+        assert pattern in execution
+        assert pattern in host
+
+    assert '"pm_up_best_ask",' not in host
+    assert '"pm_down_best_ask",' not in host
 
 
 def test_phase8_cloudshell_wrapper_uses_verified_export_architecture() -> None:
