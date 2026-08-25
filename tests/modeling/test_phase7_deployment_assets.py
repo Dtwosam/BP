@@ -14,6 +14,15 @@ def test_phase7_cloudshell_helper_keeps_opt_bp_work_remote() -> None:
     assert "build/phase-7-baseline-modeling" in source
 
 
+def test_phase7_cloudshell_helper_hands_candidate_to_bp_before_install() -> None:
+    source = Path("scripts/deploy/phase7_cloudshell_accept.sh").read_text(encoding="utf-8")
+
+    worktree_index = source.index('git -C /opt/bp worktree add --detach "\\$WT" "\\$SHA"')
+    ownership_index = source.index('chown -R bp:bp "\\$WT"')
+    acceptance_index = source.index('BP_REPO="\\$WT" bash')
+    assert worktree_index < ownership_index < acceptance_index
+
+
 def test_phase7_host_acceptance_contains_research_and_safety_gates() -> None:
     source = Path("scripts/deploy/phase7_host_acceptance.sh").read_text(encoding="utf-8")
 
