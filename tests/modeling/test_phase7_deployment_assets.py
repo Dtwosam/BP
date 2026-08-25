@@ -65,6 +65,16 @@ def test_phase7_acceptance_installs_candidate_in_isolated_venv() -> None:
     assert "rm -rf \"$VENV\"" in source
 
 
+def test_phase7_host_acceptance_checks_disk_before_expensive_work() -> None:
+    source = Path("scripts/deploy/phase7_host_acceptance.sh").read_text(encoding="utf-8")
+
+    report_index = source.index("storage_maintenance.py")
+    install_index = source.index('pip install --disable-pip-version-check "$REPO"')
+    assert report_index < install_index
+    assert "DISK_STATUS_BEFORE" in source
+    assert "storage-report-before.json" in source
+
+
 def test_phase7_ci_syntax_checks_both_helpers() -> None:
     source = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
 
@@ -78,6 +88,8 @@ def test_phase7_runbook_documents_one_line_gate_and_pass_fields() -> None:
     assert "PHASE7_HEAD=" in source
     assert "phase7_cloudshell_accept.sh" in source
     assert "/var/lib/bp/evidence/phase7-baseline-modeling" in source
+    assert "Bybit" in source
+    assert "403" in source
     for field in (
         "VERDICT=PASS",
         "LABELS_5M=",
