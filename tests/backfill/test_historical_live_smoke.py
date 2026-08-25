@@ -8,7 +8,6 @@ from bp_engine.backfill.bybit import BybitKlineResponse
 from bp_engine.backfill.coinbase import CoinbaseCandleResponse
 from bp_engine.backfill.live_smoke import find_recent_closed_btc_market, run_live_source_smoke
 from bp_engine.backfill.polymarket_prices import PriceHistoryPoint, PriceHistoryResponse
-from bp_engine.polymarket.gamma import GammaMarketOffsetPage
 
 
 def gamma_payload(slug: str) -> dict[str, object]:
@@ -32,23 +31,12 @@ class FakeGammaClient:
     def __init__(self, expected_slug: str) -> None:
         self.expected_slug = expected_slug
         self.calls: list[str] = []
-        self.list_calls: list[tuple[datetime, datetime, int, int]] = []
 
     async def get_market_by_slug(self, slug: str):
         self.calls.append(slug)
         if slug == self.expected_slug:
             return gamma_payload(slug)
         return None
-
-    async def list_markets_offset_page(self, *, start, end, limit=100, offset=0):
-        self.list_calls.append((start, end, limit, offset))
-        payload = gamma_payload(self.expected_slug)
-        return GammaMarketOffsetPage(
-            markets=(payload,),
-            next_offset=None,
-            request_params={"limit": str(limit), "offset": str(offset)},
-            raw_payload=[payload],
-        )
 
 
 @pytest.mark.asyncio
@@ -134,10 +122,9 @@ def _gamma_for(now: datetime) -> FakeGammaClient:
 @pytest.mark.asyncio
 async def test_live_source_smoke_returns_sanitized_nonempty_counts() -> None:
     now = datetime(2026, 8, 24, 22, 47, tzinfo=UTC)
-    gamma = _gamma_for(now)
     report = await run_live_source_smoke(
         now=now,
-        gamma_client=gamma,
+        gamma_client=_gamma_for(now),
         price_client=FakePriceClient(),
         bybit_client=FakeBybitClient(),
         coinbase_client=FakeCoinbaseClient(),
@@ -146,8 +133,7 @@ async def test_live_source_smoke_returns_sanitized_nonempty_counts() -> None:
     assert report["status"] == "ok"
     assert report["polymarket"]["up_price_points"] == 1
     assert report["polymarket"]["down_price_points"] == 1
-    assert report["polymarket"]["historical_listing_markets"] == 1
-    assert gamma.list_calls
+    assert "historical_listing_markets" not in report["polymarket"]
     assert report["bybit"]["status"] == "ok"
     assert report["bybit"]["spot_candles"] == 1
     assert report["bybit"]["linear_candles"] == 1
