@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from bp_engine.backtesting.execution import execution_diagnostic
 
+from bp_engine.backtesting.execution import execution_diagnostic
 from bp_engine.modeling.models import SupervisedRow
 
 
