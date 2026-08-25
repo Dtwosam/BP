@@ -5,7 +5,7 @@ from typing import Any
 
 import httpx
 
-from bp_engine.backfill.bybit import BybitHistoryClient
+from bp_engine.backfill.bybit import BybitHistoryClient, BybitHistoryUnavailableError
 from bp_engine.backfill.coinbase import CoinbaseHistoryClient
 from bp_engine.backfill.polymarket_prices import PolymarketPriceHistoryClient
 from bp_engine.polymarket.gamma import GammaClient
@@ -59,6 +59,14 @@ def _count_in_window(candles: tuple[Any, ...], start: datetime, end: datetime) -
     return sum(1 for candle in candles if start <= candle.bucket_at < end)
 
 
+def _bybit_blocked_report() -> dict[str, Any]:
+    return {
+        "status": "environment_blocked_http_403",
+        "spot_candles": None,
+        "linear_candles": None,
+    }
+
+
 async def _bybit_smoke(
     client: BybitHistoryClient,
     *,
@@ -82,14 +90,12 @@ async def _bybit_smoke(
             end=end,
             limit=10,
         )
+    except BybitHistoryUnavailableError:
+        return _bybit_blocked_report()
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code != 403:
             raise
-        return {
-            "status": "environment_blocked_http_403",
-            "spot_candles": None,
-            "linear_candles": None,
-        }
+        return _bybit_blocked_report()
 
     spot_count = _count_in_window(spot.candles, start, end)
     linear_count = _count_in_window(linear.candles, start, end)
