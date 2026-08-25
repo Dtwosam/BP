@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Index,
@@ -280,3 +281,42 @@ market_labels = Table(
 )
 
 Index("ix_market_labels_market_start_at", market_labels.c.market_start_at)
+
+market_features = Table(
+    "market_features",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("condition_id", Text, nullable=False),
+    Column("slug", String(256), nullable=False),
+    Column("horizon_seconds", Integer, nullable=False),
+    Column("market_start_at", DateTime(timezone=True), nullable=False),
+    Column("market_end_at", DateTime(timezone=True), nullable=False),
+    Column("feature_at", DateTime(timezone=True), nullable=False),
+    Column("feature_offset_seconds", Integer, nullable=False),
+    Column("feature_version", String(64), nullable=False),
+    Column("features", JSON, nullable=False),
+    Column("missing_flags", JSON, nullable=False),
+    Column("source_cutoffs", JSON, nullable=False),
+    Column("input_fingerprint", String(64), nullable=False),
+    Column("feature_hash", String(64), nullable=False),
+    Column("generated_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint("horizon_seconds > 0", name="ck_market_features_positive_horizon"),
+    CheckConstraint(
+        "market_end_at > market_start_at", name="ck_market_features_window_order"
+    ),
+    CheckConstraint("feature_at > market_start_at", name="ck_market_features_after_start"),
+    CheckConstraint("feature_at < market_end_at", name="ck_market_features_before_end"),
+    UniqueConstraint(
+        "condition_id",
+        "feature_at",
+        "feature_version",
+        name="uq_market_features_condition_time_version",
+    ),
+)
+
+Index("ix_market_features_feature_at", market_features.c.feature_at)
+Index(
+    "ix_market_features_condition_feature_at",
+    market_features.c.condition_id,
+    market_features.c.feature_at,
+)
