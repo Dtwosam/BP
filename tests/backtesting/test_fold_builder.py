@@ -3,13 +3,13 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
+
 from bp_engine.backtesting.folds import (
     FoldEligibilityError,
     build_market_timeline,
     build_walk_forward_plan,
 )
 from bp_engine.backtesting.models import WalkForwardConfig
-
 from bp_engine.modeling.models import DatasetSnapshot, SupervisedRow
 
 
