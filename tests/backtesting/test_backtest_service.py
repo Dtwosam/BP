@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from bp_engine.backtesting.predictor import ModelSpec
 from bp_engine.backtesting.service import BacktestIntegrityError, run_walk_forward_backtest
 
 from bp_engine.backtesting.models import WalkForwardConfig
+from bp_engine.backtesting.predictor import ModelSpec
 from bp_engine.modeling.models import DatasetSnapshot, SupervisedRow
 
 _START = datetime(2026, 8, 24, tzinfo=UTC)
@@ -43,7 +42,11 @@ _CONFIG = WalkForwardConfig(
 
 
 def _predictors(target: int, offset_seconds: int) -> dict[str, float | None]:
-    price = (0.80 if target else 0.20) if offset_seconds == 60 else (0.55 if target else 0.45)
+    price = (
+        (0.80 if target else 0.20)
+        if offset_seconds == 60
+        else (0.55 if target else 0.45)
+    )
     return {
         "pm_up_price": price,
         "pm_up_best_ask": 0.60,
@@ -70,7 +73,10 @@ def _dataset(
         market_end = market_start + timedelta(seconds=300)
         condition_id = f"condition-{index:03d}"
         base_target = index % 2
-        target = 1 - base_target if mutate_final_holdout and market_start >= holdout_start else base_target
+        if mutate_final_holdout and market_start >= holdout_start:
+            target = 1 - base_target
+        else:
+            target = base_target
         for offset_seconds in (60, 120):
             if offset_seconds == 60 and condition_id in missing_selected_conditions:
                 continue
@@ -120,7 +126,9 @@ def _patch_sources(monkeypatch: pytest.MonkeyPatch, dataset: DatasetSnapshot) ->
     )
 
 
-def test_walk_forward_service_produces_unique_ordinary_oos_folds(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_walk_forward_service_produces_unique_ordinary_oos_folds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     _patch_sources(monkeypatch, _dataset())
 
     report = run_walk_forward_backtest(
@@ -133,7 +141,11 @@ def test_walk_forward_service_produces_unique_ordinary_oos_folds(monkeypatch: py
     )
 
     assert len(report.folds) >= 3
-    ordinary_ids = [condition_id for fold in report.folds for condition_id in fold.test_condition_ids]
+    ordinary_ids = [
+        condition_id
+        for fold in report.folds
+        for condition_id in fold.test_condition_ids
+    ]
     assert len(ordinary_ids) == len(set(ordinary_ids))
     assert tuple(ordinary_ids) == report.aggregate_oos_condition_ids
     assert report.final_holdout.holdout_condition_ids
@@ -144,7 +156,9 @@ def test_walk_forward_service_produces_unique_ordinary_oos_folds(monkeypatch: py
         assert len(fold.membership_sha256) == 64
 
 
-def test_final_holdout_mutation_cannot_change_ordinary_fold_choices(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_final_holdout_mutation_cannot_change_ordinary_fold_choices(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     first_dataset = _dataset()
     _patch_sources(monkeypatch, first_dataset)
     first = run_walk_forward_backtest(
@@ -168,11 +182,19 @@ def test_final_holdout_mutation_cannot_change_ordinary_fold_choices(monkeypatch:
     )
 
     first_choices = tuple(
-        (fold.membership_sha256, fold.selected_offset_seconds, fold.validation_candidates)
+        (
+            fold.membership_sha256,
+            fold.selected_offset_seconds,
+            fold.validation_candidates,
+        )
         for fold in first.folds
     )
     second_choices = tuple(
-        (fold.membership_sha256, fold.selected_offset_seconds, fold.validation_candidates)
+        (
+            fold.membership_sha256,
+            fold.selected_offset_seconds,
+            fold.validation_candidates,
+        )
         for fold in second.folds
     )
     assert first_choices == second_choices
@@ -181,7 +203,9 @@ def test_final_holdout_mutation_cannot_change_ordinary_fold_choices(monkeypatch:
     assert first.final_holdout.metrics != second.final_holdout.metrics
 
 
-def test_missing_selected_offset_is_not_substituted_and_fails_coverage(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_missing_selected_offset_is_not_substituted_and_fails_coverage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     missing = {"condition-036", "condition-037", "condition-038"}
     dataset = _dataset(missing_selected_conditions=missing)
     _patch_sources(monkeypatch, dataset)
@@ -197,7 +221,9 @@ def test_missing_selected_offset_is_not_substituted_and_fails_coverage(monkeypat
         )
 
 
-def test_walk_forward_semantic_identity_ignores_created_at(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_walk_forward_semantic_identity_ignores_created_at(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     _patch_sources(monkeypatch, _dataset())
     first = run_walk_forward_backtest(
         object(),
