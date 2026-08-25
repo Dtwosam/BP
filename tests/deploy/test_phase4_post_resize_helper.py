@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 HELPER = Path("scripts/deploy/phase4_host_post_resize_accept.sh")
 
 
