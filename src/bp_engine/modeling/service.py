@@ -22,7 +22,7 @@ from bp_engine.modeling.models import (
 )
 from bp_engine.modeling.repository import ModelTrainingRunRepository
 from bp_engine.modeling.split import chronological_market_split, equal_market_weights
-from bp_engine.modeling.trainers import PreparedMatrix, train_logistic, train_xgboost
+from bp_engine.modeling.trainers import prepare_matrices, train_logistic, train_xgboost
 
 
 def select_validation_champion(evaluations: dict[str, ModelEvaluation]) -> str:
@@ -152,20 +152,6 @@ def _offset_metrics(
     return result
 
 
-def _artifact_payload(
-    prepared: PreparedMatrix, estimator: object, family: str
-) -> dict[str, Any]:
-    payload: dict[str, Any] = {
-        "family": family,
-        "predictor_names": prepared.predictor_names,
-        "imputer": prepared.imputer,
-        "estimator": estimator,
-    }
-    if family == "logistic":
-        payload["scaler"] = prepared.scaler
-    return payload
-
-
 def train_horizon(
     connection: Connection,
     *,
@@ -187,14 +173,12 @@ def train_horizon(
     )
     split = chronological_market_split(dataset, min_markets=min_markets)
     prepared = prepare_matrices(split)
-
     prior = PriorBaseline()
     prior.fit(split.train.rows, equal_market_weights(split.train.rows))
     assert prior.probability is not None
     market = MarketPriceBaseline(prior.probability)
     logistic = train_logistic(split, prepared)
     xgboost = train_xgboost(split, prepared)
-
     validation_probabilities = {
         "prior": prior.predict_proba(split.validation.rows),
         "market_price": market.predict_proba(split.validation.rows),
@@ -228,7 +212,6 @@ def train_horizon(
         )
         for family in ("prior", "market_price", "logistic", "xgboost")
     }
-
     validation_champion = select_validation_champion(evaluations)
     best_test_result = min(
         evaluations,
@@ -239,7 +222,6 @@ def train_horizon(
         ),
     )
     boosted_promotion_eligible = xgboost_promotion_eligible(evaluations)
-
     artifact_identity = canonical_hash(
         {
             "dataset_sha256": dataset.dataset_sha256,
@@ -250,13 +232,24 @@ def train_horizon(
     )[:16]
     artifact_dir = output_dir / f"h{horizon_seconds}-{artifact_identity}"
     logistic_artifact = write_model_artifact(
-        _artifact_payload(prepared, logistic.estimator, "logistic"),
+        {
+            "family": "logistic",
+            "predictor_names": prepared.predictor_names,
+            "imputer": prepared.imputer,
+            "scaler": prepared.scaler,
+            "estimator": logistic.estimator,
+        },
         output_dir=artifact_dir,
         name="logistic",
         family="logistic",
     )
     xgboost_artifact = write_model_artifact(
-        _artifact_payload(prepared, xgboost.estimator, "xgboost"),
+        {
+            "family": "xgboost",
+            "predictor_names": prepared.predictor_names,
+            "imputer": prepared.imputer,
+            "estimator": xgboost.estimator,
+        },
         output_dir=artifact_dir,
         name="xgboost",
         family="xgboost",
@@ -265,13 +258,9 @@ def train_horizon(
         _artifact_manifest(logistic_artifact),
         _artifact_manifest(xgboost_artifact),
     )
-
     champion_probabilities = test_probabilities[validation_champion]
     offset_metrics = _offset_metrics(split.test.rows, champion_probabilities)
-    gross_diagnostic = gross_execution_diagnostic(
-        split.test.rows,
-        champion_probabilities,
-    )
+    gross_diagnostic = gross_execution_diagnostic(split.test.rows, champion_probabilities)
     semantic_payload = {
         "dataset_version": DATASET_VERSION,
         "split_version": SPLIT_VERSION,
