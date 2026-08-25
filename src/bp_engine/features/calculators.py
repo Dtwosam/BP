@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from statistics import pstdev
-from typing import Any, Iterable
+from typing import Any
 
 from bp_engine.features.models import FeatureTarget
 from bp_engine.features.sources import CandleObservation, PriceObservation, StateObservation
@@ -235,7 +236,10 @@ def _realized_volatility(candles: list[CandleObservation], periods: int) -> floa
     closes = [candle.close for candle in candles[-(periods + 1) :]]
     if any(close <= 0 or not close.is_finite() for close in closes):
         raise ValueError("volatility requires positive finite closes")
-    returns = [math.log(float(current / previous)) for previous, current in zip(closes, closes[1:])]
+    returns = [
+        math.log(float(current / previous))
+        for previous, current in zip(closes, closes[1:], strict=False)
+    ]
     value = pstdev(returns)
     return _float(value, f"realized_volatility_{periods}")
 
