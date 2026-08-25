@@ -16,7 +16,11 @@ from bp_engine.backtesting.models import (
     WalkForwardConfig,
 )
 from bp_engine.backtesting.predictor import MarketPriceFoldPredictor, load_model_spec
-from bp_engine.backtesting.regimes import regime_metrics, training_volatility_threshold
+from bp_engine.backtesting.regimes import (
+    aggregate_regime_metrics,
+    regime_metrics,
+    training_volatility_threshold,
+)
 from bp_engine.backtesting.selection import rows_at_offset, select_validation_offset
 from bp_engine.backtesting.uncertainty import wilson_accuracy_interval
 from bp_engine.features.hashing import canonical_hash
@@ -214,6 +218,7 @@ def run_walk_forward_backtest(
     fold_reports: list[FoldEvaluationReport] = []
     aggregate_rows: list[SupervisedRow] = []
     aggregate_probabilities: list[float] = []
+    aggregate_volatility_thresholds: list[float | None] = []
     seen_oos: set[str] = set()
 
     for fold in plan.folds:
@@ -254,6 +259,9 @@ def run_walk_forward_backtest(
             seen_oos.add(row.condition_id)
             aggregate_rows.append(row)
         aggregate_probabilities.extend(probabilities)
+        aggregate_volatility_thresholds.extend(
+            [volatility_threshold] * len(selected_rows)
+        )
         fold_reports.append(
             FoldEvaluationReport(
                 index=fold.index,
@@ -283,6 +291,11 @@ def run_walk_forward_backtest(
     )
     aggregate_execution = execution_diagnostic(
         aggregate_rows_tuple, aggregate_probabilities_tuple
+    )
+    aggregate_regimes = aggregate_regime_metrics(
+        aggregate_rows_tuple,
+        aggregate_probabilities_tuple,
+        volatility_thresholds=tuple(aggregate_volatility_thresholds),
     )
 
     final_train_rows = _rows_for_conditions(
@@ -368,6 +381,7 @@ def run_walk_forward_backtest(
         "aggregate_oos_metrics": asdict(aggregate_metrics),
         "aggregate_oos_accuracy_wilson_95": aggregate_interval,
         "aggregate_oos_execution": aggregate_execution,
+        "aggregate_oos_regimes": aggregate_regimes,
         "final_holdout": asdict(final_report),
     }
     semantic_sha256 = canonical_hash(semantic_payload)
@@ -395,6 +409,7 @@ def run_walk_forward_backtest(
         aggregate_oos_metrics=aggregate_metrics,
         aggregate_oos_accuracy_wilson_95=aggregate_interval,
         aggregate_oos_execution=aggregate_execution,
+        aggregate_oos_regimes=aggregate_regimes,
         final_holdout=final_report,
         semantic_sha256=semantic_sha256,
         created_at=created_at,
