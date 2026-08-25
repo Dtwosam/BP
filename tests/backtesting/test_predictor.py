@@ -11,6 +11,7 @@ from bp_engine.backtesting.predictor import (
     load_model_spec,
 )
 from sqlalchemy import create_engine
+
 from bp_engine.modeling.models import (
     MetricSummary,
     ModelEvaluation,
@@ -19,7 +20,6 @@ from bp_engine.modeling.models import (
 )
 from bp_engine.modeling.repository import ModelTrainingRunRepository
 from bp_engine.storage.schema import metadata
-
 
 MARKET_PRICE_CONFIG = {
     "predictor": "pm_up_price",
