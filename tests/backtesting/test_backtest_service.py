@@ -156,6 +156,26 @@ def test_walk_forward_service_produces_unique_ordinary_oos_folds(
         assert len(fold.membership_sha256) == 64
 
 
+def test_aggregate_oos_report_includes_regimes_with_market_count_parity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_sources(monkeypatch, _dataset())
+    report = run_walk_forward_backtest(
+        object(),
+        source_training_run_id=_SOURCE.run_id,
+        start=_START,
+        end=_END,
+        config=_CONFIG,
+        created_at=datetime(2026, 8, 25, 20, 30, tzinfo=UTC),
+    )
+
+    regimes = report.aggregate_oos_regimes
+    assert set(regimes) == {"utc_session", "volatility", "execution_availability"}
+    expected = report.aggregate_oos_metrics.market_count
+    for groups in regimes.values():
+        assert sum(group["market_count"] for group in groups.values()) == expected
+
+
 def test_final_holdout_mutation_cannot_change_ordinary_fold_choices(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
