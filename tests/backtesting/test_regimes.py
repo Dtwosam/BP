@@ -48,7 +48,16 @@ def _row(
 
 @pytest.mark.parametrize(
     ("hour", "expected"),
-    [(0, "00-06"), (5, "00-06"), (6, "06-12"), (11, "06-12"), (12, "12-18"), (17, "12-18"), (18, "18-24"), (23, "18-24")],
+    [
+        (0, "00-06"),
+        (5, "00-06"),
+        (6, "06-12"),
+        (11, "06-12"),
+        (12, "12-18"),
+        (17, "12-18"),
+        (18, "18-24"),
+        (23, "18-24"),
+    ],
 )
 def test_utc_session_regime_boundaries(hour: int, expected: str) -> None:
     assert utc_session_regime(
@@ -85,10 +94,18 @@ def test_volatility_threshold_uses_training_rows_only() -> None:
 
 
 def test_volatility_regime_marks_null_unknown() -> None:
-    assert volatility_regime(_row("low", hour=0, target=0, volatility=0.10), 0.20) == "low"
-    assert volatility_regime(_row("high", hour=0, target=1, volatility=0.30), 0.20) == "high"
-    assert volatility_regime(_row("unknown", hour=0, target=1, volatility=None), 0.20) == "unknown"
-    assert volatility_regime(_row("no-threshold", hour=0, target=1, volatility=0.30), None) == "unknown"
+    assert volatility_regime(
+        _row("low", hour=0, target=0, volatility=0.10), 0.20
+    ) == "low"
+    assert volatility_regime(
+        _row("high", hour=0, target=1, volatility=0.30), 0.20
+    ) == "high"
+    assert volatility_regime(
+        _row("unknown", hour=0, target=1, volatility=None), 0.20
+    ) == "unknown"
+    assert volatility_regime(
+        _row("no-threshold", hour=0, target=1, volatility=0.30), None
+    ) == "unknown"
 
 
 def test_regime_metrics_include_market_counts_and_one_class_semantics() -> None:
