@@ -1,0 +1,108 @@
+{
+  "phase": 6,
+  "name": "feature engine",
+  "status": "complete",
+  "recorded_at": "2026-08-25T16:20:00Z",
+  "host_accepted_commit": "71ab67f178f8dc30a1d933ff2e553a508bb08f02",
+  "feature_version": "core-v1",
+  "acceptance_window": {
+    "start": "2026-08-24T18:00:00Z",
+    "end": "2026-08-24T19:00:00Z",
+    "step_seconds": 60
+  },
+  "pre_host_exact_head_gates": {
+    "ci": {
+      "run_number": 562,
+      "passed": true
+    },
+    "historical_backfill_smoke": {
+      "run_number": 183,
+      "passed": true
+    },
+    "live_recorder_smoke": {
+      "run_number": 287,
+      "passed": true
+    },
+    "recorder_short_soak": {
+      "run_number": 251,
+      "passed": true
+    }
+  },
+  "host_acceptance": {
+    "verdict": "PASS",
+    "target_markets": 16,
+    "feature_rows": 104,
+    "first_run": {
+      "planned_rows": 104,
+      "inserted": 0,
+      "existing": 104
+    },
+    "second_run": {
+      "planned_rows": 104,
+      "inserted": 0,
+      "existing": 104
+    },
+    "second_run_idempotent": true,
+    "invalid_future_cutoffs": 0,
+    "duplicate_keys": 0,
+    "label_key_violations": 0,
+    "official_reference_violations": 0,
+    "disk_status": "ok",
+    "disk_free_bytes": 133556445184,
+    "recorder_before": "active",
+    "recorder_after": "active"
+  },
+  "population_history": {
+    "initial_population_commit": "c76dfabb100129efd94501721c3d52820b13f4fa",
+    "initial_population_rows_inserted": 104,
+    "note": "A prior acceptance attempt populated the immutable core-v1 rows and then failed later in the checker because json_each_text was used on a jsonb column. The final accepted commit changed only the acceptance JSONB iterator after a RED regression test; final acceptance re-read all 104 rows as existing and verified the complete data-integrity gate set."
+  },
+  "acceptance_incidents": [
+    {
+      "candidate_commit": "d38250c6f5fb68704ce306cfb051111b25c7c680",
+      "result": "FAIL",
+      "cause": "Compact market_state_1s selection filtered bucket_at but not last_event_at at query time, allowing a same-second row containing a future sub-second event to be selected before the fail-closed guard raised FeatureLeakageError.",
+      "resolution": "Added RED regression coverage and required last_event_at <= feature_at in the source query while retaining post-selection leakage guards."
+    },
+    {
+      "candidate_commit": "c76dfabb100129efd94501721c3d52820b13f4fa",
+      "result": "FAIL_AFTER_FEATURE_GENERATION",
+      "cause": "The host acceptance checker called json_each_text on jsonb source_cutoffs and PostgreSQL rejected the function signature.",
+      "resolution": "Added RED regression coverage and changed the checker to jsonb_each_text. Feature rows were not rewritten."
+    }
+  ],
+  "feature_contract": {
+    "natural_key": "(condition_id, feature_at, feature_version)",
+    "feature_version": "core-v1",
+    "timestamp_policy": "Only observations provably available at or before feature_at are eligible.",
+    "compact_state_policy": "Both bucket_at and last_event_at must be <= feature_at; stale state is explicit rather than treated as current.",
+    "candle_policy": "Coinbase candles must be fully closed by feature_at.",
+    "trade_flow_policy": "Raw trade flow uses only the trailing 60-second window and is missing when known exclusions or unproven feed coverage overlap it.",
+    "historical_l2_policy": "Unavailable/unverified historical Polymarket L2 is not synthesized.",
+    "official_reference_policy": "official_reference_distance remains NULL and official_reference_missing=true in core-v1.",
+    "label_leakage_policy": "Official outcome, label reference, resolution, and label provenance fields are not feature inputs.",
+    "rerun_policy": "Identical natural-key reruns are existing/no-op; changed semantics at the same key fail closed."
+  },
+  "observed_missing_groups": {
+    "coinbase_candles_missing": 26,
+    "official_reference_missing": 104,
+    "pm_down_book_missing": 76,
+    "pm_down_book_stale": 72,
+    "pm_up_book_missing": 76,
+    "pm_up_book_stale": 72,
+    "polymarket_trade_flow_missing": 72,
+    "raw_trade_flow_missing": 72
+  },
+  "safety": {
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0
+  },
+  "downstream_constraints": [
+    "Phase 3 raw-data exclusions remain binding when Phase 7 constructs raw-dependent datasets.",
+    "Phase 4 source-availability limitations remain explicit and must not be imputed as observed data.",
+    "Phase 5 official labels may be joined only as targets after feature-time rows are frozen; label outcome/reference/provenance fields must not enter features.",
+    "Phase 7 must use leakage-safe train/validation/test splitting appropriate for time-ordered market data and report calibration, coverage, accuracy, and profitability-oriented metrics.",
+    "Live prediction, paper trading, and live trading remain blocked by later phase gates."
+  ]
+}
