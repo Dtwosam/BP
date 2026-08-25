@@ -23,7 +23,7 @@ if ! [[ "$STEP_SECONDS" =~ ^[0-9]+$ ]] || [[ "$STEP_SECONDS" -le 0 ]]; then
   exit 2
 fi
 
-actual_head=$(git -C "$REPO" rev-parse HEAD)
+actual_head=$(sudo -u bp git -C "$REPO" rev-parse HEAD)
 if [[ "$actual_head" != "$EXPECTED_HEAD" ]]; then
   echo "expected HEAD $EXPECTED_HEAD but found $actual_head" >&2
   exit 2
