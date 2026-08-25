@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -39,6 +40,13 @@ def _semantic_report(report: TrainingRunReport) -> dict[str, Any]:
 
 
 class ModelTrainingRunRepository:
+    def get(
+        self, connection: Connection, run_id: str
+    ) -> Mapping[str, Any] | None:
+        return connection.execute(
+            select(model_training_runs).where(model_training_runs.c.run_id == run_id)
+        ).mappings().one_or_none()
+
     def store(
         self, connection: Connection, report: TrainingRunReport
     ) -> TrainingRunStoreResult:
