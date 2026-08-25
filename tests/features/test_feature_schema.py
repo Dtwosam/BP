@@ -4,7 +4,7 @@ from bp_engine.storage import schema
 
 
 def test_market_features_metadata_contract() -> None:
-    table = getattr(schema, "market_features")
+    table = schema.__dict__["market_features"]
     expected = {
         "condition_id",
         "slug",
