@@ -200,6 +200,7 @@ class FeatureSourceReader:
             market_state_1s.c.stream == stream,
             market_state_1s.c.instrument == instrument,
             market_state_1s.c.bucket_at <= cutoff,
+            market_state_1s.c.last_event_at <= cutoff,
         )
         if asset_id is None:
             statement = statement.where(market_state_1s.c.asset_id.is_(None))
