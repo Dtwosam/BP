@@ -4,7 +4,7 @@ import hashlib
 import os
 import tempfile
 from dataclasses import dataclass
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 import joblib
@@ -22,7 +22,10 @@ class ModelArtifact:
 
 def _library_version(family: str) -> str:
     if family == "xgboost":
-        return version("xgboost")
+        try:
+            return version("xgboost-cpu")
+        except PackageNotFoundError:
+            return version("xgboost")
     if family == "logistic":
         return version("scikit-learn")
     return version("joblib")

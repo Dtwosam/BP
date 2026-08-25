@@ -15,7 +15,7 @@ dependencies = [
   "psycopg[binary]>=3.2,<4",
   "websockets>=16,<17",
   "scikit-learn>=1.7,<2",
-  "xgboost>=3,<4",
+  "xgboost-cpu>=3,<4",
   "joblib>=1.4,<2",
 ]
 
