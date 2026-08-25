@@ -18,6 +18,8 @@ RECORDER_AFTER=active
 DISK_STATUS=ok
 ```
 
+Disk health is checked twice: once before candidate installation/backfill/training and again after the research run. A non-`ok` preflight fails before expensive work begins.
+
 The Cloud Shell helper creates a detached candidate worktree. The deployed `/opt/bp` recorder checkout is not replaced. Phase 7 also creates an isolated temporary virtual environment under `/var/tmp/bp-phase7-venv-*`; candidate ML dependencies are installed there rather than into the recorder virtual environment. The temporary environment is removed automatically.
 
 Model binaries are external research artifacts under:
@@ -42,6 +44,8 @@ Required coverage is at least 100 unique 5m labels and at least 30 unique 15m la
 2. Phase 5 official outcome labels;
 3. Phase 6 `core-v1` features at 60-second steps;
 4. Phase 7 baseline training for 300s and 900s horizons.
+
+The standard Phase 4 backfill preserves the already accepted Bybit behavior: if Bybit historical REST returns HTTP 403, that source is recorded as restricted/unavailable and the standard run continues with verified core sources unless `--require-bybit` is explicitly used. Phase 7 does not route around that restriction and does not synthesize Bybit history.
 
 The model ladder is naive weighted prior, Polymarket Up-price baseline, logistic regression, and deterministic XGBoost. `xgboost-cpu` is used because production research is CPU-only.
 
@@ -110,6 +114,7 @@ REGISTRY_SECOND_RUN_DELTA=0
 PARTITION_VIOLATIONS=0
 SINGLE_CLASS_PARTITIONS=0
 ARTIFACT_HASH_VIOLATIONS=0
+DISK_STATUS_BEFORE=ok
 DISK_STATUS=ok
 RECORDER_BEFORE=active
 RECORDER_AFTER=active
@@ -128,7 +133,7 @@ Each production gate writes durable evidence under:
 /var/lib/bp/evidence/phase7-baseline-modeling/<UTC timestamp>/
 ```
 
-Expected files include candidate installation output, migration output, historical backfill output, labels, features, first and second model reports, research summary, storage report, and `final-summary.txt`. The Cloud Shell wrapper also writes:
+Expected files include the preflight storage report, candidate installation output, migration output, historical backfill output, labels, features, first and second model reports, research summary, post-run storage report, and `final-summary.txt`. The Cloud Shell wrapper also writes:
 
 ```text
 /var/lib/bp/evidence/phase7-host-acceptance-latest.log
@@ -136,6 +141,6 @@ Expected files include candidate installation output, migration output, historic
 
 ## Hard failures
 
-Do not override or delete data to force a PASS. The gate fails on candidate-head drift, enabled trading or non-zero trade/loss limits, inactive recorder, migration/backfill/label/feature/training failure, insufficient labeled market coverage, semantic rerun differences, a new registry row on the second run, partition overlap, a single-class evaluation partition, artifact hash mismatch, or non-OK disk status.
+Do not override or delete data to force a PASS. The gate fails on candidate-head drift, enabled trading or non-zero trade/loss limits, inactive recorder, non-OK disk preflight, migration/backfill/label/feature/training failure, insufficient labeled market coverage, semantic rerun differences, a new registry row on the second run, partition overlap, a single-class evaluation partition, artifact hash mismatch, or non-OK post-run disk status.
 
 Phase 8 remains blocked until Phase 7 production acceptance passes, durable closeout evidence is committed, the closeout HEAD passes the complete exact-head workflow set, PR #6 is marked ready and merged with an expected-head guard, and `main` is verified after merge.

@@ -63,6 +63,18 @@ stamp=$(date -u +%Y%m%dT%H%M%SZ)
 run_dir="$EVIDENCE_ROOT/$stamp"
 install -d -o bp -g bp "$run_dir"
 
+PRE_REPORT=$(sudo -u bp "$HOST_PY" "$HOST_REPO/scripts/storage_maintenance.py" report \
+  --env-file "$ENV_FILE")
+printf '%s\n' "$PRE_REPORT" > "$run_dir/storage-report-before.json"
+read -r DISK_STATUS_BEFORE DISK_FREE_BYTES_BEFORE < <(
+  printf '%s' "$PRE_REPORT" |
+    "$HOST_PY" -c 'import json,sys; d=json.load(sys.stdin)["disk"]; print(d["status"], d["free_bytes"])'
+)
+if [[ "$DISK_STATUS_BEFORE" != "ok" ]]; then
+  echo "disk status is $DISK_STATUS_BEFORE before Phase 7 acceptance" >&2
+  exit 6
+fi
+
 cleanup() {
   rm -rf "$VENV" >/dev/null 2>&1 || true
 }
@@ -251,11 +263,11 @@ print("SINGLE_CLASS_PARTITIONS=0")
 print("ARTIFACT_HASH_VIOLATIONS=0")
 PY
 
-REPORT=$(sudo -u bp "$HOST_PY" "$HOST_REPO/scripts/storage_maintenance.py" report \
+POST_REPORT=$(sudo -u bp "$HOST_PY" "$HOST_REPO/scripts/storage_maintenance.py" report \
   --env-file "$ENV_FILE")
-printf '%s\n' "$REPORT" > "$run_dir/storage-report.json"
+printf '%s\n' "$POST_REPORT" > "$run_dir/storage-report-after.json"
 read -r DISK_STATUS DISK_FREE_BYTES < <(
-  printf '%s' "$REPORT" |
+  printf '%s' "$POST_REPORT" |
     "$HOST_PY" -c 'import json,sys; d=json.load(sys.stdin)["disk"]; print(d["status"], d["free_bytes"])'
 )
 if [[ "$DISK_STATUS" != "ok" ]]; then
@@ -277,6 +289,8 @@ fi
   echo "ACCEPTANCE_START=$START"
   echo "ACCEPTANCE_END=$END"
   cat "$run_dir/research-summary.txt"
+  echo "DISK_STATUS_BEFORE=$DISK_STATUS_BEFORE"
+  echo "DISK_FREE_BYTES_BEFORE=$DISK_FREE_BYTES_BEFORE"
   echo "DISK_STATUS=$DISK_STATUS"
   echo "DISK_FREE_BYTES=$DISK_FREE_BYTES"
   echo "RECORDER_BEFORE=$recorder_before"
