@@ -20,7 +20,7 @@ DISK_STATUS=ok
 
 Disk health is checked twice: once before candidate installation/backfill/training and again after the research run. A non-`ok` preflight fails before expensive work begins.
 
-The Cloud Shell helper creates a detached candidate worktree. The deployed `/opt/bp` recorder checkout is not replaced. Phase 7 also creates an isolated temporary virtual environment under `/var/tmp/bp-phase7-venv-*`; candidate ML dependencies are installed there rather than into the recorder virtual environment. The temporary environment is removed automatically.
+The Cloud Shell helper creates a root-owned detached candidate worktree only to verify the exact commit SHA, then exports that verified commit with `git archive` into a separate `bp`-owned, non-Git source directory. Candidate package installation and Phase 7 execution use the exported source, not the Git worktree. The deployed `/opt/bp` recorder checkout is not replaced. Phase 7 also creates an isolated temporary virtual environment under `/var/tmp/bp-phase7-venv-*`; candidate ML dependencies are installed there rather than into the recorder virtual environment. Temporary candidate source, worktree, and virtual-environment paths are removed automatically.
 
 Model binaries are external research artifacts under:
 
@@ -46,6 +46,22 @@ Required coverage is at least 100 unique 5m labels and at least 30 unique 15m la
 4. Phase 7 baseline training for 300s and 900s horizons.
 
 The standard Phase 4 backfill preserves the already accepted Bybit behavior: if Bybit historical REST returns HTTP 403, that source is recorded as restricted/unavailable and the standard run continues with verified core sources unless `--require-bybit` is explicitly used. Phase 7 does not route around that restriction and does not synthesize Bybit history.
+
+### Additive immutable feature expansion
+
+Phase 7 historical expansion is additive. Historical backfill can legitimately add source observations whose event/effective timestamps are before an already-frozen `feature_at`, even though those observations were not present when Phase 6 originally materialized that `core-v1` row. A normal strict recomputation of such a row can therefore produce a different input fingerprint and correctly raise `FeatureConflict`.
+
+The Phase 7 host gate must never delete, update, or rewrite that frozen row to make the newer history win. Instead it records the number of `core-v1` rows already present in the fixed day, then runs feature generation with the explicit `--preserve-existing` expansion mode. In that mode:
+
+- an existing `(condition_id, feature_at, feature_version)` key is located before source readers run;
+- its static slug/horizon/market-window/offset metadata must still match the current target or the run fails closed;
+- the existing feature payload, missing flags, source cutoffs, input fingerprint, feature hash, and original `generated_at` remain untouched;
+- only previously missing natural keys are computed and inserted;
+- the reported existing count must equal the pre-expansion database row count.
+
+The default feature-generation mode remains strict and continues to recompute/compare an existing natural key, raising `FeatureConflict` on semantic drift. `--preserve-existing` exists only for controlled additive historical expansion after source backfill.
+
+This means a small set of Phase 6 rows can retain the original missingness that was true when those immutable snapshots were frozen, while newly materialized rows can use history recovered later. Missing flags and input fingerprints preserve that provenance explicitly; Phase 7 does not backdate recovered data by rewriting old snapshots.
 
 The model ladder is naive weighted prior, Polymarket Up-price baseline, logistic regression, and deterministic XGBoost. `xgboost-cpu` is used because production research is CPU-only.
 
@@ -86,7 +102,7 @@ PHASE7_HEAD=<verified-sha> bash scripts/deploy/phase7_cloudshell_accept.sh
 
 If the local checkout does not yet contain the helper, the same file can be fetched from the frozen candidate SHA and run with `PHASE7_HEAD` set to that SHA.
 
-The helper verifies that `build/phase-7-baseline-modeling` still points to the expected SHA, creates a detached worktree on `bp-recorder`, and invokes `phase7_host_acceptance.sh`. Candidate execution never replaces `/opt/bp`.
+The helper verifies that `build/phase-7-baseline-modeling` still points to the expected SHA, creates a detached worktree on `bp-recorder`, verifies it, exports that exact tree into an unprivileged source directory, and invokes `phase7_host_acceptance.sh` from the exported source. Candidate execution never replaces `/opt/bp`.
 
 ## Required PASS summary
 
@@ -95,6 +111,8 @@ A successful gate ends with fields including:
 ```text
 VERDICT=PASS
 HEAD=<exact-candidate-sha>
+FEATURE_ROWS_BEFORE=<non-negative integer>
+PRESERVED_FEATURE_ROWS=<same integer as FEATURE_ROWS_BEFORE>
 LABELS_5M=<integer >= 100>
 LABELS_15M=<integer >= 30>
 FEATURE_ROWS_5M=<positive integer>
@@ -133,7 +151,7 @@ Each production gate writes durable evidence under:
 /var/lib/bp/evidence/phase7-baseline-modeling/<UTC timestamp>/
 ```
 
-Expected files include the preflight storage report, candidate installation output, migration output, historical backfill output, labels, features, first and second model reports, research summary, post-run storage report, and `final-summary.txt`. The Cloud Shell wrapper also writes:
+Expected files include the preflight disk-health result, candidate installation output, migration output, historical backfill output, labels, features, first and second model reports, research summary, post-run storage report, and `final-summary.txt`. The Cloud Shell wrapper also writes:
 
 ```text
 /var/lib/bp/evidence/phase7-host-acceptance-latest.log
@@ -141,6 +159,6 @@ Expected files include the preflight storage report, candidate installation outp
 
 ## Hard failures
 
-Do not override or delete data to force a PASS. The gate fails on candidate-head drift, enabled trading or non-zero trade/loss limits, inactive recorder, non-OK disk preflight, migration/backfill/label/feature/training failure, insufficient labeled market coverage, semantic rerun differences, a new registry row on the second run, partition overlap, a single-class evaluation partition, artifact hash mismatch, or non-OK post-run disk status.
+Do not override or delete data to force a PASS. The gate fails on candidate-head drift, enabled trading or non-zero trade/loss limits, inactive recorder, non-OK disk preflight, migration/backfill/label/feature/training failure, a preserved-feature count that does not equal the pre-existing immutable row count, contradictory static metadata on a preserved key, insufficient labeled market coverage, semantic rerun differences, a new registry row on the second run, partition overlap, a single-class evaluation partition, artifact hash mismatch, or non-OK post-run disk status.
 
 Phase 8 remains blocked until Phase 7 production acceptance passes, durable closeout evidence is committed, the closeout HEAD passes the complete exact-head workflow set, PR #6 is marked ready and merged with an expected-head guard, and `main` is verified after merge.
