@@ -22,6 +22,8 @@ class TradeFlow:
     signed_volume: Decimal
     trade_count: int
     observations: tuple[dict[str, object], ...]
+    coverage_cutoff: datetime
+    coverage_observation: dict[str, object]
 
 
 def _utc(value: datetime, name: str) -> datetime:
@@ -136,6 +138,19 @@ def _trades(
     return result
 
 
+def _coverage_descriptor(
+    event: Mapping[str, object], *, source: str, stream: str, received_at: datetime
+) -> dict[str, object]:
+    return {
+        "kind": "raw_feed_coverage",
+        "dedupe_key": str(event.get("dedupe_key", "")),
+        "source": source,
+        "stream": stream,
+        "event_type": str(event.get("event_type", "")),
+        "received_at": received_at,
+    }
+
+
 def parse_trade_flow(
     events: Iterable[Mapping[str, object]], *, source: str, stream: str
 ) -> TradeFlow | None:
@@ -147,16 +162,23 @@ def parse_trade_flow(
     if not matching:
         return None
 
+    received_events: list[tuple[datetime, Mapping[str, object]]] = []
+    for event in matching:
+        received = event.get("received_at")
+        if not isinstance(received, datetime):
+            raise TradeFlowError("raw event received_at must be a datetime")
+        received_events.append((_stored_utc(received), event))
+    coverage_cutoff, coverage_event = max(
+        received_events,
+        key=lambda item: (item[0], str(item[1].get("dedupe_key", ""))),
+    )
+
     buy_volume = Decimal(0)
     sell_volume = Decimal(0)
     observations: list[dict[str, object]] = []
     trade_count = 0
 
-    for event in matching:
-        received = event.get("received_at")
-        if not isinstance(received, datetime):
-            raise TradeFlowError("raw event received_at must be a datetime")
-        received_at = _stored_utc(received)
+    for received_at, event in received_events:
         for trade_index, (side, size, price) in enumerate(_trades(event, source=source)):
             if side == "BUY":
                 buy_volume += size
@@ -184,6 +206,13 @@ def parse_trade_flow(
         signed_volume=buy_volume - sell_volume,
         trade_count=trade_count,
         observations=tuple(observations),
+        coverage_cutoff=coverage_cutoff,
+        coverage_observation=_coverage_descriptor(
+            coverage_event,
+            source=source,
+            stream=stream,
+            received_at=coverage_cutoff,
+        ),
     )
 
 
