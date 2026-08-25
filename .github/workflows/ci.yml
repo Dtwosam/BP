@@ -58,6 +58,8 @@ jobs:
           bash -n scripts/deploy/phase6_cloudshell_accept.sh
           bash -n scripts/deploy/phase7_host_acceptance.sh
           bash -n scripts/deploy/phase7_cloudshell_accept.sh
+          bash -n scripts/deploy/phase8_host_acceptance.sh
+          bash -n scripts/deploy/phase8_cloudshell_accept.sh
           docker compose --env-file deploy/bp.env.example -f docker-compose.prod.yml config -q
 
       - name: Health check
