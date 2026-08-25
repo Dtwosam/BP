@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -19,7 +19,7 @@ from bp_engine.features.calculators import (
 from bp_engine.features.exclusions import raw_window_exclusion
 from bp_engine.features.hashing import canonical_hash
 from bp_engine.features.models import FEATURE_VERSION, FeatureTarget, MarketFeature
-from bp_engine.features.repository import MarketFeatureRepository
+from bp_engine.features.repository import FeatureConflict, MarketFeatureRepository
 from bp_engine.features.sources import FeatureSourceReader
 from bp_engine.features.trade_flow import TradeFlow, load_trade_flow
 
@@ -39,6 +39,12 @@ def _utc(value: datetime, name: str) -> datetime:
     return value.astimezone(UTC)
 
 
+def _stored_utc(value: datetime) -> datetime:
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 def _target_times(target: FeatureTarget) -> tuple[datetime, datetime]:
     start = _utc(target.market_start_at, "market_start_at")
     end = _utc(target.market_end_at, "market_end_at")
@@ -50,6 +56,33 @@ def _target_times(target: FeatureTarget) -> tuple[datetime, datetime]:
     if actual_horizon != target.horizon_seconds:
         raise ValueError("target horizon_seconds must match market window")
     return start, end
+
+
+def _assert_preservable_existing(
+    existing: Mapping[str, Any], target: FeatureTarget, feature_at: datetime
+) -> None:
+    start, end = _target_times(target)
+    expected = (
+        target.slug,
+        target.horizon_seconds,
+        start,
+        end,
+        int((feature_at - start).total_seconds()),
+    )
+    actual = (
+        str(existing["slug"]),
+        int(existing["horizon_seconds"]),
+        _stored_utc(existing["market_start_at"]),
+        _stored_utc(existing["market_end_at"]),
+        int(existing["feature_offset_seconds"]),
+    )
+    if actual != expected:
+        raise FeatureConflict(
+            "conflicting static feature metadata for "
+            f"condition={target.condition_id} "
+            f"feature_at={feature_at.isoformat()} "
+            f"version={FEATURE_VERSION}"
+        )
 
 
 def plan_feature_times(
@@ -349,6 +382,7 @@ def generate_features(
     *,
     generated_at: datetime,
     step_seconds: int = 60,
+    preserve_existing: bool = False,
 ) -> FeatureGenerationStats:
     generated = _utc(generated_at, "generated_at")
     repository = MarketFeatureRepository()
@@ -362,6 +396,18 @@ def generate_features(
         times = plan_feature_times(target, step_seconds=step_seconds)
         planned_rows += len(times)
         for feature_at in times:
+            if preserve_existing:
+                frozen = repository.find(
+                    connection,
+                    condition_id=target.condition_id,
+                    feature_at=feature_at,
+                    feature_version=FEATURE_VERSION,
+                )
+                if frozen is not None:
+                    _assert_preservable_existing(frozen, target, feature_at)
+                    existing += 1
+                    continue
+
             feature = build_feature(
                 connection,
                 target,

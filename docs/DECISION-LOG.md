@@ -141,3 +141,27 @@ Feature generation must not read official outcomes, official label references, r
 A `market_state_1s` row is eligible at feature time `T` only if both `bucket_at <= T` and `last_event_at <= T`. The reader must select the latest row satisfying both conditions, not select a bucket by `bucket_at` and then abort merely because that bucket contains a later sub-second event. Post-selection leakage guards remain as defense in depth.
 
 This rule was promoted to an explicit project decision after production acceptance candidate `d38250c6f5fb68704ce306cfb051111b25c7c680` exposed the same-second sub-second leakage edge case. The fix was regression-tested before implementation and final Phase 6 host acceptance verified zero persisted source cutoffs after feature time.
+
+## D-021 — Supervised splits are chronological and indivisible by market
+**Date:** 25 Aug 2026  
+**Status:** Active
+
+Phase 7 treats `condition_id` as the indivisible supervised-learning grouping key. Every feature timestamp from one market must remain wholly inside one train, validation, test, or embargo partition. Random row shuffles are forbidden because multiple feature timestamps share the same eventual market outcome and path; splitting those rows independently would leak correlated market information across evaluation boundaries.
+
+The initial split contract is `chronological-market-v1`: unique markets are ordered by `(market_start_at, condition_id)`, assigned chronologically, and protected by one whole-market embargo at each train/validation and validation/test boundary when the sample permits it. Preprocessing is fitted on training data only, and production acceptance requires zero cross-partition condition overlap and both classes in every non-embargo partition.
+
+## D-022 — Validation chooses the champion; the final test cannot rewrite it
+**Date:** 25 Aug 2026  
+**Status:** Active
+
+Model selection is frozen from validation results before final-test metrics are used. Phase 7 compares the weighted prior, Polymarket market-price baseline, logistic regression, and deterministic XGBoost challenger; `validation_champion` is selected by validation log loss with documented tie-breaks. The final test is evidence about the already-frozen candidates and cannot change the champion, feature schema, threshold, or preprocessing.
+
+XGBoost is promotion-eligible only if it beats the simple baselines under the documented validation log-loss/Brier rule and confirms the required test behavior without a worse Brier score. Phase 7 production acceptance selected `market_price` for both 5m and 15m and recorded `boosted_promotion_eligible=false` for both. This is a successful complexity stop: later work must not escalate model complexity merely because a more complex model exists.
+
+## D-023 — Historical expansion preserves already-frozen feature snapshots
+**Date:** 25 Aug 2026  
+**Status:** Active
+
+Phase 7 may expand source history over a broader research window after earlier `core-v1` rows have already been accepted. Such later source recovery must not retroactively rewrite those immutable snapshots or silently pretend the recovered observations were part of the original materialization context.
+
+The explicit Phase 7 expansion mode therefore checks for an existing `(condition_id, feature_at, core-v1)` key before feature recomputation, validates that its static market metadata still matches, preserves the existing row untouched, and computes only missing natural keys from the expanded history. Normal/default feature generation remains strict and raises `FeatureConflict` on semantic drift. Production acceptance proved that all 104 previously accepted Phase 6 feature rows were preserved while the full-day feature set was expanded.

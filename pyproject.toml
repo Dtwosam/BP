@@ -14,6 +14,9 @@ dependencies = [
   "sqlalchemy>=2.0,<3",
   "psycopg[binary]>=3.2,<4",
   "websockets>=16,<17",
+  "scikit-learn>=1.7,<2",
+  "xgboost-cpu>=3,<4",
+  "joblib>=1.4,<2",
 ]
 
 [project.optional-dependencies]
@@ -36,3 +39,6 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/bp_engine/storage/schema.py" = ["E501"]

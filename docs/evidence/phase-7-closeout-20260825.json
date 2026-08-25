@@ -1,0 +1,141 @@
+{
+  "phase": 7,
+  "phase_name": "baselines before fancy ML",
+  "recorded_at": "2026-08-25T19:35:00Z",
+  "status": "PASS",
+  "host_accepted_operational_commit": "66bae5c71eab5e2c154cff1144ce509101d6e985",
+  "acceptance_window": {
+    "start": "2026-08-24T00:00:00Z",
+    "end": "2026-08-25T00:00:00Z",
+    "feature_step_seconds": 60
+  },
+  "dataset_contract": {
+    "dataset_version": "supervised-core-v1",
+    "split_version": "chronological-market-v1",
+    "feature_version": "core-v1",
+    "label_version": "official-outcome-v1",
+    "grouping_key": "condition_id",
+    "split_policy": "Chronological market-group split with one-market embargo at train/validation and validation/test boundaries; no feature-row shuffle.",
+    "feature_expansion_policy": "Existing immutable core-v1 natural keys are preserved before recomputation during Phase 7 historical expansion; static market metadata must still match. Missing natural keys are generated from the expanded verified history. Default feature generation remains strict and conflicts fail closed."
+  },
+  "production_coverage": {
+    "labels_5m": 288,
+    "labels_15m": 96,
+    "feature_rows_5m": 1152,
+    "feature_rows_15m": 1344,
+    "feature_rows_before_expansion": 104,
+    "preserved_feature_rows": 104,
+    "minimum_labels_5m": 100,
+    "minimum_labels_15m": 30
+  },
+  "models": {
+    "5m": {
+      "horizon_seconds": 300,
+      "run_id": "phase7-300-0a822e17ceced11742bf6d3bc8214f44",
+      "dataset_sha256": "d5d2843ea2882aebe1cd3612e4345062067430d060824209b955a30590d8a6c2",
+      "split_sha256": "50a05c4240decee89de7f1b1341d61068a972636ff9b530477159b2c9653d9e0",
+      "semantic_sha256": "0a822e17ceced11742bf6d3bc8214f44f4755c7bc23bb1d3f2dcfa897f3edcc0",
+      "validation_champion": "market_price",
+      "boosted_promotion_eligible": false
+    },
+    "15m": {
+      "horizon_seconds": 900,
+      "run_id": "phase7-900-e36d978aecc29816c5b9e2b67b30d6e2",
+      "dataset_sha256": "21b71a29a01c97f63af306fdc48c3b88c5cfbd203bfd70999acaff1053a6ed6f",
+      "split_sha256": "2d70e523dabfbd3282b8b93e343459512244c4c4de2864881f7b75d252a7e695",
+      "semantic_sha256": "e36d978aecc29816c5b9e2b67b30d6e218a0af6e08e6b7f31c10161ec1fc2a0b",
+      "validation_champion": "market_price",
+      "boosted_promotion_eligible": false,
+      "accepted_report_offset_examples": {
+        "offset_780_seconds": {
+          "accuracy": 0.8,
+          "balanced_accuracy": 0.8080808080808081,
+          "brier_score": 0.1418365625,
+          "log_loss": 0.43410347251527004,
+          "market_count": 20
+        },
+        "offset_840_seconds": {
+          "accuracy": 0.85,
+          "balanced_accuracy": 0.8535353535353536,
+          "brier_score": 0.12661708749999998,
+          "log_loss": 0.40226190513875837,
+          "market_count": 20
+        }
+      }
+    },
+    "interpretation": "The simple Polymarket market-price baseline is the validation champion for both verified horizons. XGBoost did not satisfy the documented validation/test promotion rule for either horizon, so Phase 7 does not justify additional model complexity. Offset examples are descriptive accepted-report metrics and are not a Phase 7 timing-selection decision."
+  },
+  "determinism_and_integrity": {
+    "semantic_rerun_match": true,
+    "registry_before": 0,
+    "registry_after_first": 2,
+    "registry_after_second": 2,
+    "registry_second_run_delta": 0,
+    "partition_violations": 0,
+    "single_class_partitions": 0,
+    "artifact_hash_violations": 0
+  },
+  "source_availability": {
+    "polymarket": "mandatory verified source succeeded",
+    "coinbase": "mandatory verified source succeeded",
+    "bybit_spot": "audited unavailable on production host via documented HTTP 403 restriction",
+    "bybit_linear": "audited unavailable on production host via documented HTTP 403 restriction",
+    "policy": "No route-around and no synthesized Bybit history."
+  },
+  "host_safety": {
+    "disk_status_before": "ok",
+    "disk_free_bytes_before": 128369307648,
+    "disk_status_after": "ok",
+    "disk_free_bytes_after": 127244443648,
+    "recorder_before": "active",
+    "recorder_after": "active",
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "acceptance_process_remaining_after_verdict": false,
+    "active_postgres_acceptance_queries_after_verdict": 0
+  },
+  "pre_host_exact_head_gates": {
+    "commit": "66bae5c71eab5e2c154cff1144ce509101d6e985",
+    "ci_run": 635,
+    "ci_passed": true,
+    "historical_backfill_smoke_run": 218,
+    "historical_backfill_smoke_passed": true,
+    "live_recorder_smoke_run": 322,
+    "live_recorder_smoke_passed": true,
+    "recorder_short_soak_run": 286,
+    "recorder_short_soak_passed": true
+  },
+  "production_incidents_and_regressions": [
+    {
+      "issue": "Phase 7 preflight could appear stalled because a full storage aggregate report ran before candidate installation.",
+      "resolution": "Use lightweight disk-health preflight and retain full aggregate storage report only after research work."
+    },
+    {
+      "issue": "Root-created detached worktree could not be built by bp because package metadata generation lacked write permission.",
+      "resolution": "Separate verified Git provenance from unprivileged build source by exporting the exact commit with git archive into a bp-owned non-Git source directory."
+    },
+    {
+      "issue": "Changing Git worktree ownership exposed Git dubious-ownership/shared-gitdir behavior.",
+      "resolution": "Do not use global safe.directory exceptions; keep the provenance worktree root-owned and build only from the exported source tree."
+    },
+    {
+      "issue": "Full-day backfill enriched source history and caused strict core-v1 recomputation to conflict with 104 already-frozen Phase 6 feature rows.",
+      "resolution": "Add explicit preserve-existing expansion mode that skips immutable existing natural keys before source recomputation, verifies static target metadata, and generates only missing keys. Strict default generation remains conflict-detecting."
+    }
+  ],
+  "host_evidence": {
+    "latest_log": "/var/lib/bp/evidence/phase7-host-acceptance-latest.log",
+    "evidence_root": "/var/lib/bp/evidence/phase7-baseline-modeling",
+    "artifact_root": "/var/lib/bp/artifacts/phase7-baseline-modeling",
+    "accepted_verdict": "VERDICT=PASS"
+  },
+  "phase_boundary": {
+    "next_phase": 8,
+    "next_phase_name": "walk-forward backtester",
+    "phase_8_permitted_after_closeout_merge": true,
+    "live_prediction_permitted": false,
+    "paper_trading_permitted": false,
+    "live_trading_permitted": false
+  }
+}

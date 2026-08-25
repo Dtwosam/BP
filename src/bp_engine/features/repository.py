@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import Connection, insert, select
+from sqlalchemy.engine import RowMapping
 
 from bp_engine.features.models import MarketFeature
 from bp_engine.storage.schema import market_features
@@ -20,15 +21,30 @@ class FeatureStoreResult:
 
 
 class MarketFeatureRepository:
-    def store(self, connection: Connection, feature: MarketFeature) -> FeatureStoreResult:
-        self._validate(feature)
-        existing = connection.execute(
+    def find(
+        self,
+        connection: Connection,
+        *,
+        condition_id: str,
+        feature_at: datetime,
+        feature_version: str,
+    ) -> RowMapping | None:
+        return connection.execute(
             select(market_features).where(
-                market_features.c.condition_id == feature.condition_id,
-                market_features.c.feature_at == feature.feature_at,
-                market_features.c.feature_version == feature.feature_version,
+                market_features.c.condition_id == condition_id,
+                market_features.c.feature_at == feature_at,
+                market_features.c.feature_version == feature_version,
             )
         ).mappings().one_or_none()
+
+    def store(self, connection: Connection, feature: MarketFeature) -> FeatureStoreResult:
+        self._validate(feature)
+        existing = self.find(
+            connection,
+            condition_id=feature.condition_id,
+            feature_at=feature.feature_at,
+            feature_version=feature.feature_version,
+        )
 
         if existing is None:
             connection.execute(insert(market_features).values(**feature.__dict__))

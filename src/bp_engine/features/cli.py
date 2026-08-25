@@ -82,6 +82,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--env-file", default=None)
     parser.add_argument("--database-url", default=None)
     parser.add_argument("--step-seconds", type=int, default=60)
+    parser.add_argument(
+        "--preserve-existing",
+        action="store_true",
+        help=(
+            "skip already-materialized immutable feature keys before recomputation; "
+            "intended only for additive historical expansion after source backfill"
+        ),
+    )
     return parser
 
 
@@ -106,6 +114,7 @@ def _run(args: argparse.Namespace) -> FeatureGenerationStats:
             targets,
             generated_at=generated_at,
             step_seconds=args.step_seconds,
+            preserve_existing=args.preserve_existing,
         )
 
 
