@@ -74,8 +74,38 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \
   psql -v ON_ERROR_STOP=1 -U bp -d bp < "$REPO/migrations/0004_historical_backfill.sql" \
   > "$run_dir/migration.txt"
 
-candidate_python "$REPO/scripts/historical_backfill_smoke.py" --require-all \
+candidate_python "$REPO/scripts/historical_backfill_smoke.py" \
   | tee "$run_dir/live-source-smoke.json"
+
+read -r smoke_core_ok smoke_bybit_ok smoke_bybit_status < <(
+  "$PY" - "$run_dir/live-source-smoke.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text())
+polymarket = payload.get("polymarket", {})
+coinbase = payload.get("coinbase", {})
+bybit = payload.get("bybit", {})
+core_ok = (
+    int(polymarket.get("up_price_points") or 0) > 0
+    and int(polymarket.get("down_price_points") or 0) > 0
+    and coinbase.get("status") == "ok"
+    and int(coinbase.get("spot_candles") or 0) > 0
+)
+bybit_status = str(bybit.get("status"))
+bybit_ok = bybit_status in {"ok", "environment_blocked_http_403"}
+print(int(core_ok), int(bybit_ok), bybit_status)
+PY
+)
+if [[ "$smoke_core_ok" != "1" ]]; then
+  echo "live-source smoke did not verify Polymarket and Coinbase core sources" >&2
+  exit 5
+fi
+if [[ "$smoke_bybit_ok" != "1" ]]; then
+  echo "live-source smoke returned an unclassified Bybit state: $smoke_bybit_status" >&2
+  exit 5
+fi
 
 baseline_max_id=$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \
   psql -U bp -d bp -At -c "SELECT COALESCE(max(id), 0) FROM historical_backfill_runs;" \
@@ -89,7 +119,7 @@ candidate_python "$REPO/scripts/historical_backfill.py" standard \
   --start "$START" --end "$END" --env-file "$ENV_FILE" \
   | tee "$run_dir/standard-second.json"
 
-read -r first_covered second_covered second_inserted < <(
+read -r first_core second_core bybit_audited second_inserted bybit_unavailable < <(
   "$PY" - "$run_dir/standard-first.json" "$run_dir/standard-second.json" <<'PY'
 import json
 import sys
@@ -102,28 +132,68 @@ expected = {
     "bybit_linear",
     "coinbase_spot",
 }
+core = {"polymarket_markets", "polymarket_prices", "coinbase_spot"}
+bybit = {"bybit_spot", "bybit_linear"}
 first = json.loads(Path(sys.argv[1]).read_text())
 second = json.loads(Path(sys.argv[2]).read_text())
-first_covered = expected == set(first) and all(
-    int(first[name]["rows_inserted"]) + int(first[name]["rows_existing"]) > 0
-    and int(first[name]["chunks_fetched"]) > 0
-    for name in expected
+
+def core_first_ok() -> bool:
+    return expected == set(first) and all(
+        first[name]["status"] == "success"
+        and int(first[name]["rows_inserted"]) + int(first[name]["rows_existing"]) > 0
+        and int(first[name]["chunks_fetched"]) > 0
+        for name in core
+    )
+
+
+def core_second_ok() -> bool:
+    return expected == set(second) and all(
+        second[name]["status"] == "success"
+        and int(second[name]["rows_existing"]) > 0
+        and int(second[name]["chunks_fetched"]) > 0
+        for name in core
+    )
+
+
+def bybit_item_ok(item: dict, *, rerun: bool) -> bool:
+    if item.get("status") == "unavailable":
+        return (
+            "HTTP 403" in str(item.get("reason"))
+            and int(item.get("rows_inserted", 0)) == 0
+            and int(item.get("rows_existing", 0)) == 0
+            and int(item.get("chunks_fetched", 0)) == 0
+        )
+    if item.get("status") != "success":
+        return False
+    if int(item.get("chunks_fetched", 0)) <= 0:
+        return False
+    if rerun:
+        return int(item.get("rows_existing", 0)) > 0
+    return int(item.get("rows_inserted", 0)) + int(item.get("rows_existing", 0)) > 0
+
+bybit_ok = expected == set(first) == set(second) and all(
+    bybit_item_ok(first[name], rerun=False) and bybit_item_ok(second[name], rerun=True)
+    for name in bybit
 )
-second_covered = expected == set(second) and all(
-    int(second[name]["rows_existing"]) > 0
-    and int(second[name]["chunks_fetched"]) > 0
-    for name in expected
+second_inserted = sum(int(second[name]["rows_inserted"]) for name in expected)
+unavailable = sum(
+    int(result[name].get("status") == "unavailable")
+    for result in (first, second)
+    for name in bybit
 )
-second_inserted = sum(int(second[name]["rows_inserted"]) for name in expected if name in second)
-print(int(first_covered), int(second_covered), second_inserted)
+print(int(core_first_ok()), int(core_second_ok()), int(bybit_ok), second_inserted, unavailable)
 PY
 )
-if [[ "$first_covered" != "1" ]]; then
-  echo "first standard backfill did not return non-empty coverage for every dataset" >&2
+if [[ "$first_core" != "1" ]]; then
+  echo "first standard backfill did not return non-empty core-source coverage" >&2
   exit 5
 fi
-if [[ "$second_covered" != "1" ]]; then
-  echo "second standard backfill did not return existing coverage for every dataset" >&2
+if [[ "$second_core" != "1" ]]; then
+  echo "second standard backfill did not return existing core-source coverage" >&2
+  exit 5
+fi
+if [[ "$bybit_audited" != "1" ]]; then
+  echo "Bybit results were neither verified nor explicitly audited as HTTP 403 unavailable" >&2
   exit 5
 fi
 if [[ "$second_inserted" != "0" ]]; then
@@ -139,14 +209,33 @@ if [[ "$new_runs" -ne 10 ]]; then
   exit 5
 fi
 
-failed_new_runs=$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \
+invalid_new_runs=$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \
   psql -U bp -d bp -At -c "
 SELECT count(*)
 FROM historical_backfill_runs
 WHERE id > $baseline_max_id
-  AND status <> 'success';" | tr -d '[:space:]')
-if [[ "$failed_new_runs" != "0" ]]; then
-  echo "one or more Phase 4 acceptance runs are not successful" >&2
+  AND status NOT IN ('success', 'unavailable');" | tr -d '[:space:]')
+if [[ "$invalid_new_runs" != "0" ]]; then
+  echo "one or more Phase 4 acceptance runs have an invalid terminal status" >&2
+  exit 5
+fi
+
+invalid_unavailable=$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres \
+  psql -U bp -d bp -At -c "
+SELECT count(*)
+FROM historical_backfill_runs
+WHERE id > $baseline_max_id
+  AND status = 'unavailable'
+  AND (
+    source <> 'bybit'
+    OR dataset NOT IN ('bybit_spot', 'bybit_linear')
+    OR error NOT LIKE '%HTTP 403%'
+    OR rows_inserted <> 0
+    OR rows_existing <> 0
+    OR chunks_fetched <> 0
+  );" | tr -d '[:space:]')
+if [[ "$invalid_unavailable" != "0" ]]; then
+  echo "unavailable provenance is not limited to audited Bybit HTTP 403 runs" >&2
   exit 5
 fi
 
@@ -166,7 +255,7 @@ SELECT count(*) AS price_rows,
 FROM polymarket_price_history
 WHERE observed_at >= TIMESTAMPTZ '$START' AND observed_at < TIMESTAMPTZ '$END';
 
-SELECT id, dataset, source, status, rows_inserted, rows_existing, chunks_fetched
+SELECT id, dataset, source, status, rows_inserted, rows_existing, chunks_fetched, error
 FROM historical_backfill_runs
 WHERE id > $baseline_max_id
 ORDER BY id;
@@ -216,11 +305,16 @@ RECORDER_BEFORE=$recorder_before
 RECORDER_AFTER=$recorder_after
 MAINTENANCE_TIMER=$maint_timer
 DISK_TIMER=$disk_timer
-FIRST_RUN_ALL_DATASETS_NONEMPTY=$first_covered
-SECOND_RUN_ALL_DATASETS_EXISTING=$second_covered
+SMOKE_CORE_OK=$smoke_core_ok
+SMOKE_BYBIT_STATUS=$smoke_bybit_status
+FIRST_RUN_CORE_NONEMPTY=$first_core
+SECOND_RUN_CORE_EXISTING=$second_core
+BYBIT_RESULTS_AUDITED=$bybit_audited
+BYBIT_UNAVAILABLE_RUNS=$bybit_unavailable
 SECOND_RUN_ROWS_INSERTED=$second_inserted
 NEW_BACKFILL_RUNS=$new_runs
-FAILED_NEW_RUNS=$failed_new_runs
+INVALID_NEW_RUNS=$invalid_new_runs
+INVALID_UNAVAILABLE_RUNS=$invalid_unavailable
 DISK_STATUS=$disk_status
 DISK_FREE_BYTES=$disk_free
 FORENSIC_SHA=$forensic_sha
