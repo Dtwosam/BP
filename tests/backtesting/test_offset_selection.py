@@ -4,8 +4,8 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from bp_engine.backtesting.selection import rows_at_offset, select_validation_offset
 
+from bp_engine.backtesting.selection import rows_at_offset, select_validation_offset
 from bp_engine.modeling.models import SupervisedRow
 
 
