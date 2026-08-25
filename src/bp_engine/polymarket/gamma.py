@@ -32,9 +32,9 @@ class GammaMarketOffsetPage:
 
 class GammaClient:
     BASE_URL = "https://gamma-api.polymarket.com"
-    KEYSET_MAX_ATTEMPTS = 3
-    KEYSET_RETRY_STATUSES = frozenset({500, 503})
-    KEYSET_RETRY_BASE_DELAY_SECONDS = 0.25
+    MAX_TRANSIENT_ATTEMPTS = 3
+    TRANSIENT_RETRY_STATUSES = frozenset({500, 503})
+    TRANSIENT_RETRY_BASE_DELAY_SECONDS = 0.25
 
     def __init__(self, http_client: httpx.AsyncClient | None = None) -> None:
         self._http_client = http_client
@@ -42,10 +42,10 @@ class GammaClient:
     async def get_market_by_slug(self, slug: str) -> dict[str, Any] | None:
         path = f"/markets/slug/{quote(slug, safe='')}"
         if self._http_client is not None:
-            response = await self._http_client.get(path)
+            response = await self._get_with_transient_retry(self._http_client, path)
         else:
             async with httpx.AsyncClient(base_url=self.BASE_URL, timeout=10.0) as client:
-                response = await client.get(path)
+                response = await self._get_with_transient_retry(client, path)
 
         if response.status_code == 404:
             return None
@@ -75,10 +75,18 @@ class GammaClient:
             params["after_cursor"] = after_cursor
 
         if self._http_client is not None:
-            response = await self._get_keyset_with_retry(self._http_client, params)
+            response = await self._get_with_transient_retry(
+                self._http_client,
+                "/markets/keyset",
+                params=params,
+            )
         else:
             async with httpx.AsyncClient(base_url=self.BASE_URL, timeout=10.0) as client:
-                response = await self._get_keyset_with_retry(client, params)
+                response = await self._get_with_transient_retry(
+                    client,
+                    "/markets/keyset",
+                    params=params,
+                )
 
         response.raise_for_status()
         payload = response.json()
@@ -144,19 +152,21 @@ class GammaClient:
             raw_payload=[dict(market) for market in markets],
         )
 
-    async def _get_keyset_with_retry(
+    async def _get_with_transient_retry(
         self,
         client: httpx.AsyncClient,
-        params: dict[str, str],
+        path: str,
+        *,
+        params: dict[str, str] | None = None,
     ) -> httpx.Response:
-        for attempt in range(self.KEYSET_MAX_ATTEMPTS):
-            response = await client.get("/markets/keyset", params=params)
-            retryable = response.status_code in self.KEYSET_RETRY_STATUSES
-            if not retryable or attempt == self.KEYSET_MAX_ATTEMPTS - 1:
+        for attempt in range(self.MAX_TRANSIENT_ATTEMPTS):
+            response = await client.get(path, params=params)
+            retryable = response.status_code in self.TRANSIENT_RETRY_STATUSES
+            if not retryable or attempt == self.MAX_TRANSIENT_ATTEMPTS - 1:
                 return response
-            delay = self.KEYSET_RETRY_BASE_DELAY_SECONDS * (2**attempt)
+            delay = self.TRANSIENT_RETRY_BASE_DELAY_SECONDS * (2**attempt)
             await asyncio.sleep(delay)
-        raise AssertionError("unreachable Gamma keyset retry state")
+        raise AssertionError("unreachable Gamma retry state")
 
     @staticmethod
     def _validate_market_window(start: datetime, end: datetime, limit: int) -> None:
