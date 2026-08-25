@@ -135,3 +135,46 @@ async def test_gamma_keyset_does_not_retry_client_validation_errors() -> None:
             )
 
     assert attempts == 1
+
+
+@pytest.mark.asyncio
+async def test_gamma_client_lists_historical_markets_with_offset_pagination() -> None:
+    seen: list[tuple[str, dict[str, str]]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.url.path, dict(request.url.params)))
+        return httpx.Response(
+            200,
+            json=[{"id": "market-1", "slug": "btc-updown-5m-1787227200"}],
+        )
+
+    async with httpx.AsyncClient(
+        base_url="https://gamma-api.polymarket.com",
+        transport=httpx.MockTransport(handler),
+    ) as http_client:
+        page = await GammaClient(http_client=http_client).list_markets_offset_page(
+            start=datetime(2026, 8, 20, tzinfo=UTC),
+            end=datetime(2026, 8, 21, tzinfo=UTC),
+            limit=100,
+            offset=200,
+        )
+
+    assert seen == [
+        (
+            "/markets",
+            {
+                "limit": "100",
+                "offset": "200",
+                "order": "startDate",
+                "ascending": "true",
+                "closed": "true",
+                "start_date_min": "2026-08-20T00:00:00Z",
+                "start_date_max": "2026-08-21T00:00:00Z",
+            },
+        )
+    ]
+    assert page.markets == (
+        {"id": "market-1", "slug": "btc-updown-5m-1787227200"},
+    )
+    assert page.next_offset is None
+    assert page.request_params == seen[0][1]
