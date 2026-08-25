@@ -3,9 +3,6 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime
 
-from bp_engine.features.hashing import canonical_hash
-from bp_engine.modeling.models import DatasetSnapshot, SupervisedRow
-
 from bp_engine.backtesting.models import (
     FoldPartition,
     MarketRecord,
@@ -13,6 +10,8 @@ from bp_engine.backtesting.models import (
     WalkForwardFold,
     WalkForwardPlan,
 )
+from bp_engine.features.hashing import canonical_hash
+from bp_engine.modeling.models import DatasetSnapshot, SupervisedRow
 
 
 class FoldEligibilityError(ValueError):
@@ -233,9 +232,7 @@ def build_walk_forward_plan(
             "validation", validation_start, validation_end, validation_records
         )
         test = _partition("test", test_start, test_end, test_records)
-        _validate_partition(
-            train, records_by_id, minimum=config.min_train_markets
-        )
+        _validate_partition(train, records_by_id, minimum=config.min_train_markets)
         _validate_partition(
             validation, records_by_id, minimum=config.min_validation_markets
         )
@@ -309,15 +306,11 @@ def build_walk_forward_plan(
     final_holdout = _partition(
         "final_holdout", final_holdout_start, dataset.end, final_holdout_records
     )
-    _validate_partition(
-        final_train, records_by_id, minimum=config.min_train_markets
-    )
+    _validate_partition(final_train, records_by_id, minimum=config.min_train_markets)
     _validate_partition(
         final_validation, records_by_id, minimum=config.min_validation_markets
     )
-    _validate_partition(
-        final_holdout, records_by_id, minimum=config.min_test_markets
-    )
+    _validate_partition(final_holdout, records_by_id, minimum=config.min_test_markets)
 
     final_membership_sha = canonical_hash(
         {
