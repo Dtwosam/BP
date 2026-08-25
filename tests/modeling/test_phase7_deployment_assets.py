@@ -14,20 +14,30 @@ def test_phase7_cloudshell_helper_keeps_opt_bp_work_remote() -> None:
     assert "build/phase-7-baseline-modeling" in source
 
 
-def test_phase7_cloudshell_helper_hands_candidate_to_bp_before_install() -> None:
+def test_phase7_cloudshell_exports_verified_candidate_for_bp() -> None:
     source = Path("scripts/deploy/phase7_cloudshell_accept.sh").read_text(encoding="utf-8")
 
     worktree_index = source.index('git -C /opt/bp worktree add --detach "\\$WT" "\\$SHA"')
-    ownership_index = source.index('chown -R bp:bp "\\$WT"')
-    acceptance_index = source.index('BP_REPO="\\$WT" bash')
-    assert worktree_index < ownership_index < acceptance_index
+    verify_index = source.index('WORKTREE_HEAD=\\$(git -C "\\$WT" rev-parse HEAD)')
+    source_dir_index = source.index('install -d -o bp -g bp "\\$SRC"')
+    archive_index = source.index('git -C "\\$WT" archive --format=tar "\\$SHA"')
+    extract_index = source.index('sudo -u bp tar -xf - -C "\\$SRC"')
+    acceptance_index = source.index(
+        'BP_REPO="\\$SRC" BP_VERIFIED_HEAD="\\$WORKTREE_HEAD" bash'
+    )
+    assert worktree_index < verify_index < source_dir_index < archive_index < extract_index
+    assert extract_index < acceptance_index
+    assert 'chown -R bp:bp "\\$WT"' not in source
+    assert "safe.directory" not in source
 
 
-def test_phase7_host_acceptance_reads_candidate_head_as_bp() -> None:
+def test_phase7_host_acceptance_uses_verified_export_provenance() -> None:
     source = Path("scripts/deploy/phase7_host_acceptance.sh").read_text(encoding="utf-8")
 
-    assert 'actual_head=$(sudo -u bp git -C "$REPO" rev-parse HEAD)' in source
-    assert 'actual_head=$(git -C "$REPO" rev-parse HEAD)' not in source
+    assert 'actual_head="${BP_VERIFIED_HEAD:-}"' in source
+    assert 'git -C "$REPO" rev-parse HEAD' not in source
+    assert 'sudo -u bp git -C "$REPO" rev-parse HEAD' not in source
+    assert "missing verified candidate HEAD provenance" in source
 
 
 def test_phase7_host_acceptance_contains_research_and_safety_gates() -> None:
@@ -35,7 +45,7 @@ def test_phase7_host_acceptance_contains_research_and_safety_gates() -> None:
 
     required = (
         "EXPECTED_HEAD",
-        "sudo -u bp git -C \"$REPO\" rev-parse HEAD",
+        "BP_VERIFIED_HEAD",
         "LIVE_TRADING_ENABLED",
         "MAX_TRADE_SIZE_USD",
         "MAX_DAILY_LOSS_USD",
