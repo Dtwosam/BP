@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.6.0 — 25 August 2026
+
+Phase 6 — feature engine — closed after production-host acceptance of deterministic, immutable, versioned `core-v1` feature snapshots built only from observations provably available at each feature timestamp.
+
+The final host-accepted operational candidate was `71ab67f178f8dc30a1d933ff2e553a508bb08f02`. Fresh exact-head pre-host gates passed on that commit: CI #562, Historical Backfill Smoke #183, Live Recorder Smoke #287, and Recorder Short Soak #251. Production acceptance used the fixed half-open market-start window `2026-08-24T18:00:00Z <= t < 2026-08-24T19:00:00Z`, a 60-second feature cadence, and returned `VERDICT=PASS`.
+
+The feature store is immutable at natural key `(condition_id, feature_at, feature_version)`. `core-v1` includes market-time geometry, Polymarket price state, BTC momentum/volatility from fully closed Coinbase candles, compact book/state observations when provably available and fresh, observed trailing trade flow when raw coverage is eligible, explicit missing/stale flags, and source cutoffs/fingerprints. Official outcome, official label references, resolution metadata, and label provenance are not feature inputs. `official_reference_distance` remains NULL with `official_reference_missing=true` because no independently verified first-party reference series was established for V1.
+
+Production acceptance verified 16 target markets and 104 persisted feature rows. Both final feature-generation passes were existing-only (`inserted=0`, `existing=104`), proving immediate idempotence against the already-populated immutable rows. The gate found zero source cutoffs after feature time, zero duplicate natural keys, zero forbidden label/outcome keys, and zero official-reference contract violations. Disk status was `ok` with 133,556,445,184 bytes free, and the recorder remained active before and after acceptance. Live trading remained disabled with zero trade-size and daily-loss limits.
+
+Two failed production acceptance attempts are intentionally preserved. Candidate `d38250c6f5fb68704ce306cfb051111b25c7c680` exposed a real leakage edge case: second-rounded compact-state buckets could contain `last_event_at` values a fraction of a second after `feature_at`. A RED regression test reproduced the failure, and `latest_state` was corrected to require both `bucket_at <= feature_at` and `last_event_at <= feature_at` in the source query while retaining post-selection fail-closed guards. Candidate `c76dfabb100129efd94501721c3d52820b13f4fa` then populated all 104 immutable rows but the later acceptance checker failed because it called `json_each_text` on a PostgreSQL `jsonb` column. A second RED regression test isolated that checker defect and the final candidate changed it to `jsonb_each_text` without rewriting feature data.
+
+Missing-data semantics remain explicit rather than imputed. In the accepted window the final rerun reported 26 `coinbase_candles_missing`, 104 `official_reference_missing`, 76 missing and 72 stale rows for each Polymarket outcome book group, and 72 missing rows for both Polymarket trade flow and aggregate raw trade flow. These counts are research evidence about source coverage, not zeros or synthesized observations. Phase 3 raw-data exclusions and Phase 4 historical-source limitations remain binding downstream.
+
+Sanitized closeout evidence is stored in `docs/evidence/phase-6-closeout-20260825.json`. Phase 7 — baseline modeling and model training — is now the next permitted build-order phase. Model work must join frozen feature rows to official labels only after feature generation, use leakage-safe time-ordered evaluation, and report calibration/coverage alongside accuracy. Backtesting, live prediction, paper trading, and live trading remain blocked by later phase gates; live trading remains disabled.
+
 ## 0.5.0 — 25 August 2026
 
 Phase 5 — official outcome/label pipeline — closed after production-host acceptance of deterministic, immutable, leakage-safe labels derived only from preserved official Polymarket Gamma resolution evidence.
