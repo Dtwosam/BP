@@ -3,10 +3,10 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from bp_engine.backtesting.service import BacktestIntegrityError, run_walk_forward_backtest
 
 from bp_engine.backtesting.models import WalkForwardConfig
 from bp_engine.backtesting.predictor import ModelSpec
+from bp_engine.backtesting.service import BacktestIntegrityError, run_walk_forward_backtest
 from bp_engine.modeling.models import DatasetSnapshot, SupervisedRow
 
 _START = datetime(2026, 8, 24, tzinfo=UTC)
