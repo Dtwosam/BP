@@ -94,21 +94,12 @@ def _reports_for_labels(
     return reports
 
 
-def regime_metrics(
+def _regime_reports(
     rows: tuple[SupervisedRow, ...],
     probabilities: tuple[float, ...],
-    *,
-    volatility_threshold: float | None,
+    volatility_labels: tuple[str, ...],
 ) -> dict[str, Any]:
-    if not rows:
-        raise ValueError("rows must not be empty")
-    if len(rows) != len(probabilities):
-        raise ValueError("rows and probabilities must have equal length")
-
     utc_labels = tuple(utc_session_regime(row) for row in rows)
-    volatility_labels = tuple(
-        volatility_regime(row, volatility_threshold) for row in rows
-    )
     execution_labels = tuple(
         (
             "executable"
@@ -128,3 +119,40 @@ def regime_metrics(
             rows, probabilities, _EXECUTION_REGIMES, execution_labels
         ),
     }
+
+
+def regime_metrics(
+    rows: tuple[SupervisedRow, ...],
+    probabilities: tuple[float, ...],
+    *,
+    volatility_threshold: float | None,
+) -> dict[str, Any]:
+    if not rows:
+        raise ValueError("rows must not be empty")
+    if len(rows) != len(probabilities):
+        raise ValueError("rows and probabilities must have equal length")
+
+    volatility_labels = tuple(
+        volatility_regime(row, volatility_threshold) for row in rows
+    )
+    return _regime_reports(rows, probabilities, volatility_labels)
+
+
+def aggregate_regime_metrics(
+    rows: tuple[SupervisedRow, ...],
+    probabilities: tuple[float, ...],
+    *,
+    volatility_thresholds: tuple[float | None, ...],
+) -> dict[str, Any]:
+    """Aggregate OOS regimes using each row's fold-local training threshold."""
+
+    if not rows:
+        raise ValueError("rows must not be empty")
+    if len(rows) != len(probabilities) or len(rows) != len(volatility_thresholds):
+        raise ValueError("rows, probabilities, and volatility_thresholds must align")
+
+    volatility_labels = tuple(
+        volatility_regime(row, threshold)
+        for row, threshold in zip(rows, volatility_thresholds, strict=True)
+    )
+    return _regime_reports(rows, probabilities, volatility_labels)
