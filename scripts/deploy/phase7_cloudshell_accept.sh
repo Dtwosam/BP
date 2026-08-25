@@ -47,6 +47,7 @@ fi
 
 git -C /opt/bp worktree prune
 git -C /opt/bp worktree add --detach "\$WT" "\$SHA"
+chown -R bp:bp "\$WT"
 cleanup() {
   git -C /opt/bp worktree remove --force "\$WT" >/dev/null 2>&1 || true
 }
