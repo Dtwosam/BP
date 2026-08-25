@@ -1,0 +1,118 @@
+{
+  "phase": 8,
+  "phase_name": "walk-forward backtester",
+  "closed_at": "2026-08-25T22:12:16Z",
+  "host_acceptance": {
+    "verdict": "PASS",
+    "accepted_operational_commit": "69d3f9f8967dfcd1c1a68c640c242bd2b77cc089",
+    "window_start": "2026-08-24T00:00:00Z",
+    "window_end": "2026-08-25T00:00:00Z",
+    "evidence_dir": "/var/lib/bp/evidence/phase8-walk-forward-backtester/20260825T221216Z",
+    "artifact_dir": "/var/lib/bp/artifacts/phase8-backtests"
+  },
+  "exact_head_gates": {
+    "ci": {"run": 774, "passed": true},
+    "historical_backfill_smoke": {"run": 286, "passed": true},
+    "live_recorder_smoke": {"run": 390, "passed": true},
+    "recorder_short_soak": {"run": 354, "passed": true}
+  },
+  "source_training_runs": {
+    "5m": {
+      "run_id": "phase7-300-0a822e17ceced11742bf6d3bc8214f44",
+      "semantic_sha256": "0a822e17ceced11742bf6d3bc8214f44f4755c7bc23bb1d3f2dcfa897f3edcc0"
+    },
+    "15m": {
+      "run_id": "phase7-900-e36d978aecc29816c5b9e2b67b30d6e2",
+      "semantic_sha256": "e36d978aecc29816c5b9e2b67b30d6e218a0af6e08e6b7f31c10161ec1fc2a0b"
+    }
+  },
+  "backtests": {
+    "5m": {
+      "run_id": "phase8-300-efdf493067e9d56419afc4d88452bec6",
+      "dataset_sha256": "d5d2843ea2882aebe1cd3612e4345062067430d060824209b955a30590d8a6c2",
+      "config_sha256": "0ad67e69632d3b52c96b4970f0a5de640f0660d28eae86324c5b65454652c75a",
+      "plan_sha256": "2be73910d90903582ae884d801125ed29e36206b97671edd7e4c1d64efaf6d04",
+      "semantic_sha256": "efdf493067e9d56419afc4d88452bec6effb871482664d19f109b3bbe4dd1d93",
+      "folds": 6,
+      "selected_offsets_seconds": [240, 240, 240, 240, 240, 240],
+      "ordinary_oos": {
+        "markets": 144,
+        "accuracy": 0.8263888888888888,
+        "log_loss": 0.33444472531803504,
+        "brier_score": 0.10629913368055556,
+        "execution_coverage": 0.4305555555555556,
+        "gross_pnl_before_costs": -1.4649999999999994
+      },
+      "final_holdout": {
+        "present": true,
+        "accuracy": 0.8333333333333334,
+        "execution_coverage": 0.8333333333333334,
+        "gross_pnl_before_costs": -0.2599999999999999
+      }
+    },
+    "15m": {
+      "run_id": "phase8-900-64aaf2b1774ee7af37bd110b84b37ec1",
+      "dataset_sha256": "21b71a29a01c97f63af306fdc48c3b88c5cfbd203bfd70999acaff1053a6ed6f",
+      "config_sha256": "0ad67e69632d3b52c96b4970f0a5de640f0660d28eae86324c5b65454652c75a",
+      "plan_sha256": "53bdd6643d6388f19f7dc5a771a4040d50a98248fa3e62d08fd9fb5a763e8328",
+      "semantic_sha256": "64aaf2b1774ee7af37bd110b84b37ec19f85bdc875a283986d4dba16ae921828",
+      "folds": 6,
+      "selected_offsets_seconds": [840, 840, 780, 780, 840, 840],
+      "ordinary_oos": {
+        "markets": 48,
+        "accuracy": 0.9791666666666666,
+        "log_loss": 0.10683797056431854,
+        "brier_score": 0.02922243229166666,
+        "execution_coverage": 0.20833333333333334,
+        "gross_pnl_before_costs": 0.381
+      },
+      "final_holdout": {
+        "present": true,
+        "accuracy": 0.625,
+        "execution_coverage": 0.625,
+        "gross_pnl_before_costs": -0.47
+      }
+    }
+  },
+  "reproducibility_and_leakage": {
+    "semantic_rerun_match": true,
+    "registry_before": 2,
+    "registry_after_first": 2,
+    "registry_after_second": 2,
+    "registry_second_run_delta": 0,
+    "partition_overlap_violations": 0,
+    "ordinary_test_reuse_violations": 0,
+    "single_class_partitions": 0,
+    "prediction_coverage_violations": 0,
+    "nonfinite_metric_violations": 0,
+    "execution_semantic_violations": 0
+  },
+  "execution_contract": {
+    "price": "observed selected-side best ask only",
+    "missing_or_stale_book": "unavailable/no fill",
+    "midpoint_fill_allowed": false,
+    "synthetic_fill_allowed": false,
+    "reported_pnl": "gross before fees, slippage, latency, and other costs"
+  },
+  "host_safety": {
+    "disk_status_before": "ok",
+    "disk_free_bytes_before": 126673256448,
+    "disk_status_after": "ok",
+    "disk_free_bytes_after": 126290612224,
+    "recorder_before": "active",
+    "recorder_after": "active",
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0
+  },
+  "acceptance_regressions": [
+    "A brittle source-code validator expected literal pm_up_best_ask and pm_down_best_ask tokens even though execution correctly used a dynamic selected-side prefix; the validator was fixed test-first without weakening execution semantics.",
+    "The Phase 8 postflight unbounded storage report was replaced test-first with the bounded disk-health check already used at preflight, preserving disk fail-closed safety while removing a known long-running acceptance-path scan."
+  ],
+  "research_interpretation": {
+    "phase_8_result": "Backtester accepted; no trading profitability claim.",
+    "5m": "Accuracy exceeds the aspirational 80% level in ordinary OOS and final holdout, but observed-ask gross PnL is negative, so accuracy does not yet translate into executable edge.",
+    "15m": "Ordinary OOS accuracy is very high on a small sample, but the untouched final holdout falls to 62.5% and gross PnL is negative; do not cherry-pick the headline ordinary-OOS result or timing slices.",
+    "phase_9_direction": "Build calibrated probability and edge/abstention logic against executable prices, then require gains to survive chronological validation and untouched evaluation before any later live-prediction or paper-execution phase."
+  }
+}
