@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import create_engine
@@ -26,12 +27,13 @@ async def test_standard_continues_when_bybit_is_explicitly_unavailable(monkeypat
     monkeypatch.setattr(historical_backfill, "_execute_dataset", fake_execute_dataset)
     start = datetime(2026, 8, 20, tzinfo=UTC)
     end = datetime(2026, 8, 20, 1, tzinfo=UTC)
+    settings = SimpleNamespace(active_horizons=("5m", "15m"))
 
     results = await historical_backfill._run_standard(
         engine=engine,
         start=start,
         end=end,
-        settings=object(),
+        settings=settings,
         downloaded_at=datetime(2026, 8, 24, 22, 45, tzinfo=UTC),
         fidelity_minutes=1,
         interval_seconds=60,
@@ -62,13 +64,14 @@ async def test_standard_can_require_bybit_and_fail_closed(monkeypatch) -> None:
 
     monkeypatch.setattr(historical_backfill, "_execute_dataset", fake_execute_dataset)
     start = datetime(2026, 8, 20, tzinfo=UTC)
+    settings = SimpleNamespace(active_horizons=("5m", "15m"))
 
     with pytest.raises(BybitHistoryUnavailableError, match="HTTP 403"):
         await historical_backfill._run_standard(
             engine=engine,
             start=start,
             end=datetime(2026, 8, 20, 1, tzinfo=UTC),
-            settings=object(),
+            settings=settings,
             downloaded_at=datetime(2026, 8, 24, 22, 45, tzinfo=UTC),
             fidelity_minutes=1,
             interval_seconds=60,
