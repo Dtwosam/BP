@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import Iterator
 
 from sqlalchemy import Connection
 
@@ -12,14 +13,17 @@ from bp_engine.backfill.provenance import (
     canonical_json_sha256,
 )
 from bp_engine.polymarket.gamma import GammaClient
-from bp_engine.polymarket.parsing import GammaMarketError, parse_gamma_market, parse_horizon_slug
+from bp_engine.polymarket.parsing import parse_gamma_market
 from bp_engine.storage.historical import HistoricalRepository, PolymarketMarketSnapshot
 from bp_engine.storage.polymarket_markets import PolymarketMarketRepository
 
 
-def _allowed_horizon_seconds(horizons: tuple[str, ...]) -> frozenset[int]:
-    values: set[int] = set()
+def _horizon_specs(horizons: tuple[str, ...]) -> tuple[tuple[str, int], ...]:
+    specs: list[tuple[str, int]] = []
+    seen: set[str] = set()
     for horizon in horizons:
+        if horizon in seen:
+            continue
         if not horizon.endswith("m"):
             raise ValueError(f"unsupported horizon format: {horizon}")
         try:
@@ -28,10 +32,41 @@ def _allowed_horizon_seconds(horizons: tuple[str, ...]) -> frozenset[int]:
             raise ValueError(f"unsupported horizon format: {horizon}") from exc
         if minutes <= 0:
             raise ValueError(f"unsupported horizon format: {horizon}")
-        values.add(minutes * 60)
-    if not values:
+        seen.add(horizon)
+        specs.append((horizon, minutes * 60))
+    if not specs:
         raise ValueError("at least one horizon is required")
-    return frozenset(values)
+    return tuple(specs)
+
+
+def _first_aligned_epoch(start: datetime, interval_seconds: int) -> int:
+    epoch = int(start.timestamp())
+    if datetime.fromtimestamp(epoch, tz=UTC) < start.astimezone(UTC):
+        epoch += 1
+    return ((epoch + interval_seconds - 1) // interval_seconds) * interval_seconds
+
+
+def iter_expected_btc_market_slugs(
+    start: datetime,
+    end: datetime,
+    horizons: tuple[str, ...],
+) -> Iterator[tuple[str, int, datetime]]:
+    if start.tzinfo is None or start.utcoffset() is None:
+        raise ValueError("start must be timezone-aware")
+    if end.tzinfo is None or end.utcoffset() is None:
+        raise ValueError("end must be timezone-aware")
+    if start >= end:
+        raise ValueError("start must be before end")
+
+    end_utc = end.astimezone(UTC)
+    for horizon, interval_seconds in _horizon_specs(horizons):
+        epoch = _first_aligned_epoch(start, interval_seconds)
+        while True:
+            window_start = datetime.fromtimestamp(epoch, tz=UTC)
+            if window_start >= end_utc:
+                break
+            yield f"btc-updown-{horizon}-{epoch}", interval_seconds, window_start
+            epoch += interval_seconds
 
 
 async def backfill_polymarket_markets(
@@ -43,23 +78,13 @@ async def backfill_polymarket_markets(
     end: datetime,
     horizons: tuple[str, ...],
     downloaded_at: datetime,
-    initial_offset: int = 0,
     market_repository: PolymarketMarketRepository | None = None,
     historical_repository: HistoricalRepository | None = None,
     provenance_repository: ProvenanceRepository | None = None,
 ) -> BackfillStats:
-    if start.tzinfo is None or start.utcoffset() is None:
-        raise ValueError("start must be timezone-aware")
-    if end.tzinfo is None or end.utcoffset() is None:
-        raise ValueError("end must be timezone-aware")
     if downloaded_at.tzinfo is None or downloaded_at.utcoffset() is None:
         raise ValueError("downloaded_at must be timezone-aware")
-    if start >= end:
-        raise ValueError("start must be before end")
-    if initial_offset < 0:
-        raise ValueError("initial_offset must be non-negative")
 
-    allowed = _allowed_horizon_seconds(horizons)
     market_repository = market_repository or PolymarketMarketRepository()
     historical_repository = historical_repository or HistoricalRepository()
     provenance_repository = provenance_repository or ProvenanceRepository()
@@ -67,79 +92,65 @@ async def backfill_polymarket_markets(
     inserted = 0
     existing = 0
     chunks = 0
-    offset = initial_offset
-    seen_offsets: set[int] = set()
 
-    while True:
-        if offset in seen_offsets:
-            raise RuntimeError(f"Gamma market offset repeated: {offset}")
-        seen_offsets.add(offset)
-
-        page = await client.list_markets_offset_page(
-            start=start,
-            end=end,
-            limit=100,
-            offset=offset,
-        )
+    for slug, horizon_seconds, expected_start in iter_expected_btc_market_slugs(
+        start,
+        end,
+        horizons,
+    ):
+        payload = await client.get_market_by_slug(slug)
         chunks += 1
+        if payload is None:
+            continue
 
-        page_artifact_key = artifact_key(
-            "polymarket_gamma",
-            "markets_offset",
-            page.request_params,
-        )
+        returned_slug = payload.get("slug")
+        if returned_slug != slug:
+            raise RuntimeError(
+                f"Gamma market slug mismatch: requested={slug} returned={returned_slug}"
+            )
+
+        market = parse_gamma_market(payload)
+        if market.horizon_seconds != horizon_seconds or market.window_start_at != expected_start:
+            raise RuntimeError(f"Gamma market window mismatch for slug: {slug}")
+        if not market.closed:
+            continue
+
+        request_params = {"slug": slug}
         provenance_repository.record_artifact(
             connection,
             BackfillArtifact(
                 run_id=run_id,
-                artifact_key=page_artifact_key,
+                artifact_key=artifact_key(
+                    "polymarket_gamma",
+                    "market_by_slug",
+                    request_params,
+                ),
                 source="polymarket_gamma",
-                dataset="markets_offset",
-                request_params=page.request_params,
+                dataset="market_by_slug",
+                request_params=request_params,
                 downloaded_at=downloaded_at,
-                response_sha256=canonical_json_sha256(page.raw_payload),
-                row_count=len(page.markets),
+                response_sha256=canonical_json_sha256(payload),
+                row_count=1,
             ),
         )
 
-        for payload in page.markets:
-            slug = payload.get("slug")
-            if not isinstance(slug, str):
-                continue
-            try:
-                horizon_seconds, window_start = parse_horizon_slug(slug)
-            except GammaMarketError:
-                continue
-            if horizon_seconds not in allowed:
-                continue
-            if window_start < start or window_start >= end:
-                continue
+        result = market_repository.upsert(connection, market, downloaded_at)
+        if result.created:
+            inserted += 1
+        else:
+            existing += 1
 
-            market = parse_gamma_market(payload)
-            result = market_repository.upsert(connection, market, downloaded_at)
-            if result.created:
-                inserted += 1
-            else:
-                existing += 1
-
-            historical_repository.store_polymarket_market_snapshot(
-                connection,
-                PolymarketMarketSnapshot(
-                    condition_id=market.condition_id,
-                    gamma_market_id=market.gamma_market_id,
-                    slug=market.slug,
-                    downloaded_at=downloaded_at,
-                    payload_sha256=canonical_json_sha256(payload),
-                    payload=payload,
-                ),
-            )
-
-        next_offset = page.next_offset
-        if next_offset is None:
-            break
-        if next_offset <= offset:
-            raise RuntimeError(f"Gamma market offset did not advance: {next_offset}")
-        offset = next_offset
+        historical_repository.store_polymarket_market_snapshot(
+            connection,
+            PolymarketMarketSnapshot(
+                condition_id=market.condition_id,
+                gamma_market_id=market.gamma_market_id,
+                slug=market.slug,
+                downloaded_at=downloaded_at,
+                payload_sha256=canonical_json_sha256(payload),
+                payload=payload,
+            ),
+        )
 
     return BackfillStats(
         rows_inserted=inserted,
