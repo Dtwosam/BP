@@ -1,10 +1,9 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import create_engine, func, select
 
 from bp_engine.backfill.polymarket import backfill_polymarket_markets
-from bp_engine.polymarket.gamma import GammaMarketOffsetPage
 from bp_engine.storage.schema import (
     historical_backfill_artifacts,
     metadata,
@@ -32,58 +31,41 @@ def gamma_payload(*, market_id: str, slug: str, condition_id: str) -> dict[str, 
 
 
 class FakeGammaClient:
-    def __init__(self, pages: list[GammaMarketOffsetPage]) -> None:
-        self.pages = pages
-        self.calls: list[int] = []
+    def __init__(self, payloads: dict[str, dict[str, object]]) -> None:
+        self.payloads = payloads
+        self.calls: list[str] = []
 
-    async def list_markets_offset_page(
-        self,
-        *,
-        start: datetime,
-        end: datetime,
-        limit: int = 100,
-        offset: int = 0,
-    ) -> GammaMarketOffsetPage:
-        del start, end, limit
-        self.calls.append(offset)
-        return self.pages[len(self.calls) - 1]
+    async def get_market_by_slug(self, slug: str):
+        self.calls.append(slug)
+        return self.payloads.get(slug)
 
 
 @pytest.mark.asyncio
-async def test_market_backfill_filters_horizons_window_versions_snapshot_and_records_page() -> None:
+async def test_market_backfill_enumerates_exact_btc_slugs_and_records_found_markets() -> None:
     start = datetime(2026, 8, 20, tzinfo=UTC)
-    end = datetime(2026, 8, 21, tzinfo=UTC)
+    end = start + timedelta(minutes=15)
     downloaded_at = datetime(2026, 8, 24, 22, 0, tzinfo=UTC)
-    valid = gamma_payload(
-        market_id="m5",
-        slug="btc-updown-5m-1787184000",
-        condition_id="condition-5m",
+
+    epoch = int(start.timestamp())
+    slug_5m_0 = f"btc-updown-5m-{epoch}"
+    slug_5m_1 = f"btc-updown-5m-{epoch + 300}"
+    slug_5m_2 = f"btc-updown-5m-{epoch + 600}"
+    slug_15m_0 = f"btc-updown-15m-{epoch}"
+
+    client = FakeGammaClient(
+        {
+            slug_5m_0: gamma_payload(
+                market_id="m5",
+                slug=slug_5m_0,
+                condition_id="condition-5m",
+            ),
+            slug_15m_0: gamma_payload(
+                market_id="m15",
+                slug=slug_15m_0,
+                condition_id="condition-15m",
+            ),
+        }
     )
-    unsupported_horizon = gamma_payload(
-        market_id="m10",
-        slug="btc-updown-10m-1787184000",
-        condition_id="condition-10m",
-    )
-    outside_window = gamma_payload(
-        market_id="m-old",
-        slug="btc-updown-5m-1787183700",
-        condition_id="condition-old",
-    )
-    unrelated = {"id": "other", "slug": "some-other-market"}
-    raw_page = [valid, unsupported_horizon, outside_window, unrelated]
-    page1 = GammaMarketOffsetPage(
-        markets=(valid, unsupported_horizon, outside_window, unrelated),
-        next_offset=100,
-        request_params={"limit": "100", "offset": "0"},
-        raw_payload=raw_page,
-    )
-    page2 = GammaMarketOffsetPage(
-        markets=(),
-        next_offset=None,
-        request_params={"limit": "100", "offset": "100"},
-        raw_payload=[],
-    )
-    client = FakeGammaClient([page1, page2])
     engine = create_engine("sqlite+pysqlite:///:memory:")
     metadata.create_all(engine)
 
@@ -105,10 +87,41 @@ async def test_market_backfill_filters_horizons_window_versions_snapshot_and_rec
             select(func.count()).select_from(historical_backfill_artifacts)
         )
 
-    assert client.calls == [0, 100]
-    assert stats.rows_inserted == 1
+    assert client.calls == [slug_5m_0, slug_5m_1, slug_5m_2, slug_15m_0]
+    assert stats.rows_inserted == 2
     assert stats.rows_existing == 0
-    assert stats.chunks_fetched == 2
-    assert market_count == 1
-    assert snapshot_count == 1
+    assert stats.chunks_fetched == 4
+    assert market_count == 2
+    assert snapshot_count == 2
     assert artifact_count == 2
+
+
+@pytest.mark.asyncio
+async def test_market_backfill_rejects_provider_slug_mismatch() -> None:
+    start = datetime(2026, 8, 20, tzinfo=UTC)
+    end = start + timedelta(minutes=5)
+    requested_slug = f"btc-updown-5m-{int(start.timestamp())}"
+    mismatched_slug = f"btc-updown-5m-{int(start.timestamp()) + 300}"
+    client = FakeGammaClient(
+        {
+            requested_slug: gamma_payload(
+                market_id="wrong",
+                slug=mismatched_slug,
+                condition_id="condition-wrong",
+            )
+        }
+    )
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    metadata.create_all(engine)
+
+    with engine.begin() as connection:
+        with pytest.raises(RuntimeError, match="slug mismatch"):
+            await backfill_polymarket_markets(
+                connection,
+                client,
+                run_id="run-mismatch",
+                start=start,
+                end=end,
+                horizons=("5m",),
+                downloaded_at=datetime(2026, 8, 24, 22, 0, tzinfo=UTC),
+            )
