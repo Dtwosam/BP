@@ -6,9 +6,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from bp_engine.backtesting.repository import BacktestRunConflict, BacktestRunRepository
 from sqlalchemy import create_engine, select
 
+from bp_engine.backtesting.repository import BacktestRunConflict, BacktestRunRepository
 from bp_engine.storage.schema import backtest_runs, metadata
 
 
