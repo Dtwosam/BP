@@ -51,7 +51,7 @@ echo "TARGET_DISK_GB=$TARGET_GB"
 echo "PHASE4_HEAD=$EXPECTED_HEAD"
 
 if (( CURRENT_GB < TARGET_GB )); then
-  SNAP="${VM}-pre-phase4-resize-$(date -u +%Y%m%dT%H%M%SZ)"
+  SNAP="${VM}-pre-phase4-resize-$(date -u +%Y%m%dt%H%M%Sz)"
   echo "Creating safety snapshot: $SNAP"
   gcloud compute disks snapshot "$DISK" \
     --project="$PROJECT" \
