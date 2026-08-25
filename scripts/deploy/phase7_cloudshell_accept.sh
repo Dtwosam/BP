@@ -31,7 +31,8 @@ REMOTE_SCRIPT=$(cat <<REMOTE
 set -Eeuo pipefail
 SHA='$EXPECTED_HEAD'
 BRANCH='$BRANCH'
-WT="/var/tmp/bp-phase7-\${SHA:0:12}-\$\$"
+WT="/var/tmp/bp-phase7-wt-\${SHA:0:12}-\$\$"
+SRC="/var/tmp/bp-phase7-src-\${SHA:0:12}-\$\$"
 LOG=/var/lib/bp/evidence/phase7-host-acceptance-latest.log
 
 git -C /opt/bp fetch --no-tags origin \
@@ -47,14 +48,25 @@ fi
 
 git -C /opt/bp worktree prune
 git -C /opt/bp worktree add --detach "\$WT" "\$SHA"
-chown -R bp:bp "\$WT"
+WORKTREE_HEAD=\$(git -C "\$WT" rev-parse HEAD)
+if [[ "\$WORKTREE_HEAD" != "\$SHA" ]]; then
+  echo "PHASE7_HOST_ACCEPTANCE=FAIL"
+  echo "REASON=worktree_head_mismatch"
+  echo "EXPECTED_HEAD=\$SHA"
+  echo "WORKTREE_HEAD=\$WORKTREE_HEAD"
+  exit 2
+fi
+install -d -o bp -g bp "\$SRC"
+git -C "\$WT" archive --format=tar "\$SHA" | sudo -u bp tar -xf - -C "\$SRC"
 cleanup() {
+  rm -rf "\$SRC" >/dev/null 2>&1 || true
   git -C /opt/bp worktree remove --force "\$WT" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
 set +e
-BP_REPO="\$WT" bash "\$WT/scripts/deploy/phase7_host_acceptance.sh" "\$SHA" \
+BP_REPO="\$SRC" BP_VERIFIED_HEAD="\$WORKTREE_HEAD" bash \
+  "\$SRC/scripts/deploy/phase7_host_acceptance.sh" "\$SHA" \
   2>&1 | tee "\$LOG"
 RC=\${PIPESTATUS[0]}
 set -e
