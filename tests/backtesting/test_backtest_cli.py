@@ -30,6 +30,11 @@ def _metric() -> MetricSummary:
 def _report(source_run_id: str, horizon_seconds: int, created_at: datetime) -> BacktestReport:
     metric = _metric()
     semantic = ("9" if horizon_seconds == 300 else "8") * 64
+    regimes = {
+        "utc_session": {},
+        "volatility": {},
+        "execution_availability": {},
+    }
     final = FinalHoldoutReport(
         membership_sha256="f" * 64,
         train_condition_ids=("train-a", "train-b"),
@@ -45,7 +50,7 @@ def _report(source_run_id: str, horizon_seconds: int, created_at: datetime) -> B
         accuracy_wilson_95=(0.2, 0.9),
         volatility_threshold=0.2,
         execution={"execution_coverage": 0.5},
-        regimes={"utc_session": {}},
+        regimes=regimes,
     )
     return BacktestReport(
         run_id=f"phase8-{horizon_seconds}-{semantic[:32]}",
@@ -68,6 +73,7 @@ def _report(source_run_id: str, horizon_seconds: int, created_at: datetime) -> B
         aggregate_oos_metrics=metric,
         aggregate_oos_accuracy_wilson_95=(0.2, 0.9),
         aggregate_oos_execution={"execution_coverage": 0.5},
+        aggregate_oos_regimes=regimes,
         final_holdout=final,
         semantic_sha256=semantic,
         created_at=created_at,
