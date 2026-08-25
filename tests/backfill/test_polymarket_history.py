@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import create_engine, func, select
 
 from bp_engine.backfill.polymarket import backfill_polymarket_markets
-from bp_engine.polymarket.gamma import GammaMarketPage
+from bp_engine.polymarket.gamma import GammaMarketOffsetPage
 from bp_engine.storage.schema import (
     historical_backfill_artifacts,
     metadata,
@@ -32,20 +32,20 @@ def gamma_payload(*, market_id: str, slug: str, condition_id: str) -> dict[str, 
 
 
 class FakeGammaClient:
-    def __init__(self, pages: list[GammaMarketPage]) -> None:
+    def __init__(self, pages: list[GammaMarketOffsetPage]) -> None:
         self.pages = pages
-        self.calls: list[str | None] = []
+        self.calls: list[int] = []
 
-    async def list_markets_page(
+    async def list_markets_offset_page(
         self,
         *,
         start: datetime,
         end: datetime,
         limit: int = 100,
-        after_cursor: str | None = None,
-    ) -> GammaMarketPage:
+        offset: int = 0,
+    ) -> GammaMarketOffsetPage:
         del start, end, limit
-        self.calls.append(after_cursor)
+        self.calls.append(offset)
         return self.pages[len(self.calls) - 1]
 
 
@@ -70,21 +70,18 @@ async def test_market_backfill_filters_horizons_window_versions_snapshot_and_rec
         condition_id="condition-old",
     )
     unrelated = {"id": "other", "slug": "some-other-market"}
-    raw_page = {
-        "markets": [valid, unsupported_horizon, outside_window, unrelated],
-        "next_cursor": "cursor-2",
-    }
-    page1 = GammaMarketPage(
+    raw_page = [valid, unsupported_horizon, outside_window, unrelated]
+    page1 = GammaMarketOffsetPage(
         markets=(valid, unsupported_horizon, outside_window, unrelated),
-        next_cursor="cursor-2",
-        request_params={"limit": "100", "after_cursor": "cursor-1"},
+        next_offset=100,
+        request_params={"limit": "100", "offset": "0"},
         raw_payload=raw_page,
     )
-    page2 = GammaMarketPage(
+    page2 = GammaMarketOffsetPage(
         markets=(),
-        next_cursor=None,
-        request_params={"limit": "100", "after_cursor": "cursor-2"},
-        raw_payload={"markets": []},
+        next_offset=None,
+        request_params={"limit": "100", "offset": "100"},
+        raw_payload=[],
     )
     client = FakeGammaClient([page1, page2])
     engine = create_engine("sqlite+pysqlite:///:memory:")
@@ -99,7 +96,6 @@ async def test_market_backfill_filters_horizons_window_versions_snapshot_and_rec
             end=end,
             horizons=("5m", "15m"),
             downloaded_at=downloaded_at,
-            initial_cursor="cursor-1",
         )
         market_count = connection.scalar(select(func.count()).select_from(polymarket_markets))
         snapshot_count = connection.scalar(
@@ -109,7 +105,7 @@ async def test_market_backfill_filters_horizons_window_versions_snapshot_and_rec
             select(func.count()).select_from(historical_backfill_artifacts)
         )
 
-    assert client.calls == ["cursor-1", "cursor-2"]
+    assert client.calls == [0, 100]
     assert stats.rows_inserted == 1
     assert stats.rows_existing == 0
     assert stats.chunks_fetched == 2
