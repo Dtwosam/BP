@@ -3,13 +3,13 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
+
 from bp_engine.backtesting.regimes import (
     regime_metrics,
     training_volatility_threshold,
     utc_session_regime,
     volatility_regime,
 )
-
 from bp_engine.modeling.models import SupervisedRow
 
 
