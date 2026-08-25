@@ -167,6 +167,29 @@ class ProvenanceRepository:
         if result.rowcount != 1:
             raise KeyError(f"unknown historical backfill run: {run_id}")
 
+    def mark_unavailable(
+        self,
+        connection: Connection,
+        run_id: str,
+        completed_at: datetime,
+        reason: str,
+    ) -> None:
+        self._require_aware(completed_at, "completed_at")
+        result = connection.execute(
+            update(historical_backfill_runs)
+            .where(historical_backfill_runs.c.run_id == run_id)
+            .values(
+                completed_at=completed_at,
+                status="unavailable",
+                rows_inserted=0,
+                rows_existing=0,
+                chunks_fetched=0,
+                error=reason,
+            )
+        )
+        if result.rowcount != 1:
+            raise KeyError(f"unknown historical backfill run: {run_id}")
+
     def fail_run(
         self,
         connection: Connection,
