@@ -18,7 +18,9 @@ async def test_standard_continues_when_bybit_is_explicitly_unavailable(monkeypat
         del args, kwargs
         calls.append(name)
         if name.startswith("bybit_"):
-            raise BybitHistoryUnavailableError("Bybit REST unavailable from this environment (HTTP 403)")
+            raise BybitHistoryUnavailableError(
+                "Bybit REST unavailable from this environment (HTTP 403)"
+            )
         return historical_backfill.BackfillStats(rows_inserted=1, chunks_fetched=1)
 
     monkeypatch.setattr(historical_backfill, "_execute_dataset", fake_execute_dataset)
@@ -53,7 +55,9 @@ async def test_standard_can_require_bybit_and_fail_closed(monkeypatch) -> None:
     async def fake_execute_dataset(name, *args, **kwargs):
         del args, kwargs
         if name.startswith("bybit_"):
-            raise BybitHistoryUnavailableError("Bybit REST unavailable from this environment (HTTP 403)")
+            raise BybitHistoryUnavailableError(
+                "Bybit REST unavailable from this environment (HTTP 403)"
+            )
         return historical_backfill.BackfillStats(rows_inserted=1, chunks_fetched=1)
 
     monkeypatch.setattr(historical_backfill, "_execute_dataset", fake_execute_dataset)
