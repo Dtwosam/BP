@@ -4,14 +4,14 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy import create_engine
+
 from bp_engine.backtesting.predictor import (
     MarketPriceFoldPredictor,
     ModelSpecIntegrityError,
     SourceTrainingRunNotFound,
     load_model_spec,
 )
-from sqlalchemy import create_engine
-
 from bp_engine.modeling.models import (
     MetricSummary,
     ModelEvaluation,
