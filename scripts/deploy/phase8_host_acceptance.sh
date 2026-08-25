@@ -303,8 +303,8 @@ def check_regimes(regimes, expected_markets):
 
 execution_source = (repo / "src/bp_engine/backtesting/execution.py").read_text(encoding="utf-8")
 for token in (
-    "pm_up_best_ask",
-    "pm_down_best_ask",
+    'prefix = "pm_up" if probability >= 0.5 else "pm_down"',
+    'row.predictors.get(f"{prefix}_best_ask")',
     "missing__{prefix}_book_missing",
     "missing__{prefix}_book_stale",
     "gross_execution_pnl_before_costs",
