@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+
 from bp_engine.backtesting.uncertainty import wilson_accuracy_interval
 
 
