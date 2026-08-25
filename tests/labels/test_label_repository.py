@@ -1,10 +1,10 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from bp_engine.labels.models import MarketLabel
-from bp_engine.labels.repository import LabelConflict, MarketLabelRepository
 from sqlalchemy import create_engine, select
 
+from bp_engine.labels.models import MarketLabel
+from bp_engine.labels.repository import LabelConflict, MarketLabelRepository
 from bp_engine.storage.schema import market_labels, metadata
 
 
