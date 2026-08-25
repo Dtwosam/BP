@@ -103,10 +103,20 @@ candidate_python "$REPO/scripts/historical_backfill.py" standard \
 candidate_python "$REPO/scripts/generate_labels.py" \
   --start "$START" --end "$END" --env-file "$ENV_FILE" \
   | tee "$run_dir/labels.json"
+FEATURE_ROWS_BEFORE=$(psql_scalar "SELECT count(*) FROM market_features WHERE market_start_at >= '$START'::timestamptz AND market_start_at < '$END'::timestamptz AND feature_version = 'core-v1';")
 candidate_python "$REPO/scripts/generate_features.py" \
   --start "$START" --end "$END" --env-file "$ENV_FILE" \
-  --step-seconds "$STEP_SECONDS" \
+  --step-seconds "$STEP_SECONDS" --preserve-existing \
   | tee "$run_dir/features.json"
+PRESERVED_FEATURE_ROWS=$("$HOST_PY" -c \
+  'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["existing"])' \
+  "$run_dir/features.json")
+if [[ "$PRESERVED_FEATURE_ROWS" != "$FEATURE_ROWS_BEFORE" ]]; then
+  echo "preserved feature count does not match pre-existing immutable rows" >&2
+  echo "FEATURE_ROWS_BEFORE=$FEATURE_ROWS_BEFORE" >&2
+  echo "PRESERVED_FEATURE_ROWS=$PRESERVED_FEATURE_ROWS" >&2
+  exit 5
+fi
 
 REGISTRY_BEFORE=$(psql_scalar "SELECT count(*) FROM model_training_runs;")
 candidate_python "$REPO/scripts/train_baselines.py" \
@@ -292,6 +302,8 @@ fi
   echo "DEPLOYED_RECORDER_REPO=$HOST_REPO"
   echo "ACCEPTANCE_START=$START"
   echo "ACCEPTANCE_END=$END"
+  echo "FEATURE_ROWS_BEFORE=$FEATURE_ROWS_BEFORE"
+  echo "PRESERVED_FEATURE_ROWS=$PRESERVED_FEATURE_ROWS"
   cat "$run_dir/research-summary.txt"
   echo "DISK_STATUS_BEFORE=$DISK_STATUS_BEFORE"
   echo "DISK_FREE_BYTES_BEFORE=$DISK_FREE_BYTES_BEFORE"
