@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 HELPER = Path("scripts/deploy/phase4_cloudshell_expand_and_accept.sh")
 
 
