@@ -1,0 +1,102 @@
+{
+  "phase": 4,
+  "phase_name": "historical backfill",
+  "closeout_date": "2026-08-25",
+  "verdict": "PASS",
+  "accepted_operational_candidate": "29fa75b500858ae50f50b863d0c62ff2acb4ec52",
+  "pre_closeout_exact_head_gates": {
+    "ci": {
+      "run_number": 421,
+      "status": "success"
+    },
+    "historical_backfill_smoke": {
+      "run_number": 112,
+      "status": "success"
+    },
+    "live_recorder_smoke": {
+      "run_number": 220,
+      "status": "success"
+    },
+    "recorder_short_soak": {
+      "run_number": 184,
+      "status": "success"
+    }
+  },
+  "production_host_acceptance": {
+    "evidence_dir": "/var/lib/bp/evidence/phase4-historical-backfill/20260825T114302Z",
+    "window_start": "2026-08-24T18:00:00Z",
+    "window_end": "2026-08-24T19:00:00Z",
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "recorder_before": "active",
+    "recorder_after": "active",
+    "maintenance_timer": "enabled",
+    "disk_timer": "enabled",
+    "smoke_core_ok": true,
+    "smoke_bybit_status": "environment_blocked_http_403",
+    "first_run_core_nonempty": true,
+    "second_run_core_existing": true,
+    "bybit_results_audited": true,
+    "bybit_unavailable_runs": 4,
+    "second_run_rows_inserted": 0,
+    "new_backfill_runs": 10,
+    "invalid_new_runs": 0,
+    "invalid_unavailable_runs": 0,
+    "disk_status": "ok",
+    "disk_free_bytes": 121827184640,
+    "forensic_sha256": "423f22c58ed356a207684b794f401537ba60e009f08aa89fe54fc7f58efbe9ef"
+  },
+  "accepted_historical_sources": {
+    "polymarket_market_metadata": {
+      "source": "Gamma exact market-by-slug lookup",
+      "discovery_contract": "deterministic aligned btc-updown-<horizon>-<window_start_epoch> slug enumeration",
+      "horizons": ["5m", "15m"],
+      "missing_slug_policy": "explicit coverage gap",
+      "server_error_policy": "bounded retries for HTTP 500/503; otherwise fail closed"
+    },
+    "polymarket_token_prices": {
+      "source": "Polymarket CLOB /prices-history",
+      "stored_window_semantics": "market_start <= observed_at < market_end"
+    },
+    "btc_core_history": {
+      "source": "Coinbase BTC-USD public candles",
+      "status": "verified on production host"
+    },
+    "bybit_history": {
+      "source": "Bybit V5 spot and linear BTCUSDT kline APIs",
+      "status": "implemented but unavailable from the US-hosted production runtime",
+      "production_host_result": "HTTP 403",
+      "policy": "record as audited unavailable only for the classified HTTP 403 restriction; do not route around provider restrictions"
+    }
+  },
+  "historical_l2_policy": {
+    "first_party_historical_order_book_endpoint": "unavailable_or_unverified",
+    "synthesis_allowed": false
+  },
+  "data_quality_exclusions": {
+    "known_damaged_raw_interval": {
+      "start": "2026-08-22T20:00:00Z",
+      "end": "2026-08-22T21:00:00Z",
+      "missing_events": 250000,
+      "policy": "exclude from raw-dependent research unless independently recovered from a trustworthy source"
+    },
+    "rollout_era_raw_dependent_limitation": {
+      "after": "2026-08-23T21:00:00Z",
+      "before_later_retained_or_compact_coverage": true,
+      "policy": "exclude from raw-dependent research unless independently reacquired; compact-state absence before rollout is not evidence by itself of recorder downtime"
+    }
+  },
+  "invariants": {
+    "historical_observations": "immutable natural keys; identical rerun is a no-op; changed value at an existing natural key raises HistoricalDataConflict",
+    "provenance": "each external chunk records request parameters, download time, row count, and canonical SHA-256",
+    "historical_order_book_synthesis": false,
+    "phase_5_started_before_closeout": false,
+    "live_trading_enabled": false
+  },
+  "infrastructure_note": {
+    "boot_disk_resized_gib": 200,
+    "root_filesystem_after_resize_gib_approx": 193,
+    "reason": "restore storage headroom after PostgreSQL growth reached the Phase 3 warning threshold; no protected research data was deleted"
+  }
+}
