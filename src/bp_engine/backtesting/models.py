@@ -152,6 +152,7 @@ class BacktestReport:
     aggregate_oos_metrics: MetricSummary
     aggregate_oos_accuracy_wilson_95: tuple[float, float]
     aggregate_oos_execution: dict[str, Any]
+    aggregate_oos_regimes: dict[str, Any]
     final_holdout: FinalHoldoutReport
     semantic_sha256: str
     created_at: datetime
