@@ -7,16 +7,15 @@ from typing import Any
 
 from sqlalchemy import Connection, insert, select
 
-from bp_engine.modeling.models import TrainingRunReport
-from bp_engine.storage.schema import model_training_runs
+from bp_engine.storage.schema import backtest_runs
 
 
-class TrainingRunConflict(RuntimeError):
-    """Raised when an immutable model-training run would be rewritten."""
+class BacktestRunConflict(RuntimeError):
+    """Raised when an immutable backtest run would be rewritten."""
 
 
 @dataclass(frozen=True)
-class TrainingRunStoreResult:
+class BacktestStoreResult:
     created: bool
     existing: bool
 
@@ -33,66 +32,62 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
-def _semantic_report(report: TrainingRunReport) -> dict[str, Any]:
+def _semantic_report(report: Any) -> dict[str, Any]:
     payload = asdict(report)
     payload.pop("created_at", None)
     return _jsonable(payload)
 
 
-class ModelTrainingRunRepository:
+class BacktestRunRepository:
     def get(
         self, connection: Connection, run_id: str
     ) -> Mapping[str, Any] | None:
         return connection.execute(
-            select(model_training_runs).where(model_training_runs.c.run_id == run_id)
+            select(backtest_runs).where(backtest_runs.c.run_id == run_id)
         ).mappings().one_or_none()
 
-    def store(
-        self, connection: Connection, report: TrainingRunReport
-    ) -> TrainingRunStoreResult:
+    def store(self, connection: Connection, report: Any) -> BacktestStoreResult:
         self._validate(report)
-        existing = connection.execute(
-            select(model_training_runs).where(
-                model_training_runs.c.run_id == report.run_id
-            )
-        ).mappings().one_or_none()
+        existing = self.get(connection, report.run_id)
         semantic_report = _semantic_report(report)
         if existing is not None:
             if (
                 existing["semantic_sha256"] != report.semantic_sha256
                 or existing["report"] != semantic_report
             ):
-                raise TrainingRunConflict(
-                    f"conflicting model-training run_id={report.run_id}"
+                raise BacktestRunConflict(
+                    f"conflicting backtest run_id={report.run_id}"
                 )
-            return TrainingRunStoreResult(created=False, existing=True)
+            return BacktestStoreResult(created=False, existing=True)
 
         connection.execute(
-            insert(model_training_runs).values(
+            insert(backtest_runs).values(
                 run_id=report.run_id,
+                backtest_version=report.backtest_version,
+                source_training_run_id=report.source_training_run_id,
+                source_training_semantic_sha256=(
+                    report.source_training_semantic_sha256
+                ),
                 dataset_version=report.dataset_version,
-                split_version=report.split_version,
                 feature_version=report.feature_version,
                 label_version=report.label_version,
                 horizon_seconds=report.horizon_seconds,
                 requested_start=report.start,
                 requested_end=report.end,
                 dataset_sha256=report.dataset_sha256,
-                split_sha256=report.split_sha256,
-                predictor_names=list(report.predictor_names),
-                dropped_all_missing=list(report.dropped_all_missing),
-                model_configs=_jsonable(report.model_configs),
-                validation_champion=report.validation_champion,
+                config=_jsonable(report.config),
+                config_sha256=report.config_sha256,
+                plan_sha256=report.plan_sha256,
+                fold_membership_sha256=list(report.fold_membership_sha256),
                 report=semantic_report,
-                artifact_manifest=_jsonable(report.artifacts),
                 semantic_sha256=report.semantic_sha256,
                 created_at=report.created_at,
             )
         )
-        return TrainingRunStoreResult(created=True, existing=False)
+        return BacktestStoreResult(created=True, existing=False)
 
     @staticmethod
-    def _validate(report: TrainingRunReport) -> None:
+    def _validate(report: Any) -> None:
         for name, value in (
             ("start", report.start),
             ("end", report.end),
@@ -106,10 +101,19 @@ class ModelTrainingRunRepository:
             raise ValueError("horizon_seconds must be positive")
         if not report.run_id:
             raise ValueError("run_id must not be empty")
-        for name, digest in (
+
+        digests = (
+            ("source_training_semantic_sha256", report.source_training_semantic_sha256),
             ("dataset_sha256", report.dataset_sha256),
-            ("split_sha256", report.split_sha256),
+            ("config_sha256", report.config_sha256),
+            ("plan_sha256", report.plan_sha256),
             ("semantic_sha256", report.semantic_sha256),
-        ):
+        )
+        for name, digest in digests:
             if len(digest) != 64:
                 raise ValueError(f"{name} must be a 64-character SHA-256 digest")
+        for digest in report.fold_membership_sha256:
+            if len(digest) != 64:
+                raise ValueError(
+                    "fold_membership_sha256 entries must be 64-character SHA-256 digests"
+                )

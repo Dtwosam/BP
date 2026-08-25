@@ -165,3 +165,27 @@ XGBoost is promotion-eligible only if it beats the simple baselines under the do
 Phase 7 may expand source history over a broader research window after earlier `core-v1` rows have already been accepted. Such later source recovery must not retroactively rewrite those immutable snapshots or silently pretend the recovered observations were part of the original materialization context.
 
 The explicit Phase 7 expansion mode therefore checks for an existing `(condition_id, feature_at, core-v1)` key before feature recomputation, validates that its static market metadata still matches, preserves the existing row untouched, and computes only missing natural keys from the expanded history. Normal/default feature generation remains strict and raises `FeatureConflict` on semantic drift. Production acceptance proved that all 104 previously accepted Phase 6 feature rows were preserved while the full-day feature set was expanded.
+
+## D-024 — Walk-forward evaluation selects timing on validation only and never reuses ordinary test markets
+**Date:** 25 Aug 2026  
+**Status:** Active
+
+Phase 8 uses deterministic duration-based chronological rolling folds over whole `condition_id` markets. Train, validation, and ordinary test partitions are disjoint, a whole-market embargo protects boundaries, and an ordinary test market cannot appear as test evidence in more than one fold. A final holdout is outside all ordinary folds.
+
+Prediction-offset selection is performed only from each fold's validation candidates. Ordinary test results and the final holdout cannot rewrite the selected offset, source model, feature contract, or evaluation configuration. The Phase 8 production gate requires zero partition overlap, zero ordinary-test reuse, both classes in evaluated partitions, and deterministic semantic reruns.
+
+## D-025 — Backtest fills require an observed selected-side best ask; unavailable books are no-fill
+**Date:** 25 Aug 2026  
+**Status:** Active
+
+Phase 8 execution diagnostics use only the observed best ask for the side implied by the frozen probability decision: `pm_up_best_ask` for Up and `pm_down_best_ask` for Down, selected dynamically by side. Missing or stale selected-side book state is unavailable/no-fill. Midpoint fills, price-history substitutes, and synthetic fills are forbidden.
+
+Reported execution P&L is explicitly gross before fees, slippage, latency, and other costs. It is diagnostic evidence, not a net-profitability claim. Phase 9 must preserve these availability semantics when calculating edge and must not create apparent trade coverage by inventing executable prices.
+
+## D-026 — Accuracy alone cannot promote a trading rule; Phase 9 must optimize calibrated executable edge and abstention
+**Date:** 25 Aug 2026  
+**Status:** Active
+
+Phase 8 production evidence demonstrates why the project's aspirational accuracy target is not itself a trading criterion. The 5m accepted walk-forward report reached 0.8264 ordinary OOS accuracy over 144 markets and 0.8333 on the final holdout, yet observed-ask gross P&L was negative in both aggregate ordinary OOS and final holdout. The 15m report reached 0.9792 ordinary OOS accuracy over only 48 markets, but the untouched final holdout fell to 0.625 accuracy and gross P&L was negative.
+
+Therefore the high 15m ordinary-OOS headline and individual offset slices must not be cherry-picked into a trading rule. Phase 9 should calibrate probabilities using permitted training/validation data, compare them with observed executable selected-side prices, account for spread/fees/slippage/uncertainty/staleness, and abstain when a configured minimum net edge is not met. Any threshold or calibration choice must be frozen before untouched evaluation is consulted.
