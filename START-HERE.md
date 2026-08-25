@@ -17,6 +17,8 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
-Phase 2: build the 24/7 BTC + Polymarket raw recorder. Phase 1 market discovery is complete and live-verified.
+Phase 7: build the leakage-safe baseline modeling and model-training pipeline from frozen `core-v1` feature rows joined to `official-outcome-v1` targets only after feature generation. Phase 6 feature engineering is complete and production-host accepted.
 
-Do not start by training a model.
+Start with simple auditable baselines, time-ordered evaluation, calibration/coverage metrics, and explicit source/missingness handling. Do not begin Phase 8 backtesting until Phase 7 acceptance is recorded.
+
+Live prediction, paper trading, and live trading remain blocked by later phase gates. Live trading remains disabled.

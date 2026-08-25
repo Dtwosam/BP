@@ -125,3 +125,19 @@ For each condition, the canonical source is the earliest eligible resolved snaps
 Phase 5 does not infer or substitute the official market-resolution start/end reference prices from Coinbase candles, Bybit candles, Polymarket token prices, trades, or other secondary observations. The preserved Gamma evidence used for V1 labels does not independently verify a first-party start/end reference-price field, so `start_reference` and `end_reference` remain NULL in `official-outcome-v1`.
 
 Future work may populate those fields only when a trustworthy first-party resolution source is explicitly verified and provenance/versioning are defined. Market/BTC prices remain valid candidate features under Phase 6 feature-time rules, but they are not silently promoted into the authoritative label contract.
+
+## D-019 — Feature versions freeze source-selection and missing-data semantics
+**Date:** 25 Aug 2026  
+**Status:** Active
+
+Phase 6 stores immutable feature snapshots keyed by `(condition_id, feature_at, feature_version)`. `core-v1` fixes the source-selection rules, availability cutoffs, staleness threshold, trailing-window lengths, formulas, feature names, and missing-data semantics. Identical reruns are existing/no-op; changing any of those semantics requires a new feature version rather than rewriting a `core-v1` row.
+
+Feature generation must not read official outcomes, official label references, resolution metadata, or label provenance. Historical L2 that was not observed remains unavailable rather than synthesized, raw-dependent groups remain missing when Phase 3 exclusions or unproven feed coverage overlap the required window, and the unverified official reference distance remains NULL with an explicit missing flag.
+
+## D-020 — Compact state is usable only when both bucket time and last event time are in the feature past
+**Date:** 25 Aug 2026  
+**Status:** Active
+
+A `market_state_1s` row is eligible at feature time `T` only if both `bucket_at <= T` and `last_event_at <= T`. The reader must select the latest row satisfying both conditions, not select a bucket by `bucket_at` and then abort merely because that bucket contains a later sub-second event. Post-selection leakage guards remain as defense in depth.
+
+This rule was promoted to an explicit project decision after production acceptance candidate `d38250c6f5fb68704ce306cfb051111b25c7c680` exposed the same-second sub-second leakage edge case. The fix was regression-tested before implementation and final Phase 6 host acceptance verified zero persisted source cutoffs after feature time.
