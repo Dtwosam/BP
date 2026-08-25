@@ -6,9 +6,9 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
-from bp_engine.backtesting.repository import BacktestRunConflict, BacktestRunRepository
 from sqlalchemy import create_engine, delete, select
 
+from bp_engine.backtesting.repository import BacktestRunConflict, BacktestRunRepository
 from bp_engine.storage.schema import backtest_runs, metadata
 
 DATABASE_URL = os.getenv("BP_TEST_DATABASE_URL")
