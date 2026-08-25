@@ -1,0 +1,141 @@
+# Phase 7 — Baseline Modeling Deployment
+
+**Phase:** 7 — leakage-safe baseline modeling and model training  
+**Live trading:** Disabled
+
+Phase 7 builds reproducible research models from immutable `core-v1` feature rows joined to `official-outcome-v1` labels. It trains the verified 5m and 15m horizons separately and does not place orders, enable paper execution, or enable live trading.
+
+## Safety invariants
+
+The production acceptance gate requires:
+
+```text
+LIVE_TRADING_ENABLED=false
+MAX_TRADE_SIZE_USD=0
+MAX_DAILY_LOSS_USD=0
+RECORDER_BEFORE=active
+RECORDER_AFTER=active
+DISK_STATUS=ok
+```
+
+The Cloud Shell helper creates a detached candidate worktree. The deployed `/opt/bp` recorder checkout is not replaced. Phase 7 also creates an isolated temporary virtual environment under `/var/tmp/bp-phase7-venv-*`; candidate ML dependencies are installed there rather than into the recorder virtual environment. The temporary environment is removed automatically.
+
+Model binaries are external research artifacts under:
+
+```text
+/var/lib/bp/artifacts/phase7-baseline-modeling
+```
+
+Git stores code, manifests, hashes, and closeout evidence only.
+
+## Frozen research contract
+
+Production acceptance uses exactly:
+
+```text
+2026-08-24T00:00:00Z <= market_start_at < 2026-08-25T00:00:00Z
+```
+
+Required coverage is at least 100 unique 5m labels and at least 30 unique 15m labels. The gate expands that fixed day through the already accepted pipelines in order:
+
+1. Phase 4 standard historical backfill;
+2. Phase 5 official outcome labels;
+3. Phase 6 `core-v1` features at 60-second steps;
+4. Phase 7 baseline training for 300s and 900s horizons.
+
+The model ladder is naive weighted prior, Polymarket Up-price baseline, logistic regression, and deterministic XGBoost. `xgboost-cpu` is used because production research is CPU-only.
+
+## Leakage and split rules
+
+The supervised dataset is `supervised-core-v1`; the split is `chronological-market-v1`. Every `condition_id` belongs wholly to one train, validation, test, or embargo partition. Assignment is chronological by market start, not by feature row. Preprocessing is fitted on training data only.
+
+The validation champion is frozen before final test comparison. Test performance cannot rewrite the validation choice. XGBoost is marked promotion-eligible only when it beats the simple baselines under the documented validation/test rule. A failed promotion rule is a valid research result, not a reason to alter the test set.
+
+The host gate also requires both target classes in every non-embargo partition, zero cross-partition market overlap, exact artifact SHA-256 matches, and identical semantic results on an immediate rerun.
+
+## Local/offline training command
+
+After the additive migration is applied, a bounded training run is:
+
+```bash
+python scripts/train_baselines.py \
+  --start 2026-08-24T00:00:00Z \
+  --end 2026-08-25T00:00:00Z \
+  --env-file /etc/bp/bp.env \
+  --output-dir /var/lib/bp/artifacts/phase7-baseline-modeling \
+  --horizon-seconds 300 \
+  --horizon-seconds 900 \
+  --min-markets 30
+```
+
+The command reads PostgreSQL only. Training-run identity, dataset/split hashes, evaluation metrics, champion choice, model configuration, and artifact hashes are persisted in `model_training_runs`. Identical semantic reruns are existing/no-op records; conflicting reuse of a `run_id` fails closed.
+
+## Production host acceptance
+
+Before running the host gate, freeze a candidate SHA only after all four GitHub workflows are green on that exact SHA: CI, Historical Backfill Smoke, Live Recorder Smoke, and Recorder Short Soak.
+
+From Google Cloud Shell, run the one-line gate from any BP checkout:
+
+```bash
+PHASE7_HEAD=<verified-sha> bash scripts/deploy/phase7_cloudshell_accept.sh
+```
+
+If the local checkout does not yet contain the helper, the same file can be fetched from the frozen candidate SHA and run with `PHASE7_HEAD` set to that SHA.
+
+The helper verifies that `build/phase-7-baseline-modeling` still points to the expected SHA, creates a detached worktree on `bp-recorder`, and invokes `phase7_host_acceptance.sh`. Candidate execution never replaces `/opt/bp`.
+
+## Required PASS summary
+
+A successful gate ends with fields including:
+
+```text
+VERDICT=PASS
+HEAD=<exact-candidate-sha>
+LABELS_5M=<integer >= 100>
+LABELS_15M=<integer >= 30>
+FEATURE_ROWS_5M=<positive integer>
+FEATURE_ROWS_15M=<positive integer>
+RUN_ID_5M=<immutable run id>
+RUN_ID_15M=<immutable run id>
+DATASET_SHA_5M=<sha256>
+DATASET_SHA_15M=<sha256>
+SPLIT_SHA_5M=<sha256>
+SPLIT_SHA_15M=<sha256>
+SEMANTIC_SHA_5M=<sha256>
+SEMANTIC_SHA_15M=<sha256>
+VALIDATION_CHAMPION_5M=<family>
+VALIDATION_CHAMPION_15M=<family>
+SEMANTIC_RERUN_MATCH=1
+REGISTRY_SECOND_RUN_DELTA=0
+PARTITION_VIOLATIONS=0
+SINGLE_CLASS_PARTITIONS=0
+ARTIFACT_HASH_VIOLATIONS=0
+DISK_STATUS=ok
+RECORDER_BEFORE=active
+RECORDER_AFTER=active
+LIVE_TRADING_ENABLED=false
+MAX_TRADE_SIZE_USD=0
+MAX_DAILY_LOSS_USD=0
+```
+
+`BOOSTED_PROMOTION_ELIGIBLE_5M` and `BOOSTED_PROMOTION_ELIGIBLE_15M` are evidence fields, not hard-coded PASS values. The correct result may be `false`; that means the simple baseline remains the research champion and more model complexity is not justified yet.
+
+## Evidence
+
+Each production gate writes durable evidence under:
+
+```text
+/var/lib/bp/evidence/phase7-baseline-modeling/<UTC timestamp>/
+```
+
+Expected files include candidate installation output, migration output, historical backfill output, labels, features, first and second model reports, research summary, storage report, and `final-summary.txt`. The Cloud Shell wrapper also writes:
+
+```text
+/var/lib/bp/evidence/phase7-host-acceptance-latest.log
+```
+
+## Hard failures
+
+Do not override or delete data to force a PASS. The gate fails on candidate-head drift, enabled trading or non-zero trade/loss limits, inactive recorder, migration/backfill/label/feature/training failure, insufficient labeled market coverage, semantic rerun differences, a new registry row on the second run, partition overlap, a single-class evaluation partition, artifact hash mismatch, or non-OK disk status.
+
+Phase 8 remains blocked until Phase 7 production acceptance passes, durable closeout evidence is committed, the closeout HEAD passes the complete exact-head workflow set, PR #6 is marked ready and merged with an expected-head guard, and `main` is verified after merge.
