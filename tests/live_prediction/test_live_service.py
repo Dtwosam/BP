@@ -215,7 +215,7 @@ def test_load_due_markets_enforces_eligibility_window_and_idempotence() -> None:
     with engine.begin() as connection:
         for values in (
             _market_values("due", start_at=start),
-            _market_values("future", start_at=start + timedelta(seconds=5)),
+            _market_values("future", start_at=start + timedelta(seconds=11)),
             _market_values("expired", start_at=start - timedelta(seconds=11)),
             _market_values("unsupported", start_at=start, horizon_seconds=600),
             _market_values("closed", start_at=start, closed=True),
