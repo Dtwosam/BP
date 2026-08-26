@@ -168,3 +168,19 @@ def test_minimum_validation_trade_gate_blocks_one_lucky_trade() -> None:
 
     assert selection.policy == "no_trade"
     assert selection.min_edge is None
+
+
+def test_row_wrapper_matches_target_free_predictor_mapping() -> None:
+    module = _module()
+    row = _row(target=0, down_ask=0.38, down_bid=0.36)
+    config = _config(module, max_spread=0.05)
+
+    expected = module.edge_decision(row, 0.30, config, 0.02)
+    actual = module.edge_decision_from_predictors(
+        row.predictors,
+        0.30,
+        config,
+        0.02,
+    )
+
+    assert actual == expected
