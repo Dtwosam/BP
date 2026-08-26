@@ -129,7 +129,7 @@ def _insert_book(
 
 
 @pytest.mark.asyncio
-async def test_observer_requests_up_history_at_exact_schedule_and_selects_latest_safe_point() -> None:
+async def test_observer_requests_up_history_and_selects_latest_safe_point() -> None:
     module = _module()
     engine = _engine()
     start, end, scheduled = _times()
