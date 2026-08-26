@@ -130,10 +130,10 @@ def test_phase10_cloudshell_uses_verified_archive_into_bp_owned_source() -> None
         "build/phase-10-live-prediction-engine",
         "git -C /opt/bp worktree add --detach",
         "WORKTREE_HEAD",
-        r'git -C "\$WT" archive --format=tar',
-        r'sudo -u bp tar -xf - -C "\$SRC"',
-        r'BP_REPO="\$SRC"',
-        r'BP_VERIFIED_HEAD="\$WORKTREE_HEAD"',
+        r'git -C \"\$WT\" archive --format=tar',
+        r'sudo -u bp tar -xf - -C \"\$SRC\"',
+        r'BP_REPO=\"\$SRC\"',
+        r'BP_VERIFIED_HEAD=\"\$WORKTREE_HEAD\"',
         "phase10_host_acceptance.sh",
         "phase10-host-acceptance-latest.log",
         "PHASE10_HOST_ACCEPTANCE=PASS",
@@ -144,6 +144,15 @@ def test_phase10_cloudshell_uses_verified_archive_into_bp_owned_source() -> None
     lowered = text.lower()
     assert "chown" not in lowered
     assert "safe.directory" not in lowered
+
+
+def test_phase10_acceptance_runtime_paths_survive_private_tmp() -> None:
+    host = _required_text(HOST)
+    cloud = _required_text(CLOUD)
+
+    assert "PrivateTmp=true" in host
+    assert 'VENV="/var/tmp/' not in host
+    assert "/var/tmp/bp-phase10-src-" not in cloud
 
 
 def test_phase10_runbook_documents_prospective_evidence_and_non_economic_gate() -> None:
