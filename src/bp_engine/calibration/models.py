@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
 
 from bp_engine.modeling.models import MetricSummary
 
@@ -176,3 +178,41 @@ class CalibrationEdgeFinalReport:
     calibrated_metrics: MetricSummary | None
     edge_metrics: EdgePolicyMetrics
     predictions: tuple[CalibrationEdgePrediction, ...]
+
+
+@dataclass(frozen=True)
+class CalibrationEdgeAggregateReport:
+    condition_ids: tuple[str, ...]
+    raw_metrics: MetricSummary | None
+    calibrated_metrics: MetricSummary | None
+    edge_metrics: EdgePolicyMetrics
+    predictions: tuple[CalibrationEdgePrediction, ...]
+
+
+@dataclass(frozen=True)
+class CalibrationEdgeReport:
+    run_id: str
+    calibration_version: str
+    edge_policy_version: str
+    source_backtest_run_id: str
+    source_backtest_version: str
+    source_backtest_semantic_sha256: str
+    source_training_run_id: str
+    source_training_semantic_sha256: str
+    dataset_version: str
+    feature_version: str
+    label_version: str
+    horizon_seconds: int
+    start: datetime
+    end: datetime
+    dataset_sha256: str
+    config: dict[str, Any]
+    config_sha256: str
+    source_backtest_config_sha256: str
+    source_plan_sha256: str
+    source_fold_membership_sha256: tuple[str, ...]
+    folds: tuple[CalibrationEdgeFoldReport, ...]
+    aggregate_oos: CalibrationEdgeAggregateReport
+    final_holdout: CalibrationEdgeFinalReport
+    semantic_sha256: str
+    created_at: datetime
