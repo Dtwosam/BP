@@ -25,7 +25,17 @@ The `bp-live-predictor` process runs as the unprivileged `bp` user with systemd 
 
 Never accept a moving branch tip. The operator supplies an exact candidate SHA in `PHASE10_HEAD`. The Cloud Shell wrapper fetches `build/phase-10-live-prediction-engine`, verifies that the branch still resolves to that SHA, creates a detached root-owned worktree, and exports it through `git archive` into a separate bp-owned source directory.
 
-The host gate then receives the exact SHA as `BP_VERIFIED_HEAD` and refuses to run unless it matches its expected SHA. The Git worktree is not re-owned and no global Git trust configuration is added.
+The host gate then receives the exact verified worktree SHA as `BP_VERIFIED_HEAD` and refuses to run unless it matches its expected SHA. The Git worktree is not re-owned and no global Git trust configuration is added.
+
+Candidate source and virtualenv runtime artifacts live below `/var/lib/bp/phase10-runtime`, not `/tmp` or `/var/tmp`, so the hardened predictor service can still access them while `PrivateTmp=true` remains enabled.
+
+## Disconnect-resilient host acceptance
+
+The Cloud Shell wrapper treats the long prospective acceptance as a VM-owned job rather than an SSH-owned process. After candidate verification/export, it starts a transient systemd oneshot on `bp-recorder`; that job runs `phase10_host_acceptance.sh` and writes the authoritative console evidence directly to `/var/lib/bp/evidence/phase10-host-acceptance-latest.log` on the VM.
+
+A Cloud Shell or SSH disconnect therefore does **not** make an in-flight host proof valid or invalid by itself. Re-running the same pinned helper for the same candidate reattaches to the VM-owned acceptance job and reports its current/final state instead of starting an unverified replacement proof. A run is accepted only from the VM evidence and only when the final required verdict tokens are present.
+
+If the wrapper loses its client connection before the host job finishes, do not infer success from service inactivity, elapsed time, or partial evidence. Reconnect with the exact same pinned candidate helper and read the VM-owned result.
 
 ## Prospective evidence only
 
@@ -60,14 +70,9 @@ A nonzero `trade=true` count is not required, and positive hypothetical P&L is n
 
 ## Run from Google Cloud Shell
 
-First identify the exact candidate SHA that passed CI, then run:
+First identify the exact candidate SHA that passed all required exact-head CI/smoke gates, then run the **pinned helper for that SHA**. Do not execute an older helper after the candidate head has changed.
 
-```bash
-export PHASE10_HEAD=<exact-verified-sha>
-bash scripts/deploy/phase10_cloudshell_accept.sh
-```
-
-The wrapper connects to the recorder VM and runs `scripts/deploy/phase10_host_acceptance.sh` against the verified export. The default observation bound is 2100 seconds. For an operationally justified longer window, set `PHASE10_OBSERVE_SECONDS` explicitly before invoking the wrapper; reducing it below 60 seconds is rejected.
+The wrapper connects to the recorder VM, verifies/exports the exact candidate, and starts or reattaches to the VM-owned acceptance job. The default observation bound is 2100 seconds. For an operationally justified longer window, set `PHASE10_OBSERVE_SECONDS` explicitly before the first invocation; reducing it below 60 seconds is rejected.
 
 A successful run ends with both:
 
