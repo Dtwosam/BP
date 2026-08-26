@@ -16,6 +16,7 @@ from bp_engine.live_prediction.repository import LivePredictionEvaluationReposit
 from bp_engine.storage.schema import live_predictions, market_labels
 
 OFFICIAL_LABEL_VERSION = "official-outcome-v1"
+_LEDGER_QUANTUM = Decimal("0.000000000000000001")
 
 
 class EvaluationIntegrityError(ValueError):
@@ -47,11 +48,15 @@ def _float(value: Any, name: str) -> float:
     return numeric
 
 
+def _ledger_float(value: float) -> float:
+    return float(Decimal(str(value)).quantize(_LEDGER_QUANTUM))
+
+
 def _row_metrics(probability: float, target: int) -> tuple[float, float]:
     clipped = clip_probability(probability)
     likelihood = clipped if target == 1 else 1.0 - clipped
-    log_loss = -math.log(likelihood)
-    brier = (clipped - float(target)) ** 2
+    log_loss = _ledger_float(-math.log(likelihood))
+    brier = _ledger_float((clipped - float(target)) ** 2)
     return log_loss, brier
 
 
@@ -127,8 +132,10 @@ def evaluate_prediction(
         fee = _float(prediction.fee, "fee")
         slippage = _float(prediction.slippage_buffer, "slippage_buffer")
         payout = 1.0 if correct else 0.0
-        hypothetical_gross_pnl = payout - ask
-        hypothetical_assumed_cost_pnl = hypothetical_gross_pnl - fee - slippage
+        hypothetical_gross_pnl = _ledger_float(payout - ask)
+        hypothetical_assumed_cost_pnl = _ledger_float(
+            hypothetical_gross_pnl - fee - slippage
+        )
 
     semantic_values = {
         "prediction_id": prediction.prediction_id,
@@ -168,10 +175,7 @@ def evaluate_prediction(
 
 
 def _prediction_from_row(row: Any) -> LivePrediction:
-    values = {
-        name: row[name]
-        for name in LivePrediction.__dataclass_fields__
-    }
+    values = {name: row[name] for name in LivePrediction.__dataclass_fields__}
     for name in (
         "market_start_at",
         "market_end_at",
@@ -192,10 +196,7 @@ def _prediction_from_row(row: Any) -> LivePrediction:
 
 
 def _label_from_row(row: Any) -> MarketLabel:
-    values = {
-        name: row[name]
-        for name in MarketLabel.__dataclass_fields__
-    }
+    values = {name: row[name] for name in MarketLabel.__dataclass_fields__}
     for name in (
         "market_start_at",
         "market_end_at",
