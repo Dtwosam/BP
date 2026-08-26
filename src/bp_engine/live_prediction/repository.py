@@ -14,6 +14,14 @@ from bp_engine.live_prediction.models import LivePrediction, LivePredictionEvalu
 from bp_engine.storage.schema import live_prediction_evaluations, live_predictions
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_EVALUATION_NUMERIC_FIELDS = (
+    "raw_log_loss",
+    "raw_brier",
+    "calibrated_log_loss",
+    "calibrated_brier",
+    "hypothetical_gross_pnl",
+    "hypothetical_assumed_cost_pnl",
+)
 
 
 class LivePredictionConflict(RuntimeError):
@@ -74,6 +82,15 @@ def _normalized(value: Any) -> Any:
 
 def _record_values(record: LivePrediction | LivePredictionEvaluation) -> dict[str, Any]:
     return asdict(record)
+
+
+def _evaluation_record_values(evaluation: LivePredictionEvaluation) -> dict[str, Any]:
+    values = _record_values(evaluation)
+    for name in _EVALUATION_NUMERIC_FIELDS:
+        value = values[name]
+        if value is not None:
+            values[name] = Decimal(str(value))
+    return values
 
 
 def _stored_values(row: Mapping[str, Any], columns: set[str]) -> dict[str, Any]:
@@ -277,7 +294,7 @@ class LivePredictionEvaluationRepository:
         evaluation: LivePredictionEvaluation,
     ) -> LiveLedgerStoreResult:
         self._validate(evaluation)
-        values = _record_values(evaluation)
+        values = _evaluation_record_values(evaluation)
         existing = self.get(
             connection,
             prediction_id=evaluation.prediction_id,
