@@ -20,6 +20,16 @@ from bp_engine.storage.schema import live_predictions, market_labels
 
 OFFICIAL_LABEL_VERSION = "official-outcome-v1"
 _LEDGER_QUANTUM = Decimal("0.000000000000000001")
+_NUMERIC_EVIDENCE_FIELDS = frozenset(
+    {
+        "raw_log_loss",
+        "raw_brier",
+        "calibrated_log_loss",
+        "calibrated_brier",
+        "hypothetical_gross_pnl",
+        "hypothetical_assumed_cost_pnl",
+    }
+)
 
 
 class EvaluationIntegrityError(ValueError):
@@ -213,11 +223,20 @@ def _label_from_row(row: Any) -> MarketLabel:
 def _comparison_value(value: Any) -> Any:
     if isinstance(value, datetime):
         return _stored_utc(value).isoformat()
-    if isinstance(value, Decimal):
-        return value.quantize(_LEDGER_QUANTUM)
-    if isinstance(value, float):
-        return Decimal.from_float(value).quantize(_LEDGER_QUANTUM)
     return value
+
+
+def _evidence_values_equal(name: str, stored: Any, expected: Any) -> bool:
+    if name in _NUMERIC_EVIDENCE_FIELDS:
+        if stored is None or expected is None:
+            return stored is expected
+        return math.isclose(
+            float(stored),
+            float(expected),
+            rel_tol=1e-15,
+            abs_tol=1e-15,
+        )
+    return _comparison_value(stored) == _comparison_value(expected)
 
 
 def _existing_evidence_mismatch(
@@ -227,7 +246,7 @@ def _existing_evidence_mismatch(
     for name in LivePredictionEvaluation.__dataclass_fields__:
         if name == "semantic_sha256":
             continue
-        if _comparison_value(stored[name]) != _comparison_value(getattr(expected, name)):
+        if not _evidence_values_equal(name, stored[name], getattr(expected, name)):
             return name
     return None
 
