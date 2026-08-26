@@ -12,7 +12,8 @@ ENV_FILE=/etc/bp/bp.env
 COMPOSE_FILE="$HOST_REPO/docker-compose.prod.yml"
 HOST_PY="$HOST_REPO/.venv/bin/python"
 EVIDENCE_ROOT=/var/lib/bp/evidence/phase10-live-prediction
-VENV="/var/tmp/bp-phase10-venv-${EXPECTED_HEAD:0:12}-$$"
+RUNTIME_ROOT=/var/lib/bp/phase10-runtime
+VENV="$RUNTIME_ROOT/bp-phase10-venv-${EXPECTED_HEAD:0:12}-$$"
 RUNTIME_UNIT=/run/systemd/system/bp-live-predictor.service
 OBSERVE_SECONDS="${PHASE10_OBSERVE_SECONDS:-2100}"
 POLL_SECONDS="${PHASE10_ACCEPTANCE_POLL_SECONDS:-10}"
@@ -86,7 +87,7 @@ if ! grep -qx 'User=bp' "$REPO/deploy/bp-live-predictor.service" || \
 fi
 
 echo "PREDICTOR_SERVICE_CONTRACT=User=bp"
-install -d -o bp -g bp "$EVIDENCE_ROOT"
+install -d -o bp -g bp "$EVIDENCE_ROOT" "$RUNTIME_ROOT"
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 run_dir="$EVIDENCE_ROOT/$stamp"
 install -d -o bp -g bp "$run_dir"
@@ -201,6 +202,8 @@ if [[ "$(systemctl show bp-live-predictor -p User --value)" != "bp" ]]; then
 fi
 if [[ "$(systemctl is-active bp-live-predictor || true)" != "active" ]]; then
   echo "bp-live-predictor failed to become active" >&2
+  systemctl --no-pager --full status bp-live-predictor >&2 || true
+  journalctl -u bp-live-predictor -n 80 --no-pager >&2 || true
   exit 5
 fi
 
