@@ -62,7 +62,7 @@ def _normalized(value: Any) -> Any:
             value = value.replace(tzinfo=UTC)
         return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
     if isinstance(value, Decimal):
-        return value
+        return Decimal(str(float(value)))
     if isinstance(value, float):
         return Decimal(str(value))
     if isinstance(value, Mapping):
