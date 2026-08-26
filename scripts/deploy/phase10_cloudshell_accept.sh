@@ -107,7 +107,7 @@ cleanup() {
 }
 trap cleanup EXIT
 set +e
-BP_REPO="\$SRC" BP_VERIFIED_HEAD="\$SHA" bash \\
+BP_REPO="\$SRC" BP_VERIFIED_HEAD="\$WORKTREE_HEAD" bash \\
   "\$SRC/scripts/deploy/phase10_host_acceptance.sh" "\$SHA" \\
   >"\$LOG" 2>&1
 RC=\$?
