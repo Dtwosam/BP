@@ -189,3 +189,11 @@ Reported execution P&L is explicitly gross before fees, slippage, latency, and o
 Phase 8 production evidence demonstrates why the project's aspirational accuracy target is not itself a trading criterion. The 5m accepted walk-forward report reached 0.8264 ordinary OOS accuracy over 144 markets and 0.8333 on the final holdout, yet observed-ask gross P&L was negative in both aggregate ordinary OOS and final holdout. The 15m report reached 0.9792 ordinary OOS accuracy over only 48 markets, but the untouched final holdout fell to 0.625 accuracy and gross P&L was negative.
 
 Therefore the high 15m ordinary-OOS headline and individual offset slices must not be cherry-picked into a trading rule. Phase 9 should calibrate probabilities using permitted training/validation data, compare them with observed executable selected-side prices, account for spread/fees/slippage/uncertainty/staleness, and abstain when a configured minimum net edge is not met. Any threshold or calibration choice must be frozen before untouched evaluation is consulted.
+
+## D-027 — Phase 9 abstention is valid; ordinary-OOS edge cannot override a losing untouched holdout
+**Date:** 26 Aug 2026  
+**Status:** Active
+
+Phase 9 production acceptance validates the calibration/edge/abstention machinery, not trading profitability. Under the explicit research assumptions `fee_rate=0.07` and `slippage_buffer=0.01`, the accepted 5m policy traded only three ordinary OOS markets for +0.148014 assumed-cost P&L, but the untouched final holdout also traded three markets and produced -0.418991 assumed-cost P&L. The positive ordinary-OOS slice must not be promoted, threshold-retuned, or described as a profitable strategy because the frozen untouched evidence does not confirm it.
+
+For 15m, validation selected `no_trade` in every ordinary fold and for the final holdout, producing zero trades. That is a successful fail-closed research outcome, not a defect to be bypassed. Phase 10 may therefore build a live prediction engine with money disabled so prospective immutable predictions can be measured, but paper execution, live readiness, and real-money trading remain blocked by later build-order gates. Live trading still requires explicit user authorization.
