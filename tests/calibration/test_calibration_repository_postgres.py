@@ -80,7 +80,7 @@ def _report(created_at: datetime) -> _RegistryReport:
 def test_postgres_registry_is_idempotent_and_keeps_original_created_at() -> None:
     assert DATABASE_URL is not None
     module = importlib.import_module("bp_engine.calibration.repository")
-    table = getattr(schema, "calibration_edge_runs")
+    table = schema.calibration_edge_runs
     engine = create_engine(DATABASE_URL)
     schema.metadata.create_all(engine)
     repository = module.CalibrationEdgeRunRepository()
