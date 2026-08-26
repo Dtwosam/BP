@@ -82,7 +82,7 @@ def _repository_module():
 
 
 def _table():
-    return getattr(schema, "calibration_edge_runs")
+    return schema.calibration_edge_runs
 
 
 def test_calibration_edge_schema_has_immutable_identity_and_hashes() -> None:
