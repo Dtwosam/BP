@@ -216,7 +216,7 @@ def _comparison_value(value: Any) -> Any:
     if isinstance(value, Decimal):
         return value.quantize(_LEDGER_QUANTUM)
     if isinstance(value, float):
-        return Decimal(str(value)).quantize(_LEDGER_QUANTUM)
+        return Decimal.from_float(value).quantize(_LEDGER_QUANTUM)
     return value
 
 
