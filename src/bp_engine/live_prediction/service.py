@@ -11,7 +11,7 @@ from sqlalchemy import Connection, Engine, select
 
 from bp_engine.config import Settings, TradingMode
 from bp_engine.live_prediction.evaluation import append_available_evaluations
-from bp_engine.live_prediction.inputs import observe_live_market_input
+from bp_engine.live_prediction.inputs import observe_live_input
 from bp_engine.live_prediction.models import LIVE_PREDICTION_VERSION, LivePolicySpec
 from bp_engine.live_prediction.predictor import build_live_prediction
 from bp_engine.live_prediction.repository import LivePredictionRepository
@@ -55,7 +55,7 @@ def _utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-def _as_utc(value: datetime, name: str) -> datetime:
+def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
@@ -146,8 +146,8 @@ def load_due_markets(
 
         horizon_seconds = int(row["horizon_seconds"])
         policy = policies[horizon_seconds]
-        market_start_at = _as_utc(row["start_at"], "market_start_at")
-        market_end_at = _as_utc(row["end_at"], "market_end_at")
+        market_start_at = _as_utc(row["start_at"])
+        market_end_at = _as_utc(row["end_at"])
         scheduled_at = market_start_at + timedelta(
             seconds=policy.selected_offset_seconds
         )
@@ -195,7 +195,7 @@ class LivePredictionService:
         engine: Engine,
         policies: Mapping[int, LivePolicySpec],
         client: Any,
-        observer: Observer = observe_live_market_input,
+        observer: Observer = observe_live_input,
         predictor: Predictor = _default_predictor,
         repository: LivePredictionRepository | None = None,
         evaluator: Evaluator = append_available_evaluations,
@@ -227,19 +227,16 @@ class LivePredictionService:
     async def _process_market(self, market: DueMarket) -> tuple[bool, bool, bool]:
         policy = self._policies[market.horizon_seconds]
         with self._engine.begin() as connection:
-            request_started_at = self._now()
             live_input = await self._observer(
                 connection,
                 self._client,
                 condition_id=market.condition_id,
-                slug=market.slug,
-                horizon_seconds=market.horizon_seconds,
+                up_token_id=market.up_token_id,
+                down_token_id=market.down_token_id,
                 market_start_at=market.market_start_at,
                 market_end_at=market.market_end_at,
                 scheduled_at=market.scheduled_at,
-                up_token_id=market.up_token_id,
-                down_token_id=market.down_token_id,
-                request_started_at=request_started_at,
+                clock=self._clock,
                 max_lateness_seconds=self._max_lateness_seconds,
             )
             completed_at = self._now()
