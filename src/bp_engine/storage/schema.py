@@ -350,7 +350,11 @@ model_training_runs = Table(
     UniqueConstraint("run_id", name="uq_model_training_runs_run_id"),
 )
 
-Index("ix_model_training_runs_horizon_created", model_training_runs.c.horizon_seconds, model_training_runs.c.created_at)
+Index(
+    "ix_model_training_runs_horizon_created",
+    model_training_runs.c.horizon_seconds,
+    model_training_runs.c.created_at,
+)
 
 backtest_runs = Table(
     "backtest_runs",
@@ -381,7 +385,11 @@ backtest_runs = Table(
     UniqueConstraint("run_id", name="uq_backtest_runs_run_id"),
 )
 
-Index("ix_backtest_runs_horizon_created", backtest_runs.c.horizon_seconds, backtest_runs.c.created_at)
+Index(
+    "ix_backtest_runs_horizon_created",
+    backtest_runs.c.horizon_seconds,
+    backtest_runs.c.created_at,
+)
 
 calibration_edge_runs = Table(
     "calibration_edge_runs",
@@ -422,4 +430,139 @@ Index(
     "ix_calibration_edge_runs_horizon_created",
     calibration_edge_runs.c.horizon_seconds,
     calibration_edge_runs.c.created_at,
+)
+
+live_predictions = Table(
+    "live_predictions",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("prediction_id", String(64), nullable=False),
+    Column("semantic_sha256", String(64), nullable=False),
+    Column("prediction_version", String(64), nullable=False),
+    Column("live_input_version", String(64), nullable=False),
+    Column("condition_id", Text, nullable=False),
+    Column("slug", String(256), nullable=False),
+    Column("horizon_seconds", Integer, nullable=False),
+    Column("market_start_at", DateTime(timezone=True), nullable=False),
+    Column("market_end_at", DateTime(timezone=True), nullable=False),
+    Column("scheduled_at", DateTime(timezone=True), nullable=False),
+    Column("recorded_at", DateTime(timezone=True), nullable=False),
+    Column("lateness_ms", Integer, nullable=False),
+    Column("up_token_id", Text, nullable=False),
+    Column("down_token_id", Text, nullable=False),
+    Column("source_calibration_run_id", String(128), nullable=False),
+    Column("source_calibration_semantic_sha256", String(64), nullable=False),
+    Column("source_backtest_run_id", String(128), nullable=False),
+    Column("source_backtest_semantic_sha256", String(64), nullable=False),
+    Column("source_training_run_id", String(128), nullable=False),
+    Column("source_training_semantic_sha256", String(64), nullable=False),
+    Column("calibration_version", String(64), nullable=False),
+    Column("edge_policy_version", String(64), nullable=False),
+    Column("source_feature_version", String(64), nullable=False),
+    Column("source_label_version", String(64), nullable=False),
+    Column("selected_offset_seconds", Integer, nullable=False),
+    Column("policy_sha256", String(64), nullable=False),
+    Column("calibration_fit", JSON, nullable=False),
+    Column("calibration_fit_sha256", String(64), nullable=False),
+    Column("edge_config", JSON, nullable=False),
+    Column("edge_config_sha256", String(64), nullable=False),
+    Column("edge_policy", String(32), nullable=False),
+    Column("min_edge", Numeric(38, 18), nullable=True),
+    Column("training_prior", Numeric(38, 18), nullable=False),
+    Column("raw_probability", Numeric(38, 18), nullable=False),
+    Column("calibrated_probability", Numeric(38, 18), nullable=False),
+    Column("predicted_target", Integer, nullable=False),
+    Column("predicted_side", String(8), nullable=False),
+    Column("market_probability_observed", Boolean, nullable=False),
+    Column("market_probability", Numeric(38, 18), nullable=True),
+    Column("market_probability_observed_at", DateTime(timezone=True), nullable=True),
+    Column("market_probability_downloaded_at", DateTime(timezone=True), nullable=False),
+    Column("market_probability_source", String(64), nullable=False),
+    Column("market_probability_dataset", String(64), nullable=False),
+    Column("market_probability_request_params", JSON, nullable=False),
+    Column("market_probability_response_sha256", String(64), nullable=False),
+    Column("up_best_bid", Numeric(38, 18), nullable=True),
+    Column("up_best_ask", Numeric(38, 18), nullable=True),
+    Column("up_book_cutoff_at", DateTime(timezone=True), nullable=True),
+    Column("up_book_fresh", Boolean, nullable=False),
+    Column("down_best_bid", Numeric(38, 18), nullable=True),
+    Column("down_best_ask", Numeric(38, 18), nullable=True),
+    Column("down_book_cutoff_at", DateTime(timezone=True), nullable=True),
+    Column("down_book_fresh", Boolean, nullable=False),
+    Column("selected_side", String(8), nullable=False),
+    Column("executable", Boolean, nullable=False),
+    Column("trade", Boolean, nullable=False),
+    Column("decision_reason", String(64), nullable=False),
+    Column("selected_ask", Numeric(38, 18), nullable=True),
+    Column("selected_bid", Numeric(38, 18), nullable=True),
+    Column("selected_spread", Numeric(38, 18), nullable=True),
+    Column("fee", Numeric(38, 18), nullable=False),
+    Column("slippage_buffer", Numeric(38, 18), nullable=False),
+    Column("raw_edge", Numeric(38, 18), nullable=True),
+    Column("cost_adjusted_edge", Numeric(38, 18), nullable=True),
+    Column("decision_min_edge", Numeric(38, 18), nullable=True),
+    Column("edge_decision", JSON, nullable=False),
+    Column("input_fingerprint", String(64), nullable=False),
+    CheckConstraint("horizon_seconds > 0", name="ck_live_predictions_positive_horizon"),
+    CheckConstraint(
+        "market_end_at > market_start_at", name="ck_live_predictions_window_order"
+    ),
+    CheckConstraint(
+        "scheduled_at > market_start_at", name="ck_live_predictions_schedule_after_start"
+    ),
+    CheckConstraint(
+        "scheduled_at < market_end_at", name="ck_live_predictions_schedule_before_end"
+    ),
+    CheckConstraint(
+        "lateness_ms >= 0 AND lateness_ms <= 10000",
+        name="ck_live_predictions_lateness",
+    ),
+    UniqueConstraint("prediction_id", name="uq_live_predictions_prediction_id"),
+    UniqueConstraint(
+        "condition_id",
+        "prediction_version",
+        name="uq_live_predictions_condition_version",
+    ),
+)
+
+Index("ix_live_predictions_scheduled_at", live_predictions.c.scheduled_at)
+Index(
+    "ix_live_predictions_horizon_scheduled",
+    live_predictions.c.horizon_seconds,
+    live_predictions.c.scheduled_at,
+)
+
+live_prediction_evaluations = Table(
+    "live_prediction_evaluations",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("prediction_id", String(64), nullable=False),
+    Column("label_version", String(64), nullable=False),
+    Column("official_outcome", String(8), nullable=False),
+    Column("official_target", Integer, nullable=False),
+    Column("label_source", String(64), nullable=False),
+    Column("label_source_snapshot_sha256", String(64), nullable=False),
+    Column("label_source_observed_at", DateTime(timezone=True), nullable=False),
+    Column("evaluated_at", DateTime(timezone=True), nullable=False),
+    Column("correct", Boolean, nullable=False),
+    Column("raw_log_loss", Numeric(38, 18), nullable=False),
+    Column("raw_brier", Numeric(38, 18), nullable=False),
+    Column("calibrated_log_loss", Numeric(38, 18), nullable=False),
+    Column("calibrated_brier", Numeric(38, 18), nullable=False),
+    Column("hypothetical_gross_pnl", Numeric(38, 18), nullable=True),
+    Column("hypothetical_assumed_cost_pnl", Numeric(38, 18), nullable=True),
+    Column("semantic_sha256", String(64), nullable=False),
+    CheckConstraint(
+        "official_target IN (0, 1)", name="ck_live_prediction_evaluations_target"
+    ),
+    UniqueConstraint(
+        "prediction_id",
+        "label_version",
+        name="uq_live_prediction_evaluations_prediction_label",
+    ),
+)
+
+Index(
+    "ix_live_prediction_evaluations_evaluated_at",
+    live_prediction_evaluations.c.evaluated_at,
 )
