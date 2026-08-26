@@ -1,0 +1,86 @@
+{
+  "phase": 9,
+  "phase_name": "probability calibration + edge engine",
+  "closed_at": "2026-08-26T09:29:00Z",
+  "host_acceptance": {
+    "verdict": "PASS",
+    "accepted_operational_commit": "023832db5a55c6fcb686d81bd5ab6a6185273481",
+    "window_start": "2026-08-24T00:00:00Z",
+    "window_end": "2026-08-25T00:00:00Z",
+    "latest_log": "/var/lib/bp/evidence/phase9-host-acceptance-latest.log"
+  },
+  "exact_head_prehost_gates": {
+    "ci": {"run": 861, "passed": true},
+    "historical_backfill_smoke": {"run": 328, "passed": true},
+    "live_recorder_smoke": {"run": 432, "passed": true},
+    "recorder_short_soak": {"run": 396, "passed": true}
+  },
+  "source_backtests": {
+    "5m": {
+      "run_id": "phase8-300-efdf493067e9d56419afc4d88452bec6",
+      "semantic_sha256": "efdf493067e9d56419afc4d88452bec6effb871482664d19f109b3bbe4dd1d93",
+      "selected_offsets_seconds": [240, 240, 240, 240, 240, 240]
+    },
+    "15m": {
+      "run_id": "phase8-900-64aaf2b1774ee7af37bd110b84b37ec1",
+      "semantic_sha256": "64aaf2b1774ee7af37bd110b84b37ec19f85bdc875a283986d4dba16ae921828",
+      "selected_offsets_seconds": [840, 840, 780, 780, 840, 840]
+    }
+  },
+  "cost_assumptions": {
+    "fee_rate_coefficient": 0.07,
+    "slippage_buffer_per_share": 0.01,
+    "interpretation": "Research assumptions used to compute assumed-cost edge/PnL; not a claim of realized live net costs."
+  },
+  "calibration_edge_runs": {
+    "5m": {
+      "run_id": "phase9-300-c9f0e00eb7836af08008c66909f8f179",
+      "semantic_sha256": "c9f0e00eb7836af08008c66909f8f179f03089413426508469353c75bcbcae24",
+      "fold_policies": ["no_trade", "no_trade", "no_trade", "no_trade", "no_trade", "trade_threshold"],
+      "ordinary_oos_trades": 3,
+      "ordinary_oos_assumed_cost_pnl": 0.14801400000000012,
+      "final_policy": "trade_threshold",
+      "final_trades": 3,
+      "final_assumed_cost_pnl": -0.418991
+    },
+    "15m": {
+      "run_id": "phase9-900-15c234f25588b23cce73a12f87a2e2ea",
+      "semantic_sha256": "15c234f25588b23cce73a12f87a2e2ea9087490055f203f22f183594b4bcfacd",
+      "fold_policies": ["no_trade", "no_trade", "no_trade", "no_trade", "no_trade", "no_trade"],
+      "ordinary_oos_trades": 0,
+      "ordinary_oos_assumed_cost_pnl": 0,
+      "final_policy": "no_trade",
+      "final_trades": 0,
+      "final_assumed_cost_pnl": 0
+    }
+  },
+  "reproducibility_and_integrity": {
+    "semantic_rerun_match": true,
+    "registry_before": 0,
+    "registry_after_first": 2,
+    "registry_after_second": 2,
+    "registry_second_run_delta": 0,
+    "source_offset_mismatch_violations": 0,
+    "oos_holdout_overlap_violations": 0,
+    "executable_contract_violations": 0,
+    "cost_assumption_violations": 0,
+    "selection_boundary_violations": 0
+  },
+  "host_safety": {
+    "disk_status_before": "ok",
+    "disk_free_bytes_before": 118854045696,
+    "disk_status_after": "ok",
+    "disk_free_bytes_after": 118456893440,
+    "recorder_before": "active",
+    "recorder_after": "active",
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0
+  },
+  "research_interpretation": {
+    "phase_9_result": "Calibration/edge/abstention infrastructure accepted; no live-trading profitability claim.",
+    "5m": "Validation-selected policy traded only three ordinary OOS markets for +0.148014 under the explicit fee/slippage assumptions, but the untouched final holdout traded three markets for -0.418991. This does not support promotion to live or paper execution on profitability grounds.",
+    "15m": "Validation selected no_trade in every ordinary fold and for the final holdout, yielding zero trades. Abstention is a valid successful research outcome and must not be overridden to manufacture activity.",
+    "phase_10_direction": "Build the live prediction engine with money disabled. Persist immutable predictions before outcomes, including model/feature versions, probability, side, observed bid/ask, edge and decision; append outcome/evaluation only after resolution."
+  }
+}
