@@ -382,3 +382,44 @@ backtest_runs = Table(
 )
 
 Index("ix_backtest_runs_horizon_created", backtest_runs.c.horizon_seconds, backtest_runs.c.created_at)
+
+calibration_edge_runs = Table(
+    "calibration_edge_runs",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("run_id", String(128), nullable=False),
+    Column("calibration_version", String(64), nullable=False),
+    Column("edge_policy_version", String(64), nullable=False),
+    Column("source_backtest_run_id", String(128), nullable=False),
+    Column("source_backtest_semantic_sha256", String(64), nullable=False),
+    Column("source_training_run_id", String(128), nullable=False),
+    Column("source_training_semantic_sha256", String(64), nullable=False),
+    Column("dataset_version", String(64), nullable=False),
+    Column("feature_version", String(64), nullable=False),
+    Column("label_version", String(64), nullable=False),
+    Column("horizon_seconds", Integer, nullable=False),
+    Column("requested_start", DateTime(timezone=True), nullable=False),
+    Column("requested_end", DateTime(timezone=True), nullable=False),
+    Column("dataset_sha256", String(64), nullable=False),
+    Column("config", JSON, nullable=False),
+    Column("config_sha256", String(64), nullable=False),
+    Column("source_plan_sha256", String(64), nullable=False),
+    Column("source_fold_membership_sha256", JSON, nullable=False),
+    Column("report", JSON, nullable=False),
+    Column("semantic_sha256", String(64), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint(
+        "horizon_seconds > 0", name="ck_calibration_edge_runs_positive_horizon"
+    ),
+    CheckConstraint(
+        "requested_end > requested_start",
+        name="ck_calibration_edge_runs_window_order",
+    ),
+    UniqueConstraint("run_id", name="uq_calibration_edge_runs_run_id"),
+)
+
+Index(
+    "ix_calibration_edge_runs_horizon_created",
+    calibration_edge_runs.c.horizon_seconds,
+    calibration_edge_runs.c.created_at,
+)
