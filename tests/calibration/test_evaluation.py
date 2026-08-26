@@ -44,7 +44,12 @@ def _row(condition: str, probability: float | None, target: int, offset: int) ->
     )
 
 
-def _dataset(*, flip_test: bool = False, flip_validation: bool = False, missing_test_price: bool = False) -> DatasetSnapshot:
+def _dataset(
+    *,
+    flip_test: bool = False,
+    flip_validation: bool = False,
+    missing_test_price: bool = False,
+) -> DatasetSnapshot:
     train = [
         ("train-0", 0.20, 0),
         ("train-1", 0.25, 0),
@@ -68,9 +73,15 @@ def _dataset(*, flip_test: bool = False, flip_validation: bool = False, missing_
         ("test-15", 0.25, 0),
     ]
     if flip_validation:
-        validation = [(condition, probability, 1 - target) for condition, probability, target in validation]
+        validation = [
+            (condition, probability, 1 - target)
+            for condition, probability, target in validation
+        ]
     if flip_test:
-        test = [(condition, probability, 1 - target) for condition, probability, target in test]
+        test = [
+            (condition, probability, 1 - target)
+            for condition, probability, target in test
+        ]
 
     rows: list[SupervisedRow] = []
     for condition, probability, target in [*train, *validation, *test]:
