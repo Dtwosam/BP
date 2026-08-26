@@ -155,6 +155,16 @@ def test_phase10_acceptance_runtime_paths_survive_private_tmp() -> None:
     assert "/var/tmp/bp-phase10-src-" not in cloud
 
 
+def test_phase10_cloudshell_acceptance_survives_client_disconnect() -> None:
+    text = _required_text(CLOUD)
+
+    assert "systemd-run" in text
+    assert "bp-phase10-host-acceptance-" in text
+    assert "RemainAfterExit=yes" in text
+    assert "journalctl" in text
+    assert "systemctl show" in text
+
+
 def test_phase10_runbook_documents_prospective_evidence_and_non_economic_gate() -> None:
     text = _required_text(RUNBOOK).lower()
 
