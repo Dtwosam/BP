@@ -32,7 +32,8 @@ set -Eeuo pipefail
 SHA='$EXPECTED_HEAD'
 BRANCH='$BRANCH'
 WT="/var/tmp/bp-phase10-wt-\${SHA:0:12}-\$\$"
-SRC="/var/tmp/bp-phase10-src-\${SHA:0:12}-\$\$"
+RUNTIME_ROOT=/var/lib/bp/phase10-runtime
+SRC="\$RUNTIME_ROOT/bp-phase10-src-\${SHA:0:12}-\$\$"
 LOG=/var/lib/bp/evidence/phase10-host-acceptance-latest.log
 
 git -C /opt/bp fetch --no-tags origin \
@@ -56,7 +57,7 @@ if [[ "\$WORKTREE_HEAD" != "\$SHA" ]]; then
   echo "WORKTREE_HEAD=\$WORKTREE_HEAD"
   exit 2
 fi
-install -d -o bp -g bp "\$SRC"
+install -d -o bp -g bp "\$RUNTIME_ROOT" "\$SRC"
 git -C "\$WT" archive --format=tar "\$SHA" | sudo -u bp tar -xf - -C "\$SRC"
 cleanup() {
   rm -rf "\$SRC" >/dev/null 2>&1 || true
