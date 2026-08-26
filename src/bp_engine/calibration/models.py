@@ -115,3 +115,64 @@ class EdgePolicySelection:
     min_edge: float | None
     validation_metrics: EdgePolicyMetrics
     candidates: tuple[EdgeThresholdCandidate, ...]
+
+
+@dataclass(frozen=True)
+class CalibrationEdgePrediction:
+    condition_id: str
+    target: int
+    raw_probability: float
+    calibrated_probability: float
+    market_probability_observed: bool
+    edge_decision: EdgeDecision
+
+
+@dataclass(frozen=True)
+class CalibrationEdgeFoldReport:
+    index: int
+    membership_sha256: str
+    train_condition_ids: tuple[str, ...]
+    validation_condition_ids: tuple[str, ...]
+    test_condition_ids: tuple[str, ...]
+    selected_offset_seconds: int
+    calibration_selection_fit_partition: str
+    calibration_selection_partition: str
+    edge_selection_partition: str
+    evaluation_partition: str
+    expected_test_markets: int
+    predicted_test_markets: int
+    missing_offset_condition_ids: tuple[str, ...]
+    prediction_coverage: float
+    observed_market_price_test_markets: int
+    observed_market_price_coverage: float
+    calibration_selection: CalibrationSelection
+    edge_policy_selection: EdgePolicySelection
+    raw_metrics: MetricSummary | None
+    calibrated_metrics: MetricSummary | None
+    edge_metrics: EdgePolicyMetrics
+    predictions: tuple[CalibrationEdgePrediction, ...]
+
+
+@dataclass(frozen=True)
+class CalibrationEdgeFinalReport:
+    membership_sha256: str
+    train_condition_ids: tuple[str, ...]
+    validation_condition_ids: tuple[str, ...]
+    holdout_condition_ids: tuple[str, ...]
+    selected_offset_seconds: int
+    calibration_selection_fit_partition: str
+    calibration_selection_partition: str
+    edge_selection_partition: str
+    evaluation_partition: str
+    expected_holdout_markets: int
+    predicted_holdout_markets: int
+    missing_offset_condition_ids: tuple[str, ...]
+    prediction_coverage: float
+    observed_market_price_holdout_markets: int
+    observed_market_price_coverage: float
+    calibration_selection: CalibrationSelection
+    edge_policy_selection: EdgePolicySelection
+    raw_metrics: MetricSummary | None
+    calibrated_metrics: MetricSummary | None
+    edge_metrics: EdgePolicyMetrics
+    predictions: tuple[CalibrationEdgePrediction, ...]
