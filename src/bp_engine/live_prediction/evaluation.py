@@ -12,7 +12,10 @@ from bp_engine.calibration.calibrators import clip_probability
 from bp_engine.features.hashing import canonical_hash
 from bp_engine.labels.models import MarketLabel
 from bp_engine.live_prediction.models import LivePrediction, LivePredictionEvaluation
-from bp_engine.live_prediction.repository import LivePredictionEvaluationRepository
+from bp_engine.live_prediction.repository import (
+    LivePredictionEvaluationConflict,
+    LivePredictionEvaluationRepository,
+)
 from bp_engine.storage.schema import live_predictions, market_labels
 
 OFFICIAL_LABEL_VERSION = "official-outcome-v1"
@@ -207,6 +210,28 @@ def _label_from_row(row: Any) -> MarketLabel:
     return MarketLabel(**values)
 
 
+def _comparison_value(value: Any) -> Any:
+    if isinstance(value, datetime):
+        return _stored_utc(value).isoformat()
+    if isinstance(value, Decimal):
+        return Decimal(str(float(value)))
+    if isinstance(value, float):
+        return Decimal(str(value))
+    return value
+
+
+def _existing_evidence_matches(
+    stored: Any,
+    expected: LivePredictionEvaluation,
+) -> bool:
+    for name in LivePredictionEvaluation.__dataclass_fields__:
+        if name == "semantic_sha256":
+            continue
+        if _comparison_value(stored[name]) != _comparison_value(getattr(expected, name)):
+            return False
+    return True
+
+
 def append_available_evaluations(
     connection: Connection,
     *,
@@ -246,6 +271,16 @@ def append_available_evaluations(
             label,
             evaluated_at=effective_evaluated_at,
         )
+        if stored_evaluation is not None:
+            if not _existing_evidence_matches(stored_evaluation, evaluation):
+                raise LivePredictionEvaluationConflict(
+                    "conflicting live prediction evaluation "
+                    f"prediction_id={evaluation.prediction_id} "
+                    f"label_version={evaluation.label_version}"
+                )
+            existing_count += 1
+            continue
+
         result = repository.store(connection, evaluation)
         created += int(result.created)
         existing_count += int(result.existing)
