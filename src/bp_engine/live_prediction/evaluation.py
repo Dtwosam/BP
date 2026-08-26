@@ -293,11 +293,14 @@ def append_available_evaluations(
         if stored_evaluation is not None:
             mismatch = _existing_evidence_mismatch(stored_evaluation, evaluation)
             if mismatch is not None:
+                stored_value = stored_evaluation[mismatch]
+                expected_value = getattr(evaluation, mismatch)
                 raise LivePredictionEvaluationConflict(
                     "conflicting live prediction evaluation "
                     f"prediction_id={evaluation.prediction_id} "
                     f"label_version={evaluation.label_version} "
-                    f"field={mismatch}"
+                    f"field={mismatch} "
+                    f"stored={stored_value!r} expected={expected_value!r}"
                 )
             existing_count += 1
             continue
