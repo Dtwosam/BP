@@ -26,11 +26,11 @@ from bp_engine.calibration.source import (
     load_backtest_source_spec,
 )
 from bp_engine.features.hashing import canonical_hash
+from bp_engine.live_prediction.models import LIVE_INPUT_VERSION as _LIVE_INPUT_VERSION
 from bp_engine.live_prediction.models import (
-    LIVE_INPUT_VERSION as _LIVE_INPUT_VERSION,
     LIVE_PREDICTION_VERSION as _LIVE_PREDICTION_VERSION,
-    LivePolicySpec,
 )
+from bp_engine.live_prediction.models import LivePolicySpec
 from bp_engine.storage.schema import market_labels
 
 LIVE_PREDICTION_VERSION = _LIVE_PREDICTION_VERSION
