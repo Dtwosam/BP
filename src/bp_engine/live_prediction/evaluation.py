@@ -214,9 +214,9 @@ def _comparison_value(value: Any) -> Any:
     if isinstance(value, datetime):
         return _stored_utc(value).isoformat()
     if isinstance(value, Decimal):
-        return Decimal(str(float(value)))
+        return value.quantize(_LEDGER_QUANTUM)
     if isinstance(value, float):
-        return Decimal(str(value))
+        return Decimal(str(value)).quantize(_LEDGER_QUANTUM)
     return value
 
 
