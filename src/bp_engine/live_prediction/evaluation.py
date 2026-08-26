@@ -220,16 +220,16 @@ def _comparison_value(value: Any) -> Any:
     return value
 
 
-def _existing_evidence_matches(
+def _existing_evidence_mismatch(
     stored: Any,
     expected: LivePredictionEvaluation,
-) -> bool:
+) -> str | None:
     for name in LivePredictionEvaluation.__dataclass_fields__:
         if name == "semantic_sha256":
             continue
         if _comparison_value(stored[name]) != _comparison_value(getattr(expected, name)):
-            return False
-    return True
+            return name
+    return None
 
 
 def append_available_evaluations(
@@ -272,11 +272,13 @@ def append_available_evaluations(
             evaluated_at=effective_evaluated_at,
         )
         if stored_evaluation is not None:
-            if not _existing_evidence_matches(stored_evaluation, evaluation):
+            mismatch = _existing_evidence_mismatch(stored_evaluation, evaluation)
+            if mismatch is not None:
                 raise LivePredictionEvaluationConflict(
                     "conflicting live prediction evaluation "
                     f"prediction_id={evaluation.prediction_id} "
-                    f"label_version={evaluation.label_version}"
+                    f"label_version={evaluation.label_version} "
+                    f"field={mismatch}"
                 )
             existing_count += 1
             continue
