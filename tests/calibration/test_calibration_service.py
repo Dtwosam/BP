@@ -198,7 +198,7 @@ def test_dataset_sha_mismatch_fails_closed(monkeypatch) -> None:
     module = _module()
     _patch(monkeypatch, module, dataset=replace(_dataset(), dataset_sha256="0" * 64))
 
-    with pytest.raises(ValueError, match="dataset_sha256"):
+    with pytest.raises(module.CalibrationEdgeIntegrityError, match="dataset_sha256"):
         module.run_calibration_edge_analysis(
             object(),
             source_backtest_run_id="phase8-300-source",
@@ -213,7 +213,7 @@ def test_requested_window_must_equal_source_window(monkeypatch) -> None:
     module = _module()
     _patch(monkeypatch, module)
 
-    with pytest.raises(ValueError, match="source window"):
+    with pytest.raises(module.CalibrationEdgeIntegrityError, match="source window"):
         module.run_calibration_edge_analysis(
             object(),
             source_backtest_run_id="phase8-300-source",
@@ -233,7 +233,9 @@ def test_duplicate_ordinary_oos_condition_is_rejected(monkeypatch) -> None:
     )
     _patch(monkeypatch, module, source=replace(source, folds=(source.folds[0], duplicate)))
 
-    with pytest.raises(ValueError, match="ordinary OOS market reused"):
+    with pytest.raises(
+        module.CalibrationEdgeIntegrityError, match="ordinary OOS market reused"
+    ):
         module.run_calibration_edge_analysis(
             object(),
             source_backtest_run_id="phase8-300-source",
@@ -253,7 +255,9 @@ def test_final_holdout_overlap_is_rejected_before_evaluation(monkeypatch) -> Non
     )
     _patch(monkeypatch, module, source=replace(source, final=overlapping_final))
 
-    with pytest.raises(ValueError, match="final holdout overlaps"):
+    with pytest.raises(
+        module.CalibrationEdgeIntegrityError, match="final holdout overlaps"
+    ):
         module.run_calibration_edge_analysis(
             object(),
             source_backtest_run_id="phase8-300-source",
