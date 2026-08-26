@@ -26,7 +26,7 @@ def _module():
     return importlib.import_module("bp_engine.live_prediction.service")
 
 
-def _policy(*, horizon_seconds: int = 300, selected_offset_seconds: int = 240) -> LivePolicySpec:
+def _policy(*, horizon_seconds: int = 300, offset: int = 240) -> LivePolicySpec:
     return LivePolicySpec(
         source_calibration_run_id=f"phase9-{horizon_seconds}",
         source_calibration_semantic_sha256="1" * 64,
@@ -39,8 +39,12 @@ def _policy(*, horizon_seconds: int = 300, selected_offset_seconds: int = 240) -
         source_feature_version="core-v1",
         label_version="official-outcome-v1",
         horizon_seconds=horizon_seconds,
-        selected_offset_seconds=selected_offset_seconds,
-        calibration_fit=CalibrationFit(method="identity", intercept=None, coefficient=None),
+        selected_offset_seconds=offset,
+        calibration_fit=CalibrationFit(
+            method="identity",
+            intercept=None,
+            coefficient=None,
+        ),
         edge_config=EdgeConfig(
             fee_rate=0.07,
             slippage_buffer=0.01,
@@ -185,13 +189,11 @@ def test_safety_interlock_rejects_money_or_nonresearch_configuration(
     overrides: dict[str, object],
 ) -> None:
     module = _module()
-    settings = Settings(**overrides)
-
     with pytest.raises(module.LivePredictionSafetyError):
-        module.ensure_live_prediction_safety(settings)
+        module.ensure_live_prediction_safety(Settings(**overrides))
 
 
-def test_safety_interlock_accepts_exact_money_disabled_research_configuration() -> None:
+def test_safety_interlock_accepts_money_disabled_research_configuration() -> None:
     module = _module()
     settings = Settings(
         mode=TradingMode.RESEARCH,
@@ -199,11 +201,10 @@ def test_safety_interlock_accepts_exact_money_disabled_research_configuration() 
         max_trade_size_usd=0,
         max_daily_loss_usd=0,
     )
-
     module.ensure_live_prediction_safety(settings)
 
 
-def test_load_due_markets_enforces_offset_deadline_resolution_and_idempotence() -> None:
+def test_load_due_markets_enforces_eligibility_window_and_idempotence() -> None:
     module = _module()
     engine = create_engine("sqlite+pysqlite:///:memory:")
     schema.metadata.create_all(engine)
@@ -214,7 +215,6 @@ def test_load_due_markets_enforces_offset_deadline_resolution_and_idempotence() 
     with engine.begin() as connection:
         for values in (
             _market_values("due", start_at=start),
-            _market_values("at-deadline", start_at=start),
             _market_values("future", start_at=start + timedelta(seconds=5)),
             _market_values("expired", start_at=start - timedelta(seconds=11)),
             _market_values("unsupported", start_at=start, horizon_seconds=600),
@@ -247,9 +247,9 @@ def test_load_due_markets_enforces_offset_deadline_resolution_and_idempotence() 
             max_lateness_seconds=10,
         )
 
-    assert [market.condition_id for market in due] == ["at-deadline", "due"]
-    assert {market.condition_id for market in at_deadline} == {"at-deadline", "due"}
-    assert all(market.scheduled_at == scheduled for market in due)
+    assert [market.condition_id for market in due] == ["due"]
+    assert [market.condition_id for market in at_deadline] == ["due"]
+    assert due[0].scheduled_at == scheduled
 
 
 def test_service_never_observes_before_scheduled_time() -> None:
@@ -263,7 +263,9 @@ def test_service_never_observes_before_scheduled_time() -> None:
 
     with engine.begin() as connection:
         connection.execute(
-            insert(schema.polymarket_markets).values(**_market_values("future", start_at=start))
+            insert(schema.polymarket_markets).values(
+                **_market_values("future", start_at=start)
+            )
         )
 
     async def observer(connection, client, **kwargs):
@@ -277,12 +279,12 @@ def test_service_never_observes_before_scheduled_time() -> None:
         observer=observer,
         clock=lambda: current,
     )
-
     asyncio.run(service.run_once())
 
     assert observed == []
     with engine.begin() as connection:
-        assert connection.execute(select(schema.live_predictions)).mappings().all() == []
+        rows = connection.execute(select(schema.live_predictions)).mappings().all()
+    assert rows == []
 
 
 def test_service_rechecks_deadline_after_observation_and_does_not_backfill(caplog) -> None:
@@ -297,7 +299,9 @@ def test_service_rechecks_deadline_after_observation_and_does_not_backfill(caplo
 
     with engine.begin() as connection:
         connection.execute(
-            insert(schema.polymarket_markets).values(**_market_values("slow", start_at=start))
+            insert(schema.polymarket_markets).values(
+                **_market_values("slow", start_at=start)
+            )
         )
 
     async def observer(connection, client, **kwargs):
@@ -316,14 +320,16 @@ def test_service_rechecks_deadline_after_observation_and_does_not_backfill(caplo
         predictor=predictor,
         clock=lambda: current["value"],
     )
-
     with caplog.at_level(logging.WARNING):
         asyncio.run(service.run_once())
 
     assert predictor_calls == []
     with engine.begin() as connection:
-        assert connection.execute(select(schema.live_predictions)).mappings().all() == []
-    misses = [record for record in caplog.records if record.msg == "live_prediction_missed"]
+        rows = connection.execute(select(schema.live_predictions)).mappings().all()
+    assert rows == []
+    misses = [
+        record for record in caplog.records if record.msg == "live_prediction_missed"
+    ]
     assert len(misses) == 1
     assert misses[0].condition_id == "slow"
     assert misses[0].reason == "deadline_exceeded_after_observation"
@@ -339,12 +345,12 @@ def test_one_market_failure_is_isolated_and_evaluation_runs(caplog) -> None:
     evaluation_times: list[datetime] = []
 
     with engine.begin() as connection:
-        connection.execute(
-            insert(schema.polymarket_markets).values(**_market_values("bad", start_at=start))
-        )
-        connection.execute(
-            insert(schema.polymarket_markets).values(**_market_values("good", start_at=start))
-        )
+        for condition_id in ("bad", "good"):
+            connection.execute(
+                insert(schema.polymarket_markets).values(
+                    **_market_values(condition_id, start_at=start)
+                )
+            )
 
     async def observer(connection, client, **kwargs):
         if kwargs["condition_id"] == "bad":
@@ -373,7 +379,6 @@ def test_one_market_failure_is_isolated_and_evaluation_runs(caplog) -> None:
         evaluator=evaluator,
         clock=lambda: scheduled + timedelta(seconds=1),
     )
-
     with caplog.at_level(logging.ERROR):
         asyncio.run(service.run_once())
 
@@ -383,7 +388,11 @@ def test_one_market_failure_is_isolated_and_evaluation_runs(caplog) -> None:
         ).scalars().all()
     assert condition_ids == ["good"]
     assert evaluation_times == [scheduled + timedelta(seconds=1)]
-    failures = [record for record in caplog.records if record.msg == "live_prediction_market_failed"]
+    failures = [
+        record
+        for record in caplog.records
+        if record.msg == "live_prediction_market_failed"
+    ]
     assert len(failures) == 1
     assert failures[0].condition_id == "bad"
     assert failures[0].error_type == "RuntimeError"
@@ -400,7 +409,9 @@ def test_restart_is_idempotent_and_does_not_reobserve_existing_prediction() -> N
 
     with engine.begin() as connection:
         connection.execute(
-            insert(schema.polymarket_markets).values(**_market_values("restart", start_at=start))
+            insert(schema.polymarket_markets).values(
+                **_market_values("restart", start_at=start)
+            )
         )
 
     async def observer(connection, client, **kwargs):
@@ -423,7 +434,6 @@ def test_restart_is_idempotent_and_does_not_reobserve_existing_prediction() -> N
         predictor=predictor,
         clock=lambda: scheduled + timedelta(seconds=1),
     )
-
     asyncio.run(service.run_once())
     asyncio.run(service.run_once())
 
