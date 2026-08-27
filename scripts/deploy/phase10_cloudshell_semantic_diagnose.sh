@@ -33,11 +33,12 @@ DIAG_BRANCH='$DIAG_BRANCH'
 SOURCE_5M='$SOURCE_5M'
 SOURCE_15M='$SOURCE_15M'
 WT="/var/tmp/bp-phase10-diag-\${SHA:0:12}-\$\$"
+STAGE="/var/tmp/bp-phase10-diag-src-\${SHA:0:12}-\$\$"
 VENV="/var/tmp/bp-phase10-diag-venv-\${SHA:0:12}-\$\$"
 DIAG_PY="/var/tmp/bp-phase10-semantic-diagnostic-\$\$.py"
 cleanup() {
   rm -f "\$DIAG_PY" >/dev/null 2>&1 || true
-  rm -rf "\$VENV" >/dev/null 2>&1 || true
+  rm -rf "\$STAGE" "\$VENV" >/dev/null 2>&1 || true
   git -C /opt/bp worktree remove --force "\$WT" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -73,9 +74,11 @@ git -C /opt/bp show \
   > "\$DIAG_PY"
 chmod 644 "\$DIAG_PY"
 
+install -d -o bp -g bp "\$STAGE"
+git -C "\$WT" archive "\$SHA" | sudo -u bp tar -x -C "\$STAGE"
 sudo -u bp /opt/bp/.venv/bin/python -m venv "\$VENV"
-sudo -u bp "\$VENV/bin/python" -m pip install --disable-pip-version-check "\$WT"
-sudo -u bp env PYTHONPATH="\$WT/src" "\$VENV/bin/python" "\$DIAG_PY" \
+sudo -u bp "\$VENV/bin/python" -m pip install --disable-pip-version-check "\$STAGE"
+sudo -u bp env PYTHONPATH="\$STAGE/src" "\$VENV/bin/python" "\$DIAG_PY" \
   --env-file /etc/bp/bp.env \
   --source-calibration-run-id "\$SOURCE_5M" \
   --source-calibration-run-id "\$SOURCE_15M" \
