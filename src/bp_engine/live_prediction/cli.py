@@ -357,6 +357,21 @@ def _storage_recovered_prediction_semantic_values(row: Any) -> dict[str, Any] | 
     return values
 
 
+def _hash_candidate_group(
+    row: Any,
+    names: tuple[str, ...],
+    *,
+    source_name: str,
+) -> tuple[tuple[str, ...], tuple[float, ...]] | None:
+    source = row[source_name]
+    candidates = _ledger_float_candidates(source)
+    if not candidates:
+        return None
+    if any(not _ledger_numeric_equal(row[name], source) for name in names):
+        return None
+    return names, candidates
+
+
 def _ambiguous_prediction_hash_matches(
     row: Any,
     values: dict[str, Any],
@@ -368,15 +383,42 @@ def _ambiguous_prediction_hash_matches(
         f"{selected_side}_best_bid",
         f"{selected_side}_best_ask",
     }
-    ambiguous: list[tuple[str, tuple[float, ...]]] = []
+    ambiguous: list[tuple[tuple[str, ...], tuple[float, ...]]] = []
+    handled = set(selected_fields)
+
+    if bool(row.get("market_probability_observed", True)):
+        probability_group = _hash_candidate_group(
+            row,
+            ("raw_probability", "market_probability"),
+            source_name="market_probability",
+        )
+        if probability_group is None:
+            return False
+        if len(probability_group[1]) > 1:
+            ambiguous.append(probability_group)
+        handled.update(("raw_probability", "market_probability"))
+    else:
+        if row["market_probability"] is not None:
+            return False
+        prior_group = _hash_candidate_group(
+            row,
+            ("training_prior", "raw_probability"),
+            source_name="training_prior",
+        )
+        if prior_group is None:
+            return False
+        if len(prior_group[1]) > 1:
+            ambiguous.append(prior_group)
+        handled.update(("training_prior", "raw_probability", "market_probability"))
+
     for name in _HASH_RECOVERY_NUMERIC_FIELDS:
-        if name in selected_fields or row[name] is None:
+        if name in handled or row[name] is None:
             continue
         candidates = _ledger_float_candidates(row[name])
         if not candidates:
             return False
         if len(candidates) > 1:
-            ambiguous.append((name, candidates))
+            ambiguous.append(((name,), candidates))
 
     if not ambiguous:
         return False
@@ -391,15 +433,16 @@ def _ambiguous_prediction_hash_matches(
             attempts += 1
             return canonical_hash(values) == target
 
-        name, candidates = ambiguous[index]
-        original = values[name]
+        names, candidates = ambiguous[index]
+        originals = {name: values[name] for name in names}
         try:
             for candidate in candidates:
-                values[name] = candidate
+                for name in names:
+                    values[name] = candidate
                 if search(index + 1):
                     return True
         finally:
-            values[name] = original
+            values.update(originals)
         return False
 
     return search(0)
