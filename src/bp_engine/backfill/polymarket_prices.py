@@ -87,6 +87,7 @@ class PolymarketPriceHistoryClient:
         start: datetime,
         end: datetime,
         fidelity_minutes: int,
+        timeout_seconds: float | None = None,
     ) -> PriceHistoryResponse:
         if not asset_id:
             raise ValueError("asset_id is required")
@@ -98,6 +99,8 @@ class PolymarketPriceHistoryClient:
             raise ValueError("start must be before end")
         if fidelity_minutes <= 0:
             raise ValueError("fidelity_minutes must be positive")
+        if timeout_seconds is not None and timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be positive when provided")
 
         params = {
             "market": asset_id,
@@ -105,11 +108,15 @@ class PolymarketPriceHistoryClient:
             "endTs": str(int(end.timestamp())),
             "fidelity": str(fidelity_minutes),
         }
+        request_kwargs: dict[str, Any] = {"params": params}
+        if timeout_seconds is not None:
+            request_kwargs["timeout"] = timeout_seconds
+
         if self._http_client is not None:
-            response = await self._http_client.get("/prices-history", params=params)
+            response = await self._http_client.get("/prices-history", **request_kwargs)
         else:
             async with httpx.AsyncClient(base_url=self.BASE_URL, timeout=20.0) as client:
-                response = await client.get("/prices-history", params=params)
+                response = await client.get("/prices-history", **request_kwargs)
 
         response.raise_for_status()
         payload = response.json()
