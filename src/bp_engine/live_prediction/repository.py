@@ -14,6 +14,28 @@ from bp_engine.live_prediction.models import LivePrediction, LivePredictionEvalu
 from bp_engine.storage.schema import live_prediction_evaluations, live_predictions
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_LEDGER_QUANTUM = Decimal("0.000000000000000001")
+_PREDICTION_NUMERIC_FIELDS = frozenset(
+    {
+        "min_edge",
+        "training_prior",
+        "raw_probability",
+        "calibrated_probability",
+        "market_probability",
+        "up_best_bid",
+        "up_best_ask",
+        "down_best_bid",
+        "down_best_ask",
+        "selected_ask",
+        "selected_bid",
+        "selected_spread",
+        "fee",
+        "slippage_buffer",
+        "raw_edge",
+        "cost_adjusted_edge",
+        "decision_min_edge",
+    }
+)
 _EVALUATION_NUMERIC_FIELDS = (
     "raw_log_loss",
     "raw_brier",
@@ -21,6 +43,9 @@ _EVALUATION_NUMERIC_FIELDS = (
     "calibrated_brier",
     "hypothetical_gross_pnl",
     "hypothetical_assumed_cost_pnl",
+)
+_LEDGER_NUMERIC_FIELDS = _PREDICTION_NUMERIC_FIELDS | frozenset(
+    _EVALUATION_NUMERIC_FIELDS
 )
 
 
@@ -64,6 +89,26 @@ def _probability(value: float, name: str, *, strict: bool = False) -> float:
     return numeric
 
 
+def _ledger_decimal(value: Any) -> Decimal | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise TypeError("ledger numeric values must not be booleans")
+    numeric = value if isinstance(value, Decimal) else Decimal(str(value))
+    if not numeric.is_finite():
+        raise ValueError("ledger numeric values must be finite")
+    return numeric.quantize(_LEDGER_QUANTUM)
+
+
+def _ledger_numeric_equal(stored: Any, expected: Any) -> bool:
+    if stored is None or expected is None:
+        return stored is expected
+    try:
+        return _ledger_decimal(stored) == _ledger_decimal(expected)
+    except (ArithmeticError, TypeError, ValueError):
+        return False
+
+
 def _normalized(value: Any) -> Any:
     if isinstance(value, datetime):
         if value.tzinfo is None or value.utcoffset() is None:
@@ -101,7 +146,15 @@ def _semantically_equal(
     row: Mapping[str, Any],
     values: Mapping[str, Any],
 ) -> bool:
-    return _normalized(_stored_values(row, set(values))) == _normalized(values)
+    stored = _stored_values(row, set(values))
+    for name, expected in values.items():
+        actual = stored[name]
+        if name in _LEDGER_NUMERIC_FIELDS:
+            if not _ledger_numeric_equal(actual, expected):
+                return False
+        elif _normalized(actual) != _normalized(expected):
+            return False
+    return True
 
 
 class LivePredictionRepository:

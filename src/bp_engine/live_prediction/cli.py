@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import math
 from collections import Counter
+from collections.abc import Mapping
 from dataclasses import fields
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -21,6 +23,7 @@ from bp_engine.live_prediction.models import (
     LivePredictionEvaluation,
 )
 from bp_engine.live_prediction.policy import load_live_policy
+from bp_engine.live_prediction.repository import _ledger_numeric_equal
 from bp_engine.live_prediction.service import (
     LivePredictionService,
     ensure_live_prediction_safety,
@@ -213,12 +216,81 @@ def _semantic_values(
     return values
 
 
+def _storage_recovered_prediction_semantic_values(row: Any) -> dict[str, Any] | None:
+    decision = row["edge_decision"]
+    if not isinstance(decision, Mapping):
+        return None
+    side = decision.get("side")
+    if side not in {"up", "down"}:
+        return None
+
+    expected_target = 1 if side == "up" else 0
+    exact_pairs = (
+        (row["predicted_target"], decision.get("predicted_target")),
+        (row["predicted_target"], expected_target),
+        (row["predicted_side"], side),
+        (row["selected_side"], side),
+        (row["market_probability_observed"], decision.get("market_probability_observed")),
+        (row["executable"], decision.get("executable")),
+        (row["trade"], decision.get("trade")),
+        (row["decision_reason"], decision.get("reason")),
+    )
+    if any(stored != expected for stored, expected in exact_pairs):
+        return None
+
+    values = _semantic_values(row, LivePrediction)
+    numeric_pairs = (
+        ("min_edge", "min_edge"),
+        ("selected_ask", "ask"),
+        ("selected_bid", "bid"),
+        ("selected_spread", "spread"),
+        ("fee", "fee"),
+        ("slippage_buffer", "slippage_buffer"),
+        ("raw_edge", "raw_edge"),
+        ("cost_adjusted_edge", "cost_adjusted_edge"),
+        ("decision_min_edge", "min_edge"),
+    )
+    for stored_name, decision_name in numeric_pairs:
+        original = decision.get(decision_name)
+        if not _ledger_numeric_equal(row[stored_name], original):
+            return None
+        values[stored_name] = original
+
+    selected_bid = row[f"{side}_best_bid"]
+    selected_ask = row[f"{side}_best_ask"]
+    if not _ledger_numeric_equal(selected_bid, decision.get("bid")):
+        return None
+    if not _ledger_numeric_equal(selected_ask, decision.get("ask")):
+        return None
+
+    side_probability = decision.get("side_probability")
+    if isinstance(side_probability, bool):
+        return None
+    try:
+        probability = float(side_probability)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(probability):
+        return None
+    calibrated = probability if side == "up" else 1.0 - probability
+    if not _ledger_numeric_equal(row["calibrated_probability"], calibrated):
+        return None
+    values["calibrated_probability"] = calibrated
+    return values
+
+
 def _semantic_hash_matches(
     row: Any,
     record_type: type[LivePrediction] | type[LivePredictionEvaluation],
 ) -> bool:
     try:
-        return canonical_hash(_semantic_values(row, record_type)) == row["semantic_sha256"]
+        values = _semantic_values(row, record_type)
+        if canonical_hash(values) == row["semantic_sha256"]:
+            return True
+        if record_type is not LivePrediction:
+            return False
+        recovered = _storage_recovered_prediction_semantic_values(row)
+        return recovered is not None and canonical_hash(recovered) == row["semantic_sha256"]
     except (KeyError, TypeError, ValueError, OverflowError):
         return False
 
