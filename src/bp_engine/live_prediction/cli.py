@@ -46,6 +46,17 @@ ACCEPTED_POLICY_SOURCES: dict[int, tuple[str, str]] = {
 }
 DEFAULT_POLL_INTERVAL_SECONDS = 1.0
 DEFAULT_MAX_LATENESS_SECONDS = 10
+_HASH_RECOVERY_FLOAT_STEPS = 64
+_HASH_RECOVERY_MAX_ATTEMPTS = 4096
+_HASH_RECOVERY_NUMERIC_FIELDS = (
+    "training_prior",
+    "raw_probability",
+    "market_probability",
+    "up_best_bid",
+    "up_best_ask",
+    "down_best_bid",
+    "down_best_ask",
+)
 
 
 def _add_environment_arguments(parser: argparse.ArgumentParser) -> None:
@@ -216,6 +227,65 @@ def _semantic_values(
     return values
 
 
+def _ledger_float_candidates(stored: Any) -> tuple[float, ...]:
+    if stored is None or isinstance(stored, bool):
+        return ()
+    try:
+        center = float(stored)
+    except (TypeError, ValueError, OverflowError):
+        return ()
+    if not math.isfinite(center) or not _ledger_numeric_equal(stored, center):
+        return ()
+
+    candidates: list[float] = []
+    seen: set[str] = set()
+
+    def add(candidate: float) -> bool:
+        if not math.isfinite(candidate) or not _ledger_numeric_equal(stored, candidate):
+            return False
+        key = candidate.hex()
+        if key not in seen:
+            seen.add(key)
+            candidates.append(candidate)
+        return True
+
+    add(center)
+    if center == 0.0:
+        add(-0.0)
+
+    lower = center
+    upper = center
+    lower_open = True
+    upper_open = True
+    for _ in range(_HASH_RECOVERY_FLOAT_STEPS):
+        if lower_open:
+            lower = math.nextafter(lower, -math.inf)
+            lower_open = add(lower)
+        if upper_open:
+            upper = math.nextafter(upper, math.inf)
+            upper_open = add(upper)
+        if not lower_open and not upper_open:
+            break
+    return tuple(candidates)
+
+
+def _recover_calibrated_probability(
+    row: Any,
+    *,
+    side: str,
+    side_probability: float,
+) -> float | None:
+    if side == "up":
+        if _ledger_numeric_equal(row["calibrated_probability"], side_probability):
+            return side_probability
+        return None
+
+    for candidate in _ledger_float_candidates(row["calibrated_probability"]):
+        if 1.0 - candidate == side_probability:
+            return candidate
+    return None
+
+
 def _storage_recovered_prediction_semantic_values(row: Any) -> dict[str, Any] | None:
     decision = row["edge_decision"]
     if not isinstance(decision, Mapping):
@@ -256,12 +326,16 @@ def _storage_recovered_prediction_semantic_values(row: Any) -> dict[str, Any] | 
             return None
         values[stored_name] = original
 
-    selected_bid = row[f"{side}_best_bid"]
-    selected_ask = row[f"{side}_best_ask"]
+    selected_bid_name = f"{side}_best_bid"
+    selected_ask_name = f"{side}_best_ask"
+    selected_bid = row[selected_bid_name]
+    selected_ask = row[selected_ask_name]
     if not _ledger_numeric_equal(selected_bid, decision.get("bid")):
         return None
     if not _ledger_numeric_equal(selected_ask, decision.get("ask")):
         return None
+    values[selected_bid_name] = decision.get("bid")
+    values[selected_ask_name] = decision.get("ask")
 
     side_probability = decision.get("side_probability")
     if isinstance(side_probability, bool):
@@ -272,11 +346,63 @@ def _storage_recovered_prediction_semantic_values(row: Any) -> dict[str, Any] | 
         return None
     if not math.isfinite(probability):
         return None
-    calibrated = probability if side == "up" else 1.0 - probability
-    if not _ledger_numeric_equal(row["calibrated_probability"], calibrated):
+    calibrated = _recover_calibrated_probability(
+        row,
+        side=side,
+        side_probability=probability,
+    )
+    if calibrated is None:
         return None
     values["calibrated_probability"] = calibrated
     return values
+
+
+def _ambiguous_prediction_hash_matches(
+    row: Any,
+    values: dict[str, Any],
+) -> bool:
+    target = row["semantic_sha256"]
+    decision = row["edge_decision"]
+    selected_side = decision.get("side") if isinstance(decision, Mapping) else None
+    selected_fields = {
+        f"{selected_side}_best_bid",
+        f"{selected_side}_best_ask",
+    }
+    ambiguous: list[tuple[str, tuple[float, ...]]] = []
+    for name in _HASH_RECOVERY_NUMERIC_FIELDS:
+        if name in selected_fields or row[name] is None:
+            continue
+        candidates = _ledger_float_candidates(row[name])
+        if not candidates:
+            return False
+        if len(candidates) > 1:
+            ambiguous.append((name, candidates))
+
+    if not ambiguous:
+        return False
+
+    attempts = 0
+
+    def search(index: int) -> bool:
+        nonlocal attempts
+        if attempts >= _HASH_RECOVERY_MAX_ATTEMPTS:
+            return False
+        if index == len(ambiguous):
+            attempts += 1
+            return canonical_hash(values) == target
+
+        name, candidates = ambiguous[index]
+        original = values[name]
+        try:
+            for candidate in candidates:
+                values[name] = candidate
+                if search(index + 1):
+                    return True
+        finally:
+            values[name] = original
+        return False
+
+    return search(0)
 
 
 def _semantic_hash_matches(
@@ -290,7 +416,11 @@ def _semantic_hash_matches(
         if record_type is not LivePrediction:
             return False
         recovered = _storage_recovered_prediction_semantic_values(row)
-        return recovered is not None and canonical_hash(recovered) == row["semantic_sha256"]
+        if recovered is None:
+            return False
+        if canonical_hash(recovered) == row["semantic_sha256"]:
+            return True
+        return _ambiguous_prediction_hash_matches(row, recovered)
     except (KeyError, TypeError, ValueError, OverflowError):
         return False
 
