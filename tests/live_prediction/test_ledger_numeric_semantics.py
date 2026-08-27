@@ -174,3 +174,20 @@ def test_repository_idempotency_accepts_only_exact_ledger_quantization() -> None
     tampered = dict(row)
     tampered["raw_edge"] = row["raw_edge"] + LEDGER_QUANTUM
     assert _semantically_equal(tampered, values) is False
+
+
+def test_prediction_semantic_hash_recovers_quantized_nonselected_book_quote() -> None:
+    prediction = _prediction()
+    original_quote = 0.0012345678901234567
+    prediction = replace(prediction, down_best_bid=original_quote)
+    values = asdict(prediction)
+    values.pop("semantic_sha256")
+    prediction = replace(prediction, semantic_sha256=canonical_hash(values))
+    row = _postgres_row(prediction)
+
+    assert row["down_best_bid"] != Decimal(str(original_quote))
+    assert _semantic_hash_matches(row, LivePrediction) is True
+
+    tampered = dict(row)
+    tampered["down_best_bid"] = row["down_best_bid"] + LEDGER_QUANTUM
+    assert _semantic_hash_matches(tampered, LivePrediction) is False
