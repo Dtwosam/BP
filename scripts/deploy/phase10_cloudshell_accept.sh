@@ -110,12 +110,12 @@ set +e
 BP_REPO="\$SRC" BP_VERIFIED_HEAD="\$WORKTREE_HEAD" bash \\
   "\$SRC/scripts/deploy/phase10_host_acceptance.sh" "\$SHA" \\
   >"\$LOG" 2>&1
-RC=\$?
+RC=\\\$?
 set -e
-if [[ "\$RC" -ne 0 ]]; then
-  echo "PHASE10_WRAPPER_RC=\$RC" >>"\$LOG"
+if [[ "\\\$RC" -ne 0 ]]; then
+  echo "PHASE10_WRAPPER_RC=\\\$RC" >>"\$LOG"
 fi
-exit "\$RC"
+exit "\\\$RC"
 JOB
   chmod 700 "\$JOB"
   : > "\$LOG"
