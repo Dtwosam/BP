@@ -100,11 +100,23 @@ def _ledger_decimal(value: Any) -> Decimal | None:
     return numeric.quantize(_LEDGER_QUANTUM)
 
 
+def _legacy_float_bound_decimal(value: Any) -> Decimal | None:
+    if not isinstance(value, float) or isinstance(value, bool):
+        return None
+    if not math.isfinite(value):
+        raise ValueError("ledger numeric values must be finite")
+    return Decimal(format(value, ".15g")).quantize(_LEDGER_QUANTUM)
+
+
 def _ledger_numeric_equal(stored: Any, expected: Any) -> bool:
     if stored is None or expected is None:
         return stored is expected
     try:
-        return _ledger_decimal(stored) == _ledger_decimal(expected)
+        stored_decimal = _ledger_decimal(stored)
+        if stored_decimal == _ledger_decimal(expected):
+            return True
+        legacy_decimal = _legacy_float_bound_decimal(expected)
+        return legacy_decimal is not None and stored_decimal == legacy_decimal
     except (ArithmeticError, TypeError, ValueError):
         return False
 
