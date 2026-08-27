@@ -8,4 +8,10 @@ def test_phase10_semantic_diagnostic_uses_read_only_database_connection() -> Non
 
     assert "with engine.connect() as connection:" in script
     assert "engine.begin" not in script
-    assert "connection.execute(select(live_predictions)" in script
+    assert "from sqlalchemy import" in script
+    assert " insert" not in script
+    assert " update" not in script
+    assert " delete" not in script
+    assert "INSERT " not in script
+    assert "UPDATE " not in script
+    assert "DELETE " not in script
