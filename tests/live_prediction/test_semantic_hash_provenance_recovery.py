@@ -6,7 +6,7 @@ from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import create_engine, delete
+from sqlalchemy import create_engine, delete, insert, select
 
 from bp_engine.calibration.models import CalibrationFit, EdgeConfig
 from bp_engine.features.calculators import book_state
@@ -161,6 +161,12 @@ def test_prediction_semantic_hash_recovers_from_raw_provenance_after_snapshot_ov
 
     with engine.begin() as connection:
         connection.execute(
+            delete(schema.live_predictions).where(
+                schema.live_predictions.c.condition_id
+                == "condition-provenance-recovery"
+            )
+        )
+        connection.execute(
             delete(schema.market_state_1s).where(
                 schema.market_state_1s.c.instrument == "condition-provenance-recovery"
             )
@@ -247,6 +253,7 @@ def test_prediction_semantic_hash_recovers_from_raw_provenance_after_snapshot_ov
             down_token_id="down-provenance-recovery",
             recorded_at=scheduled + timedelta(seconds=2),
         )
+        connection.execute(insert(schema.live_predictions).values(asdict(prediction)))
 
         repository.insert_events(connection, (up_late,))
         reducer.observe(up_late)
@@ -261,9 +268,22 @@ def test_prediction_semantic_hash_recovers_from_raw_provenance_after_snapshot_ov
         )
         assert current_up is None or current_up.effective_at != prediction.up_book_cutoff_at
 
+        stored = connection.execute(
+            select(schema.live_predictions).where(
+                schema.live_predictions.c.prediction_id == prediction.prediction_id
+            )
+        ).mappings().one()
+        assert str(stored["raw_probability"]) == "0.578854192693484000"
+
         monkeypatch.setattr(module, "_semantic_hash_matches", lambda *_args: False)
         assert module._prediction_semantic_hash_matches(
             connection,
-            asdict(prediction),
+            stored,
             policy,
         ) is True
+        report = module.build_integrity_report(
+            connection,
+            policies={300: policy},
+            now=end + timedelta(seconds=1),
+        )
+        assert report["semantic_hash_violations"] == 0
