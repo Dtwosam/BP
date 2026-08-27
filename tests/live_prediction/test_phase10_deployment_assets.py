@@ -7,6 +7,7 @@ CLOUD = ROOT / "scripts" / "deploy" / "phase10_cloudshell_accept.sh"
 RUNBOOK = ROOT / "docs" / "PHASE-10-DEPLOYMENT.md"
 CI = ROOT / ".github" / "workflows" / "ci.yml"
 SERVICE = ROOT / "deploy" / "bp-live-predictor.service"
+SERVICE_PY = ROOT / "src" / "bp_engine" / "live_prediction" / "service.py"
 
 SOURCE_5M = "phase9-300-c9f0e00eb7836af08008c66909f8f179"
 SOURCE_15M = "phase9-900-15c234f25588b23cce73a12f87a2e2ea"
@@ -194,6 +195,27 @@ def test_phase10_cloudshell_preserves_inner_job_runtime_status_expansion() -> No
     assert r'if [[ "\$RC" -ne 0 ]]; then' in remote
     assert r'echo "PHASE10_WRAPPER_RC=\$RC"' in remote
     assert r'exit "\$RC"' in remote
+
+
+def test_phase10_host_acceptance_bounds_required_opportunities_to_observation_window() -> None:
+    text = _required_text(HOST)
+
+    assert "ACCEPTANCE_DEADLINE_AT" in text
+    assert "OPPORTUNITY_COUNT_5M" in text
+    assert "OPPORTUNITY_COUNT_15M" in text
+    assert "prospective_opportunities_unavailable" in text
+
+
+def test_phase10_host_acceptance_captures_predictor_failure_details() -> None:
+    host = _required_text(HOST)
+    service = _required_text(SERVICE_PY)
+
+    assert "predictor-journal.txt" in host
+    assert "journalctl -u bp-live-predictor" in host
+    assert (
+        "live_prediction_market_failed condition_id=%s horizon_seconds=%s "
+        "error_type=%s error=%s"
+    ) in service
 
 
 def test_phase10_runbook_documents_prospective_evidence_and_non_economic_gate() -> None:
