@@ -31,7 +31,9 @@ from bp_engine.live_prediction.models import LivePolicySpec, LivePrediction
 from bp_engine.live_prediction.predictor import _book_quote, build_live_prediction
 from bp_engine.live_prediction.repository import _ledger_numeric_equal
 from bp_engine.live_prediction.service import ensure_live_prediction_safety
-from bp_engine.storage.schema import live_predictions
+from bp_engine.recorder.models import RawEvent
+from bp_engine.recorder.state import MarketStateReducer, MarketStateSnapshot
+from bp_engine.storage.schema import live_predictions, market_state_1s, raw_market_events
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -78,6 +80,112 @@ def _state_for_prediction(
     if bool(state.fresh) != bool(row[fresh_name]):
         return state, "freshness_mismatch"
     return state, "matched"
+
+
+def _raw_event(row: Mapping[str, Any]) -> RawEvent:
+    source_timestamp = row["source_timestamp"]
+    return RawEvent(
+        source=str(row["source"]),
+        stream=str(row["stream"]),
+        instrument=str(row["instrument"]),
+        event_type=str(row["event_type"]),
+        source_timestamp=(
+            _stored_utc(source_timestamp) if source_timestamp is not None else None
+        ),
+        received_at=_stored_utc(row["received_at"]),
+        sequence=(str(row["sequence"]) if row["sequence"] is not None else None),
+        market_id=(str(row["market_id"]) if row["market_id"] is not None else None),
+        asset_id=(str(row["asset_id"]) if row["asset_id"] is not None else None),
+        payload=dict(row["payload"]),
+        dedupe_key=str(row["dedupe_key"]),
+    )
+
+
+def _snapshot_observation(
+    snapshot: MarketStateSnapshot,
+    *,
+    feature_at: datetime,
+) -> StateObservation:
+    scheduled = _stored_utc(feature_at)
+    bucket_at = _stored_utc(snapshot.bucket_at)
+    last_event_at = _stored_utc(snapshot.last_event_at)
+    age_seconds = (scheduled - last_event_at).total_seconds()
+    return StateObservation(
+        row_id=0,
+        bucket_at=bucket_at,
+        state_key=snapshot.state_key,
+        source=snapshot.source,
+        stream=snapshot.stream,
+        instrument=snapshot.instrument,
+        market_id=snapshot.market_id,
+        asset_id=snapshot.asset_id,
+        last_event_at=last_event_at,
+        state=dict(snapshot.state),
+        fresh=age_seconds <= 10.0,
+        age_seconds=age_seconds,
+    )
+
+
+def _replayed_state_candidates(
+    connection: Any,
+    row: Any,
+    side: str,
+) -> tuple[StateObservation, ...]:
+    stored_cutoff = row[f"{side}_book_cutoff_at"]
+    if stored_cutoff is None:
+        return ()
+
+    scheduled = _stored_utc(row["scheduled_at"])
+    expected_cutoff = _stored_utc(stored_cutoff)
+    asset_id = str(row[f"{side}_token_id"])
+    condition_id = str(row["condition_id"])
+    expected_fresh = bool(row[f"{side}_book_fresh"])
+
+    compact_rows = connection.execute(
+        select(market_state_1s.c.bucket_at)
+        .where(
+            market_state_1s.c.source == "polymarket",
+            market_state_1s.c.stream == "market",
+            market_state_1s.c.instrument == condition_id,
+            market_state_1s.c.asset_id == asset_id,
+            market_state_1s.c.bucket_at <= scheduled,
+        )
+        .order_by(market_state_1s.c.bucket_at.desc(), market_state_1s.c.id.desc())
+        .limit(8)
+    ).all()
+    candidate_buckets = {
+        expected_cutoff.replace(microsecond=0),
+        scheduled.replace(microsecond=0),
+        *(_stored_utc(item[0]) for item in compact_rows),
+    }
+
+    raw_rows = connection.execute(
+        select(raw_market_events)
+        .where(
+            raw_market_events.c.source == "polymarket",
+            raw_market_events.c.stream == "market",
+            raw_market_events.c.instrument == condition_id,
+            raw_market_events.c.received_at <= expected_cutoff,
+        )
+        .order_by(raw_market_events.c.received_at, raw_market_events.c.id)
+    ).mappings().all()
+    reducer = MarketStateReducer()
+    for raw in raw_rows:
+        reducer.observe(_raw_event(raw))
+
+    recovered: dict[str, StateObservation] = {}
+    for bucket_at in sorted(candidate_buckets):
+        for snapshot in reducer.snapshots(bucket_at):
+            if snapshot.asset_id != asset_id:
+                continue
+            state = _snapshot_observation(snapshot, feature_at=scheduled)
+            if state.effective_at != expected_cutoff:
+                continue
+            if bool(state.fresh) != expected_fresh:
+                continue
+            key = canonical_hash(_book_descriptor(_book_input(state)))
+            recovered.setdefault(key, state)
+    return tuple(recovered.values())
 
 
 def _raw_probability_candidates(
