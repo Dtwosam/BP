@@ -45,6 +45,12 @@ Predictions are accepted only when their recorded timing is within the frozen sc
 
 If the bounded observation window contains no future verified opportunity for a required horizon, the gate reports `PHASE10_HOST_ACCEPTANCE=PENDING` rather than manufacturing evidence. Likewise, an official label that has not arrived remains **evaluation pending**. Evaluation evidence is appended only when the canonical official label already exists.
 
+## Semantic integrity across Postgres storage
+
+`live-prediction-v1` semantic hashes were created from the original Python values before PostgreSQL stored numeric columns as `NUMERIC(38,18)`. Verification therefore accounts for the database representation without weakening the hash gate: redundant decision values must agree exactly at the ledger quantum, any reconstructed IEEE float must quantize to the exact stored decimal, and the reconstructed payload must reproduce the original stored SHA-256 exactly. Bounded recovery exists only to reverse information loss caused by the declared database numeric representation; it is not a tolerance or approximate-hash acceptance path.
+
+Existing prediction rows remain immutable. A one-ledger-quantum mutation or any other evidence mutation that cannot reproduce the original semantic SHA remains an integrity violation.
+
 ## Machine-readable evidence
 
 The host gate writes evidence under `/var/lib/bp/evidence/phase10-live-prediction/<UTC stamp>/` and the Cloud Shell wrapper mirrors the latest console evidence at:
