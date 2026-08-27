@@ -22,12 +22,13 @@ from bp_engine.live_prediction.cli import (
     load_runtime_policies,
 )
 from bp_engine.live_prediction.inputs import (
+    LiveMarketInput,
     _book_descriptor,
     _book_input,
     _merge_book_predictors,
 )
 from bp_engine.live_prediction.models import LivePolicySpec, LivePrediction
-from bp_engine.live_prediction.predictor import _book_quote
+from bp_engine.live_prediction.predictor import _book_quote, build_live_prediction
 from bp_engine.live_prediction.repository import _ledger_numeric_equal
 from bp_engine.live_prediction.service import ensure_live_prediction_safety
 from bp_engine.storage.schema import live_predictions
@@ -161,6 +162,58 @@ def _input_fingerprint(
     )
 
 
+def _rebuilt_prediction(
+    row: Any,
+    policy: LivePolicySpec,
+    *,
+    raw_probability: float,
+    up_state: StateObservation | None,
+    down_state: StateObservation | None,
+) -> LivePrediction:
+    observed = bool(row["market_probability_observed"])
+    market_probability = raw_probability if observed else None
+    up_group = book_state("pm_up", up_state)
+    down_group = book_state("pm_down", down_state)
+    predictors = _merge_book_predictors(market_probability, up_group, down_group)
+    live_input = LiveMarketInput(
+        condition_id=str(row["condition_id"]),
+        up_token_id=str(row["up_token_id"]),
+        down_token_id=str(row["down_token_id"]),
+        market_start_at=_stored_utc(row["market_start_at"]),
+        market_end_at=_stored_utc(row["market_end_at"]),
+        scheduled_at=_stored_utc(row["scheduled_at"]),
+        downloaded_at=_stored_utc(row["market_probability_downloaded_at"]),
+        price_source=str(row["market_probability_source"]),
+        price_dataset=str(row["market_probability_dataset"]),
+        price_request_params=dict(row["market_probability_request_params"] or {}),
+        price_response_sha256=str(row["market_probability_response_sha256"]),
+        price_response_payload={},
+        market_probability_observed=observed,
+        market_probability=market_probability,
+        market_probability_observed_at=(
+            _stored_utc(row["market_probability_observed_at"])
+            if row["market_probability_observed_at"] is not None
+            else None
+        ),
+        up_book=_book_input(up_state),
+        down_book=_book_input(down_state),
+        predictors=predictors,
+        input_fingerprint=str(row["input_fingerprint"]),
+    )
+    return build_live_prediction(
+        policy,
+        live_input,
+        condition_id=str(row["condition_id"]),
+        slug=str(row["slug"]),
+        horizon_seconds=int(row["horizon_seconds"]),
+        market_start_at=_stored_utc(row["market_start_at"]),
+        market_end_at=_stored_utc(row["market_end_at"]),
+        up_token_id=str(row["up_token_id"]),
+        down_token_id=str(row["down_token_id"]),
+        recorded_at=_stored_utc(row["recorded_at"]),
+    )
+
+
 def _semantic_candidate_matches(
     row: Any,
     policy: LivePolicySpec,
@@ -198,6 +251,9 @@ def _diagnose_row(connection: Any, row: Any, policy: LivePolicySpec) -> dict[str
 
     fingerprint_matches = 0
     semantic_matches = 0
+    rebuilt_semantic_matches = 0
+    rebuilt_decision_matches = 0
+    rebuild_errors = 0
     relation_matches = 0
     for raw_probability in raw_candidates:
         calibrated = apply_calibration(policy.calibration_fit, (raw_probability,))[0]
@@ -227,6 +283,21 @@ def _diagnose_row(connection: Any, row: Any, policy: LivePolicySpec) -> dict[str
             down_state=down_state,
         ):
             semantic_matches += 1
+        try:
+            rebuilt = _rebuilt_prediction(
+                row,
+                policy,
+                raw_probability=raw_probability,
+                up_state=up_state,
+                down_state=down_state,
+            )
+        except (RuntimeError, TypeError, ValueError):
+            rebuild_errors += 1
+            continue
+        if canonical_hash(rebuilt.edge_decision) == canonical_hash(row["edge_decision"]):
+            rebuilt_decision_matches += 1
+        if rebuilt.semantic_sha256 == str(row["semantic_sha256"]):
+            rebuilt_semantic_matches += 1
 
     return {
         "prediction_id_prefix": str(row["prediction_id"])[:12],
@@ -239,6 +310,9 @@ def _diagnose_row(connection: Any, row: Any, policy: LivePolicySpec) -> dict[str
         "calibration_relation_matches": relation_matches,
         "input_fingerprint_matches": fingerprint_matches,
         "semantic_hash_matches": semantic_matches,
+        "rebuilt_decision_matches": rebuilt_decision_matches,
+        "rebuilt_semantic_hash_matches": rebuilt_semantic_matches,
+        "rebuild_errors": rebuild_errors,
     }
 
 
@@ -269,10 +343,17 @@ def main() -> int:
         ]
 
     reconstructed = sum(1 for item in diagnostics if item["semantic_hash_matches"] > 0)
+    rebuilt_reconstructed = sum(
+        1 for item in diagnostics if item["rebuilt_semantic_hash_matches"] > 0
+    )
+    rebuilt_decisions = sum(
+        1 for item in diagnostics if item["rebuilt_decision_matches"] > 0
+    )
     fingerprint_recovered = sum(
         1 for item in diagnostics if item["input_fingerprint_matches"] > 0
     )
-    unexplained = len(diagnostics) - reconstructed
+    rebuild_error_rows = sum(1 for item in diagnostics if item["rebuild_errors"] > 0)
+    unexplained = len(diagnostics) - rebuilt_reconstructed
     payload = {
         "expected_head": args.expected_head,
         "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
@@ -280,6 +361,9 @@ def main() -> int:
         "current_semantic_hash_violations": len(diagnostics),
         "input_fingerprint_recovered": fingerprint_recovered,
         "deterministic_semantic_hash_recovered": reconstructed,
+        "rebuilt_decision_recovered": rebuilt_decisions,
+        "rebuilt_semantic_hash_recovered": rebuilt_reconstructed,
+        "rebuild_error_rows": rebuild_error_rows,
         "unexplained_semantic_hash_violations": unexplained,
         "rows": diagnostics,
     }
@@ -287,6 +371,9 @@ def main() -> int:
     print(f"DIAGNOSTIC_BAD_ROWS={len(diagnostics)}")
     print(f"DIAGNOSTIC_INPUT_FINGERPRINT_RECOVERED={fingerprint_recovered}")
     print(f"DIAGNOSTIC_SEMANTIC_HASH_RECOVERED={reconstructed}")
+    print(f"DIAGNOSTIC_REBUILT_DECISION_RECOVERED={rebuilt_decisions}")
+    print(f"DIAGNOSTIC_REBUILT_SEMANTIC_HASH_RECOVERED={rebuilt_reconstructed}")
+    print(f"DIAGNOSTIC_REBUILD_ERROR_ROWS={rebuild_error_rows}")
     print(f"DIAGNOSTIC_UNEXPLAINED={unexplained}")
     return 0
 
