@@ -423,29 +423,61 @@ def _ambiguous_prediction_hash_matches(
     if not ambiguous:
         return False
 
+    def is_current_choice(names: tuple[str, ...], candidate: float) -> bool:
+        for name in names:
+            current = values[name]
+            if not isinstance(current, float) or current.hex() != candidate.hex():
+                return False
+        return True
+
+    choices: list[tuple[tuple[str, ...], tuple[float, ...]]] = []
+    for names, candidates in ambiguous:
+        alternatives = tuple(
+            candidate
+            for candidate in candidates
+            if not is_current_choice(names, candidate)
+        )
+        if alternatives:
+            choices.append((names, alternatives))
+
+    if not choices:
+        return False
+
     attempts = 0
 
-    def search(index: int) -> bool:
+    def hash_matches() -> bool:
         nonlocal attempts
         if attempts >= _HASH_RECOVERY_MAX_ATTEMPTS:
             return False
-        if index == len(ambiguous):
-            attempts += 1
-            return canonical_hash(values) == target
+        attempts += 1
+        return canonical_hash(values) == target
 
-        names, candidates = ambiguous[index]
-        originals = {name: values[name] for name in names}
-        try:
-            for candidate in candidates:
-                for name in names:
-                    values[name] = candidate
-                if search(index + 1):
-                    return True
-        finally:
-            values.update(originals)
+    def search(start: int, remaining_changes: int) -> bool:
+        if attempts >= _HASH_RECOVERY_MAX_ATTEMPTS:
+            return False
+        if remaining_changes == 0:
+            return hash_matches()
+
+        final_start = len(choices) - remaining_changes
+        for index in range(start, final_start + 1):
+            names, candidates = choices[index]
+            originals = {name: values[name] for name in names}
+            try:
+                for candidate in candidates:
+                    for name in names:
+                        values[name] = candidate
+                    if search(index + 1, remaining_changes - 1):
+                        return True
+            finally:
+                values.update(originals)
         return False
 
-    return search(0)
+    for changed_count in range(1, len(choices) + 1):
+        if search(0, changed_count):
+            return True
+        if attempts >= _HASH_RECOVERY_MAX_ATTEMPTS:
+            return False
+    return False
 
 
 def _semantic_hash_matches(
