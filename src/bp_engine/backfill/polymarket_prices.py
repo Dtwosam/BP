@@ -79,6 +79,24 @@ class PolymarketPriceHistoryClient:
 
     def __init__(self, http_client: httpx.AsyncClient | None = None) -> None:
         self._http_client = http_client
+        self._owned_http_client: httpx.AsyncClient | None = None
+
+    def _client(self) -> httpx.AsyncClient:
+        if self._http_client is not None:
+            return self._http_client
+        if self._owned_http_client is None:
+            self._owned_http_client = httpx.AsyncClient(
+                base_url=self.BASE_URL,
+                timeout=20.0,
+            )
+        return self._owned_http_client
+
+    async def aclose(self) -> None:
+        if self._owned_http_client is None:
+            return
+        client = self._owned_http_client
+        self._owned_http_client = None
+        await client.aclose()
 
     async def get_history(
         self,
@@ -112,12 +130,7 @@ class PolymarketPriceHistoryClient:
         if timeout_seconds is not None:
             request_kwargs["timeout"] = timeout_seconds
 
-        if self._http_client is not None:
-            response = await self._http_client.get("/prices-history", **request_kwargs)
-        else:
-            async with httpx.AsyncClient(base_url=self.BASE_URL, timeout=20.0) as client:
-                response = await client.get("/prices-history", **request_kwargs)
-
+        response = await self._client().get("/prices-history", **request_kwargs)
         response.raise_for_status()
         payload = response.json()
         if not isinstance(payload, Mapping):
