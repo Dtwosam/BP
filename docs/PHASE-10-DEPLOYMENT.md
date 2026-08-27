@@ -51,6 +51,8 @@ If the bounded observation window contains no future verified opportunity for a 
 
 Existing prediction rows remain immutable. A one-ledger-quantum mutation or any other evidence mutation that cannot reproduce the original semantic SHA remains an integrity violation.
 
+The current frozen pre-host candidate for this verifier is `9f84309f323cb678492bc63be6e6a84f368dbe5c`.
+
 ## Machine-readable evidence
 
 The host gate writes evidence under `/var/lib/bp/evidence/phase10-live-prediction/<UTC stamp>/` and the Cloud Shell wrapper mirrors the latest console evidence at:
