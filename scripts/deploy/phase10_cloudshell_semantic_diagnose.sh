@@ -7,7 +7,7 @@ VM="${PHASE10_VM:-bp-recorder}"
 PHASE_BRANCH="build/phase-10-live-prediction-engine"
 DIAG_BRANCH="diag/phase10-semantic-hash-provenance-final"
 EXPECTED_HEAD="${PHASE10_HEAD:-694d351ce3d210f67d1653c0e709835565fa9b89}"
-DIAG_SHA="eb6dde6956d4b72a55a303b909c9b39ec6aab812"
+DIAG_SHA="86be59a3fcc585a2c065c05c4b201d58c73ace8e"
 SOURCE_5M="phase9-300-c9f0e00eb7836af08008c66909f8f179"
 SOURCE_15M="phase9-900-15c234f25588b23cce73a12f87a2e2ea"
 
