@@ -191,3 +191,52 @@ def test_prediction_semantic_hash_recovers_quantized_nonselected_book_quote() ->
     tampered = dict(row)
     tampered["down_best_bid"] = row["down_best_bid"] + LEDGER_QUANTUM
     assert _semantic_hash_matches(tampered, LivePrediction) is False
+
+
+def test_prediction_semantic_hash_recovers_down_probability_without_double_rounding() -> None:
+    prediction = _prediction()
+    probability_up = 0.4211458073065157
+    side_probability = 1.0 - probability_up
+    ask = 0.43
+    bid = 0.42
+    spread = ask - bid
+    fee = 0.07 * ask * (1.0 - ask)
+    raw_edge = side_probability - ask
+    cost_adjusted_edge = raw_edge - fee - 0.01
+    decision = dict(prediction.edge_decision)
+    decision.update(
+        {
+            "side": "down",
+            "predicted_target": 0,
+            "side_probability": side_probability,
+            "ask": ask,
+            "bid": bid,
+            "spread": spread,
+            "fee": fee,
+            "raw_edge": raw_edge,
+            "cost_adjusted_edge": cost_adjusted_edge,
+        }
+    )
+    prediction = replace(
+        prediction,
+        raw_probability=probability_up,
+        calibrated_probability=probability_up,
+        market_probability=probability_up,
+        predicted_target=0,
+        predicted_side="down",
+        selected_side="down",
+        selected_ask=ask,
+        selected_bid=bid,
+        selected_spread=spread,
+        fee=fee,
+        raw_edge=raw_edge,
+        cost_adjusted_edge=cost_adjusted_edge,
+        edge_decision=decision,
+    )
+    values = asdict(prediction)
+    values.pop("semantic_sha256")
+    prediction = replace(prediction, semantic_sha256=canonical_hash(values))
+    row = _postgres_row(prediction)
+
+    assert 1.0 - side_probability != probability_up
+    assert _semantic_hash_matches(row, LivePrediction) is True
