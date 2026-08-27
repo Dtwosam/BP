@@ -24,6 +24,7 @@ from bp_engine.live_prediction.models import (
 )
 from bp_engine.live_prediction.policy import load_live_policy
 from bp_engine.live_prediction.repository import _ledger_numeric_equal
+from bp_engine.live_prediction.semantic_recovery import provenance_prediction_hash_matches
 from bp_engine.live_prediction.service import (
     LivePredictionService,
     ensure_live_prediction_safety,
@@ -534,6 +535,16 @@ def _semantic_hash_matches(
         return False
 
 
+def _prediction_semantic_hash_matches(
+    connection: Connection,
+    row: Any,
+    policy: LivePolicySpec,
+) -> bool:
+    if _semantic_hash_matches(row, LivePrediction):
+        return True
+    return provenance_prediction_hash_matches(connection, row, policy)
+
+
 def _valid_market_identity(row: Any) -> bool:
     condition_id = str(row["condition_id"] or "")
     slug = str(row["slug"] or "")
@@ -616,11 +627,15 @@ def build_integrity_report(
         1 for count in natural_key_counts.values() if count > 1
     )
 
-    invalid_prediction_ids = {
-        str(row["prediction_id"])
-        for row in prediction_rows
-        if not _semantic_hash_matches(row, LivePrediction)
-    }
+    invalid_prediction_ids: set[str] = set()
+    for row in prediction_rows:
+        policy = policies.get(int(row["horizon_seconds"]))
+        if policy is None or not _prediction_semantic_hash_matches(
+            connection,
+            row,
+            policy,
+        ):
+            invalid_prediction_ids.add(str(row["prediction_id"]))
     invalid_evaluations = sum(
         1
         for row in evaluation_rows
