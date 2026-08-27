@@ -318,7 +318,12 @@ class LivePredictionService:
             except Exception as exc:
                 failed += 1
                 self._logger.error(
-                    "live_prediction_market_failed",
+                    "live_prediction_market_failed condition_id=%s horizon_seconds=%s "
+                    "error_type=%s error=%s",
+                    market.condition_id,
+                    market.horizon_seconds,
+                    type(exc).__name__,
+                    str(exc),
                     extra={
                         "condition_id": market.condition_id,
                         "horizon_seconds": market.horizon_seconds,
