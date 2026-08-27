@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import asyncio
-import importlib
 from datetime import UTC, datetime, timedelta
 
+import httpx
 import pytest
 from sqlalchemy import create_engine, insert
 
+from bp_engine.backfill import polymarket_prices
 from bp_engine.backfill.polymarket_prices import PriceHistoryResponse
 from bp_engine.calibration.models import CalibrationFit, EdgeConfig
 from bp_engine.live_prediction.inputs import observe_live_input
@@ -167,39 +168,43 @@ async def test_run_once_processes_simultaneous_due_markets_concurrently() -> Non
 
 
 @pytest.mark.asyncio
-async def test_live_runtime_uses_one_persistent_clob_http_client(monkeypatch) -> None:
-    module = importlib.import_module("bp_engine.live_prediction.cli")
-    http_clients: list[object] = []
-    service_clients: list[object] = []
+async def test_default_price_history_client_reuses_one_http_session(monkeypatch) -> None:
+    sessions: list[object] = []
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return {"history": []}
 
     class FakeHttpClient:
         def __init__(self, **kwargs) -> None:
             self.kwargs = kwargs
-            http_clients.append(self)
+            self.closed = False
+            sessions.append(self)
 
-        async def __aenter__(self):
-            return self
+        async def get(self, path: str, **kwargs):
+            assert path == "/prices-history"
+            return FakeResponse()
 
-        async def __aexit__(self, exc_type, exc, tb) -> None:
-            return None
+        async def aclose(self) -> None:
+            self.closed = True
 
-    class FakeService:
-        def __init__(self, *, client, **kwargs) -> None:
-            service_clients.append(client)
+    monkeypatch.setattr(polymarket_prices.httpx, "AsyncClient", FakeHttpClient)
+    client = polymarket_prices.PolymarketPriceHistoryClient()
+    start = datetime(2026, 8, 27, 15, 0, tzinfo=UTC)
+    end = start + timedelta(minutes=4)
 
-        async def run(self) -> None:
-            return None
+    for asset_id in ("up-latency-a", "up-latency-b"):
+        await client.get_history(
+            asset_id,
+            start=start,
+            end=end,
+            fidelity_minutes=1,
+            timeout_seconds=5.0,
+        )
+    await client.aclose()
 
-    monkeypatch.setattr(module.httpx, "AsyncClient", FakeHttpClient)
-    monkeypatch.setattr(module, "LivePredictionService", FakeService)
-
-    await module._run_live_service(
-        engine=object(),
-        policies={300: _policy()},
-        max_lateness_seconds=10,
-        poll_interval_seconds=1.0,
-    )
-
-    assert len(http_clients) == 1
-    assert len(service_clients) == 1
-    assert service_clients[0]._http_client is http_clients[0]
+    assert len(sessions) == 1
+    assert sessions[0].closed is True
