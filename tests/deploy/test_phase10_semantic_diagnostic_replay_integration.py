@@ -160,7 +160,11 @@ def test_diagnose_row_uses_replayed_state_when_compact_cutoff_mismatches(monkeyp
 
     monkeypatch.setattr(module, "_state_for_prediction", fake_state_for_prediction)
     monkeypatch.setattr(module, "_replayed_state_candidates", fake_replayed_state_candidates)
-    monkeypatch.setattr(module, "_raw_probability_candidates", lambda row, policy: (raw_probability,))
+    monkeypatch.setattr(
+        module,
+        "_raw_probability_candidates",
+        lambda row, policy: (raw_probability,),
+    )
 
     result = module._diagnose_row(None, row, policy)
 
