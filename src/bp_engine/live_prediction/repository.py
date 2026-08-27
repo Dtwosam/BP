@@ -141,6 +141,15 @@ def _record_values(record: LivePrediction | LivePredictionEvaluation) -> dict[st
     return asdict(record)
 
 
+def _prediction_storage_values(prediction: LivePrediction) -> dict[str, Any]:
+    values = _record_values(prediction)
+    for name in _PREDICTION_NUMERIC_FIELDS:
+        value = values[name]
+        if value is not None:
+            values[name] = Decimal(str(value))
+    return values
+
+
 def _evaluation_record_values(evaluation: LivePredictionEvaluation) -> dict[str, Any]:
     values = _record_values(evaluation)
     for name in _EVALUATION_NUMERIC_FIELDS:
@@ -230,7 +239,8 @@ class LivePredictionRepository:
                 f"conflicting live prediction prediction_id={prediction.prediction_id}"
             )
 
-        connection.execute(insert(live_predictions).values(**values))
+        storage_values = _prediction_storage_values(prediction)
+        connection.execute(insert(live_predictions).values(**storage_values))
         return LiveLedgerStoreResult(created=True, existing=False)
 
     @staticmethod
