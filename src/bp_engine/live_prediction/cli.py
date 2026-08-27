@@ -269,21 +269,35 @@ def _ledger_float_candidates(stored: Any) -> tuple[float, ...]:
     return tuple(candidates)
 
 
+def _calibrated_probability_candidates(
+    row: Any,
+    *,
+    side: str,
+    side_probability: float,
+) -> tuple[float, ...]:
+    if side == "up":
+        if _ledger_numeric_equal(row["calibrated_probability"], side_probability):
+            return (side_probability,)
+        return ()
+    return tuple(
+        candidate
+        for candidate in _ledger_float_candidates(row["calibrated_probability"])
+        if 1.0 - candidate == side_probability
+    )
+
+
 def _recover_calibrated_probability(
     row: Any,
     *,
     side: str,
     side_probability: float,
 ) -> float | None:
-    if side == "up":
-        if _ledger_numeric_equal(row["calibrated_probability"], side_probability):
-            return side_probability
-        return None
-
-    for candidate in _ledger_float_candidates(row["calibrated_probability"]):
-        if 1.0 - candidate == side_probability:
-            return candidate
-    return None
+    candidates = _calibrated_probability_candidates(
+        row,
+        side=side,
+        side_probability=side_probability,
+    )
+    return candidates[0] if candidates else None
 
 
 def _storage_recovered_prediction_semantic_values(row: Any) -> dict[str, Any] | None:
@@ -385,6 +399,26 @@ def _ambiguous_prediction_hash_matches(
     }
     ambiguous: list[tuple[tuple[str, ...], tuple[float, ...]]] = []
     handled = set(selected_fields)
+
+    if selected_side == "down":
+        side_probability = decision.get("side_probability")
+        if isinstance(side_probability, bool):
+            return False
+        try:
+            probability = float(side_probability)
+        except (TypeError, ValueError):
+            return False
+        if not math.isfinite(probability):
+            return False
+        calibrated_candidates = _calibrated_probability_candidates(
+            row,
+            side="down",
+            side_probability=probability,
+        )
+        if not calibrated_candidates:
+            return False
+        if len(calibrated_candidates) > 1:
+            ambiguous.append((("calibrated_probability",), calibrated_candidates))
 
     if bool(row.get("market_probability_observed", True)):
         probability_group = _hash_candidate_group(
