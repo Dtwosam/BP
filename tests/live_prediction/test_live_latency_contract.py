@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -163,3 +164,42 @@ async def test_run_once_processes_simultaneous_due_markets_concurrently() -> Non
     assert max_active == 2
     assert result.created_predictions == 2
     assert result.failed_markets == 0
+
+
+@pytest.mark.asyncio
+async def test_live_runtime_uses_one_persistent_clob_http_client(monkeypatch) -> None:
+    module = importlib.import_module("bp_engine.live_prediction.cli")
+    http_clients: list[object] = []
+    service_clients: list[object] = []
+
+    class FakeHttpClient:
+        def __init__(self, **kwargs) -> None:
+            self.kwargs = kwargs
+            http_clients.append(self)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb) -> None:
+            return None
+
+    class FakeService:
+        def __init__(self, *, client, **kwargs) -> None:
+            service_clients.append(client)
+
+        async def run(self) -> None:
+            return None
+
+    monkeypatch.setattr(module.httpx, "AsyncClient", FakeHttpClient)
+    monkeypatch.setattr(module, "LivePredictionService", FakeService)
+
+    await module._run_live_service(
+        engine=object(),
+        policies={300: _policy()},
+        max_lateness_seconds=10,
+        poll_interval_seconds=1.0,
+    )
+
+    assert len(http_clients) == 1
+    assert len(service_clients) == 1
+    assert service_clients[0]._http_client is http_clients[0]
