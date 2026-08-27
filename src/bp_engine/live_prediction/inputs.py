@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ from bp_engine.features.sources import FeatureSourceReader, StateObservation
 LIVE_PRICE_SOURCE = "polymarket_clob"
 LIVE_PRICE_DATASET = "prices_history"
 MAX_LATENESS_SECONDS = 10
+DEADLINE_COMPLETION_RESERVE_SECONDS = 0.5
 
 
 class LiveInputDeadlineExceeded(RuntimeError):
@@ -100,6 +102,29 @@ def _check_deadline(
         raise LiveInputDeadlineExceeded("live input observation exceeded lateness deadline")
     if current >= market_end_at:
         raise LiveInputDeadlineExceeded("live input observation reached market end")
+
+
+def _request_timeout_seconds(
+    current: datetime,
+    *,
+    scheduled_at: datetime,
+    max_lateness_seconds: int,
+) -> float:
+    deadline = scheduled_at + timedelta(seconds=max_lateness_seconds)
+    remaining = (deadline - current).total_seconds()
+    timeout_seconds = remaining - DEADLINE_COMPLETION_RESERVE_SECONDS
+    if timeout_seconds <= 0:
+        raise LiveInputDeadlineExceeded(
+            "insufficient live input deadline budget for price-history request"
+        )
+    return timeout_seconds
+
+
+def _history_supports_timeout(client: Any) -> bool:
+    try:
+        return "timeout_seconds" in inspect.signature(client.get_history).parameters
+    except (TypeError, ValueError):
+        return False
 
 
 def _expected_request_params(
@@ -203,19 +228,26 @@ async def observe_live_input(
         market_end_at,
         scheduled_at,
     )
+    request_started_at = _clock_time(clock)
     _check_deadline(
-        _clock_time(clock),
+        request_started_at,
         scheduled_at=scheduled,
         market_end_at=end,
         max_lateness_seconds=max_lateness_seconds,
     )
 
-    response = await client.get_history(
-        up_token_id,
-        start=start,
-        end=scheduled,
-        fidelity_minutes=1,
-    )
+    history_kwargs: dict[str, Any] = {
+        "start": start,
+        "end": scheduled,
+        "fidelity_minutes": 1,
+    }
+    if _history_supports_timeout(client):
+        history_kwargs["timeout_seconds"] = _request_timeout_seconds(
+            request_started_at,
+            scheduled_at=scheduled,
+            max_lateness_seconds=max_lateness_seconds,
+        )
+    response = await client.get_history(up_token_id, **history_kwargs)
     downloaded_at = _clock_time(clock)
     _check_deadline(
         downloaded_at,
