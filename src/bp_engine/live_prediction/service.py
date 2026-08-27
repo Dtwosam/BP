@@ -180,10 +180,28 @@ def _default_predictor(
     policy: LivePolicySpec,
     live_input: Any,
     *,
+    condition_id: str,
+    slug: str,
+    horizon_seconds: int,
+    market_start_at: datetime,
+    market_end_at: datetime,
+    up_token_id: str,
+    down_token_id: str,
     recorded_at: datetime,
     **_: Any,
 ) -> Any:
-    return build_live_prediction(policy, live_input, recorded_at=recorded_at)
+    return build_live_prediction(
+        policy,
+        live_input,
+        condition_id=condition_id,
+        slug=slug,
+        horizon_seconds=horizon_seconds,
+        market_start_at=market_start_at,
+        market_end_at=market_end_at,
+        up_token_id=up_token_id,
+        down_token_id=down_token_id,
+        recorded_at=recorded_at,
+    )
 
 
 class LivePredictionService:
