@@ -188,6 +188,23 @@ def _replayed_state_candidates(
     return tuple(recovered.values())
 
 
+def _state_candidates_for_prediction(
+    connection: Any,
+    row: Any,
+    side: str,
+) -> tuple[tuple[StateObservation | None, ...], str, int]:
+    state, status = _state_for_prediction(connection, row, side)
+    if status == "matched":
+        return ((state,) if state is not None else (None,)), status, 0
+    if status == "stored_none":
+        return (None,), status, 0
+
+    replayed = _replayed_state_candidates(connection, row, side)
+    if replayed:
+        return replayed, status, len(replayed)
+    return ((state,) if state is not None else (None,)), status, 0
+
+
 def _raw_probability_candidates(
     row: Any,
     policy: LivePolicySpec,
@@ -353,8 +370,12 @@ def _semantic_candidate_matches(
 def _diagnose_row(connection: Any, row: Any, policy: LivePolicySpec) -> dict[str, Any]:
     decision = row["edge_decision"]
     side = decision.get("side") if isinstance(decision, Mapping) else None
-    up_state, up_status = _state_for_prediction(connection, row, "up")
-    down_state, down_status = _state_for_prediction(connection, row, "down")
+    up_states, up_status, up_replay_count = _state_candidates_for_prediction(
+        connection, row, "up"
+    )
+    down_states, down_status, down_replay_count = _state_candidates_for_prediction(
+        connection, row, "down"
+    )
     raw_candidates = _raw_probability_candidates(row, policy)
 
     fingerprint_matches = 0
@@ -373,39 +394,43 @@ def _diagnose_row(connection: Any, row: Any, policy: LivePolicySpec) -> dict[str
         observed_probability = (
             raw_probability if bool(row["market_probability_observed"]) else None
         )
-        fingerprint = _input_fingerprint(
-            row,
-            probability=observed_probability,
-            up_state=up_state,
-            down_state=down_state,
-        )
-        if fingerprint != str(row["input_fingerprint"]):
-            continue
-        fingerprint_matches += 1
-        if _semantic_candidate_matches(
-            row,
-            policy,
-            raw_probability=raw_probability,
-            calibrated_probability=calibrated,
-            up_state=up_state,
-            down_state=down_state,
-        ):
-            semantic_matches += 1
-        try:
-            rebuilt = _rebuilt_prediction(
-                row,
-                policy,
-                raw_probability=raw_probability,
-                up_state=up_state,
-                down_state=down_state,
-            )
-        except (RuntimeError, TypeError, ValueError):
-            rebuild_errors += 1
-            continue
-        if canonical_hash(rebuilt.edge_decision) == canonical_hash(row["edge_decision"]):
-            rebuilt_decision_matches += 1
-        if rebuilt.semantic_sha256 == str(row["semantic_sha256"]):
-            rebuilt_semantic_matches += 1
+        for up_state in up_states:
+            for down_state in down_states:
+                fingerprint = _input_fingerprint(
+                    row,
+                    probability=observed_probability,
+                    up_state=up_state,
+                    down_state=down_state,
+                )
+                if fingerprint != str(row["input_fingerprint"]):
+                    continue
+                fingerprint_matches += 1
+                if _semantic_candidate_matches(
+                    row,
+                    policy,
+                    raw_probability=raw_probability,
+                    calibrated_probability=calibrated,
+                    up_state=up_state,
+                    down_state=down_state,
+                ):
+                    semantic_matches += 1
+                try:
+                    rebuilt = _rebuilt_prediction(
+                        row,
+                        policy,
+                        raw_probability=raw_probability,
+                        up_state=up_state,
+                        down_state=down_state,
+                    )
+                except (RuntimeError, TypeError, ValueError):
+                    rebuild_errors += 1
+                    continue
+                if canonical_hash(rebuilt.edge_decision) == canonical_hash(
+                    row["edge_decision"]
+                ):
+                    rebuilt_decision_matches += 1
+                if rebuilt.semantic_sha256 == str(row["semantic_sha256"]):
+                    rebuilt_semantic_matches += 1
 
     return {
         "prediction_id_prefix": str(row["prediction_id"])[:12],
@@ -414,6 +439,8 @@ def _diagnose_row(connection: Any, row: Any, policy: LivePolicySpec) -> dict[str
         "market_probability_observed": bool(row["market_probability_observed"]),
         "up_source_status": up_status,
         "down_source_status": down_status,
+        "up_replay_candidate_count": up_replay_count,
+        "down_replay_candidate_count": down_replay_count,
         "raw_candidate_count": len(raw_candidates),
         "calibration_relation_matches": relation_matches,
         "input_fingerprint_matches": fingerprint_matches,
