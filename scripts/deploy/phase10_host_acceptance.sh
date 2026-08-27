@@ -207,23 +207,31 @@ if [[ "$(systemctl is-active bp-live-predictor || true)" != "active" ]]; then
   exit 5
 fi
 
-ACCEPTANCE_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+ACCEPTANCE_STARTED_EPOCH=$(date -u +%s)
+ACCEPTANCE_STARTED_AT=$(date -u -d "@$ACCEPTANCE_STARTED_EPOCH" +%Y-%m-%dT%H:%M:%SZ)
+ACCEPTANCE_DEADLINE_AT=$(date -u -d "@$((ACCEPTANCE_STARTED_EPOCH + OBSERVE_SECONDS))" +%Y-%m-%dT%H:%M:%SZ)
 PREDICTION_COUNT_5M=0
 PREDICTION_COUNT_15M=0
 FUTURE_MARKET_COUNT_5M=0
 FUTURE_MARKET_COUNT_15M=0
+OPPORTUNITY_COUNT_5M=0
+OPPORTUNITY_COUNT_15M=0
 elapsed=0
 
 while (( elapsed < OBSERVE_SECONDS )); do
   current_future_5m=$(psql_scalar "SELECT count(*) FROM polymarket_markets m WHERE m.horizon_seconds = 300 AND m.active IS TRUE AND m.closed IS FALSE AND m.resolved_outcome IS NULL AND m.start_at + ($OFFSET_5M * interval '1 second') > now() AND m.start_at + ($OFFSET_5M * interval '1 second') < m.end_at;")
   current_future_15m=$(psql_scalar "SELECT count(*) FROM polymarket_markets m WHERE m.horizon_seconds = 900 AND m.active IS TRUE AND m.closed IS FALSE AND m.resolved_outcome IS NULL AND m.start_at + ($OFFSET_15M * interval '1 second') > now() AND m.start_at + ($OFFSET_15M * interval '1 second') < m.end_at;")
+  current_opportunity_5m=$(psql_scalar "SELECT count(*) FROM polymarket_markets m WHERE m.horizon_seconds = 300 AND m.active IS TRUE AND m.closed IS FALSE AND m.resolved_outcome IS NULL AND m.start_at + ($OFFSET_5M * interval '1 second') >= '$ACCEPTANCE_STARTED_AT'::timestamptz AND m.start_at + ($OFFSET_5M * interval '1 second') <= '$ACCEPTANCE_DEADLINE_AT'::timestamptz AND m.start_at + ($OFFSET_5M * interval '1 second') < m.end_at;")
+  current_opportunity_15m=$(psql_scalar "SELECT count(*) FROM polymarket_markets m WHERE m.horizon_seconds = 900 AND m.active IS TRUE AND m.closed IS FALSE AND m.resolved_outcome IS NULL AND m.start_at + ($OFFSET_15M * interval '1 second') >= '$ACCEPTANCE_STARTED_AT'::timestamptz AND m.start_at + ($OFFSET_15M * interval '1 second') <= '$ACCEPTANCE_DEADLINE_AT'::timestamptz AND m.start_at + ($OFFSET_15M * interval '1 second') < m.end_at;")
   if (( current_future_5m > FUTURE_MARKET_COUNT_5M )); then FUTURE_MARKET_COUNT_5M=$current_future_5m; fi
   if (( current_future_15m > FUTURE_MARKET_COUNT_15M )); then FUTURE_MARKET_COUNT_15M=$current_future_15m; fi
+  if (( current_opportunity_5m > OPPORTUNITY_COUNT_5M )); then OPPORTUNITY_COUNT_5M=$current_opportunity_5m; fi
+  if (( current_opportunity_15m > OPPORTUNITY_COUNT_15M )); then OPPORTUNITY_COUNT_15M=$current_opportunity_15m; fi
 
   PREDICTION_COUNT_5M=$(psql_scalar "SELECT count(*) FROM live_predictions WHERE prediction_version = 'live-prediction-v1' AND horizon_seconds = 300 AND recorded_at >= '$ACCEPTANCE_STARTED_AT'::timestamptz;")
   PREDICTION_COUNT_15M=$(psql_scalar "SELECT count(*) FROM live_predictions WHERE prediction_version = 'live-prediction-v1' AND horizon_seconds = 900 AND recorded_at >= '$ACCEPTANCE_STARTED_AT'::timestamptz;")
 
-  if (( FUTURE_MARKET_COUNT_5M > 0 && FUTURE_MARKET_COUNT_15M > 0 && \
+  if (( OPPORTUNITY_COUNT_5M > 0 && OPPORTUNITY_COUNT_15M > 0 && \
         PREDICTION_COUNT_5M > 0 && PREDICTION_COUNT_15M > 0 )); then
     break
   fi
@@ -232,12 +240,17 @@ while (( elapsed < OBSERVE_SECONDS )); do
 done
 
 systemctl stop bp-live-predictor
+PREDICTOR_JOURNAL="$run_dir/predictor-journal.txt"
+journalctl -u bp-live-predictor --since "$ACCEPTANCE_STARTED_AT" --no-pager -o cat \
+  > "$PREDICTOR_JOURNAL" 2>&1 || true
 
-if (( FUTURE_MARKET_COUNT_5M == 0 || FUTURE_MARKET_COUNT_15M == 0 )); then
+if (( OPPORTUNITY_COUNT_5M == 0 || OPPORTUNITY_COUNT_15M == 0 )); then
   echo "PHASE10_HOST_ACCEPTANCE=PENDING"
-  echo "REASON=future_verified_markets_unavailable"
+  echo "REASON=prospective_opportunities_unavailable"
   echo "FUTURE_MARKET_COUNT_5M=$FUTURE_MARKET_COUNT_5M"
   echo "FUTURE_MARKET_COUNT_15M=$FUTURE_MARKET_COUNT_15M"
+  echo "OPPORTUNITY_COUNT_5M=$OPPORTUNITY_COUNT_5M"
+  echo "OPPORTUNITY_COUNT_15M=$OPPORTUNITY_COUNT_15M"
   exit 7
 fi
 if (( PREDICTION_COUNT_5M == 0 || PREDICTION_COUNT_15M == 0 )); then
@@ -245,6 +258,10 @@ if (( PREDICTION_COUNT_5M == 0 || PREDICTION_COUNT_15M == 0 )); then
   echo "REASON=prospective_prediction_coverage_missing"
   echo "PREDICTION_COUNT_5M=$PREDICTION_COUNT_5M"
   echo "PREDICTION_COUNT_15M=$PREDICTION_COUNT_15M"
+  echo "OPPORTUNITY_COUNT_5M=$OPPORTUNITY_COUNT_5M"
+  echo "OPPORTUNITY_COUNT_15M=$OPPORTUNITY_COUNT_15M"
+  echo "--- PREDICTOR JOURNAL TAIL ---"
+  tail -n 120 "$PREDICTOR_JOURNAL" || true
   exit 7
 fi
 
@@ -258,6 +275,7 @@ candidate_python - \
   "$ENV_FILE" "$run_dir/prediction-report.json" "$REPO" \
   "$PREDICTION_COUNT_5M" "$PREDICTION_COUNT_15M" \
   "$FUTURE_MARKET_COUNT_5M" "$FUTURE_MARKET_COUNT_15M" \
+  "$OPPORTUNITY_COUNT_5M" "$OPPORTUNITY_COUNT_15M" \
   "$ORDER_SIDE_EFFECT_VIOLATIONS" <<'PY' | tee "$run_dir/prospective-evidence.txt"
 import json
 import sys
@@ -277,8 +295,10 @@ from bp_engine.storage.schema import live_prediction_evaluations, live_predictio
     prediction_15m,
     future_5m,
     future_15m,
+    opportunity_5m,
+    opportunity_15m,
     order_side_effect_violations,
-) = sys.argv[1:9]
+) = sys.argv[1:11]
 report = json.loads(Path(report_path).read_text(encoding="utf-8"))
 settings = Settings(_env_file=env_file)
 engine = create_engine(settings.database_url)
@@ -342,6 +362,8 @@ print(f"PREDICTION_COUNT_5M={prediction_5m}")
 print(f"PREDICTION_COUNT_15M={prediction_15m}")
 print(f"FUTURE_MARKET_COUNT_5M={future_5m}")
 print(f"FUTURE_MARKET_COUNT_15M={future_15m}")
+print(f"OPPORTUNITY_COUNT_5M={opportunity_5m}")
+print(f"OPPORTUNITY_COUNT_15M={opportunity_15m}")
 print(f"LATE_OR_MISSED_COVERAGE={late_or_missed}")
 print(f"MAX_LATENESS_MS={max_lateness_ms}")
 print(f"PRE_OUTCOME_VIOLATIONS={pre_outcome_violations}")
