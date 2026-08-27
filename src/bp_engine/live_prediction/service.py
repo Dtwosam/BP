@@ -313,6 +313,25 @@ class LivePredictionService:
             )
             return result.created, result.existing, False
 
+    async def _process_market_safely(
+        self,
+        market: DueMarket,
+    ) -> tuple[int, int, int, int]:
+        try:
+            was_created, was_existing, was_missed = await self._process_market(market)
+            return int(was_created), int(was_existing), int(was_missed), 0
+        except Exception as exc:
+            self._logger.exception(
+                "live_prediction_market_failed",
+                extra={
+                    "condition_id": market.condition_id,
+                    "horizon_seconds": market.horizon_seconds,
+                    "error_type": type(exc).__name__,
+                    "error": str(exc),
+                },
+            )
+            return 0, 0, 0, 1
+
     async def run_once(self) -> LivePredictionCycleResult:
         cycle_at = self._now()
         with self._engine.begin() as connection:
@@ -323,27 +342,13 @@ class LivePredictionService:
                 max_lateness_seconds=self._max_lateness_seconds,
             )
 
-        created = 0
-        existing = 0
-        missed = 0
-        failed = 0
-        for market in due_markets:
-            try:
-                was_created, was_existing, was_missed = await self._process_market(market)
-                created += int(was_created)
-                existing += int(was_existing)
-                missed += int(was_missed)
-            except Exception as exc:
-                failed += 1
-                self._logger.exception(
-                    "live_prediction_market_failed",
-                    extra={
-                        "condition_id": market.condition_id,
-                        "horizon_seconds": market.horizon_seconds,
-                        "error_type": type(exc).__name__,
-                        "error": str(exc),
-                    },
-                )
+        outcomes = await asyncio.gather(
+            *(self._process_market_safely(market) for market in due_markets)
+        )
+        created = sum(outcome[0] for outcome in outcomes)
+        existing = sum(outcome[1] for outcome in outcomes)
+        missed = sum(outcome[2] for outcome in outcomes)
+        failed = sum(outcome[3] for outcome in outcomes)
 
         try:
             evaluated_at = self._now()
