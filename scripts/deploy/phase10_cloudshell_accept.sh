@@ -121,6 +121,7 @@ JOB
   : > "\$LOG"
 
   systemd-run \
+    --no-block \
     --unit="\$UNIT" \
     --property=Type=oneshot \
     --property=RemainAfterExit=yes \
