@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 ROOT = Path(__file__).parents[2]
 HOST = ROOT / "scripts" / "deploy" / "phase10_host_acceptance.sh"
@@ -20,6 +21,27 @@ SOURCE_SEMANTIC_15M = (
 def _required_text(path: Path) -> str:
     assert path.exists(), f"missing required Phase 10 deployment asset: {path}"
     return path.read_text(encoding="utf-8")
+
+
+def _expanded_cloudshell_remote_script(text: str) -> str:
+    prefix = "REMOTE_SCRIPT=$(cat <<REMOTE\n"
+    suffix = "\nREMOTE\n)"
+    body = text.split(prefix, 1)[1].split(suffix, 1)[0]
+    shell = f"""set -Eeuo pipefail
+EXPECTED_HEAD=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef
+BRANCH=build/phase-10-live-prediction-engine
+REMOTE_SCRIPT=$(cat <<REMOTE
+{body}
+REMOTE
+)
+printf '%s' "$REMOTE_SCRIPT"
+"""
+    return subprocess.run(
+        ["bash", "-c", shell],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
 
 
 def test_phase10_host_acceptance_is_exact_sha_money_disabled_and_fail_closed() -> None:
@@ -163,6 +185,15 @@ def test_phase10_cloudshell_acceptance_survives_client_disconnect() -> None:
     assert "RemainAfterExit=yes" in text
     assert "journalctl" in text
     assert "systemctl show" in text
+
+
+def test_phase10_cloudshell_preserves_inner_job_runtime_status_expansion() -> None:
+    remote = _expanded_cloudshell_remote_script(_required_text(CLOUD))
+
+    assert r"RC=\$?" in remote
+    assert r'if [[ "\$RC" -ne 0 ]]; then' in remote
+    assert r'echo "PHASE10_WRAPPER_RC=\$RC"' in remote
+    assert r'exit "\$RC"' in remote
 
 
 def test_phase10_runbook_documents_prospective_evidence_and_non_economic_gate() -> None:
