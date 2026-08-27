@@ -197,8 +197,8 @@ def test_prediction_semantic_hash_recovers_down_probability_without_double_round
     prediction = _prediction()
     probability_up = 0.4211458073065157
     side_probability = 1.0 - probability_up
-    ask = 0.43
-    bid = 0.42
+    ask = 0.58
+    bid = 0.57
     spread = ask - bid
     fee = 0.07 * ask * (1.0 - ask)
     raw_edge = side_probability - ask
@@ -224,6 +224,8 @@ def test_prediction_semantic_hash_recovers_down_probability_without_double_round
         market_probability=probability_up,
         predicted_target=0,
         predicted_side="down",
+        down_best_bid=bid,
+        down_best_ask=ask,
         selected_side="down",
         selected_ask=ask,
         selected_bid=bid,
@@ -238,5 +240,6 @@ def test_prediction_semantic_hash_recovers_down_probability_without_double_round
     prediction = replace(prediction, semantic_sha256=canonical_hash(values))
     row = _postgres_row(prediction)
 
+    assert row["raw_edge"] != Decimal(str(raw_edge))
     assert 1.0 - side_probability != probability_up
     assert _semantic_hash_matches(row, LivePrediction) is True
