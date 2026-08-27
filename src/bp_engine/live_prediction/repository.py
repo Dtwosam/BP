@@ -145,8 +145,12 @@ def _stored_values(row: Mapping[str, Any], columns: set[str]) -> dict[str, Any]:
 def _semantically_equal(
     row: Mapping[str, Any],
     values: Mapping[str, Any],
+    *,
+    sqlite_numeric_emulation: bool = False,
 ) -> bool:
     stored = _stored_values(row, set(values))
+    if sqlite_numeric_emulation:
+        return _normalized(stored) == _normalized(values)
     for name, expected in values.items():
         actual = stored[name]
         if name in _LEDGER_NUMERIC_FIELDS:
@@ -196,7 +200,11 @@ class LivePredictionRepository:
             prediction_version=prediction.prediction_version,
         )
         if existing is not None:
-            if not _semantically_equal(existing, values):
+            if not _semantically_equal(
+                existing,
+                values,
+                sqlite_numeric_emulation=connection.dialect.name == "sqlite",
+            ):
                 raise LivePredictionConflict(
                     "conflicting live prediction "
                     f"condition_id={prediction.condition_id} "
@@ -354,7 +362,11 @@ class LivePredictionEvaluationRepository:
             label_version=evaluation.label_version,
         )
         if existing is not None:
-            if not _semantically_equal(existing, values):
+            if not _semantically_equal(
+                existing,
+                values,
+                sqlite_numeric_emulation=connection.dialect.name == "sqlite",
+            ):
                 raise LivePredictionEvaluationConflict(
                     "conflicting live prediction evaluation "
                     f"prediction_id={evaluation.prediction_id} "
