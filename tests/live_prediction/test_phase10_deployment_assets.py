@@ -212,10 +212,10 @@ def test_phase10_host_acceptance_captures_predictor_failure_details() -> None:
 
     assert "predictor-journal.txt" in host
     assert "journalctl -u bp-live-predictor" in host
-    assert (
-        "live_prediction_market_failed condition_id=%s horizon_seconds=%s "
-        "error_type=%s error=%s"
-    ) in service
+    assert "self._logger.exception(" in service
+    assert '"live_prediction_market_failed"' in service
+    assert '"error_type": type(exc).__name__' in service
+    assert '"error": str(exc)' in service
 
 
 def test_phase10_runbook_documents_prospective_evidence_and_non_economic_gate() -> None:
