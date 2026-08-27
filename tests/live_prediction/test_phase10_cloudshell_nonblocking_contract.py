@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).parents[2]
 CLOUD = ROOT / "scripts" / "deploy" / "phase10_cloudshell_accept.sh"
 
