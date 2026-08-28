@@ -143,6 +143,7 @@ def test_phase12_credential_rotation_is_atomic_and_does_not_echo_secret() -> Non
         "systemctl is-active bp-recorder.service",
         "systemctl is-active bp-dashboard-api.service",
         "PHASE12_POSTGRES_PASSWORD_ROTATION=PASS",
+        'encoded_username = quote(parsed.username, safe="")',
     ):
         assert required in rotate
     for forbidden in (
@@ -152,6 +153,7 @@ def test_phase12_credential_rotation_is_atomic_and_does_not_echo_secret() -> Non
         "psql -c \"ALTER ROLE",
         "systemctl restart bp-postgres.service",
         "systemctl stop bp-postgres.service",
+        "quote(parsed.username, safe='')",
     ):
         assert forbidden not in rotate
 
