@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import and_, exists, func, select
@@ -20,6 +21,7 @@ from bp_engine.storage.schema import (
 VERIFIED_HORIZONS = (300, 900)
 _MAX_LIMIT = 100
 _MAX_INCIDENT_WINDOW = timedelta(hours=24)
+_SQLITE_LEDGER_QUANTUM = Decimal("0.000000000000000001")
 
 
 def _validate_limit(limit: int) -> int:
@@ -34,8 +36,31 @@ def _validate_horizon(horizon_seconds: int | None) -> int | None:
     return horizon_seconds
 
 
-def _row_dict(row: Any) -> dict[str, Any]:
-    return dict(row._mapping)
+def _restore_sqlite_value(value: Any) -> Any:
+    if isinstance(value, Decimal):
+        return Decimal(str(float(value))).quantize(_SQLITE_LEDGER_QUANTUM)
+    if isinstance(value, datetime) and (value.tzinfo is None or value.utcoffset() is None):
+        return value.replace(tzinfo=UTC)
+    if isinstance(value, dict):
+        return {key: _restore_sqlite_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_restore_sqlite_value(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_restore_sqlite_value(item) for item in value)
+    return value
+
+
+def _compat_value(connection: Connection, value: Any) -> Any:
+    if connection.dialect.name == "sqlite":
+        return _restore_sqlite_value(value)
+    return value
+
+
+def _row_dict(connection: Connection, row: Any) -> dict[str, Any]:
+    values = dict(row._mapping)
+    if connection.dialect.name == "sqlite":
+        return {key: _restore_sqlite_value(value) for key, value in values.items()}
+    return values
 
 
 class DashboardQueries:
@@ -89,7 +114,7 @@ class DashboardQueries:
         )
 
         with self.read_only_connection() as connection:
-            markets = [_row_dict(row) for row in connection.execute(statement)]
+            markets = [_row_dict(connection, row) for row in connection.execute(statement)]
             return [self._hydrate_market(connection, market) for market in markets]
 
     def predictions(
@@ -134,7 +159,7 @@ class DashboardQueries:
         with self.read_only_connection() as connection:
             rows: list[dict[str, Any]] = []
             for row in connection.execute(statement):
-                item = _row_dict(row)
+                item = _row_dict(connection, row)
                 item["evaluation"] = self._evaluation_for_prediction(
                     connection, item["prediction_id"]
                 )
@@ -159,7 +184,7 @@ class DashboardQueries:
         with self.read_only_connection() as connection:
             rows: list[dict[str, Any]] = []
             for row in connection.execute(statement):
-                item = _row_dict(row)
+                item = _row_dict(connection, row)
                 incident_filter = and_(
                     feed_incidents.c.source == item["source"],
                     feed_incidents.c.stream == item["stream"],
@@ -179,7 +204,9 @@ class DashboardQueries:
                     latest_incident.incident_type if latest_incident is not None else None
                 )
                 item["most_recent_incident_at"] = (
-                    latest_incident.observed_at if latest_incident is not None else None
+                    _compat_value(connection, latest_incident.observed_at)
+                    if latest_incident is not None
+                    else None
                 )
                 rows.append(item)
             return rows
@@ -212,7 +239,7 @@ class DashboardQueries:
             .limit(limit)
         )
         with self.read_only_connection() as connection:
-            return [_row_dict(row) for row in connection.execute(statement)]
+            return [_row_dict(connection, row) for row in connection.execute(statement)]
 
     def _hydrate_market(
         self,
@@ -245,7 +272,9 @@ class DashboardQueries:
         market["current_down_best_ask"] = self._state_value(down_state, "best_ask")
         market["current_up_book_at"] = up_state["last_event_at"] if up_state else None
         market["current_down_book_at"] = down_state["last_event_at"] if down_state else None
-        market["prediction"] = _row_dict(prediction) if prediction is not None else None
+        market["prediction"] = (
+            _row_dict(connection, prediction) if prediction is not None else None
+        )
         return market
 
     @staticmethod
@@ -273,7 +302,7 @@ class DashboardQueries:
             .order_by(market_state_1s.c.bucket_at.desc(), market_state_1s.c.id.desc())
             .limit(1)
         ).one_or_none()
-        return _row_dict(row) if row is not None else None
+        return _row_dict(connection, row) if row is not None else None
 
     @staticmethod
     def _evaluation_for_prediction(
@@ -289,4 +318,4 @@ class DashboardQueries:
             )
             .limit(1)
         ).one_or_none()
-        return _row_dict(row) if row is not None else None
+        return _row_dict(connection, row) if row is not None else None
