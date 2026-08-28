@@ -1,8 +1,8 @@
 from pathlib import Path
 
 import pytest
-
 from bp_engine.dashboard.__main__ import DASHBOARD_API_HOST, validate_dashboard_safety
+
 from bp_engine.config import Settings, TradingMode
 
 
