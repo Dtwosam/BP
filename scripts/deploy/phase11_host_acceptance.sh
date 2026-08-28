@@ -104,7 +104,7 @@ stamp=$(date -u +%Y%m%dT%H%M%SZ)
 run_dir="$EVIDENCE_ROOT/$stamp"
 install -d -o bp -g bp "$run_dir"
 
-install_node_runtime() {
+install_node_runtime() (
   if [[ -x "$NODE_ROOT/bin/node" ]] && \
      [[ "$($NODE_ROOT/bin/node --version)" == "v$NODE_VERSION" ]]; then
     return
@@ -119,7 +119,7 @@ install_node_runtime() {
   esac
   archive="node-v${NODE_VERSION}-linux-${node_arch}.tar.xz"
   tmp=$(mktemp -d)
-  trap 'rm -rf "$tmp"' RETURN
+  trap 'rm -rf "$tmp"' EXIT
 
   if ! command -v curl >/dev/null 2>&1 || ! command -v xz >/dev/null 2>&1; then
     apt-get update
@@ -144,7 +144,7 @@ install_node_runtime() {
   chmod -R g+rX "$NODE_ROOT"
   "$NODE_ROOT/bin/node" --version | tee "$run_dir/node-version.txt"
   "$NODE_ROOT/bin/npm" --version | tee "$run_dir/npm-version.txt"
-}
+)
 
 cleanup() {
   set +e
