@@ -17,6 +17,7 @@ WEB_UNIT_NAME=bp-dashboard-web.service
 API_UNIT_DST="/etc/systemd/system/$API_UNIT_NAME"
 WEB_UNIT_DST="/etc/systemd/system/$WEB_UNIT_NAME"
 BACKUP_DIR=""
+SNAPSHOT_FILE=""
 ROLLBACK_ARMED=0
 HAD_API_UNIT=0
 HAD_WEB_UNIT=0
@@ -159,6 +160,7 @@ cleanup() {
   if (( rc != 0 && ROLLBACK_ARMED )); then
     rollback_dashboard
   fi
+  [[ -n "$SNAPSHOT_FILE" ]] && rm -f "$SNAPSHOT_FILE"
   [[ -n "$NODE_STAGE" ]] && rm -rf "$NODE_STAGE"
   [[ -n "$BACKUP_DIR" ]] && rm -rf "$BACKUP_DIR"
   if (( rc == 0 )) && [[ -n "$NODE_PREVIOUS" && -d "$NODE_PREVIOUS" ]]; then
@@ -284,10 +286,9 @@ if (( ! web_ready )); then
   exit 5
 fi
 
-snapshot_file=$(mktemp /var/tmp/bp-phase11-snapshot.XXXXXX.json)
-trap 'rm -f "$snapshot_file"' RETURN
-curl -fsS "http://127.0.0.1:8787/api/v1/snapshot" > "$snapshot_file"
-"$BP_ROOT/.venv/bin/python" - "$snapshot_file" <<'PY'
+SNAPSHOT_FILE=$(mktemp /var/tmp/bp-phase11-snapshot.XXXXXX.json)
+curl -fsS "http://127.0.0.1:8787/api/v1/snapshot" > "$SNAPSHOT_FILE"
+"$BP_ROOT/.venv/bin/python" - "$SNAPSHOT_FILE" <<'PY'
 from __future__ import annotations
 
 import json
@@ -317,8 +318,8 @@ age = (datetime.now(UTC) - generated.astimezone(UTC)).total_seconds()
 if age < -5 or age > 120:
     raise SystemExit(f"dashboard snapshot is stale or future-dated: age={age}")
 PY
-rm -f "$snapshot_file"
-trap - RETURN
+rm -f "$SNAPSHOT_FILE"
+SNAPSHOT_FILE=""
 
 mutation_status=$(curl -sS -o /dev/null -w '%{http_code}' \
   -X POST "http://127.0.0.1:8787/api/v1/snapshot")
