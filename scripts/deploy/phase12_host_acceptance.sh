@@ -11,6 +11,7 @@ RUNTIME_ROOT=/var/lib/bp/phase12-runtime
 WINDOW_SECONDS="${PHASE12_ACCEPTANCE_WINDOW_SECONDS:-600}"
 MAX_WINDOWS="${PHASE12_ACCEPTANCE_MAX_WINDOWS:-3}"
 POLL_SECONDS="${PHASE12_ACCEPTANCE_POLL_SECONDS:-5}"
+PAPER_ONCE_TIMEOUT_SECONDS="${PHASE12_PAPER_ONCE_TIMEOUT_SECONDS:-120}"
 VENV="$RUNTIME_ROOT/bp-phase12-venv-${EXPECTED_HEAD:0:12}-$$"
 SOURCE_5M="phase9-300-c9f0e00eb7836af08008c66909f8f179"
 SOURCE_15M="phase9-900-15c234f25588b23cce73a12f87a2e2ea"
@@ -24,7 +25,7 @@ if [[ ${EUID} -ne 0 ]]; then
   echo "Phase 12 host acceptance must run as root" >&2
   exit 2
 fi
-for value in "$WINDOW_SECONDS" "$MAX_WINDOWS" "$POLL_SECONDS"; do
+for value in "$WINDOW_SECONDS" "$MAX_WINDOWS" "$POLL_SECONDS" "$PAPER_ONCE_TIMEOUT_SECONDS"; do
   if ! [[ "$value" =~ ^[1-9][0-9]*$ ]]; then
     echo "Phase 12 acceptance timing values must be positive integers" >&2
     exit 2
@@ -50,6 +51,8 @@ required_files=(
   "$REPO/src/bp_engine/live_prediction/cli.py"
   "$REPO/src/bp_engine/dashboard/repository.py"
   "$REPO/migrations/0011_paper_execution.sql"
+  "$REPO/migrations/0012_paper_replay_indexes.sql"
+  "$REPO/scripts/deploy/ensure_phase12_replay_indexes.py"
 )
 for path in "${required_files[@]}"; do
   if [[ ! -f "$path" ]]; then
@@ -163,6 +166,9 @@ print("PAPER_SCHEMA=READY")
 engine.dispose()
 PY
 
+run_candidate "$VENV/bin/python" "$REPO/scripts/deploy/ensure_phase12_replay_indexes.py" \
+  > "$run_dir/replay-indexes.txt"
+
 START_ISO=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)
 sudo -u bp env \
   MODE=research \
@@ -188,8 +194,19 @@ if ! kill -0 "$PREDICTOR_PID" >/dev/null 2>&1; then
 fi
 
 paper_once() {
-  run_candidate "$VENV/bin/python" -m bp_engine.execution --once \
+  local rc=0
+  set +e
+  run_candidate timeout --signal=TERM --kill-after=10s "${PAPER_ONCE_TIMEOUT_SECONDS}s" \
+    "$VENV/bin/python" -m bp_engine.execution --once \
     | tee -a "$run_dir/paper-worker-runs.jsonl"
+  rc=${PIPESTATUS[0]}
+  set -e
+  if [[ "$rc" -eq 124 || "$rc" -eq 137 ]]; then
+    echo "PHASE12_HOST_ACCEPTANCE=FAIL"
+    echo "REASON=paper_once_timeout"
+    return "$rc"
+  fi
+  return "$rc"
 }
 
 find_prospective() {
@@ -367,8 +384,7 @@ PY
 }
 
 before_fingerprint=$(fingerprint_target)
-run_candidate "$VENV/bin/python" -m bp_engine.execution --once \
-  | tee -a "$run_dir/paper-worker-runs.jsonl"
+paper_once
 after_fingerprint=$(fingerprint_target)
 if [[ "$before_fingerprint" != "$after_fingerprint" ]]; then
   echo "PHASE12_HOST_ACCEPTANCE=FAIL"

@@ -6,6 +6,7 @@ BP_ROOT="${BP_ROOT:-/opt/bp}"
 BP_USER="${BP_USER:-bp}"
 BP_GROUP="${BP_GROUP:-bp}"
 ENV_FILE="${BP_ENV_FILE:-/etc/bp/bp.env}"
+PAPER_ONCE_TIMEOUT_SECONDS="${PHASE12_PAPER_ONCE_TIMEOUT_SECONDS:-120}"
 DASHBOARD_DIR="$BP_ROOT/apps/dashboard"
 NODE_ROOT="$BP_ROOT/.node"
 PAPER_UNIT_NAME=bp-paper-execution.service
@@ -26,6 +27,10 @@ if [[ ${EUID} -ne 0 ]]; then
 fi
 if [[ -z "$EXPECTED_HEAD" ]]; then
   echo "usage: $0 EXPECTED_HEAD" >&2
+  exit 2
+fi
+if ! [[ "$PAPER_ONCE_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "PHASE12_PAPER_ONCE_TIMEOUT_SECONDS must be a positive integer" >&2
   exit 2
 fi
 if [[ ! -f "$BP_ROOT/pyproject.toml" || ! -f "$DASHBOARD_DIR/package.json" ]]; then
@@ -80,6 +85,8 @@ required_files=(
   "$BP_ROOT/src/bp_engine/execution/service.py"
   "$BP_ROOT/src/bp_engine/dashboard/repository.py"
   "$BP_ROOT/migrations/0011_paper_execution.sql"
+  "$BP_ROOT/migrations/0012_paper_replay_indexes.sql"
+  "$BP_ROOT/scripts/deploy/ensure_phase12_replay_indexes.py"
 )
 for path in "${required_files[@]}"; do
   if [[ ! -f "$path" ]]; then
@@ -181,6 +188,20 @@ run_as_bp() {
     "$@"
 }
 
+paper_once() {
+  local output=$1
+  local rc=0
+  set +e
+  run_as_bp timeout --signal=TERM --kill-after=10s "${PAPER_ONCE_TIMEOUT_SECONDS}s" \
+    "$BP_ROOT/.venv/bin/python" -m bp_engine.execution --once > "$output"
+  rc=$?
+  set -e
+  if [[ "$rc" -eq 124 || "$rc" -eq 137 ]]; then
+    echo "Phase 12 paper execution --once timed out" >&2
+  fi
+  return "$rc"
+}
+
 "$BP_ROOT/.venv/bin/python" -m pip install --disable-pip-version-check -e "$BP_ROOT"
 
 run_as_bp "$BP_ROOT/.venv/bin/python" - <<'PY'
@@ -194,6 +215,9 @@ schema.metadata.create_all(engine)
 engine.dispose()
 print("PAPER_SCHEMA=READY")
 PY
+
+run_as_bp "$BP_ROOT/.venv/bin/python" \
+  "$BP_ROOT/scripts/deploy/ensure_phase12_replay_indexes.py"
 
 NODE_PATH="$NODE_ROOT/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 env PATH="$NODE_PATH" NEXT_TELEMETRY_DISABLED=1 \
@@ -219,8 +243,8 @@ chown -R "$BP_USER:$BP_GROUP" "$DASHBOARD_DIR/.next/cache"
 install -m 0644 "$PAPER_UNIT_SRC" "$PAPER_UNIT_DST"
 systemctl daemon-reload
 
-run_as_bp "$BP_ROOT/.venv/bin/python" -m bp_engine.execution --once > /var/tmp/bp-phase12-install-once.json
-run_as_bp "$BP_ROOT/.venv/bin/python" -m bp_engine.execution --once > /var/tmp/bp-phase12-install-rerun.json
+paper_once /var/tmp/bp-phase12-install-once.json
+paper_once /var/tmp/bp-phase12-install-rerun.json
 
 systemctl restart bp-dashboard-api.service
 systemctl start bp-dashboard-web.service
