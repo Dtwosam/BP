@@ -8,6 +8,8 @@ HOST = ROOT / "scripts" / "deploy" / "phase12_host_acceptance.sh"
 CLOUD = ROOT / "scripts" / "deploy" / "phase12_cloudshell_accept.sh"
 INSTALL = ROOT / "scripts" / "deploy" / "phase12_install.sh"
 ROTATE = ROOT / "scripts" / "deploy" / "phase12_rotate_postgres_password.sh"
+REPLAY_INDEX_HELPER = ROOT / "scripts" / "deploy" / "ensure_phase12_replay_indexes.py"
+REPLAY_INDEX_MIGRATION = ROOT / "migrations" / "0012_paper_replay_indexes.sql"
 RUNBOOK = ROOT / "docs" / "PHASE-12-DEPLOYMENT.md"
 CLI = ROOT / "src" / "bp_engine" / "execution" / "cli.py"
 MAIN = ROOT / "src" / "bp_engine" / "execution" / "__main__.py"
@@ -118,6 +120,54 @@ def test_phase12_host_acceptance_starts_exact_candidate_predictor() -> None:
     assert 'wait "$PREDICTOR_PID"' in host
 
 
+def test_phase12_replay_indexes_are_production_safe_and_query_shaped() -> None:
+    migration = _text(REPLAY_INDEX_MIGRATION)
+    helper = _text(REPLAY_INDEX_HELPER)
+
+    for required in (
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS",
+        "ix_raw_market_events_pm_book_replay_anchor",
+        "(instrument, asset_id, received_at DESC, id DESC)",
+        "source = 'polymarket'",
+        "stream = 'market'",
+        "event_type = 'book'",
+        "ix_raw_market_events_pm_price_change_replay",
+        "(instrument, received_at, id)",
+        "event_type = 'price_change'",
+    ):
+        assert required in migration
+
+    for required in (
+        "get_settings",
+        "AUTOCOMMIT",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS",
+        "PHASE12_REPLAY_INDEXES=READY",
+    ):
+        assert required in helper
+    assert "DATABASE_URL" not in helper
+
+
+def test_phase12_paper_once_is_hard_bounded_on_host_and_install() -> None:
+    host = _text(HOST)
+    install = _text(INSTALL)
+
+    for script in (host, install):
+        assert "PAPER_ONCE_TIMEOUT_SECONDS" in script
+        assert "timeout --signal=TERM --kill-after=10s" in script
+        assert "bp_engine.execution --once" in script
+    assert "REASON=paper_once_timeout" in host
+
+
+def test_phase12_deployment_applies_replay_indexes_before_paper_once() -> None:
+    host = _text(HOST)
+    install = _text(INSTALL)
+
+    helper_name = "ensure_phase12_replay_indexes.py"
+    for script in (host, install):
+        assert helper_name in script
+        assert script.index(helper_name) < script.index("bp_engine.execution --once")
+
+
 def test_phase12_deployment_keeps_database_url_out_of_process_arguments() -> None:
     host = _text(HOST)
     install = _text(INSTALL)
@@ -194,6 +244,7 @@ def test_ci_validates_phase12_deployment_assets() -> None:
         "bash -n scripts/deploy/phase12_cloudshell_accept.sh",
         "bash -n scripts/deploy/phase12_install.sh",
         "bash -n scripts/deploy/phase12_rotate_postgres_password.sh",
+        "python -m py_compile scripts/deploy/ensure_phase12_replay_indexes.py",
         "python -m py_compile scripts/run_paper_execution.py",
     ):
         assert command in workflow
