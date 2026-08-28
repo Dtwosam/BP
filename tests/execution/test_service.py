@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import pytest
+
 from bp_engine.execution.service import (
     PaperCashInvariantError,
     derive_paper_cash,
