@@ -124,7 +124,8 @@ class PaperExecutionRepository:
         token_column = "up_token_id" if order.selected_side == "up" else "down_token_id"
         if source[token_column] != order.token_id:
             raise ValueError("paper order token does not match selected source side")
-        if source["selected_ask"] is None or _decimal(source["selected_ask"]) != order.signal_selected_ask:
+        selected_ask = source["selected_ask"]
+        if selected_ask is None or _decimal(selected_ask) != order.signal_selected_ask:
             raise ValueError("paper order signal ask does not match source prediction")
         if _decimal(source["slippage_buffer"]) != order.signal_slippage_buffer:
             raise ValueError("paper order slippage does not match source prediction")
