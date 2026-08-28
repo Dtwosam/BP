@@ -114,6 +114,27 @@ def summarize_performance(
     return result
 
 
+def _paper_evidence(repository: Any, *, history_limit: int) -> tuple[bool, dict[str, Any]]:
+    reader = getattr(repository, "get_paper_execution_evidence", None)
+    if not callable(reader):
+        return False, {
+            "paper_pnl": {
+                "status": "UNAVAILABLE_UNTIL_PHASE_12",
+                "value": None,
+            },
+            "paper_orders": [],
+            "paper_fills": [],
+            "paper_settlements": [],
+        }
+    evidence = dict(reader(history_limit=history_limit))
+    return True, {
+        "paper_pnl": evidence.get("paper_pnl"),
+        "paper_orders": list(evidence.get("paper_orders", [])),
+        "paper_fills": list(evidence.get("paper_fills", [])),
+        "paper_settlements": list(evidence.get("paper_settlements", [])),
+    }
+
+
 def build_dashboard_snapshot(
     repository: Any,
     *,
@@ -125,6 +146,7 @@ def build_dashboard_snapshot(
     history = list(repository.list_predictions(limit=history_limit))
     performance_predictions = list(repository.list_performance_predictions())
     performance_evaluations = list(repository.list_evaluations())
+    paper_available, paper = _paper_evidence(repository, history_limit=history_limit)
 
     return _json_safe(
         {
@@ -133,7 +155,7 @@ def build_dashboard_snapshot(
                 "trading_mode": "RESEARCH",
                 "live_trading_enabled": False,
                 "execution_available": False,
-                "paper_execution_available": False,
+                "paper_execution_available": paper_available,
             },
             "active_markets": active_markets,
             "feed_health": feed_health,
@@ -142,9 +164,6 @@ def build_dashboard_snapshot(
                 performance_evaluations,
             ),
             "prediction_history": history,
-            "paper_pnl": {
-                "status": "UNAVAILABLE_UNTIL_PHASE_12",
-                "value": None,
-            },
+            **paper,
         }
     )
