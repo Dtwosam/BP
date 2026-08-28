@@ -95,8 +95,12 @@ def test_phase12_acceptance_and_install_fail_closed_and_reconcile() -> None:
             assert forbidden not in script
 
     assert "phase12-paper-execution" in host
-    assert "--once" in host
-    assert host.count("--once") >= 2, "acceptance must prove an idempotent rerun"
+    assert "paper_once() {" in host
+    before = host.index("before_fingerprint=$(fingerprint_target)")
+    rerun = host.index("paper_once", before)
+    after = host.index("after_fingerprint=$(fingerprint_target)", rerun)
+    assert before < rerun < after
+    assert "IDEMPOTENT_RERUN=PASS" in host
     assert "systemctl restart bp-recorder.service" not in host
     assert "systemctl stop bp-recorder.service" not in host
     assert "systemctl restart bp-recorder.service" not in install
