@@ -4,11 +4,11 @@ Research-first system for estimating short-duration BTC Polymarket Up/Down proba
 
 ## Current status
 
-**Phases 0–10:** complete.  
-**Current phase:** Phase 11 — Dashboard V1.  
+**Phases 0–11:** complete.  
+**Current phase:** Phase 12 — Paper Execution.  
 **Trading mode:** `RESEARCH`. Live trading is disabled.
 
-Phase 10 is production-host accepted on exact operational candidate `39101a60cdf712650f57a833849015c49da24946`. The accepted service records prospective immutable 5m/15m predictions before outcome, keeps official-outcome evaluation append-only, and contains no order, wallet, signing, paper-fill, or position path. The ~80% accuracy discussed for this project remains a research target, not an assumed or proven capability, and Phase 10 acceptance is not a profitability claim.
+Phase 11 is production-host accepted and permanently installed on exact operational candidate `126959eaef973b061c3c7ea619b6d6313f3f4e4e`. The accepted dashboard is read-only and localhost-only, surfaces the immutable 5m/15m prediction system without direct database access, and keeps paper P&L unavailable until Phase 12 supplies real simulated-fill evidence. The ~80% accuracy discussed for this project remains a research target, not an assumed or proven capability, and Phase 11 acceptance is not a profitability claim.
 
 ## Read before working
 
@@ -50,8 +50,8 @@ Expected health output includes:
 - Never commit `.env`, wallet keys, seed phrases, API secrets, or server secrets.
 - Never paste a wallet private key or seed phrase into ChatGPT.
 - Real-money trading is not authorized at this stage.
-- Phase 11 is a dashboard/read surface, not an execution phase.
-- Paper execution is Phase 12 and must not be invented inside the dashboard.
+- Phase 11 Dashboard V1 is accepted and remains a read-only surface.
+- Phase 12 is the current paper-execution phase; simulated fills must reconcile to immutable signals and must never place real orders.
 - A 10-minute recurring Polymarket BTC market is not assumed to exist; horizons remain configurable.
 
 ## Repository layout
@@ -66,8 +66,10 @@ data/                     Local/generated data (ignored)
 docs/                     Source of truth, build order, decisions, plans, evidence
 ```
 
-## Accepted Phase 10 proof
+## Accepted Phase 11 proof
 
-Fresh exact-head gates passed on `39101a60cdf712650f57a833849015c49da24946`: CI #1130, Historical Backfill Smoke #439, Live Recorder Smoke #544, and Recorder Short Soak #510. Production acceptance returned both `VERDICT=PASS` and `PHASE10_HOST_ACCEPTANCE=PASS`, with prospective 5m/15m predictions, maximum lateness 5,563 ms, and zero pre-outcome, source-cutoff, semantic-hash, duplicate-key, mutation, or order-side-effect violations.
+Fresh exact-head CI passed on `126959eaef973b061c3c7ea619b6d6313f3f4e4e` (run #1223): 511 Python tests passed, deployment validation and health passed, and the dashboard test/typecheck/Next.js production build lane passed. Isolated production-host acceptance returned `PHASE11_HOST_ACCEPTANCE=PASS` with 4 active markets, 4 feed rows, 2 performance rows, 26 prediction-history rows, localhost-only candidate listeners, and the recorder active.
 
-Sanitized acceptance evidence is recorded in `docs/evidence/phase-10-closeout-20260828.json`. The next build-order task is Dashboard V1 so system health and prediction performance can be understood without direct database access.
+Permanent installation returned `PHASE11_INSTALL=PASS` on the same exact operational SHA. `bp-recorder`, PostgreSQL, `bp-dashboard-api`, and `bp-dashboard-web` were active after install; permanent listeners were only `127.0.0.1:8787` and `127.0.0.1:3000`; API health reported `mode=RESEARCH` and `live_trading_enabled=false`; and POST to the snapshot endpoint returned HTTP 405.
+
+Sanitized acceptance evidence is recorded in `docs/evidence/phase-11-closeout-20260828.json`. The next build-order task is Phase 12 Paper Execution: realistic simulated order/fill mechanics using the future live interface, reconciled against immutable signals. Live trading remains disabled.

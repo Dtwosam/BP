@@ -1,0 +1,35 @@
+[Unit]
+Description=BP Phase 11 read-only dashboard web
+Requires=bp-dashboard-api.service
+After=bp-dashboard-api.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bp
+Group=bp
+WorkingDirectory=/opt/bp/apps/dashboard
+Environment=NODE_ENV=production
+Environment=NEXT_TELEMETRY_DISABLED=1
+Environment=BP_DASHBOARD_API_URL=http://127.0.0.1:8787/api/v1/snapshot
+ExecStart=/opt/bp/.node/bin/node /opt/bp/apps/dashboard/node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3000
+Restart=on-failure
+RestartSec=3
+TimeoutStartSec=30
+TimeoutStopSec=20
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/opt/bp/apps/dashboard/.next/cache
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-dashboard-web
+
+[Install]
+WantedBy=multi-user.target

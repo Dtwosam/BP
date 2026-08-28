@@ -64,8 +64,38 @@ jobs:
           bash -n scripts/deploy/phase9_cloudshell_accept.sh
           bash -n scripts/deploy/phase10_host_acceptance.sh
           bash -n scripts/deploy/phase10_cloudshell_accept.sh
-          python -m py_compile scripts/run_live_prediction.py scripts/report_live_predictions.py
+          bash -n scripts/deploy/phase11_host_acceptance.sh
+          bash -n scripts/deploy/phase11_cloudshell_accept.sh
+          bash -n scripts/deploy/phase11_install.sh
+          python -m py_compile scripts/run_live_prediction.py scripts/report_live_predictions.py scripts/run_dashboard_api.py
           docker compose --env-file deploy/bp.env.example -f docker-compose.prod.yml config -q
 
       - name: Health check
         run: python -m bp_engine.health
+
+  dashboard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/dashboard
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24.20.0"
+          package-manager-cache: false
+
+      - name: Install dashboard dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Test dashboard
+        run: npm test
+
+      - name: Typecheck dashboard
+        run: npm run typecheck
+
+      - name: Build dashboard
+        run: npm run build
