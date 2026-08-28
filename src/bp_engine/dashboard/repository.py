@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import Engine, create_engine, func, select
 
+from bp_engine.execution.models import PaperExecutionConfig
 from bp_engine.storage import schema
 
 _REQUIRED_COMPACT_FEEDS = (
@@ -13,10 +15,17 @@ _REQUIRED_COMPACT_FEEDS = (
     ("coinbase", "spot"),
     ("polymarket", "market"),
 )
+_ZERO = Decimal("0")
+
+
+def _decimal(value: object | None) -> Decimal:
+    if value is None:
+        return _ZERO
+    return value if isinstance(value, Decimal) else Decimal(str(value))
 
 
 class PostgresDashboardRepository:
-    """Read-only PostgreSQL access for the Phase 11 dashboard."""
+    """Read-only PostgreSQL access for the research and paper-execution dashboard."""
 
     def __init__(self, engine: Engine | str, *, stale_after_seconds: float = 10.0) -> None:
         if stale_after_seconds <= 0:
@@ -298,3 +307,260 @@ class PostgresDashboardRepository:
         )
         with self.engine.connect() as connection:
             return [dict(row) for row in connection.execute(query).mappings().all()]
+
+    def get_paper_execution_evidence(self, *, history_limit: int = 100) -> dict[str, Any]:
+        limit = max(1, min(int(history_limit), 500))
+        starting_cash = PaperExecutionConfig().starting_cash_usd
+
+        with self.engine.connect() as connection:
+            predictions = [
+                dict(row)
+                for row in connection.execute(
+                    select(
+                        schema.live_predictions.c.prediction_id,
+                        schema.live_predictions.c.semantic_sha256,
+                        schema.live_predictions.c.recorded_at,
+                        schema.live_predictions.c.up_token_id,
+                        schema.live_predictions.c.down_token_id,
+                        schema.live_predictions.c.selected_side,
+                        schema.live_predictions.c.selected_ask,
+                        schema.live_predictions.c.executable,
+                        schema.live_predictions.c.trade,
+                    )
+                ).mappings().all()
+            ]
+            orders = [
+                dict(row)
+                for row in connection.execute(
+                    select(schema.paper_orders).order_by(
+                        schema.paper_orders.c.submitted_at.asc(),
+                        schema.paper_orders.c.id.asc(),
+                    )
+                ).mappings().all()
+            ]
+            fills = [
+                dict(row)
+                for row in connection.execute(
+                    select(schema.paper_fills).order_by(
+                        schema.paper_fills.c.fill_at.asc(),
+                        schema.paper_fills.c.id.asc(),
+                    )
+                ).mappings().all()
+            ]
+            terminals = [
+                dict(row)
+                for row in connection.execute(
+                    select(schema.paper_order_terminal_events).order_by(
+                        schema.paper_order_terminal_events.c.event_at.asc(),
+                        schema.paper_order_terminal_events.c.id.asc(),
+                    )
+                ).mappings().all()
+            ]
+            settlements = [
+                dict(row)
+                for row in connection.execute(
+                    select(schema.paper_settlements).order_by(
+                        schema.paper_settlements.c.settled_at.asc(),
+                        schema.paper_settlements.c.id.asc(),
+                    )
+                ).mappings().all()
+            ]
+
+        prediction_by_id = {str(row["prediction_id"]): row for row in predictions}
+        order_by_id = {str(row["paper_order_id"]): row for row in orders}
+        terminal_by_order = {str(row["paper_order_id"]): row for row in terminals}
+        settlement_by_order = {str(row["paper_order_id"]): row for row in settlements}
+        fills_by_order: dict[str, list[dict[str, Any]]] = {}
+        for fill in fills:
+            fills_by_order.setdefault(str(fill["paper_order_id"]), []).append(fill)
+
+        violation_counts = {
+            "missing_source_prediction": 0,
+            "prediction_semantic_mismatch": 0,
+            "ineligible_source_signal": 0,
+            "side_mismatch": 0,
+            "token_mismatch": 0,
+            "signal_ask_mismatch": 0,
+            "order_time_mismatch": 0,
+            "orphan_fill": 0,
+            "fill_quantity_exceeded": 0,
+            "fill_price_limit_exceeded": 0,
+            "fill_time_violation": 0,
+            "fill_slippage_mismatch": 0,
+            "terminal_quantity_mismatch": 0,
+            "orphan_terminal": 0,
+            "orphan_settlement": 0,
+            "settlement_math_mismatch": 0,
+            "negative_cash": 0,
+        }
+
+        for order in orders:
+            prediction = prediction_by_id.get(str(order["prediction_id"]))
+            if prediction is None:
+                violation_counts["missing_source_prediction"] += 1
+                continue
+            if str(order["prediction_semantic_sha256"]) != str(
+                prediction["semantic_sha256"]
+            ):
+                violation_counts["prediction_semantic_mismatch"] += 1
+            if prediction["trade"] is not True or prediction["executable"] is not True:
+                violation_counts["ineligible_source_signal"] += 1
+            selected_side = str(prediction.get("selected_side") or "").lower()
+            if str(order["selected_side"]).lower() != selected_side:
+                violation_counts["side_mismatch"] += 1
+            expected_token = (
+                prediction.get("up_token_id")
+                if selected_side == "up"
+                else prediction.get("down_token_id")
+            )
+            if str(order["token_id"]) != str(expected_token):
+                violation_counts["token_mismatch"] += 1
+            if _decimal(order["signal_selected_ask"]) != _decimal(
+                prediction.get("selected_ask")
+            ):
+                violation_counts["signal_ask_mismatch"] += 1
+            if order["submitted_at"] != prediction["recorded_at"]:
+                violation_counts["order_time_mismatch"] += 1
+
+        for fill in fills:
+            order = order_by_id.get(str(fill["paper_order_id"]))
+            if order is None:
+                violation_counts["orphan_fill"] += 1
+                continue
+            if _decimal(fill["price"]) > _decimal(order["limit_price"]):
+                violation_counts["fill_price_limit_exceeded"] += 1
+            fill_at = fill["fill_at"]
+            if fill_at < order["arrival_at"] or fill_at > order["expires_at"]:
+                violation_counts["fill_time_violation"] += 1
+            terminal = terminal_by_order.get(str(order["paper_order_id"]))
+            if (
+                terminal is not None
+                and terminal["terminal_status"] == "CANCELLED"
+                and fill_at > terminal["event_at"]
+            ):
+                violation_counts["fill_time_violation"] += 1
+            expected_slippage = _decimal(fill["price"]) - _decimal(
+                order["signal_selected_ask"]
+            )
+            if _decimal(fill["signal_ask_slippage"]) != expected_slippage:
+                violation_counts["fill_slippage_mismatch"] += 1
+
+        for order_id, order in order_by_id.items():
+            order_fills = fills_by_order.get(order_id, [])
+            filled_shares = sum((_decimal(row["shares"]) for row in order_fills), _ZERO)
+            requested_shares = _decimal(order["requested_shares"])
+            if filled_shares > requested_shares:
+                violation_counts["fill_quantity_exceeded"] += 1
+            terminal = terminal_by_order.get(order_id)
+            if terminal is not None:
+                expected_remaining = requested_shares - filled_shares
+                if _decimal(terminal["remaining_shares"]) != expected_remaining:
+                    violation_counts["terminal_quantity_mismatch"] += 1
+
+        for terminal in terminals:
+            if str(terminal["paper_order_id"]) not in order_by_id:
+                violation_counts["orphan_terminal"] += 1
+
+        for settlement in settlements:
+            order_id = str(settlement["paper_order_id"])
+            order = order_by_id.get(order_id)
+            if order is None:
+                violation_counts["orphan_settlement"] += 1
+                continue
+            order_fills = fills_by_order.get(order_id, [])
+            filled_shares = sum((_decimal(row["shares"]) for row in order_fills), _ZERO)
+            fill_cost = sum((_decimal(row["total_cost"]) for row in order_fills), _ZERO)
+            fees = sum((_decimal(row["fee"]) for row in order_fills), _ZERO)
+            payout = _decimal(settlement["payout"])
+            if (
+                _decimal(settlement["filled_shares"]) != filled_shares
+                or _decimal(settlement["total_fill_cost"]) != fill_cost
+                or _decimal(settlement["total_fees"]) != fees
+                or _decimal(settlement["realized_pnl"]) != payout - fill_cost
+            ):
+                violation_counts["settlement_math_mismatch"] += 1
+
+        total_fill_cost = sum((_decimal(row["total_cost"]) for row in fills), _ZERO)
+        total_payout = sum((_decimal(row["payout"]) for row in settlements), _ZERO)
+        current_cash = starting_cash - total_fill_cost + total_payout
+        if current_cash < _ZERO:
+            violation_counts["negative_cash"] += 1
+
+        settled_order_ids = set(settlement_by_order)
+        filled_order_ids = {
+            order_id for order_id, rows in fills_by_order.items() if len(rows) > 0
+        }
+        open_order_ids = filled_order_ids - settled_order_ids
+        open_capital = sum(
+            (
+                _decimal(fill["total_cost"])
+                for order_id in open_order_ids
+                for fill in fills_by_order.get(order_id, [])
+            ),
+            _ZERO,
+        )
+        realized_pnl = sum((_decimal(row["realized_pnl"]) for row in settlements), _ZERO)
+        total_fees = sum((_decimal(row["fee"]) for row in fills), _ZERO)
+        total_slippage_cost = sum(
+            (_decimal(row["shares"]) * _decimal(row["signal_ask_slippage"]) for row in fills),
+            _ZERO,
+        )
+        no_fill_expired_count = sum(
+            1
+            for terminal in terminals
+            if terminal["terminal_status"] in {"EXPIRED", "MARKET_ENDED_UNFILLED"}
+            and not fills_by_order.get(str(terminal["paper_order_id"]))
+        )
+
+        equity = starting_cash
+        peak_equity = starting_cash
+        max_drawdown = _ZERO
+        for settlement in settlements:
+            equity += _decimal(settlement["realized_pnl"])
+            peak_equity = max(peak_equity, equity)
+            max_drawdown = max(max_drawdown, peak_equity - equity)
+
+        violation_count = sum(violation_counts.values())
+        reconciliation = {
+            "status": "OK" if violation_count == 0 else "VIOLATION",
+            "violation_count": violation_count,
+            "violations": violation_counts,
+            "paper_order_count": len(orders),
+            "trade_signal_count": sum(1 for row in predictions if row["trade"] is True),
+            "no_trade_signal_count": sum(1 for row in predictions if row["trade"] is False),
+        }
+        paper_pnl = {
+            "status": "AVAILABLE",
+            "starting_cash": starting_cash,
+            "current_cash": current_cash,
+            "open_capital": open_capital,
+            "unrealized_value": None,
+            "realized_pnl": realized_pnl,
+            "return_on_starting_cash": realized_pnl / starting_cash,
+            "max_realized_equity_drawdown": max_drawdown,
+            "settled_trade_count": len(settled_order_ids),
+            "open_position_count": len(open_order_ids),
+            "fill_count": len(fills),
+            "no_fill_expired_count": no_fill_expired_count,
+            "total_fees": total_fees,
+            "total_slippage_cost": total_slippage_cost,
+            "reconciliation": reconciliation,
+        }
+
+        order_history = []
+        for row in reversed(orders[-limit:]):
+            item = dict(row)
+            terminal = terminal_by_order.get(str(row["paper_order_id"]))
+            settlement = settlement_by_order.get(str(row["paper_order_id"]))
+            item["terminal_status"] = terminal.get("terminal_status") if terminal else None
+            item["remaining_shares"] = terminal.get("remaining_shares") if terminal else None
+            item["terminal_event_at"] = terminal.get("event_at") if terminal else None
+            item["realized_pnl"] = settlement.get("realized_pnl") if settlement else None
+            order_history.append(item)
+
+        return {
+            "paper_pnl": paper_pnl,
+            "paper_orders": order_history,
+            "paper_fills": list(reversed(fills[-limit:])),
+            "paper_settlements": list(reversed(settlements[-limit:])),
+        }

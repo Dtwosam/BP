@@ -13,13 +13,21 @@ export type ActiveMarket = {
   start_at?: string | null;
   end_at?: string | null;
   calibrated_probability?: number | null;
-  market_probability?: number | null;
+  raw_probability?: number | null;
   predicted_side?: string | null;
+  market_probability?: number | null;
+  up_best_bid?: number | null;
+  up_best_ask?: number | null;
+  down_best_bid?: number | null;
+  down_best_ask?: number | null;
   selected_side?: string | null;
   selected_ask?: number | null;
   selected_bid?: number | null;
+  selected_spread?: number | null;
+  raw_edge?: number | null;
   cost_adjusted_edge?: number | null;
   decision_reason?: string | null;
+  executable?: boolean | null;
   trade?: boolean | null;
   scheduled_at?: string | null;
   recorded_at?: string | null;
@@ -67,8 +75,11 @@ export type PredictionHistoryRow = {
   selected_side?: string | null;
   selected_ask?: number | null;
   selected_bid?: number | null;
+  selected_spread?: number | null;
+  raw_edge?: number | null;
   cost_adjusted_edge?: number | null;
   decision_reason?: string | null;
+  executable?: boolean | null;
   trade?: boolean | null;
   official_outcome?: string | null;
   official_target?: number | null;
@@ -78,9 +89,78 @@ export type PredictionHistoryRow = {
   calibrated_log_loss?: number | null;
 };
 
+export type PaperReconciliation = {
+  status: string;
+  violation_count: number;
+  violations?: Record<string, number>;
+  paper_order_count?: number;
+  trade_signal_count?: number;
+  no_trade_signal_count?: number;
+};
+
 export type PaperPnl = {
   status: string;
-  value: number | null;
+  value?: number | null;
+  starting_cash?: number | null;
+  current_cash?: number | null;
+  open_capital?: number | null;
+  unrealized_value?: number | null;
+  realized_pnl?: number | null;
+  return_on_starting_cash?: number | null;
+  max_realized_equity_drawdown?: number | null;
+  settled_trade_count?: number | null;
+  open_position_count?: number | null;
+  fill_count?: number | null;
+  no_fill_expired_count?: number | null;
+  total_fees?: number | null;
+  total_slippage_cost?: number | null;
+  reconciliation?: PaperReconciliation | null;
+};
+
+export type PaperOrderRow = {
+  paper_order_id: string;
+  prediction_id?: string | null;
+  condition_id?: string | null;
+  token_id?: string | null;
+  selected_side?: string | null;
+  requested_shares?: number | null;
+  target_notional_usd?: number | null;
+  submitted_at?: string | null;
+  arrival_at?: string | null;
+  expires_at?: string | null;
+  limit_price?: number | null;
+  signal_selected_ask?: number | null;
+  signal_fee_rate?: number | null;
+  signal_slippage_buffer?: number | null;
+  terminal_status?: string | null;
+  remaining_shares?: number | null;
+  terminal_event_at?: string | null;
+  realized_pnl?: number | null;
+};
+
+export type PaperFillRow = {
+  paper_order_id: string;
+  fill_key?: string | null;
+  fill_at?: string | null;
+  shares?: number | null;
+  price?: number | null;
+  gross_cost?: number | null;
+  fee?: number | null;
+  total_cost?: number | null;
+  signal_ask_slippage?: number | null;
+  replay_cutoff_at?: string | null;
+};
+
+export type PaperSettlementRow = {
+  paper_order_id: string;
+  label_version?: string | null;
+  official_outcome?: string | null;
+  filled_shares?: number | null;
+  total_fill_cost?: number | null;
+  total_fees?: number | null;
+  payout?: number | null;
+  realized_pnl?: number | null;
+  settled_at?: string | null;
 };
 
 export type DashboardSnapshot = {
@@ -91,6 +171,9 @@ export type DashboardSnapshot = {
   performance: PerformanceRow[];
   prediction_history: PredictionHistoryRow[];
   paper_pnl: PaperPnl;
+  paper_orders: PaperOrderRow[];
+  paper_fills: PaperFillRow[];
+  paper_settlements: PaperSettlementRow[];
 };
 
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
@@ -123,7 +206,10 @@ function isDashboardSnapshot(value: unknown): value is DashboardSnapshot {
     Array.isArray(row.performance) &&
     Array.isArray(row.prediction_history) &&
     !!row.paper_pnl &&
-    typeof row.paper_pnl === "object"
+    typeof row.paper_pnl === "object" &&
+    Array.isArray(row.paper_orders) &&
+    Array.isArray(row.paper_fills) &&
+    Array.isArray(row.paper_settlements)
   );
 }
 

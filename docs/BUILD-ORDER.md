@@ -409,8 +409,10 @@ Do not automatically increase stake.
 
 ## Immediate next action
 
-**Build Phase 11 — Dashboard V1.**
+**Build Phase 13 — Improvement Loop.**
 
-Phase 10 is production-host accepted on exact operational candidate `39101a60cdf712650f57a833849015c49da24946`, with prospective 5m/15m prediction evidence, maximum lateness below the 10-second deadline, and zero integrity or execution-side-effect violations. Dashboard V1 must remain a read/analysis surface: expose accepted live-prediction evidence and system health without inventing paper fills or adding an execution path.
+Phase 12 is production-host accepted and permanently installed on exact operational candidate `159ce77af9a51ae208511d216bee52d5732cee3b`, with a genuine prospective trade, causal paper fills, idempotent reconciliation, nonnegative cash, and zero reconciliation violations. The permanent paper worker is active while real execution remains unavailable.
 
-Paper execution remains Phase 12. Live readiness and controlled real-money launch remain later gated phases, and live trading stays disabled.
+Phase 13 must test explicit hypotheses across features, models, calibration, prediction timing, abstention, and executable-edge assumptions using champion/challenger discipline. Do not retune against untouched holdouts and do not promote from one unusually good backtest.
+
+Live readiness remains Phase 14. `LIVE_TRADING_ENABLED=false`, real-money limits remain zero, and no wallet/signing/order-placement path is authorized before that later gate and explicit user authorization.

@@ -42,3 +42,5 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/bp_engine/storage/schema.py" = ["E501"]
+"src/bp_engine/execution/service.py" = ["E501"]
+"tests/execution/test_service_postgres.py" = ["I001"]

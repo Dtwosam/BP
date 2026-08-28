@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.12.0 — 28 August 2026
+
+Phase 12 — Paper Execution — closed after exact-head CI, isolated production-host acceptance, and permanent installation on operational candidate `159ce77af9a51ae208511d216bee52d5732cee3b`. CI run #1328 passed 564 Python tests, Ruff, deployment validation, health in research/live-disabled mode, and the dashboard test/typecheck/production-build lane.
+
+The phase adds a generic execution contract and deterministic paper broker tied only to immutable eligible 5m/15m live-prediction signals. Simulated orders model latency, executable selected-side ask, limit price, recorded depth, partial fills, fees, slippage, expiry/cancellation, cash accounting, terminal events, and official-outcome-only settlement. Causal fills use immutable Polymarket book evidence; midpoint, synthetic, future, or fabricated fills remain forbidden.
+
+Production debugging kept crossed/locked reconstructed books fail-closed per order, added replay-specific PostgreSQL indexes, and bounded deployment paper passes to 120 seconds. A previously exposed production database credential was rotated, and Phase 12 stopped passing `DATABASE_URL` through process argv in favor of `BP_ENV_FILE` indirection.
+
+Isolated host acceptance returned `PHASE12_HOST_ACCEPTANCE=PASS` with a genuine prospective `TRADE`, causal paper-fill evidence, reconciliation `OK`, an idempotent rerun, nonnegative cash, and recorder/PostgreSQL/dashboard continuity. Permanent installation returned `PHASE12_INSTALL=PASS` on the same SHA with the money-disabled paper worker active.
+
+The installed dashboard reported `paper_execution_available=true`, `execution_available=false`, current cash `92.207577336709`, realized P&L `0.0`, 3 paper orders, 2 paper fills, 0 settlements, and reconciliation `OK` with every recorded violation counter at zero. These are simulated execution results, not a live-profitability claim.
+
+Sanitized closeout evidence is stored in `docs/evidence/phase-12-closeout-20260828.json`. Phase 13 — Improvement Loop — is now the next permitted phase. Live trading remains disabled, real-money limits remain zero, and Phase 14 live-readiness plus explicit authorization remain mandatory before real order placement.
 ## 0.11.0 — 28 August 2026
 
 Phase 11 — Dashboard V1 — closed after exact-head CI, isolated production-host acceptance, and permanent host installation on operational candidate `126959eaef973b061c3c7ea619b6d6313f3f4e4e`. CI run #1223 passed 511 Python tests plus lint, deployment validation, health, dashboard tests, strict TypeScript typecheck, and the Next.js production build.
