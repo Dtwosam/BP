@@ -4,6 +4,9 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
+
+from bp_engine.execution.book import BookLevel, ReplayedBook
+from bp_engine.execution.models import ExecutionOrderRequest, PaperExecutionConfig
 from bp_engine.execution.paper import (
     PaperFillDraft,
     PaperOrderDraft,
@@ -11,9 +14,6 @@ from bp_engine.execution.paper import (
     build_paper_order,
     simulate_buy,
 )
-
-from bp_engine.execution.book import BookLevel, ReplayedBook
-from bp_engine.execution.models import ExecutionOrderRequest, PaperExecutionConfig
 from bp_engine.features.hashing import canonical_hash
 
 BASE = datetime(2026, 8, 28, 17, 0, tzinfo=UTC)
