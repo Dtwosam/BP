@@ -3,8 +3,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from bp_engine.config import Settings
 from bp_engine.dashboard.service import DashboardService
+
+from bp_engine.config import Settings
 
 
 class FakeQueries:
