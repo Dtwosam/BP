@@ -1,4 +1,6 @@
-from bp_engine.config import Settings, TradingMode
+from pathlib import Path
+
+from bp_engine.config import Settings, TradingMode, get_settings
 
 
 def test_settings_use_safe_project_defaults() -> None:
@@ -55,3 +57,27 @@ def test_storage_settings_accept_environment_overrides(monkeypatch) -> None:
     assert settings.storage_warning_free_gib == 30
     assert settings.storage_critical_free_gib == 20
     assert settings.storage_delete_batch_size == 1234
+
+
+def test_get_settings_honors_bp_env_file(monkeypatch, tmp_path: Path) -> None:
+    env_file = tmp_path / "bp.env"
+    env_file.write_text(
+        "MODE=research\n"
+        "LIVE_TRADING_ENABLED=false\n"
+        "MAX_TRADE_SIZE_USD=0\n"
+        "MAX_DAILY_LOSS_USD=0\n"
+        "DATABASE_URL=postgresql+psycopg://bp:secret-not-in-argv@127.0.0.1:5432/bp\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("BP_ENV_FILE", str(env_file))
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    get_settings.cache_clear()
+    try:
+        settings = get_settings()
+        assert settings.mode is TradingMode.RESEARCH
+        assert settings.live_trading_enabled is False
+        assert settings.max_trade_size_usd == 0
+        assert settings.max_daily_loss_usd == 0
+        assert settings.database_url.endswith("secret-not-in-argv@127.0.0.1:5432/bp")
+    finally:
+        get_settings.cache_clear()
