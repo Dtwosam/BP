@@ -4,7 +4,6 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-
 from bp_engine.execution.models import (
     PAPER_EXECUTION_VERSION,
     ExecutionCancelAck,
