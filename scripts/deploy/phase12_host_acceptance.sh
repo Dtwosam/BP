@@ -12,6 +12,9 @@ WINDOW_SECONDS="${PHASE12_ACCEPTANCE_WINDOW_SECONDS:-600}"
 MAX_WINDOWS="${PHASE12_ACCEPTANCE_MAX_WINDOWS:-3}"
 POLL_SECONDS="${PHASE12_ACCEPTANCE_POLL_SECONDS:-5}"
 VENV="$RUNTIME_ROOT/bp-phase12-venv-${EXPECTED_HEAD:0:12}-$$"
+SOURCE_5M="phase9-300-c9f0e00eb7836af08008c66909f8f179"
+SOURCE_15M="phase9-900-15c234f25588b23cce73a12f87a2e2ea"
+PREDICTOR_PID=""
 
 if [[ -z "$EXPECTED_HEAD" ]]; then
   echo "usage: $0 EXPECTED_HEAD" >&2
@@ -44,6 +47,7 @@ required_files=(
   "$REPO/deploy/systemd/bp-paper-execution.service"
   "$REPO/src/bp_engine/execution/cli.py"
   "$REPO/src/bp_engine/execution/service.py"
+  "$REPO/src/bp_engine/live_prediction/cli.py"
   "$REPO/src/bp_engine/dashboard/repository.py"
   "$REPO/migrations/0011_paper_execution.sql"
 )
@@ -116,10 +120,13 @@ install -d -o bp -g bp "$EVIDENCE_ROOT" "$RUNTIME_ROOT"
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 run_dir="$EVIDENCE_ROOT/$stamp"
 install -d -o bp -g bp "$run_dir"
-START_ISO=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)
 
 cleanup() {
   set +e
+  if [[ -n "$PREDICTOR_PID" ]]; then
+    kill "$PREDICTOR_PID" >/dev/null 2>&1 || true
+    wait "$PREDICTOR_PID" >/dev/null 2>&1 || true
+  fi
   rm -rf "$VENV"
   set -e
 }
@@ -156,6 +163,31 @@ if not required.issubset(names):
 print("PAPER_SCHEMA=READY")
 engine.dispose()
 PY
+
+START_ISO=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)
+sudo -u bp env \
+  MODE=research \
+  LIVE_TRADING_ENABLED=false \
+  MAX_TRADE_SIZE_USD=0 \
+  MAX_DAILY_LOSS_USD=0 \
+  DATABASE_URL="$DATABASE_URL" \
+  "$VENV/bin/python" -m bp_engine.live_prediction run \
+    --source-calibration-run-id "$SOURCE_5M" \
+    --source-calibration-run-id "$SOURCE_15M" \
+    --env-file "$ENV_FILE" \
+    --database-url "$DATABASE_URL" \
+    --poll-interval-seconds 1 \
+    --max-lateness-seconds 10 \
+    > "$run_dir/predictor.log" 2>&1 &
+PREDICTOR_PID=$!
+printf 'PREDICTOR_PID=%s\n' "$PREDICTOR_PID" > "$run_dir/predictor-process.txt"
+sleep 2
+if ! kill -0 "$PREDICTOR_PID" >/dev/null 2>&1; then
+  echo "PHASE12_HOST_ACCEPTANCE=FAIL"
+  echo "REASON=prospective_predictor_failed_to_start"
+  tail -n 120 "$run_dir/predictor.log" || true
+  exit 5
+fi
 
 paper_once() {
   run_candidate "$VENV/bin/python" -m bp_engine.execution --once \
@@ -207,6 +239,12 @@ target_prediction_id=""
 for window in $(seq 1 "$MAX_WINDOWS"); do
   deadline=$(( $(date +%s) + WINDOW_SECONDS ))
   while (( $(date +%s) < deadline )); do
+    if ! kill -0 "$PREDICTOR_PID" >/dev/null 2>&1; then
+      echo "PHASE12_HOST_ACCEPTANCE=FAIL"
+      echo "REASON=prospective_predictor_exited_during_acceptance"
+      tail -n 120 "$run_dir/predictor.log" || true
+      exit 5
+    fi
     paper_once
     candidate_state=$(find_prospective)
     if [[ "$candidate_state" == TRADE:* ]]; then
@@ -224,6 +262,7 @@ done
 if [[ -z "$target_prediction_id" ]]; then
   echo "PHASE12_HOST_ACCEPTANCE=FAIL"
   echo "REASON=no_prospective_5m_15m_prediction_after_extended_window"
+  tail -n 120 "$run_dir/predictor.log" || true
   exit 5
 fi
 
@@ -292,7 +331,13 @@ with engine.connect() as connection:
     order = connection.execute(
         select(schema.paper_orders).where(schema.paper_orders.c.prediction_id == prediction_id)
     ).mappings().one_or_none()
-    values: dict[str, object] = {"prediction_id": prediction_id, "order": None, "fills": [], "terminal": None, "settlements": []}
+    values: dict[str, object] = {
+        "prediction_id": prediction_id,
+        "order": None,
+        "fills": [],
+        "terminal": None,
+        "settlements": [],
+    }
     if order is not None:
         order_id = order["paper_order_id"]
         values["order"] = str(order["semantic_sha256"])
@@ -393,7 +438,10 @@ with engine.connect() as connection:
                 raise SystemExit("paper fill lacks causal book anchor")
             if Decimal(str(fill["price"])) > Decimal(str(order["limit_price"])):
                 raise SystemExit("paper fill exceeded order limit")
-        if not fills and terminal["terminal_status"] not in {"EXPIRED", "MARKET_ENDED_UNFILLED"}:
+        if not fills and terminal["terminal_status"] not in {
+            "EXPIRED",
+            "MARKET_ENDED_UNFILLED",
+        }:
             raise SystemExit("zero-fill order lacks an explicit no-fill terminal reason")
         evidence.update(
             paper_order_id=str(order_id),
