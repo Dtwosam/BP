@@ -1,0 +1,33 @@
+name: Dashboard Lock
+
+on:
+  push:
+    paths:
+      - "apps/dashboard/package.json"
+      - ".github/workflows/dashboard-lock.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.16.0"
+
+      - name: Generate lockfile
+        working-directory: apps/dashboard
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Emit lockfile
+        run: |
+          echo "BP_DASHBOARD_LOCK_BEGIN"
+          base64 -w0 apps/dashboard/package-lock.json
+          echo
+          echo "BP_DASHBOARD_LOCK_END"
