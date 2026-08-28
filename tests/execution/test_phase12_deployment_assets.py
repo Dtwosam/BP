@@ -7,6 +7,7 @@ UNIT = ROOT / "deploy" / "systemd" / "bp-paper-execution.service"
 HOST = ROOT / "scripts" / "deploy" / "phase12_host_acceptance.sh"
 CLOUD = ROOT / "scripts" / "deploy" / "phase12_cloudshell_accept.sh"
 INSTALL = ROOT / "scripts" / "deploy" / "phase12_install.sh"
+ROTATE = ROOT / "scripts" / "deploy" / "phase12_rotate_postgres_password.sh"
 RUNBOOK = ROOT / "docs" / "PHASE-12-DEPLOYMENT.md"
 CLI = ROOT / "src" / "bp_engine" / "execution" / "cli.py"
 MAIN = ROOT / "src" / "bp_engine" / "execution" / "__main__.py"
@@ -128,6 +129,33 @@ def test_phase12_deployment_keeps_database_url_out_of_process_arguments() -> Non
         assert "DATABASE_URL=$(read_env DATABASE_URL)" not in script
 
 
+def test_phase12_credential_rotation_is_atomic_and_does_not_echo_secret() -> None:
+    rotate = _text(ROTATE)
+
+    for required in (
+        "openssl rand -hex",
+        "ALTER ROLE",
+        "POSTGRES_PASSWORD",
+        "DATABASE_URL",
+        "os.replace",
+        "systemctl restart bp-recorder.service",
+        "systemctl restart bp-dashboard-api.service",
+        "systemctl is-active bp-recorder.service",
+        "systemctl is-active bp-dashboard-api.service",
+        "PHASE12_POSTGRES_PASSWORD_ROTATION=PASS",
+    ):
+        assert required in rotate
+    for forbidden in (
+        "echo $NEW_PASSWORD",
+        "echo \"$NEW_PASSWORD\"",
+        "printf '%s\\n' \"$NEW_PASSWORD\"",
+        "psql -c \"ALTER ROLE",
+        "systemctl restart bp-postgres.service",
+        "systemctl stop bp-postgres.service",
+    ):
+        assert forbidden not in rotate
+
+
 def test_phase12_cloudshell_helper_pins_exact_candidate_head() -> None:
     helper = _text(CLOUD)
 
@@ -163,6 +191,7 @@ def test_ci_validates_phase12_deployment_assets() -> None:
         "bash -n scripts/deploy/phase12_host_acceptance.sh",
         "bash -n scripts/deploy/phase12_cloudshell_accept.sh",
         "bash -n scripts/deploy/phase12_install.sh",
+        "bash -n scripts/deploy/phase12_rotate_postgres_password.sh",
         "python -m py_compile scripts/run_paper_execution.py",
     ):
         assert command in workflow
