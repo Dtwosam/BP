@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import asdict, replace
 from decimal import Decimal
 
 import pytest
@@ -110,7 +110,6 @@ def test_reconciliation_flags_order_created_from_immutable_no_trade_signal() -> 
     engine = create_engine(DATABASE_URL)
     schema.metadata.create_all(engine)
     prediction_repository = LivePredictionRepository()
-    paper_repository = PaperExecutionRepository()
 
     source = _prediction()
     no_trade_prediction = replace(
@@ -142,7 +141,9 @@ def test_reconciliation_flags_order_created_from_immutable_no_trade_signal() -> 
         with engine.begin() as connection:
             _cleanup(connection, prediction_ids)
             prediction_repository.store(connection, no_trade_prediction)
-            paper_repository.insert_order(connection, invalid_order)
+            # Deliberately bypass PaperExecutionRepository's eligibility guard to model
+            # corrupted/foreign ledger state. Normal application code cannot insert this.
+            connection.execute(schema.paper_orders.insert().values(**asdict(invalid_order)))
 
         reconciliation = PostgresDashboardRepository(engine).get_paper_execution_evidence()[
             "paper_pnl"
