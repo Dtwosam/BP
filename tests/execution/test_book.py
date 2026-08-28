@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
+
 from bp_engine.execution.book import (
     BookLevel,
     BookReplayError,
