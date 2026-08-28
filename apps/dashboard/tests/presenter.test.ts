@@ -45,6 +45,38 @@ test("operator KPIs summarize evidence without inventing paper P&L", () => {
   });
 });
 
+test("phase12 KPIs show realized paper P&L from execution evidence", () => {
+  const phase12Snapshot = {
+    ...snapshot,
+    mode: { ...snapshot.mode, paper_execution_available: true },
+    paper_pnl: {
+      status: "AVAILABLE",
+      starting_cash: 100,
+      current_cash: 101.1496,
+      open_capital: 0,
+      unrealized_value: null,
+      realized_pnl: 1.1496,
+      return_on_starting_cash: 0.011496,
+      max_realized_equity_drawdown: 0,
+      settled_trade_count: 1,
+      open_position_count: 0,
+      fill_count: 1,
+      no_fill_expired_count: 0,
+      total_fees: 0.0504,
+      total_slippage_cost: 0,
+      reconciliation: { status: "OK", violation_count: 0 },
+    },
+  };
+
+  assert.deepEqual(buildKpis(phase12Snapshot), {
+    activeMarkets: 1,
+    healthyFeeds: 1,
+    totalFeeds: 2,
+    evaluatedPredictions: 12,
+    paperPnl: "+$1.15",
+  });
+});
+
 test("snapshot freshness becomes stale after one minute and preserves refresh errors", () => {
   const now = new Date("2026-08-28T12:00:30Z");
   assert.equal(classifySnapshotFreshness(snapshot.generated_at, now, false), "fresh");
