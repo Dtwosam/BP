@@ -50,8 +50,14 @@ def _request_stop(_signum: int, _frame: object) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run the deterministic Phase 12 paper execution worker")
-    parser.add_argument("--once", action="store_true", help="process one bounded paper execution pass")
+    parser = argparse.ArgumentParser(
+        description="Run the deterministic Phase 12 paper execution worker"
+    )
+    parser.add_argument(
+        "--once",
+        action="store_true",
+        help="process one bounded paper execution pass",
+    )
     parser.add_argument(
         "--poll-seconds",
         type=float,
