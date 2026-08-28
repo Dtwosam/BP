@@ -1,0 +1,78 @@
+name: Phase12 Book Failclosed Transform
+
+on:
+  push:
+    branches:
+      - phase-12-paper-execution-v1
+    paths:
+      - .github/workflows/phase12-book-failclosed-transform.yml
+
+permissions:
+  contents: write
+
+jobs:
+  transform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: phase-12-paper-execution-v1
+          fetch-depth: 0
+
+      - name: Apply fail-closed service boundary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/bp_engine/execution/service.py")
+          text = path.read_text(encoding="utf-8")
+
+          old_import = "from bp_engine.execution.book import PolymarketBookReplayReader, ReplayedBook"
+          new_import = '''from bp_engine.execution.book import (
+              BookReplayError,
+              PolymarketBookReplayReader,
+              ReplayedBook,
+          )'''
+          if old_import not in text:
+              raise SystemExit("expected execution.book import not found")
+          text = text.replace(old_import, new_import, 1)
+
+          old = '''        draft = _draft_from_rows(order, prediction)
+          simulation = simulate_buy(draft, self._books_for_order(connection, draft))'''
+          new = '''        draft = _draft_from_rows(order, prediction)
+          try:
+              books = self._books_for_order(connection, draft)
+          except BookReplayError as exc:
+              terminal_result = self._repository.insert_terminal_event(
+                  connection,
+                  _terminal_record(
+                      paper_order_id=str(order["paper_order_id"]),
+                      terminal=PaperTerminalDraft(
+                          status="EXPIRED",
+                          remaining_shares=draft.request.requested_shares,
+                          event_at=draft.request.expires_at,
+                          reason=f"causal book replay failed closed: {exc}"[:128],
+                      ),
+                  ),
+              )
+              return (
+                  0,
+                  0,
+                  int(terminal_result.created),
+                  int(terminal_result.existing),
+              )
+
+          simulation = simulate_buy(draft, books)'''
+          if old not in text:
+              raise SystemExit("expected _process_order simulation block not found")
+          text = text.replace(old, new, 1)
+          path.write_text(text, encoding="utf-8")
+
+          Path(".github/workflows/phase12-book-failclosed-transform.yml").unlink()
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: fail closed on invalid paper book evidence"
+          git push origin HEAD:phase-12-paper-execution-v1
