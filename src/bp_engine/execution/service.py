@@ -8,7 +8,11 @@ from typing import Any
 
 from sqlalchemy import Connection, Engine, select
 
-from bp_engine.execution.book import PolymarketBookReplayReader, ReplayedBook
+from bp_engine.execution.book import (
+    BookReplayError,
+    PolymarketBookReplayReader,
+    ReplayedBook,
+)
 from bp_engine.execution.models import (
     ExecutionOrderRequest,
     PaperExecutionConfig,
@@ -361,7 +365,29 @@ class PaperExecutionService:
             return 0, 0, 0, 0
 
         draft = _draft_from_rows(order, prediction)
-        simulation = simulate_buy(draft, self._books_for_order(connection, draft))
+        try:
+            books = self._books_for_order(connection, draft)
+        except BookReplayError as exc:
+            terminal_result = self._repository.insert_terminal_event(
+                connection,
+                _terminal_record(
+                    paper_order_id=str(order["paper_order_id"]),
+                    terminal=PaperTerminalDraft(
+                        status="EXPIRED",
+                        remaining_shares=draft.request.requested_shares,
+                        event_at=draft.request.expires_at,
+                        reason=f"causal book replay failed closed: {exc}"[:128],
+                    ),
+                ),
+            )
+            return (
+                0,
+                0,
+                int(terminal_result.created),
+                int(terminal_result.existing),
+            )
+
+        simulation = simulate_buy(draft, books)
         created_fills = 0
         existing_fills = 0
         for fill in simulation.fills:
