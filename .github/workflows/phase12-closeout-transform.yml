@@ -1,0 +1,289 @@
+name: Phase 12 Closeout Transform
+
+on:
+  push:
+    branches: [phase-12-paper-execution-v1]
+
+permissions:
+  contents: write
+
+jobs:
+  closeout:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply deterministic Phase 12 closeout
+        shell: bash
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          from pathlib import Path
+
+          ROOT = Path('.')
+          OP_SHA = '159ce77af9a51ae208511d216bee52d5732cee3b'
+          PREDICTION_ID = '0d452c12351560d41a69a0f90153c24acb401c8179861ac50074801b21d45e06'
+          HOST_EVIDENCE = '/var/lib/bp/evidence/phase12-paper-execution/20260828T230531Z'
+          INSTALL_EVIDENCE = '/var/lib/bp/evidence/phase12-install-20260828T234109Z.txt'
+          CLOSEOUT_EVIDENCE = 'docs/evidence/phase-12-closeout-20260828.json'
+
+          state_path = ROOT / 'PROJECT_STATE.json'
+          state = json.loads(state_path.read_text(encoding='utf-8'))
+          assert state['source_of_truth_version'] == '0.11.0'
+          assert state['current_phase'] == 12
+          assert state['status'] == 'PHASE_11_COMPLETE_PHASE_12_READY'
+          assert 'phase_12_checkpoint' not in state
+
+          state['source_of_truth_version'] = '0.12.0'
+          state['updated_at'] = '2026-08-28T23:41:09Z'
+          state['current_phase'] = 13
+          state['current_phase_name'] = 'improvement loop'
+          state['status'] = 'PHASE_12_COMPLETE_PHASE_13_READY'
+          state['phase_12_checkpoint'] = {
+              'host_accepted_operational_commit': OP_SHA,
+              'ci_run': 1328,
+              'ci_passed': True,
+              'automated_tests_passing': 564,
+              'host_acceptance_verdict': 'PASS',
+              'permanent_install_verdict': 'PASS',
+              'prospective_kind': 'TRADE',
+              'prospective_prediction_id': PREDICTION_ID,
+              'paper_orders': 3,
+              'paper_fills': 2,
+              'paper_settlements': 0,
+              'trade_signal_count': 3,
+              'no_trade_signal_count': 51,
+              'current_cash_usd': '92.207577336709',
+              'realized_pnl_usd': '0.0',
+              'reconciliation_status': 'OK',
+              'reconciliation_violation_count': 0,
+              'idempotent_rerun_verified': True,
+              'causal_book_replay_required': True,
+              'replay_indexes_ready': True,
+              'paper_once_timeout_seconds': 120,
+              'postgres_password_rotation_after_exposure': 'PASS',
+              'paper_worker_active_after_install': True,
+              'recorder_active_after_install': True,
+              'postgres_active_after_install': True,
+              'dashboard_api_active_after_install': True,
+              'dashboard_web_active_after_install': True,
+              'paper_execution_available': True,
+              'execution_available': False,
+              'live_trading_enabled': False,
+              'max_trade_size_usd': 0,
+              'max_daily_loss_usd': 0,
+              'money_execution_path_added': False,
+              'profitability_claim': False,
+              'host_evidence_dir': HOST_EVIDENCE,
+              'install_evidence_file': INSTALL_EVIDENCE,
+              'sanitized_evidence': CLOSEOUT_EVIDENCE,
+          }
+
+          completed_additions = [
+              'Phase 12 generic execution protocol and deterministic money-disabled paper broker implemented',
+              'Phase 12 causal Polymarket order-book replay, latency/depth/partial-fill/fee/slippage/expiry/cancel simulation, append-only execution ledgers, and fail-closed invalid-book handling implemented',
+              'Phase 12 dashboard paper account, orders, fills, settlements, P&L, and structural reconciliation implemented without real execution controls',
+              'Phase 12 production host acceptance passed on the exact operational commit with a prospective trade, causal fill evidence, nonnegative paper cash, reconciliation OK, and idempotent rerun',
+              'Phase 12 permanent production install passed with the money-disabled paper worker plus recorder, PostgreSQL, dashboard API, and dashboard web all active',
+              'Phase 12 closeout evidence recorded',
+          ]
+          completed = state.setdefault('completed', [])
+          for item in completed_additions:
+              if item not in completed:
+                  completed.append(item)
+
+          state['not_completed'] = [x for x in state.get('not_completed', []) if x != 'Paper trading']
+          if 'Live trading' not in state['not_completed']:
+              state['not_completed'].append('Live trading')
+
+          state['next_actions'] = [
+              'Begin Phase 13 Improvement Loop',
+              'Run hypothesis-driven champion/challenger experiments using immutable historical and prospective paper-execution evidence',
+              'Evaluate calibration, executable edge, abstention, timing, feature, and model changes without reusing untouched holdouts for selection',
+              'Promote no challenger unless repeated out-of-sample evidence beats the current champion after executable-price costs and uncertainty',
+              'Keep LIVE_TRADING_ENABLED=false and real-money limits at zero; Phase 14 live-readiness and explicit authorization remain mandatory before real trading',
+          ]
+          security = state.setdefault('security', {})
+          security['production_database_credential_rotated_after_phase12_exposure'] = True
+
+          state_path.write_text(json.dumps(state, indent=2) + '\n', encoding='utf-8')
+
+          evidence = {
+              'phase': 12,
+              'name': 'Paper Execution',
+              'date': '2026-08-28',
+              'operational_commit': OP_SHA,
+              'ci': {
+                  'run_number': 1328,
+                  'passed': True,
+                  'python_tests': 564,
+                  'dashboard_test_typecheck_build': 'PASS',
+                  'deployment_validation': 'PASS',
+                  'health_mode': 'research',
+                  'live_trading_enabled': False,
+              },
+              'security_recovery': {
+                  'postgres_password_rotation_after_exposure': 'PASS',
+                  'database_url_removed_from_phase12_process_argv': True,
+                  'bp_env_file_indirection': True,
+              },
+              'isolated_host_acceptance': {
+                  'verdict': 'PASS',
+                  'head': OP_SHA,
+                  'prospective_kind': 'TRADE',
+                  'prospective_prediction_id': PREDICTION_ID,
+                  'reconciliation_status': 'OK',
+                  'idempotent_rerun': 'PASS',
+                  'recorder_status': 'active',
+                  'postgres_status': 'active',
+                  'dashboard_api_status': 'active',
+                  'dashboard_web_status': 'active',
+                  'evidence_dir': HOST_EVIDENCE,
+              },
+              'permanent_install': {
+                  'verdict': 'PASS',
+                  'head': OP_SHA,
+                  'paper_worker_status': 'active',
+                  'dashboard_api_status': 'active',
+                  'dashboard_web_status': 'active',
+                  'recorder_status': 'active',
+                  'postgres_status': 'active',
+                  'paper_orders': 3,
+                  'paper_fills': 2,
+                  'paper_settlements': 0,
+                  'trade_signal_count': 3,
+                  'no_trade_signal_count': 51,
+                  'current_cash_usd': '92.207577336709',
+                  'realized_pnl_usd': '0.0',
+                  'reconciliation': {
+                      'status': 'OK',
+                      'violation_count': 0,
+                      'all_recorded_violation_counters_zero': True,
+                  },
+                  'paper_execution_available': True,
+                  'real_execution_available': False,
+                  'evidence_file': INSTALL_EVIDENCE,
+              },
+              'production_hardening': {
+                  'causal_full_book_replay': True,
+                  'invalid_or_crossed_book_fails_order_closed_without_worker_crash': True,
+                  'replay_specific_postgres_indexes_ready': True,
+                  'paper_once_timeout_seconds': 120,
+                  'synthetic_or_midpoint_fills_allowed': False,
+              },
+              'safety': {
+                  'trading_mode': 'RESEARCH',
+                  'live_trading_enabled': False,
+                  'max_trade_size_usd': 0,
+                  'max_daily_loss_usd': 0,
+                  'wallet_or_signer_added': False,
+                  'real_order_side_effects_enabled': False,
+                  'profitability_claim': False,
+              },
+              'interpretation': 'Phase 12 proves deterministic simulated execution and reconciliation against immutable live prediction signals on the production host. Paper fills and P&L are simulated evidence, not proof of live profitability. Phase 13 is the next permitted phase; live trading remains disabled and blocked by Phase 14 live-readiness plus explicit authorization.',
+          }
+          evidence_path = ROOT / CLOSEOUT_EVIDENCE
+          evidence_path.parent.mkdir(parents=True, exist_ok=True)
+          evidence_path.write_text(json.dumps(evidence, indent=2) + '\n', encoding='utf-8')
+
+          changelog_path = ROOT / 'docs/CHANGELOG.md'
+          changelog = changelog_path.read_text(encoding='utf-8')
+          assert changelog.startswith('# Changelog\n')
+          assert '## 0.12.0 — 28 August 2026' not in changelog
+          phase12_notes = '''## 0.12.0 — 28 August 2026
+
+Phase 12 — Paper Execution — closed after exact-head CI, isolated production-host acceptance, and permanent installation on operational candidate `159ce77af9a51ae208511d216bee52d5732cee3b`. CI run #1328 passed 564 Python tests, Ruff, deployment validation, health in research/live-disabled mode, and the dashboard test/typecheck/production-build lane.
+
+The phase adds a generic execution contract and deterministic paper broker tied only to immutable eligible 5m/15m live-prediction signals. Simulated orders model latency, executable selected-side ask, limit price, recorded depth, partial fills, fees, slippage, expiry/cancellation, cash accounting, terminal events, and official-outcome-only settlement. Causal fill evidence is reconstructed from immutable Polymarket full-book anchors plus subsequent price changes in `(received_at,id)` order; midpoint, synthetic, future, or fabricated fills remain forbidden.
+
+Production debugging strengthened the boundary without weakening evidence semantics. Crossed/locked reconstructed books remain invalid, but now fail the individual paper order closed with zero fills and an explicit terminal reason instead of crashing the worker. Replay-specific partial PostgreSQL indexes were added for the production access pattern, and every deployment `--once` pass is bounded to 120 seconds so an unexpectedly pathological replay fails explicitly rather than hanging indefinitely. A previously exposed production database credential was rotated, and Phase 12 deployment stopped passing `DATABASE_URL` through process argv in favor of `BP_ENV_FILE` indirection.
+
+Isolated host acceptance returned `PHASE12_HOST_ACCEPTANCE=PASS` on the exact operational SHA with `PROSPECTIVE_KIND=TRADE`, prediction `0d452c12351560d41a69a0f90153c24acb401c8179861ac50074801b21d45e06`, reconciliation `OK`, an idempotent rerun, nonnegative paper cash, and recorder/PostgreSQL/dashboard continuity. No trade was manufactured when signals abstained; the accepted observation window preserved explicit no-trade evidence and waited for a genuine eligible prospective trade.
+
+Permanent installation returned `PHASE12_INSTALL=PASS` on the same SHA. The money-disabled `bp-paper-execution.service`, recorder, PostgreSQL, dashboard API, and dashboard web were all active. The dashboard reported `paper_execution_available=true`, `execution_available=false`, current paper cash `92.207577336709`, realized P&L `0.0`, 3 paper orders, 2 paper fills, 0 settlements, and reconciliation `OK` with all recorded violation counters at zero. These are simulated execution results, not a live-profitability claim.
+
+Sanitized closeout evidence is stored in `docs/evidence/phase-12-closeout-20260828.json`. Phase 13 — Improvement Loop — is now the next permitted build-order phase. It must test explicit hypotheses with champion/challenger discipline and repeated out-of-sample evidence; no model is promoted from one unusually good backtest. Live trading remains disabled, real-money limits remain zero, and Phase 14 live-readiness plus explicit authorization are still mandatory before any real order path.
+
+'''
+          changelog_path.write_text('# Changelog\n\n' + phase12_notes + changelog[len('# Changelog\n'):].lstrip('\n'), encoding='utf-8')
+
+          start_path = ROOT / 'START-HERE.md'
+          start = start_path.read_text(encoding='utf-8')
+          marker = '## Current next step\n'
+          assert marker in start
+          start_prefix = start.split(marker, 1)[0]
+          start_tail = '''## Current next step
+
+Phase 13: begin the **Improvement Loop**. Phase 12 — Paper Execution — is production-host accepted and permanently installed on exact operational candidate `159ce77af9a51ae208511d216bee52d5732cee3b`.
+
+Fresh exact-head Phase 12 CI run #1328 passed 564 Python tests plus Ruff, deployment validation, health, dashboard tests, strict TypeScript typecheck, and the Next.js production build. Isolated host acceptance returned `PHASE12_HOST_ACCEPTANCE=PASS` with a genuine prospective `TRADE`, causal paper-fill evidence, reconciliation `OK`, an idempotent rerun, and all production services healthy. Permanent installation then returned `PHASE12_INSTALL=PASS`; `bp-paper-execution`, recorder, PostgreSQL, dashboard API, and dashboard web were active, paper execution was available, real execution remained unavailable, current paper cash was `92.207577336709`, and reconciliation had zero violations.
+
+Phase 13 must improve the research system through explicit hypotheses and champion/challenger experiments rather than random feature accumulation. Candidate model, calibration, timing, feature, or abstention changes must be judged on permitted out-of-sample evidence and executable-price economics; untouched holdouts must not be reused for selection, and one unusually good backtest cannot promote a challenger.
+
+`LIVE_TRADING_ENABLED=false`, maximum real trade size and daily loss remain zero, and no wallet/signing/order-placement path is authorized. Phase 14 live readiness and explicit authorization remain mandatory before real-money trading.
+'''
+          start_path.write_text(start_prefix + start_tail, encoding='utf-8')
+
+          readme_path = ROOT / 'README.md'
+          readme = readme_path.read_text(encoding='utf-8')
+          readme = readme.replace('**Phases 0–11:** complete.', '**Phases 0–12:** complete.')
+          readme = readme.replace('**Current phase:** Phase 12 — Paper Execution.', '**Current phase:** Phase 13 — Improvement Loop.')
+          intro_start = readme.index('Phase 11 is production-host accepted')
+          intro_end = readme.index('\n\n## Read before working', intro_start)
+          intro = ('Phase 12 is production-host accepted and permanently installed on exact operational candidate '
+                   '`159ce77af9a51ae208511d216bee52d5732cee3b`. The production system now has deterministic money-disabled paper execution reconciled to immutable 5m/15m signals, while real execution remains unavailable. Accepted paper evidence includes 3 orders, 2 fills, nonnegative cash, and reconciliation `OK` with zero violations. These are simulated results, not a live-profitability claim. Phase 13 now focuses on disciplined hypothesis-driven improvement; the ~80% accuracy discussed for this project remains a research target, not an assumed or guaranteed capability.')
+          readme = readme[:intro_start] + intro + readme[intro_end:]
+          readme = readme.replace('- Phase 11 Dashboard V1 is accepted and remains a read-only surface.\n- Phase 12 is the current paper-execution phase; simulated fills must reconcile to immutable signals and must never place real orders.', '- Phase 12 Paper Execution is accepted and permanently installed; paper fills must remain causal and reconciled to immutable signals.\n- Phase 13 is the current Improvement Loop; promote changes only through explicit hypotheses and repeated out-of-sample champion/challenger evidence.')
+          proof_marker = '## Accepted Phase 11 proof\n'
+          assert proof_marker in readme
+          readme_prefix = readme.split(proof_marker, 1)[0]
+          readme_proof = '''## Accepted Phase 12 proof
+
+Fresh exact-head CI passed on `159ce77af9a51ae208511d216bee52d5732cee3b` (run #1328): 564 Python tests passed, Ruff/deployment validation/health passed, and the dashboard test/typecheck/Next.js production build lane passed.
+
+Isolated production-host acceptance returned `PHASE12_HOST_ACCEPTANCE=PASS` with a genuine prospective trade, causal paper execution evidence, `RECONCILIATION_STATUS=OK`, `IDEMPOTENT_RERUN=PASS`, and recorder/PostgreSQL/dashboard continuity. Permanent installation returned `PHASE12_INSTALL=PASS` on the same SHA. `bp-paper-execution`, recorder, PostgreSQL, dashboard API, and dashboard web were active; the dashboard reported `paper_execution_available=true`, `execution_available=false`, current cash `92.207577336709`, realized P&L `0.0`, 3 paper orders, 2 paper fills, 0 settlements, and zero reconciliation violations.
+
+Sanitized acceptance evidence is recorded in `docs/evidence/phase-12-closeout-20260828.json`. The next build-order task is Phase 13 Improvement Loop: hypothesis-driven champion/challenger work evaluated on permitted out-of-sample and prospective paper evidence. Live trading remains disabled and still requires Phase 14 readiness plus explicit authorization.
+'''
+          readme_path.write_text(readme_prefix + readme_proof, encoding='utf-8')
+
+          build_path = ROOT / 'docs/BUILD-ORDER.md'
+          build = build_path.read_text(encoding='utf-8')
+          immediate = '## Immediate next action\n'
+          assert immediate in build
+          build_prefix = build.split(immediate, 1)[0]
+          build_tail = '''## Immediate next action
+
+**Build Phase 13 — Improvement Loop.**
+
+Phase 12 is production-host accepted and permanently installed on exact operational candidate `159ce77af9a51ae208511d216bee52d5732cee3b`, with a genuine prospective trade, causal paper fills, idempotent reconciliation, replay hardening, nonnegative cash, and zero reconciliation violations. The permanent paper worker is active while real execution remains unavailable.
+
+Phase 13 must test explicit hypotheses across features, models, calibration, prediction timing, abstention, and executable-edge assumptions using champion/challenger discipline. Selection must remain leakage-safe: do not retune against untouched holdouts, do not promote from one unusually good backtest, and prefer repeated out-of-sample plus prospective paper evidence after executable-price costs and uncertainty.
+
+Live readiness remains Phase 14. `LIVE_TRADING_ENABLED=false`, real-money limits remain zero, and no wallet/signing/order-placement path is authorized before that later gate and explicit user authorization.
+'''
+          build_path.write_text(build_prefix + build_tail, encoding='utf-8')
+          PY
+
+          python -m json.tool PROJECT_STATE.json >/dev/null
+          python -m json.tool docs/evidence/phase-12-closeout-20260828.json >/dev/null
+          grep -q 'PHASE_12_COMPLETE_PHASE_13_READY' PROJECT_STATE.json
+          grep -q 'Build Phase 13 — Improvement Loop' docs/BUILD-ORDER.md
+          grep -q 'Phase 13: begin the \*\*Improvement Loop\*\*' START-HERE.md
+          grep -q '## 0.12.0 — 28 August 2026' docs/CHANGELOG.md
+          grep -q '## Accepted Phase 12 proof' README.md
+
+      - name: Commit closeout
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PROJECT_STATE.json START-HERE.md README.md docs/BUILD-ORDER.md docs/CHANGELOG.md docs/evidence/phase-12-closeout-20260828.json
+          git diff --cached --check
+          git commit -m 'docs: close phase12 paper execution'
+          git push origin HEAD:phase-12-paper-execution-v1
