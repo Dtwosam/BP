@@ -11,6 +11,7 @@ export type DashboardSnapshotLike = {
   paper_pnl: {
     status?: string | null;
     value?: number | null;
+    realized_pnl?: number | null;
   };
 };
 
@@ -23,6 +24,14 @@ export function formatPercent(value: number | null | undefined): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
+export function formatSignedUsd(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "—";
+  }
+  const prefix = value > 0 ? "+" : "";
+  return `${prefix}$${value.toFixed(2)}`;
+}
+
 export function buildKpis(snapshot: DashboardSnapshotLike) {
   const healthyFeeds = snapshot.feed_health.filter(
     (feed) => feed.status?.toLowerCase() === "connected",
@@ -32,17 +41,21 @@ export function buildKpis(snapshot: DashboardSnapshotLike) {
     0,
   );
 
+  let paperPnl = "—";
+  if (snapshot.paper_pnl.status === "UNAVAILABLE_UNTIL_PHASE_12") {
+    paperPnl = "Unavailable until Phase 12";
+  } else if (snapshot.paper_pnl.realized_pnl !== null && snapshot.paper_pnl.realized_pnl !== undefined) {
+    paperPnl = formatSignedUsd(snapshot.paper_pnl.realized_pnl);
+  } else if (snapshot.paper_pnl.value !== null && snapshot.paper_pnl.value !== undefined) {
+    paperPnl = String(snapshot.paper_pnl.value);
+  }
+
   return {
     activeMarkets: snapshot.active_markets.length,
     healthyFeeds,
     totalFeeds: snapshot.feed_health.length,
     evaluatedPredictions,
-    paperPnl:
-      snapshot.paper_pnl.status === "UNAVAILABLE_UNTIL_PHASE_12"
-        ? "Unavailable until Phase 12"
-        : snapshot.paper_pnl.value === null || snapshot.paper_pnl.value === undefined
-          ? "—"
-          : String(snapshot.paper_pnl.value),
+    paperPnl,
   };
 }
 
