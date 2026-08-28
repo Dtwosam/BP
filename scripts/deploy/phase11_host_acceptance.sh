@@ -143,7 +143,8 @@ install_node_runtime() (
   chown -R root:bp "$NODE_ROOT"
   chmod -R g+rX "$NODE_ROOT"
   "$NODE_ROOT/bin/node" --version | tee "$run_dir/node-version.txt"
-  "$NODE_ROOT/bin/npm" --version | tee "$run_dir/npm-version.txt"
+  env PATH="$NODE_ROOT/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+    "$NODE_ROOT/bin/npm" --version | tee "$run_dir/npm-version.txt"
 )
 
 cleanup() {
