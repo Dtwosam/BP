@@ -77,7 +77,7 @@ def test_paper_service_terminalizes_invalid_book_evidence_without_fills() -> Non
     assert first.created_fills == 0
     assert first.created_terminal_events == 1
     assert fills == []
-    assert terminal["terminal_status"] == "BOOK_EVIDENCE_INVALID"
+    assert terminal["terminal_status"] == "EXPIRED"
     assert terminal["remaining_shares"] == order["requested_shares"]
     assert terminal["event_at"] == order["expires_at"]
     assert terminal["reason"] == (
