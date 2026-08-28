@@ -1,11 +1,18 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import Engine, create_engine, func, select
 
 from bp_engine.storage import schema
+
+_REQUIRED_COMPACT_FEEDS = (
+    ("bybit", "spot"),
+    ("bybit", "linear"),
+    ("coinbase", "spot"),
+    ("polymarket", "market"),
+)
 
 
 class PostgresDashboardRepository:
@@ -85,6 +92,21 @@ class PostgresDashboardRepository:
             .subquery("dashboard_latest_evaluations")
         )
 
+    @staticmethod
+    def _latest_compact_feed_state_query(source: str, stream: str):
+        state = schema.market_state_1s
+        return (
+            select(
+                state.c.source,
+                state.c.stream,
+                state.c.last_event_at.label("last_received_at"),
+                state.c.bucket_at.label("updated_at"),
+            )
+            .where(state.c.source == source, state.c.stream == stream)
+            .order_by(state.c.bucket_at.desc(), state.c.id.desc())
+            .limit(1)
+        )
+
     def list_active_markets(self, now: datetime) -> list[dict[str, Any]]:
         markets = schema.polymarket_markets
         latest = self._latest_predictions()
@@ -138,25 +160,31 @@ class PostgresDashboardRepository:
         status = schema.feed_status
         state = schema.market_state_1s
         status_query = select(status).order_by(status.c.source.asc(), status.c.stream.asc())
-        state_query = (
-            select(
-                state.c.source,
-                state.c.stream,
-                func.max(state.c.last_event_at).label("last_received_at"),
-                func.max(state.c.bucket_at).label("updated_at"),
-            )
-            .group_by(state.c.source, state.c.stream)
+        recent_cutoff = now - timedelta(seconds=max(60.0, self.stale_after_seconds * 6.0))
+        recent_keys_query = (
+            select(state.c.source, state.c.stream)
+            .where(state.c.bucket_at >= recent_cutoff)
+            .distinct()
             .order_by(state.c.source.asc(), state.c.stream.asc())
         )
+
         with self.engine.connect() as connection:
             rows = [dict(row) for row in connection.execute(status_query).mappings().all()]
-            compact_rows = [dict(row) for row in connection.execute(state_query).mappings().all()]
+            recent_keys = {
+                (str(row["source"]), str(row["stream"]))
+                for row in connection.execute(recent_keys_query).mappings().all()
+            }
+            known = {(str(row["source"]), str(row["stream"])) for row in rows}
+            targets = set(_REQUIRED_COMPACT_FEEDS) | recent_keys
+            compact_rows = []
+            for source, stream in sorted(targets - known):
+                compact = connection.execute(
+                    self._latest_compact_feed_state_query(source, stream)
+                ).mappings().first()
+                if compact is not None:
+                    compact_rows.append(dict(compact))
 
-        known = {(str(row["source"]), str(row["stream"])) for row in rows}
         for compact in compact_rows:
-            key = (str(compact["source"]), str(compact["stream"]))
-            if key in known:
-                continue
             last_received_at = compact.get("last_received_at")
             age_seconds = (
                 (now - last_received_at).total_seconds() if last_received_at is not None else None
