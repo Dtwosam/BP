@@ -17,10 +17,10 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
-Phase 12: build **Paper Execution**. Phase 11 — Dashboard V1 — is production-host accepted and permanently installed on exact operational candidate `126959eaef973b061c3c7ea619b6d6313f3f4e4e`.
+Phase 13: begin the **Improvement Loop**. Phase 12 — Paper Execution — is production-host accepted and permanently installed on exact operational candidate `159ce77af9a51ae208511d216bee52d5732cee3b`.
 
-Fresh exact-head Phase 11 CI passed on that candidate with 511 Python tests plus dashboard test/typecheck/production-build gates. Isolated production-host acceptance returned `PHASE11_HOST_ACCEPTANCE=PASS` with 4 active markets, 4 feed-health rows, 2 performance rows, 26 immutable prediction-history rows, localhost-only candidate listeners, and the recorder still active. Permanent installation then returned `PHASE11_INSTALL=PASS`; `bp-recorder`, PostgreSQL, dashboard API, and dashboard web were all active, permanent listeners remained `127.0.0.1:8787` and `127.0.0.1:3000`, API health remained `RESEARCH` with live trading disabled, and POST mutation requests returned HTTP 405.
+Fresh exact-head Phase 12 CI run #1328 passed 564 Python tests plus Ruff, deployment validation, health, dashboard tests, strict TypeScript typecheck, and the Next.js production build. Host acceptance and permanent install both passed; paper execution is available, real execution remains unavailable, cash is nonnegative, and reconciliation has zero violations.
 
-The dashboard remains read-only. At acceptance there were zero official evaluations, so performance surfaces correctly show only available append-only evidence and do not manufacture results. Paper P&L remains explicitly `UNAVAILABLE_UNTIL_PHASE_12` until simulated fills exist.
+Phase 13 must use explicit hypotheses and champion/challenger experiments. Candidate model, calibration, timing, feature, or abstention changes must be judged on permitted out-of-sample evidence and executable-price economics; untouched holdouts must not be reused for selection, and one unusually good backtest cannot promote a challenger.
 
-Phase 12 must implement realistic simulated execution against the immutable 5m/15m prediction signals using the same interface intended for later live trading. Model bid/ask, depth, partial fills, latency, slippage, cancellations, expiry, and fees; reconcile every paper trade to its immutable signal; and feed paper positions/P&L/execution diagnostics back into the dashboard. `LIVE_TRADING_ENABLED=false`; no wallet/signing/real-order path is authorized; Phase 14 live readiness and explicit user authorization remain mandatory before any real-money trading.
+`LIVE_TRADING_ENABLED=false`, maximum real trade size and daily loss remain zero, and no wallet/signing/order-placement path is authorized. Phase 14 live readiness and explicit authorization remain mandatory before real-money trading.
