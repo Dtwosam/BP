@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import os
-from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
+from bp_engine.execution.service import PaperExecutionService
 from sqlalchemy import create_engine, delete, select
 
 from bp_engine.execution.models import PaperExecutionConfig
-from bp_engine.execution.service import PaperExecutionService
 from bp_engine.live_prediction.models import LivePrediction, LivePredictionEvaluation
 from bp_engine.live_prediction.repository import (
     LivePredictionEvaluationRepository,
