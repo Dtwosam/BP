@@ -40,6 +40,7 @@ def test_dashboard_web_service_is_unprivileged_loopback_and_api_only() -> None:
     assert "NoNewPrivileges=true" in unit
     assert "ProtectSystem=full" in unit
     assert "ProtectHome=true" in unit
+    assert "ReadWritePaths=/opt/bp/apps/dashboard/.next/cache" in unit
     assert "IPAddressDeny=any" in unit
     assert "IPAddressAllow=localhost" in unit
     assert "wallet" not in unit.lower()
