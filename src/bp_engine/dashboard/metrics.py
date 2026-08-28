@@ -22,7 +22,11 @@ def _as_decimal(value: object, *, field: str) -> Decimal:
 
 def _validated_row(row: Mapping[str, object]) -> tuple[int, Decimal, int, bool, Decimal, Decimal]:
     horizon = row.get("horizon_seconds")
-    if not isinstance(horizon, int) or isinstance(horizon, bool) or horizon not in VERIFIED_HORIZONS:
+    if (
+        not isinstance(horizon, int)
+        or isinstance(horizon, bool)
+        or horizon not in VERIFIED_HORIZONS
+    ):
         raise ValueError("horizon must be one of 300 or 900 seconds")
 
     probability = _as_decimal(row.get("calibrated_probability"), field="probability")
