@@ -1,0 +1,68 @@
+{
+  "phase": 10,
+  "phase_name": "live prediction engine",
+  "closed_at": "2026-08-28T10:31:00Z",
+  "host_acceptance": {
+    "verdict": "PASS",
+    "phase10_host_acceptance": "PASS",
+    "accepted_operational_commit": "39101a60cdf712650f57a833849015c49da24946",
+    "latest_log": "/var/lib/bp/evidence/phase10-host-acceptance-latest.log",
+    "evidence_dir": "/var/lib/bp/evidence/phase10-live-prediction/20260828T093837Z",
+    "exec_main_status": 0
+  },
+  "exact_head_prehost_gates": {
+    "ci": {"run": 1130, "passed": true},
+    "historical_backfill_smoke": {"run": 439, "passed": true},
+    "live_recorder_smoke": {"run": 544, "passed": true},
+    "recorder_short_soak": {"run": 510, "passed": true}
+  },
+  "prospective_acceptance": {
+    "prediction_count_total": 26,
+    "prediction_count_5m": 1,
+    "prediction_count_15m": 1,
+    "future_market_count_5m": 2,
+    "future_market_count_15m": 2,
+    "opportunity_count_5m": 2,
+    "opportunity_count_15m": 2,
+    "scheduled_eligible_markets": 2315,
+    "late_or_missed_coverage": 2289,
+    "max_lateness_ms": 5563,
+    "evaluation_count": 0,
+    "evaluation_status": "pending"
+  },
+  "integrity": {
+    "pre_outcome_violations": 0,
+    "source_cutoff_violations": 0,
+    "semantic_hash_violations": 0,
+    "duplicate_natural_keys": 0,
+    "prediction_mutation_violations": 0,
+    "evaluation_mutation_violations": 0,
+    "order_side_effect_violations": 0
+  },
+  "semantic_recovery": {
+    "reason": "Legacy prediction rows were originally hashed from Python float values before PostgreSQL NUMERIC(38,18) storage and compact one-second market-state rows can be overwritten by later same-bucket events.",
+    "accepted_verifier_contract": "Use the existing exact stored-value/legacy alias checks first. For remaining legacy prediction failures, reconstruct candidate live inputs from frozen Phase 9 policy provenance and immutable recorder raw events up to the stored cutoff, require exact stored input_fingerprint equality, rebuild the complete LivePrediction through the production writer, and accept only exact stored semantic_sha256 equality.",
+    "tolerance_added": false,
+    "hash_weakened": false,
+    "legacy_rows_mutated": false,
+    "hash_search_cap_increased": false
+  },
+  "host_safety": {
+    "recorder_before": "active",
+    "recorder_after": "active",
+    "disk_status_before": "ok",
+    "disk_status_after": "ok",
+    "disk_free_bytes_before": 88395304960,
+    "disk_free_bytes_after": 87412625408,
+    "predictor_service_user": "bp",
+    "live_trading_enabled": false,
+    "mode": "research",
+    "money_execution_path_added": false
+  },
+  "research_interpretation": {
+    "phase_10_result": "Prospective, immutable, pre-outcome live prediction infrastructure is accepted for the verified 5m and 15m horizons under the money-disabled research boundary.",
+    "profitability_claim": false,
+    "evaluation_interpretation": "No official-outcome evaluations were available during the bounded acceptance run; evaluation_status=pending is valid and does not weaken the pre-outcome acceptance proof.",
+    "phase_11_direction": "Build Dashboard V1 so active markets, model probabilities, market prices, edge/action, feed health, prediction history, accuracy/calibration, paper P&L when later available, and current mode can be understood without opening the database."
+  }
+}

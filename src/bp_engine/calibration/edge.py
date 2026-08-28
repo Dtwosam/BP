@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import math
 from collections import Counter
+from collections.abc import Mapping
+from typing import Any
 
 from bp_engine.calibration.models import (
     EdgeConfig,
@@ -20,16 +22,16 @@ def _finite_probability(value: float) -> float:
     return numeric
 
 
-def _observed_market_probability(row: SupervisedRow) -> bool:
-    value = row.predictors.get("pm_up_price")
+def _observed_market_probability(predictors: Mapping[str, Any]) -> bool:
+    value = predictors.get("pm_up_price")
     if value is None:
         return False
     numeric = float(value)
     return math.isfinite(numeric) and 0.0 <= numeric <= 1.0
 
 
-def _clear_flag(row: SupervisedRow, key: str) -> bool:
-    value = row.predictors.get(key)
+def _clear_flag(predictors: Mapping[str, Any], key: str) -> bool:
+    value = predictors.get(key)
     if value is None:
         return False
     numeric = float(value)
@@ -83,8 +85,8 @@ def _unavailable(
     )
 
 
-def edge_decision(
-    row: SupervisedRow,
+def edge_decision_from_predictors(
+    predictors: Mapping[str, Any],
     probability_up: float,
     config: EdgeConfig,
     min_edge: float | None,
@@ -98,7 +100,7 @@ def edge_decision(
     predicted_target = 1 if side == "up" else 0
     side_probability = probability_up if side == "up" else 1.0 - probability_up
 
-    if not _observed_market_probability(row):
+    if not _observed_market_probability(predictors):
         return _unavailable(
             side=side,
             predicted_target=predicted_target,
@@ -108,7 +110,7 @@ def edge_decision(
             config=config,
             min_edge=min_edge,
         )
-    if not _clear_flag(row, f"missing__{prefix}_book_missing"):
+    if not _clear_flag(predictors, f"missing__{prefix}_book_missing"):
         return _unavailable(
             side=side,
             predicted_target=predicted_target,
@@ -118,7 +120,7 @@ def edge_decision(
             config=config,
             min_edge=min_edge,
         )
-    if not _clear_flag(row, f"missing__{prefix}_book_stale"):
+    if not _clear_flag(predictors, f"missing__{prefix}_book_stale"):
         return _unavailable(
             side=side,
             predicted_target=predicted_target,
@@ -129,7 +131,7 @@ def edge_decision(
             min_edge=min_edge,
         )
 
-    ask = _valid_ask(row.predictors.get(f"{prefix}_best_ask"))
+    ask = _valid_ask(predictors.get(f"{prefix}_best_ask"))
     if ask is None:
         return _unavailable(
             side=side,
@@ -141,7 +143,7 @@ def edge_decision(
             min_edge=min_edge,
         )
 
-    bid = _valid_bid(row.predictors.get(f"{prefix}_best_bid"), ask)
+    bid = _valid_bid(predictors.get(f"{prefix}_best_bid"), ask)
     spread = ask - bid if bid is not None else None
     fee = config.fee_rate * ask * (1.0 - ask)
     raw_edge = side_probability - ask
@@ -183,6 +185,20 @@ def edge_decision(
         raw_edge=raw_edge,
         cost_adjusted_edge=cost_adjusted_edge,
         min_edge=min_edge,
+    )
+
+
+def edge_decision(
+    row: SupervisedRow,
+    probability_up: float,
+    config: EdgeConfig,
+    min_edge: float | None,
+) -> EdgeDecision:
+    return edge_decision_from_predictors(
+        row.predictors,
+        probability_up,
+        config,
+        min_edge,
     )
 
 

@@ -73,18 +73,21 @@ def test_phase9_host_acceptance_contract_is_fail_closed() -> None:
 def test_phase9_host_probes_dynamic_selected_side_best_ask_edge_contract() -> None:
     host = _required_text(HOST)
     edge = _required_text(EDGE)
-    required_patterns = (
+    shared_patterns = (
         'side = "up" if probability_up >= 0.5 else "down"',
         'prefix = f"pm_{side}"',
-        'row.predictors.get(f"{prefix}_best_ask")',
         "missing__{prefix}_book_missing",
         "missing__{prefix}_book_stale",
         "fee = config.fee_rate * ask * (1.0 - ask)",
         "cost_adjusted_edge = raw_edge - fee - config.slippage_buffer",
     )
-    for pattern in required_patterns:
+    for pattern in shared_patterns:
         assert pattern in edge
         assert pattern in host
+
+    assert 'row.predictors.get(f"{prefix}_best_ask")' in host
+    assert 'predictors.get(f"{prefix}_best_ask")' in edge
+    assert "edge_decision_from_predictors" in edge
 
 
 def test_phase9_host_uses_bounded_disk_health_preflight_and_postflight() -> None:

@@ -79,6 +79,24 @@ class PolymarketPriceHistoryClient:
 
     def __init__(self, http_client: httpx.AsyncClient | None = None) -> None:
         self._http_client = http_client
+        self._owned_http_client: httpx.AsyncClient | None = None
+
+    def _client(self) -> httpx.AsyncClient:
+        if self._http_client is not None:
+            return self._http_client
+        if self._owned_http_client is None:
+            self._owned_http_client = httpx.AsyncClient(
+                base_url=self.BASE_URL,
+                timeout=20.0,
+            )
+        return self._owned_http_client
+
+    async def aclose(self) -> None:
+        if self._owned_http_client is None:
+            return
+        client = self._owned_http_client
+        self._owned_http_client = None
+        await client.aclose()
 
     async def get_history(
         self,
@@ -87,6 +105,7 @@ class PolymarketPriceHistoryClient:
         start: datetime,
         end: datetime,
         fidelity_minutes: int,
+        timeout_seconds: float | None = None,
     ) -> PriceHistoryResponse:
         if not asset_id:
             raise ValueError("asset_id is required")
@@ -98,6 +117,8 @@ class PolymarketPriceHistoryClient:
             raise ValueError("start must be before end")
         if fidelity_minutes <= 0:
             raise ValueError("fidelity_minutes must be positive")
+        if timeout_seconds is not None and timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be positive when provided")
 
         params = {
             "market": asset_id,
@@ -105,12 +126,11 @@ class PolymarketPriceHistoryClient:
             "endTs": str(int(end.timestamp())),
             "fidelity": str(fidelity_minutes),
         }
-        if self._http_client is not None:
-            response = await self._http_client.get("/prices-history", params=params)
-        else:
-            async with httpx.AsyncClient(base_url=self.BASE_URL, timeout=20.0) as client:
-                response = await client.get("/prices-history", params=params)
+        request_kwargs: dict[str, Any] = {"params": params}
+        if timeout_seconds is not None:
+            request_kwargs["timeout"] = timeout_seconds
 
+        response = await self._client().get("/prices-history", **request_kwargs)
         response.raise_for_status()
         payload = response.json()
         if not isinstance(payload, Mapping):

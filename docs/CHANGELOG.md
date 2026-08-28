@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.10.0 — 28 August 2026
+
+Phase 10 — live prediction engine — closed after prospective production-host acceptance on exact operational candidate `39101a60cdf712650f57a833849015c49da24946`. Fresh exact-head pre-host gates passed on that commit: CI #1130, Historical Backfill Smoke #439, Live Recorder Smoke #544, and Recorder Short Soak #510. The production host returned both `VERDICT=PASS` and `PHASE10_HOST_ACCEPTANCE=PASS`.
+
+The accepted service is research-only and money-disabled. It loads exactly the frozen accepted Phase 9 policies for the verified 5m and 15m horizons, observes only timing-safe live inputs, records immutable `live-prediction-v1` predictions before outcome, and keeps official-outcome evaluation append-only. A stored `trade=true` remains a research decision only; Phase 10 contains no order, wallet, signing, allowance, paper-fill, or position path.
+
+Production acceptance observed 26 stored predictions in total and required fresh prospective evidence during the candidate window: one newly recorded 5m prediction and one newly recorded 15m prediction, with two future markets and two opportunities available for each horizon. Maximum recorded lateness was 5,563 ms against the frozen 10-second deadline. The read-only report recorded 2,315 scheduled eligible markets and 2,289 historical late-or-missed coverage rows; those historical misses are explicit evidence and were never repaired by late backfill.
+
+All acceptance integrity and safety counters were zero: pre-outcome violations, source-cutoff violations, semantic-hash violations, duplicate natural keys, prediction mutations, evaluation mutations, and order side effects. No official-outcome evaluation was yet available in the bounded acceptance window, so `EVALUATION_COUNT=0` and `EVALUATION_STATUS=pending` were accepted as the correct non-leaky state rather than manufacturing an outcome.
+
+The final semantic-integrity correction preserves exact cryptographic verification for legacy PostgreSQL rows without mutating them. New numeric writes use lossless Decimal-bound inserts. For legacy rows that fail the fast exact/legacy alias path, the verifier reconstructs complete live inputs from frozen Phase 9 policy provenance plus recorder state; when a compact one-second snapshot has been overwritten by a later same-bucket event, it replays immutable raw market events only up to the stored cutoff. Candidate inputs must reproduce the exact stored `input_fingerprint`, then the complete prediction is rebuilt through the production writer and accepted only when its exact SHA-256 equals the stored semantic hash. No tolerance was added, no hash was weakened, and the bounded hash-search cap was not increased.
+
+Host safety remained intact throughout acceptance: the recorder was active before and after, disk health was `ok` before and after with 88,395,304,960 and 87,412,625,408 bytes free respectively, the predictor service ran as the unprivileged `bp` user, and `ORDER_SIDE_EFFECT_VIOLATIONS=0`. Live trading remains disabled and Phase 10 makes no profitability claim.
+
+Sanitized closeout evidence is stored in `docs/evidence/phase-10-closeout-20260828.json`. Phase 11 — Dashboard V1 — is now the next permitted build-order phase. It should expose active markets, model probabilities, market prices, edge/action, feed health, prediction history, evaluation-backed accuracy/calibration, and current mode without requiring direct database access. Paper execution, live readiness, and real-money trading remain later phases; live trading remains disabled and still requires explicit user authorization.
+
 ## 0.9.0 — 26 August 2026
 
 Phase 9 — probability calibration + edge engine — closed after production-host acceptance on exact candidate `023832db5a55c6fcb686d81bd5ab6a6185273481`. Fresh exact-head pre-host gates passed on that commit: CI #861, Historical Backfill Smoke #328, Live Recorder Smoke #432, and Recorder Short Soak #396. Production acceptance used the fixed half-open window `2026-08-24T00:00:00Z <= t < 2026-08-25T00:00:00Z` and returned both `VERDICT=PASS` and `PHASE9_HOST_ACCEPTANCE=PASS`.

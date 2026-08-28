@@ -4,12 +4,11 @@ Research-first system for estimating short-duration BTC Polymarket Up/Down proba
 
 ## Current status
 
-**Phase 0:** complete.  
-**Phase 1:** complete and live-verified against Polymarket Gamma.  
-**Current phase:** Phase 2 — 24/7 BTC + Polymarket raw recorder.  
+**Phases 0–10:** complete.  
+**Current phase:** Phase 11 — Dashboard V1.  
 **Trading mode:** `RESEARCH`. Live trading is disabled.
 
-The ~80% accuracy discussed for this project is a research target, not an assumed or proven capability.
+Phase 10 is production-host accepted on exact operational candidate `39101a60cdf712650f57a833849015c49da24946`. The accepted service records prospective immutable 5m/15m predictions before outcome, keeps official-outcome evaluation append-only, and contains no order, wallet, signing, paper-fill, or position path. The ~80% accuracy discussed for this project remains a research target, not an assumed or proven capability, and Phase 10 acceptance is not a profitability claim.
 
 ## Read before working
 
@@ -22,7 +21,7 @@ Use this order in every new chat or development session:
 5. `docs/CHANGELOG.md`
 6. `AGENTS.md`
 
-The Master Source of Truth wins if anything conflicts.
+The Master Source of Truth wins if anything conflicts. `PROJECT_STATE.json` identifies the current build phase.
 
 ## Local setup
 
@@ -50,21 +49,25 @@ Expected health output includes:
 
 - Never commit `.env`, wallet keys, seed phrases, API secrets, or server secrets.
 - Never paste a wallet private key or seed phrase into ChatGPT.
-- Real-money trading is not implemented or authorized at this stage.
+- Real-money trading is not authorized at this stage.
+- Phase 11 is a dashboard/read surface, not an execution phase.
+- Paper execution is Phase 12 and must not be invented inside the dashboard.
 - A 10-minute recurring Polymarket BTC market is not assumed to exist; horizons remain configurable.
 
 ## Repository layout
 
 ```text
-apps/dashboard/          Future Next.js dashboard
+apps/dashboard/          Dashboard V1 application surface
 src/bp_engine/           Python engine package
 tests/                   Automated tests
-scripts/                 Backfill/training/maintenance entrypoints
-migrations/              Future database migrations
+scripts/                 Backfill/training/maintenance/live-prediction entrypoints
+migrations/              PostgreSQL migrations
 data/                     Local/generated data (ignored)
-docs/                     Source of truth, build order, decisions, plans
+docs/                     Source of truth, build order, decisions, plans, evidence
 ```
 
-## Phase 1 live verification
+## Accepted Phase 10 proof
 
-The local sandbox used for this build cannot resolve external DNS, so Phase 1 used a GitHub Actions workflow (`Live Gamma Smoke`) for the external check. That workflow successfully queried current public Gamma 5m/15m BTC markets and committed an authentic response capture into `tests/fixtures/polymarket/live/`. Focused parser fixtures now use authentic captured IDs and token metadata.
+Fresh exact-head gates passed on `39101a60cdf712650f57a833849015c49da24946`: CI #1130, Historical Backfill Smoke #439, Live Recorder Smoke #544, and Recorder Short Soak #510. Production acceptance returned both `VERDICT=PASS` and `PHASE10_HOST_ACCEPTANCE=PASS`, with prospective 5m/15m predictions, maximum lateness 5,563 ms, and zero pre-outcome, source-cutoff, semantic-hash, duplicate-key, mutation, or order-side-effect violations.
+
+Sanitized acceptance evidence is recorded in `docs/evidence/phase-10-closeout-20260828.json`. The next build-order task is Dashboard V1 so system health and prediction performance can be understood without direct database access.
