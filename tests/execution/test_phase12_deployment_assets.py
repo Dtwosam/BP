@@ -100,6 +100,23 @@ def test_phase12_acceptance_and_install_fail_closed_and_reconcile() -> None:
     assert "systemctl stop bp-recorder.service" not in install
 
 
+def test_phase12_host_acceptance_starts_exact_candidate_predictor() -> None:
+    host = _text(HOST)
+
+    for required in (
+        "bp_engine.live_prediction",
+        "run",
+        "--source-calibration-run-id",
+        "phase9-300-c9f0e00eb7836af08008c66909f8f179",
+        "phase9-900-15c234f25588b23cce73a12f87a2e2ea",
+        "PREDICTOR_PID",
+        "predictor.log",
+    ):
+        assert required in host
+    assert 'kill "$PREDICTOR_PID"' in host
+    assert 'wait "$PREDICTOR_PID"' in host
+
+
 def test_phase12_cloudshell_helper_pins_exact_candidate_head() -> None:
     helper = _text(CLOUD)
 
