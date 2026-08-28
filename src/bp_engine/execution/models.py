@@ -9,6 +9,7 @@ from typing import Any
 
 PAPER_EXECUTION_VERSION = "paper-execution-v1"
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_PROVENANCE_SHA256_RE = re.compile(r"^(?:sha256:)?[0-9a-f]{64}$")
 _TERMINAL_STATUSES = frozenset(
     {
         "FILLED",
@@ -65,6 +66,15 @@ def _sha256(value: str, *, name: str) -> str:
     normalized = str(value).lower()
     if _SHA256_RE.fullmatch(normalized) is None:
         raise ValueError(f"{name} must be a lowercase SHA-256 hex digest")
+    return normalized
+
+
+def _provenance_sha256_key(value: str, *, name: str) -> str:
+    normalized = str(value)
+    if _PROVENANCE_SHA256_RE.fullmatch(normalized) is None:
+        raise ValueError(
+            f"{name} must be a lowercase SHA-256 digest or recorder sha256 key"
+        )
     return normalized
 
 
@@ -363,7 +373,10 @@ class PaperFillRecord:
         object.__setattr__(
             self,
             "book_anchor_dedupe_key",
-            _sha256(self.book_anchor_dedupe_key, name="book_anchor_dedupe_key"),
+            _provenance_sha256_key(
+                self.book_anchor_dedupe_key,
+                name="book_anchor_dedupe_key",
+            ),
         )
         object.__setattr__(
             self,
@@ -393,7 +406,7 @@ class PaperFillRecord:
         if len(self.book_applied_event_ids) != len(self.book_applied_dedupe_keys):
             raise ValueError("book applied event ids and dedupe keys must align")
         for key in self.book_applied_dedupe_keys:
-            _sha256(key, name="book_applied_dedupe_key")
+            _provenance_sha256_key(key, name="book_applied_dedupe_key")
 
 
 @dataclass(frozen=True)
