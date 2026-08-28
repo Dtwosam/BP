@@ -11,6 +11,7 @@ from bp_engine.execution.models import (
     ExecutionOrderAck,
     ExecutionOrderRequest,
     PaperExecutionConfig,
+    PaperFillRecord,
 )
 from bp_engine.execution.protocol import ExecutionGateway
 
@@ -32,6 +33,28 @@ def _request() -> ExecutionOrderRequest:
         limit_price=Decimal("0.61"),
         execution_version=PAPER_EXECUTION_VERSION,
         execution_config_sha256="b" * 64,
+    )
+
+
+def _fill(*, dedupe_key: str) -> PaperFillRecord:
+    fill_at = datetime(2026, 8, 28, 16, 0, 0, 250000, tzinfo=UTC)
+    return PaperFillRecord(
+        paper_order_id="paper-order-1",
+        fill_key="fill-1",
+        fill_at=fill_at,
+        shares=Decimal("2"),
+        price=Decimal("0.60"),
+        gross_cost=Decimal("1.20"),
+        fee=Decimal("0.0336"),
+        total_cost=Decimal("1.2336"),
+        signal_ask_slippage=Decimal("0"),
+        book_anchor_event_id=101,
+        book_anchor_dedupe_key=dedupe_key,
+        book_applied_event_ids=(),
+        book_applied_dedupe_keys=(),
+        replay_cutoff_at=fill_at,
+        semantic_sha256="c" * 64,
+        created_at=fill_at,
     )
 
 
@@ -93,6 +116,15 @@ def test_order_request_is_fail_closed_and_timezone_aware() -> None:
                 "expires_at": request.arrival_at,
             }
         )
+
+
+def test_paper_fill_accepts_recorder_prefixed_provenance_key() -> None:
+    fill = _fill(dedupe_key=f"sha256:{'d' * 64}")
+
+    assert fill.book_anchor_dedupe_key == f"sha256:{'d' * 64}"
+
+    with pytest.raises(ValueError, match="book_anchor_dedupe_key"):
+        _fill(dedupe_key="sha256:not-a-digest")
 
 
 class _StubGateway:
