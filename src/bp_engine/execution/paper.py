@@ -288,10 +288,21 @@ def _fill_draft(
 def simulate_buy(
     order: PaperOrderDraft,
     books: Sequence[ReplayedBook],
+    *,
+    cancel_at: datetime | None = None,
 ) -> PaperSimulationResult:
     """Walk only causally new displayed ask depth for a deterministic paper BUY."""
 
     request = order.request
+    cancellation_at: datetime | None = None
+    if cancel_at is not None:
+        candidate = _utc(cancel_at, name="cancel_at")
+        if candidate < request.submitted_at:
+            raise PaperSimulationError("cancel_at must not precede order submission")
+        if candidate < request.expires_at:
+            cancellation_at = candidate
+
+    execution_cutoff = cancellation_at or request.expires_at
     remaining = request.requested_shares
     fills: list[PaperFillDraft] = []
     previous_display: dict[Decimal, Decimal] | None = None
@@ -302,7 +313,7 @@ def simulate_buy(
         if previous_cutoff is not None and cutoff < previous_cutoff:
             raise PaperSimulationError("book observations must be chronological")
         previous_cutoff = cutoff
-        if cutoff < request.arrival_at or cutoff > request.expires_at:
+        if cutoff < request.arrival_at or cutoff > execution_cutoff:
             continue
 
         current_display = {level.price: level.size for level in book.asks}
@@ -347,6 +358,18 @@ def simulate_buy(
             reason="requested paper shares fully filled",
             event_at=fills[-1].fill_at,
             remaining_shares=_ZERO,
+        )
+    elif cancellation_at is not None:
+        reason = (
+            "cancelled_before_arrival"
+            if cancellation_at < request.arrival_at
+            else "cancelled_with_remainder"
+        )
+        terminal = _terminal(
+            "CANCELLED",
+            reason=reason,
+            event_at=cancellation_at,
+            remaining_shares=remaining,
         )
     else:
         market_end_at = order.market_end_at
