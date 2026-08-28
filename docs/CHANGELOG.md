@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.11.0 — 28 August 2026
+
+Phase 11 — Dashboard V1 — closed after exact-head CI, isolated production-host acceptance, and permanent host installation on operational candidate `126959eaef973b061c3c7ea619b6d6313f3f4e4e`. CI run #1223 passed 511 Python tests plus lint, deployment validation, health, dashboard tests, strict TypeScript typecheck, and the Next.js production build.
+
+Dashboard V1 adds a read-only Python snapshot API and a localhost-only Next.js operator surface for active markets, model probabilities, observed market prices, edge/action, four-feed health, immutable prediction history, evaluation-backed performance/calibration, and current safety mode. The API rejects mutation requests, exposes no wallet/signing/order path, and keeps paper P&L explicitly `UNAVAILABLE_UNTIL_PHASE_12` with `execution_available=false` and `paper_execution_available=false`.
+
+Production acceptance uncovered and corrected three host-only deployment/read-model defects without weakening safety: the temporary Node npm probe needed the downloaded Node directory in `PATH`; feed health had to derive from the recorder's authoritative compact `market_state_1s` evidence when the unused `feed_status` table was empty; and the initial compact-state fallback had to use bounded latest-row lookups rather than a full-table aggregate scan. Regression tests cover those cases. The final isolated host acceptance returned `PHASE11_HOST_ACCEPTANCE=PASS` with 4 active markets, 4 feed rows, 2 performance rows, 26 prediction-history rows, zero evaluated predictions, localhost-only candidate listeners, and the recorder active.
+
+Permanent installation on the same SHA returned `PHASE11_INSTALL=PASS`. Node `v24.20.0` was checksum-verified; `bp-recorder`, PostgreSQL, dashboard API, and dashboard web were active after installation; listeners remained only `127.0.0.1:8787` and `127.0.0.1:3000`; API health reported `RESEARCH` with live trading disabled; and POST mutation requests returned HTTP 405. Zero evaluated predictions remains valid append-only evidence and is not converted into a performance or profitability claim.
+
+Sanitized closeout evidence is stored in `docs/evidence/phase-11-closeout-20260828.json`. Phase 12 — Paper Execution — is now the next permitted build-order phase. It must simulate bid/ask, depth, partial fills, latency, slippage, cancellations, expiry, and fees through the same interface intended for later live trading, reconcile paper trades to immutable signals, and surface paper execution/P&L diagnostics through the dashboard. Live trading remains disabled and still requires the later live-readiness gate plus explicit user authorization.
+
 ## 0.10.0 — 28 August 2026
 
 Phase 10 — live prediction engine — closed after prospective production-host acceptance on exact operational candidate `39101a60cdf712650f57a833849015c49da24946`. Fresh exact-head pre-host gates passed on that commit: CI #1130, Historical Backfill Smoke #439, Live Recorder Smoke #544, and Recorder Short Soak #510. The production host returned both `VERDICT=PASS` and `PHASE10_HOST_ACCEPTANCE=PASS`.
