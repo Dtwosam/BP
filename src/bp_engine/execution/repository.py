@@ -83,12 +83,13 @@ class PaperExecutionRepository:
             pg_insert(table)
             .values(**values)
             .on_conflict_do_nothing(index_elements=[table.c[name] for name in conflict_target])
+            .returning(table.c.id)
         )
-        result = connection.execute(statement)
+        inserted_id = connection.execute(statement).scalar_one_or_none()
         stored = connection.execute(select(table).where(*predicate)).mappings().one_or_none()
         if stored is None or not _semantically_equal(stored, values):
             raise PaperLedgerConflictError(f"conflicting {description}")
-        created = result.rowcount == 1
+        created = inserted_id is not None
         return PaperLedgerStoreResult(created=created, existing=not created)
 
     def _require_order(self, connection: Connection, paper_order_id: str) -> Mapping[str, Any]:
