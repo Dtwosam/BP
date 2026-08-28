@@ -409,6 +409,8 @@ Do not automatically increase stake.
 
 ## Immediate next action
 
-**Build Phase 0, then Phase 1.**
+**Build Phase 11 — Dashboard V1.**
 
-Do not start model training before the market/data foundation exists.
+Phase 10 is production-host accepted on exact operational candidate `39101a60cdf712650f57a833849015c49da24946`, with prospective 5m/15m prediction evidence, maximum lateness below the 10-second deadline, and zero integrity or execution-side-effect violations. Dashboard V1 must remain a read/analysis surface: expose accepted live-prediction evidence and system health without inventing paper fills or adding an execution path.
+
+Paper execution remains Phase 12. Live readiness and controlled real-money launch remain later gated phases, and live trading stays disabled.
