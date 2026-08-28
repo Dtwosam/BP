@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from bp_engine.config import Settings, TradingMode
 from bp_engine.dashboard.__main__ import DASHBOARD_API_HOST, validate_dashboard_safety
+from bp_engine.config import Settings, TradingMode
 
 
 def test_dashboard_defaults_to_loopback_and_port_8787() -> None:
