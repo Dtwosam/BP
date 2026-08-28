@@ -4,7 +4,7 @@ import os
 from datetime import timedelta
 
 import pytest
-from sqlalchemy import create_engine, delete, select
+from sqlalchemy import create_engine, select
 
 from bp_engine.execution.book import BookReplayError
 from bp_engine.execution.models import PaperExecutionConfig
@@ -99,8 +99,3 @@ def test_paper_service_terminalizes_invalid_book_evidence_without_fills() -> Non
         ).scalars().all()
         assert len(terminal_count) == 1
         _cleanup(connection, raw_keys=())
-        connection.execute(
-            delete(schema.live_predictions).where(
-                schema.live_predictions.c.prediction_id == TRADE_PREDICTION_ID
-            )
-        )
