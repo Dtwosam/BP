@@ -15,6 +15,16 @@ def test_phase11_host_acceptance_does_not_leave_function_return_traps() -> None:
     assert 'rm -rf "$tmp"' in script
 
 
+def test_phase11_host_acceptance_sets_node_path_for_npm_version_probe() -> None:
+    script = HOST_ACCEPTANCE.read_text(encoding="utf-8")
+
+    expected = (
+        'env PATH="$NODE_ROOT/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" '
+        '"$NODE_ROOT/bin/npm" --version'
+    )
+    assert expected in script
+
+
 def test_ci_syntax_checks_phase11_production_installer() -> None:
     workflow = CI.read_text(encoding="utf-8")
 
