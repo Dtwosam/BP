@@ -11,8 +11,11 @@ from bp_engine.storage import schema
 class PostgresDashboardRepository:
     """Read-only PostgreSQL access for the Phase 11 dashboard."""
 
-    def __init__(self, engine: Engine | str) -> None:
+    def __init__(self, engine: Engine | str, *, stale_after_seconds: float = 10.0) -> None:
+        if stale_after_seconds <= 0:
+            raise ValueError("stale_after_seconds must be greater than zero")
         self.engine = create_engine(engine) if isinstance(engine, str) else engine
+        self.stale_after_seconds = float(stale_after_seconds)
 
     @staticmethod
     def _latest_predictions():
@@ -133,15 +136,56 @@ class PostgresDashboardRepository:
 
     def list_feed_health(self, now: datetime) -> list[dict[str, Any]]:
         status = schema.feed_status
-        query = select(status).order_by(status.c.source.asc(), status.c.stream.asc())
+        state = schema.market_state_1s
+        status_query = select(status).order_by(status.c.source.asc(), status.c.stream.asc())
+        state_query = (
+            select(
+                state.c.source,
+                state.c.stream,
+                func.max(state.c.last_event_at).label("last_received_at"),
+                func.max(state.c.bucket_at).label("updated_at"),
+            )
+            .group_by(state.c.source, state.c.stream)
+            .order_by(state.c.source.asc(), state.c.stream.asc())
+        )
         with self.engine.connect() as connection:
-            rows = [dict(row) for row in connection.execute(query).mappings().all()]
+            rows = [dict(row) for row in connection.execute(status_query).mappings().all()]
+            compact_rows = [dict(row) for row in connection.execute(state_query).mappings().all()]
+
+        known = {(str(row["source"]), str(row["stream"])) for row in rows}
+        for compact in compact_rows:
+            key = (str(compact["source"]), str(compact["stream"]))
+            if key in known:
+                continue
+            last_received_at = compact.get("last_received_at")
+            age_seconds = (
+                (now - last_received_at).total_seconds() if last_received_at is not None else None
+            )
+            rows.append(
+                {
+                    "source": compact["source"],
+                    "stream": compact["stream"],
+                    "status": (
+                        "connected"
+                        if age_seconds is not None and age_seconds <= self.stale_after_seconds
+                        else "stale"
+                    ),
+                    "last_received_at": last_received_at,
+                    "last_source_timestamp": None,
+                    "updated_at": compact.get("updated_at"),
+                    "details": {"derived_from": "market_state_1s"},
+                    "age_seconds": age_seconds,
+                }
+            )
+
         for row in rows:
+            if "age_seconds" in row:
+                continue
             last_received_at = row.get("last_received_at")
             row["age_seconds"] = (
                 (now - last_received_at).total_seconds() if last_received_at is not None else None
             )
-        return rows
+        return sorted(rows, key=lambda row: (str(row["source"]), str(row["stream"])))
 
     def list_predictions(self, limit: int = 100) -> list[dict[str, Any]]:
         predictions = schema.live_predictions
