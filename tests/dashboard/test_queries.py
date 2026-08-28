@@ -157,7 +157,11 @@ def test_active_markets_use_verified_horizons_latest_exact_books_and_stored_pred
 
     with engine.begin() as connection:
         for index, horizon in enumerate((300, 900, 600), start=1):
-            connection.execute(insert(polymarket_markets).values(**_market_values(now, index=index, horizon=horizon)))
+            connection.execute(
+                insert(polymarket_markets).values(
+                    **_market_values(now, index=index, horizon=horizon)
+                )
+            )
         connection.execute(
             insert(market_state_1s),
             [
@@ -239,7 +243,9 @@ def test_prediction_history_attaches_only_evaluation_child_and_preserves_decimal
     assert pending[0]["calibrated_probability"] == Decimal("0.620000000000000000")
 
     with engine.begin() as connection:
-        connection.execute(insert(live_prediction_evaluations).values(**_evaluation_values(now, index=1)))
+        connection.execute(
+            insert(live_prediction_evaluations).values(**_evaluation_values(now, index=1))
+        )
 
     evaluated = queries.predictions(evaluation_state="evaluated", limit=10)
     assert len(evaluated) == 1
@@ -298,8 +304,14 @@ def test_evaluation_rows_join_prediction_probability_and_horizon() -> None:
     now = datetime(2026, 8, 28, 12, 0, tzinfo=UTC)
 
     with engine.begin() as connection:
-        connection.execute(insert(live_predictions).values(**_prediction_values(now, index=1, horizon=900)))
-        connection.execute(insert(live_prediction_evaluations).values(**_evaluation_values(now, index=1)))
+        connection.execute(
+            insert(live_predictions).values(
+                **_prediction_values(now, index=1, horizon=900)
+            )
+        )
+        connection.execute(
+            insert(live_prediction_evaluations).values(**_evaluation_values(now, index=1))
+        )
 
     rows = queries.evaluation_rows(limit=100)
 
