@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from enum import StrEnum
 from functools import lru_cache
 
@@ -54,4 +55,7 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
+    env_file = os.environ.get("BP_ENV_FILE")
+    if env_file:
+        return Settings(_env_file=env_file)
     return Settings()
