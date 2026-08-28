@@ -53,13 +53,12 @@ MODE=$(read_env MODE)
 LIVE_TRADING_ENABLED=$(read_env LIVE_TRADING_ENABLED)
 MAX_TRADE_SIZE_USD=$(read_env MAX_TRADE_SIZE_USD)
 MAX_DAILY_LOSS_USD=$(read_env MAX_DAILY_LOSS_USD)
-DATABASE_URL=$(read_env DATABASE_URL)
 if [[ "$MODE" != "research" || "$LIVE_TRADING_ENABLED" != "false" || \
       "$MAX_TRADE_SIZE_USD" != "0" || "$MAX_DAILY_LOSS_USD" != "0" ]]; then
   echo "Phase 12 install requires research mode, live disabled, and zero real-money limits" >&2
   exit 3
 fi
-if [[ -z "$DATABASE_URL" ]]; then
+if ! grep -q '^DATABASE_URL=.' "$ENV_FILE"; then
   echo "DATABASE_URL is missing from $ENV_FILE" >&2
   exit 3
 fi
@@ -178,7 +177,7 @@ run_as_bp() {
     LIVE_TRADING_ENABLED=false \
     MAX_TRADE_SIZE_USD=0 \
     MAX_DAILY_LOSS_USD=0 \
-    DATABASE_URL="$DATABASE_URL" \
+    BP_ENV_FILE="$ENV_FILE" \
     "$@"
 }
 
