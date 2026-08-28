@@ -39,3 +39,11 @@ def test_phase11_install_never_enables_execution() -> None:
     assert "wallet" not in script
     assert "place_order" not in script
     assert "live_trading_enabled=true" not in script
+
+
+def test_phase11_install_cleans_snapshot_on_any_exit() -> None:
+    script = SCRIPT.read_text(encoding="utf-8")
+
+    assert "trap 'rm -f \"$snapshot_file\"' RETURN" not in script
+    assert 'SNAPSHOT_FILE=""' in script
+    assert '[[ -n "$SNAPSHOT_FILE" ]] && rm -f "$SNAPSHOT_FILE"' in script
