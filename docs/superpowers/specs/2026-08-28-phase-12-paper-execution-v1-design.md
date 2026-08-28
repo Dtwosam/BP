@@ -51,9 +51,13 @@ V1 uses a simple, explicit scenario so execution quality and bankroll path can b
 - `PAPER_STARTING_CASH_USD=100.00` default;
 - `PAPER_TARGET_NOTIONAL_USD=5.00` default per eligible prediction;
 - never borrow paper cash;
-- requested shares are `target_notional / submitted selected ask`, rounded down deterministically to the configured share precision;
-- if available paper cash is smaller, requested notional is reduced to available cash;
+- first compute the target shares as `target_notional / submitted selected ask`;
+- then cap shares by `available_cash / worst_case_unit_cost`, where `worst_case_unit_cost = limit_price + fee_rate * limit_price * (1 - limit_price)`;
+- round the final share quantity down deterministically to the configured share precision;
+- if the resulting quantity is zero, record `INSUFFICIENT_PAPER_CASH` rather than creating a fill;
 - no martingale, loss chasing, Kelly sizing, confidence scaling, or automatic stake increases in Phase 12.
+
+Because the edge-engine fee formula is monotone in total unit cash cost over the allowed probability/fee range, this cap reserves enough cash for any fill price at or below the order limit and prevents negative paper cash by construction.
 
 These values are paper-research scenario parameters only. They do not alter the real-money limits, which remain zero.
 
