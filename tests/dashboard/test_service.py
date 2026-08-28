@@ -89,6 +89,39 @@ class FakeRepository:
                 "calibrated_log_loss": None,
             },
         ]
+        self.performance_predictions = [
+            {
+                "prediction_id": "p0",
+                "condition_id": "c0",
+                "horizon_seconds": 300,
+                "calibrated_probability": 0.2,
+            },
+            *[
+                {
+                    "prediction_id": row["prediction_id"],
+                    "condition_id": row["condition_id"],
+                    "horizon_seconds": row["horizon_seconds"],
+                    "calibrated_probability": row["calibrated_probability"],
+                }
+                for row in self.predictions
+            ],
+        ]
+        self.evaluations = [
+            {
+                "prediction_id": "p0",
+                "official_target": 0,
+                "correct": True,
+                "calibrated_brier": 0.04,
+                "calibrated_log_loss": 0.223143551,
+            },
+            {
+                "prediction_id": "p1",
+                "official_target": 1,
+                "correct": True,
+                "calibrated_brier": 0.04,
+                "calibrated_log_loss": 0.223143551,
+            },
+        ]
 
     def list_active_markets(self, now: datetime):
         return self.active_markets
@@ -98,6 +131,12 @@ class FakeRepository:
 
     def list_predictions(self, limit: int = 100):
         return self.predictions[:limit]
+
+    def list_performance_predictions(self):
+        return self.performance_predictions
+
+    def list_evaluations(self):
+        return self.evaluations
 
 
 def test_performance_uses_only_officially_evaluated_predictions() -> None:
@@ -183,4 +222,14 @@ def test_snapshot_is_read_only_research_and_marks_paper_pnl_unavailable() -> Non
     assert snapshot["active_markets"][0]["condition_id"] == "c1"
     assert snapshot["feed_health"][0]["source"] == "coinbase"
     assert snapshot["prediction_history"][0]["prediction_id"] == "p1"
-    assert snapshot["performance"][0]["evaluated_predictions"] == 1
+    assert snapshot["performance"][0]["total_predictions"] == 3
+    assert snapshot["performance"][0]["evaluated_predictions"] == 2
+
+
+def test_history_limit_does_not_truncate_performance_ledger() -> None:
+    now = datetime(2026, 8, 28, 12, 0, tzinfo=UTC)
+    snapshot = build_dashboard_snapshot(FakeRepository(), now=now, history_limit=1)
+
+    assert len(snapshot["prediction_history"]) == 1
+    assert snapshot["performance"][0]["total_predictions"] == 3
+    assert snapshot["performance"][0]["evaluated_predictions"] == 2
