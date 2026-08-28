@@ -6,11 +6,15 @@ import {
   buildKpis,
   classifySnapshotFreshness,
   formatPercent,
+  formatSignedUsd,
 } from "../lib/presenter";
 import type {
   ActiveMarket,
   DashboardSnapshot,
   FeedHealth,
+  PaperFillRow,
+  PaperOrderRow,
+  PaperSettlementRow,
   PerformanceRow,
   PredictionHistoryRow,
 } from "../lib/snapshot";
@@ -22,6 +26,14 @@ function formatNumber(value: number | null | undefined, digits = 4): string {
     return "—";
   }
   return value.toFixed(digits);
+}
+
+function formatUsd(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "—";
+  }
+  if (value < 0) return `-$${Math.abs(value).toFixed(2)}`;
+  return `$${value.toFixed(2)}`;
 }
 
 function formatTime(value: string | null | undefined): string {
@@ -53,9 +65,14 @@ function horizonLabel(seconds: number | null | undefined): string {
 
 function statusTone(status: string | null | undefined): string {
   const value = status?.toLowerCase() ?? "unknown";
-  if (["connected", "ok", "healthy", "pass"].includes(value)) return "good";
-  if (["reconnecting", "warning", "stale", "degraded"].includes(value)) return "warn";
-  return "bad";
+  if (["connected", "ok", "healthy", "pass", "available", "filled"].includes(value)) {
+    return "good";
+  }
+  if (["reconnecting", "warning", "stale", "degraded", "cancelled", "expired"].includes(value)) {
+    return "warn";
+  }
+  if (["violation", "failed", "error"].includes(value)) return "bad";
+  return "neutral";
 }
 
 function truthLabel(value: boolean | null | undefined): string {
@@ -195,6 +212,142 @@ function PerformanceCards({ rows }: { rows: PerformanceRow[] }) {
   );
 }
 
+function PaperOrderRows({ rows }: { rows: PaperOrderRow[] }) {
+  if (!rows.length) return <p className="empty">No paper orders have been recorded yet.</p>;
+  return (
+    <div className="table-wrap compact">
+      <table>
+        <thead>
+          <tr>
+            <th>Submitted</th>
+            <th>Side</th>
+            <th>Requested</th>
+            <th>Limit</th>
+            <th>Status</th>
+            <th>Remaining</th>
+            <th>Realized P&amp;L</th>
+            <th>Order</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.paper_order_id}>
+              <td>{formatTime(row.submitted_at)}</td>
+              <td><strong>{row.selected_side?.toUpperCase() ?? "—"}</strong></td>
+              <td>{formatNumber(row.requested_shares, 4)}</td>
+              <td>{formatPercent(row.limit_price)}</td>
+              <td><span className={`pill ${statusTone(row.terminal_status)}`}>{row.terminal_status ?? "OPEN"}</span></td>
+              <td>{formatNumber(row.remaining_shares, 4)}</td>
+              <td>{row.realized_pnl === null || row.realized_pnl === undefined ? "—" : formatSignedUsd(row.realized_pnl)}</td>
+              <td><span className="mono">{row.paper_order_id.slice(0, 12)}…</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PaperFillRows({ rows }: { rows: PaperFillRow[] }) {
+  if (!rows.length) return <p className="empty">No paper fills have been recorded yet.</p>;
+  return (
+    <div className="table-wrap compact">
+      <table>
+        <thead>
+          <tr>
+            <th>Filled</th>
+            <th>Shares</th>
+            <th>Price</th>
+            <th>Total cost</th>
+            <th>Fee</th>
+            <th>Ask slippage</th>
+            <th>Order</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={row.fill_key ?? `${row.paper_order_id}:${index}`}>
+              <td>{formatTime(row.fill_at)}</td>
+              <td>{formatNumber(row.shares, 4)}</td>
+              <td>{formatPercent(row.price)}</td>
+              <td>{formatUsd(row.total_cost)}</td>
+              <td>{formatUsd(row.fee)}</td>
+              <td>{formatPercent(row.signal_ask_slippage)}</td>
+              <td><span className="mono">{row.paper_order_id.slice(0, 12)}…</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PaperSettlementRows({ rows }: { rows: PaperSettlementRow[] }) {
+  if (!rows.length) return <p className="empty">No paper settlements have been recorded yet.</p>;
+  return (
+    <div className="table-wrap compact">
+      <table>
+        <thead>
+          <tr>
+            <th>Settled</th>
+            <th>Outcome</th>
+            <th>Shares</th>
+            <th>Fill cost</th>
+            <th>Payout</th>
+            <th>Fees</th>
+            <th>Realized P&amp;L</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={`${row.paper_order_id}:${row.label_version ?? index}`}>
+              <td>{formatTime(row.settled_at)}</td>
+              <td><strong>{row.official_outcome?.toUpperCase() ?? "—"}</strong></td>
+              <td>{formatNumber(row.filled_shares, 4)}</td>
+              <td>{formatUsd(row.total_fill_cost)}</td>
+              <td>{formatUsd(row.payout)}</td>
+              <td>{formatUsd(row.total_fees)}</td>
+              <td>{row.realized_pnl === null || row.realized_pnl === undefined ? "—" : formatSignedUsd(row.realized_pnl)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function OpenPaperPositions({ snapshot }: { snapshot: DashboardSnapshot }) {
+  const settled = new Set(snapshot.paper_settlements.map((row) => row.paper_order_id));
+  const sharesByOrder = new Map<string, number>();
+  const costByOrder = new Map<string, number>();
+  for (const fill of snapshot.paper_fills) {
+    sharesByOrder.set(fill.paper_order_id, (sharesByOrder.get(fill.paper_order_id) ?? 0) + (fill.shares ?? 0));
+    costByOrder.set(fill.paper_order_id, (costByOrder.get(fill.paper_order_id) ?? 0) + (fill.total_cost ?? 0));
+  }
+  const rows = snapshot.paper_orders.filter(
+    (order) => !settled.has(order.paper_order_id) && (sharesByOrder.get(order.paper_order_id) ?? 0) > 0,
+  );
+  if (!rows.length) return <p className="empty">No open paper positions.</p>;
+  return (
+    <div className="table-wrap compact">
+      <table>
+        <thead><tr><th>Side</th><th>Filled shares</th><th>Capital paid</th><th>Status</th><th>Order</th></tr></thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.paper_order_id}>
+              <td><strong>{row.selected_side?.toUpperCase() ?? "—"}</strong></td>
+              <td>{formatNumber(sharesByOrder.get(row.paper_order_id), 4)}</td>
+              <td>{formatUsd(costByOrder.get(row.paper_order_id))}</td>
+              <td>{row.terminal_status ?? "OPEN"}</td>
+              <td><span className="mono">{row.paper_order_id.slice(0, 12)}…</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function HistoryRows({ rows }: { rows: PredictionHistoryRow[] }) {
   if (!rows.length) {
     return <p className="empty">No immutable prediction history is available.</p>;
@@ -291,13 +444,15 @@ export function DashboardClient({
     );
   }
 
+  const reconciliation = snapshot.paper_pnl.reconciliation;
+
   return (
     <main className="shell">
       <header className="topbar">
         <div>
-          <span className="eyebrow">BP · Phase 11</span>
-          <h1>Prediction operator dashboard</h1>
-          <p>Live evidence, model performance, and feed health. Read-only by design.</p>
+          <span className="eyebrow">BP · Phase 12</span>
+          <h1>Prediction &amp; paper execution dashboard</h1>
+          <p>Live research evidence, deterministic paper execution, and reconciliation. Read-only by design.</p>
         </div>
         <div className="snapshot-meta">
           <span className={`pill ${freshness === "fresh" ? "good" : freshness === "stale" ? "warn" : "bad"}`}>
@@ -314,7 +469,11 @@ export function DashboardClient({
           <strong>{snapshot.mode.trading_mode}</strong>
         </div>
         <p>
-          Live trading is {snapshot.mode.live_trading_enabled ? "enabled" : "disabled"}. Execution is {snapshot.mode.execution_available ? "available" : "unavailable"}. This dashboard cannot place orders.
+          <span className={`pill ${snapshot.mode.paper_execution_available ? "good" : "warn"}`}>
+            Paper execution {snapshot.mode.paper_execution_available ? "available" : "unavailable"}
+          </span>{" "}
+          <span className="pill bad">Real execution unavailable</span>{" "}
+          Live trading is {snapshot.mode.live_trading_enabled ? "enabled" : "disabled"}. This dashboard cannot place orders.
         </p>
       </section>
 
@@ -323,6 +482,80 @@ export function DashboardClient({
         <article><span>Healthy feeds</span><strong>{kpis.healthyFeeds}/{kpis.totalFeeds}</strong></article>
         <article><span>Evaluated predictions</span><strong>{kpis.evaluatedPredictions}</strong></article>
         <article><span>Paper P&amp;L</span><strong className="small-value">{kpis.paperPnl}</strong></article>
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div><span className="eyebrow">Paper account</span><h2>Paper execution account</h2></div>
+          <p>Derived only from immutable paper fills and official settlements. No real capital is used.</p>
+        </div>
+        <div className="performance-grid">
+          <article className="performance-card">
+            <div className="card-heading">
+              <div><span className="eyebrow">Capital</span><h3>{formatUsd(snapshot.paper_pnl.current_cash)}</h3></div>
+              <span className={`pill ${statusTone(snapshot.paper_pnl.status)}`}>{snapshot.paper_pnl.status}</span>
+            </div>
+            <dl className="metric-list">
+              <div><dt>Starting cash</dt><dd>{formatUsd(snapshot.paper_pnl.starting_cash)}</dd></div>
+              <div><dt>Realized P&amp;L</dt><dd>{formatSignedUsd(snapshot.paper_pnl.realized_pnl)}</dd></div>
+              <div><dt>Return</dt><dd>{formatPercent(snapshot.paper_pnl.return_on_starting_cash)}</dd></div>
+              <div><dt>Open capital</dt><dd>{formatUsd(snapshot.paper_pnl.open_capital)}</dd></div>
+              <div><dt>Unrealized value</dt><dd>{formatUsd(snapshot.paper_pnl.unrealized_value)}</dd></div>
+              <div><dt>Max realized drawdown</dt><dd>{formatUsd(snapshot.paper_pnl.max_realized_equity_drawdown)}</dd></div>
+            </dl>
+          </article>
+          <article className="performance-card">
+            <div className="card-heading">
+              <div><span className="eyebrow">Integrity</span><h3>Reconciliation</h3></div>
+              <span className={`pill ${statusTone(reconciliation?.status)}`}>{reconciliation?.status ?? "UNKNOWN"}</span>
+            </div>
+            <dl className="metric-list">
+              <div><dt>Violations</dt><dd>{reconciliation?.violation_count ?? "—"}</dd></div>
+              <div><dt>Paper orders</dt><dd>{reconciliation?.paper_order_count ?? snapshot.paper_orders.length}</dd></div>
+              <div><dt>Trade signals</dt><dd>{reconciliation?.trade_signal_count ?? "—"}</dd></div>
+              <div><dt>No-trade signals</dt><dd>{reconciliation?.no_trade_signal_count ?? "—"}</dd></div>
+              <div><dt>Settled trades</dt><dd>{snapshot.paper_pnl.settled_trade_count ?? "—"}</dd></div>
+              <div><dt>Open positions</dt><dd>{snapshot.paper_pnl.open_position_count ?? "—"}</dd></div>
+            </dl>
+          </article>
+          <article className="performance-card">
+            <div className="card-heading"><div><span className="eyebrow">Execution costs</span><h3>Paper diagnostics</h3></div></div>
+            <dl className="metric-list">
+              <div><dt>Fills</dt><dd>{snapshot.paper_pnl.fill_count ?? "—"}</dd></div>
+              <div><dt>No-fill expiries</dt><dd>{snapshot.paper_pnl.no_fill_expired_count ?? "—"}</dd></div>
+              <div><dt>Total fees</dt><dd>{formatUsd(snapshot.paper_pnl.total_fees)}</dd></div>
+              <div><dt>Slippage cost</dt><dd>{formatUsd(snapshot.paper_pnl.total_slippage_cost)}</dd></div>
+            </dl>
+          </article>
+        </div>
+        <div className="calibration">
+          <span className="eyebrow">Open paper positions</span>
+          <OpenPaperPositions snapshot={snapshot} />
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div><span className="eyebrow">Paper ledger</span><h2>Paper orders</h2></div>
+          <p>Orders are deterministic derivatives of immutable eligible prediction signals.</p>
+        </div>
+        <PaperOrderRows rows={snapshot.paper_orders} />
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div><span className="eyebrow">Execution evidence</span><h2>Paper fills</h2></div>
+          <p>Fill timing, price, fees, and signal-ask slippage come from causal book replay.</p>
+        </div>
+        <PaperFillRows rows={snapshot.paper_fills} />
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div><span className="eyebrow">Official outcomes</span><h2>Paper settlements</h2></div>
+          <p>Realized paper P&amp;L is recognized only after official prediction evaluation evidence exists.</p>
+        </div>
+        <PaperSettlementRows rows={snapshot.paper_settlements} />
       </section>
 
       <section className="panel">
@@ -349,16 +582,6 @@ export function DashboardClient({
         <PerformanceCards rows={snapshot.performance} />
       </section>
 
-      <section className="phase-boundary">
-        <div>
-          <span className="eyebrow">Phase boundary</span>
-          <h2>Paper P&amp;L is intentionally unavailable</h2>
-        </div>
-        <p>
-          Phase 10 prediction economics are not paper fills. Real paper-fill P&amp;L starts in Phase 12, so this dashboard does not manufacture a return number from historical or hypothetical fields.
-        </p>
-      </section>
-
       <section className="panel">
         <div className="section-heading">
           <div><span className="eyebrow">Ledger</span><h2>Immutable prediction history</h2></div>
@@ -368,7 +591,7 @@ export function DashboardClient({
       </section>
 
       <footer>
-        RESEARCH mode · no wallet · no signing · no execution controls · auto-refresh every 15 seconds
+        RESEARCH mode · paper execution only · no wallet · no signing · real execution disabled · auto-refresh every 15 seconds
       </footer>
     </main>
   );
