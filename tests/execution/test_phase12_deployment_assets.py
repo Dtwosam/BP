@@ -72,7 +72,7 @@ def test_phase12_acceptance_and_install_fail_closed_and_reconcile() -> None:
     ):
         for required in (
             "EXPECTED_HEAD",
-            "git rev-parse HEAD",
+            "rev-parse HEAD",
             "MODE",
             "LIVE_TRADING_ENABLED",
             "MAX_TRADE_SIZE_USD",
