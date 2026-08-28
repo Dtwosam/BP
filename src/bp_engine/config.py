@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     optional_horizons: tuple[str, ...] = ("10m",)
     timezone: str = "UTC"
     database_url: str = "postgresql+psycopg://bp:bp_dev_only@localhost:5432/bp"
+    dashboard_api_port: int = 8787
     max_trade_size_usd: float = 0
     max_daily_loss_usd: float = 0
 

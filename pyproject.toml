@@ -17,6 +17,8 @@ dependencies = [
   "scikit-learn>=1.7,<2",
   "xgboost-cpu>=3,<4",
   "joblib>=1.4,<2",
+  "fastapi==0.141.1",
+  "uvicorn==0.52.4",
 ]
 
 [project.optional-dependencies]
