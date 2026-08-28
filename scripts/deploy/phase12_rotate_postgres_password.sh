@@ -152,7 +152,8 @@ for line in lines:
         if ":" in host and not host.startswith("["):
             host = f"[{host}]"
         port = f":{parsed.port}" if parsed.port is not None else ""
-        netloc = f"{quote(parsed.username, safe='')}:{secret}@{host}{port}"
+        encoded_username = quote(parsed.username, safe="")
+        netloc = f"{encoded_username}:{secret}@{host}{port}"
         updated_url = urlunsplit(
             (parsed.scheme, netloc, parsed.path, parsed.query, parsed.fragment)
         )
