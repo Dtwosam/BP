@@ -287,3 +287,47 @@ def test_postgres_dashboard_repository_is_read_only_and_selects_current_evidence
         connection.execute(
             delete(schema.feed_status).where(schema.feed_status.c.source == "phase11-test")
         )
+
+
+def test_dashboard_feed_health_falls_back_to_compact_market_state() -> None:
+    assert DATABASE_URL is not None
+    from bp_engine.dashboard.repository import PostgresDashboardRepository
+
+    engine = create_engine(DATABASE_URL)
+    schema.metadata.create_all(engine)
+    now = datetime(2026, 8, 28, 12, 0, tzinfo=UTC)
+    source = "phase11-state-test"
+    stream = "spot"
+
+    with engine.begin() as connection:
+        connection.execute(delete(schema.feed_status).where(schema.feed_status.c.source == source))
+        connection.execute(
+            delete(schema.market_state_1s).where(schema.market_state_1s.c.source == source)
+        )
+        connection.execute(
+            insert(schema.market_state_1s).values(
+                bucket_at=now - timedelta(seconds=2),
+                state_key="phase11-state-test:spot:BTCUSD",
+                source=source,
+                stream=stream,
+                instrument="BTCUSD",
+                market_id=None,
+                asset_id=None,
+                last_event_at=now - timedelta(seconds=3),
+                state={"test": True},
+            )
+        )
+
+    repository = PostgresDashboardRepository(engine)
+    health = [row for row in repository.list_feed_health(now) if row["source"] == source]
+
+    assert len(health) == 1
+    assert health[0]["stream"] == stream
+    assert health[0]["status"] == "connected"
+    assert health[0]["age_seconds"] == 3.0
+    assert health[0]["details"] == {"derived_from": "market_state_1s"}
+
+    with engine.begin() as connection:
+        connection.execute(
+            delete(schema.market_state_1s).where(schema.market_state_1s.c.source == source)
+        )
