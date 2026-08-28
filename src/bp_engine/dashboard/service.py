@@ -123,26 +123,8 @@ def build_dashboard_snapshot(
     active_markets = list(repository.list_active_markets(now))
     feed_health = list(repository.list_feed_health(now))
     history = list(repository.list_predictions(limit=history_limit))
-
-    performance_predictions = [
-        {
-            "prediction_id": row["prediction_id"],
-            "horizon_seconds": row["horizon_seconds"],
-            "calibrated_probability": row.get("calibrated_probability"),
-        }
-        for row in history
-    ]
-    performance_evaluations = [
-        {
-            "prediction_id": row["prediction_id"],
-            "official_target": row.get("official_target"),
-            "correct": row.get("correct"),
-            "calibrated_brier": row.get("calibrated_brier"),
-            "calibrated_log_loss": row.get("calibrated_log_loss"),
-        }
-        for row in history
-        if row.get("official_target") is not None
-    ]
+    performance_predictions = list(repository.list_performance_predictions())
+    performance_evaluations = list(repository.list_evaluations())
 
     return _json_safe(
         {
