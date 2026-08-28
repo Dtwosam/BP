@@ -1,0 +1,43 @@
+[Unit]
+Description=BP Phase 12 deterministic paper execution worker
+Requires=bp-postgres.service
+After=bp-postgres.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bp
+Group=bp
+WorkingDirectory=/opt/bp
+EnvironmentFile=/etc/bp/bp.env
+Environment=MODE=research
+Environment=LIVE_TRADING_ENABLED=false
+Environment=MAX_TRADE_SIZE_USD=0
+Environment=MAX_DAILY_LOSS_USD=0
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/bp/.venv/bin/python -m bp_engine.execution --poll-seconds 5
+Restart=on-failure
+RestartSec=3
+TimeoutStartSec=30
+TimeoutStopSec=20
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=full
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-paper-execution
+
+[Install]
+WantedBy=multi-user.target
