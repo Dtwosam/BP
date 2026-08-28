@@ -100,6 +100,37 @@ def test_replay_book_applies_selected_token_changes_and_tracks_provenance() -> N
     assert replayed.replay_cutoff_at == cutoff
 
 
+def test_replay_book_accepts_recorder_prefixed_dedupe_keys() -> None:
+    anchor_key = "sha256:" + "a" * 64
+    change_key = "sha256:" + "b" * 64
+
+    replayed = replay_book_payloads(
+        condition_id="condition-1",
+        asset_id="up-token",
+        anchor_event_id=101,
+        anchor_dedupe_key=anchor_key,
+        anchor_payload=_anchor(),
+        applied_events=(
+            (
+                102,
+                change_key,
+                _change(
+                    {
+                        "asset_id": "up-token",
+                        "side": "SELL",
+                        "price": "0.56",
+                        "size": "1.5",
+                    }
+                ),
+            ),
+        ),
+        replay_cutoff_at=datetime(2026, 8, 28, 16, 30, tzinfo=UTC),
+    )
+
+    assert replayed.anchor_dedupe_key == anchor_key
+    assert replayed.applied_dedupe_keys == (change_key,)
+
+
 @pytest.mark.parametrize(
     "payload",
     [
