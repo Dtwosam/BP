@@ -102,13 +102,21 @@ class ExecutionOrderRequest:
     execution_config_sha256: str
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "prediction_id", _text(self.prediction_id, name="prediction_id"))
+        object.__setattr__(
+            self,
+            "prediction_id",
+            _text(self.prediction_id, name="prediction_id"),
+        )
         object.__setattr__(
             self,
             "prediction_semantic_sha256",
             _sha256(self.prediction_semantic_sha256, name="prediction_semantic_sha256"),
         )
-        object.__setattr__(self, "condition_id", _text(self.condition_id, name="condition_id"))
+        object.__setattr__(
+            self,
+            "condition_id",
+            _text(self.condition_id, name="condition_id"),
+        )
         object.__setattr__(self, "token_id", _text(self.token_id, name="token_id"))
         side = _text(self.selected_side, name="selected_side").lower()
         if side not in {"up", "down"}:
@@ -126,12 +134,18 @@ class ExecutionOrderRequest:
             "target_notional_usd",
             _positive_decimal(self.target_notional_usd, name="target_notional_usd"),
         )
-        object.__setattr__(self, "limit_price", _probability_price(self.limit_price, name="limit_price"))
+        object.__setattr__(
+            self,
+            "limit_price",
+            _probability_price(self.limit_price, name="limit_price"),
+        )
         submitted_at = _utc(self.submitted_at)
         arrival_at = _utc(self.arrival_at)
         expires_at = _utc(self.expires_at)
         if not submitted_at <= arrival_at < expires_at:
-            raise ValueError("invalid timestamp order: require submitted_at <= arrival_at < expires_at")
+            raise ValueError(
+                "invalid timestamp order: require submitted_at <= arrival_at < expires_at"
+            )
         object.__setattr__(self, "submitted_at", submitted_at)
         object.__setattr__(self, "arrival_at", arrival_at)
         object.__setattr__(self, "expires_at", expires_at)
