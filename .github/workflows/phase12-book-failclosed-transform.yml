@@ -28,41 +28,47 @@ jobs:
           text = path.read_text(encoding="utf-8")
 
           old_import = "from bp_engine.execution.book import PolymarketBookReplayReader, ReplayedBook"
-          new_import = '''from bp_engine.execution.book import (
-              BookReplayError,
-              PolymarketBookReplayReader,
-              ReplayedBook,
-          )'''
+          new_import = (
+              "from bp_engine.execution.book import (\n"
+              "    BookReplayError,\n"
+              "    PolymarketBookReplayReader,\n"
+              "    ReplayedBook,\n"
+              ")"
+          )
           if old_import not in text:
               raise SystemExit("expected execution.book import not found")
           text = text.replace(old_import, new_import, 1)
 
-          old = '''        draft = _draft_from_rows(order, prediction)
-          simulation = simulate_buy(draft, self._books_for_order(connection, draft))'''
-          new = '''        draft = _draft_from_rows(order, prediction)
-          try:
-              books = self._books_for_order(connection, draft)
-          except BookReplayError as exc:
-              terminal_result = self._repository.insert_terminal_event(
-                  connection,
-                  _terminal_record(
-                      paper_order_id=str(order["paper_order_id"]),
-                      terminal=PaperTerminalDraft(
-                          status="EXPIRED",
-                          remaining_shares=draft.request.requested_shares,
-                          event_at=draft.request.expires_at,
-                          reason=f"causal book replay failed closed: {exc}"[:128],
-                      ),
-                  ),
-              )
-              return (
-                  0,
-                  0,
-                  int(terminal_result.created),
-                  int(terminal_result.existing),
-              )
-
-          simulation = simulate_buy(draft, books)'''
+          old = (
+              "        draft = _draft_from_rows(order, prediction)\n"
+              "        simulation = simulate_buy(draft, self._books_for_order(connection, draft))"
+          )
+          new = (
+              "        draft = _draft_from_rows(order, prediction)\n"
+              "        try:\n"
+              "            books = self._books_for_order(connection, draft)\n"
+              "        except BookReplayError as exc:\n"
+              "            terminal_result = self._repository.insert_terminal_event(\n"
+              "                connection,\n"
+              "                _terminal_record(\n"
+              "                    paper_order_id=str(order[\"paper_order_id\"]),\n"
+              "                    terminal=PaperTerminalDraft(\n"
+              "                        status=\"EXPIRED\",\n"
+              "                        remaining_shares=draft.request.requested_shares,\n"
+              "                        event_at=draft.request.expires_at,\n"
+              "                        reason=f\"causal book replay failed closed: {exc}\"[:128],\n"
+              "                    ),\n"
+              "                ),\n"
+              "            )\n"
+              "            return (\n"
+              "                0,\n"
+              "                0,\n"
+              "                int(terminal_result.created),\n"
+              "                int(terminal_result.existing),\n"
+              "            )\n"
+              "\n"
+              "        simulation = simulate_buy(draft, books)"
+          )
           if old not in text:
               raise SystemExit("expected _process_order simulation block not found")
           text = text.replace(old, new, 1)
