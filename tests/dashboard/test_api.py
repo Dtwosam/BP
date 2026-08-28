@@ -3,11 +3,11 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from bp_engine.dashboard.app import create_app
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import SQLAlchemyError
 
 from bp_engine.config import Settings
+from bp_engine.dashboard.app import create_app
 
 
 class StubService:
