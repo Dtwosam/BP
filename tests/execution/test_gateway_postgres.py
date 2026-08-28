@@ -7,10 +7,10 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import create_engine, select
 
+from bp_engine.execution.gateway import PaperExecutionGateway
 from bp_engine.execution.models import PaperExecutionConfig
 from bp_engine.execution.paper import PaperOrderDraft, build_paper_order
 from bp_engine.execution.protocol import ExecutionGateway
-from bp_engine.execution.service import PaperExecutionService
 from bp_engine.live_prediction.repository import LivePredictionRepository
 from bp_engine.storage import schema
 from bp_engine.storage.recorder import RecorderRepository
@@ -37,7 +37,7 @@ def test_paper_gateway_submits_and_cancels_idempotently_with_causal_fills() -> N
     prediction_repository = LivePredictionRepository()
     recorder = RecorderRepository()
     config = PaperExecutionConfig()
-    service = PaperExecutionService(engine=engine, config=config)
+    service = PaperExecutionGateway(engine=engine, config=config)
     assert isinstance(service, ExecutionGateway)
 
     prediction = _prediction(
