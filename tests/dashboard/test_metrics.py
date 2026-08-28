@@ -1,7 +1,6 @@
 from decimal import Decimal
 
 import pytest
-
 from bp_engine.dashboard.metrics import build_performance
 
 
