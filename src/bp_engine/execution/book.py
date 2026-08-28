@@ -11,7 +11,7 @@ from sqlalchemy import Connection, and_, or_, select
 
 from bp_engine.storage.schema import raw_market_events
 
-_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_SHA256_RE = re.compile(r"^(?:sha256:)?[0-9a-f]{64}$")
 
 
 class BookReplayError(RuntimeError):
