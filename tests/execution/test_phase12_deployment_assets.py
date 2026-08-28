@@ -117,6 +117,17 @@ def test_phase12_host_acceptance_starts_exact_candidate_predictor() -> None:
     assert 'wait "$PREDICTOR_PID"' in host
 
 
+def test_phase12_deployment_keeps_database_url_out_of_process_arguments() -> None:
+    host = _text(HOST)
+    install = _text(INSTALL)
+
+    for script in (host, install):
+        assert 'DATABASE_URL="$DATABASE_URL"' not in script
+        assert '--database-url "$DATABASE_URL"' not in script
+        assert "install -m 0600" in script
+        assert ".env" in script
+
+
 def test_phase12_cloudshell_helper_pins_exact_candidate_head() -> None:
     helper = _text(CLOUD)
 
