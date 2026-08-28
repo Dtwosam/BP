@@ -4,8 +4,8 @@ Research-first system for estimating short-duration BTC Polymarket Up/Down proba
 
 ## Current status
 
-**Phases 0–11:** complete.  
-**Current phase:** Phase 12 — Paper Execution.  
+**Phases 0–11:** complete.
+**Current phase:** Phase 12 — Paper Execution.
 **Trading mode:** `RESEARCH`. Live trading is disabled.
 
 Phase 11 is production-host accepted and permanently installed on exact operational candidate `126959eaef973b061c3c7ea619b6d6313f3f4e4e`. The accepted dashboard is read-only and localhost-only, surfaces the immutable 5m/15m prediction system without direct database access, and keeps paper P&L unavailable until Phase 12 supplies real simulated-fill evidence. The ~80% accuracy discussed for this project remains a research target, not an assumed or proven capability, and Phase 11 acceptance is not a profitability claim.
