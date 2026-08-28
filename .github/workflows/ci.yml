@@ -67,7 +67,11 @@ jobs:
           bash -n scripts/deploy/phase11_host_acceptance.sh
           bash -n scripts/deploy/phase11_cloudshell_accept.sh
           bash -n scripts/deploy/phase11_install.sh
+          bash -n scripts/deploy/phase12_host_acceptance.sh
+          bash -n scripts/deploy/phase12_cloudshell_accept.sh
+          bash -n scripts/deploy/phase12_install.sh
           python -m py_compile scripts/run_live_prediction.py scripts/report_live_predictions.py scripts/run_dashboard_api.py
+          python -m py_compile scripts/run_paper_execution.py
           docker compose --env-file deploy/bp.env.example -f docker-compose.prod.yml config -q
 
       - name: Health check
