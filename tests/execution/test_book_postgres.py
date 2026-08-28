@@ -103,12 +103,13 @@ def test_postgres_book_reader_is_causal_and_requires_a_full_anchor() -> None:
         connection.execute(
             delete(raw_market_events).where(raw_market_events.c.dedupe_key.in_(keys))
         )
-        assert recorder.insert_events(connection, events) == 3
+        recorder.insert_events(connection, events)
         rows = connection.execute(
             select(raw_market_events.c.id, raw_market_events.c.dedupe_key).where(
                 raw_market_events.c.dedupe_key.in_(keys)
             )
         ).all()
+        assert len(rows) == 3
         ids = {dedupe_key: row_id for row_id, dedupe_key in rows}
 
         replayed = reader.book_at(
