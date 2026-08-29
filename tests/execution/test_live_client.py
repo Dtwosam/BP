@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import importlib
 from decimal import Decimal
-from importlib import import_module
 from typing import Any
 
 import polymarket
@@ -11,7 +11,7 @@ from bp_engine.config import Settings
 
 
 try:
-    live_client = import_module("bp_engine.execution.live_client")
+    live_client = importlib.import_module("bp_engine.execution.live_client")
 except ModuleNotFoundError:
     live_client = None
 
