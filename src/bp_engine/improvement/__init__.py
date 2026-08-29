@@ -4,8 +4,12 @@ from bp_engine.improvement.models import (
     EXPERIMENT_VERSION,
     ChampionRef,
     ChangeFamily,
+    EvidenceItem,
     EvidenceRole,
+    ImprovementEvaluationReport,
     ImprovementExperimentSpec,
+    ImprovementPromotionDecision,
+    PolicyMetrics,
     PromotionDecision,
 )
 
@@ -15,7 +19,11 @@ __all__ = [
     "EXPERIMENT_VERSION",
     "ChampionRef",
     "ChangeFamily",
+    "EvidenceItem",
     "EvidenceRole",
+    "ImprovementEvaluationReport",
     "ImprovementExperimentSpec",
+    "ImprovementPromotionDecision",
+    "PolicyMetrics",
     "PromotionDecision",
 ]
