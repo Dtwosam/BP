@@ -2,9 +2,9 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-from bp_engine.live_readiness.risk import evaluate_live_risk
 
 from bp_engine.live_readiness.models import LiveAccountSnapshot, LiveRiskContext, LiveRiskPolicy
+from bp_engine.live_readiness.risk import evaluate_live_risk
 
 NOW = datetime(2026, 8, 29, 12, 0, tzinfo=UTC)
 SHA = "a" * 64
