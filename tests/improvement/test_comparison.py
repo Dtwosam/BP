@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 
 def _interval(*, mean: float = 0.10, lower: float = 0.02, upper: float = 0.18):
     from bp_engine.improvement.statistics import BootstrapInterval
@@ -43,7 +45,7 @@ def test_worse_log_loss_is_ineligible() -> None:
         integrity_ok=True,
     )
 
-    assert result.calibration_log_loss_delta == 0.01
+    assert result.calibration_log_loss_delta == pytest.approx(0.01)
     assert result.ineligibility_reasons == ("calibration_log_loss_worse",)
 
 
@@ -60,7 +62,7 @@ def test_worse_brier_is_ineligible() -> None:
         integrity_ok=True,
     )
 
-    assert result.calibration_brier_delta == 0.01
+    assert result.calibration_brier_delta == pytest.approx(0.01)
     assert result.ineligibility_reasons == ("calibration_brier_worse",)
 
 
@@ -112,8 +114,8 @@ def test_all_frozen_promotion_gates_pass() -> None:
 
     assert result.economic_delta == interval.mean_delta
     assert result.economic_interval == interval
-    assert result.calibration_log_loss_delta == -0.01
-    assert result.calibration_brier_delta == -0.01
+    assert result.calibration_log_loss_delta == pytest.approx(-0.01)
+    assert result.calibration_brier_delta == pytest.approx(-0.01)
     assert result.promotion_eligible is True
     assert result.ineligibility_reasons == ()
 
