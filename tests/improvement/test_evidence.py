@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from bp_engine.improvement.evidence import EvidenceIntegrityError, validate_evidence_manifest
 
+from bp_engine.improvement.evidence import EvidenceIntegrityError, validate_evidence_manifest
 from bp_engine.improvement.models import (
     EXPERIMENT_VERSION,
     ChampionRef,
