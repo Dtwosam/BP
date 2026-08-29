@@ -1,4 +1,5 @@
 import pytest
+
 from bp_engine.live_readiness.secrets import (
     SecretConfigurationError,
     load_private_key_for_sdk,
