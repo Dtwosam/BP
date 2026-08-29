@@ -33,11 +33,11 @@ live_readiness_checks = Table(
     Column("semantic_sha256", String(64), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     CheckConstraint(
-        "char_length(candidate_git_sha) = 64",
+        "length(candidate_git_sha) = 64",
         name="ck_live_readiness_candidate_sha",
     ),
     CheckConstraint(
-        "char_length(semantic_sha256) = 64",
+        "length(semantic_sha256) = 64",
         name="ck_live_readiness_semantic_sha",
     ),
     UniqueConstraint("check_id", name="uq_live_readiness_check_id"),
@@ -62,12 +62,12 @@ live_risk_decisions = Table(
     Column("semantic_sha256", String(64), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     CheckConstraint(
-        "char_length(prediction_semantic_sha256) = 64",
+        "length(prediction_semantic_sha256) = 64",
         name="ck_live_risk_prediction_sha",
     ),
-    CheckConstraint("char_length(policy_sha256) = 64", name="ck_live_risk_policy_sha"),
+    CheckConstraint("length(policy_sha256) = 64", name="ck_live_risk_policy_sha"),
     CheckConstraint(
-        "char_length(semantic_sha256) = 64",
+        "length(semantic_sha256) = 64",
         name="ck_live_risk_semantic_sha",
     ),
     UniqueConstraint("decision_id", name="uq_live_risk_decision_id"),
@@ -99,7 +99,7 @@ live_order_intents = Table(
         name="ck_live_intent_limit_price",
     ),
     CheckConstraint(
-        "char_length(semantic_sha256) = 64",
+        "length(semantic_sha256) = 64",
         name="ck_live_intent_semantic_sha",
     ),
     UniqueConstraint("intent_id", name="uq_live_intent_id"),
@@ -126,7 +126,7 @@ live_order_events = Table(
     Column("semantic_sha256", String(64), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     CheckConstraint(
-        "char_length(semantic_sha256) = 64",
+        "length(semantic_sha256) = 64",
         name="ck_live_event_semantic_sha",
     ),
     UniqueConstraint("event_key", name="uq_live_event_key"),
@@ -158,7 +158,7 @@ live_reconciliation_runs = Table(
         name="ck_live_reconciliation_critical_count",
     ),
     CheckConstraint(
-        "char_length(semantic_sha256) = 64",
+        "length(semantic_sha256) = 64",
         name="ck_live_reconciliation_semantic_sha",
     ),
     UniqueConstraint("reconciliation_id", name="uq_live_reconciliation_id"),
