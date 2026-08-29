@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     Index,
     Integer,
+    JSON,
     Numeric,
     String,
     Table,
@@ -17,6 +18,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from bp_engine.storage.schema import metadata
 
+_JSONB_DOCUMENT = JSONB().with_variant(JSON(), "sqlite")
+
 live_readiness_checks = Table(
     "live_readiness_checks",
     metadata,
@@ -25,8 +28,8 @@ live_readiness_checks = Table(
     Column("candidate_git_sha", String(64), nullable=False),
     Column("observed_at", DateTime(timezone=True), nullable=False),
     Column("eligible", Boolean, nullable=False),
-    Column("reasons", JSONB, nullable=False),
-    Column("evidence", JSONB, nullable=False),
+    Column("reasons", _JSONB_DOCUMENT, nullable=False),
+    Column("evidence", _JSONB_DOCUMENT, nullable=False),
     Column("semantic_sha256", String(64), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     CheckConstraint(
@@ -52,10 +55,10 @@ live_risk_decisions = Table(
     Column("policy_version", String(64), nullable=False),
     Column("policy_sha256", String(64), nullable=False),
     Column("eligible", Boolean, nullable=False),
-    Column("reasons", JSONB, nullable=False),
-    Column("rules", JSONB, nullable=False),
-    Column("account_snapshot", JSONB, nullable=False),
-    Column("evidence", JSONB, nullable=False),
+    Column("reasons", _JSONB_DOCUMENT, nullable=False),
+    Column("rules", _JSONB_DOCUMENT, nullable=False),
+    Column("account_snapshot", _JSONB_DOCUMENT, nullable=False),
+    Column("evidence", _JSONB_DOCUMENT, nullable=False),
     Column("semantic_sha256", String(64), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     CheckConstraint(
@@ -86,7 +89,7 @@ live_order_intents = Table(
     Column("size", Numeric(38, 18), nullable=False),
     Column("limit_price", Numeric(38, 18), nullable=False),
     Column("pre_submit_at", DateTime(timezone=True), nullable=False),
-    Column("evidence", JSONB, nullable=False),
+    Column("evidence", _JSONB_DOCUMENT, nullable=False),
     Column("semantic_sha256", String(64), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     CheckConstraint("side = 'BUY'", name="ck_live_intent_buy_only"),
@@ -119,7 +122,7 @@ live_order_events = Table(
     Column("external_order_id", String(256), nullable=True),
     Column("external_trade_id", String(256), nullable=True),
     Column("observed_at", DateTime(timezone=True), nullable=False),
-    Column("evidence", JSONB, nullable=False),
+    Column("evidence", _JSONB_DOCUMENT, nullable=False),
     Column("semantic_sha256", String(64), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     CheckConstraint(
@@ -143,7 +146,7 @@ live_reconciliation_runs = Table(
     Column("observed_at", DateTime(timezone=True), nullable=False),
     Column("unresolved_count", Integer, nullable=False),
     Column("critical_count", Integer, nullable=False),
-    Column("evidence", JSONB, nullable=False),
+    Column("evidence", _JSONB_DOCUMENT, nullable=False),
     Column("semantic_sha256", String(64), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     CheckConstraint(
