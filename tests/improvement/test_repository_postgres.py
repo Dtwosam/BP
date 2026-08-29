@@ -42,7 +42,9 @@ def _champion() -> ChampionRef:
     )
 
 
-def _experiment(*, hypothesis: str = "A spread guard improves executable economics.") -> ImprovementExperimentSpec:
+def _experiment(
+    *, hypothesis: str = "A spread guard improves executable economics."
+) -> ImprovementExperimentSpec:
     return ImprovementExperimentSpec.build(
         experiment_version=EXPERIMENT_VERSION,
         hypothesis=hypothesis,
