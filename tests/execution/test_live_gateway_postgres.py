@@ -5,9 +5,9 @@ from datetime import timedelta
 from decimal import Decimal
 
 import pytest
-from bp_engine.execution.live import InterlockDecision, PolymarketLiveExecutionGateway
 from sqlalchemy import create_engine, delete, func, insert, select
 
+from bp_engine.execution.live import InterlockDecision, PolymarketLiveExecutionGateway
 from bp_engine.execution.live_client import LiveClientCancelResult, LiveClientOrderResult
 from bp_engine.execution.models import PaperExecutionConfig
 from bp_engine.execution.paper import PaperOrderDraft, build_paper_order
@@ -236,7 +236,7 @@ def test_interlock_blockers_never_construct_client(
     assert specific_reason in risk["reasons"]
 
 
-def test_zero_live_policy_limits_never_construct_client(live_case: LiveCase) -> None:
+def test_zero_live_policy_limits_never_constructs_client(live_case: LiveCase) -> None:
     gateway = _gateway(
         live_case,
         policy=_policy(
