@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -8,22 +9,34 @@ import pytest
 def _api():
     from bp_engine.improvement.hashing import derive_seed, semantic_sha256
     from bp_engine.improvement.models import (
+        DECISION_VERSION,
+        EVALUATION_VERSION,
         EXPERIMENT_VERSION,
         ChampionRef,
         ChangeFamily,
+        EvidenceItem,
         EvidenceRole,
+        ImprovementEvaluationReport,
         ImprovementExperimentSpec,
+        ImprovementPromotionDecision,
+        PolicyMetrics,
         PromotionDecision,
     )
 
     return {
         "derive_seed": derive_seed,
         "semantic_sha256": semantic_sha256,
+        "DECISION_VERSION": DECISION_VERSION,
+        "EVALUATION_VERSION": EVALUATION_VERSION,
         "EXPERIMENT_VERSION": EXPERIMENT_VERSION,
         "ChampionRef": ChampionRef,
         "ChangeFamily": ChangeFamily,
+        "EvidenceItem": EvidenceItem,
         "EvidenceRole": EvidenceRole,
+        "ImprovementEvaluationReport": ImprovementEvaluationReport,
         "ImprovementExperimentSpec": ImprovementExperimentSpec,
+        "ImprovementPromotionDecision": ImprovementPromotionDecision,
+        "PolicyMetrics": PolicyMetrics,
         "PromotionDecision": PromotionDecision,
     }
 
@@ -70,10 +83,62 @@ def _spec(api, **overrides):
     return api["ImprovementExperimentSpec"].build(**values)
 
 
+def _metrics(api, **overrides):
+    values = {
+        "calibrated_log_loss": 0.4,
+        "calibrated_brier": 0.15,
+        "ece": 0.03,
+        "accuracy": 0.8,
+        "trade_count": 4,
+        "trade_coverage": 0.4,
+        "total_net_pnl": 0.25,
+        "mean_net_pnl_per_trade": 0.0625,
+        "max_drawdown": 0.1,
+        "max_losing_streak": 1,
+        "unresolved_count": 0,
+        "missing_unexecutable_count": 0,
+    }
+    values.update(overrides)
+    return api["PolicyMetrics"](**values)
+
+
+def _evaluation(api, **overrides):
+    spec = _spec(api)
+    evidence = (
+        api["EvidenceItem"](
+            identifier="fresh-condition-1",
+            role=api["EvidenceRole"].FRESH_HOLDOUT,
+            condition_id="fresh-condition-1",
+            prediction_id=None,
+            observed_at=datetime(2026, 8, 30, tzinfo=UTC),
+            resolved=True,
+            net_pnl=0.1,
+        ),
+    )
+    values = {
+        "evaluation_version": api["EVALUATION_VERSION"],
+        "experiment_id": spec.experiment_id,
+        "challenger_id": "spread-guard-v1",
+        "challenger_semantic_sha256": "d" * 64,
+        "challenger_config": {"max_spread": 0.04},
+        "evidence_manifest": evidence,
+        "champion_metrics": _metrics(api, total_net_pnl=0.05),
+        "challenger_metrics": _metrics(api, total_net_pnl=0.15),
+        "comparison": {"mean_delta": 0.1, "lower_95": 0.01, "upper_95": 0.2},
+        "promotion_eligible": True,
+        "ineligibility_reasons": (),
+        "created_at": datetime(2026, 8, 31, tzinfo=UTC),
+    }
+    values.update(overrides)
+    return api["ImprovementEvaluationReport"].build(**values)
+
+
 def test_phase13_api_exists_and_enums_are_frozen():
     api = _api()
 
     assert api["EXPERIMENT_VERSION"] == "improvement-experiment-v1"
+    assert api["EVALUATION_VERSION"] == "improvement-evaluation-v1"
+    assert api["DECISION_VERSION"] == "improvement-decision-v1"
     assert api["ChangeFamily"].ABSTENTION.value == "abstention"
     assert api["EvidenceRole"].FRESH_HOLDOUT.value == "fresh_holdout"
     assert api["PromotionDecision"].KEEP_CHAMPION.value == "keep_champion"
@@ -143,3 +208,76 @@ def test_derive_seed_is_stable_and_order_sensitive():
     assert isinstance(first, int)
     assert first >= 0
     assert first != reversed_parts
+
+
+def test_evaluation_semantics_ignore_created_at_and_sort_reasons():
+    api = _api()
+
+    first = _evaluation(
+        api,
+        ineligibility_reasons=("z_reason", "a_reason", "z_reason"),
+        promotion_eligible=False,
+        created_at=datetime(2026, 8, 31, tzinfo=UTC),
+    )
+    second = _evaluation(
+        api,
+        ineligibility_reasons=("a_reason", "z_reason"),
+        promotion_eligible=False,
+        created_at=datetime(2026, 9, 1, tzinfo=UTC),
+    )
+
+    assert first.evaluation_id == second.evaluation_id
+    assert first.semantic_sha256 == second.semantic_sha256
+    assert first.ineligibility_reasons == ("a_reason", "z_reason")
+    assert first.evaluation_id == f"phase13-eval-{first.semantic_sha256[:32]}"
+
+
+def test_policy_metrics_reject_nonfinite_or_invalid_values():
+    api = _api()
+
+    with pytest.raises(ValueError, match="calibrated_log_loss"):
+        _metrics(api, calibrated_log_loss=float("nan"))
+    with pytest.raises(ValueError, match="trade_coverage"):
+        _metrics(api, trade_coverage=1.1)
+    with pytest.raises(ValueError, match="trade_count"):
+        _metrics(api, trade_count=-1)
+
+
+def test_decision_semantics_ignore_created_at_and_require_rationale():
+    api = _api()
+    evaluation = _evaluation(api)
+    champion = _champion(api)
+
+    first = api["ImprovementPromotionDecision"].build(
+        decision_version=api["DECISION_VERSION"],
+        evaluation_id=evaluation.evaluation_id,
+        experiment_id=evaluation.experiment_id,
+        decision=api["PromotionDecision"].KEEP_CHAMPION,
+        rationale="Independent confirmation is not sufficient for promotion.",
+        resulting_champion=champion,
+        created_at=datetime(2026, 9, 1, tzinfo=UTC),
+    )
+    second = api["ImprovementPromotionDecision"].build(
+        decision_version=api["DECISION_VERSION"],
+        evaluation_id=evaluation.evaluation_id,
+        experiment_id=evaluation.experiment_id,
+        decision=api["PromotionDecision"].KEEP_CHAMPION,
+        rationale="Independent confirmation is not sufficient for promotion.",
+        resulting_champion=champion,
+        created_at=datetime(2026, 9, 2, tzinfo=UTC),
+    )
+
+    assert first.decision_id == second.decision_id
+    assert first.semantic_sha256 == second.semantic_sha256
+    assert first.decision_id == f"phase13-decision-{first.semantic_sha256[:32]}"
+
+    with pytest.raises(ValueError, match="rationale"):
+        replace(first, rationale="").__class__.build(
+            decision_version=api["DECISION_VERSION"],
+            evaluation_id=evaluation.evaluation_id,
+            experiment_id=evaluation.experiment_id,
+            decision=api["PromotionDecision"].KEEP_CHAMPION,
+            rationale="   ",
+            resulting_champion=champion,
+            created_at=datetime(2026, 9, 1, tzinfo=UTC),
+        )
