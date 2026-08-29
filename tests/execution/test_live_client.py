@@ -9,7 +9,6 @@ import pytest
 
 from bp_engine.config import Settings
 
-
 try:
     live_client = importlib.import_module("bp_engine.execution.live_client")
 except ModuleNotFoundError:
