@@ -5,9 +5,9 @@ from datetime import timedelta
 from decimal import Decimal
 
 import pytest
+from bp_engine.execution.live import InterlockDecision, PolymarketLiveExecutionGateway
 from sqlalchemy import create_engine, delete, func, insert, select
 
-from bp_engine.execution.live import InterlockDecision, PolymarketLiveExecutionGateway
 from bp_engine.execution.live_client import LiveClientCancelResult, LiveClientOrderResult
 from bp_engine.execution.models import PaperExecutionConfig
 from bp_engine.execution.paper import PaperOrderDraft, build_paper_order
@@ -342,8 +342,12 @@ def test_source_identity_mismatch_fails_before_client(live_case: LiveCase) -> No
     assert ack.accepted is False
     assert ack.reason == "source_prediction_mismatch"
     with live_case.engine.begin() as connection:
-        risk_count = connection.scalar(select(func.count()).select_from(schema.live_risk_decisions))
-        intent_count = connection.scalar(select(func.count()).select_from(schema.live_order_intents))
+        risk_count = connection.scalar(
+            select(func.count()).select_from(schema.live_risk_decisions)
+        )
+        intent_count = connection.scalar(
+            select(func.count()).select_from(schema.live_order_intents)
+        )
     assert risk_count == 0
     assert intent_count == 0
 
@@ -366,8 +370,12 @@ def test_eligible_submission_persists_pre_submit_evidence_before_factory(
         nonlocal factory_calls
         factory_calls += 1
         with live_case.engine.begin() as connection:
-            risk_count = connection.scalar(select(func.count()).select_from(schema.live_risk_decisions))
-            intent_count = connection.scalar(select(func.count()).select_from(schema.live_order_intents))
+            risk_count = connection.scalar(
+                select(func.count()).select_from(schema.live_risk_decisions)
+            )
+            intent_count = connection.scalar(
+                select(func.count()).select_from(schema.live_order_intents)
+            )
         assert risk_count == 1
         assert intent_count == 1
         return fake
