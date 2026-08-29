@@ -29,6 +29,20 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://bp:bp_dev_only@localhost:5432/bp"
     max_trade_size_usd: float = 0
     max_daily_loss_usd: float = 0
+    max_total_exposure_usd: float = 0
+    max_consecutive_losses: int = 0
+    live_min_edge: float = 0
+    live_min_probability: float = 0
+    live_min_liquidity_usd: float = 0
+    live_max_spread: float = 0
+    live_max_prediction_age_seconds: float = 0
+    live_min_time_to_expiry_seconds: float = 0
+    live_cooldown_seconds: float = 0
+    live_activation_manifest_path: str = "/var/lib/bp/live/activation.json"
+    live_kill_switch_path: str = "/var/lib/bp/live/KILL"
+    polymarket_geoblock_url: str = "https://polymarket.com/api/geoblock"
+    polymarket_private_key_env: str = "POLYMARKET_PRIVATE_KEY"
+    polymarket_wallet_address_env: str = "POLYMARKET_WALLET_ADDRESS"
 
     recorder_queue_maxsize: int = 50_000
     recorder_batch_size: int = 500
