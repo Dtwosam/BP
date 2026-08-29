@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.13.0 — 29 August 2026
+
+Phase 13 — Improvement Loop V1 — closed after exact-head CI and production-host acceptance on operational candidate `4dcdf8955b2c79ea9f130fec5a0dcceef915a678`. CI run #1387 passed 637 Python tests, Ruff, deployment validation, health in research/live-disabled mode, and the dashboard test/typecheck/production-build lane.
+
+The phase adds immutable experiment, evaluation, evidence, and promotion-decision records; exact Phase 9 → Phase 8 → Phase 7 champion provenance loading; evidence-role, temporal, known-holdout, and fresh-confirmation reuse guards; deterministic paired-market bootstrap uncertainty; calibration guardrails; a network-free research CLI; and deliberate `reject_challenger` / `keep_champion` / eligible research-paper promotion semantics. Promotion eligibility never mutates the champion automatically and cannot activate live trading.
+
+The first concrete experiment froze a 5m validation-selected max-spread abstention guard over the existing Phase 9 edge mechanics. The spread grid was `0.02, 0.04, 0.06, 0.08, 0.10, None` with deterministic validation-only tie-breaks. The immutable experiment is `phase13-exp-0c6f77ab575fdc75d517480285574ff8`; evaluation is `phase13-eval-4c7c0457409f7e29687c5b75139cd405`; challenger is `phase13-spread-55b1f388b3df86b83124d6f289cdd625`.
+
+The challenger did not improve the accepted Phase 9 champion. Across 144 reused ordinary-OOS markets, both policies recorded 3 trades, `+0.148014` assumed-cost total P&L, calibrated log loss `0.33497222323288234`, and calibrated Brier `0.1064723920324928`. The deterministic 10,000-resample paired bootstrap produced economic delta `0.0` with interval `[0.0, 0.0]`; calibration deltas were also zero. No independent `fresh_holdout` or `prospective_paper` confirmation was available, so the evaluation was promotion-ineligible for `economic_uncertainty_not_positive` and `independent_confirmation_missing`.
+
+Production acceptance returned `PHASE13_HOST_ACCEPTANCE=PASS`. It verified the exact immutable champion chain, idempotent experiment registration and evaluation, rejection of an ineligible promotion attempt, and the deliberate `keep_champion` decision `phase13-decision-8e32d904a1169e10bed2eb8f7a375637`. Recorder, PostgreSQL, dashboard API, dashboard web, and the money-disabled paper worker remained active; paper reconciliation was `OK` with zero violations; `execution_available=false`; `LIVE_TRADING_ENABLED=false`; and maximum real trade size and daily loss remained zero.
+
+Sanitized closeout evidence is stored in `docs/evidence/phase-13-closeout-20260829.json`. Phase 14 — Live Readiness — is now the next permitted phase. This closeout is not a profitability claim and does not authorize real trading; the full live-readiness gate and explicit user authorization remain mandatory before any controlled live launch.
+
 ## 0.12.0 — 28 August 2026
 
 Phase 12 — Paper Execution — closed after exact-head CI, isolated production-host acceptance, and permanent installation on operational candidate `159ce77af9a51ae208511d216bee52d5732cee3b`. CI run #1328 passed 564 Python tests, Ruff, deployment validation, health in research/live-disabled mode, and the dashboard test/typecheck/production-build lane.
@@ -13,6 +27,7 @@ Isolated host acceptance returned `PHASE12_HOST_ACCEPTANCE=PASS` with a genuine 
 The installed dashboard reported `paper_execution_available=true`, `execution_available=false`, current cash `92.207577336709`, realized P&L `0.0`, 3 paper orders, 2 paper fills, 0 settlements, and reconciliation `OK` with every recorded violation counter at zero. These are simulated execution results, not a live-profitability claim.
 
 Sanitized closeout evidence is stored in `docs/evidence/phase-12-closeout-20260828.json`. Phase 13 — Improvement Loop — is now the next permitted phase. Live trading remains disabled, real-money limits remain zero, and Phase 14 live-readiness plus explicit authorization remain mandatory before real order placement.
+
 ## 0.11.0 — 28 August 2026
 
 Phase 11 — Dashboard V1 — closed after exact-head CI, isolated production-host acceptance, and permanent host installation on operational candidate `126959eaef973b061c3c7ea619b6d6313f3f4e4e`. CI run #1223 passed 511 Python tests plus lint, deployment validation, health, dashboard tests, strict TypeScript typecheck, and the Next.js production build.

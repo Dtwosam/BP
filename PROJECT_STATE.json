@@ -1,11 +1,11 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.12.0",
-  "updated_at": "2026-08-28T23:41:09Z",
-  "current_phase": 13,
-  "current_phase_name": "improvement loop",
-  "status": "PHASE_12_COMPLETE_PHASE_13_READY",
+  "source_of_truth_version": "0.13.0",
+  "updated_at": "2026-08-29T11:06:47Z",
+  "current_phase": 14,
+  "current_phase_name": "live readiness",
+  "status": "PHASE_13_COMPLETE_PHASE_14_READY",
   "trading_mode": "RESEARCH",
   "live_trading_enabled": false,
   "verified_polymarket_horizons": [
@@ -597,23 +597,29 @@
     "Phase 12 dashboard paper account, order/fill/settlement, P&L, and reconciliation surfaces implemented without real execution controls",
     "Phase 12 production host acceptance passed on the exact operational commit with a genuine prospective trade, causal fill evidence, nonnegative cash, reconciliation OK, and idempotent rerun",
     "Phase 12 permanent production install passed with the money-disabled paper worker plus recorder, PostgreSQL, dashboard API, and dashboard web all active",
-    "Phase 12 closeout evidence recorded"
+    "Phase 12 closeout evidence recorded",
+    "Phase 13 immutable experiment, evaluation, evidence-role, statistics, and promotion-decision infrastructure implemented",
+    "Phase 13 deterministic network-free research CLI and first 5m spread/abstention challenger implemented",
+    "Phase 13 production host acceptance passed with exact champion provenance, idempotent experiment/evaluation records, blocked ineligible promotion, keep_champion decision, service continuity, and reconciliation OK",
+    "Phase 13 first challenger recorded zero economic/calibration improvement and no independent fresh confirmation, so the accepted Phase 9 champion remained unchanged",
+    "Phase 13 closeout evidence recorded"
   ],
   "not_completed": [
     "Live trading"
   ],
   "next_actions": [
-    "Begin Phase 13 Improvement Loop",
-    "Run hypothesis-driven champion/challenger experiments using immutable historical and prospective paper-execution evidence",
-    "Evaluate calibration, executable edge, abstention, timing, feature, and model changes without reusing untouched holdouts for selection",
-    "Promote no challenger unless repeated out-of-sample evidence beats the current champion after executable-price costs and uncertainty",
-    "Keep LIVE_TRADING_ENABLED=false and real-money limits at zero; Phase 14 live-readiness and explicit authorization remain mandatory before real trading"
+    "Begin Phase 14 Live Readiness",
+    "Re-verify Polymarket geographic/geoblock eligibility and current official trading requirements before any real execution work",
+    "Integrate the official trading client behind money-disabled interfaces without exposing wallet or secret material in chat or source control",
+    "Implement and test risk limits, order reconciliation, kill switch, and live-mode interlocks with integration tests that cannot spend money",
+    "Keep LIVE_TRADING_ENABLED=false and real-money limits at zero; controlled live launch remains blocked until Phase 14 passes and explicit authorization is given"
   ],
   "open_questions": [
     "Current/recurring availability of a 10m BTC Up/Down Polymarket market",
     "Best prediction timing within each Polymarket market window without test/holdout cherry-picking",
     "Whether ~80% accuracy is achievable and at what coverage",
-    "Whether calibrated edge selection can demonstrate positive prospective expectancy after executable-price costs on immutable live predictions"
+    "Whether calibrated edge selection can demonstrate positive prospective expectancy after executable-price costs on immutable live predictions",
+    "Whether current Polymarket geographic eligibility and account/funder requirements permit a compliant controlled live launch from the intended operating environment"
   ],
   "security": {
     "private_keys_in_chat": false,
@@ -661,5 +667,64 @@
     "host_evidence_dir": "/var/lib/bp/evidence/phase12-paper-execution/20260828T230531Z",
     "install_evidence_file": "/var/lib/bp/evidence/phase12-install-20260828T234109Z.txt",
     "sanitized_evidence": "docs/evidence/phase-12-closeout-20260828.json"
+  },
+  "phase_13_checkpoint": {
+    "host_accepted_operational_commit": "4dcdf8955b2c79ea9f130fec5a0dcceef915a678",
+    "ci_run": 1387,
+    "ci_run_id": 33248999701,
+    "ci_passed": true,
+    "automated_tests_passing": 637,
+    "host_acceptance_verdict": "PASS",
+    "experiment_id": "phase13-exp-0c6f77ab575fdc75d517480285574ff8",
+    "experiment_semantic_sha256": "0c6f77ab575fdc75d517480285574ff8a51507a23591790d1f7537ef43248be3",
+    "challenger_id": "phase13-spread-55b1f388b3df86b83124d6f289cdd625",
+    "challenger_semantic_sha256": "55b1f388b3df86b83124d6f289cdd625e3326298a1c199459c0dd6613cbfa6e8",
+    "evaluation_id": "phase13-eval-4c7c0457409f7e29687c5b75139cd405",
+    "evaluation_semantic_sha256": "4c7c0457409f7e29687c5b75139cd405c80d63744ec39d80c7e67284555897b5",
+    "decision_id": "phase13-decision-8e32d904a1169e10bed2eb8f7a375637",
+    "decision_semantic_sha256": "8e32d904a1169e10bed2eb8f7a37563754cbd2da7a274f3d530189f3ff0c511e",
+    "decision": "keep_champion",
+    "promotion_eligible": false,
+    "ineligibility_reasons": [
+      "economic_uncertainty_not_positive",
+      "independent_confirmation_missing"
+    ],
+    "paired_markets": 144,
+    "bootstrap_resamples": 10000,
+    "economic_delta": 0.0,
+    "economic_interval_lower": 0.0,
+    "economic_interval_upper": 0.0,
+    "calibration_log_loss_delta": 0.0,
+    "calibration_brier_delta": 0.0,
+    "independent_confirmation_present": false,
+    "champion_total_net_pnl": 0.14801400000000012,
+    "challenger_total_net_pnl": 0.14801400000000012,
+    "champion_trade_count": 3,
+    "challenger_trade_count": 3,
+    "champion_calibrated_log_loss": 0.33497222323288234,
+    "challenger_calibrated_log_loss": 0.33497222323288234,
+    "champion_calibrated_brier": 0.1064723920324928,
+    "challenger_calibrated_brier": 0.1064723920324928,
+    "champion_chain_verified": true,
+    "experiment_idempotent": true,
+    "evaluation_idempotent": true,
+    "ineligible_promotion_rejected": true,
+    "reconciliation_status": "OK",
+    "reconciliation_violation_count": 0,
+    "paper_order_count": 3,
+    "trade_signal_count": 3,
+    "no_trade_signal_count": 51,
+    "recorder_active_after_acceptance": true,
+    "postgres_active_after_acceptance": true,
+    "dashboard_api_active_after_acceptance": true,
+    "dashboard_web_active_after_acceptance": true,
+    "paper_worker_active_after_acceptance": true,
+    "execution_available": false,
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "profitability_claim": false,
+    "host_evidence_dir": "/var/lib/bp/evidence/phase13-improvement-loop/20260829T110533Z",
+    "sanitized_evidence": "docs/evidence/phase-13-closeout-20260829.json"
   }
 }

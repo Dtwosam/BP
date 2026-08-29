@@ -17,10 +17,12 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
-Phase 13: begin the **Improvement Loop**. Phase 12 — Paper Execution — is production-host accepted and permanently installed on exact operational candidate `159ce77af9a51ae208511d216bee52d5732cee3b`.
+Phase 14: begin **Live Readiness**. Phase 13 — Improvement Loop V1 — is production-host accepted on exact operational candidate `4dcdf8955b2c79ea9f130fec5a0dcceef915a678`.
 
-Fresh exact-head Phase 12 CI run #1328 passed 564 Python tests plus Ruff, deployment validation, health, dashboard tests, strict TypeScript typecheck, and the Next.js production build. Host acceptance and permanent install both passed; paper execution is available, real execution remains unavailable, cash is nonnegative, and reconciliation has zero violations.
+Fresh exact-head Phase 13 CI run #1387 passed 637 Python tests plus Ruff, deployment validation, health in research/live-disabled mode, dashboard tests, strict TypeScript typecheck, and the Next.js production build. Production acceptance returned `PHASE13_HOST_ACCEPTANCE=PASS`, preserved all five production services, and kept paper reconciliation `OK` with zero violations.
 
-Phase 13 must use explicit hypotheses and champion/challenger experiments. Candidate model, calibration, timing, feature, or abstention changes must be judged on permitted out-of-sample evidence and executable-price economics; untouched holdouts must not be reused for selection, and one unusually good backtest cannot promote a challenger.
+The first immutable Phase 13 experiment tested a validation-selected 5m max-spread abstention guard. Challenger and accepted Phase 9 champion were identical on the reused ordinary-OOS comparison: both recorded `+0.148014` assumed-cost P&L, identical calibration metrics, and a paired economic delta/95% bootstrap interval of exactly zero. No independent fresh confirmation was available, so promotion was correctly ineligible and the deliberate immutable decision was `keep_champion`.
 
-`LIVE_TRADING_ENABLED=false`, maximum real trade size and daily loss remain zero, and no wallet/signing/order-placement path is authorized. Phase 14 live readiness and explicit authorization remain mandatory before real-money trading.
+Sanitized closeout evidence is in `docs/evidence/phase-13-closeout-20260829.json`.
+
+Phase 14 must complete the Master Source of Truth live-readiness gate before any real-money progression. `LIVE_TRADING_ENABLED=false`, maximum real trade size and daily loss remain zero, real execution remains unavailable, and explicit user authorization is still mandatory before any real order placement.

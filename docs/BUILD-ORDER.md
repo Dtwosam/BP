@@ -409,10 +409,10 @@ Do not automatically increase stake.
 
 ## Immediate next action
 
-**Build Phase 13 — Improvement Loop.**
+**Build Phase 14 — Live Readiness.**
 
-Phase 12 is production-host accepted and permanently installed on exact operational candidate `159ce77af9a51ae208511d216bee52d5732cee3b`, with a genuine prospective trade, causal paper fills, idempotent reconciliation, nonnegative cash, and zero reconciliation violations. The permanent paper worker is active while real execution remains unavailable.
+Phase 13 Improvement Loop V1 is production-host accepted on exact operational candidate `4dcdf8955b2c79ea9f130fec5a0dcceef915a678`. CI #1387 passed 637 Python tests plus Ruff, deployment validation, research/live-disabled health, and the dashboard test/typecheck/build lane. Production acceptance preserved recorder, PostgreSQL, dashboard API, dashboard web, and the money-disabled paper worker; reconciliation remained `OK` with zero violations.
 
-Phase 13 must test explicit hypotheses across features, models, calibration, prediction timing, abstention, and executable-edge assumptions using champion/challenger discipline. Do not retune against untouched holdouts and do not promote from one unusually good backtest.
+The first frozen 5m spread/abstention challenger did not improve the accepted Phase 9 champion. On 144 reused ordinary-OOS markets the paired economic delta and 95% bootstrap interval were exactly zero, calibration metrics were identical, and no independent fresh confirmation was available. Promotion was therefore correctly ineligible and the immutable decision was `keep_champion`. Do not reinterpret that result as evidence for live profitability.
 
-Live readiness remains Phase 14. `LIVE_TRADING_ENABLED=false`, real-money limits remain zero, and no wallet/signing/order-placement path is authorized before that later gate and explicit user authorization.
+Phase 14 must implement and verify the Master Source of Truth live gate: geographic/geoblock eligibility, official trading client integration, secure wallet/funder and secret handling, risk limits, order reconciliation, kill switch, and live-mode interlocks. `LIVE_TRADING_ENABLED=false`, real-money limits remain zero, and integration tests must remain incapable of spending money. Phase 15 controlled live launch remains blocked until Phase 14 passes and the user explicitly authorizes real trading.
