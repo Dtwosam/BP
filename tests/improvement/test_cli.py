@@ -206,16 +206,41 @@ def test_decide_passes_enum_rationale_and_deterministic_timestamp(monkeypatch, c
     assert engine.disposed is True
 
 
-def test_evaluate_fails_explicitly_before_challenger_adapter(capsys) -> None:
+def test_evaluate_runs_challenger_and_stores_immutable_evaluation(monkeypatch, capsys) -> None:
     cli = _module()
+    engine, _ = _patch_database(monkeypatch, cli)
+    now = datetime(2026, 9, 1, 9, 0, tzinfo=UTC)
+    monkeypatch.setattr(cli, "_utc_now", lambda: now)
+    captured: dict[str, object] = {}
 
-    assert cli.main(["evaluate", "--experiment-id", "phase13-exp-123"]) != 0
+    def fake_evaluate(connection, **kwargs):
+        captured["connection"] = connection
+        captured.update(kwargs)
+        return SimpleNamespace(
+            evaluation_id="phase13-eval-spread",
+            experiment_id=kwargs["experiment_id"],
+            challenger_id="phase13-spread-abc",
+            promotion_eligible=False,
+            ineligibility_reasons=("independent_confirmation_missing",),
+            created_at=kwargs["created_at"],
+        )
+
+    monkeypatch.setattr(cli.service, "evaluate_experiment", fake_evaluate)
+
+    assert cli.main(["evaluate", "--experiment-id", "phase13-exp-123"]) == 0
     lines = capsys.readouterr().out.strip().splitlines()
     assert len(lines) == 1
     payload = json.loads(lines[0])
-    assert payload["ok"] is False
+    assert payload["ok"] is True
     assert payload["command"] == "evaluate"
-    assert "challenger adapter not installed" in payload["error"]
+    assert payload["evaluation"]["promotion_eligible"] is False
+    assert payload["evaluation"]["ineligibility_reasons"] == [
+        "independent_confirmation_missing"
+    ]
+    assert captured["connection"] is engine.connection
+    assert captured["experiment_id"] == "phase13-exp-123"
+    assert captured["created_at"] == now
+    assert engine.disposed is True
 
 
 def test_semantic_conflict_returns_nonzero_structured_json(
