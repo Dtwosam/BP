@@ -1,0 +1,139 @@
+{
+  "phase": 13,
+  "name": "Improvement Loop V1",
+  "date": "2026-08-29",
+  "operational_commit": "4dcdf8955b2c79ea9f130fec5a0dcceef915a678",
+  "ci": {
+    "run_number": 1387,
+    "run_id": 33248999701,
+    "passed": true,
+    "python_tests": 637,
+    "ruff": "PASS",
+    "dashboard_test_typecheck_build": "PASS",
+    "deployment_validation": "PASS",
+    "health": {
+      "status": "ok",
+      "mode": "research",
+      "live_trading_enabled": false,
+      "active_horizons": ["5m", "15m"],
+      "optional_horizons": ["10m"]
+    }
+  },
+  "production_host_acceptance": {
+    "verdict": "PASS",
+    "head": "4dcdf8955b2c79ea9f130fec5a0dcceef915a678",
+    "evidence_dir": "/var/lib/bp/evidence/phase13-improvement-loop/20260829T110533Z",
+    "services_active": true,
+    "champion_chain": "PASS",
+    "experiment_idempotent": "PASS",
+    "evaluation_idempotent": "PASS",
+    "promotion_guard": "PASS",
+    "paper_reconciliation": "PASS",
+    "real_execution_available": false
+  },
+  "experiment": {
+    "experiment_id": "phase13-exp-0c6f77ab575fdc75d517480285574ff8",
+    "semantic_sha256": "0c6f77ab575fdc75d517480285574ff8a51507a23591790d1f7537ef43248be3",
+    "version": "improvement-experiment-v1",
+    "horizon_seconds": 300,
+    "change_family": "abstention",
+    "hypothesis": "A validation-selected max-spread abstention guard improves executable 5m economics without degrading calibration.",
+    "challenger_kind": "spread_guard_v1",
+    "challenger_definition_semantic_sha256": "695c232715c01e312c0ee018b21cf094cc6d37dd050db9d88aaaa67e3b5edfe8",
+    "max_spread_grid": [0.02, 0.04, 0.06, 0.08, 0.1, null],
+    "selected_fold_max_spreads": [0.02, 0.02, 0.02, 0.02, 0.02, 0.04],
+    "cost_assumptions": {
+      "fee_rate": 0.07,
+      "slippage_buffer": 0.01
+    }
+  },
+  "accepted_champion_chain": {
+    "phase9_run_id": "phase9-300-c9f0e00eb7836af08008c66909f8f179",
+    "phase9_semantic_sha256": "c9f0e00eb7836af08008c66909f8f179f03089413426508469353c75bcbcae24",
+    "phase8_run_id": "phase8-300-efdf493067e9d56419afc4d88452bec6",
+    "phase8_semantic_sha256": "efdf493067e9d56419afc4d88452bec6effb871482664d19f109b3bbe4dd1d93",
+    "phase7_run_id": "phase7-300-0a822e17ceced11742bf6d3bc8214f44",
+    "phase7_semantic_sha256": "0a822e17ceced11742bf6d3bc8214f44f4755c7bc23bb1d3f2dcfa897f3edcc0"
+  },
+  "evaluation": {
+    "evaluation_id": "phase13-eval-4c7c0457409f7e29687c5b75139cd405",
+    "semantic_sha256": "4c7c0457409f7e29687c5b75139cd405c80d63744ec39d80c7e67284555897b5",
+    "version": "improvement-evaluation-v1",
+    "challenger_id": "phase13-spread-55b1f388b3df86b83124d6f289cdd625",
+    "challenger_semantic_sha256": "55b1f388b3df86b83124d6f289cdd625e3326298a1c199459c0dd6613cbfa6e8",
+    "promotion_eligible": false,
+    "ineligibility_reasons": [
+      "economic_uncertainty_not_positive",
+      "independent_confirmation_missing"
+    ],
+    "comparison": {
+      "economic_delta": 0.0,
+      "economic_interval": {
+        "lower": 0.0,
+        "mean_delta": 0.0,
+        "upper": 0.0,
+        "paired_markets": 144,
+        "resamples": 10000
+      },
+      "calibration_log_loss_delta": 0.0,
+      "calibration_brier_delta": 0.0,
+      "independent_confirmation_present": false,
+      "integrity_ok": true
+    },
+    "champion_metrics": {
+      "accuracy": 0.8194444444444444,
+      "calibrated_log_loss": 0.33497222323288234,
+      "calibrated_brier": 0.1064723920324928,
+      "ece": 0.08419227333034238,
+      "trade_count": 3,
+      "trade_coverage": 0.020833333333333332,
+      "total_net_pnl": 0.14801400000000012,
+      "mean_net_pnl_per_trade": 0.04933800000000004,
+      "max_drawdown": 0.49743699999999996,
+      "max_losing_streak": 1,
+      "missing_unexecutable_count": 82
+    },
+    "challenger_metrics": {
+      "accuracy": 0.8194444444444444,
+      "calibrated_log_loss": 0.33497222323288234,
+      "calibrated_brier": 0.1064723920324928,
+      "ece": 0.08419227333034238,
+      "trade_count": 3,
+      "trade_coverage": 0.020833333333333332,
+      "total_net_pnl": 0.14801400000000012,
+      "mean_net_pnl_per_trade": 0.04933800000000004,
+      "max_drawdown": 0.49743699999999996,
+      "max_losing_streak": 1,
+      "missing_unexecutable_count": 82
+    },
+    "evidence_roles": ["ordinary_oos"],
+    "fresh_confirmation_used": false
+  },
+  "decision": {
+    "decision": "keep_champion",
+    "decision_id": "phase13-decision-8e32d904a1169e10bed2eb8f7a375637",
+    "semantic_sha256": "8e32d904a1169e10bed2eb8f7a37563754cbd2da7a274f3d530189f3ff0c511e",
+    "version": "improvement-decision-v1",
+    "rationale": "Phase 13 acceptance has no independent fresh confirmation; keep the accepted Phase 9 champion.",
+    "resulting_champion_run_id": "phase9-300-c9f0e00eb7836af08008c66909f8f179"
+  },
+  "paper_reconciliation": {
+    "status": "OK",
+    "violation_count": 0,
+    "paper_order_count": 3,
+    "trade_signal_count": 3,
+    "no_trade_signal_count": 51,
+    "all_recorded_violation_counters_zero": true
+  },
+  "safety": {
+    "trading_mode": "RESEARCH",
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "wallet_or_signer_added": false,
+    "real_order_side_effects_enabled": false,
+    "challenger_promoted": false,
+    "profitability_claim": false
+  },
+  "interpretation": "Phase 13 proves the immutable champion/challenger improvement loop and deliberate fail-closed promotion semantics on production data. The first 5m spread/abstention challenger exactly matched the accepted champion on the reused ordinary-OOS comparison, producing zero economic and calibration delta; its 95% paired-bootstrap interval was [0, 0], and no independent fresh confirmation was available. The correct decision is therefore keep_champion. This result is not a profitability claim and does not authorize live trading. Phase 14 Live Readiness is next; all real-money controls remain disabled and explicit authorization is still required before any real order placement."
+}
