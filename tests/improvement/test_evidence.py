@@ -14,7 +14,6 @@ from bp_engine.improvement.models import (
     ImprovementExperimentSpec,
 )
 
-
 FREEZE_AT = datetime(2026, 8, 29, 8, 0, tzinfo=UTC)
 
 
