@@ -4,14 +4,14 @@ import os
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import create_engine, delete, insert
+
+from bp_engine.improvement.models import ChampionRef
 from bp_engine.improvement.source import (
     ChampionIntegrityError,
     load_champion_ref,
     load_phase9_report,
 )
-from sqlalchemy import create_engine, delete, insert
-
-from bp_engine.improvement.models import ChampionRef
 from bp_engine.storage import schema
 
 DATABASE_URL = os.getenv("BP_TEST_DATABASE_URL")
