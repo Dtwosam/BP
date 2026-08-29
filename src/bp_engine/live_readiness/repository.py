@@ -53,7 +53,9 @@ def _utc(value: datetime, field: str) -> datetime:
 
 def _sha(value: str, field: str) -> str:
     normalized = value.strip().lower()
-    if len(normalized) != 64 or any(char not in "0123456789abcdef" for char in normalized):
+    if len(normalized) != 64 or any(
+        char not in "0123456789abcdef" for char in normalized
+    ):
         raise ValueError(f"{field} must be a 64-character SHA-256 digest")
     return normalized
 
@@ -126,11 +128,19 @@ class LiveReadinessRepository:
         }
         digest = semantic_sha256(payload)
         derived_check_id = derive_id("live-readiness", digest)
-        chosen_check_id = derived_check_id if check_id is None else _text(check_id, "check_id")
+        chosen_check_id = (
+            derived_check_id if check_id is None else _text(check_id, "check_id")
+        )
         if chosen_check_id != derived_check_id:
-            existing = _row(connection, live_readiness_checks, live_readiness_checks.c.check_id == chosen_check_id)
+            existing = _row(
+                connection,
+                live_readiness_checks,
+                live_readiness_checks.c.check_id == chosen_check_id,
+            )
             if existing is None or existing["semantic_sha256"] != digest:
-                raise LiveReadinessConflict("readiness check id collides with different semantic content")
+                raise LiveReadinessConflict(
+                    "readiness check id collides with different semantic content"
+                )
         values = {
             "check_id": chosen_check_id,
             "candidate_git_sha": candidate_sha,
@@ -163,7 +173,10 @@ class LiveReadinessRepository:
         created_at: datetime,
     ) -> LiveStoreResult:
         prediction = _text(prediction_id, "prediction_id")
-        prediction_sha = _sha(prediction_semantic_sha256, "prediction_semantic_sha256")
+        prediction_sha = _sha(
+            prediction_semantic_sha256,
+            "prediction_semantic_sha256",
+        )
         version = _text(policy_version, "policy_version")
         created = _utc(created_at, "created_at")
         policy_sha = _sha(decision.policy_sha256, "decision.policy_sha256")
@@ -275,7 +288,9 @@ class LiveReadinessRepository:
             conditions=natural_key,
             values=values,
             conflict_error=LiveOrderIntentConflict,
-            conflict_message="live order intent natural key collides with different semantic content",
+            conflict_message=(
+                "live order intent natural key collides with different semantic content"
+            ),
         )
 
     def store_order_event(
@@ -294,8 +309,16 @@ class LiveReadinessRepository:
         intent = _text(intent_id, "intent_id")
         event = _text(event_type, "event_type")
         observed = _utc(observed_at, "observed_at")
-        order_id = None if external_order_id is None else _text(external_order_id, "external_order_id")
-        trade_id = None if external_trade_id is None else _text(external_trade_id, "external_trade_id")
+        order_id = (
+            None
+            if external_order_id is None
+            else _text(external_order_id, "external_order_id")
+        )
+        trade_id = (
+            None
+            if external_trade_id is None
+            else _text(external_trade_id, "external_trade_id")
+        )
         evidence_payload = canonical_payload(evidence)
         payload = {
             "event_key": key,
@@ -334,7 +357,9 @@ class LiveReadinessRepository:
         if unresolved_count < 0:
             raise ValueError("unresolved_count must be nonnegative")
         if critical_count < 0 or critical_count > unresolved_count:
-            raise ValueError("critical_count must be nonnegative and no greater than unresolved_count")
+            raise ValueError(
+                "critical_count must be nonnegative and no greater than unresolved_count"
+            )
         evidence_payload = canonical_payload(evidence)
         payload = {
             "observed_at": observed,
