@@ -115,7 +115,8 @@ def _validate_experiment(
         or rebuilt.semantic_sha256 != record.semantic_sha256
     ):
         raise ImprovementExperimentConflict(
-            f"experiment {record.experiment_id} carries semantics inconsistent with its immutable id"
+            f"experiment {record.experiment_id} carries semantics inconsistent "
+            "with its immutable id"
         )
     return rebuilt
 
@@ -142,7 +143,8 @@ def _validate_evaluation(
         or rebuilt.semantic_sha256 != record.semantic_sha256
     ):
         raise ImprovementEvaluationConflict(
-            f"evaluation {record.evaluation_id} carries semantics inconsistent with its immutable id"
+            f"evaluation {record.evaluation_id} carries semantics inconsistent "
+            "with its immutable id"
         )
     return rebuilt
 
