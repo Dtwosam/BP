@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import os
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -12,11 +13,11 @@ from bp_engine.live_readiness.geoblock import GeoblockError
 from bp_engine.live_readiness.interlock import ActivationManifestError
 from bp_engine.live_readiness.models import ActivationManifest, GeoblockResult
 from bp_engine.live_readiness.repository import LiveReadinessRepository
-from bp_engine.live_readiness.service import (
-    LiveReadinessService,
-    OfficialOrderSnapshot,
-)
 from bp_engine.storage import schema
+
+service_module = importlib.import_module("bp_engine.live_readiness.service")
+LiveReadinessService = service_module.LiveReadinessService
+OfficialOrderSnapshot = service_module.OfficialOrderSnapshot
 
 DATABASE_URL = os.environ.get("BP_TEST_DATABASE_URL")
 BASE = datetime(2026, 8, 29, 16, 45, tzinfo=UTC)
