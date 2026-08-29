@@ -2,8 +2,9 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-from bp_engine.live_readiness.models import LiveAccountSnapshot, LiveRiskContext, LiveRiskPolicy
 from bp_engine.live_readiness.risk import evaluate_live_risk
+
+from bp_engine.live_readiness.models import LiveAccountSnapshot, LiveRiskContext, LiveRiskPolicy
 
 NOW = datetime(2026, 8, 29, 12, 0, tzinfo=UTC)
 SHA = "a" * 64
@@ -108,7 +109,8 @@ def test_prediction_not_executable_blocks() -> None:
 
 
 def test_trade_size_limit_exceeded_blocks() -> None:
-    assert "trade_size_limit_exceeded" in _decision(context=_context(requested_notional_usd=Decimal("5.01"))).reasons
+    decision = _decision(context=_context(requested_notional_usd=Decimal("5.01")))
+    assert "trade_size_limit_exceeded" in decision.reasons
 
 
 def test_total_exposure_limit_exceeded_blocks() -> None:
@@ -127,11 +129,13 @@ def test_consecutive_loss_limit_reached_blocks_at_exact_boundary() -> None:
 
 
 def test_probability_below_minimum_blocks() -> None:
-    assert "probability_below_minimum" in _decision(context=_context(probability=Decimal("0.54"))).reasons
+    decision = _decision(context=_context(probability=Decimal("0.54")))
+    assert "probability_below_minimum" in decision.reasons
 
 
 def test_edge_below_minimum_blocks() -> None:
-    assert "edge_below_minimum" in _decision(context=_context(expected_edge=Decimal("0.029"))).reasons
+    decision = _decision(context=_context(expected_edge=Decimal("0.029")))
+    assert "edge_below_minimum" in decision.reasons
 
 
 def test_selected_ask_missing_blocks() -> None:
@@ -187,7 +191,12 @@ def test_reconciliation_blocked() -> None:
 
 
 def test_zero_fail_closed_limits_block_new_exposure() -> None:
-    policy = _policy(max_trade_size_usd=0, max_total_exposure_usd=0, max_daily_loss_usd=0, max_consecutive_losses=0)
+    policy = _policy(
+        max_trade_size_usd=0,
+        max_total_exposure_usd=0,
+        max_daily_loss_usd=0,
+        max_consecutive_losses=0,
+    )
     decision = _decision(policy=policy)
     assert "trade_size_limit_exceeded" in decision.reasons
     assert "total_exposure_limit_exceeded" in decision.reasons
