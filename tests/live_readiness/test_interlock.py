@@ -2,7 +2,6 @@ import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
-
 from bp_engine.live_readiness.interlock import (
     ActivationManifestError,
     kill_switch_engaged,

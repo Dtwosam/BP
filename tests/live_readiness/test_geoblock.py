@@ -2,7 +2,6 @@ from datetime import UTC, datetime
 
 import httpx
 import pytest
-
 from bp_engine.live_readiness.geoblock import GeoblockClient, GeoblockError
 
 NOW = datetime(2026, 8, 29, 12, 0, tzinfo=UTC)
