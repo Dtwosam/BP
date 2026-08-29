@@ -135,7 +135,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     evaluate = subparsers.add_parser(
         "evaluate",
-        help="evaluate a registered experiment once a challenger adapter is installed",
+        help="evaluate a registered research challenger and store the immutable result",
     )
     evaluate.add_argument("--experiment-id", required=True)
     return parser
@@ -168,6 +168,13 @@ def _run_database_command(args: argparse.Namespace) -> dict[str, Any]:
                     created_at=_utc_now(),
                 )
                 return {"ok": True, "command": "decide", "decision": record}
+            if args.command == "evaluate":
+                report = service.evaluate_experiment(
+                    connection,
+                    experiment_id=args.experiment_id,
+                    created_at=_utc_now(),
+                )
+                return {"ok": True, "command": "evaluate", "evaluation": report}
     finally:
         engine.dispose()
     raise RuntimeError(f"unsupported database command: {args.command}")
@@ -175,17 +182,6 @@ def _run_database_command(args: argparse.Namespace) -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-
-    if args.command == "evaluate":
-        _emit(
-            {
-                "ok": False,
-                "command": "evaluate",
-                "error": "challenger adapter not installed",
-                "error_type": "RuntimeError",
-            }
-        )
-        return 2
 
     try:
         if args.command == "register":
