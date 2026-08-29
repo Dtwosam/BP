@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     Column,
     DateTime,
     Index,
     Integer,
-    JSON,
     Numeric,
     String,
     Table,
