@@ -28,6 +28,16 @@ from bp_engine.storage.improvement_schema import (
     improvement_promotion_decisions,
 )
 
+__all__ = [
+    "EvidenceIntegrityError",
+    "ImprovementDecisionError",
+    "ImprovementServiceError",
+    "get_experiment_report",
+    "record_decision",
+    "register_experiment",
+    "store_evaluation",
+]
+
 
 class ImprovementServiceError(ValueError):
     """Raised when improvement orchestration invariants are violated."""
