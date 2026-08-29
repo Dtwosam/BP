@@ -3,7 +3,6 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-
 from bp_engine.live_readiness.hashing import semantic_sha256
 from bp_engine.live_readiness.models import (
     LIVE_POLICY_VERSION,
