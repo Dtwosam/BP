@@ -1,3 +1,4 @@
+from bp_engine.execution.live import InterlockDecision, PolymarketLiveExecutionGateway
 from bp_engine.execution.models import (
     PAPER_EXECUTION_VERSION,
     ExecutionCancelAck,
@@ -13,5 +14,7 @@ __all__ = [
     "ExecutionGateway",
     "ExecutionOrderAck",
     "ExecutionOrderRequest",
+    "InterlockDecision",
     "PaperExecutionConfig",
+    "PolymarketLiveExecutionGateway",
 ]
