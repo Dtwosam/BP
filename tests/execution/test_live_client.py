@@ -89,7 +89,7 @@ else:
                 "token_id": "token-yes",
                 "price": Decimal("0.42"),
                 "size": Decimal("10"),
-                "side": polymarket.OrderSide.BUY,
+                "side": "BUY",
             }
         ]
         assert sdk.posted_orders == [sdk.signed_order]
