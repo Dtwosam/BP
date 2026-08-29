@@ -111,7 +111,7 @@ A challenger cannot become promotion-eligible without evidence that was unavaila
 1. a chronologically later `fresh_holdout` frozen before outcomes are consulted for that challenger; or
 2. `prospective_paper` evidence generated after the challenger specification and policy are frozen.
 
-The evidence ledger stores exact condition/prediction identifiers and role so the system can detect prohibited reuse.
+The evidence manifest stores exact condition/prediction identifiers and role. A `fresh_holdout` or `prospective_paper` identifier set already consumed as independent confirmation by a different experiment cannot be presented as fresh confirmation again. An identical deterministic rerun of the same experiment/evaluation remains allowed.
 
 ## 7. Comparison metrics
 
@@ -133,7 +133,7 @@ Track at minimum:
 - ECE/calibration summary;
 - accuracy as descriptive evidence only.
 
-A challenger cannot be promoted by P&L while materially destroying probability quality unless a later version explicitly changes that contract.
+For V1 promotion eligibility, on the same independent-confirmation markets the challenger’s calibrated log loss must be less than or equal to the champion’s calibrated log loss **and** the challenger’s calibrated Brier score must be less than or equal to the champion’s calibrated Brier score. Equal values pass. Missing/non-finite guardrail metrics fail closed. A later version may adopt an explicitly justified tolerance or statistical comparison, but V1 does not silently permit probability-quality degradation in exchange for a favorable P&L slice.
 
 ### Risk/robustness diagnostics
 
@@ -150,19 +150,21 @@ Track at minimum:
 
 ## 8. Statistical uncertainty
 
-There is no fixed magic sample count.
+There is no fixed magic market sample count.
 
 Promotion eligibility must include uncertainty rather than relying on a round-number minimum alone. V1 uses a deterministic paired market-level bootstrap for challenger-minus-champion economic deltas when both policies are evaluated on the same independent-confirmation markets.
 
 Rules:
 
 - resampling unit is `condition_id`, never individual overlapping feature rows;
-- bootstrap seed is derived from the evaluation semantic hash input so reruns are deterministic;
-- report the 95% interval for mean net P&L delta;
+- the bootstrap uses exactly 10,000 resamples; this is a numerical precision setting, not a minimum market count;
+- bootstrap seed is derived from the canonical frozen comparison input: experiment semantic SHA-256, champion semantic SHA-256, challenger semantic SHA-256, and sorted independent-confirmation evidence identifiers;
+- bootstrap outputs are not part of their own seed input;
+- report the 2.5th and 97.5th percentiles as the 95% interval for mean net P&L delta;
 - promotion requires the lower bound to be strictly positive when the comparison is defined;
-- if the interval cannot be computed meaningfully, promotion is ineligible rather than guessed.
+- if no paired resolved independent-confirmation markets exist, or the interval cannot be computed with finite values, promotion is ineligible rather than guessed.
 
-For prospective paper data, unresolved markets are not treated as zero-P&L outcomes.
+For prospective paper data, unresolved markets are excluded from realized-P&L comparison and are never treated as zero-P&L outcomes.
 
 ## 9. Promotion policy
 
@@ -172,9 +174,9 @@ An evaluation may report `promotion_eligible=true` only when all of the followin
 2. exact source provenance and hashes validate;
 3. no train/validation/test/holdout boundary violation is present;
 4. deterministic rerun semantics match;
-5. independent confirmation exists;
+5. independent confirmation exists and has not been consumed as fresh confirmation by a different experiment;
 6. primary economic delta is positive and its 95% lower confidence bound is positive when paired comparison is available;
-7. calibration guardrails pass;
+7. both V1 calibration guardrails pass;
 8. no integrity, reconciliation, or execution-semantic violation is present;
 9. current cash/exposure constraints remain valid for paper evidence;
 10. no live-money path is introduced.
@@ -241,7 +243,7 @@ Frozen dataclasses/enums and version constants.
 Canonical JSON and deterministic ids/hashes.
 
 ### `improvement.repository`
-Append-only Postgres persistence with conflict detection.
+Append-only Postgres persistence with conflict detection and prior independent-confirmation evidence lookup.
 
 ### `improvement.evidence`
 Evidence-role validation and prohibited-reuse checks.
@@ -319,10 +321,11 @@ Required tests include:
 - evidence-role validation;
 - existing final holdout rejected as fresh confirmation;
 - prospective evidence must post-date challenger freeze;
+- fresh-confirmation evidence cannot be reused by a different experiment;
 - condition-level paired bootstrap is deterministic;
 - unresolved paper outcomes excluded from realized-P&L comparison;
 - lower confidence bound <= 0 makes promotion ineligible;
-- calibration guardrail failure makes promotion ineligible;
+- log-loss or Brier guardrail failure makes promotion ineligible;
 - ineligible evaluation cannot be promoted;
 - `keep_champion`/`reject_challenger` remain valid outcomes;
 - no live-trading setting or real execution path is changed.
