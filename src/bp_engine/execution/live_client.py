@@ -95,7 +95,7 @@ class OfficialPolymarketTradingClient:
                 token_id=token_id,
                 price=price,
                 size=size,
-                side=polymarket.OrderSide.BUY,
+                side="BUY",
             )
             response = self._sdk.client.post_order(signed_order)
         except Exception:
