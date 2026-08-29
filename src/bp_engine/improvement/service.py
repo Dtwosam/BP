@@ -32,6 +32,7 @@ __all__ = [
     "EvidenceIntegrityError",
     "ImprovementDecisionError",
     "ImprovementServiceError",
+    "evaluate_experiment",
     "get_experiment_report",
     "record_decision",
     "register_experiment",
@@ -125,6 +126,30 @@ def store_evaluation(
         prior_confirmation_identifiers=prior_identifiers,
     )
     return ImprovementEvaluationRepository().store(connection, report)
+
+
+def evaluate_experiment(
+    connection: Connection,
+    *,
+    experiment_id: str,
+    created_at: datetime,
+) -> ImprovementEvaluationReport:
+    experiment = _load_experiment(connection, experiment_id)
+    challenger_kind = experiment.challenger.get("kind")
+    if challenger_kind != "spread_guard_v1":
+        raise ImprovementServiceError(
+            f"unsupported challenger kind for evaluation: {challenger_kind!r}"
+        )
+
+    from bp_engine.improvement.challenger import evaluate_spread_guard_challenger
+
+    report = evaluate_spread_guard_challenger(
+        connection,
+        experiment_id=experiment_id,
+        created_at=created_at,
+    )
+    store_evaluation(connection, report)
+    return report
 
 
 def record_decision(
