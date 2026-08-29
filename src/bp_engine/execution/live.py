@@ -327,7 +327,11 @@ class PolymarketLiveExecutionGateway:
                 reason="cancelled",
             )
 
-        event_type = "cancel_rejected" if result.status == "not_cancelled" else "cancellation_unknown"
+        event_type = (
+            "cancel_rejected"
+            if result.status == "not_cancelled"
+            else "cancellation_unknown"
+        )
         self._store_submission_event(
             intent_id=intent_id,
             event_type=event_type,
