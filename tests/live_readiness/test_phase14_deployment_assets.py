@@ -124,6 +124,15 @@ def test_phase14_host_acceptance_proves_gateway_block_with_fail_if_called_client
     assert "client factory must not be called" in host
 
 
+def test_phase14_host_acceptance_ensures_schema_before_production_order_counts() -> None:
+    host = _text(HOST)
+
+    ensure_schema = "schema.metadata.create_all(production_engine)"
+    before_count = "before_counts = production_order_counts()"
+    assert ensure_schema in host
+    assert host.index(ensure_schema) < host.index(before_count)
+
+
 def test_phase14_host_acceptance_reconciles_without_real_order_side_effects() -> None:
     host = _text(HOST)
 
