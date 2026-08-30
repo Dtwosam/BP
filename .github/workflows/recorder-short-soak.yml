@@ -1,6 +1,9 @@
 name: Recorder Short Soak
 
 on:
+  push:
+    branches:
+      - phase-14-live-readiness-v1
   pull_request:
     branches:
       - main
@@ -36,8 +39,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: build/phase-2-recorder
 
       - name: Set up Python
         uses: actions/setup-python@v5
