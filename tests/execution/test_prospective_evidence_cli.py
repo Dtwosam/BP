@@ -3,7 +3,6 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import json
-from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -121,7 +120,7 @@ def test_main_emits_one_read_only_json_report(monkeypatch, capsys) -> None:
 
 def test_main_rejects_any_money_enabled_runtime(monkeypatch) -> None:
     cli = _cli_module()
-    unsafe = replace(Settings(), live_trading_enabled=True)
+    unsafe = Settings(live_trading_enabled=True)
     monkeypatch.setattr(cli, "get_settings", lambda: unsafe)
 
     with pytest.raises(RuntimeError, match="LIVE_TRADING_ENABLED=false"):
