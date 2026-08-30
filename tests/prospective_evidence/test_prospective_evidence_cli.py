@@ -4,13 +4,13 @@ import json
 from decimal import Decimal
 
 import pytest
-
-from bp_engine.config import Settings
 from bp_engine.prospective_evidence.cli import (
     build_parser,
     ensure_money_disabled,
     load_master_live_gate,
 )
+
+from bp_engine.config import Settings
 
 
 def test_cli_exposes_report_only_and_loads_master_gate(tmp_path) -> None:
