@@ -114,7 +114,7 @@ Downstream feature work must distinguish genuinely observed live/retained book d
 **Date:** 25 Aug 2026  
 **Status:** Active
 
-Phase 5 labels use the official resolved Polymarket outcome parsed from preserved Phase 4 Gamma snapshots. Label generation is offline and network-free. A snapshot is eligible only when the market is closed, the official outcome is unambiguous, and the snapshot was observed at or after the market end; any apparently resolved snapshot observed before market end is treated as leakage/data-integrity failure.
+Phase 5 labels use the official resolved Polymarket outcome parsed from preserved Phase 4 Gamma snapshots. Label generation is offline and network-free. A snapshot is eligible only when the market is closed, the official outcome is unambiguous, and the snapshot was observed at or after market end; any apparently resolved snapshot observed before market end is treated as leakage/data-integrity failure.
 
 For each condition, the canonical source is the earliest eligible resolved snapshot ordered by `downloaded_at` and snapshot id. All eligible snapshots must agree on market identity, window, rules fingerprint/source, and resolved outcome. Contradictory official-resolution evidence raises a source conflict. Stored labels are versioned by `(condition_id, label_version)`; identical reruns are no-ops and semantic relabel attempts fail closed.
 
@@ -197,3 +197,13 @@ Therefore the high 15m ordinary-OOS headline and individual offset slices must n
 Phase 9 production acceptance validates the calibration/edge/abstention machinery, not trading profitability. Under the explicit research assumptions `fee_rate=0.07` and `slippage_buffer=0.01`, the accepted 5m policy traded only three ordinary OOS markets for +0.148014 assumed-cost P&L, but the untouched final holdout also traded three markets and produced -0.418991 assumed-cost P&L. The positive ordinary-OOS slice must not be promoted, threshold-retuned, or described as a profitable strategy because the frozen untouched evidence does not confirm it.
 
 For 15m, validation selected `no_trade` in every ordinary fold and for the final holdout, producing zero trades. That is a successful fail-closed research outcome, not a defect to be bypassed. Phase 10 may therefore build a live prediction engine with money disabled so prospective immutable predictions can be measured, but paper execution, live readiness, and real-money trading remain blocked by later build-order gates. Live trading still requires explicit user authorization.
+
+## D-028 — Prospective evidence reporting is read-only and cannot promote automatically
+**Date:** 30 Aug 2026  
+**Status:** Active
+
+After Phase 14 engineering closeout, prospective paper evidence is summarized by a separate read-only reporting path rather than by changing the paper execution worker. The reporter reads existing immutable paper settlements, prediction evaluations, and reconciliation evidence; it does not place, cancel, sign, fund, approve, settle, or mutate orders, predictions, evaluations, or live-readiness records.
+
+The report exposes settled-trade and evaluation sample sizes, realized after-cost paper P&L, a deterministic bootstrap 95% interval for mean realized P&L, raw/calibrated Brier and log-loss means, reconciliation status, and the existing Master live-gate snapshot. Evidence gates may only be `pass`, `fail`, or `insufficient_evidence`. No fixed sample threshold or numerical prospective-calibration acceptance threshold may be invented when the canonical specification has not approved one.
+
+The reporter must never promote a model or enable live trading automatically. `automatic_promotion` remains false, the existing Master live gate remains authoritative, and the reporting CLI is permitted to run only while `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0`. Phase 15 remains blocked until every Master live-gate item independently passes and explicit real-money authorization is separately recorded.
