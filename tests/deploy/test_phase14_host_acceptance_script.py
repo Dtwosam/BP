@@ -32,5 +32,9 @@ def test_phase14_candidate_build_uses_writable_exported_source() -> None:
     assert 'actual_head="${BP_VERIFIED_HEAD:-}"' in host
     assert 'SRC="\\$RUNTIME_ROOT/bp-phase14-src-' in helper
     assert 'install -d -o bp -g bp "\\$RUNTIME_ROOT" "\\$SRC"' in helper
-    assert 'git -C "\\$WT" archive --format=tar "\\$SHA" | sudo -u bp tar -xf - -C "\\$SRC"' in helper
+    archive_export = (
+        'git -C "\\$WT" archive --format=tar "\\$SHA" '
+        '| sudo -u bp tar -xf - -C "\\$SRC"'
+    )
+    assert archive_export in helper
     assert 'BP_REPO="\\$SRC" BP_VERIFIED_HEAD="\\$WORKTREE_HEAD"' in helper
