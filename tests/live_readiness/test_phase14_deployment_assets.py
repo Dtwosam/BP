@@ -70,6 +70,7 @@ def test_phase14_host_acceptance_enforces_research_live_disabled_zero_limits() -
     for required in (
         "MODE",
         "research",
+        "TradingMode.RESEARCH",
         "LIVE_TRADING_ENABLED",
         "false",
         "MAX_TRADE_SIZE_USD",
@@ -81,6 +82,7 @@ def test_phase14_host_acceptance_enforces_research_live_disabled_zero_limits() -
         "REAL_ORDER_SIDE_EFFECTS=0",
     ):
         assert required in host
+    assert 'str(settings.mode) != "research"' not in host
 
 
 def test_phase14_host_acceptance_imports_sdk_and_reads_only_public_geoblock() -> None:
