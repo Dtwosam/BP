@@ -57,6 +57,56 @@ async def test_snapshotter_writes_periodically_and_flushes_on_stop() -> None:
 
 
 @pytest.mark.asyncio
+async def test_snapshotter_does_not_rewrite_state_past_stale_threshold() -> None:
+    class MixedAgeReducer:
+        def snapshots(self, bucket_at: datetime) -> list[MarketStateSnapshot]:
+            return [
+                MarketStateSnapshot(
+                    bucket_at=bucket_at,
+                    state_key="fresh",
+                    source="polymarket",
+                    stream="market",
+                    instrument="btc-updown-5m",
+                    last_event_at=datetime(2026, 8, 23, 20, 0, 55, tzinfo=UTC),
+                    state={"best_bid": "0.49"},
+                ),
+                MarketStateSnapshot(
+                    bucket_at=bucket_at,
+                    state_key="stale",
+                    source="polymarket",
+                    stream="market",
+                    instrument="btc-updown-expired",
+                    last_event_at=datetime(2026, 8, 23, 19, 59, tzinfo=UTC),
+                    state={"best_bid": "0.51"},
+                ),
+            ]
+
+    writes: list[list[MarketStateSnapshot]] = []
+    first_write = asyncio.Event()
+
+    async def write_snapshots(snapshots: list[MarketStateSnapshot]) -> None:
+        writes.append(snapshots)
+        first_write.set()
+
+    snapshotter = MarketStateSnapshotter(
+        reducer=MixedAgeReducer(),
+        write_snapshots=write_snapshots,
+        interval_seconds=0.01,
+        max_state_age_seconds=10.0,
+        now=lambda: datetime(2026, 8, 23, 20, 1, tzinfo=UTC),
+    )
+    stop = asyncio.Event()
+    task = asyncio.create_task(snapshotter.run(stop))
+
+    await asyncio.wait_for(first_write.wait(), timeout=1)
+    stop.set()
+    await asyncio.wait_for(task, timeout=1)
+
+    assert writes
+    assert all([snapshot.state_key for snapshot in batch] == ["fresh"] for batch in writes)
+
+
+@pytest.mark.asyncio
 async def test_reducer_failure_records_incident_without_dropping_raw_event() -> None:
     class BrokenReducer:
         def observe(self, event: RawEvent) -> None:
