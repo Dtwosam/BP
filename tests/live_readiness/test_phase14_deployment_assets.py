@@ -144,6 +144,27 @@ def test_phase14_host_acceptance_reconciles_without_real_order_side_effects() ->
         assert required in host
 
 
+def test_phase14_host_acceptance_preflights_disk_before_candidate_install() -> None:
+    host = _text(HOST)
+
+    for required in (
+        "storage_maintenance.py",
+        "disk-health",
+        "--path \"$RUNTIME_ROOT\"",
+        "storage-disk-health-before.json",
+        "DISK_STATUS_BEFORE",
+        "DISK_FREE_BYTES_BEFORE",
+        "REASON=disk_not_ok",
+        "--no-cache-dir",
+    ):
+        assert required in host
+
+    disk_preflight = host.index("disk-health")
+    venv_create = host.index("-m venv")
+    candidate_install = host.index("-m pip install")
+    assert disk_preflight < venv_create < candidate_install
+
+
 def test_phase14_host_acceptance_avoids_secret_echo_and_secret_argv_extraction() -> None:
     host = _text(HOST)
 
