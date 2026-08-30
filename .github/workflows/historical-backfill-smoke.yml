@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - build/phase-4-historical-backfill
+      - phase-14-live-readiness-v1
   pull_request:
     branches:
       - main
