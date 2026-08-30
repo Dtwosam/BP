@@ -20,7 +20,7 @@ STORAGE_CRITICAL_FREE_GIB=15
 STORAGE_DELETE_BATCH_SIZE=50000
 ```
 
-Raw rows are never deleted unless the exact closed interval has a readable gzip archive and manifest whose SHA-256, compressed byte count, and row count verify. The maintenance process exits at critical free space rather than deleting unarchived raw data.
+Raw rows are never deleted unless the exact closed interval has a readable gzip archive and manifest whose SHA-256, compressed byte count, and row count verify. The maintenance process exits at critical free space rather than deleting unarchived raw data. A critical disk-health failure also stops the recorder, and recorder startup is conditioned on the same disk-health check, so the critical reserve is not consumed by continued ingestion.
 
 ## 1. Deploy the exact Phase 3 candidate
 
@@ -54,13 +54,14 @@ sudo systemctl cat bp-storage-maintenance.service
 sudo systemctl cat bp-storage-maintenance.timer
 sudo systemctl cat bp-storage-disk-health.service
 sudo systemctl cat bp-storage-disk-health.timer
+sudo systemctl cat bp-storage-critical-stop.service
 ```
 
 Do not enable the timers until the manual compact-state, report, archive, checksum, and deletion checks below have passed.
 
 ## 3. Verify compact one-second state is advancing
 
-Restarting the recorder on the Phase 3 candidate creates the new table if needed and starts the compact-state snapshotter.
+Restarting the recorder on the Phase 3 candidate creates the new table if needed and starts the compact-state snapshotter. Recorder startup first runs the bounded disk-health check; critical free space leaves the recorder stopped.
 
 ```bash
 sudo systemctl restart bp-recorder
@@ -173,7 +174,7 @@ sudo systemctl enable --now bp-storage-disk-health.timer
 sudo systemctl list-timers 'bp-storage-*' --all --no-pager
 ```
 
-The maintenance timer runs hourly. The disk-health timer runs every five minutes. Both services are oneshots; neither has `Restart=always`, so a critical disk result is visible as a failed health invocation rather than a restart loop.
+The maintenance timer runs hourly. The disk-health timer runs every five minutes. Both services are oneshots; neither has `Restart=always`. A critical disk-health result fails visibly and triggers `bp-storage-critical-stop.service`, which stops `bp-recorder.service`. The recorder itself uses the same disk-health command as an `ExecCondition`, so it will not start while free space remains critical.
 
 ## 9. Observe one scheduled maintenance cycle
 
@@ -184,6 +185,7 @@ sudo systemctl status bp-storage-maintenance.timer --no-pager
 sudo systemctl status bp-storage-disk-health.timer --no-pager
 sudo journalctl -u bp-storage-maintenance -n 100 --no-pager
 sudo journalctl -u bp-storage-disk-health -n 100 --no-pager
+sudo journalctl -u bp-storage-critical-stop -n 50 --no-pager
 ```
 
 Capture another report and confirm the raw window, compact state, archive retention, and free-space status remain sane.
@@ -206,11 +208,22 @@ Then update `PROJECT_STATE.json`, `docs/CHANGELOG.md`, `docs/DECISION-LOG.md`, a
 
 ## Recovery
 
-Disable automated maintenance without stopping the recorder:
+If disk health is critical, keep ingestion stopped while recovering capacity:
 
 ```bash
+sudo systemctl stop bp-recorder.service
 sudo systemctl disable --now bp-storage-maintenance.timer
 sudo systemctl disable --now bp-storage-disk-health.timer
 ```
 
-The recorder can continue writing raw and compact state while the timers are disabled. Re-enable maintenance only after the cause of the failure is understood. Never delete unarchived raw rows as a disk-recovery shortcut.
+Do not manually delete PostgreSQL relation files, WAL files, unarchived raw rows, or Docker volumes. Recover enough filesystem headroom for PostgreSQL to start safely, then diagnose relation sizes and retention state before choosing database reclamation work.
+
+Before restarting ingestion, require the configured disk-health check to return non-critical, and preferably `ok`:
+
+```bash
+sudo -u bp /opt/bp/.venv/bin/python /opt/bp/scripts/storage_maintenance.py disk-health \
+  --env-file /etc/bp/bp.env
+sudo systemctl start bp-recorder.service
+```
+
+If recorder startup is skipped, disk health is still critical; do not bypass the `ExecCondition`. Re-enable maintenance and disk-health timers only after the cause of the capacity failure is understood and storage verification is complete. Never delete unarchived raw rows as a disk-recovery shortcut.

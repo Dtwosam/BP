@@ -1,0 +1,132 @@
+{
+  "phase": 14,
+  "recorded_at": "2026-08-30T20:47:45Z",
+  "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
+  "trading_mode": "RESEARCH",
+  "live_trading_enabled": false,
+  "phase15_permitted": false,
+  "profitability_claim": false,
+  "host_acceptance": {
+    "candidate_head": "5854e3003aa3340ce3733bf4532e204c1ec55836",
+    "verdict": "PASS",
+    "disk_status_before": "ok",
+    "disk_free_bytes_before": 152004771840,
+    "services_active": "PASS",
+    "sdk_import": "PASS",
+    "geoblock_blocked": true,
+    "interlock_blocks_submission": "PASS",
+    "risk_rules": "PASS",
+    "reconciliation": "PASS",
+    "real_order_side_effects": 0,
+    "live_gate_eligible": false,
+    "evidence_dir": "/var/lib/bp/evidence/phase14-live-readiness/20260830T204745Z"
+  },
+  "master_live_gate": [
+    {
+      "gate": "historical_pipeline_reproducible",
+      "status": "pass",
+      "evidence": [
+        "Phase 4 historical backfill is immutable/idempotent with request provenance and checksums; the immediate rerun inserted zero rows.",
+        "Phase 7/8 immutable dataset, split, and walk-forward semantic reruns matched exactly."
+      ]
+    },
+    {
+      "gate": "no_known_target_leakage",
+      "status": "pass",
+      "evidence": [
+        "Phase 5 accepted zero invalid leakage labels and only post-resolution official outcomes.",
+        "Phase 6 final host acceptance recorded zero future cutoffs and preserved explicit raw-coverage exclusions.",
+        "Phase 7/8 final accepted partitions recorded zero cross-partition/overlap violations."
+      ]
+    },
+    {
+      "gate": "time_ordered_splits",
+      "status": "pass",
+      "evidence": [
+        "Phase 7 chronological-market-v1 keeps each condition_id inside one chronological partition with embargo.",
+        "Phase 8 uses chronological rolling folds, validation-only timing selection, non-reused ordinary tests, and a separate final holdout."
+      ]
+    },
+    {
+      "gate": "walk_forward_results_stable_enough",
+      "status": "insufficient_evidence",
+      "evidence": [
+        "Phase 8 5m ordinary OOS covered 144 markets at 0.8264 accuracy, but observed-ask gross P&L was negative and the untouched holdout was also negative.",
+        "Phase 8 15m ordinary OOS covered only 48 markets; final-holdout accuracy fell to 0.625 and holdout gross P&L was negative.",
+        "The current evidence does not justify calling walk-forward economic behavior stable enough for a real-money transition."
+      ]
+    },
+    {
+      "gate": "sufficiently_large_live_paper_sample_with_uncertainty",
+      "status": "insufficient_evidence",
+      "evidence": [
+        "Phase 12 accepted only 3 paper orders, 2 fills, and 0 settlements.",
+        "Phase 13 still recorded only 3 paper orders and explicitly reported independent confirmation missing.",
+        "No sufficiently large prospective-paper uncertainty interval exists yet."
+      ]
+    },
+    {
+      "gate": "positive_after_cost_profitability",
+      "status": "fail",
+      "evidence": [
+        "Phase 9 untouched 5m final holdout produced -0.418991 assumed-cost P&L across 3 trades.",
+        "Phase 9 15m correctly selected no-trade and produced zero assumed-cost P&L.",
+        "Phase 13 champion/challenger economic delta and confidence interval were exactly zero with no independent fresh confirmation; economic_uncertainty_not_positive remained an explicit ineligibility reason."
+      ]
+    },
+    {
+      "gate": "calibration_acceptable",
+      "status": "insufficient_evidence",
+      "evidence": [
+        "Phase 9 calibration machinery and frozen calibration metrics are implemented and tested.",
+        "The prospective paper sample is too small to establish acceptable live-regime calibration with uncertainty."
+      ]
+    },
+    {
+      "gate": "risk_limits_and_kill_switch_tested",
+      "status": "pass",
+      "evidence": [
+        "Phase 14 exact-head CI covers fail-closed live settings, activation/kill-switch, geoblock, secret-boundary, and risk-rule tests.",
+        "Production host acceptance returned INTERLOCK_BLOCKS_SUBMISSION=PASS and RISK_RULES=PASS while live limits remained zero."
+      ]
+    },
+    {
+      "gate": "order_execution_and_reconciliation_tested",
+      "status": "pass",
+      "evidence": [
+        "Phase 12 paper execution reconciled immutable signals with zero reconciliation violations.",
+        "Phase 14 host acceptance returned RECONCILIATION=PASS and REAL_ORDER_SIDE_EFFECTS=0."
+      ]
+    },
+    {
+      "gate": "geographic_compliance_eligible",
+      "status": "fail",
+      "evidence": [
+        "Phase 14 production host acceptance returned GEOBLOCK_BLOCKED=true from the official Polymarket geoblock endpoint.",
+        "Project policy forbids proxy/VPN/restriction-bypass behavior."
+      ]
+    },
+    {
+      "gate": "explicit_user_live_authorization",
+      "status": "fail",
+      "evidence": [
+        "No explicit authorization to transition to real-money trading has been recorded.",
+        "Routine instructions to continue Phase 14 engineering/closeout are not interpreted as permission to spend real money."
+      ]
+    }
+  ],
+  "overall_live_gate": "fail",
+  "blocking_summary": [
+    "Prospective paper sample and uncertainty are insufficient.",
+    "Positive after-cost profitability is not established and the untouched 5m holdout is negative.",
+    "Prospective live-regime calibration evidence is insufficient.",
+    "Production Polymarket geoblock reports blocked=true.",
+    "Explicit real-money authorization is absent."
+  ],
+  "next_permitted_work": [
+    "Continue money-disabled prospective paper trading and accumulate immutable outcomes/fills.",
+    "Re-evaluate after-cost expectancy, uncertainty, calibration, and walk-forward stability without retuning on frozen holdouts.",
+    "Re-check geographic/compliance eligibility only through official permitted mechanisms; do not bypass restrictions.",
+    "Re-run the complete Master live gate before considering Phase 15."
+  ]
+}

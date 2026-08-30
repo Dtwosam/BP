@@ -5,6 +5,18 @@ export type DashboardMode = {
   paper_execution_available: boolean;
 };
 
+export type LiveReadiness = {
+  eligible: boolean;
+  authorized: boolean;
+  kill_switch_engaged: boolean;
+  geoblock_blocked: boolean | null;
+  country: string | null;
+  region: string | null;
+  wallet_configured: boolean;
+  reconciliation_status: string;
+  critical_discrepancy_count: number | null;
+};
+
 export type ActiveMarket = {
   condition_id: string;
   slug?: string | null;
@@ -165,7 +177,9 @@ export type PaperSettlementRow = {
 
 export type DashboardSnapshot = {
   generated_at: string;
+  execution_available: boolean;
   mode: DashboardMode;
+  live_readiness: LiveReadiness;
   active_markets: ActiveMarket[];
   feed_health: FeedHealth[];
   performance: PerformanceRow[];
@@ -192,6 +206,23 @@ export function getDashboardApiUrl(): string {
   return url.toString();
 }
 
+function isLiveReadiness(value: unknown): value is LiveReadiness {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Partial<LiveReadiness>;
+  return (
+    typeof row.eligible === "boolean" &&
+    typeof row.authorized === "boolean" &&
+    typeof row.kill_switch_engaged === "boolean" &&
+    (row.geoblock_blocked === null || typeof row.geoblock_blocked === "boolean") &&
+    (row.country === null || typeof row.country === "string") &&
+    (row.region === null || typeof row.region === "string") &&
+    typeof row.wallet_configured === "boolean" &&
+    typeof row.reconciliation_status === "string" &&
+    (row.critical_discrepancy_count === null ||
+      typeof row.critical_discrepancy_count === "number")
+  );
+}
+
 function isDashboardSnapshot(value: unknown): value is DashboardSnapshot {
   if (!value || typeof value !== "object") {
     return false;
@@ -199,8 +230,10 @@ function isDashboardSnapshot(value: unknown): value is DashboardSnapshot {
   const row = value as Partial<DashboardSnapshot>;
   return (
     typeof row.generated_at === "string" &&
+    typeof row.execution_available === "boolean" &&
     !!row.mode &&
     typeof row.mode === "object" &&
+    isLiveReadiness(row.live_readiness) &&
     Array.isArray(row.active_markets) &&
     Array.isArray(row.feed_health) &&
     Array.isArray(row.performance) &&

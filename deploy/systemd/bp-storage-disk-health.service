@@ -1,5 +1,6 @@
 [Unit]
 Description=BP Phase 3 storage disk health check
+OnFailure=bp-storage-critical-stop.service
 
 [Service]
 Type=oneshot

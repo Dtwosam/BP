@@ -51,6 +51,21 @@ def test_disk_health_timer_checks_every_five_minutes_without_restart_loop() -> N
     assert "Unit=bp-storage-disk-health.service" in timer
 
 
+def test_critical_disk_health_stops_and_blocks_recorder_until_space_recovers() -> None:
+    health_service = read(SYSTEMD / "bp-storage-disk-health.service")
+    stop_service = read(SYSTEMD / "bp-storage-critical-stop.service")
+    recorder_service = read(SYSTEMD / "bp-recorder.service")
+
+    assert "OnFailure=bp-storage-critical-stop.service" in health_service
+    assert "Type=oneshot" in stop_service
+    assert "ExecStart=/usr/bin/systemctl stop bp-recorder.service" in stop_service
+    assert "User=bp" not in stop_service
+    assert (
+        "ExecCondition=/opt/bp/.venv/bin/python /opt/bp/scripts/storage_maintenance.py disk-health"
+        in recorder_service
+    )
+
+
 def test_bootstrap_installs_storage_environment_archive_dir_and_timer_units() -> None:
     bootstrap = read(BOOTSTRAP)
 
@@ -64,6 +79,7 @@ def test_bootstrap_installs_storage_environment_archive_dir_and_timer_units() ->
     assert "/var/lib/bp/archive/raw" in bootstrap
     assert "bp-storage-maintenance.timer" in bootstrap
     assert "bp-storage-disk-health.timer" in bootstrap
+    assert "bp-storage-critical-stop.service" in bootstrap
     assert "systemctl enable --now bp-storage-maintenance.timer" not in bootstrap
     assert "systemctl enable --now bp-storage-disk-health.timer" not in bootstrap
 

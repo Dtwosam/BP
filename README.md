@@ -4,11 +4,13 @@ Research-first system for estimating short-duration BTC Polymarket Up/Down proba
 
 ## Current status
 
-**Phases 0–13:** complete.  
-**Current phase:** Phase 14 — Live Readiness.  
+**Phases 0–14 engineering:** complete.  
+**Current gate:** `PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED`.  
 **Trading mode:** `RESEARCH`. Live trading is disabled.
 
-Phase 13 — Improvement Loop V1 — is production-host accepted on exact operational candidate `4dcdf8955b2c79ea9f130fec5a0dcceef915a678`. The project now has immutable experiment/evaluation/decision records, explicit evidence-role and provenance validation, deterministic paired economic uncertainty, calibration guardrails, a network-free research CLI, and deliberate champion/challenger decisions. The first 5m spread/abstention challenger did **not** earn promotion: it exactly matched the accepted Phase 9 champion on reused ordinary-OOS evidence and had no independent fresh confirmation, so the immutable decision was `keep_champion`. The ~80% accuracy discussed for this project remains a research target, not an assumed or guaranteed capability.
+Phase 14 — Live Readiness V1 — passed non-spending production host acceptance on exact candidate `5854e3003aa3340ce3733bf4532e204c1ec55836`. The accepted path imports the official `polymarket-client`, enforces fail-closed activation/geoblock/kill-switch/risk interlocks, reconciles synthetic/live-readiness state, exposes read-only diagnostics, and proved `REAL_ORDER_SIDE_EFFECTS=0` with real-money limits still zero.
+
+The Master live gate is **not** satisfied. The production geoblock returned `GEOBLOCK_BLOCKED=true`; the prospective paper sample is still too small; positive after-cost profitability is not established; prospective calibration evidence is insufficient; and explicit real-money authorization has not been given. Phase 15 is therefore not permitted. The ~80% accuracy discussed for this project remains a research target, not an assumed or guaranteed capability.
 
 ## Read before working
 
@@ -21,7 +23,7 @@ Use this order in every new chat or development session:
 5. `docs/CHANGELOG.md`
 6. `AGENTS.md`
 
-The Master Source of Truth wins if anything conflicts. `PROJECT_STATE.json` identifies the current build phase.
+The Master Source of Truth wins if anything conflicts. `PROJECT_STATE.json` identifies the current build/gate state.
 
 ## Local setup
 
@@ -51,8 +53,10 @@ Expected health output includes:
 - Never paste a wallet private key or seed phrase into ChatGPT.
 - Real-money trading is not authorized at this stage.
 - Phase 12 Paper Execution remains money-disabled; paper fills must remain causal and reconciled to immutable signals.
-- Phase 13 Improvement Loop is accepted; promotion requires frozen hypotheses plus permitted evidence, economic uncertainty, calibration guardrails, and deliberate decisions.
-- Phase 14 Live Readiness must fail closed: live mode remains OFF, real-money limits remain zero, and no real order may be placed without the complete live gate and explicit authorization.
+- Phase 13 Improvement Loop remains accepted; promotion requires frozen hypotheses plus permitted evidence, economic uncertainty, calibration guardrails, and deliberate decisions.
+- Phase 14 Live Readiness engineering is accepted, but the Master live gate remains closed.
+- `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0` remain required until every live-gate row passes and real-money authorization is explicit.
+- Do not bypass geographic/service restrictions with proxies, VPNs, tunneling, or relocation tricks.
 - A 10-minute recurring Polymarket BTC market is not assumed to exist; horizons remain configurable.
 
 ## Repository layout
@@ -67,12 +71,22 @@ data/                     Local/generated data (ignored)
 docs/                     Source of truth, build order, decisions, plans, evidence
 ```
 
-## Accepted Phase 13 proof
+## Accepted Phase 14 engineering proof
 
-Fresh exact-head CI passed on `4dcdf8955b2c79ea9f130fec5a0dcceef915a678` (run #1387): 637 Python tests passed, Ruff/deployment validation/health passed, and the dashboard test/typecheck/Next.js production build lane passed.
+Fresh exact-head gates on `5854e3003aa3340ce3733bf4532e204c1ec55836` passed the main test/dashboard lane, Live Recorder Smoke, Recorder Short Soak, and Historical Backfill Smoke before host acceptance.
 
-Production-host acceptance returned `PHASE13_HOST_ACCEPTANCE=PASS`. Experiment registration and challenger evaluation were idempotent; the immutable Phase 9 → Phase 8 → Phase 7 source chain matched exactly; an ineligible promotion attempt was rejected; all five production services remained active; and paper reconciliation remained `OK` with zero violations.
+Production host acceptance returned:
 
-Experiment `phase13-exp-0c6f77ab575fdc75d517480285574ff8` evaluated challenger `phase13-spread-55b1f388b3df86b83124d6f289cdd625`. Champion and challenger each recorded 3 ordinary-OOS trades, `+0.148014` assumed-cost P&L, calibrated log loss `0.3349722232`, and calibrated Brier `0.1064723920`. The paired 10,000-resample bootstrap delta was exactly `0.0` with interval `[0.0, 0.0]`, and no independent fresh confirmation was present. Evaluation `phase13-eval-4c7c0457409f7e29687c5b75139cd405` was therefore not promotion-eligible for reasons `economic_uncertainty_not_positive` and `independent_confirmation_missing`; decision `phase13-decision-8e32d904a1169e10bed2eb8f7a375637` kept the accepted Phase 9 champion.
+- `PHASE14_HOST_ACCEPTANCE=PASS`
+- `SERVICES_ACTIVE=PASS`
+- `SDK_IMPORT=PASS`
+- `INTERLOCK_BLOCKS_SUBMISSION=PASS`
+- `RISK_RULES=PASS`
+- `RECONCILIATION=PASS`
+- `REAL_ORDER_SIDE_EFFECTS=0`
+- `LIVE_GATE_ELIGIBLE=false`
+- `GEOBLOCK_BLOCKED=true`
 
-Sanitized evidence is in `docs/evidence/phase-13-closeout-20260829.json`. The next task is Phase 14 Live Readiness. Live trading remains disabled, real execution remains unavailable, and explicit authorization is still required before any controlled live launch.
+The explicit Master gate matrix is stored in `docs/evidence/phase-14-closeout-20260830.json`. It records historical reproducibility, leakage controls, chronological splits, risk/kill-switch testing, and execution/reconciliation testing as passed; walk-forward stability, prospective paper sample, and prospective calibration as insufficient evidence; and after-cost profitability, geographic eligibility, and explicit real-money authorization as failed.
+
+The next permitted work is continued money-disabled prospective paper evidence and gate reassessment. Phase 15 controlled live launch remains blocked.

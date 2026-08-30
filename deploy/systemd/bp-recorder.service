@@ -12,6 +12,7 @@ WorkingDirectory=/opt/bp
 EnvironmentFile=/etc/bp/bp.env
 Environment=PYTHONDONTWRITEBYTECODE=1
 Environment=PYTHONUNBUFFERED=1
+ExecCondition=/opt/bp/.venv/bin/python /opt/bp/scripts/storage_maintenance.py disk-health
 ExecStart=/opt/bp/.venv/bin/python -m bp_engine.recorder
 Restart=always
 RestartSec=5

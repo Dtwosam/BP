@@ -6,6 +6,10 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
+from sqlalchemy import select
+
+from bp_engine.storage import schema
+
 
 def _as_float(value: Any) -> float | None:
     if value is None:
@@ -135,6 +139,96 @@ def _paper_evidence(repository: Any, *, history_limit: int) -> tuple[bool, dict[
     }
 
 
+def _default_live_readiness() -> dict[str, Any]:
+    return {
+        "eligible": False,
+        "authorized": False,
+        "kill_switch_engaged": True,
+        "geoblock_blocked": None,
+        "country": None,
+        "region": None,
+        "wallet_configured": False,
+        "reconciliation_status": "unavailable",
+        "critical_discrepancy_count": None,
+    }
+
+
+def _normalize_live_readiness(evidence: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "eligible": evidence.get("eligible") is True,
+        "authorized": evidence.get("activation_authorized") is True,
+        "kill_switch_engaged": evidence.get("kill_switch_engaged") is not False,
+        "geoblock_blocked": evidence.get("geoblock_blocked"),
+        "country": evidence.get("country"),
+        "region": evidence.get("region"),
+        "wallet_configured": evidence.get("wallet_configured") is True,
+        "reconciliation_status": str(
+            evidence.get("reconciliation_status") or "unavailable"
+        ),
+        "critical_discrepancy_count": evidence.get("critical_discrepancy_count"),
+    }
+
+
+def _database_live_readiness(repository: Any) -> dict[str, Any] | None:
+    engine = getattr(repository, "engine", None)
+    if engine is None:
+        return None
+    try:
+        with engine.connect() as connection:
+            readiness = connection.execute(
+                select(schema.live_readiness_checks)
+                .order_by(
+                    schema.live_readiness_checks.c.observed_at.desc(),
+                    schema.live_readiness_checks.c.id.desc(),
+                )
+                .limit(1)
+            ).mappings().first()
+            reconciliation = connection.execute(
+                select(schema.live_reconciliation_runs)
+                .order_by(
+                    schema.live_reconciliation_runs.c.observed_at.desc(),
+                    schema.live_reconciliation_runs.c.id.desc(),
+                )
+                .limit(1)
+            ).mappings().first()
+    except Exception:
+        return None
+
+    if readiness is None:
+        return None
+    source = dict(readiness.get("evidence") or {})
+    activation = dict(source.get("activation") or {})
+    kill_switch = dict(source.get("kill_switch") or {})
+    geoblock = dict(source.get("geoblock") or {})
+    reconciliation_evidence = dict(source.get("reconciliation") or {})
+    return {
+        "eligible": readiness.get("eligible") is True,
+        "activation_authorized": activation.get("authorized") is True,
+        "kill_switch_engaged": kill_switch.get("engaged") is not False,
+        "geoblock_blocked": geoblock.get("blocked"),
+        "country": geoblock.get("country"),
+        "region": geoblock.get("region"),
+        "wallet_configured": source.get("wallet_configured") is True,
+        "reconciliation_status": reconciliation_evidence.get("status") or "unavailable",
+        "critical_discrepancy_count": (
+            None if reconciliation is None else reconciliation.get("critical_count")
+        ),
+    }
+
+
+def _live_readiness_evidence(repository: Any) -> dict[str, Any]:
+    reader = getattr(repository, "get_live_readiness_evidence", None)
+    if callable(reader):
+        try:
+            return _normalize_live_readiness(dict(reader()))
+        except Exception:
+            return _default_live_readiness()
+    evidence = _database_live_readiness(repository)
+    if evidence is None:
+        return _default_live_readiness()
+    return _normalize_live_readiness(evidence)
+
+
 def build_dashboard_snapshot(
     repository: Any,
     *,
@@ -147,16 +241,19 @@ def build_dashboard_snapshot(
     performance_predictions = list(repository.list_performance_predictions())
     performance_evaluations = list(repository.list_evaluations())
     paper_available, paper = _paper_evidence(repository, history_limit=history_limit)
+    live_readiness = _live_readiness_evidence(repository)
 
     return _json_safe(
         {
             "generated_at": now,
+            "execution_available": False,
             "mode": {
                 "trading_mode": "RESEARCH",
                 "live_trading_enabled": False,
                 "execution_available": False,
                 "paper_execution_available": paper_available,
             },
+            "live_readiness": live_readiness,
             "active_markets": active_markets,
             "feed_health": feed_health,
             "performance": summarize_performance(

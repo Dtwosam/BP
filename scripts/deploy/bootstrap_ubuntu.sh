@@ -139,6 +139,9 @@ install -m 0644 \
 install -m 0644 \
   "${BP_ROOT}/deploy/systemd/bp-storage-disk-health.timer" \
   /etc/systemd/system/bp-storage-disk-health.timer
+install -m 0644 \
+  "${BP_ROOT}/deploy/systemd/bp-storage-critical-stop.service" \
+  /etc/systemd/system/bp-storage-critical-stop.service
 
 systemctl daemon-reload
 systemctl enable --now bp-postgres.service

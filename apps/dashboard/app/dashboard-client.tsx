@@ -71,7 +71,7 @@ function statusTone(status: string | null | undefined): string {
   if (["reconnecting", "warning", "stale", "degraded", "cancelled", "expired"].includes(value)) {
     return "warn";
   }
-  if (["violation", "failed", "error"].includes(value)) return "bad";
+  if (["violation", "failed", "error", "blocked"].includes(value)) return "bad";
   return "neutral";
 }
 
@@ -393,6 +393,65 @@ function HistoryRows({ rows }: { rows: PredictionHistoryRow[] }) {
   );
 }
 
+function LiveReadinessPanel({ snapshot }: { snapshot: DashboardSnapshot }) {
+  const readiness = snapshot.live_readiness;
+  const geoblock =
+    readiness.geoblock_blocked === null
+      ? "Unavailable"
+      : readiness.geoblock_blocked
+        ? "Blocked"
+        : "Not blocked";
+  const location = [readiness.country, readiness.region].filter(Boolean).join(" / ");
+
+  return (
+    <section className="panel" aria-label="Live readiness">
+      <div className="section-heading">
+        <div><span className="eyebrow">Phase 14</span><h2>Live readiness</h2></div>
+        <p>Read-only diagnostics only. Readiness evidence never enables execution from this dashboard.</p>
+      </div>
+      <div className="performance-grid">
+        <article className="performance-card">
+          <div className="card-heading">
+            <div><span className="eyebrow">Gate</span><h3>{readiness.eligible ? "Eligible" : "Blocked"}</h3></div>
+            <span className={`pill ${readiness.eligible ? "good" : "bad"}`}>
+              {readiness.eligible ? "DIAGNOSTIC PASS" : "DIAGNOSTIC BLOCK"}
+            </span>
+          </div>
+          <dl className="metric-list">
+            <div><dt>Activation authorized</dt><dd>{truthLabel(readiness.authorized)}</dd></div>
+            <div><dt>Kill switch</dt><dd>{readiness.kill_switch_engaged ? "Engaged" : "Clear"}</dd></div>
+            <div><dt>Wallet configured</dt><dd>{truthLabel(readiness.wallet_configured)}</dd></div>
+          </dl>
+        </article>
+        <article className="performance-card">
+          <div className="card-heading">
+            <div><span className="eyebrow">Jurisdiction</span><h3>Geoblock</h3></div>
+            <span className={`pill ${readiness.geoblock_blocked === false ? "good" : readiness.geoblock_blocked ? "bad" : "warn"}`}>
+              {geoblock}
+            </span>
+          </div>
+          <dl className="metric-list">
+            <div><dt>Country / region</dt><dd>{location || "—"}</dd></div>
+            <div><dt>Execution available</dt><dd>No</dd></div>
+          </dl>
+        </article>
+        <article className="performance-card">
+          <div className="card-heading">
+            <div><span className="eyebrow">Ledger</span><h3>Reconciliation</h3></div>
+            <span className={`pill ${statusTone(readiness.reconciliation_status)}`}>
+              {readiness.reconciliation_status}
+            </span>
+          </div>
+          <dl className="metric-list">
+            <div><dt>Critical discrepancies</dt><dd>{readiness.critical_discrepancy_count ?? "—"}</dd></div>
+            <div><dt>Real execution unavailable</dt><dd>Yes</dd></div>
+          </dl>
+        </article>
+      </div>
+    </section>
+  );
+}
+
 export function DashboardClient({
   initialSnapshot,
 }: {
@@ -450,9 +509,9 @@ export function DashboardClient({
     <main className="shell">
       <header className="topbar">
         <div>
-          <span className="eyebrow">BP · Phase 12</span>
+          <span className="eyebrow">BP · Phase 14</span>
           <h1>Prediction &amp; paper execution dashboard</h1>
-          <p>Live research evidence, deterministic paper execution, and reconciliation. Read-only by design.</p>
+          <p>Live research evidence, deterministic paper execution, readiness diagnostics, and reconciliation. Read-only by design.</p>
         </div>
         <div className="snapshot-meta">
           <span className={`pill ${freshness === "fresh" ? "good" : freshness === "stale" ? "warn" : "bad"}`}>
@@ -477,6 +536,8 @@ export function DashboardClient({
         </p>
       </section>
 
+      <LiveReadinessPanel snapshot={snapshot} />
+
       <section className="kpi-grid" aria-label="Dashboard summary">
         <article><span>Active markets</span><strong>{kpis.activeMarkets}</strong></article>
         <article><span>Healthy feeds</span><strong>{kpis.healthyFeeds}/{kpis.totalFeeds}</strong></article>
@@ -486,7 +547,7 @@ export function DashboardClient({
 
       <section className="panel">
         <div className="section-heading">
-          <div><span className="eyebrow">Paper account</span><h2>Paper execution account</h2></div>
+          <div><span className="eyebrow">BP · Phase 12 · Paper account</span><h2>Paper execution account</h2></div>
           <p>Derived only from immutable paper fills and official settlements. No real capital is used.</p>
         </div>
         <div className="performance-grid">
@@ -591,7 +652,7 @@ export function DashboardClient({
       </section>
 
       <footer>
-        RESEARCH mode · paper execution only · no wallet · no signing · real execution disabled · auto-refresh every 15 seconds
+        RESEARCH mode · paper execution only · Phase 14 readiness diagnostics · real execution disabled · auto-refresh every 15 seconds
       </footer>
     </main>
   );
