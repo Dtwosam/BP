@@ -116,7 +116,7 @@ from importlib.metadata import version
 import polymarket
 from sqlalchemy import create_engine, func, insert, select
 
-from bp_engine.config import Settings, get_settings
+from bp_engine.config import Settings, TradingMode, get_settings
 from bp_engine.execution.live import InterlockDecision, PolymarketLiveExecutionGateway
 from bp_engine.execution.models import PaperExecutionConfig
 from bp_engine.execution.paper import PaperOrderDraft, build_paper_order
@@ -135,7 +135,7 @@ if not sdk_version:
 print("SDK_IMPORT=PASS")
 
 settings = get_settings()
-if str(settings.mode) != "research":
+if settings.mode != TradingMode.RESEARCH:
     raise SystemExit("MODE is not research")
 if settings.live_trading_enabled is not False:
     raise SystemExit("LIVE_TRADING_ENABLED is not false")
