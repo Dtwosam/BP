@@ -386,7 +386,9 @@ Acceptance:
 
 - live mode defaults OFF;
 - integration tests cannot accidentally spend money;
-- explicit user authorization is documented.
+- explicit user authorization is documented before any real-money transition.
+
+Engineering status: complete. Production non-spending host acceptance passed on exact candidate `5854e3003aa3340ce3733bf4532e204c1ec55836`, including SDK import, fail-closed interlock/risk checks, reconciliation, active-service checks, and `REAL_ORDER_SIDE_EFFECTS=0`. This does **not** mean the Master live gate passed.
 
 ---
 
@@ -405,14 +407,16 @@ Measure:
 
 Do not automatically increase stake.
 
+**Current status:** blocked. Do not begin Phase 15 until every Master Source of Truth live-gate item is `pass` and explicit real-money authorization exists.
+
 ---
 
 ## Immediate next action
 
-**Build Phase 14 — Live Readiness.**
+**Continue money-disabled prospective paper evidence; do not start Phase 15.**
 
-Phase 13 Improvement Loop V1 is production-host accepted on exact operational candidate `4dcdf8955b2c79ea9f130fec5a0dcceef915a678`. CI #1387 passed 637 Python tests plus Ruff, deployment validation, research/live-disabled health, and the dashboard test/typecheck/build lane. Production acceptance preserved recorder, PostgreSQL, dashboard API, dashboard web, and the money-disabled paper worker; reconciliation remained `OK` with zero violations.
+Phase 14 engineering is complete with `PHASE14_HOST_ACCEPTANCE=PASS`, but the Master live gate is closed. Production returned `GEOBLOCK_BLOCKED=true`; the existing prospective paper sample is too small; positive after-cost profitability has not been established; prospective calibration evidence remains insufficient; and explicit real-money authorization is absent.
 
-The first frozen 5m spread/abstention challenger did not improve the accepted Phase 9 champion. On 144 reused ordinary-OOS markets the paired economic delta and 95% bootstrap interval were exactly zero, calibration metrics were identical, and no independent fresh confirmation was available. Promotion was therefore correctly ineligible and the immutable decision was `keep_champion`. Do not reinterpret that result as evidence for live profitability.
+The gate matrix is recorded in `docs/evidence/phase-14-closeout-20260830.json`. Continue collecting immutable prospective paper predictions, fills, settlements, and outcomes; evaluate after-cost expectancy with uncertainty; validate calibration prospectively; and re-check geographic/compliance eligibility only through official permitted mechanisms. Do not bypass restrictions or reinterpret research/paper authorization as live-spending authorization.
 
-Phase 14 must implement and verify the Master Source of Truth live gate: geographic/geoblock eligibility, official trading client integration, secure wallet/funder and secret handling, risk limits, order reconciliation, kill switch, and live-mode interlocks. `LIVE_TRADING_ENABLED=false`, real-money limits remain zero, and integration tests must remain incapable of spending money. Phase 15 controlled live launch remains blocked until Phase 14 passes and the user explicitly authorizes real trading.
+`LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0` remain mandatory. Re-run the complete Master live gate before any Phase 15 transition.
