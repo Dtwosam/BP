@@ -6,9 +6,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from bp_engine.live_readiness.cli import build_parser, main
 from sqlalchemy import create_engine, delete
 
+from bp_engine.live_readiness.cli import build_parser, main
 from bp_engine.live_readiness.repository import LiveReadinessRepository
 from bp_engine.storage import schema
 
