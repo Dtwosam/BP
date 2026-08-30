@@ -17,12 +17,12 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
-Phase 14: begin **Live Readiness**. Phase 13 — Improvement Loop V1 — is production-host accepted on exact operational candidate `4dcdf8955b2c79ea9f130fec5a0dcceef915a678`.
+Phase 14 Live Readiness engineering is complete, but the Master live gate is blocked. The current project status is `PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED`; Phase 15 is **not permitted**.
 
-Fresh exact-head Phase 13 CI run #1387 passed 637 Python tests plus Ruff, deployment validation, health in research/live-disabled mode, dashboard tests, strict TypeScript typecheck, and the Next.js production build. Production acceptance returned `PHASE13_HOST_ACCEPTANCE=PASS`, preserved all five production services, and kept paper reconciliation `OK` with zero violations.
+Production host acceptance passed on exact candidate `5854e3003aa3340ce3733bf4532e204c1ec55836` with all required services active, official SDK import passing, interlock/risk/reconciliation checks passing, `REAL_ORDER_SIDE_EFFECTS=0`, and real-money limits still zero. The official Polymarket geoblock check returned `GEOBLOCK_BLOCKED=true`, so geographic eligibility fails closed.
 
-The first immutable Phase 13 experiment tested a validation-selected 5m max-spread abstention guard. Challenger and accepted Phase 9 champion were identical on the reused ordinary-OOS comparison: both recorded `+0.148014` assumed-cost P&L, identical calibration metrics, and a paired economic delta/95% bootstrap interval of exactly zero. No independent fresh confirmation was available, so promotion was correctly ineligible and the deliberate immutable decision was `keep_champion`.
+The economic evidence also does not clear the Master gate. Phase 12/13 contain only a tiny prospective paper sample, Phase 9's untouched 5m final holdout was negative after assumed costs, Phase 13 had no positive economic uncertainty or independent confirmation, and prospective live-regime calibration remains insufficiently demonstrated. No explicit authorization for real-money trading has been recorded.
 
-Sanitized closeout evidence is in `docs/evidence/phase-13-closeout-20260829.json`.
+Sanitized closeout evidence and the explicit pass/fail/insufficient matrix are in `docs/evidence/phase-14-closeout-20260830.json`.
 
-Phase 14 must complete the Master Source of Truth live-readiness gate before any real-money progression. `LIVE_TRADING_ENABLED=false`, maximum real trade size and daily loss remain zero, real execution remains unavailable, and explicit user authorization is still mandatory before any real order placement.
+Continue **money-disabled prospective paper trading/evaluation only**: accumulate immutable outcomes and fills, measure after-cost expectancy and uncertainty, validate prospective calibration, and re-check geographic/compliance eligibility only through official permitted mechanisms. Do not bypass restrictions. `LIVE_TRADING_ENABLED=false`, maximum real trade size and daily loss remain zero, and Phase 15 stays blocked until every Master live-gate item passes and real-money authorization is explicit.
