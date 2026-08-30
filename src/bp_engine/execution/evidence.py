@@ -3,9 +3,14 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import numpy as np
+from sqlalchemy import select
+from sqlalchemy.engine import Engine
+
+from bp_engine.storage import schema
 
 
 @dataclass(frozen=True)
@@ -25,6 +30,89 @@ class ProspectivePaperEvidenceReport:
     aggregate_calibration_gap: float | None
     reconciliation_status: str
     reconciliation_violation_count: int
+
+
+@dataclass(frozen=True)
+class ProspectivePaperEvidenceInputs:
+    predictions: tuple[dict[str, object], ...]
+    evaluations: tuple[dict[str, object], ...]
+    settled_trades: tuple[dict[str, object], ...]
+
+
+class PostgresProspectivePaperEvidenceReader:
+    """Read immutable paper evidence whose source prediction/order is prospective."""
+
+    def __init__(self, engine: Engine) -> None:
+        self.engine = engine
+
+    def load(self, *, since: datetime) -> ProspectivePaperEvidenceInputs:
+        if since.tzinfo is None or since.utcoffset() is None:
+            raise ValueError("since must be timezone-aware")
+        since_utc = since.astimezone(UTC)
+
+        prediction_query = (
+            select(
+                schema.live_predictions.c.prediction_id,
+                schema.live_predictions.c.condition_id,
+                schema.live_predictions.c.horizon_seconds,
+                schema.live_predictions.c.calibrated_probability,
+            )
+            .where(schema.live_predictions.c.recorded_at >= since_utc)
+            .order_by(
+                schema.live_predictions.c.recorded_at.asc(),
+                schema.live_predictions.c.prediction_id.asc(),
+            )
+        )
+        evaluation_query = (
+            select(
+                schema.live_prediction_evaluations.c.prediction_id,
+                schema.live_prediction_evaluations.c.official_target,
+            )
+            .join(
+                schema.live_predictions,
+                schema.live_predictions.c.prediction_id
+                == schema.live_prediction_evaluations.c.prediction_id,
+            )
+            .where(schema.live_predictions.c.recorded_at >= since_utc)
+            .order_by(
+                schema.live_predictions.c.recorded_at.asc(),
+                schema.live_prediction_evaluations.c.prediction_id.asc(),
+            )
+        )
+        settlement_query = (
+            select(
+                schema.paper_settlements.c.paper_order_id,
+                schema.paper_orders.c.condition_id,
+                schema.paper_settlements.c.realized_pnl,
+            )
+            .join(
+                schema.paper_orders,
+                schema.paper_orders.c.paper_order_id
+                == schema.paper_settlements.c.paper_order_id,
+            )
+            .where(schema.paper_orders.c.submitted_at >= since_utc)
+            .order_by(
+                schema.paper_orders.c.submitted_at.asc(),
+                schema.paper_settlements.c.paper_order_id.asc(),
+            )
+        )
+
+        with self.engine.connect() as connection:
+            predictions = tuple(
+                dict(row) for row in connection.execute(prediction_query).mappings().all()
+            )
+            evaluations = tuple(
+                dict(row) for row in connection.execute(evaluation_query).mappings().all()
+            )
+            settled_trades = tuple(
+                dict(row) for row in connection.execute(settlement_query).mappings().all()
+            )
+
+        return ProspectivePaperEvidenceInputs(
+            predictions=predictions,
+            evaluations=evaluations,
+            settled_trades=settled_trades,
+        )
 
 
 def _probability(value: object) -> float:
