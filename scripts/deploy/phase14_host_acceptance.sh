@@ -149,6 +149,7 @@ if int(settings.max_consecutive_losses) != 0:
     raise SystemExit("consecutive loss limit is not zero")
 
 production_engine = create_engine(settings.database_url, pool_pre_ping=True)
+schema.metadata.create_all(production_engine)
 
 def production_order_counts() -> tuple[int, int]:
     with production_engine.connect() as connection:
