@@ -105,7 +105,10 @@ def test_empty_evidence_never_becomes_an_optimistic_pass() -> None:
     )
 
     assert report["after_cost_pnl"]["mean_95pct_ci_usd"] is None
-    assert report["evidence_gates"]["positive_after_cost_profitability"]["status"] == "insufficient_evidence"
+    assert (
+        report["evidence_gates"]["positive_after_cost_profitability"]["status"]
+        == "insufficient_evidence"
+    )
     assert (
         report["evidence_gates"]["sufficiently_large_live_paper_sample_with_uncertainty"][
             "status"
