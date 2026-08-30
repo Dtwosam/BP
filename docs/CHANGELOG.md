@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.0 — 30 August 2026
+
+Phase 14 — Live Readiness V1 — reached engineering closeout after fresh exact-head CI/smoke gates and non-spending production-host acceptance on candidate `5854e3003aa3340ce3733bf4532e204c1ec55836`. The phase adds fail-closed live-readiness settings and immutable models, official `polymarket-client` integration behind a narrow adapter, official geoblock checking, activation/kill-switch and secret-boundary controls, deterministic live risk rules, reconciliation, and read-only CLI/dashboard diagnostics. No Phase 14 test or host-acceptance path may place, cancel, sign, fund, approve, or settle a real-money order.
+
+Production acceptance returned `PHASE14_HOST_ACCEPTANCE=PASS`, `SERVICES_ACTIVE=PASS`, `SDK_IMPORT=PASS`, `INTERLOCK_BLOCKS_SUBMISSION=PASS`, `RISK_RULES=PASS`, `RECONCILIATION=PASS`, and `REAL_ORDER_SIDE_EFFECTS=0`. Production remained `RESEARCH` with `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0`. The official Polymarket geoblock response was `GEOBLOCK_BLOCKED=true`, so geographic eligibility fails closed and no bypass/relocation/proxy behavior is permitted.
+
+During Phase 14 host work, a storage incident exposed stale compact-state amplification: retired market/token keys remained in reducer state and were rewritten every second. The recorder was fixed test-first to stop persisting stale states, disk-critical behavior was hardened to stop the recorder fail-closed, and production data was compacted after a pre-recovery snapshot. Post-recovery verification observed the recorder active, disk-health timer active, substantial free space restored, recent rows flowing, and zero stale rewrites in the verification window. These operational repairs did not enable live execution.
+
+The explicit Master live-gate closeout is `PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED`. Historical reproducibility, no-known-leakage controls, chronological splits, risk/kill-switch testing, and execution/reconciliation testing are recorded as `pass`. Walk-forward economic stability, sufficiently large prospective paper evidence, and prospective calibration are `insufficient_evidence`. Positive after-cost profitability is `fail` because the accepted 5m untouched final holdout is negative after assumed costs and Phase 13 added no positive economic uncertainty or independent confirmation. Geographic/compliance eligibility is `fail` because `GEOBLOCK_BLOCKED=true`; explicit live authorization is also `fail` because no real-money transition has been authorized.
+
+Sanitized closeout evidence is stored in `docs/evidence/phase-14-closeout-20260830.json`. Phase 15 controlled live launch is not permitted. The next allowed work is continued money-disabled prospective paper evidence and a later complete Master live-gate reassessment.
+
 ## 0.13.0 — 29 August 2026
 
 Phase 13 — Improvement Loop V1 — closed after exact-head CI and production-host acceptance on operational candidate `4dcdf8955b2c79ea9f130fec5a0dcceef915a678`. CI run #1387 passed 637 Python tests, Ruff, deployment validation, health in research/live-disabled mode, and the dashboard test/typecheck/production-build lane.
