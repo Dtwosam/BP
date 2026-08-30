@@ -57,6 +57,10 @@ PHASE14_HEAD=<exact-green-sha> bash scripts/deploy/phase14_cloudshell_accept.sh
 
 The helper fetches the named Phase 14 branch, verifies that it still resolves to the exact expected SHA, exports that exact tree into a bp-owned runtime directory, and runs the host acceptance through a disconnect-resilient systemd unit. `BP_ENV_FILE` is passed only as a file path; secret values are not passed as command arguments.
 
+Before creating the isolated candidate venv, the host acceptance runs the existing `storage_maintenance.py disk-health` check against the Phase 14 runtime filesystem and records `storage-disk-health-before.json`. Acceptance requires disk status `ok`; warning, critical, or unreadable disk-health evidence fails closed with `REASON=disk_not_ok` before package installation. Candidate pip installation uses `--no-cache-dir` so acceptance does not grow a persistent pip cache.
+
+A host-capacity failure such as `No space left on device` is not a live-readiness pass or fail result because the non-spending control checks were not reached. Restore the production host to the project storage-health boundary before rerunning. Do not delete recorder data, archives, database files, or evidence ad hoc to make acceptance pass; use the project storage-maintenance and disk-capacity procedures and preserve existing service/data safety constraints.
+
 Record the sanitized host output only after the real host run exists. Do not fabricate missing tokens and do not record IP addresses, signing material, or other secrets.
 
 ## Geographic eligibility
