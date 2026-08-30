@@ -268,6 +268,7 @@ def build_default_recorder_service(settings: object) -> RecorderService:
         reducer=state_reducer,
         write_snapshots=database_sink.write_state_snapshots,
         interval_seconds=1.0,
+        max_state_age_seconds=settings.recorder_stale_after_seconds,
     )
 
     discovery_service = MarketDiscoveryService(settings, GammaClient(), engine)
