@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.1 — 30 August 2026
+
+Phase 14 prospective-evidence follow-up adds a separate read-only reporting path over existing immutable paper settlements, live prediction evaluations, and paper reconciliation evidence. The reporter surfaces settled/evaluated sample sizes, realized after-cost paper P&L, a deterministic 10,000-resample bootstrap 95% interval for mean realized P&L, raw/calibrated Brier and log-loss means, reconciliation, and the existing Phase 14 Master live-gate snapshot. It does not modify the paper worker or any execution, prediction, evaluation, research, or live-readiness ledger.
+
+Evidence gates emitted by the reporter are restricted to `pass`, `fail`, or `insufficient_evidence`. The implementation does not invent a fixed minimum paper sample or a numerical prospective-calibration acceptance threshold because neither is approved by the canonical spec. `automatic_promotion=false` is enforced, and the CLI refuses to run unless `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0`.
+
+An exact-head Google Cloud Shell helper runs the candidate from a detached worktree, checks the paper service and money-disabled interlocks before reporting, verifies the deployed `/opt/bp` checkout remains unchanged, and performs no package install, migration, service restart, service stop, or production-checkout mutation. TDD established clean RED checkpoints for the missing report core, missing database/CLI read path, and missing Cloud Shell asset before each implementation slice. Exact-head CI on implementation candidate `17b742e3fa07af39348e9deb7ff1689040c1a5a6` passed the Python/PostgreSQL lane, deployment validation, health check, and dashboard tests/typecheck/build; the subsequent documentation/runbook head `39c2ebbd443e16527d9c05458cff39fdb3fbadb3` also passed both CI jobs.
+
+Production-host reporting has not yet been executed from this session because no authenticated GCP/SSH connection is available here. No prospective host P&L, calibration, sample-size, or host-report PASS is claimed. The existing Master live gate remains `fail`; Phase 15 remains blocked; real-money trading remains disabled and both real-money limits remain zero.
+
 ## 0.14.0 — 30 August 2026
 
 Phase 14 — Live Readiness V1 — reached engineering closeout after fresh exact-head CI/smoke gates and non-spending production-host acceptance on candidate `5854e3003aa3340ce3733bf4532e204c1ec55836`. The phase adds fail-closed live-readiness settings and immutable models, official `polymarket-client` integration behind a narrow adapter, official geoblock checking, activation/kill-switch and secret-boundary controls, deterministic live risk rules, reconciliation, and read-only CLI/dashboard diagnostics. No Phase 14 test or host-acceptance path may place, cancel, sign, fund, approve, or settle a real-money order.
@@ -38,7 +48,7 @@ Isolated host acceptance returned `PHASE12_HOST_ACCEPTANCE=PASS` with a genuine 
 
 The installed dashboard reported `paper_execution_available=true`, `execution_available=false`, current cash `92.207577336709`, realized P&L `0.0`, 3 paper orders, 2 paper fills, 0 settlements, and reconciliation `OK` with every recorded violation counter at zero. These are simulated execution results, not a live-profitability claim.
 
-Sanitized closeout evidence is stored in `docs/evidence/phase-12-closeout-20260828.json`. Phase 13 — Improvement Loop — is now the next permitted phase. Live trading remains disabled, real-money limits remain zero, and Phase 14 live-readiness plus explicit authorization remain mandatory before real order placement.
+Sanitized closeout evidence is stored in `docs/evidence/phase-12-closeout-20260828.json`. Phase 13 — Improvement Loop — is now the next permitted build-order phase. Live trading remains disabled, real-money limits remain zero, and Phase 14 live-readiness plus explicit authorization remain mandatory before real order placement.
 
 ## 0.11.0 — 28 August 2026
 
@@ -74,7 +84,7 @@ Phase 9 — probability calibration + edge engine — closed after production-ho
 
 Phase 9 implements deterministic identity-versus-monotone-Platt calibration, fitted only on each frozen training partition and selected only on validation. It reuses the immutable Phase 8 fold memberships and prediction offsets, preserving ordinary OOS and final-holdout timing without re-selection. The edge engine uses the observed selected-side best ask, rejects missing/stale books, applies explicit research assumptions `fee_rate=0.07` and `slippage_buffer=0.01`, and chooses a validation-only minimum-edge threshold or the first-class `no_trade` policy. Test and final-holdout outcomes cannot rewrite calibration or threshold selection.
 
-The accepted 5m run is `phase9-300-c9f0e00eb7836af08008c66909f8f179` with semantic SHA-256 `c9f0e00eb7836af08008c66909f8f179f03089413426508469353c75bcbcae24`, sourced from Phase 8 run `phase8-300-efdf493067e9d56419afc4d88452bec6`. Frozen offsets remained 240 seconds in all six folds. Validation selected `no_trade` in five folds and a trade threshold in one. Ordinary OOS produced three trades and +0.148014 assumed-cost P&L, but the untouched final holdout also produced three trades and -0.418991 assumed-cost P&L. The positive ordinary-OOS result is therefore not promoted into a profitability claim and is not retuned against the final holdout.
+The accepted 5m run is `phase9-300-c9f0e00eb7836af08008c66909f8f179` with semantic SHA-256 `c9f0e00eb7836af08008c66909f8f179f03089413426508469353c75bcbcae24`, sourced from Phase 8 run `phase8-300-efdf493067e9d56419afc4d88452bec6`. Frozen offsets remained 240 seconds in all six folds. Validation selected `no_trade` in five folds and a trade threshold in one. Ordinary OOS produced three trades and +0.148014 assumed-cost P&L, but the untouched final holdout also produced three markets and -0.418991 assumed-cost P&L. The positive ordinary-OOS result is therefore not promoted into a profitability claim and is not retuned against the final holdout.
 
 The accepted 15m run is `phase9-900-15c234f25588b23cce73a12f87a2e2ea` with semantic SHA-256 `15c234f25588b23cce73a12f87a2e2ea9087490055f203f22f183594b4bcfacd`, sourced from Phase 8 run `phase8-900-64aaf2b1774ee7af37bd110b84b37ec1`. Frozen offsets remained 840, 840, 780, 780, 840, and 840 seconds. Validation selected `no_trade` in every ordinary fold and for the final holdout, producing zero trades and zero assumed-cost P&L. That abstention is accepted evidence, not a failure to be overridden merely to manufacture activity.
 
