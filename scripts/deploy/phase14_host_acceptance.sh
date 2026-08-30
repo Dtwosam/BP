@@ -38,10 +38,11 @@ required_files=(
   "$REPO/src/bp_engine/live_readiness/risk.py"
   "$REPO/src/bp_engine/live_readiness/service.py"
   "$REPO/scripts/run_live_readiness.py"
+  "$HOST_ROOT/scripts/storage_maintenance.py"
 )
 for path in "${required_files[@]}"; do
   if [[ ! -f "$path" ]]; then
-    echo "missing Phase 14 candidate file: $path" >&2
+    echo "missing Phase 14 candidate or host file: $path" >&2
     exit 2
   fi
 done
@@ -90,6 +91,34 @@ stamp=$(date -u +%Y%m%dT%H%M%SZ)
 run_dir="$EVIDENCE_ROOT/$stamp"
 install -d -o bp -g bp "$run_dir"
 
+set +e
+PRE_DISK=$(sudo -u bp "$HOST_PY" "$HOST_ROOT/scripts/storage_maintenance.py" disk-health \
+  --env-file "$ENV_FILE" --path "$RUNTIME_ROOT" \
+  2> "$run_dir/storage-disk-health-before.stderr")
+DISK_HEALTH_RC=$?
+set -e
+printf '%s\n' "$PRE_DISK" > "$run_dir/storage-disk-health-before.json"
+if ! read -r DISK_STATUS_BEFORE DISK_FREE_BYTES_BEFORE < <(
+  printf '%s' "$PRE_DISK" |
+    "$HOST_PY" -c 'import json,sys; d=json.load(sys.stdin); print(d["status"], d["free_bytes"])'
+); then
+  echo "PHASE14_HOST_ACCEPTANCE=FAIL" >&2
+  echo "REASON=disk_not_ok" >&2
+  echo "DISK_STATUS_BEFORE=error" >&2
+  echo "DISK_FREE_BYTES_BEFORE=unknown" >&2
+  exit 6
+fi
+if [[ "$DISK_HEALTH_RC" -ne 0 || "$DISK_STATUS_BEFORE" != "ok" ]]; then
+  echo "PHASE14_HOST_ACCEPTANCE=FAIL" >&2
+  echo "REASON=disk_not_ok" >&2
+  echo "DISK_STATUS_BEFORE=$DISK_STATUS_BEFORE" >&2
+  echo "DISK_FREE_BYTES_BEFORE=$DISK_FREE_BYTES_BEFORE" >&2
+  exit 6
+fi
+
+echo "DISK_STATUS_BEFORE=$DISK_STATUS_BEFORE"
+echo "DISK_FREE_BYTES_BEFORE=$DISK_FREE_BYTES_BEFORE"
+
 cleanup() {
   set +e
   rm -rf "$VENV"
@@ -98,7 +127,7 @@ cleanup() {
 trap cleanup EXIT
 
 sudo -u bp "$HOST_PY" -m venv "$VENV"
-sudo -u bp "$VENV/bin/python" -m pip install --disable-pip-version-check "$REPO" \
+sudo -u bp "$VENV/bin/python" -m pip install --disable-pip-version-check --no-cache-dir "$REPO" \
   > "$run_dir/candidate-python-install.txt"
 
 assert_services_active
