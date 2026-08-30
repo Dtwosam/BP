@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -340,18 +340,27 @@ class MarketStateSnapshotter:
         reducer: MarketStateReducer,
         write_snapshots: SnapshotWriter,
         interval_seconds: float = 1.0,
+        max_state_age_seconds: float | None = None,
         now: NowFactory | None = None,
     ) -> None:
         if interval_seconds <= 0:
             raise ValueError("interval_seconds must be greater than zero")
+        if max_state_age_seconds is not None and max_state_age_seconds <= 0:
+            raise ValueError("max_state_age_seconds must be greater than zero")
         self._reducer = reducer
         self._write_snapshots = write_snapshots
         self._interval_seconds = interval_seconds
+        self._max_state_age_seconds = max_state_age_seconds
         self._now = now or (lambda: datetime.now(UTC))
 
     async def _flush(self) -> None:
         bucket = _utc(self._now()).replace(microsecond=0)
         snapshots = self._reducer.snapshots(bucket)
+        if self._max_state_age_seconds is not None:
+            cutoff = bucket - timedelta(seconds=self._max_state_age_seconds)
+            snapshots = [
+                snapshot for snapshot in snapshots if snapshot.last_event_at >= cutoff
+            ]
         if snapshots:
             await self._write_snapshots(snapshots)
 
