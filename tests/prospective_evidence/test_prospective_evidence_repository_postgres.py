@@ -5,9 +5,9 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
+from bp_engine.prospective_evidence.repository import PostgresProspectiveEvidenceRepository
 from sqlalchemy import create_engine, delete, func, insert, select
 
-from bp_engine.prospective_evidence.repository import PostgresProspectiveEvidenceRepository
 from bp_engine.storage import schema
 
 DATABASE_URL = os.getenv("BP_TEST_DATABASE_URL")
@@ -70,6 +70,17 @@ def _evaluation(
     }
 
 
+def _counts(connection) -> dict[str, int | None]:
+    return {
+        "settlements": connection.scalar(
+            select(func.count()).select_from(schema.paper_settlements)
+        ),
+        "evaluations": connection.scalar(
+            select(func.count()).select_from(schema.live_prediction_evaluations)
+        ),
+    }
+
+
 def test_repository_reads_latest_immutable_evidence_without_mutation() -> None:
     assert DATABASE_URL is not None
     engine = create_engine(DATABASE_URL)
@@ -100,12 +111,7 @@ def test_repository_reads_latest_immutable_evidence_without_mutation() -> None:
                 _evaluation("official-outcome-v2", calibrated_brier="0.08", seconds=2),
             ],
         )
-        before = {
-            "settlements": connection.scalar(select(func.count()).select_from(schema.paper_settlements)),
-            "evaluations": connection.scalar(
-                select(func.count()).select_from(schema.live_prediction_evaluations)
-            ),
-        }
+        before = _counts(connection)
 
     repository = PostgresProspectiveEvidenceRepository(engine)
     settlements = [
@@ -126,12 +132,7 @@ def test_repository_reads_latest_immutable_evidence_without_mutation() -> None:
     assert isinstance(reconciliation["violation_count"], int)
 
     with engine.begin() as connection:
-        after = {
-            "settlements": connection.scalar(select(func.count()).select_from(schema.paper_settlements)),
-            "evaluations": connection.scalar(
-                select(func.count()).select_from(schema.live_prediction_evaluations)
-            ),
-        }
+        after = _counts(connection)
         connection.execute(
             delete(schema.paper_settlements).where(
                 schema.paper_settlements.c.paper_order_id == ORDER_ID
