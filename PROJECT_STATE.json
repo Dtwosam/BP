@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.0",
-  "updated_at": "2026-08-30T20:47:45Z",
+  "source_of_truth_version": "0.14.1",
+  "updated_at": "2026-08-30T22:23:19Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -607,13 +607,17 @@
     "Phase 14 stale compact-state amplification incident fixed test-first and production storage recovered with disk fail-closed protection retained",
     "Phase 14 exact-head non-spending production host acceptance passed with all required services active, SDK import passing, interlock/risk/reconciliation checks passing, and zero real-order side effects",
     "Phase 14 Master live-gate matrix recorded with Phase 15 blocked by insufficient prospective evidence, failed after-cost profitability, failed geographic eligibility, and absent explicit live authorization",
-    "Phase 14 closeout evidence recorded"
+    "Phase 14 closeout evidence recorded",
+    "Phase 14 prospective-evidence read-only reporter implemented over immutable paper settlements, prediction evaluations, and reconciliation evidence",
+    "Phase 14 prospective-evidence tri-state gates and deterministic bootstrap uncertainty implemented without automatic promotion",
+    "Phase 14 prospective-evidence exact-head Cloud Shell reporter implemented with money-disabled and no-production-mutation checks"
   ],
   "not_completed": [
     "Phase 15 controlled live launch",
     "Live trading"
   ],
   "next_actions": [
+    "Run the exact-head prospective evidence host report from Google Cloud Shell on the final CI-green branch head and record its output without mutating the Master live gate",
     "Continue money-disabled prospective paper predictions, fills, settlements, and official-outcome evaluation to build a sufficiently large sample with uncertainty",
     "Re-evaluate walk-forward stability, prospective calibration, and after-cost expectancy without retuning on frozen holdouts",
     "Re-check Polymarket geographic/compliance eligibility only through official permitted mechanisms; do not bypass restrictions",
@@ -770,5 +774,18 @@
     "overall_live_gate": "fail",
     "profitability_claim": false,
     "sanitized_evidence": "docs/evidence/phase-14-closeout-20260830.json"
+  },
+  "phase_14_prospective_evidence_followup": {
+    "implementation_commit": "17b742e3fa07af39348e9deb7ff1689040c1a5a6",
+    "implementation_ci_passed": true,
+    "documentation_ci_green_through_commit": "39c2ebbd443e16527d9c05458cff39fdb3fbadb3",
+    "host_report_status": "PENDING",
+    "automatic_promotion": false,
+    "master_live_gate_mutated": false,
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "phase15_permitted": false,
+    "runbook": "docs/PHASE-14-PROSPECTIVE-EVIDENCE.md"
   }
 }
