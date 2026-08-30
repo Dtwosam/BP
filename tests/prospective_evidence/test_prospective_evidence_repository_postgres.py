@@ -5,9 +5,9 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-from bp_engine.prospective_evidence.repository import PostgresProspectiveEvidenceRepository
 from sqlalchemy import create_engine, delete, func, insert, select
 
+from bp_engine.prospective_evidence.repository import PostgresProspectiveEvidenceRepository
 from bp_engine.storage import schema
 
 DATABASE_URL = os.getenv("BP_TEST_DATABASE_URL")
