@@ -28,7 +28,7 @@ Required host tokens are:
 
 The host acceptance script must never construct the secure trading client and must never load, print, or pass wallet signing material. The only external network action in the host acceptance is the direct public geoblock read. Synthetic execution checks use an isolated SQLite ledger and a client factory that fails immediately if the gateway attempts to construct a client.
 
-The production database is read only for before/after live-order ledger counts. A successful acceptance requires those counts to remain unchanged, producing `REAL_ORDER_SIDE_EFFECTS=0`.
+Before reading the production live-order ledger, acceptance idempotently ensures the additive Phase 14 schema exists. After that schema-readiness step, the production live-order intent and event tables are used only for before/after counts; the acceptance path does not insert live-order intents or events. A successful acceptance requires those counts to remain unchanged, producing `REAL_ORDER_SIDE_EFFECTS=0`.
 
 The live gateway remains unavailable for production spending after this acceptance. Phase 14 diagnostics may report readiness evidence, but the application boundary still treats real execution as disabled.
 
