@@ -48,7 +48,7 @@ Isolated host acceptance returned `PHASE12_HOST_ACCEPTANCE=PASS` with a genuine 
 
 The installed dashboard reported `paper_execution_available=true`, `execution_available=false`, current cash `92.207577336709`, realized P&L `0.0`, 3 paper orders, 2 paper fills, 0 settlements, and reconciliation `OK` with every recorded violation counter at zero. These are simulated execution results, not a live-profitability claim.
 
-Sanitized closeout evidence is stored in `docs/evidence/phase-12-closeout-20260828.json`. Phase 13 — Improvement Loop — is now the next permitted build-order phase. Live trading remains disabled, real-money limits remain zero, and Phase 14 live-readiness plus explicit authorization remain mandatory before real order placement.
+Sanitized closeout evidence is stored in `docs/evidence/phase-12-closeout-20260828.json`. Phase 13 — Improvement Loop — is now the next permitted phase. Live trading remains disabled, real-money limits remain zero, and Phase 14 live-readiness plus explicit authorization remain mandatory before real order placement.
 
 ## 0.11.0 — 28 August 2026
 
