@@ -112,8 +112,12 @@ class PolymarketLiveExecutionGateway:
             context = LiveRiskContext(
                 prediction_id=str(prediction["prediction_id"]),
                 prediction_semantic_sha256=str(prediction["semantic_sha256"]),
-                recorded_at=_utc(prediction["recorded_at"], "prediction.recorded_at"),
-                market_end_at=_utc(prediction["market_end_at"], "prediction.market_end_at"),
+                recorded_at=_stored_utc(
+                    prediction["recorded_at"], "prediction.recorded_at"
+                ),
+                market_end_at=_stored_utc(
+                    prediction["market_end_at"], "prediction.market_end_at"
+                ),
                 trade=prediction["trade"] is True,
                 executable=prediction["executable"] is True,
                 probability=_decimal(prediction["calibrated_probability"], "probability"),
@@ -380,8 +384,8 @@ def _source_request_matches(
         token_key = "up_token_id" if selected_side == "up" else "down_token_id"
         expected_token = str(prediction[token_key])
         selected_ask = _optional_decimal(prediction["selected_ask"])
-        recorded_at = _utc(prediction["recorded_at"], "prediction.recorded_at")
-        market_end_at = _utc(prediction["market_end_at"], "prediction.market_end_at")
+        recorded_at = _stored_utc(prediction["recorded_at"], "prediction.recorded_at")
+        market_end_at = _stored_utc(prediction["market_end_at"], "prediction.market_end_at")
     except (KeyError, TypeError, ValueError):
         return False
     return (
@@ -465,7 +469,7 @@ def _account_snapshot(connection: Connection, *, observed_at: datetime) -> LiveA
     last_order_at = None
     exposure = Decimal("0")
     for intent in intents:
-        pre_submit_at = _utc(intent["pre_submit_at"], "intent.pre_submit_at")
+        pre_submit_at = _stored_utc(intent["pre_submit_at"], "intent.pre_submit_at")
         if last_order_at is None or pre_submit_at > last_order_at:
             last_order_at = pre_submit_at
         outcome = connection.execute(
@@ -556,7 +560,7 @@ def _selected_liquidity_usd(
     ).mappings().one_or_none()
     if state is None:
         return None
-    last_event_at = _utc(state["last_event_at"], "state.last_event_at")
+    last_event_at = _stored_utc(state["last_event_at"], "state.last_event_at")
     age_seconds = Decimal(str((observed_at - last_event_at).total_seconds()))
     if age_seconds < 0 or age_seconds > freshness_seconds:
         return None
@@ -592,6 +596,14 @@ def _safe_api_health(callback: Callable[[], bool]) -> bool:
         return callback() is True
     except Exception:
         return False
+
+
+def _stored_utc(value: Any, name: str) -> datetime:
+    if isinstance(value, datetime) and (
+        value.tzinfo is None or value.utcoffset() is None
+    ):
+        return value.replace(tzinfo=UTC)
+    return _utc(value, name)
 
 
 def _utc(value: Any, name: str) -> datetime:
