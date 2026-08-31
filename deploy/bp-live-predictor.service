@@ -10,6 +10,7 @@ User=bp
 Group=bp
 WorkingDirectory=/opt/bp
 EnvironmentFile=/etc/bp/bp.env
+EnvironmentFile=/etc/bp/bp-prospective-runtime-safety.env
 Environment=MODE=research
 Environment=LIVE_TRADING_ENABLED=false
 Environment=MAX_TRADE_SIZE_USD=0
