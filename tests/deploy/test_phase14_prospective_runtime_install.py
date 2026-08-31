@@ -174,6 +174,32 @@ def test_cloudshell_wrapper_verifies_remote_branch_sha_and_runs_candidate_instal
         assert forbidden not in lowered
 
 
+def test_runtime_install_allows_only_known_dashboard_build_residue() -> None:
+    installer = INSTALLER.read_text()
+    wrapper = CLOUDSHELL.read_text()
+
+    for content in (installer, wrapper):
+        assert "validate_deployed_checkout" in content
+        assert "unexpected_deployed_checkout_change" in content
+        for tracked in (
+            "apps/dashboard/next-env.d.ts",
+            "apps/dashboard/tsconfig.json",
+        ):
+            assert tracked in content
+        for runtime_path in (
+            ".node/",
+            "apps/dashboard/.next/",
+            "apps/dashboard/node_modules/",
+            "apps/dashboard/tsconfig.tsbuildinfo",
+        ):
+            assert runtime_path in content
+
+    assert "candidate_runtime_path_collision" in installer
+    assert "restore_dashboard_generated_state" in installer
+    assert "HAD_NEXT_ENV_GENERATED_CHANGE" in installer
+    assert "HAD_TSCONFIG_GENERATED_CHANGE" in installer
+
+
 def test_ci_syntax_checks_permanent_runtime_scripts() -> None:
     content = CI.read_text()
     assert "bash -n scripts/deploy/phase14_prospective_runtime_install.sh" in content
