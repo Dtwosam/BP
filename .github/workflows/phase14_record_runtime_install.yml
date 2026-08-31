@@ -21,11 +21,35 @@ jobs:
           fetch-depth: 0
       - name: Record sanitized host evidence and governance
         run: python scripts/dev/record_phase14_runtime_install.py
+      - name: Align pre-install Master wording with later accepted state
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/MASTER-SOURCE-OF-TRUTH.md')
+          text = path.read_text()
+          old = ('A passing non-deploying production-host acceptance of the outcome/evaluation sync is now established. '
+                 'The prospective-evidence reporter rerun and permanent installation of the long-running research-only '
+                 'live predictor and prospective outcome-sync daemons remain **not yet established**. The Master live-gate '
+                 'matrix remains unchanged: overall status is `fail`, Phase 15 remains blocked, and any future controlled '
+                 'live launch still requires every Section 4.3 gate to pass plus separate explicit real-money authorization.')
+          new = ('A passing non-deploying production-host acceptance of the outcome/evaluation sync was established at this '
+                 'checkpoint. At that time, the prospective-evidence reporter rerun and permanent installation of the '
+                 'long-running research-only live predictor and prospective outcome-sync daemons had **not yet been '
+                 'established**; Sections 33 and 34 record those later results. The Master live-gate matrix remained unchanged: '
+                 'overall status `fail`, Phase 15 blocked, and any future controlled live launch still requires every Section '
+                 '4.3 gate to pass plus separate explicit real-money authorization.')
+          if old in text:
+              path.write_text(text.replace(old, new, 1))
+          elif new not in text:
+              raise SystemExit('expected Section 32 state sentence not found')
+          PY
       - name: Validate state and evidence
         run: |
           python -m json.tool PROJECT_STATE.json >/dev/null
           python -m json.tool docs/evidence/phase-14-prospective-runtime-install-host-acceptance-20260831.json >/dev/null
           grep -q '^# 34. Phase 14 permanent prospective research runtime installation' docs/MASTER-SOURCE-OF-TRUTH.md
+          grep -q 'Sections 33 and 34 record those later results' docs/MASTER-SOURCE-OF-TRUTH.md
           grep -q '^## D-032 — Permanent prospective research daemons are operational continuity, not live-gate progress' docs/DECISION-LOG.md
           grep -q 'Permanent research-runtime installation subsequently passed on exact candidate' docs/CHANGELOG.md
       - name: Commit governance evidence
@@ -37,5 +61,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add PROJECT_STATE.json docs/MASTER-SOURCE-OF-TRUTH.md docs/DECISION-LOG.md docs/CHANGELOG.md docs/evidence/phase-14-prospective-runtime-install-host-acceptance-20260831.json
-          git commit -m 'docs: record prospective runtime host acceptance'
+          git commit -m 'docs: align runtime install governance state'
           git push origin HEAD:phase14-prospective-outcome-sync
