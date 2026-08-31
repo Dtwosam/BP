@@ -10,6 +10,10 @@ User=bp
 Group=bp
 WorkingDirectory=/opt/bp
 EnvironmentFile=/etc/bp/bp.env
+Environment=MODE=research
+Environment=LIVE_TRADING_ENABLED=false
+Environment=MAX_TRADE_SIZE_USD=0
+Environment=MAX_DAILY_LOSS_USD=0
 Environment=PYTHONDONTWRITEBYTECODE=1
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/opt/bp/.venv/bin/python -m bp_engine.live_prediction run --source-calibration-run-id phase9-300-c9f0e00eb7836af08008c66909f8f179 --source-calibration-run-id phase9-900-15c234f25588b23cce73a12f87a2e2ea
