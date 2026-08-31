@@ -56,6 +56,19 @@ def test_cloudshell_acceptance_is_exact_head_money_disabled_and_non_deploying() 
         assert forbidden not in text
 
 
+def test_cloudshell_acceptance_requires_real_outcome_path_evidence() -> None:
+    text = CLOUDSHELL.read_text()
+
+    for required in (
+        'report["candidates"] < 1',
+        'report["resolved_markets"] < 1',
+        'report["pending_markets"] + report["resolved_markets"] != report["candidates"]',
+        'report["created_snapshots"] + report["existing_snapshots"] != report["resolved_markets"]',
+        'report["created_evaluations"] < report["resolved_markets"]',
+    ):
+        assert required in text
+
+
 def test_ci_syntax_checks_prospective_outcome_sync_helper() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
     assert (
