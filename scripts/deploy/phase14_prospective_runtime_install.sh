@@ -7,6 +7,7 @@ CANDIDATE_ROOT="${BP_CANDIDATE_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 BP_USER="${BP_USER:-bp}"
 BP_GROUP="${BP_GROUP:-bp}"
 ENV_FILE="${BP_ENV_FILE:-/etc/bp/bp.env}"
+SAFETY_ENV_FILE="/etc/bp/bp-prospective-runtime-safety.env"
 
 PREDICTOR_UNIT_NAME=bp-live-predictor.service
 OUTCOME_UNIT_NAME=bp-prospective-outcomes.service
@@ -16,9 +17,12 @@ PREDICTOR_UNIT_DST="/etc/systemd/system/$PREDICTOR_UNIT_NAME"
 OUTCOME_UNIT_DST="/etc/systemd/system/$OUTCOME_UNIT_NAME"
 
 BACKUP_DIR=""
+SAFETY_ENV_STAGE=""
 ROLLBACK_ARMED=0
 HAD_PREDICTOR_UNIT=0
 HAD_OUTCOME_UNIT=0
+HAD_SAFETY_ENV_FILE=0
+SAFETY_ENV_FILE_WAS_MODE=""
 PREDICTOR_WAS_ACTIVE=0
 PREDICTOR_WAS_ENABLED=0
 OUTCOME_WAS_ACTIVE=0
@@ -98,6 +102,7 @@ validate_unit() {
     'Group=bp' \
     'WorkingDirectory=/opt/bp' \
     'EnvironmentFile=/etc/bp/bp.env' \
+    'EnvironmentFile=/etc/bp/bp-prospective-runtime-safety.env' \
     'Environment=MODE=research' \
     'Environment=LIVE_TRADING_ENABLED=false' \
     'Environment=MAX_TRADE_SIZE_USD=0' \
@@ -110,6 +115,10 @@ validate_unit() {
       fail "candidate_unit_contract_violation:$unit:$contract"
     fi
   done
+  if [[ $(grep -nFx 'EnvironmentFile=/etc/bp/bp.env' "$unit" | cut -d: -f1) -ge \
+        $(grep -nFx 'EnvironmentFile=/etc/bp/bp-prospective-runtime-safety.env' "$unit" | cut -d: -f1) ]]; then
+    fail "candidate_unit_safety_environment_order_invalid:$unit"
+  fi
   if ! grep -q -- "-m $module run" "$unit"; then
     fail "candidate_unit_entrypoint_violation:$unit"
   fi
@@ -123,17 +132,31 @@ OLD_REF=$(git -C "$BP_ROOT" symbolic-ref --quiet --short HEAD 2>/dev/null || tru
 BACKUP_DIR=$(mktemp -d /var/tmp/bp-phase14-prospective-runtime-backup.XXXXXX)
 
 if [[ -e "$PREDICTOR_UNIT_DST" ]]; then
-  cp "$PREDICTOR_UNIT_DST" "$BACKUP_DIR/$PREDICTOR_UNIT_NAME"
+  cp -a "$PREDICTOR_UNIT_DST" "$BACKUP_DIR/$PREDICTOR_UNIT_NAME"
   HAD_PREDICTOR_UNIT=1
 fi
 if [[ -e "$OUTCOME_UNIT_DST" ]]; then
-  cp "$OUTCOME_UNIT_DST" "$BACKUP_DIR/$OUTCOME_UNIT_NAME"
+  cp -a "$OUTCOME_UNIT_DST" "$BACKUP_DIR/$OUTCOME_UNIT_NAME"
   HAD_OUTCOME_UNIT=1
+fi
+if [[ -e "$SAFETY_ENV_FILE" ]]; then
+  cp -a "$SAFETY_ENV_FILE" "$BACKUP_DIR/bp-prospective-runtime-safety.env"
+  HAD_SAFETY_ENV_FILE=1
+  SAFETY_ENV_FILE_WAS_MODE=$(stat -c '%a' "$SAFETY_ENV_FILE")
 fi
 systemctl is-active --quiet "$PREDICTOR_UNIT_NAME" && PREDICTOR_WAS_ACTIVE=1 || true
 systemctl is-enabled --quiet "$PREDICTOR_UNIT_NAME" && PREDICTOR_WAS_ENABLED=1 || true
 systemctl is-active --quiet "$OUTCOME_UNIT_NAME" && OUTCOME_WAS_ACTIVE=1 || true
 systemctl is-enabled --quiet "$OUTCOME_UNIT_NAME" && OUTCOME_WAS_ENABLED=1 || true
+
+SAFETY_ENV_STAGE=$(mktemp /var/tmp/bp-phase14-prospective-runtime-safety.XXXXXX)
+printf '%s\n' \
+  'MODE=research' \
+  'LIVE_TRADING_ENABLED=false' \
+  'MAX_TRADE_SIZE_USD=0' \
+  'MAX_DAILY_LOSS_USD=0' \
+  > "$SAFETY_ENV_STAGE"
+chmod 0644 "$SAFETY_ENV_STAGE"
 
 restore_checkout() {
   if [[ -n "$OLD_REF" ]]; then
@@ -168,14 +191,19 @@ rollback_phase14_prospective_runtime() {
   systemctl stop "$OUTCOME_UNIT_NAME" >/dev/null 2>&1 || true
 
   if (( HAD_PREDICTOR_UNIT )); then
-    cp "$BACKUP_DIR/$PREDICTOR_UNIT_NAME" "$PREDICTOR_UNIT_DST"
+    cp -a "$BACKUP_DIR/$PREDICTOR_UNIT_NAME" "$PREDICTOR_UNIT_DST"
   else
     rm -f "$PREDICTOR_UNIT_DST"
   fi
   if (( HAD_OUTCOME_UNIT )); then
-    cp "$BACKUP_DIR/$OUTCOME_UNIT_NAME" "$OUTCOME_UNIT_DST"
+    cp -a "$BACKUP_DIR/$OUTCOME_UNIT_NAME" "$OUTCOME_UNIT_DST"
   else
     rm -f "$OUTCOME_UNIT_DST"
+  fi
+  if (( HAD_SAFETY_ENV_FILE )); then
+    cp -a "$BACKUP_DIR/bp-prospective-runtime-safety.env" "$SAFETY_ENV_FILE"
+  else
+    rm -f "$SAFETY_ENV_FILE"
   fi
 
   systemctl daemon-reload >/dev/null 2>&1 || true
@@ -192,6 +220,7 @@ cleanup() {
   if (( rc != 0 && ROLLBACK_ARMED )); then
     rollback_phase14_prospective_runtime
   fi
+  [[ -n "$SAFETY_ENV_STAGE" ]] && rm -f "$SAFETY_ENV_STAGE"
   [[ -n "$BACKUP_DIR" ]] && rm -rf "$BACKUP_DIR"
   set -e
   exit "$rc"
@@ -220,6 +249,13 @@ fi
 run_as_bp "$BP_ROOT/.venv/bin/python" -c \
   'import bp_engine.live_prediction; import bp_engine.prospective_outcomes; print("PROSPECTIVE_RUNTIME_IMPORTS=PASS")'
 
+install -m 0644 "$SAFETY_ENV_STAGE" "$SAFETY_ENV_FILE"
+if ! cmp -s "$SAFETY_ENV_STAGE" "$SAFETY_ENV_FILE"; then
+  fail "safety_environment_write_mismatch"
+fi
+if [[ "$(stat -c '%U:%G:%a' "$SAFETY_ENV_FILE")" != "root:root:644" ]]; then
+  fail "safety_environment_permissions_invalid"
+fi
 install -m 0644 "$PREDICTOR_UNIT_SRC" "$PREDICTOR_UNIT_DST"
 install -m 0644 "$OUTCOME_UNIT_SRC" "$OUTCOME_UNIT_DST"
 systemctl daemon-reload
@@ -243,6 +279,29 @@ wait_active() {
   fi
 }
 
+verify_process_safety_env() {
+  local service=$1
+  local pid
+  local proc_env
+  pid=$(systemctl show "$service" -p MainPID --value)
+  if [[ ! "$pid" =~ ^[1-9][0-9]*$ || ! -r "/proc/$pid/environ" ]]; then
+    fail "service_main_pid_unavailable:$service"
+  fi
+  proc_env=$(mktemp /var/tmp/bp-phase14-prospective-runtime-procenv.XXXXXX)
+  tr '\0' '\n' < "/proc/$pid/environ" > "$proc_env"
+  for expected in \
+    'MODE=research' \
+    'LIVE_TRADING_ENABLED=false' \
+    'MAX_TRADE_SIZE_USD=0' \
+    'MAX_DAILY_LOSS_USD=0'; do
+    if ! grep -qx "$expected" "$proc_env"; then
+      rm -f "$proc_env"
+      fail "service_effective_safety_environment_invalid:$service"
+    fi
+  done
+  rm -f "$proc_env"
+}
+
 wait_active "$PREDICTOR_UNIT_NAME"
 wait_active "$OUTCOME_UNIT_NAME"
 sleep 3
@@ -251,6 +310,7 @@ for service in "$PREDICTOR_UNIT_NAME" "$OUTCOME_UNIT_NAME"; do
     journalctl -u "$service" -n 80 --no-pager >&2 || true
     fail "prospective_service_not_stably_active:$service"
   fi
+  verify_process_safety_env "$service"
 done
 
 for service in "${CORE_SERVICES[@]}"; do
@@ -314,6 +374,8 @@ evidence_file="/var/lib/bp/evidence/phase14-prospective-runtime-install-$stamp.t
   for service in "${CORE_SERVICES[@]}"; do
     echo "CORE_SERVICE=${service}:$(systemctl is-active "$service")"
   done
+  echo "SAFETY_ENV_FILE=$SAFETY_ENV_FILE"
+  echo "SAFETY_ENV_FILE_PREVIOUS_MODE=${SAFETY_ENV_FILE_WAS_MODE:-absent}"
   echo "MODE=$MODE_AFTER"
   echo "LIVE_TRADING_ENABLED=$LIVE_TRADING_ENABLED_AFTER"
   echo "MAX_TRADE_SIZE_USD=$MAX_TRADE_SIZE_USD_AFTER"
