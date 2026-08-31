@@ -2,7 +2,7 @@
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
   "source_of_truth_version": "0.14.2",
-  "updated_at": "2026-08-31T11:39:00Z",
+  "updated_at": "2026-08-31T13:10:03Z",
   "current_phase": 14,
   "current_phase_name": "live readiness \u2014 engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -617,14 +617,15 @@
     "Phase 14 prospective outcome exact-head non-deploying host acceptance helper and hardened research-only service unit implemented",
     "Phase 14 outcome-sync first production acceptance failed closed on an invalid predictor-active precondition, then the non-deploying acceptance contract was corrected test-first to preserve rather than require predictor service state",
     "Phase 14 prospective outcome corrected exact-head production-host acceptance passed with 54/54 official Gamma resolutions, 54 snapshots, 54 canonical labels, 54 immutable evaluations, unchanged deployed checkout, unchanged inactive predictor state, active paper worker, and real-money interlocks still zero/disabled",
-    "Phase 14 post-outcome-sync prospective-evidence reporter rerun passed read-only host safety checks with 54 evaluations, two settled trades, negative after-cost P&L and entirely negative mean-P&L bootstrap interval, calibration/sample sufficiency still insufficient, reconciliation OK, and live gate unchanged"
+    "Phase 14 post-outcome-sync prospective-evidence reporter rerun passed read-only host safety checks with 54 evaluations, two settled trades, negative after-cost P&L and entirely negative mean-P&L bootstrap interval, calibration/sample sufficiency still insufficient, reconciliation OK, and live gate unchanged",
+    "Phase 14 permanent research runtime installation passed on exact candidate d2b2d515a4b982c691360fa1c6c46a461a665ff9 with both prospective daemons active+enabled, all five core services active, and RESEARCH/live-disabled/zero-money safety unchanged"
   ],
   "not_completed": [
     "Phase 15 controlled live launch",
     "Live trading"
   ],
   "next_actions": [
-    "Build and host-verify a separate fail-closed permanent install for both bp-live-predictor.service and bp-prospective-outcomes.service in RESEARCH with live trading false and both real-money limits zero; installation is evidence-continuity infrastructure, not live-gate progress",
+    "Keep the permanently installed research-only predictor and outcome-sync daemons under operational observation while continuing immutable prospective evidence collection; this runtime is evidence-continuity infrastructure, not live-gate progress",
     "Continue collecting immutable prospective predictions, official outcomes, evaluations, paper settlements, and uncertainty without retuning frozen policy thresholds to the same prospective evidence; current prospective after-cost profitability is fail",
     "Re-check Polymarket geographic/compliance eligibility only through official permitted mechanisms; do not bypass restrictions",
     "Keep LIVE_TRADING_ENABLED=false and real-money limits at zero until every Master live-gate item passes",
@@ -862,7 +863,7 @@
     "host_acceptance_requires_new_evaluation_per_resolved_candidate": true,
     "host_acceptance_requirement_is_live_gate_sample_threshold": false,
     "host_acceptance_status": "PASS",
-    "permanent_install_status": "NOT_RUN",
+    "permanent_install_status": "PASS",
     "automatic_promotion": false,
     "master_live_gate_mutated": false,
     "predictor_service_required_active": false,
@@ -878,7 +879,7 @@
     "first_host_acceptance_attempt_status": "FAIL",
     "first_host_acceptance_attempt_reason": "predictor_service_not_active_before",
     "first_host_acceptance_attempt_outcome_processing_started": false,
-    "phase10_permanent_predictor_install_established": false,
+    "phase10_permanent_predictor_install_established": true,
     "predictor_service_state_must_remain_unchanged": true,
     "predictor_service_mutation_allowed_in_acceptance": false,
     "acceptance_precondition_correction_red_commit": "040fc2b6a322abb58b1aa9e27025ad687b5502c5",
@@ -933,6 +934,37 @@
     "prospective_evidence_rerun_status": "PASS",
     "prospective_evidence_rerun_candidate_commit": "de907d324c7ee4ec46e2dfef1eb516dbb3fa8348",
     "prospective_evidence_rerun_sanitized_evidence": "docs/evidence/phase-14-prospective-evidence-host-report-post-outcome-sync-20260831.json",
-    "prospective_profitability_after_rerun": "fail"
+    "prospective_profitability_after_rerun": "fail",
+    "permanent_install_date": "2026-08-31",
+    "permanent_install_accepted_at": "2026-08-31T13:10:03Z",
+    "permanent_install_candidate_commit": "d2b2d515a4b982c691360fa1c6c46a461a665ff9",
+    "permanent_install_previous_deployed_head": "0189ff70fc628c71ab7c503bac369c34bf5ce8bc",
+    "permanent_install_deployed_head": "d2b2d515a4b982c691360fa1c6c46a461a665ff9",
+    "permanent_install_first_attempt_commit": "196519555bed8f68d37654bd171dac23f681fd52",
+    "permanent_install_first_attempt_status": "FAIL",
+    "permanent_install_first_attempt_reason": "deployed_checkout_not_clean",
+    "permanent_install_first_attempt_mutation_started": false,
+    "permanent_install_residue_allowlist_is_narrow": true,
+    "permanent_install_predictor_active": true,
+    "permanent_install_predictor_enabled": true,
+    "permanent_install_outcome_sync_active": true,
+    "permanent_install_outcome_sync_enabled": true,
+    "permanent_install_core_services_active": {
+      "bp-recorder.service": true,
+      "bp-postgres.service": true,
+      "bp-dashboard-api.service": true,
+      "bp-dashboard-web.service": true,
+      "bp-paper-execution.service": true
+    },
+    "permanent_install_safety_env_file": "/etc/bp/bp-prospective-runtime-safety.env",
+    "permanent_install_safety_env_file_previous_mode": "absent",
+    "permanent_install_mode": "research",
+    "permanent_install_live_trading_enabled": false,
+    "permanent_install_max_trade_size_usd": 0,
+    "permanent_install_max_daily_loss_usd": 0,
+    "permanent_install_host_evidence_file": "/var/lib/bp/evidence/phase14-prospective-runtime-install-20260831T131003Z.txt",
+    "permanent_install_sanitized_evidence": "docs/evidence/phase-14-prospective-runtime-install-host-acceptance-20260831.json",
+    "permanent_install_master_live_gate_mutated": false,
+    "permanent_install_phase15_permitted": false
   }
 }

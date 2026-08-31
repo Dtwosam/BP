@@ -243,3 +243,16 @@ After the canonical outcome sync populated 54 immutable live-prediction evaluati
 Calibration over 54 evaluations improved numerically after the frozen calibrator (Brier `0.11328198148148148` to `0.10868378084722523`; log loss `0.3669084283864382` to `0.35286272448721295`), but no approved prospective calibration threshold exists, so `calibration_acceptable` remains `insufficient_evidence`. No fixed prospective sample-size threshold exists either, so sample sufficiency remains `insufficient_evidence`. Reconciliation is `OK` with zero violations and remains `pass`.
 
 This evidence does not authorize promotion or Phase 15. The Master live gate remains `fail`, `automatic_promotion=false`, and all real-money controls remain disabled/zero. A separate permanent installation of the already-approved research-only predictor and prospective-outcome daemons may proceed solely to preserve prospective evidence continuity; successful installation must not be treated as economic validation or live-gate progress.
+
+
+## D-032 — Permanent prospective research daemons are operational continuity, not live-gate progress
+**Date:** 31 Aug 2026  
+**Status:** Active
+
+The separately authorized permanent research runtime for `bp-live-predictor.service` and `bp-prospective-outcomes.service` is now established on production. Its sole purpose is to continue collecting immutable prospective predictions, official Gamma outcomes, canonical labels/evaluations, and money-disabled paper evidence. Installing or running these daemons cannot count as economic validation, model promotion, live-gate progress, or real-money authorization.
+
+The first install attempt on candidate `196519555bed8f68d37654bd171dac23f681fd52` failed closed before mutation because the deployed checkout contained established dashboard-generated build/runtime residue. The approved correction does not clean or reset that production state. It allows only the explicitly identified dashboard runtime paths, fails closed on every other checkout change, rejects candidate/runtime path collisions, and preserves the tolerated tracked generated dashboard files for rollback.
+
+Corrected exact-head install candidate `d2b2d515a4b982c691360fa1c6c46a461a665ff9` passed CI #1661 plus Historical Backfill Smoke #528, Live Recorder Smoke #635, and Recorder Short Soak #600, then passed production installation. The deployed head became `d2b2d515a4b982c691360fa1c6c46a461a665ff9`; both prospective daemons are active and enabled; recorder, PostgreSQL, dashboard API/web, and paper execution remained active; and the root-controlled runtime boundary is still `RESEARCH`, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0`.
+
+D-031's negative prospective profitability result is unchanged and remains canonical. No prospective threshold was retuned, no evidence gate was upgraded by the installation, `automatic_promotion=false`, the Master live gate remains `fail`, and Phase 15 remains blocked. Sanitized evidence: `docs/evidence/phase-14-prospective-runtime-install-host-acceptance-20260831.json`.
