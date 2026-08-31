@@ -124,6 +124,18 @@ for name in required:
     value = report.get(name)
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise SystemExit(f"invalid outcome sync count: {name}")
+if report["candidates"] < 1:
+    raise SystemExit("outcome sync acceptance requires at least one candidate")
+if report["pending_markets"] + report["resolved_markets"] != report["candidates"]:
+    raise SystemExit("outcome sync candidate accounting mismatch")
+if report["resolved_markets"] < 1:
+    raise SystemExit("outcome sync acceptance requires at least one resolved market")
+if report["created_snapshots"] + report["existing_snapshots"] != report["resolved_markets"]:
+    raise SystemExit("outcome sync snapshot accounting mismatch")
+if report["created_labels"] + report["existing_labels"] < report["resolved_markets"]:
+    raise SystemExit("outcome sync label evidence does not cover resolved markets")
+if report["created_evaluations"] < report["resolved_markets"]:
+    raise SystemExit("outcome sync did not create an evaluation for every resolved candidate")
 '
 
 PAPER_REPORT=$(sudo -u bp env \
