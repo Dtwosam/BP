@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "phase_14_reconnect_repair_and_freshness_policy_snapshot",
+  "recorded_date": "2026-08-31",
+  "sanitized": true,
+  "scope": "Operational reliability and read-only freshness-policy evidence only; no model, threshold, execution, live-gate, wallet, signing, funding, or real-money change.",
+  "phase": 14,
+  "phase_status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
+  "phase15_permitted": false,
+  "pull_request": {
+    "number": 15,
+    "title": "Fix Polymarket rotating subscriptions after reconnect",
+    "head_commit": "f1d7b72022b7dc484d8ecad3e8fc80e4f1639815",
+    "merge_commit": "be4d866b46cbe13a4f12f43e580486ab46c0ad28",
+    "merged": true,
+    "changed_files": [
+      "src/bp_engine/collectors/websocket_runner.py",
+      "tests/collectors/test_polymarket_reconnect_resubscribe.py"
+    ],
+    "scope_note": "The repair persists the net current Polymarket market asset subscription set after dynamic subscribe/unsubscribe messages so reconnects reuse the rotated set. The frozen 10-second selected-book freshness rule was not changed."
+  },
+  "reconnect_repair_acceptance": {
+    "isolated_real_websocket_acceptance": "PASS",
+    "isolated_dynamic_rotation_sent": true,
+    "isolated_reconnect_asset_set_restored": true,
+    "isolated_post_reconnect_selected_token_event": true,
+    "isolated_real_order_side_effects": 0,
+    "controlled_recorder_only_rollout": "PASS",
+    "natural_post_rollout_reconnect_cycles_observed": 2,
+    "fresh_two_sided_active_books_observed_after_natural_reconnects": true,
+    "interpretation": "The reconnect-resubscription defect is operationally confirmed repaired. Later selected_book_missing observations described below are attributable to the frozen event-age freshness contract, not silent loss of rotated websocket subscriptions."
+  },
+  "post_merge_production_deployment": {
+    "previous_head": "d2b2d515a4b982c691360fa1c6c46a461a665ff9",
+    "deployed_head": "be4d866b46cbe13a4f12f43e580486ab46c0ad28",
+    "deployed_head_matches_merged_pr": true,
+    "services_active": {
+      "bp-recorder.service": true,
+      "bp-postgres.service": true,
+      "bp-dashboard-api.service": true,
+      "bp-dashboard-web.service": true,
+      "bp-paper-execution.service": true,
+      "bp-live-predictor.service": true,
+      "bp-prospective-outcomes.service": true
+    },
+    "safety": {
+      "MODE": "research",
+      "LIVE_TRADING_ENABLED": false,
+      "MAX_TRADE_SIZE_USD": 0,
+      "MAX_DAILY_LOSS_USD": 0
+    },
+    "deployment_verdict": "MERGED_RECORDER_DEPLOYMENT=PASS",
+    "note": "A prior failed gh invocation occurred inside an old shell with an ERR rollback trap and safely restored the host to the previous deployment before this final merged deployment. No real-money configuration changed."
+  },
+  "freshness_policy_evidence": {
+    "evidence_start_utc": "2026-08-31T16:29:33Z",
+    "evidence_start_basis": "bp-recorder.service ActiveEnterTimestamp after final merged deployment",
+    "read_only": true,
+    "selected_book_freshness_contract_seconds": 10,
+    "prediction_count_total": 18,
+    "decision_distribution": {
+      "5m": {
+        "total": 14,
+        "edge_below_minimum": {
+          "count": 7,
+          "pct": 50.0
+        },
+        "trade": {
+          "count": 5,
+          "pct": 35.7
+        },
+        "selected_book_missing": {
+          "count": 2,
+          "pct": 14.3
+        }
+      },
+      "15m": {
+        "total": 4,
+        "policy_no_trade": {
+          "count": 4,
+          "pct": 100.0
+        }
+      },
+      "all": {
+        "total": 18,
+        "edge_below_minimum": {
+          "count": 7,
+          "pct": 38.9
+        },
+        "trade": {
+          "count": 5,
+          "pct": 27.8
+        },
+        "policy_no_trade": {
+          "count": 4,
+          "pct": 22.2
+        },
+        "selected_book_missing": {
+          "count": 2,
+          "pct": 11.1
+        }
+      }
+    },
+    "selected_book_missing_classification": [
+      {
+        "class": "STALE_10_15S_TWO_SIDED",
+        "count": 1,
+        "median_event_age_seconds": 12.57,
+        "min_event_age_seconds": 12.57,
+        "max_event_age_seconds": 12.57
+      },
+      {
+        "class": "STALE_15_30S_TWO_SIDED",
+        "count": 1,
+        "median_event_age_seconds": 16.05,
+        "min_event_age_seconds": 16.05,
+        "max_event_age_seconds": 16.05
+      }
+    ],
+    "selected_book_missing_summary": {
+      "count": 2,
+      "no_state_count": 0,
+      "stale_no_two_sided_book_count": 0,
+      "fresh_le_10s_but_missing_count": 0,
+      "stale_gt_30s_two_sided_count": 0,
+      "all_observed_cases_had_reconstructed_two_sided_selected_books": true,
+      "all_observed_cases_failed_only_the_frozen_event_age_threshold": true
+    },
+    "descriptive_freshness_only_sensitivity": {
+      "note": "Descriptive only. These counts do not establish that a row would trade because downstream edge/policy checks still apply, and they do not authorize a threshold change.",
+      "selected_book_missing_rows_with_two_sided_book_at_or_below_threshold": {
+        "10s": 0,
+        "12s": 0,
+        "15s": 1,
+        "20s": 2,
+        "30s": 2,
+        "60s": 2
+      }
+    },
+    "reporting_correction": {
+      "initial_decision_reason_percentage_output_valid": false,
+      "reason": "The first grouped SQL used a window denominator over grouped reason rows and produced impossible percentages above 100%. Counts were valid; those percentages were discarded.",
+      "corrected_decision_reason_percentages_recorded_above": true
+    },
+    "interpretation": "The frozen 10-second selected-token event-age rule appears potentially restrictive for 5m execution coverage in this post-merge snapshot, but the relevant stale-book sample is only n=2. That is insufficient evidence for a policy revision.",
+    "policy_change_authorized": false,
+    "threshold_retuned": false,
+    "same_sample_retuning_permitted": false,
+    "next_evidence_action": "Keep the 10-second rule frozen and continue money-disabled prospective collection. Re-run the same classification against a materially larger post-merge sample, keeping the evidence start fixed at 2026-08-31T16:29:33Z."
+  },
+  "live_gate_effect": {
+    "master_live_gate_changed": false,
+    "positive_after_cost_profitability": "fail",
+    "prospective_sample_sufficiency": "insufficient_evidence",
+    "prospective_calibration": "insufficient_evidence",
+    "phase15_permitted": false,
+    "real_money_authorized": false
+  }
+}
