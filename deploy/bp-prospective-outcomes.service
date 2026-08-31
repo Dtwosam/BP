@@ -1,0 +1,42 @@
+[Unit]
+Description=BP prospective outcome sync (research only)
+Requires=bp-postgres.service
+After=bp-postgres.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bp
+Group=bp
+WorkingDirectory=/opt/bp
+EnvironmentFile=/etc/bp/bp.env
+Environment=MODE=research
+Environment=LIVE_TRADING_ENABLED=false
+Environment=MAX_TRADE_SIZE_USD=0
+Environment=MAX_DAILY_LOSS_USD=0
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/bp/.venv/bin/python -m bp_engine.prospective_outcomes run
+Restart=always
+RestartSec=5
+TimeoutStartSec=30
+TimeoutStopSec=30
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=full
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-prospective-outcomes
+
+[Install]
+WantedBy=multi-user.target
