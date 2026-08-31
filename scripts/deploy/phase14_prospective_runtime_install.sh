@@ -39,36 +39,32 @@ fail() {
 }
 
 validate_deployed_checkout() {
-  local tracked_path
-  local untracked_path
-  local status
+  local entry
+  local code
+  local path
 
-  status=$(git -C "$BP_ROOT" status --porcelain --untracked-files=all)
-  if [[ -z "$status" ]]; then
-    return 0
-  fi
-
-  while IFS= read -r tracked_path; do
-    [[ -n "$tracked_path" ]] || continue
-    case "$tracked_path" in
-      apps/dashboard/next-env.d.ts|apps/dashboard/tsconfig.json)
-        ;;
-      *)
-        fail "unexpected_deployed_checkout_change:$tracked_path"
-        ;;
-    esac
-  done < <(git -C "$BP_ROOT" diff HEAD --name-only --)
-
-  while IFS= read -r untracked_path; do
-    [[ -n "$untracked_path" ]] || continue
-    case "$untracked_path" in
-      .node/*|apps/dashboard/.next/*|apps/dashboard/node_modules/*|apps/dashboard/tsconfig.tsbuildinfo)
-        ;;
-      *)
-        fail "unexpected_deployed_checkout_change:$untracked_path"
-        ;;
-    esac
-  done < <(git -C "$BP_ROOT" ls-files --others --exclude-standard)
+  while IFS= read -r entry; do
+    [[ -n "$entry" ]] || continue
+    code=${entry:0:2}
+    path=${entry:3}
+    if [[ "$code" == "??" ]]; then
+      case "$path" in
+        .node/*|apps/dashboard/.next/*|apps/dashboard/node_modules/*|apps/dashboard/tsconfig.tsbuildinfo)
+          ;;
+        *)
+          fail "unexpected_deployed_checkout_change:$path"
+          ;;
+      esac
+    else
+      case "$path" in
+        apps/dashboard/next-env.d.ts|apps/dashboard/tsconfig.json)
+          ;;
+        *)
+          fail "unexpected_deployed_checkout_change:$path"
+          ;;
+      esac
+    fi
+  done < <(git -C "$BP_ROOT" status --porcelain --untracked-files=all)
 }
 
 validate_candidate_runtime_collisions() {
@@ -412,6 +408,7 @@ rm -f "$SNAPSHOT_FILE"
 if [[ "$(git -C "$BP_ROOT" rev-parse HEAD)" != "$EXPECTED_HEAD" ]]; then
   fail "deployed_head_changed_after_install"
 fi
+validate_deployed_checkout
 
 MODE_AFTER=$(read_env MODE)
 LIVE_TRADING_ENABLED_AFTER=$(read_env LIVE_TRADING_ENABLED)
