@@ -1299,3 +1299,16 @@ On 31 August 2026, corrected exact-head production-host acceptance on candidate 
 
 A passing non-deploying production-host acceptance of the outcome/evaluation sync is now established. The prospective-evidence reporter rerun and permanent installation of the long-running research-only live predictor and prospective outcome-sync daemons remain **not yet established**. The Master live-gate matrix remains unchanged: overall status is `fail`, Phase 15 remains blocked, and any future controlled live launch still requires every Section 4.3 gate to pass plus separate explicit real-money authorization.
 
+---
+
+# 33. Phase 14 post-outcome-sync prospective evidence result
+
+On 31 August 2026, the read-only prospective-evidence reporter was rerun on exact candidate `de907d324c7ee4ec46e2dfef1eb516dbb3fa8348` after the accepted outcome sync had populated the immutable evaluation ledger. The report returned `PROSPECTIVE_EVIDENCE_HOST_REPORT=PASS`; the deployed `/opt/bp` checkout remained unchanged at `0189ff70fc628c71ab7c503bac369c34bf5ce8bc`, the paper service remained active, `LIVE_TRADING_ENABLED=false`, and both real-money limits remained zero.
+
+The rerun observed 54 immutable prediction evaluations and two settled prospective paper trades. Realized after-cost P&L was `-7.792422663291` USD total and `-3.8962113316455` USD mean per settled trade. The deterministic 10,000-resample bootstrap 95% interval for mean realized P&L was `[-4.285508316075, -3.506914347216]`, entirely below zero. The reporter therefore classifies `positive_after_cost_profitability=fail`. This is direct prospective negative economic evidence; it must not be hidden by the larger evaluation count or by post-hoc threshold retuning.
+
+Across all 54 evaluated predictions, raw Brier/log-loss means were `0.11328198148148148` / `0.3669084283864382` and calibrated Brier/log-loss means were `0.10868378084722523` / `0.35286272448721295`. Because no approved prospective numerical calibration acceptance threshold exists, `calibration_acceptable` remains `insufficient_evidence`. Because Section 4.3 deliberately defines no fixed prospective sample count, `sufficiently_large_live_paper_sample_with_uncertainty` also remains `insufficient_evidence`; the observed size and uncertainty must be reported rather than converted into an invented pass/fail sample threshold.
+
+Paper reconciliation remained `OK` with zero violations across three paper orders, three trade signals, and 51 no-trade signals, so `order_execution_and_reconciliation_tested=pass`. `automatic_promotion=false`. The Master live gate remains `fail`: prospective profitability fails, sample/calibration and walk-forward stability remain insufficient, geographic eligibility fails, and explicit real-money authorization is absent. Phase 15 remains blocked. Sanitized evidence is stored at `docs/evidence/phase-14-prospective-evidence-host-report-post-outcome-sync-20260831.json`.
+
+This negative prospective result does not prevent the separate research-only permanent installation of `bp-live-predictor.service` and `bp-prospective-outcomes.service` for continued immutable evidence collection. Such installation is an operational continuity step only; it cannot promote a model, change an evidence gate, or authorize live trading.

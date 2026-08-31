@@ -209,7 +209,7 @@ The report exposes settled-trade and evaluation sample sizes, realized after-cos
 The reporter must never promote a model or enable live trading automatically. `automatic_promotion` remains false, the existing Master live gate remains authoritative, and the reporting CLI is permitted to run only while `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0`. Phase 15 remains blocked until every Master live-gate item independently passes and explicit real-money authorization is separately recorded.
 
 ## D-029 — Prospective official outcomes reuse the canonical Gamma snapshot-to-label-to-evaluation chain
-**Date:** 31 Aug 2026  
+**Date:** 31 Aug 2026
 **Status:** Active
 
 The 31 August prospective-evidence host report observed zero prediction evaluations and zero settled paper trades. Root-cause tracing established that paper settlement depends on an immutable `live_prediction_evaluations` row, evaluation depends on an existing canonical `official-outcome-v1` label, and the canonical label depends on a preserved resolved Gamma market snapshot. Production had no always-on post-resolution path that acquired those snapshots for new prospective predictions, so otherwise valid predictions could remain unevaluated and their paper fills unsettled indefinitely.
@@ -223,7 +223,7 @@ The outcome-sync CLI exposes only bounded one-cycle or repeated research executi
 A host-acceptance PASS is invalid if the outcome-sync cycle is a no-op. Acceptance must observe at least one ended unevaluated candidate and at least one resolved candidate, reconcile every candidate as pending or resolved, reconcile every resolved candidate to a snapshot-store result, confirm canonical label evidence for the resolved set, and append a new immutable evaluation for every resolved candidate. This deliberately proves the new production evidence path executes; it does not define a sufficiently large prospective sample and must never be reused as a profitability, calibration, or live-readiness threshold.
 
 ## D-030 — Outcome-sync acceptance is predictor-neutral; permanent prospective daemons require a separate install gate
-**Date:** 31 Aug 2026  
+**Date:** 31 Aug 2026
 **Status:** Active
 
 The first production-host outcome-sync acceptance attempt on candidate `c11000bf97bcfe93b91d17134c43bbd10a5791ef` failed closed before outcome processing with `REASON=predictor_service_not_active_before`. Investigation established that this was an invalid acceptance precondition, not evidence that the outcome chain itself had failed: Phase 10 acceptance used a temporary `/run/systemd/system/bp-live-predictor.service` runtime unit and cleaned it up, and the canonical state never recorded a permanent predictor installation.
@@ -233,3 +233,13 @@ Outcome-sync host acceptance is therefore predictor-neutral. It may inspect and 
 A permanent prospective runtime is a separate deployment decision after non-deploying host acceptance. That rollout must fail closed, preserve `RESEARCH`, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0`, and explicitly establish both `bp-live-predictor.service` and `bp-prospective-outcomes.service` as the intended long-running research-only daemons. This correction changes no evidence threshold, promotion rule, Master live gate, or Phase 15 status.
 
 The corrected predictor-neutral host acceptance subsequently passed on exact candidate `94afff004fcbc2ed37af0297d37c51ab50ba7098`. It exercised 54 ended candidates, resolved all 54 through official Gamma, appended 54 snapshots, 54 canonical labels, and 54 immutable evaluations, preserved the inactive predictor state and deployed checkout, and kept all real-money controls disabled. This validates the acceptance boundary and the canonical outcome/evaluation ingestion path; it does not itself establish profitability, calibration quality, prospective sample sufficiency, or live eligibility.
+
+## D-031 — Negative prospective profitability remains a fail; research daemons may continue collecting evidence without promotion
+**Date:** 31 Aug 2026
+**Status:** Active
+
+After the canonical outcome sync populated 54 immutable live-prediction evaluations, the read-only prospective-evidence reporter was rerun on exact candidate `de907d324c7ee4ec46e2dfef1eb516dbb3fa8348`. It observed two settled prospective paper trades with realized after-cost total P&L `-7.792422663291` USD and mean `-3.8962113316455` USD. The deterministic 10,000-resample bootstrap 95% interval for mean realized P&L was `[-4.285508316075, -3.506914347216]`, entirely below zero. Therefore prospective `positive_after_cost_profitability` is `fail`; this result must not be reframed as positive because the evaluation count is larger, nor retuned away post hoc using the same prospective evidence.
+
+Calibration over 54 evaluations improved numerically after the frozen calibrator (Brier `0.11328198148148148` to `0.10868378084722523`; log loss `0.3669084283864382` to `0.35286272448721295`), but no approved prospective calibration threshold exists, so `calibration_acceptable` remains `insufficient_evidence`. No fixed prospective sample-size threshold exists either, so sample sufficiency remains `insufficient_evidence`. Reconciliation is `OK` with zero violations and remains `pass`.
+
+This evidence does not authorize promotion or Phase 15. The Master live gate remains `fail`, `automatic_promotion=false`, and all real-money controls remain disabled/zero. A separate permanent installation of the already-approved research-only predictor and prospective-outcome daemons may proceed solely to preserve prospective evidence continuity; successful installation must not be treated as economic validation or live-gate progress.
