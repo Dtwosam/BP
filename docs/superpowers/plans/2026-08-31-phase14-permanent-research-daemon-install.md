@@ -22,6 +22,12 @@
 - installation success is operational continuity only and cannot alter any Master live-gate result
 - Phase 15 remains blocked
 
+## Production correction note
+
+The first production install attempt on candidate `196519555bed8f68d37654bd171dac23f681fd52` failed before mutation with `deployed_checkout_not_clean`. Read-only host inspection showed the established Phase 11/12 dashboard build residue rather than arbitrary application-source edits: modified `apps/dashboard/next-env.d.ts` and `apps/dashboard/tsconfig.json`, plus untracked `.node/`, `apps/dashboard/.next/`, `apps/dashboard/node_modules/`, and `apps/dashboard/tsconfig.tsbuildinfo`.
+
+The approved spec supersedes the original generic clean-check language below for production execution. The corrected implementation must allow only those known dashboard-generated paths, fail closed on every other status entry, reject any candidate that tracks/collides with the untracked runtime paths, preserve the untracked runtime roots, and restore the pre-install bytes of the two tolerated tracked generated files on rollback. This correction does not relax source-integrity checking beyond that explicit allowlist.
+
 ---
 
 ### Task 1: Lock the permanent-install deployment contract with RED tests
@@ -60,7 +66,7 @@ def test_predictor_unit_pins_research_zero_money_boundary() -> None:
 
 def test_permanent_installer_is_exact_head_rollback_capable_and_two_daemon_only() -> None:
     content = (ROOT / "scripts/deploy/phase14_prospective_runtime_install.sh").read_text()
-    # Assert root/exact SHA/clean checkout, safety settings, five core services,
+    # Assert root/exact SHA/deployed-checkout integrity, safety settings, five core services,
     # candidate checkout, rollback trap, both unit backups and state restoration,
     # both daemon enable/start, dashboard safety probe, evidence, and PASS marker.
 
@@ -119,26 +125,29 @@ The installer must:
 
 ```text
 require root + 40-hex expected SHA
-require /opt/bp clean and /etc/bp/bp.env present
+require /opt/bp deployed-checkout integrity and /etc/bp/bp.env present
+allow only the approved dashboard-generated tracked/untracked residue; reject everything else
+reject candidate collisions with preserved untracked dashboard runtime paths
 read and require research/live=false/zero/zero
 require recorder/postgres/dashboard-api/dashboard-web/paper active
 require candidate installer checkout HEAD == expected SHA
 capture old /opt/bp HEAD and symbolic ref
 capture existing predictor/outcome unit files plus active/enabled state
+backup tolerated modified Next-generated tracked files for rollback
 validate both candidate units and forbidden money/live strings
 arm EXIT rollback before checkout/unit mutation
-checkout /opt/bp detached at expected SHA
+checkout /opt/bp detached at expected SHA while preserving untracked dashboard runtime roots
 verify live_prediction and prospective_outcomes imports from /opt/bp/.venv
 copy both units, daemon-reload, enable --now both
-wait until both stay active
+wait until both stay active and verify effective process safety environment
 require all five existing services still active
 probe dashboard snapshot for RESEARCH, live=false, execution_available=false, paper_execution_available=true
-require /opt/bp HEAD == expected SHA
+require /opt/bp HEAD == expected SHA and revalidate deployed-checkout integrity
 write sanitized /var/lib/bp/evidence/phase14-prospective-runtime-install-<UTC>.txt
 print PHASE14_PROSPECTIVE_RUNTIME_INSTALL=PASS
 ```
 
-Rollback must stop the two prospective daemons, restore/remove their previous unit files, restore enabled/active states, restore the previous `/opt/bp` ref/HEAD, and reload systemd.
+Rollback must stop the two prospective daemons, restore/remove their previous unit files and root-controlled safety file, restore enabled/active states, restore the previous `/opt/bp` ref/HEAD, restore the pre-install bytes of tolerated modified Next-generated tracked files, preserve untracked dashboard runtime roots, and reload systemd.
 
 - [ ] **Step 3: Implement the Cloud Shell wrapper**
 
@@ -148,9 +157,9 @@ The wrapper must:
 require PHASE14_PROSPECTIVE_RUNTIME_HEAD as 40 lowercase hex
 set project/zone/VM defaults used by prior Phase 14 helpers
 verify gcloud auth
+validate deployed-checkout integrity using the same narrow dashboard-generated allowlist
 remote fetch exact feature branch into origin/<branch>
 require fetched SHA == expected SHA
-require /opt/bp clean before worktree creation
 create detached candidate worktree
 run candidate installer as root
 remove worktree on exit
