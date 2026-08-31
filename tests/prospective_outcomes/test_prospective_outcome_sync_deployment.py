@@ -40,6 +40,9 @@ def test_cloudshell_acceptance_is_exact_head_money_disabled_and_non_deploying() 
         "MAX_DAILY_LOSS_USD",
         "bp-paper-execution.service",
         "bp-live-predictor.service",
+        "PREDICTOR_SERVICE_BEFORE",
+        "PREDICTOR_SERVICE_AFTER",
+        "PREDICTOR_SERVICE_UNCHANGED",
         "git -C /opt/bp worktree add --detach",
         "-m bp_engine.prospective_outcomes once",
         "-m bp_engine.execution --once",
@@ -47,9 +50,12 @@ def test_cloudshell_acceptance_is_exact_head_money_disabled_and_non_deploying() 
     ):
         assert required in text
     for forbidden in (
+        "predictor_service_not_active_before",
+        "predictor_service_not_active_after",
         "pip install",
         "systemctl restart",
         "systemctl stop",
+        "systemctl start",
         "git -C /opt/bp checkout",
         "git -C /opt/bp reset",
     ):
