@@ -54,3 +54,11 @@ def test_cloudshell_acceptance_is_exact_head_money_disabled_and_non_deploying() 
         "git -C /opt/bp reset",
     ):
         assert forbidden not in text
+
+
+def test_ci_syntax_checks_prospective_outcome_sync_helper() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    assert (
+        "bash -n scripts/deploy/phase14_prospective_outcome_sync_cloudshell.sh"
+        in workflow
+    )
