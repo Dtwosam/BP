@@ -23,6 +23,7 @@ EventSink = Callable[[RawEvent], Awaitable[None] | None]
 IncidentSink = Callable[[FeedIncident], Awaitable[None] | None]
 NowFactory = Callable[[], datetime]
 MonotonicFactory = Callable[[], float]
+Subscription = Mapping[str, object] | str | Sequence[Mapping[str, object] | str]
 
 
 def _wire_message(payload: object) -> str:
@@ -42,6 +43,36 @@ def _decode_message(message: object) -> object:
         return message
 
 
+def _apply_market_subscription_update(
+    subscription: Subscription,
+    message: object,
+) -> Subscription:
+    if not isinstance(subscription, Mapping) or subscription.get("type") != "market":
+        return subscription
+    current_assets = subscription.get("assets_ids")
+    if not isinstance(current_assets, Sequence) or isinstance(current_assets, (str, bytes)):
+        return subscription
+    if not isinstance(message, Mapping):
+        return subscription
+    operation = message.get("operation")
+    updated_assets = message.get("assets_ids")
+    if operation not in {"subscribe", "unsubscribe"}:
+        return subscription
+    if not isinstance(updated_assets, Sequence) or isinstance(updated_assets, (str, bytes)):
+        return subscription
+
+    assets = {str(asset_id) for asset_id in current_assets if asset_id}
+    changes = {str(asset_id) for asset_id in updated_assets if asset_id}
+    if operation == "subscribe":
+        assets.update(changes)
+    else:
+        assets.difference_update(changes)
+
+    updated = dict(subscription)
+    updated["assets_ids"] = sorted(assets)
+    return updated
+
+
 async def _call_sink(sink: Callable[[Any], Awaitable[None] | None], value: Any) -> None:
     result = sink(value)
     if inspect.isawaitable(result):
@@ -58,7 +89,7 @@ class WebSocketCollectorRunner:
         stream: str,
         url: str,
         connector: Callable[[str], Any],
-        subscription: Mapping[str, object] | str | Sequence[Mapping[str, object] | str],
+        subscription: Subscription,
         parser: Parser,
         event_sink: EventSink,
         incident_sink: IncidentSink,
@@ -163,7 +194,12 @@ class WebSocketCollectorRunner:
                     )
 
                 if outbound_task is not None and outbound_task in done:
-                    await websocket.send(_wire_message(outbound_task.result()))
+                    outbound_message = outbound_task.result()
+                    self.subscription = _apply_market_subscription_update(
+                        self.subscription,
+                        outbound_message,
+                    )
+                    await websocket.send(_wire_message(outbound_message))
                     outbound_task = asyncio.create_task(self.outbound_messages.get())
 
                 if watchdog_task is not None and watchdog_task in done:
