@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase14_prospective_outcome_sync_host_acceptance",
+  "acceptance_date": "2026-08-31",
+  "candidate_head": "94afff004fcbc2ed37af0297d37c51ab50ba7098",
+  "deployed_head_unchanged": "0189ff70fc628c71ab7c503bac369c34bf5ce8bc",
+  "host_acceptance_verdict": "PASS",
+  "outcome_sync": {
+    "candidates": 54,
+    "pending_markets": 0,
+    "resolved_markets": 54,
+    "created_snapshots": 54,
+    "existing_snapshots": 0,
+    "created_labels": 54,
+    "existing_labels": 10,
+    "created_evaluations": 54,
+    "existing_evaluations": 0
+  },
+  "bounded_paper_cycle": {
+    "examined_predictions": 54,
+    "created_orders": 0,
+    "existing_orders": 3,
+    "created_fills": 0,
+    "existing_fills": 0,
+    "created_terminal_events": 0,
+    "existing_terminal_events": 3,
+    "created_settlements": 0,
+    "existing_settlements": 4,
+    "skipped_predictions": 51,
+    "current_cash_usd": "92.207577336709000000"
+  },
+  "runtime_safety": {
+    "paper_service": "active",
+    "predictor_service_before": "inactive",
+    "predictor_service_after": "inactive",
+    "predictor_service_unchanged": true,
+    "mode": "research",
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "production_checkout_unchanged": true
+  },
+  "interpretation": "The exact-head non-deploying production acceptance exercised the canonical Gamma snapshot to official-outcome-v1 label to immutable live-prediction evaluation chain for all 54 ended unevaluated candidates and passed while preserving the deployed checkout, inactive predictor state, research mode, disabled live trading, and zero real-money limits. The bounded paper cycle observed four existing settlements but created none during that explicit pass. This acceptance proves the outcome/evaluation ingestion path executes; it is not a prospective sample-size, profitability, calibration, or live-readiness threshold. The read-only prospective-evidence reporter must be rerun before interpreting economic or calibration evidence."
+}

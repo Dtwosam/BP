@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase14_prospective_runtime_install_host_acceptance",
+  "acceptance_date": "2026-08-31",
+  "accepted_at": "2026-08-31T13:10:03Z",
+  "candidate_head": "d2b2d515a4b982c691360fa1c6c46a461a665ff9",
+  "previous_deployed_head": "0189ff70fc628c71ab7c503bac369c34bf5ce8bc",
+  "deployed_head": "d2b2d515a4b982c691360fa1c6c46a461a665ff9",
+  "host_acceptance_verdict": "PASS",
+  "first_install_attempt": {
+    "candidate_head": "196519555bed8f68d37654bd171dac23f681fd52",
+    "verdict": "FAIL",
+    "reason": "deployed_checkout_not_clean",
+    "mutation_started": false,
+    "interpretation": "The first permanent-install attempt failed closed before checkout, unit, or service mutation. Read-only inspection showed established dashboard-generated runtime residue rather than arbitrary source edits."
+  },
+  "runtime_services": {
+    "bp-live-predictor.service": {
+      "active": true,
+      "enabled": true
+    },
+    "bp-prospective-outcomes.service": {
+      "active": true,
+      "enabled": true
+    },
+    "bp-recorder.service": {
+      "active": true
+    },
+    "bp-postgres.service": {
+      "active": true
+    },
+    "bp-dashboard-api.service": {
+      "active": true
+    },
+    "bp-dashboard-web.service": {
+      "active": true
+    },
+    "bp-paper-execution.service": {
+      "active": true
+    }
+  },
+  "runtime_safety": {
+    "safety_env_file": "/etc/bp/bp-prospective-runtime-safety.env",
+    "safety_env_file_previous_mode": "absent",
+    "mode": "research",
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0
+  },
+  "host_evidence_file": "/var/lib/bp/evidence/phase14-prospective-runtime-install-20260831T131003Z.txt",
+  "interpretation": "The exact-head permanent research-runtime install succeeded after a fail-closed dashboard-residue correction. Both prospective daemons are now active and enabled, all five pre-existing core services remained active, and the effective runtime boundary remains RESEARCH with live trading disabled and both real-money limits zero. This is evidence-continuity infrastructure only: it does not improve or override the negative prospective profitability evidence, does not promote a model, does not change any Master live-gate item, and does not permit Phase 15."
+}

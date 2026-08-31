@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase14_prospective_evidence_host_report_post_outcome_sync",
+  "report_date": "2026-08-31",
+  "candidate_head": "de907d324c7ee4ec46e2dfef1eb516dbb3fa8348",
+  "deployed_head_unchanged": "0189ff70fc628c71ab7c503bac369c34bf5ce8bc",
+  "host_report_verdict": "PASS",
+  "safety": {
+    "paper_service": "active",
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "automatic_promotion": false,
+    "production_checkout_unchanged": true
+  },
+  "sample": {
+    "settled_trade_count": 2,
+    "evaluation_count": 54
+  },
+  "after_cost_pnl": {
+    "realized_total_usd": "-7.792422663291000000",
+    "realized_mean_usd": "-3.896211331645500000",
+    "mean_95pct_ci_usd": {
+      "lower": -4.285508316075,
+      "upper": -3.506914347216,
+      "method": "deterministic_bootstrap_percentile",
+      "resamples": 10000,
+      "seed": 14
+    }
+  },
+  "calibration": {
+    "evaluation_count": 54,
+    "raw_brier_mean": 0.11328198148148148,
+    "raw_log_loss_mean": 0.3669084283864382,
+    "calibrated_brier_mean": 0.10868378084722523,
+    "calibrated_log_loss_mean": 0.35286272448721295
+  },
+  "reconciliation": {
+    "status": "OK",
+    "violation_count": 0,
+    "paper_order_count": 3,
+    "trade_signal_count": 3,
+    "no_trade_signal_count": 51,
+    "violations": {
+      "fill_price_limit_exceeded": 0,
+      "fill_quantity_exceeded": 0,
+      "fill_slippage_mismatch": 0,
+      "fill_time_violation": 0,
+      "ineligible_source_signal": 0,
+      "missing_source_prediction": 0,
+      "negative_cash": 0,
+      "order_time_mismatch": 0,
+      "orphan_fill": 0,
+      "orphan_settlement": 0,
+      "orphan_terminal": 0,
+      "prediction_semantic_mismatch": 0,
+      "settlement_math_mismatch": 0,
+      "side_mismatch": 0,
+      "signal_ask_mismatch": 0,
+      "terminal_quantity_mismatch": 0,
+      "token_mismatch": 0
+    }
+  },
+  "reporter_evidence_gates": {
+    "calibration_acceptable": "insufficient_evidence",
+    "order_execution_and_reconciliation_tested": "pass",
+    "positive_after_cost_profitability": "fail",
+    "sufficiently_large_live_paper_sample_with_uncertainty": "insufficient_evidence"
+  },
+  "master_live_gate_snapshot": {
+    "historical_pipeline_reproducible": "pass",
+    "no_known_target_leakage": "pass",
+    "time_ordered_splits": "pass",
+    "walk_forward_results_stable_enough": "insufficient_evidence",
+    "sufficiently_large_live_paper_sample_with_uncertainty": "insufficient_evidence",
+    "positive_after_cost_profitability": "fail",
+    "calibration_acceptable": "insufficient_evidence",
+    "risk_limits_and_kill_switch_tested": "pass",
+    "order_execution_and_reconciliation_tested": "pass",
+    "geographic_compliance_eligible": "fail",
+    "explicit_user_live_authorization": "fail",
+    "overall_live_gate": "fail"
+  },
+  "interpretation": "The read-only prospective-evidence reporter passed after canonical outcome ingestion populated 54 immutable prediction evaluations. Two settled prospective paper trades are present and realized after-cost P&L is negative: total -7.792422663291 USD, mean -3.8962113316455 USD, with a deterministic bootstrap 95% interval [-4.285508316075, -3.506914347216] entirely below zero. The reporter therefore marks positive after-cost profitability fail. Calibration remains insufficient evidence because no approved prospective numerical acceptance threshold exists, and sample sufficiency remains insufficient evidence because no fixed sample-size threshold is approved. Reconciliation remains OK with zero violations. No promotion or live activation occurred; the Master live gate remains fail and Phase 15 remains blocked."
+}

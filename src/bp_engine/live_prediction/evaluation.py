@@ -65,6 +65,15 @@ def _ledger_float(value: float) -> float:
     return float(Decimal(str(value)).quantize(_LEDGER_QUANTUM))
 
 
+def _ledger_sha256(value: str, name: str) -> str:
+    digest = value.removeprefix("sha256:")
+    if len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest):
+        raise EvaluationIntegrityError(
+            f"{name} must be a SHA-256 digest with optional sha256: prefix"
+        )
+    return digest
+
+
 def _row_metrics(probability: float, target: int) -> tuple[float, float]:
     clipped = clip_probability(probability)
     likelihood = clipped if target == 1 else 1.0 - clipped
@@ -117,6 +126,10 @@ def evaluate_prediction(
     _validate_identity(prediction, label)
     evaluated = _aware_utc(evaluated_at, "evaluated_at")
     source_observed = _aware_utc(label.source_observed_at, "label.source_observed_at")
+    source_snapshot_sha256 = _ledger_sha256(
+        label.source_snapshot_sha256,
+        "label.source_snapshot_sha256",
+    )
     if evaluated < source_observed:
         raise EvaluationIntegrityError("evaluated_at must not precede label source_observed_at")
 
@@ -156,7 +169,7 @@ def evaluate_prediction(
         "official_outcome": label.official_outcome,
         "official_target": official_target,
         "label_source": label.label_source,
-        "label_source_snapshot_sha256": label.source_snapshot_sha256,
+        "label_source_snapshot_sha256": source_snapshot_sha256,
         "label_source_observed_at": source_observed,
         "evaluated_at": evaluated,
         "correct": correct,
@@ -173,7 +186,7 @@ def evaluate_prediction(
         official_outcome=label.official_outcome,
         official_target=official_target,
         label_source=label.label_source,
-        label_source_snapshot_sha256=label.source_snapshot_sha256,
+        label_source_snapshot_sha256=source_snapshot_sha256,
         label_source_observed_at=source_observed,
         evaluated_at=evaluated,
         correct=correct,
