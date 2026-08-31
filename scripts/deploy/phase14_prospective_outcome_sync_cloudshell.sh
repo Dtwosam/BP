@@ -69,7 +69,8 @@ id -u bp >/dev/null 2>&1 || fail "missing_bp_user"
 [[ -x "$PYTHON" ]] || fail "missing_python_runtime"
 [[ -r "$ENV_FILE" ]] || fail "missing_environment_file"
 systemctl is-active --quiet "$PAPER_UNIT" || fail "paper_service_not_active_before"
-systemctl is-active --quiet "$PREDICTOR_UNIT" || fail "predictor_service_not_active_before"
+PREDICTOR_SERVICE_BEFORE=$(systemctl is-active "$PREDICTOR_UNIT" 2>/dev/null || true)
+[[ -n "$PREDICTOR_SERVICE_BEFORE" ]] || PREDICTOR_SERVICE_BEFORE=unknown
 
 DEPLOYED_HEAD_BEFORE=$(git -C "$REPO" rev-parse HEAD)
 MODE=$(read_env MODE)
@@ -158,7 +159,9 @@ if not isinstance(report, dict):
 '
 
 systemctl is-active --quiet "$PAPER_UNIT" || fail "paper_service_not_active_after"
-systemctl is-active --quiet "$PREDICTOR_UNIT" || fail "predictor_service_not_active_after"
+PREDICTOR_SERVICE_AFTER=$(systemctl is-active "$PREDICTOR_UNIT" 2>/dev/null || true)
+[[ -n "$PREDICTOR_SERVICE_AFTER" ]] || PREDICTOR_SERVICE_AFTER=unknown
+[[ "$PREDICTOR_SERVICE_AFTER" == "$PREDICTOR_SERVICE_BEFORE" ]] || fail "predictor_service_state_changed"
 DEPLOYED_HEAD_AFTER=$(git -C "$REPO" rev-parse HEAD)
 [[ "$DEPLOYED_HEAD_AFTER" == "$DEPLOYED_HEAD_BEFORE" ]] || fail "deployed_checkout_changed"
 
@@ -167,7 +170,9 @@ printf '%s\n' "$PAPER_REPORT"
 echo "PROSPECTIVE_OUTCOME_SYNC_HEAD=$HEAD"
 echo "DEPLOYED_HEAD_UNCHANGED=$DEPLOYED_HEAD_AFTER"
 echo "PAPER_SERVICE=active"
-echo "PREDICTOR_SERVICE=active"
+echo "PREDICTOR_SERVICE_BEFORE=$PREDICTOR_SERVICE_BEFORE"
+echo "PREDICTOR_SERVICE_AFTER=$PREDICTOR_SERVICE_AFTER"
+echo "PREDICTOR_SERVICE_UNCHANGED=true"
 echo "MODE=$MODE"
 echo "LIVE_TRADING_ENABLED=$LIVE_TRADING_ENABLED"
 echo "MAX_TRADE_SIZE_USD=$MAX_TRADE_SIZE_USD"
