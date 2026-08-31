@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.1",
-  "updated_at": "2026-08-31T08:34:00Z",
+  "source_of_truth_version": "0.14.2",
+  "updated_at": "2026-08-31T09:53:02Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -611,15 +611,19 @@
     "Phase 14 prospective-evidence read-only reporter implemented over immutable paper settlements, prediction evaluations, and reconciliation evidence",
     "Phase 14 prospective-evidence tri-state gates and deterministic bootstrap uncertainty implemented without automatic promotion",
     "Phase 14 prospective-evidence exact-head Cloud Shell reporter implemented with money-disabled and no-production-mutation checks",
-    "Phase 14 prospective-evidence production-host report passed read-only safety/integrity checks with deployed checkout unchanged, reconciliation OK, and real-money interlocks still zero/disabled"
+    "Phase 14 prospective-evidence production-host report passed read-only safety/integrity checks with deployed checkout unchanged, reconciliation OK, and real-money interlocks still zero/disabled",
+    "Phase 14 prospective outcome sync implemented over the canonical Gamma snapshot → official-outcome-v1 label → immutable evaluation chain",
+    "Phase 14 snapshot-provenance hash compatibility fixed by normalizing only the established optional sha256: prefix without weakening digest validation",
+    "Phase 14 prospective outcome exact-head non-deploying host acceptance helper and hardened research-only service unit implemented"
   ],
   "not_completed": [
     "Phase 15 controlled live launch",
     "Live trading"
   ],
   "next_actions": [
-    "Continue money-disabled prospective paper predictions, fills, settlements, and official-outcome evaluation to build a sufficiently large sample with uncertainty; the 31 August host report observed zero settled trades and zero evaluations",
-    "Re-evaluate walk-forward stability, prospective calibration, and after-cost expectancy without retuning on frozen holdouts",
+    "Run exact-head prospective outcome-sync host acceptance on the final governance CI-green head and record actual snapshot/label/evaluation/settlement counts without mutating the Master live gate automatically",
+    "If the required live predictor service is not active on the host, treat that as a separate deployment gap and build a dedicated safe install cycle rather than starting or installing it inside acceptance",
+    "After successful outcome-sync host acceptance, rerun the read-only prospective-evidence reporter and reassess sample, after-cost expectancy, calibration, and reconciliation without inventing thresholds or retuning frozen holdouts",
     "Re-check Polymarket geographic/compliance eligibility only through official permitted mechanisms; do not bypass restrictions",
     "Keep LIVE_TRADING_ENABLED=false and real-money limits at zero until every Master live-gate item passes",
     "Re-run the complete Master live gate before any Phase 15 transition; explicit real-money authorization remains separately required"
@@ -803,5 +807,25 @@
     "phase15_permitted": false,
     "sanitized_evidence": "docs/evidence/phase-14-prospective-evidence-host-report-20260831.json",
     "runbook": "docs/PHASE-14-PROSPECTIVE-EVIDENCE.md"
+  },
+  "phase_14_prospective_outcome_sync_followup": {
+    "root_cause": "Prospective predictions had no always-on post-resolution Gamma snapshot ingestion, so canonical labels/evaluations and paper settlements could remain absent.",
+    "implementation_branch": "phase14-prospective-outcome-sync",
+    "implementation_commit": "22663baa8105ca9c5768bc6defb0f51605eb2130",
+    "implementation_ci_run_id": 33378572573,
+    "implementation_ci_passed": true,
+    "implementation_test_count": 784,
+    "host_acceptance_status": "PENDING",
+    "permanent_install_status": "NOT_RUN",
+    "automatic_promotion": false,
+    "master_live_gate_mutated": false,
+    "predictor_service_required_active": true,
+    "paper_service_required_active": true,
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "phase15_permitted": false,
+    "host_acceptance_helper": "scripts/deploy/phase14_prospective_outcome_sync_cloudshell.sh",
+    "service_unit": "deploy/bp-prospective-outcomes.service"
   }
 }

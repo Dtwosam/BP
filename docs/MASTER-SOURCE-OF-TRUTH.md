@@ -1271,3 +1271,25 @@ The reporter must surface, at minimum:
 Evidence gates emitted by this reporter are limited to `pass`, `fail`, or `insufficient_evidence`. The reporter must not invent a fixed minimum sample count because Section 4.3 explicitly requires uncertainty rather than a magic number. It must also not invent a numerical prospective-calibration acceptance threshold until such a threshold is deliberately approved and recorded.
 
 This workflow cannot promote a model or activate live trading automatically. `automatic_promotion` remains false. It may run only while `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0`. Any Phase 15 transition still requires the complete Master live gate to pass and separate explicit real-money authorization.
+
+---
+
+# 32. Phase 14 prospective outcome/evaluation sync follow-up
+
+The 31 August 2026 prospective-evidence host report established that the reporting path itself was healthy while the prospective evidence sample remained empty: zero live prediction evaluations and zero paper settlements were present. Root-cause tracing showed that prospective paper settlement depends on an immutable live-prediction evaluation, that evaluation depends on the canonical `official-outcome-v1` label, and that label depends on a preserved resolved Polymarket Gamma snapshot. The production runtime did not have an always-on post-resolution snapshot-ingestion path for newly completed prospective predictions.
+
+The approved follow-up is a separate **money-disabled prospective outcome sync** that closes only that evidence-ingestion gap. For ended immutable predictions that still lack evaluation, it may fetch the exact market by slug from official Polymarket Gamma. Missing or unresolved markets remain pending and produce no write. Before any resolved snapshot is stored, the returned condition ID, slug, horizon, market start/end timestamps, and Up/Down token IDs must match the immutable prediction exactly; any mismatch fails closed before persistence.
+
+Resolved evidence must reuse the existing canonical chain rather than introduce a parallel outcome source:
+
+1. store the official Gamma payload through the existing immutable historical market-snapshot repository and provenance contract;
+2. run the existing `official-outcome-v1` canonical label generator under D-017;
+3. append the existing immutable live-prediction evaluation;
+4. allow the existing paper-execution worker to create any eligible paper settlement from that evaluation on its normal or explicitly bounded paper cycle.
+
+The outcome sync must not rewrite predictions, labels, evaluations, paper orders/fills/settlements, historical snapshots, research records, or live-readiness evidence. Completed evaluations are idempotent and must not trigger repeated Gamma fetching. Historical snapshot digests may carry the established `sha256:` prefix; the evaluation boundary may normalize only that optional prefix while still requiring an exact 64-character lowercase hexadecimal digest. No hash tolerance or weakening is allowed.
+
+The runtime is permitted only in `RESEARCH` with `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0`. It exposes no wallet, signing, real-order, promotion, or live-enable path. Its exact-head host acceptance is deliberately non-deploying: it runs the candidate from a detached worktree, requires the existing paper worker and live predictor to be active, may append only canonical official-outcome/evaluation evidence and derivative paper settlements, verifies `/opt/bp` is unchanged, and performs no package installation, migration, service stop/restart, or daemon installation.
+
+Implementation and exact-head CI are complete on the Phase 14 follow-up branch, but production host acceptance and permanent installation of the outcome-sync daemon are **not yet established**. The Master live-gate matrix remains unchanged: overall status is `fail`, Phase 15 remains blocked, and any future controlled live launch still requires every Section 4.3 gate to pass plus separate explicit real-money authorization.
+
