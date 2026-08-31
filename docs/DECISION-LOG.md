@@ -209,7 +209,7 @@ The report exposes settled-trade and evaluation sample sizes, realized after-cos
 The reporter must never promote a model or enable live trading automatically. `automatic_promotion` remains false, the existing Master live gate remains authoritative, and the reporting CLI is permitted to run only while `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0`. Phase 15 remains blocked until every Master live-gate item independently passes and explicit real-money authorization is separately recorded.
 
 ## D-029 — Prospective official outcomes reuse the canonical Gamma snapshot-to-label-to-evaluation chain
-**Date:** 31 Aug 2026
+**Date:** 31 Aug 2026  
 **Status:** Active
 
 The 31 August prospective-evidence host report observed zero prediction evaluations and zero settled paper trades. Root-cause tracing established that paper settlement depends on an immutable `live_prediction_evaluations` row, evaluation depends on an existing canonical `official-outcome-v1` label, and the canonical label depends on a preserved resolved Gamma market snapshot. Production had no always-on post-resolution path that acquired those snapshots for new prospective predictions, so otherwise valid predictions could remain unevaluated and their paper fills unsettled indefinitely.
@@ -223,7 +223,7 @@ The outcome-sync CLI exposes only bounded one-cycle or repeated research executi
 A host-acceptance PASS is invalid if the outcome-sync cycle is a no-op. Acceptance must observe at least one ended unevaluated candidate and at least one resolved candidate, reconcile every candidate as pending or resolved, reconcile every resolved candidate to a snapshot-store result, confirm canonical label evidence for the resolved set, and append a new immutable evaluation for every resolved candidate. This deliberately proves the new production evidence path executes; it does not define a sufficiently large prospective sample and must never be reused as a profitability, calibration, or live-readiness threshold.
 
 ## D-030 — Outcome-sync acceptance is predictor-neutral; permanent prospective daemons require a separate install gate
-**Date:** 31 Aug 2026
+**Date:** 31 Aug 2026  
 **Status:** Active
 
 The first production-host outcome-sync acceptance attempt on candidate `c11000bf97bcfe93b91d17134c43bbd10a5791ef` failed closed before outcome processing with `REASON=predictor_service_not_active_before`. Investigation established that this was an invalid acceptance precondition, not evidence that the outcome chain itself had failed: Phase 10 acceptance used a temporary `/run/systemd/system/bp-live-predictor.service` runtime unit and cleaned it up, and the canonical state never recorded a permanent predictor installation.
