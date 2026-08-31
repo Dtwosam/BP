@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 UNIT = ROOT / "deploy" / "bp-prospective-outcomes.service"
 CLOUDSHELL = ROOT / "scripts" / "deploy" / "phase14_prospective_outcome_sync_cloudshell.sh"
