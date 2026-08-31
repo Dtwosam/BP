@@ -7,6 +7,8 @@ PREDICTOR_UNIT = ROOT / "deploy/bp-live-predictor.service"
 OUTCOME_UNIT = ROOT / "deploy/bp-prospective-outcomes.service"
 CI = ROOT / ".github/workflows/ci.yml"
 
+BASE_ENV_FILE = "EnvironmentFile=/etc/bp/bp.env"
+SAFETY_ENV_FILE = "EnvironmentFile=/etc/bp/bp-prospective-runtime-safety.env"
 SAFETY_LINES = (
     "Environment=MODE=research",
     "Environment=LIVE_TRADING_ENABLED=false",
@@ -28,11 +30,32 @@ def test_predictor_unit_pins_research_zero_money_boundary() -> None:
         assert line in content
     assert "User=bp" in content
     assert "Group=bp" in content
-    assert "EnvironmentFile=/etc/bp/bp.env" in content
+    assert BASE_ENV_FILE in content
     assert "NoNewPrivileges=true" in content
     assert "ProtectHome=true" in content
     assert "ProtectSystem=full" in content
     assert "-m bp_engine.live_prediction run" in content
+
+
+def test_units_load_root_controlled_safety_file_after_mutable_environment() -> None:
+    for unit in (PREDICTOR_UNIT, OUTCOME_UNIT):
+        content = unit.read_text()
+        assert SAFETY_ENV_FILE in content
+        assert content.index(SAFETY_ENV_FILE) > content.index(BASE_ENV_FILE)
+
+    installer = INSTALLER.read_text()
+    assert 'SAFETY_ENV_FILE="/etc/bp/bp-prospective-runtime-safety.env"' in installer
+    assert "HAD_SAFETY_ENV_FILE" in installer
+    assert "SAFETY_ENV_FILE_WAS_MODE" in installer
+    assert "install -m 0644 \"$SAFETY_ENV_STAGE\" \"$SAFETY_ENV_FILE\"" in installer
+    assert 'printf \'%s\\n\' \\' in installer
+    for assignment in (
+        "MODE=research",
+        "LIVE_TRADING_ENABLED=false",
+        "MAX_TRADE_SIZE_USD=0",
+        "MAX_DAILY_LOSS_USD=0",
+    ):
+        assert assignment in installer
 
 
 def test_permanent_installer_is_exact_head_rollback_capable_and_two_daemon_only() -> None:
