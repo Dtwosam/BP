@@ -23,6 +23,8 @@ HAD_PREDICTOR_UNIT=0
 HAD_OUTCOME_UNIT=0
 HAD_SAFETY_ENV_FILE=0
 SAFETY_ENV_FILE_WAS_MODE=""
+HAD_NEXT_ENV_GENERATED_CHANGE=0
+HAD_TSCONFIG_GENERATED_CHANGE=0
 PREDICTOR_WAS_ACTIVE=0
 PREDICTOR_WAS_ENABLED=0
 OUTCOME_WAS_ACTIVE=0
@@ -34,6 +36,52 @@ fail() {
   echo "PHASE14_PROSPECTIVE_RUNTIME_INSTALL=FAIL" >&2
   echo "REASON=$1" >&2
   exit 1
+}
+
+validate_deployed_checkout() {
+  local tracked_path
+  local untracked_path
+  local status
+
+  status=$(git -C "$BP_ROOT" status --porcelain --untracked-files=all)
+  if [[ -z "$status" ]]; then
+    return 0
+  fi
+
+  while IFS= read -r tracked_path; do
+    [[ -n "$tracked_path" ]] || continue
+    case "$tracked_path" in
+      apps/dashboard/next-env.d.ts|apps/dashboard/tsconfig.json)
+        ;;
+      *)
+        fail "unexpected_deployed_checkout_change:$tracked_path"
+        ;;
+    esac
+  done < <(git -C "$BP_ROOT" diff HEAD --name-only --)
+
+  while IFS= read -r untracked_path; do
+    [[ -n "$untracked_path" ]] || continue
+    case "$untracked_path" in
+      .node/*|apps/dashboard/.next/*|apps/dashboard/node_modules/*|apps/dashboard/tsconfig.tsbuildinfo)
+        ;;
+      *)
+        fail "unexpected_deployed_checkout_change:$untracked_path"
+        ;;
+    esac
+  done < <(git -C "$BP_ROOT" ls-files --others --exclude-standard)
+}
+
+validate_candidate_runtime_collisions() {
+  local candidate_path
+
+  while IFS= read -r candidate_path; do
+    [[ -n "$candidate_path" ]] || continue
+    case "$candidate_path" in
+      .node|.node/*|apps/dashboard/.next|apps/dashboard/.next/*|apps/dashboard/node_modules|apps/dashboard/node_modules/*|apps/dashboard/tsconfig.tsbuildinfo)
+        fail "candidate_runtime_path_collision:$candidate_path"
+        ;;
+    esac
+  done < <(git -C "$CANDIDATE_ROOT" ls-files)
 }
 
 if [[ ${EUID} -ne 0 ]]; then
@@ -48,14 +96,13 @@ fi
 if [[ ! -r "$ENV_FILE" || ! -x "$BP_ROOT/.venv/bin/python" ]]; then
   fail "missing_environment_or_python_runtime"
 fi
-if [[ -n "$(git -C "$BP_ROOT" status --porcelain)" ]]; then
-  fail "deployed_checkout_not_clean"
-fi
+validate_deployed_checkout
 
 CANDIDATE_HEAD=$(git -C "$CANDIDATE_ROOT" rev-parse HEAD 2>/dev/null || true)
 if [[ "$CANDIDATE_HEAD" != "$EXPECTED_HEAD" ]]; then
   fail "candidate_checkout_head_mismatch"
 fi
+validate_candidate_runtime_collisions
 
 read_env() {
   local key=$1
@@ -131,6 +178,16 @@ OLD_HEAD=$(git -C "$BP_ROOT" rev-parse HEAD)
 OLD_REF=$(git -C "$BP_ROOT" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
 BACKUP_DIR=$(mktemp -d /var/tmp/bp-phase14-prospective-runtime-backup.XXXXXX)
 
+if ! git -C "$BP_ROOT" diff --quiet HEAD -- apps/dashboard/next-env.d.ts; then
+  [[ -f "$BP_ROOT/apps/dashboard/next-env.d.ts" ]] || fail "expected_generated_file_missing:apps/dashboard/next-env.d.ts"
+  cp -a "$BP_ROOT/apps/dashboard/next-env.d.ts" "$BACKUP_DIR/dashboard-next-env.d.ts"
+  HAD_NEXT_ENV_GENERATED_CHANGE=1
+fi
+if ! git -C "$BP_ROOT" diff --quiet HEAD -- apps/dashboard/tsconfig.json; then
+  [[ -f "$BP_ROOT/apps/dashboard/tsconfig.json" ]] || fail "expected_generated_file_missing:apps/dashboard/tsconfig.json"
+  cp -a "$BP_ROOT/apps/dashboard/tsconfig.json" "$BACKUP_DIR/dashboard-tsconfig.json"
+  HAD_TSCONFIG_GENERATED_CHANGE=1
+fi
 if [[ -e "$PREDICTOR_UNIT_DST" ]]; then
   cp -a "$PREDICTOR_UNIT_DST" "$BACKUP_DIR/$PREDICTOR_UNIT_NAME"
   HAD_PREDICTOR_UNIT=1
@@ -166,6 +223,15 @@ restore_checkout() {
     fi
   else
     git -C "$BP_ROOT" checkout --detach --force "$OLD_HEAD" >/dev/null 2>&1 || true
+  fi
+}
+
+restore_dashboard_generated_state() {
+  if (( HAD_NEXT_ENV_GENERATED_CHANGE )); then
+    cp -a "$BACKUP_DIR/dashboard-next-env.d.ts" "$BP_ROOT/apps/dashboard/next-env.d.ts"
+  fi
+  if (( HAD_TSCONFIG_GENERATED_CHANGE )); then
+    cp -a "$BACKUP_DIR/dashboard-tsconfig.json" "$BP_ROOT/apps/dashboard/tsconfig.json"
   fi
 }
 
@@ -208,6 +274,7 @@ rollback_phase14_prospective_runtime() {
 
   systemctl daemon-reload >/dev/null 2>&1 || true
   restore_checkout
+  restore_dashboard_generated_state
   restore_unit_state "$PREDICTOR_UNIT_NAME" "$PREDICTOR_WAS_ENABLED" "$PREDICTOR_WAS_ACTIVE"
   restore_unit_state "$OUTCOME_UNIT_NAME" "$OUTCOME_WAS_ENABLED" "$OUTCOME_WAS_ACTIVE"
   set -e
@@ -242,9 +309,7 @@ git -C "$BP_ROOT" checkout --detach --force "$EXPECTED_HEAD"
 if [[ "$(git -C "$BP_ROOT" rev-parse HEAD)" != "$EXPECTED_HEAD" ]]; then
   fail "deployed_head_did_not_switch_to_candidate"
 fi
-if [[ -n "$(git -C "$BP_ROOT" status --porcelain)" ]]; then
-  fail "candidate_checkout_not_clean_after_switch"
-fi
+validate_deployed_checkout
 
 run_as_bp "$BP_ROOT/.venv/bin/python" -c \
   'import bp_engine.live_prediction; import bp_engine.prospective_outcomes; print("PROSPECTIVE_RUNTIME_IMPORTS=PASS")'
