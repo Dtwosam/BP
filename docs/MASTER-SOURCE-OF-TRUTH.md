@@ -1238,21 +1238,36 @@ Bybit documentation can be rechecked at:
 
 # 30. Current project state
 
-As of **20 August 2026**:
+As of **30 August 2026**:
 
-- concept agreed;
-- purpose agreed;
-- desired accuracy target discussed;
-- Polymarket-specific objective agreed;
-- $0-first infrastructure policy agreed;
-- GitHub repository established at `Dtwosam/BP`;
-- Phase 0 repository foundation implemented and verified locally;
-- source-of-truth, project-state, build-order, decision-log, changelog, and agent handoff files are part of the repository foundation;
-- safe `RESEARCH` configuration, health command, PostgreSQL Docker Compose service, tests, and CI baseline exist;
-- no Polymarket market-discovery collector has been implemented yet;
-- no model has been trained;
-- no accuracy claim has been proven;
-- no real trading is authorized;
-- current phase is **Phase 1: Polymarket market discovery**, followed by **Phase 2: 24/7 raw recorder**.
+- Phases 0 through 14 in the active repository build order have been implemented and closed through Phase 14 engineering readiness;
+- the current machine-readable state is `PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED`;
+- live prospective predictions and money-disabled paper execution are running from immutable evidence ledgers;
+- the Phase 14 Master live gate remains `fail`;
+- walk-forward stability, sufficiently large prospective paper evidence, and prospective calibration remain insufficient;
+- positive after-cost profitability has not been established;
+- geographic/compliance eligibility is not established for live launch;
+- live trading remains disabled and real-money trade-size/daily-loss limits remain zero;
+- Phase 15 controlled live launch is not permitted.
 
-`PROJECT_STATE.json` is the machine-readable record of the exact current phase and next actions.
+`PROJECT_STATE.json` is the machine-readable record of the exact current phase, accepted evidence, and next actions.
+
+---
+
+# 31. Phase 14 prospective-evidence follow-up
+
+The approved post-closeout evidence workflow is a separate **read-only reporter** over existing immutable paper settlements, prediction evaluations, and reconciliation evidence. It must not modify the paper worker, predictions, evaluations, execution ledgers, research records, or live-readiness records.
+
+The reporter must surface, at minimum:
+
+- settled prospective paper-trade sample size;
+- prospective prediction-evaluation sample size;
+- realized after-cost paper P&L;
+- uncertainty/confidence interval for realized expectancy;
+- raw and calibrated Brier/log-loss evidence;
+- paper execution reconciliation status;
+- the current Master live-gate snapshot.
+
+Evidence gates emitted by this reporter are limited to `pass`, `fail`, or `insufficient_evidence`. The reporter must not invent a fixed minimum sample count because Section 4.3 explicitly requires uncertainty rather than a magic number. It must also not invent a numerical prospective-calibration acceptance threshold until such a threshold is deliberately approved and recorded.
+
+This workflow cannot promote a model or activate live trading automatically. `automatic_promotion` remains false. It may run only while `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0`. Any Phase 15 transition still requires the complete Master live gate to pass and separate explicit real-money authorization.
