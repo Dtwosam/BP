@@ -70,13 +70,44 @@ read_env() {
   awk -F= -v key="$key" '$1 == key {sub(/^[^=]*=/, ""); print; exit}' "$ENV_FILE"
 }
 
+validate_deployed_checkout() {
+  local tracked_path
+  local untracked_path
+  local status
+
+  status=$(git -C /opt/bp status --porcelain --untracked-files=all)
+  if [[ -z "$status" ]]; then
+    return 0
+  fi
+
+  while IFS= read -r tracked_path; do
+    [[ -n "$tracked_path" ]] || continue
+    case "$tracked_path" in
+      apps/dashboard/next-env.d.ts|apps/dashboard/tsconfig.json)
+        ;;
+      *)
+        fail "unexpected_deployed_checkout_change:$tracked_path"
+        ;;
+    esac
+  done < <(git -C /opt/bp diff HEAD --name-only --)
+
+  while IFS= read -r untracked_path; do
+    [[ -n "$untracked_path" ]] || continue
+    case "$untracked_path" in
+      .node/*|apps/dashboard/.next/*|apps/dashboard/node_modules/*|apps/dashboard/tsconfig.tsbuildinfo)
+        ;;
+      *)
+        fail "unexpected_deployed_checkout_change:$untracked_path"
+        ;;
+    esac
+  done < <(git -C /opt/bp ls-files --others --exclude-standard)
+}
+
 [[ -d "$REPO/.git" ]] || fail "missing_opt_bp_repo"
 [[ -r "$ENV_FILE" ]] || fail "missing_environment_file"
 [[ -x "$REPO/.venv/bin/python" ]] || fail "missing_python_runtime"
 id -u bp >/dev/null 2>&1 || fail "missing_bp_user"
-if [[ -n "$(git -C /opt/bp status --porcelain)" ]]; then
-  fail "deployed_checkout_not_clean"
-fi
+validate_deployed_checkout
 
 for service in "${CORE_SERVICES[@]}"; do
   systemctl is-active --quiet "$service" || fail "core_service_not_active_before:$service"
