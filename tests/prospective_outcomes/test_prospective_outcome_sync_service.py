@@ -105,7 +105,7 @@ def _resolved_gamma_payload(prediction: LivePrediction) -> dict[str, object]:
 
 
 class FakeGammaClient:
-    def __init__(self, payload: dict[str, object]) -> None:
+    def __init__(self, payload: dict[str, object] | None) -> None:
         self.payload = payload
         self.calls: list[str] = []
 
@@ -114,17 +114,21 @@ class FakeGammaClient:
         return self.payload
 
 
+def _engine_with_prediction() -> tuple[object, LivePrediction]:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    schema.metadata.create_all(engine)
+    prediction = _prediction()
+    with engine.begin() as connection:
+        LivePredictionRepository().store(connection, prediction)
+    return engine, prediction
+
+
 @pytest.mark.asyncio
 async def test_sync_resolved_prediction_creates_snapshot_label_and_evaluation() -> None:
     from bp_engine.prospective_outcomes.service import ProspectiveOutcomeSyncService
 
-    engine = create_engine("sqlite+pysqlite:///:memory:")
-    schema.metadata.create_all(engine)
-    prediction = _prediction()
+    engine, prediction = _engine_with_prediction()
     client = FakeGammaClient(_resolved_gamma_payload(prediction))
-
-    with engine.begin() as connection:
-        LivePredictionRepository().store(connection, prediction)
 
     report = await ProspectiveOutcomeSyncService(engine=engine, client=client).run_once(
         now=prediction.market_end_at + timedelta(minutes=1)
@@ -150,3 +154,80 @@ async def test_sync_resolved_prediction_creates_snapshot_label_and_evaluation() 
     assert snapshot_count == 1
     assert label_count == 1
     assert evaluation["official_outcome"] == "Up"
+    assert evaluation["label_source_snapshot_sha256"]
+    assert len(evaluation["label_source_snapshot_sha256"]) == 64
+
+
+@pytest.mark.asyncio
+async def test_unresolved_market_remains_pending_without_writes() -> None:
+    from bp_engine.prospective_outcomes.service import ProspectiveOutcomeSyncService
+
+    engine, prediction = _engine_with_prediction()
+    payload = _resolved_gamma_payload(prediction)
+    payload["closed"] = False
+    payload["active"] = True
+    payload["outcomePrices"] = '["0.5", "0.5"]'
+    client = FakeGammaClient(payload)
+
+    report = await ProspectiveOutcomeSyncService(engine=engine, client=client).run_once(
+        now=prediction.market_end_at + timedelta(minutes=1)
+    )
+
+    with engine.begin() as connection:
+        assert connection.scalar(
+            select(func.count()).select_from(schema.polymarket_market_snapshots)
+        ) == 0
+        assert connection.scalar(select(func.count()).select_from(schema.market_labels)) == 0
+        assert connection.scalar(
+            select(func.count()).select_from(schema.live_prediction_evaluations)
+        ) == 0
+    assert report.candidates == 1
+    assert report.pending_markets == 1
+    assert report.resolved_markets == 0
+
+
+@pytest.mark.asyncio
+async def test_gamma_identity_mismatch_fails_closed_before_any_write() -> None:
+    from bp_engine.prospective_outcomes.service import (
+        ProspectiveOutcomeIntegrityError,
+        ProspectiveOutcomeSyncService,
+    )
+
+    engine, prediction = _engine_with_prediction()
+    payload = _resolved_gamma_payload(prediction)
+    payload["conditionId"] = "wrong-condition"
+    client = FakeGammaClient(payload)
+
+    with pytest.raises(ProspectiveOutcomeIntegrityError, match="identity"):
+        await ProspectiveOutcomeSyncService(engine=engine, client=client).run_once(
+            now=prediction.market_end_at + timedelta(minutes=1)
+        )
+
+    with engine.begin() as connection:
+        assert connection.scalar(
+            select(func.count()).select_from(schema.polymarket_market_snapshots)
+        ) == 0
+        assert connection.scalar(select(func.count()).select_from(schema.market_labels)) == 0
+        assert connection.scalar(
+            select(func.count()).select_from(schema.live_prediction_evaluations)
+        ) == 0
+
+
+@pytest.mark.asyncio
+async def test_completed_evaluation_is_not_refetched_on_rerun() -> None:
+    from bp_engine.prospective_outcomes.service import ProspectiveOutcomeSyncService
+
+    engine, prediction = _engine_with_prediction()
+    client = FakeGammaClient(_resolved_gamma_payload(prediction))
+    service = ProspectiveOutcomeSyncService(engine=engine, client=client)
+    now = prediction.market_end_at + timedelta(minutes=1)
+
+    first = await service.run_once(now=now)
+    second = await service.run_once(now=now + timedelta(minutes=1))
+
+    assert first.created_evaluations == 1
+    assert second.candidates == 0
+    assert second.created_snapshots == 0
+    assert second.created_labels == 0
+    assert second.created_evaluations == 0
+    assert client.calls == [prediction.slug]
