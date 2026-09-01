@@ -9,10 +9,10 @@ permissions:
   contents: read
 
 jobs:
-  three-arm-socket-history:
+  dynamic-target-post-add-churn:
     if: github.head_ref == 'investigate-polymarket-rotation-drift'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,6 +24,6 @@ jobs:
       - name: Install
         run: python -m pip install -e ".[dev]"
       - name: Verify diagnostic
-        run: ruff check scripts/diagnose_polymarket_three_arm_socket_history.py
-      - name: Compare static-aged, rotating-aged, and fresh subscriptions
-        run: python scripts/diagnose_polymarket_three_arm_socket_history.py
+        run: ruff check scripts/diagnose_polymarket_dynamic_target_post_add_churn.py
+      - name: Compare dynamic target with and without later 5m churn
+        run: python scripts/diagnose_polymarket_dynamic_target_post_add_churn.py
