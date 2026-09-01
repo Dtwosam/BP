@@ -135,7 +135,13 @@ class WebSocketCollectorRunner:
             ),
         )
 
-    async def _run_connection(self, websocket: WebSocketLike, stop: asyncio.Event) -> None:
+    async def _run_connection(
+        self,
+        websocket: WebSocketLike,
+        stop: asyncio.Event,
+        *,
+        on_receive: Callable[[], None] | None = None,
+    ) -> None:
         subscriptions = (
             [self.subscription]
             if isinstance(self.subscription, (str, Mapping))
@@ -242,6 +248,8 @@ class WebSocketCollectorRunner:
                             if incident is not None:
                                 await _call_sink(self.incident_sink, incident)
                         await _call_sink(self.event_sink, event)
+                    if on_receive is not None:
+                        on_receive()
                     if stop.is_set():
                         return
                     recv_task = asyncio.create_task(websocket.recv())
@@ -269,13 +277,22 @@ class WebSocketCollectorRunner:
 
     async def run(self, stop: asyncio.Event) -> None:
         attempt = 0
+
+        def reset_attempt() -> None:
+            nonlocal attempt
+            attempt = 0
+
         while not stop.is_set():
             connected = False
             try:
                 async with self.connector(self.url) as websocket:
                     connected = True
                     await self._incident("connected", {"url": self.url})
-                    await self._run_connection(websocket, stop)
+                    await self._run_connection(
+                        websocket,
+                        stop,
+                        on_receive=reset_attempt,
+                    )
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
