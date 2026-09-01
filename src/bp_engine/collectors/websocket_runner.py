@@ -199,22 +199,6 @@ class WebSocketCollectorRunner:
                     await websocket.send(_wire_message(outbound_message))
                     outbound_task = asyncio.create_task(self.outbound_messages.get())
 
-                if watchdog_task is not None and watchdog_task in done:
-                    assert self.watchdog is not None
-                    incident = self.watchdog.check(
-                        self.source,
-                        self.stream,
-                        monotonic_time=self.monotonic(),
-                        observed_at=self.now(),
-                    )
-                    if incident is not None:
-                        await _call_sink(self.incident_sink, incident)
-                    interval = max(
-                        min(self.watchdog.stale_after_seconds / 2, 1.0),
-                        0.001,
-                    )
-                    watchdog_task = asyncio.create_task(asyncio.sleep(interval))
-
                 if recv_task in done:
                     message = recv_task.result()
                     received_at = self.now()
@@ -242,6 +226,22 @@ class WebSocketCollectorRunner:
                     if stop.is_set():
                         return
                     recv_task = asyncio.create_task(websocket.recv())
+
+                if watchdog_task is not None and watchdog_task in done:
+                    assert self.watchdog is not None
+                    incident = self.watchdog.check(
+                        self.source,
+                        self.stream,
+                        monotonic_time=self.monotonic(),
+                        observed_at=self.now(),
+                    )
+                    if incident is not None:
+                        await _call_sink(self.incident_sink, incident)
+                    interval = max(
+                        min(self.watchdog.stale_after_seconds / 2, 1.0),
+                        0.001,
+                    )
+                    watchdog_task = asyncio.create_task(asyncio.sleep(interval))
         finally:
             tasks = [recv_task, stop_task]
             if heartbeat_task is not None:
