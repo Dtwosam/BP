@@ -239,7 +239,7 @@ class WebSocketCollectorRunner:
                         outbound_message,
                     )
                     await websocket.send(_wire_message(outbound_message))
-                    outbound_task = asyncio.create_task(self.outbound_messages.get())
+                    outbound_task = None
 
                 if watchdog_task is not None and watchdog_task in done:
                     assert self.watchdog is not None
@@ -259,6 +259,9 @@ class WebSocketCollectorRunner:
 
                 if recv_task in done and not recv_succeeded:
                     recv_task.result()
+
+                if outbound_task is None and self.outbound_messages is not None:
+                    outbound_task = asyncio.create_task(self.outbound_messages.get())
         finally:
             tasks = [recv_task, stop_task]
             if heartbeat_task is not None:
