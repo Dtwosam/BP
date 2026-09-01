@@ -125,7 +125,11 @@ async def _receive(websocket: object, stats: Stats) -> None:
             raw = await websocket.recv(decode=False)
             now_mono = time.monotonic()
             stats.frame_count += 1
-            frame_bytes = len(raw) if isinstance(raw, bytes) else len(str(raw).encode("utf-8"))
+            frame_bytes = (
+                len(raw)
+                if isinstance(raw, bytes)
+                else len(str(raw).encode("utf-8"))
+            )
             stats.byte_count += frame_bytes
             if raw in {b"PONG", "PONG"}:
                 stats.pong_count += 1
@@ -168,7 +172,15 @@ async def _wait_until(timestamp: float, stats: Stats | None = None) -> None:
         await asyncio.sleep(0.05)
 
 
-async def _open(initial_assets: list[str]) -> tuple[object, Stats, asyncio.Event, asyncio.Task[None], asyncio.Task[None]]:
+async def _open(
+    initial_assets: list[str],
+) -> tuple[
+    object,
+    Stats,
+    asyncio.Event,
+    asyncio.Task[None],
+    asyncio.Task[None],
+]:
     websocket = await connect(
         WS_URL,
         ping_interval=None,
@@ -176,7 +188,9 @@ async def _open(initial_assets: list[str]) -> tuple[object, Stats, asyncio.Event
         max_queue=1024,
     )
     stats = Stats()
-    await websocket.send(_wire({"assets_ids": sorted(set(initial_assets)), "type": "market"}))
+    await websocket.send(
+        _wire({"assets_ids": sorted(set(initial_assets)), "type": "market"})
+    )
     stop = asyncio.Event()
     receiver = asyncio.create_task(_receive(websocket, stats))
     heartbeat = asyncio.create_task(_heartbeat(websocket, stats, stop))
