@@ -135,7 +135,13 @@ class WebSocketCollectorRunner:
             ),
         )
 
-    async def _run_connection(self, websocket: WebSocketLike, stop: asyncio.Event) -> None:
+    async def _run_connection(
+        self,
+        websocket: WebSocketLike,
+        stop: asyncio.Event,
+        *,
+        on_receive: Callable[[], None] | None = None,
+    ) -> None:
         subscriptions = (
             [self.subscription]
             if isinstance(self.subscription, (str, Mapping))
@@ -157,14 +163,11 @@ class WebSocketCollectorRunner:
         )
         watchdog_task = None
         if self.watchdog is not None:
-            recovery = self.watchdog.observe(
+            self.watchdog.arm(
                 self.source,
                 self.stream,
                 monotonic_time=self.monotonic(),
-                observed_at=self.now(),
             )
-            if recovery is not None:
-                await _call_sink(self.incident_sink, recovery)
             interval = max(min(self.watchdog.stale_after_seconds / 2, 1.0), 0.001)
             watchdog_task = asyncio.create_task(asyncio.sleep(interval))
 
@@ -182,8 +185,53 @@ class WebSocketCollectorRunner:
                     return_when=asyncio.FIRST_COMPLETED,
                 )
 
-                if stop_task in done and stop_task.result():
+                stop_requested = stop_task in done and stop_task.result()
+                recv_succeeded = (
+                    recv_task in done
+                    and not recv_task.cancelled()
+                    and recv_task.exception() is None
+                )
+                if stop_requested and not recv_succeeded:
                     return
+
+                if recv_task in done and recv_succeeded:
+                    message = recv_task.result()
+                    received_at = self.now()
+                    events = self.parser(_decode_message(message), received_at)
+                    for event in events:
+                        if self.clock_skew_guard is not None:
+                            incident = self.clock_skew_guard.check(
+                                source=self.source,
+                                stream=self.stream,
+                                source_timestamp=event.source_timestamp,
+                                received_at=event.received_at,
+                            )
+                            if incident is not None:
+                                await _call_sink(self.incident_sink, incident)
+                        await _call_sink(self.event_sink, event)
+                    if events and self.watchdog is not None:
+                        recovery = self.watchdog.observe(
+                            self.source,
+                            self.stream,
+                            monotonic_time=self.monotonic(),
+                            observed_at=received_at,
+                        )
+                        if recovery is not None:
+                            await _call_sink(self.incident_sink, recovery)
+                    if on_receive is not None:
+                        on_receive()
+                    if stop.is_set():
+                        return
+                    recv_task = asyncio.create_task(websocket.recv())
+
+                outbound_ready = outbound_task is not None and outbound_task in done
+                outbound_message: object | None = None
+                if outbound_ready:
+                    outbound_message = outbound_task.result()
+                    self.subscription = _apply_market_subscription_update(
+                        self.subscription,
+                        outbound_message,
+                    )
 
                 if heartbeat_task is not None and heartbeat_task in done:
                     assert self.heartbeat_message is not None
@@ -193,13 +241,9 @@ class WebSocketCollectorRunner:
                         asyncio.sleep(self.heartbeat_interval_seconds)
                     )
 
-                if outbound_task is not None and outbound_task in done:
-                    outbound_message = outbound_task.result()
-                    self.subscription = _apply_market_subscription_update(
-                        self.subscription,
-                        outbound_message,
-                    )
+                if outbound_ready:
                     await websocket.send(_wire_message(outbound_message))
+                    assert self.outbound_messages is not None
                     outbound_task = asyncio.create_task(self.outbound_messages.get())
 
                 if watchdog_task is not None and watchdog_task in done:
@@ -218,33 +262,8 @@ class WebSocketCollectorRunner:
                     )
                     watchdog_task = asyncio.create_task(asyncio.sleep(interval))
 
-                if recv_task in done:
-                    message = recv_task.result()
-                    received_at = self.now()
-                    if self.watchdog is not None:
-                        recovery = self.watchdog.observe(
-                            self.source,
-                            self.stream,
-                            monotonic_time=self.monotonic(),
-                            observed_at=received_at,
-                        )
-                        if recovery is not None:
-                            await _call_sink(self.incident_sink, recovery)
-                    events = self.parser(_decode_message(message), received_at)
-                    for event in events:
-                        if self.clock_skew_guard is not None:
-                            incident = self.clock_skew_guard.check(
-                                source=self.source,
-                                stream=self.stream,
-                                source_timestamp=event.source_timestamp,
-                                received_at=event.received_at,
-                            )
-                            if incident is not None:
-                                await _call_sink(self.incident_sink, incident)
-                        await _call_sink(self.event_sink, event)
-                    if stop.is_set():
-                        return
-                    recv_task = asyncio.create_task(websocket.recv())
+                if recv_task in done and not recv_succeeded:
+                    recv_task.result()
         finally:
             tasks = [recv_task, stop_task]
             if heartbeat_task is not None:
@@ -269,13 +288,22 @@ class WebSocketCollectorRunner:
 
     async def run(self, stop: asyncio.Event) -> None:
         attempt = 0
+
+        def reset_attempt() -> None:
+            nonlocal attempt
+            attempt = 0
+
         while not stop.is_set():
             connected = False
             try:
                 async with self.connector(self.url) as websocket:
                     connected = True
                     await self._incident("connected", {"url": self.url})
-                    await self._run_connection(websocket, stop)
+                    await self._run_connection(
+                        websocket,
+                        stop,
+                        on_receive=reset_attempt,
+                    )
             except asyncio.CancelledError:
                 raise
             except Exception as exc:

@@ -28,6 +28,24 @@ def test_watchdog_emits_stale_once_then_recovered_on_next_event() -> None:
     assert recovered is not None and recovered.incident_type == "recovered"
 
 
+def test_watchdog_arm_does_not_make_last_real_observation_newer() -> None:
+    watchdog = FeedWatchdog(stale_after_seconds=10)
+    observed_at = datetime(2026, 8, 20, 21, 30, tzinfo=UTC)
+
+    assert watchdog.observe("bybit", "spot", monotonic_time=100, observed_at=observed_at) is None
+    watchdog.arm("bybit", "spot", monotonic_time=109)
+    stale = watchdog.check(
+        "bybit",
+        "spot",
+        monotonic_time=111,
+        observed_at=observed_at + timedelta(seconds=11),
+    )
+
+    assert stale is not None
+    assert stale.incident_type == "stale"
+    assert stale.details["age_seconds"] == 11
+
+
 def test_clock_skew_guard_allows_delayed_events_but_rejects_future_source_time() -> None:
     guard = ClockSkewGuard(max_abs_skew_seconds=2)
     received_at = datetime(2026, 8, 20, 21, 30, 10, tzinfo=UTC)

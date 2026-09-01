@@ -25,6 +25,15 @@ class FeedWatchdog:
     _last_seen: dict[tuple[str, str], float] = field(default_factory=dict)
     _stale: set[tuple[str, str]] = field(default_factory=set)
 
+    def arm(
+        self,
+        source: str,
+        stream: str,
+        *,
+        monotonic_time: float,
+    ) -> None:
+        self._last_seen.setdefault((source, stream), monotonic_time)
+
     def observe(
         self,
         source: str,
