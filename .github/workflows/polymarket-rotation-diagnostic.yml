@@ -9,10 +9,10 @@ permissions:
   contents: read
 
 jobs:
-  early-target-natural-churn:
+  affected-trade-activity:
     if: github.head_ref == 'investigate-polymarket-rotation-drift'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,6 +24,6 @@ jobs:
       - name: Install
         run: python -m pip install -e ".[dev]"
       - name: Verify diagnostic
-        run: ruff check scripts/diagnose_polymarket_early_target_natural_churn.py
-      - name: Compare early dynamic target with and without natural 5m rotation
-        run: python scripts/diagnose_polymarket_early_target_natural_churn.py
+        run: ruff check scripts/diagnose_polymarket_affected_trade_activity.py
+      - name: Compare public trades with BP websocket cutoffs
+        run: python scripts/diagnose_polymarket_affected_trade_activity.py
