@@ -16,16 +16,20 @@ class FakeWebSocket:
         messages: Sequence[object] = (),
         stop: asyncio.Event | None = None,
         stop_on_first_send: bool = False,
+        yield_on_send_number: int | None = None,
     ) -> None:
         self.messages: asyncio.Queue[object] = asyncio.Queue()
         for message in messages:
             self.messages.put_nowait(message)
         self.stop = stop
         self.stop_on_first_send = stop_on_first_send
+        self.yield_on_send_number = yield_on_send_number
         self.sent: list[str] = []
 
     async def send(self, message: str) -> None:
         self.sent.append(message)
+        if self.yield_on_send_number == len(self.sent):
+            await asyncio.sleep(0.003)
         if self.stop_on_first_send and len(self.sent) == 1:
             assert self.stop is not None
             self.stop.set()
@@ -104,3 +108,55 @@ async def test_ready_outbound_subscription_is_retained_when_receive_fails_same_t
     assert len(second.sent) == 1
     reconnect_subscription = json.loads(second.sent[0])
     assert reconnect_subscription["assets_ids"] == ["current", "next"]
+
+
+@pytest.mark.asyncio
+async def test_second_ready_outbound_subscription_is_not_consumed_before_failed_receive_reconnects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stop = asyncio.Event()
+    first = FakeWebSocket(
+        messages=[RuntimeError("connection ended")],
+        yield_on_send_number=2,
+    )
+    second = FakeWebSocket(stop=stop, stop_on_first_send=True)
+    connector = SequenceConnector([first, second])
+    outbound: asyncio.Queue[object] = asyncio.Queue()
+    outbound.put_nowait({"operation": "subscribe", "assets_ids": ["next-a"]})
+    outbound.put_nowait({"operation": "subscribe", "assets_ids": ["next-b"]})
+    incidents: list[FeedIncident] = []
+    original_wait = asyncio.wait
+    wait_calls = 0
+
+    async def simultaneous_first_wait(fs, *, return_when):
+        nonlocal wait_calls
+        wait_calls += 1
+        if wait_calls == 1:
+            # The first control and receive failure are both ready. The first
+            # dynamic send then yields, giving any prematurely re-armed
+            # Queue.get() time to consume the second control before reconnect.
+            await asyncio.sleep(0.003)
+        return await original_wait(fs, return_when=return_when)
+
+    monkeypatch.setattr(asyncio, "wait", simultaneous_first_wait)
+
+    runner = WebSocketCollectorRunner(
+        source="polymarket",
+        stream="market",
+        url="wss://example.test/ws",
+        connector=connector,
+        subscription={"type": "market", "assets_ids": ["current"]},
+        parser=lambda message, received_at: [],
+        event_sink=lambda event: None,
+        incident_sink=incidents.append,
+        heartbeat_message=None,
+        heartbeat_interval_seconds=None,
+        outbound_messages=outbound,
+        reconnect_policy=ReconnectPolicy(initial_seconds=0, maximum_seconds=0),
+    )
+
+    await asyncio.wait_for(runner.run(stop), timeout=1)
+
+    assert len(second.sent) == 1
+    reconnect_subscription = json.loads(second.sent[0])
+    assert reconnect_subscription["assets_ids"] == ["current", "next-a", "next-b"]
