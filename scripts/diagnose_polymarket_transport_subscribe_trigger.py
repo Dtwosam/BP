@@ -5,7 +5,7 @@ import json
 import os
 import time
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from websockets.asyncio.client import connect
@@ -182,13 +182,9 @@ async def main() -> None:
         offsets=(-1, 0, 1, 2, 3, 4),
     )
 
-    old_five = _find_market(markets, 300, boundary.replace() - __import__("datetime").timedelta(seconds=300))
+    old_five = _find_market(markets, 300, boundary - timedelta(seconds=300))
     active_five = _find_market(markets, 300, boundary)
-    future_five = _find_market(
-        markets,
-        300,
-        boundary + __import__("datetime").timedelta(seconds=300),
-    )
+    future_five = _find_market(markets, 300, boundary + timedelta(seconds=300))
     target = _find_market(markets, 900, boundary)
     anchor_candidates = [
         market
