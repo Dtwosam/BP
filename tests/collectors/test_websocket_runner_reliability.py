@@ -72,6 +72,54 @@ async def test_runner_emits_stale_incident_when_connected_feed_goes_quiet() -> N
 
 
 @pytest.mark.asyncio
+async def test_runner_does_not_emit_recovered_for_silent_reconnect() -> None:
+    watchdog = FeedWatchdog(stale_after_seconds=1)
+    observed_at = datetime(2026, 8, 23, tzinfo=UTC)
+    watchdog.observe(
+        "bybit",
+        "spot",
+        monotonic_time=0,
+        observed_at=observed_at,
+    )
+    stale = watchdog.check(
+        "bybit",
+        "spot",
+        monotonic_time=2,
+        observed_at=observed_at + timedelta(seconds=2),
+    )
+    assert stale is not None
+    assert stale.incident_type == "stale"
+
+    ws = FakeWebSocket()
+    stop = asyncio.Event()
+    incidents: list[FeedIncident] = []
+    runner = WebSocketCollectorRunner(
+        source="bybit",
+        stream="spot",
+        url="wss://example.test/ws",
+        connector=FakeConnector(ws),
+        subscription={"op": "subscribe", "args": ["orderbook.1.BTCUSDT"]},
+        parser=lambda message, received_at: [],
+        event_sink=lambda event: None,
+        incident_sink=incidents.append,
+        heartbeat_message=None,
+        heartbeat_interval_seconds=None,
+        watchdog=watchdog,
+    )
+
+    task = asyncio.create_task(runner.run(stop))
+    for _ in range(100):
+        if ws.sent:
+            break
+        await asyncio.sleep(0.001)
+    await asyncio.sleep(0)
+    stop.set()
+    await asyncio.wait_for(task, timeout=1)
+
+    assert "recovered" not in [incident.incident_type for incident in incidents]
+
+
+@pytest.mark.asyncio
 async def test_runner_emits_recovered_when_reconnect_clears_stale_watchdog() -> None:
     watchdog = FeedWatchdog(stale_after_seconds=1)
     observed_at = datetime(2026, 8, 23, tzinfo=UTC)
