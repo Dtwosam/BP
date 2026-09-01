@@ -20,15 +20,27 @@ AFFECTED_LAST_EVENT_OFFSETS = {
     "btc-updown-15m-1788222600": 361.07,
     "btc-updown-15m-1788223500": 542.92,
 }
-HEALTHY_COMPARATOR_SLUGS = (
+HEALTHY_15M_COMPARATOR_SLUGS = (
     "btc-updown-15m-1788216300",
     "btc-updown-15m-1788224400",
     "btc-updown-15m-1788225300",
+)
+SAME_START_5M_SLUGS = tuple(
+    slug.replace("btc-updown-15m-", "btc-updown-5m-")
+    for slug in AFFECTED_LAST_EVENT_OFFSETS
 )
 
 
 def _market_start_from_slug(slug: str) -> int:
     return int(slug.rsplit("-", 1)[1])
+
+
+def _horizon_seconds_from_slug(slug: str) -> int:
+    if "-15m-" in slug:
+        return 900
+    if "-5m-" in slug:
+        return 300
+    raise ValueError(f"unknown horizon in slug: {slug}")
 
 
 def _trade_timestamp(trade: dict[str, Any]) -> int | None:
@@ -50,22 +62,34 @@ def _offset_range(timestamps: list[int], start_epoch: int) -> list[int] | None:
     return [timestamps[0] - start_epoch, timestamps[-1] - start_epoch]
 
 
+def _kind(slug: str) -> str:
+    if slug in AFFECTED_LAST_EVENT_OFFSETS:
+        return "affected_15m"
+    if slug in HEALTHY_15M_COMPARATOR_SLUGS:
+        return "healthy_15m_comparator"
+    return "same_start_5m"
+
+
 async def main() -> None:
     gamma = GammaClient()
     output: list[dict[str, object]] = []
-    slugs = list(AFFECTED_LAST_EVENT_OFFSETS) + list(HEALTHY_COMPARATOR_SLUGS)
+    slugs = (
+        list(AFFECTED_LAST_EVENT_OFFSETS)
+        + list(HEALTHY_15M_COMPARATOR_SLUGS)
+        + list(SAME_START_5M_SLUGS)
+    )
 
     async with httpx.AsyncClient(base_url=DATA_API, timeout=20.0) as client:
         for slug in slugs:
             last_event_offset = AFFECTED_LAST_EVENT_OFFSETS.get(slug)
             market = await gamma.get_market_by_slug(slug)
             if market is None:
-                output.append({"slug": slug, "error": "gamma_market_missing"})
+                output.append({"kind": _kind(slug), "slug": slug, "error": "gamma_market_missing"})
                 continue
 
             condition_id = str(market.get("conditionId") or "")
             if not condition_id:
-                output.append({"slug": slug, "error": "condition_id_missing"})
+                output.append({"kind": _kind(slug), "slug": slug, "error": "condition_id_missing"})
                 continue
 
             response = await client.get(
@@ -80,7 +104,7 @@ async def main() -> None:
             response.raise_for_status()
             payload = response.json()
             if not isinstance(payload, list):
-                output.append({"slug": slug, "error": "trades_response_not_list"})
+                output.append({"kind": _kind(slug), "slug": slug, "error": "trades_response_not_list"})
                 continue
 
             trades = [trade for trade in payload if isinstance(trade, dict)]
@@ -91,7 +115,8 @@ async def main() -> None:
                 and str(trade.get("slug") or "") == slug
             ]
             start_epoch = _market_start_from_slug(slug)
-            end_epoch = start_epoch + 900
+            horizon_seconds = _horizon_seconds_from_slug(slug)
+            end_epoch = start_epoch + horizon_seconds
             timestamps = sorted(
                 timestamp
                 for trade in matching
@@ -102,10 +127,11 @@ async def main() -> None:
             ]
 
             result: dict[str, object] = {
-                "kind": "affected" if last_event_offset is not None else "healthy_comparator",
+                "kind": _kind(slug),
                 "slug": slug,
                 "condition_id": condition_id,
                 "window_start": datetime.fromtimestamp(start_epoch, tz=UTC).isoformat(),
+                "horizon_seconds": horizon_seconds,
                 "gamma_volume": market.get("volume"),
                 "gamma_volume_num": market.get("volumeNum"),
                 "matching_market_trade_count": len(matching),
@@ -133,12 +159,6 @@ async def main() -> None:
                             cutoff_epoch, tz=UTC
                         ).isoformat(),
                         "trades_after_bp_last_event_before_window_end": len(after_cutoff),
-                        "first_trade_after_bp_last_event_offset_seconds": (
-                            None if not after_cutoff else after_cutoff[0] - start_epoch
-                        ),
-                        "last_trade_after_bp_last_event_offset_seconds": (
-                            None if not after_cutoff else after_cutoff[-1] - start_epoch
-                        ),
                     }
                 )
 
@@ -148,7 +168,7 @@ async def main() -> None:
         json.dumps(
             {
                 "generated_at": datetime.now(UTC).isoformat(),
-                "mode": "affected_trade_activity_with_comparators",
+                "mode": "cross_horizon_trade_activity",
                 "taker_only": False,
                 "markets": output,
             },
