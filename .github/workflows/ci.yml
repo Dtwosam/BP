@@ -91,6 +91,7 @@ jobs:
           bash -n scripts/deploy/phase14_prospective_outcome_sync_cloudshell.sh
           bash -n scripts/deploy/phase14_prospective_runtime_install.sh
           bash -n scripts/deploy/phase14_prospective_runtime_cloudshell.sh
+          bash -n scripts/deploy/phase14_recorder_reliability_rollout_cloudshell.sh
           python -m py_compile scripts/deploy/ensure_phase12_replay_indexes.py
           python -m py_compile scripts/run_live_prediction.py scripts/report_live_predictions.py scripts/run_dashboard_api.py
           python -m py_compile scripts/run_paper_execution.py
