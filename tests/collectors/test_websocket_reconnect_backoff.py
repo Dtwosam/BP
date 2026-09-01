@@ -100,3 +100,41 @@ async def test_reconnect_streak_resets_after_connection_receives_data() -> None:
     ]
     assert reconnect_attempts == [0, 0]
     assert [event.sequence for event in events] == ["1", "2"]
+
+
+@pytest.mark.asyncio
+async def test_reconnect_streak_keeps_escalating_until_a_connection_receives_data() -> None:
+    first = FakeWebSocket([RuntimeError("first drop")])
+    second = FakeWebSocket([RuntimeError("second drop")])
+    third = FakeWebSocket(['{"sequence": 3}'])
+    connector = FakeConnector([first, second, third])
+    incidents: list[FeedIncident] = []
+    stop = asyncio.Event()
+
+    def parser(message: object, received_at: datetime) -> list[RawEvent]:
+        assert isinstance(message, dict)
+        stop.set()
+        return [raw_event(int(message["sequence"]), received_at)]
+
+    runner = WebSocketCollectorRunner(
+        source="test",
+        stream="market",
+        url="wss://example.test/ws",
+        connector=connector,
+        subscription={"type": "market"},
+        parser=parser,
+        event_sink=lambda event: None,
+        incident_sink=incidents.append,
+        heartbeat_message="PING",
+        heartbeat_interval_seconds=30,
+        reconnect_policy=ReconnectPolicy(initial_seconds=0, maximum_seconds=0),
+    )
+
+    await asyncio.wait_for(runner.run(stop), timeout=1)
+
+    reconnect_attempts = [
+        incident.details["attempt"]
+        for incident in incidents
+        if incident.incident_type == "reconnect"
+    ]
+    assert reconnect_attempts == [0, 1]
