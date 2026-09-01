@@ -50,6 +50,15 @@ def test_recorder_reliability_rollout_is_exact_head_guarded_and_rollback_capable
 
     assert "storage_maintenance.py" in content
     assert "disk-health" in content
+    assert "require_research_zero_money" in content
+    assert "research_zero_money_boundary_not_satisfied" in content
+    for expected in (
+        '"$mode" != "research"',
+        '"$live_trading_enabled" != "false"',
+        '"$max_trade_size_usd" != "0"',
+        '"$max_daily_loss_usd" != "0"',
+    ):
+        assert expected in content
     for key in (
         "MODE",
         "LIVE_TRADING_ENABLED",
@@ -57,10 +66,6 @@ def test_recorder_reliability_rollout_is_exact_head_guarded_and_rollback_capable
         "MAX_DAILY_LOSS_USD",
     ):
         assert key in content
-    assert '"$MODE" != "research"' in content
-    assert '"$LIVE_TRADING_ENABLED" != "false"' in content
-    assert '"$MAX_TRADE_SIZE_USD" != "0"' in content
-    assert '"$MAX_DAILY_LOSS_USD" != "0"' in content
 
     for service in CORE_SERVICES:
         assert service in content
