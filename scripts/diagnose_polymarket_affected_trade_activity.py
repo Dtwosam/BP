@@ -31,9 +31,12 @@ def _trade_timestamp(trade: dict[str, Any]) -> int | None:
     if value is None:
         return None
     try:
-        return int(value)
+        timestamp = int(value)
     except (TypeError, ValueError):
         return None
+    if timestamp > 100_000_000_000:
+        timestamp //= 1000
+    return timestamp
 
 
 async def main() -> None:
@@ -75,10 +78,13 @@ async def main() -> None:
                 for trade in trades
                 if (timestamp := _trade_timestamp(trade)) is not None
             )
+            during_window = [
+                timestamp for timestamp in timestamps if start_epoch <= timestamp <= end_epoch
+            ]
             after_cutoff = [
                 timestamp
-                for timestamp in timestamps
-                if timestamp > cutoff_epoch and timestamp <= end_epoch
+                for timestamp in during_window
+                if timestamp > cutoff_epoch
             ]
 
             output.append(
@@ -91,9 +97,7 @@ async def main() -> None:
                     "gamma_volume": market.get("volume"),
                     "gamma_volume_num": market.get("volumeNum"),
                     "trade_count_returned": len(trades),
-                    "trade_count_during_window": sum(
-                        1 for timestamp in timestamps if start_epoch <= timestamp <= end_epoch
-                    ),
+                    "trade_count_during_window": len(during_window),
                     "trades_after_bp_last_event_before_window_end": len(after_cutoff),
                     "first_trade_after_bp_last_event_offset_seconds": (
                         None if not after_cutoff else after_cutoff[0] - start_epoch
@@ -102,16 +106,7 @@ async def main() -> None:
                         None if not after_cutoff else after_cutoff[-1] - start_epoch
                     ),
                     "last_trade_in_window_offset_seconds": (
-                        None
-                        if not timestamps
-                        else max(
-                            (
-                                timestamp - start_epoch
-                                for timestamp in timestamps
-                                if start_epoch <= timestamp <= end_epoch
-                            ),
-                            default=None,
-                        )
+                        None if not during_window else during_window[-1] - start_epoch
                     ),
                 }
             )
