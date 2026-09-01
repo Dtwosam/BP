@@ -10,6 +10,7 @@ from typing import Any
 from websockets.asyncio.client import connect
 from websockets.exceptions import ConnectionClosed
 
+from bp_engine.collectors.polymarket_ws import build_subscription_update
 from bp_engine.collectors.websocket_runner import WebSocketCollectorRunner
 from bp_engine.polymarket.discovery import discover_btc_markets
 from bp_engine.polymarket.gamma import GammaClient
@@ -17,32 +18,25 @@ from bp_engine.polymarket.gamma import GammaClient
 WS_URL = "wss://ws-subscriptions-clob.polymarket.com/ws/market"
 HEARTBEAT_SECONDS = 10.0
 ACTION_OFFSET_SECONDS = 120.0
-OBSERVE_AFTER_ACTION_SECONDS = 90.0
+OBSERVE_AFTER_ACTION_SECONDS = 120.0
 MIN_ACTION_LEAD_SECONDS = 25.0
 
 
 @dataclass
-class DirectStats:
-    frame_count: int = 0
-    data_frame_count: int = 0
-    pong_count: int = 0
-    byte_count: int = 0
-    closed: bool = False
-    close_code: int | None = None
-    close_reason: str | None = None
-    closed_at: str | None = None
-
-
-@dataclass
 class TrackedSocket:
+    connector: TrackingConnector
     index: int
     websocket: Any
+    opened_mono: float = field(default_factory=time.monotonic)
+    opened_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     sent: list[str] = field(default_factory=list)
     recv_count: int = 0
+    target_recv_count: int = 0
     byte_count: int = 0
     provider_close_code: int | None = None
     provider_close_reason: str | None = None
     provider_closed_at: str | None = None
+    provider_closed_mono: float | None = None
 
     async def send(self, message: str) -> None:
         self.sent.append(message)
@@ -58,17 +52,30 @@ class TrackedSocket:
         except ConnectionClosed as exc:
             self._record_provider_close(exc)
             raise
+
+        now_mono = time.monotonic()
         self.recv_count += 1
         if isinstance(raw, bytes):
             self.byte_count += len(raw)
+            text = raw.decode("utf-8", errors="ignore")
         elif isinstance(raw, str):
             self.byte_count += len(raw.encode("utf-8"))
+            text = raw
+        else:
+            text = ""
+
+        if any(asset in text for asset in self.connector.target_assets):
+            self.target_recv_count += 1
+            self.connector.target_observations.append(now_mono)
         return raw
 
     def _record_provider_close(self, exc: ConnectionClosed) -> None:
+        if self.provider_closed_mono is not None:
+            return
         self.provider_close_code = exc.code
         self.provider_close_reason = exc.reason
         self.provider_closed_at = datetime.now(UTC).isoformat()
+        self.provider_closed_mono = time.monotonic()
 
 
 class _TrackedContext:
@@ -78,13 +85,10 @@ class _TrackedContext:
         self.tracked: TrackedSocket | None = None
 
     async def __aenter__(self) -> TrackedSocket:
-        websocket = await connect(
-            self.url,
-            ping_interval=None,
-            close_timeout=5,
-            max_queue=1024,
-        )
+        # Intentionally use production websockets.connect defaults here.
+        websocket = await connect(self.url)
         self.tracked = TrackedSocket(
+            connector=self.connector,
             index=len(self.connector.connections) + 1,
             websocket=websocket,
         )
@@ -100,24 +104,14 @@ class _TrackedContext:
 
 
 class TrackingConnector:
-    def __init__(self) -> None:
+    def __init__(self, name: str, target_assets: list[str]) -> None:
+        self.name = name
+        self.target_assets = tuple(target_assets)
         self.connections: list[TrackedSocket] = []
+        self.target_observations: list[float] = []
 
     def __call__(self, url: str) -> _TrackedContext:
         return _TrackedContext(self, url)
-
-
-@dataclass
-class DirectProbe:
-    websocket: Any
-    stats: DirectStats
-    receiver: asyncio.Task[None]
-    stop: asyncio.Event
-    heartbeat: asyncio.Task[None]
-
-
-def _wire(payload: object) -> str:
-    return json.dumps(payload, separators=(",", ":"))
 
 
 def _assets(market: object) -> list[str]:
@@ -153,72 +147,6 @@ async def _wait_until(timestamp: float) -> None:
         await asyncio.sleep(0.05)
 
 
-async def _direct_receive(websocket: Any, stats: DirectStats) -> None:
-    try:
-        while True:
-            raw = await websocket.recv(decode=False)
-            stats.frame_count += 1
-            if isinstance(raw, bytes):
-                stats.byte_count += len(raw)
-            elif isinstance(raw, str):
-                stats.byte_count += len(raw.encode("utf-8"))
-            if raw in {b"PONG", "PONG"}:
-                stats.pong_count += 1
-            else:
-                stats.data_frame_count += 1
-    except ConnectionClosed as exc:
-        stats.closed = True
-        stats.close_code = exc.code
-        stats.close_reason = exc.reason
-        stats.closed_at = datetime.now(UTC).isoformat()
-
-
-async def _direct_heartbeat(probe: DirectProbe) -> None:
-    while not probe.stop.is_set() and not probe.stats.closed:
-        try:
-            await asyncio.wait_for(probe.stop.wait(), timeout=HEARTBEAT_SECONDS)
-            return
-        except TimeoutError:
-            try:
-                await probe.websocket.send("PING")
-            except ConnectionClosed as exc:
-                probe.stats.closed = True
-                probe.stats.close_code = exc.code
-                probe.stats.close_reason = exc.reason
-                probe.stats.closed_at = datetime.now(UTC).isoformat()
-                return
-
-
-async def _open_direct(initial_assets: list[str]) -> DirectProbe:
-    websocket = await connect(
-        WS_URL,
-        ping_interval=None,
-        close_timeout=5,
-        max_queue=1024,
-    )
-    await websocket.send(_wire({"assets_ids": sorted(set(initial_assets)), "type": "market"}))
-    stats = DirectStats()
-    stop = asyncio.Event()
-    receiver = asyncio.create_task(_direct_receive(websocket, stats))
-    placeholder = asyncio.create_task(asyncio.sleep(0))
-    probe = DirectProbe(websocket, stats, receiver, stop, placeholder)
-    probe.heartbeat = asyncio.create_task(_direct_heartbeat(probe))
-    await placeholder
-    return probe
-
-
-async def _close_direct(probe: DirectProbe) -> None:
-    probe.stop.set()
-    for task in (probe.receiver, probe.heartbeat):
-        if not task.done():
-            task.cancel()
-    await asyncio.gather(probe.receiver, probe.heartbeat, return_exceptions=True)
-    try:
-        await probe.websocket.close()
-    except Exception:
-        pass
-
-
 async def _wait_for_connections(connector: TrackingConnector, count: int, timeout: float) -> bool:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -239,6 +167,114 @@ def _initial_assets(tracked: TrackedSocket) -> list[str] | None:
     if not isinstance(assets, list):
         return None
     return sorted(str(asset) for asset in assets)
+
+
+def _relative(value: float | None, action_mono: float) -> float | None:
+    return None if value is None else round(value - action_mono, 3)
+
+
+def _arm_summary(
+    connector: TrackingConnector,
+    *,
+    action_mono: float,
+    finished_mono: float,
+    replacement_assets: list[str],
+    incidents: list[dict[str, object]],
+) -> dict[str, object]:
+    after_action = sorted(value for value in connector.target_observations if value >= action_mono)
+    first_target_delay = (
+        None if not after_action else round(after_action[0] - action_mono, 3)
+    )
+    final_target_age = (
+        None if not after_action else round(finished_mono - after_action[-1], 3)
+    )
+    max_target_gap = None
+    if len(after_action) >= 2:
+        max_target_gap = round(
+            max(second - first for first, second in zip(after_action, after_action[1:])),
+            3,
+        )
+
+    full_set_connections = [
+        tracked
+        for tracked in connector.connections
+        if _initial_assets(tracked) == replacement_assets
+    ]
+    first_full_set = full_set_connections[0] if full_set_connections else None
+    provider_closures = [
+        tracked for tracked in connector.connections if tracked.provider_closed_mono is not None
+    ]
+
+    return {
+        "connection_count": len(connector.connections),
+        "provider_closure_count": len(provider_closures),
+        "provider_close_offsets_seconds": [
+            _relative(tracked.provider_closed_mono, action_mono) for tracked in provider_closures
+        ],
+        "first_full_set_connection_offset_seconds": (
+            None if first_full_set is None else _relative(first_full_set.opened_mono, action_mono)
+        ),
+        "first_target_data_delay_seconds": first_target_delay,
+        "max_target_data_gap_seconds": max_target_gap,
+        "final_target_data_age_seconds": final_target_age,
+        "target_observation_count": len(after_action),
+        "connections": [
+            {
+                "index": tracked.index,
+                "opened_at": tracked.opened_at,
+                "opened_offset_seconds": _relative(tracked.opened_mono, action_mono),
+                "initial_assets": _initial_assets(tracked),
+                "recv_count": tracked.recv_count,
+                "target_recv_count": tracked.target_recv_count,
+                "byte_count": tracked.byte_count,
+                "provider_close_code": tracked.provider_close_code,
+                "provider_close_reason": tracked.provider_close_reason,
+                "provider_closed_at": tracked.provider_closed_at,
+                "provider_close_offset_seconds": _relative(
+                    tracked.provider_closed_mono, action_mono
+                ),
+                "sent": tracked.sent,
+            }
+            for tracked in connector.connections
+        ],
+        "incidents": incidents,
+    }
+
+
+async def _run_arm(
+    *,
+    name: str,
+    connector: TrackingConnector,
+    baseline_assets: list[str],
+    outbound: asyncio.Queue[object],
+    stop: asyncio.Event,
+    incidents: list[dict[str, object]],
+) -> None:
+    async def incident_sink(incident: object) -> None:
+        incidents.append(
+            {
+                "observed_at": getattr(incident, "observed_at", None).isoformat()
+                if getattr(incident, "observed_at", None) is not None
+                else None,
+                "incident_type": getattr(incident, "incident_type", None),
+                "details": getattr(incident, "details", None),
+            }
+        )
+
+    runner = WebSocketCollectorRunner(
+        source="polymarket",
+        stream=name,
+        url=WS_URL,
+        connector=connector,
+        subscription={"assets_ids": sorted(baseline_assets), "type": "market"},
+        parser=lambda payload, received_at: [],
+        event_sink=lambda event: None,
+        incident_sink=incident_sink,
+        heartbeat_message="PING",
+        heartbeat_interval_seconds=HEARTBEAT_SECONDS,
+        outbound_messages=outbound,
+    )
+    await runner.run(stop)
 
 
 async def main() -> None:
@@ -266,127 +302,104 @@ async def main() -> None:
     active_five_assets = _assets(active_five)
     replacement_assets = sorted(set(baseline_assets + active_five_assets))
 
-    direct = await _open_direct(baseline_assets)
-    connector = TrackingConnector()
-    outbound: asyncio.Queue[object] = asyncio.Queue()
-    protected_stop = asyncio.Event()
-    incidents: list[dict[str, object]] = []
+    existing_connector = TrackingConnector("existing", active_five_assets)
+    prototype_connector = TrackingConnector("prototype", active_five_assets)
+    existing_outbound: asyncio.Queue[object] = asyncio.Queue()
+    prototype_outbound: asyncio.Queue[object] = asyncio.Queue()
+    existing_stop = asyncio.Event()
+    prototype_stop = asyncio.Event()
+    existing_incidents: list[dict[str, object]] = []
+    prototype_incidents: list[dict[str, object]] = []
 
-    async def incident_sink(incident: object) -> None:
-        incidents.append(
-            {
-                "incident_type": getattr(incident, "incident_type", None),
-                "details": getattr(incident, "details", None),
-            }
-        )
-
-    runner = WebSocketCollectorRunner(
-        source="polymarket",
-        stream="late_active_validation",
-        url=WS_URL,
-        connector=connector,
-        subscription={"assets_ids": sorted(baseline_assets), "type": "market"},
-        parser=lambda payload, received_at: [],
-        event_sink=lambda event: None,
-        incident_sink=incident_sink,
-        heartbeat_message="PING",
-        heartbeat_interval_seconds=HEARTBEAT_SECONDS,
-        outbound_messages=outbound,
-    )
-    runner_task = asyncio.create_task(runner.run(protected_stop))
-
-    direct_action_sent = False
-    protected_control_queued_at: str | None = None
-    second_connection_seen = False
-
-    try:
-        if not await _wait_for_connections(connector, 1, timeout=10.0):
-            raise RuntimeError("protected runner did not open initial connection")
-        await _wait_until(action_at.timestamp())
-
-        try:
-            await direct.websocket.send(
-                _wire({"operation": "subscribe", "assets_ids": active_five_assets})
+    tasks = [
+        asyncio.create_task(
+            _run_arm(
+                name="existing_late_active_validation",
+                connector=existing_connector,
+                baseline_assets=baseline_assets,
+                outbound=existing_outbound,
+                stop=existing_stop,
+                incidents=existing_incidents,
             )
-            direct_action_sent = True
-        except ConnectionClosed as exc:
-            direct.stats.closed = True
-            direct.stats.close_code = exc.code
-            direct.stats.close_reason = exc.reason
-            direct.stats.closed_at = datetime.now(UTC).isoformat()
+        ),
+        asyncio.create_task(
+            _run_arm(
+                name="prototype_late_active_validation",
+                connector=prototype_connector,
+                baseline_assets=baseline_assets,
+                outbound=prototype_outbound,
+                stop=prototype_stop,
+                incidents=prototype_incidents,
+            )
+        ),
+    ]
 
-        protected_control_queued_at = datetime.now(UTC).isoformat()
-        await outbound.put(
+    action_mono = 0.0
+    try:
+        if not await asyncio.gather(
+            _wait_for_connections(existing_connector, 1, timeout=10.0),
+            _wait_for_connections(prototype_connector, 1, timeout=10.0),
+        ) == [True, True]:
+            raise RuntimeError("both validation arms must open initial connections")
+
+        await _wait_until(action_at.timestamp())
+        if len(existing_connector.connections) != 1 or len(prototype_connector.connections) != 1:
+            raise RuntimeError("validation arm reconnected before late-active action")
+
+        action_mono = time.monotonic()
+        await existing_outbound.put(
+            build_subscription_update("subscribe", active_five_assets)
+        )
+        await prototype_outbound.put(
             {
                 "_bp_control": "replace_market_subscription",
                 "assets_ids": replacement_assets,
             }
         )
-        second_connection_seen = await _wait_for_connections(connector, 2, timeout=10.0)
 
         await _wait_until(action_at.timestamp() + OBSERVE_AFTER_ACTION_SECONDS)
     finally:
-        protected_stop.set()
+        finished_mono = time.monotonic()
+        existing_stop.set()
+        prototype_stop.set()
         try:
-            await asyncio.wait_for(runner_task, timeout=10.0)
+            await asyncio.wait_for(asyncio.gather(*tasks), timeout=20.0)
         except TimeoutError:
-            runner_task.cancel()
-            await asyncio.gather(runner_task, return_exceptions=True)
-        await _close_direct(direct)
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
-    second_initial_assets = (
-        _initial_assets(connector.connections[1]) if len(connector.connections) >= 2 else None
-    )
-    second_provider_closed = (
-        connector.connections[1].provider_close_code is not None
-        if len(connector.connections) >= 2
-        else None
-    )
+    if action_mono <= 0:
+        raise RuntimeError("late-active action was not executed")
 
     print(
         json.dumps(
             {
                 "generated_at": datetime.now(UTC).isoformat(),
+                "transport_profile": "production_websockets_connect_defaults",
                 "action_target_at": action_at.isoformat(),
                 "action_market_offset_seconds": ACTION_OFFSET_SECONDS,
+                "observe_after_action_seconds": OBSERVE_AFTER_ACTION_SECONDS,
                 "active_five_slug": active_five.slug,
                 "active_fifteen_slug": active_fifteen.slug,
                 "replacement_assets": replacement_assets,
-                "direct_control": {
-                    "action_sent": direct_action_sent,
-                    "frame_count": direct.stats.frame_count,
-                    "data_frame_count": direct.stats.data_frame_count,
-                    "pong_count": direct.stats.pong_count,
-                    "byte_count": direct.stats.byte_count,
-                    "closed": direct.stats.closed,
-                    "close_code": direct.stats.close_code,
-                    "close_reason": direct.stats.close_reason,
-                    "closed_at": direct.stats.closed_at,
-                },
-                "protected": {
-                    "control_queued_at": protected_control_queued_at,
-                    "second_connection_seen": second_connection_seen,
-                    "connection_count": len(connector.connections),
-                    "second_initial_assets": second_initial_assets,
-                    "second_initial_matches_replacement": second_initial_assets
-                    == replacement_assets,
-                    "second_provider_closed": second_provider_closed,
-                    "connections": [
-                        {
-                            "index": tracked.index,
-                            "sent": tracked.sent,
-                            "recv_count": tracked.recv_count,
-                            "byte_count": tracked.byte_count,
-                            "provider_close_code": tracked.provider_close_code,
-                            "provider_close_reason": tracked.provider_close_reason,
-                            "provider_closed_at": tracked.provider_closed_at,
-                        }
-                        for tracked in connector.connections
-                    ],
-                    "incidents": incidents,
-                },
+                "existing": _arm_summary(
+                    existing_connector,
+                    action_mono=action_mono,
+                    finished_mono=finished_mono,
+                    replacement_assets=replacement_assets,
+                    incidents=existing_incidents,
+                ),
+                "prototype": _arm_summary(
+                    prototype_connector,
+                    action_mono=action_mono,
+                    finished_mono=finished_mono,
+                    replacement_assets=replacement_assets,
+                    incidents=prototype_incidents,
+                ),
             },
             sort_keys=True,
+            default=str,
         )
     )
 
