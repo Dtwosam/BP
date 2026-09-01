@@ -89,6 +89,14 @@ class _PolymarketSubscriptionUpdater:
             if await self._wait(stop):
                 return
             diff = await self._coordinator.refresh(self._now())
+            if diff.active_added:
+                await self._outbound_messages.put(
+                    {
+                        "_bp_control": "replace_market_subscription",
+                        "assets_ids": sorted(diff.current),
+                    }
+                )
+                continue
             if diff.added:
                 await self._outbound_messages.put(
                     build_subscription_update("subscribe", sorted(diff.added))
