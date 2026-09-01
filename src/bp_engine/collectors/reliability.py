@@ -32,7 +32,7 @@ class FeedWatchdog:
         *,
         monotonic_time: float,
     ) -> None:
-        self._last_seen[(source, stream)] = monotonic_time
+        self._last_seen.setdefault((source, stream), monotonic_time)
 
     def observe(
         self,
