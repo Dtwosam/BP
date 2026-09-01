@@ -14,6 +14,7 @@ class SubscriptionDiff:
     added: frozenset[str]
     removed: frozenset[str]
     current: frozenset[str]
+    active_added: frozenset[str] = frozenset()
 
 
 class PolymarketSubscriptionCoordinator:
@@ -33,13 +34,17 @@ class PolymarketSubscriptionCoordinator:
         now = now.astimezone(UTC)
 
         markets = await self._discovery(now)
+        active_tokens: set[str] = set()
         for market in markets:
             if not market.active:
                 continue
             expiry = market.window_end_at.astimezone(UTC) + self._grace
             if expiry < now:
                 continue
-            for token_id in (market.up_token_id, market.down_token_id):
+            token_ids = (market.up_token_id, market.down_token_id)
+            if market.window_start_at.astimezone(UTC) <= now < market.window_end_at.astimezone(UTC):
+                active_tokens.update(token_ids)
+            for token_id in token_ids:
                 existing = self._token_expiry.get(token_id)
                 if existing is None or expiry > existing:
                     self._token_expiry[token_id] = expiry
@@ -60,4 +65,5 @@ class PolymarketSubscriptionCoordinator:
             added=frozenset(added),
             removed=frozenset(removed),
             current=frozenset(desired),
+            active_added=frozenset(added & active_tokens),
         )
