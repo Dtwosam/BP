@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from bp_engine.collectors.polymarket_ws import parse_polymarket_message
 from bp_engine.collectors.reliability import ClockSkewGuard, FeedWatchdog
 from bp_engine.collectors.websocket_runner import WebSocketCollectorRunner
 from bp_engine.recorder.models import FeedIncident, RawEvent
@@ -41,6 +42,19 @@ class FakeConnector:
         return FakeConnection(self.websocket)
 
 
+def market_event(sequence: int, received_at: datetime) -> RawEvent:
+    return RawEvent.build(
+        source="test",
+        stream="market",
+        instrument="BTC",
+        event_type="trade",
+        source_timestamp=received_at,
+        received_at=received_at,
+        sequence=sequence,
+        payload={"sequence": sequence},
+    )
+
+
 @pytest.mark.asyncio
 async def test_runner_emits_stale_incident_when_connected_feed_goes_quiet() -> None:
     ws = FakeWebSocket()
@@ -67,6 +81,42 @@ async def test_runner_emits_stale_incident_when_connected_feed_goes_quiet() -> N
     )
 
     await asyncio.wait_for(runner.run(stop), timeout=1)
+
+    assert "stale" in [incident.incident_type for incident in incidents]
+
+
+@pytest.mark.asyncio
+async def test_runner_control_only_frames_do_not_keep_market_feed_healthy() -> None:
+    ws = FakeWebSocket()
+    stop = asyncio.Event()
+    incidents: list[FeedIncident] = []
+
+    runner = WebSocketCollectorRunner(
+        source="polymarket",
+        stream="market",
+        url="wss://example.test/ws",
+        connector=FakeConnector(ws),
+        subscription={"assets_ids": ["asset"], "type": "market"},
+        parser=lambda message, received_at: parse_polymarket_message(
+            message,
+            received_at=received_at,
+        ),
+        event_sink=lambda event: None,
+        incident_sink=incidents.append,
+        heartbeat_message="PING",
+        heartbeat_interval_seconds=30,
+        watchdog=FeedWatchdog(stale_after_seconds=0.03),
+    )
+
+    async def publish_control_frames() -> None:
+        for _ in range(20):
+            await ws.messages.put("PONG")
+            await asyncio.sleep(0.005)
+        stop.set()
+
+    runner_task = asyncio.create_task(runner.run(stop))
+    publisher_task = asyncio.create_task(publish_control_frames())
+    await asyncio.wait_for(asyncio.gather(runner_task, publisher_task), timeout=1)
 
     assert "stale" in [incident.incident_type for incident in incidents]
 
@@ -120,7 +170,7 @@ async def test_runner_does_not_emit_recovered_for_silent_reconnect() -> None:
 
 
 @pytest.mark.asyncio
-async def test_runner_emits_recovered_when_reconnect_clears_stale_watchdog() -> None:
+async def test_runner_emits_recovered_when_market_data_clears_stale_watchdog() -> None:
     watchdog = FeedWatchdog(stale_after_seconds=1)
     observed_at = datetime(2026, 8, 23, tzinfo=UTC)
     watchdog.observe(
@@ -144,7 +194,7 @@ async def test_runner_emits_recovered_when_reconnect_clears_stale_watchdog() -> 
 
     def parser(message: object, received_at: datetime) -> list[RawEvent]:
         stop.set()
-        return []
+        return [market_event(1, received_at)]
 
     runner = WebSocketCollectorRunner(
         source="bybit",
