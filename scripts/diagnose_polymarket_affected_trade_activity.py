@@ -39,6 +39,12 @@ def _trade_timestamp(trade: dict[str, Any]) -> int | None:
     return timestamp
 
 
+def _offset_range(timestamps: list[int], start_epoch: int) -> list[int] | None:
+    if not timestamps:
+        return None
+    return [timestamps[0] - start_epoch, timestamps[-1] - start_epoch]
+
+
 async def main() -> None:
     gamma = GammaClient()
     output: list[dict[str, object]] = []
@@ -60,7 +66,7 @@ async def main() -> None:
                     "market": condition_id,
                     "limit": 10000,
                     "offset": 0,
-                    "takerOnly": "true",
+                    "takerOnly": "false",
                 },
             )
             response.raise_for_status()
@@ -70,21 +76,25 @@ async def main() -> None:
                 continue
 
             trades = [trade for trade in payload if isinstance(trade, dict)]
+            matching = [
+                trade
+                for trade in trades
+                if str(trade.get("conditionId") or "").lower() == condition_id.lower()
+                and str(trade.get("slug") or "") == slug
+            ]
             start_epoch = _market_start_from_slug(slug)
             end_epoch = start_epoch + 900
             cutoff_epoch = start_epoch + last_event_offset
             timestamps = sorted(
                 timestamp
-                for trade in trades
+                for trade in matching
                 if (timestamp := _trade_timestamp(trade)) is not None
             )
             during_window = [
                 timestamp for timestamp in timestamps if start_epoch <= timestamp <= end_epoch
             ]
             after_cutoff = [
-                timestamp
-                for timestamp in during_window
-                if timestamp > cutoff_epoch
+                timestamp for timestamp in during_window if timestamp > cutoff_epoch
             ]
 
             output.append(
@@ -97,6 +107,10 @@ async def main() -> None:
                     "gamma_volume": market.get("volume"),
                     "gamma_volume_num": market.get("volumeNum"),
                     "trade_count_returned": len(trades),
+                    "matching_market_trade_count": len(matching),
+                    "matching_trade_timestamp_offset_range_seconds": _offset_range(
+                        timestamps, start_epoch
+                    ),
                     "trade_count_during_window": len(during_window),
                     "trades_after_bp_last_event_before_window_end": len(after_cutoff),
                     "first_trade_after_bp_last_event_offset_seconds": (
@@ -116,6 +130,7 @@ async def main() -> None:
             {
                 "generated_at": datetime.now(UTC).isoformat(),
                 "mode": "affected_trade_activity",
+                "taker_only": False,
                 "markets": output,
             },
             sort_keys=True,
