@@ -70,6 +70,10 @@ def _kind(slug: str) -> str:
     return "same_start_5m"
 
 
+def _error(slug: str, message: str) -> dict[str, object]:
+    return {"kind": _kind(slug), "slug": slug, "error": message}
+
+
 async def main() -> None:
     gamma = GammaClient()
     output: list[dict[str, object]] = []
@@ -84,12 +88,12 @@ async def main() -> None:
             last_event_offset = AFFECTED_LAST_EVENT_OFFSETS.get(slug)
             market = await gamma.get_market_by_slug(slug)
             if market is None:
-                output.append({"kind": _kind(slug), "slug": slug, "error": "gamma_market_missing"})
+                output.append(_error(slug, "gamma_market_missing"))
                 continue
 
             condition_id = str(market.get("conditionId") or "")
             if not condition_id:
-                output.append({"kind": _kind(slug), "slug": slug, "error": "condition_id_missing"})
+                output.append(_error(slug, "condition_id_missing"))
                 continue
 
             response = await client.get(
@@ -104,7 +108,7 @@ async def main() -> None:
             response.raise_for_status()
             payload = response.json()
             if not isinstance(payload, list):
-                output.append({"kind": _kind(slug), "slug": slug, "error": "trades_response_not_list"})
+                output.append(_error(slug, "trades_response_not_list"))
                 continue
 
             trades = [trade for trade in payload if isinstance(trade, dict)]
