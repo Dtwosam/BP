@@ -9,27 +9,40 @@ permissions:
   contents: read
 
 jobs:
-  rotation-diagnostic:
+  static-broad:
     if: github.head_ref == 'investigate-polymarket-rotation-drift'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
-
       - name: Install
         run: python -m pip install -e ".[dev]"
-
-      - name: Verify diagnostics
-        run: |
-          ruff check scripts/diagnose_polymarket_rotation_drift.py
-          ruff check scripts/diagnose_polymarket_static_breadth.py
-
-      - name: Probe static broad public websocket subscription
+      - name: Verify broad diagnostic
+        run: ruff check scripts/diagnose_polymarket_static_breadth.py
+      - name: Probe broad static subscription
         run: python scripts/diagnose_polymarket_static_breadth.py
+
+  static-narrow:
+    if: github.head_ref == 'investigate-polymarket-rotation-drift'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+      - name: Verify narrow diagnostic
+        run: ruff check scripts/diagnose_polymarket_static_narrow.py
+      - name: Probe narrow static subscription
+        run: python scripts/diagnose_polymarket_static_narrow.py
