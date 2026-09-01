@@ -224,6 +224,15 @@ class WebSocketCollectorRunner:
                         return
                     recv_task = asyncio.create_task(websocket.recv())
 
+                outbound_ready = outbound_task is not None and outbound_task in done
+                outbound_message: object | None = None
+                if outbound_ready:
+                    outbound_message = outbound_task.result()
+                    self.subscription = _apply_market_subscription_update(
+                        self.subscription,
+                        outbound_message,
+                    )
+
                 if heartbeat_task is not None and heartbeat_task in done:
                     assert self.heartbeat_message is not None
                     assert self.heartbeat_interval_seconds is not None
@@ -232,13 +241,9 @@ class WebSocketCollectorRunner:
                         asyncio.sleep(self.heartbeat_interval_seconds)
                     )
 
-                if outbound_task is not None and outbound_task in done:
-                    outbound_message = outbound_task.result()
-                    self.subscription = _apply_market_subscription_update(
-                        self.subscription,
-                        outbound_message,
-                    )
+                if outbound_ready:
                     await websocket.send(_wire_message(outbound_message))
+                    assert self.outbound_messages is not None
                     outbound_task = asyncio.create_task(self.outbound_messages.get())
 
                 if watchdog_task is not None and watchdog_task in done:
