@@ -56,7 +56,6 @@ async def main() -> None:
     bootstrap_assets = [bootstrap.up_token_id, bootstrap.down_token_id]
     target_assets = [target.up_token_id, target.down_token_id]
 
-    started_mono = time.monotonic()
     target_subscribed_mono: float | None = None
     last_data_mono: float | None = None
     first_data_mono: float | None = None
