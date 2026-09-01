@@ -12,7 +12,9 @@ jobs:
   rotation-diagnostic:
     if: github.head_ref == 'investigate-polymarket-rotation-drift'
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 28
+    env:
+      POLYMARKET_ROTATION_DIAGNOSTIC_MODE: natural
     steps:
       - name: Checkout
         uses: actions/checkout@v4
