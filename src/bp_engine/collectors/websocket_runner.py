@@ -73,6 +73,20 @@ def _apply_market_subscription_update(
     return updated
 
 
+def _replacement_market_subscription(message: object) -> Mapping[str, object] | None:
+    if not isinstance(message, Mapping):
+        return None
+    if message.get("_bp_control") != "replace_market_subscription":
+        return None
+    asset_ids = message.get("assets_ids")
+    if not isinstance(asset_ids, Sequence) or isinstance(asset_ids, (str, bytes)):
+        raise ValueError("replacement market subscription requires asset ids")
+    assets = sorted({str(asset_id) for asset_id in asset_ids if asset_id})
+    if not assets:
+        raise ValueError("replacement market subscription requires asset ids")
+    return {"assets_ids": assets, "type": "market"}
+
+
 async def _call_sink(sink: Callable[[Any], Awaitable[None] | None], value: Any) -> None:
     result = sink(value)
     if inspect.isawaitable(result):
@@ -185,6 +199,8 @@ class WebSocketCollectorRunner:
                 if stop_task in done and stop_task.result():
                     return
 
+                cycle_connection = False
+
                 if heartbeat_task is not None and heartbeat_task in done:
                     assert self.heartbeat_message is not None
                     assert self.heartbeat_interval_seconds is not None
@@ -195,12 +211,18 @@ class WebSocketCollectorRunner:
 
                 if outbound_task is not None and outbound_task in done:
                     outbound_message = outbound_task.result()
-                    self.subscription = _apply_market_subscription_update(
-                        self.subscription,
-                        outbound_message,
-                    )
-                    await websocket.send(_wire_message(outbound_message))
-                    outbound_task = asyncio.create_task(self.outbound_messages.get())
+                    replacement = _replacement_market_subscription(outbound_message)
+                    if replacement is not None:
+                        self.subscription = replacement
+                        outbound_task = None
+                        cycle_connection = True
+                    else:
+                        self.subscription = _apply_market_subscription_update(
+                            self.subscription,
+                            outbound_message,
+                        )
+                        await websocket.send(_wire_message(outbound_message))
+                        outbound_task = asyncio.create_task(self.outbound_messages.get())
 
                 if watchdog_task is not None and watchdog_task in done:
                     assert self.watchdog is not None
@@ -245,6 +267,9 @@ class WebSocketCollectorRunner:
                     if stop.is_set():
                         return
                     recv_task = asyncio.create_task(websocket.recv())
+
+                if cycle_connection:
+                    return
         finally:
             tasks = [recv_task, stop_task]
             if heartbeat_task is not None:
