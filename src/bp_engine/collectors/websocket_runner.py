@@ -182,23 +182,6 @@ class WebSocketCollectorRunner:
                 if stop_task in done and stop_task.result():
                     return
 
-                if heartbeat_task is not None and heartbeat_task in done:
-                    assert self.heartbeat_message is not None
-                    assert self.heartbeat_interval_seconds is not None
-                    await websocket.send(_wire_message(self.heartbeat_message))
-                    heartbeat_task = asyncio.create_task(
-                        asyncio.sleep(self.heartbeat_interval_seconds)
-                    )
-
-                if outbound_task is not None and outbound_task in done:
-                    outbound_message = outbound_task.result()
-                    self.subscription = _apply_market_subscription_update(
-                        self.subscription,
-                        outbound_message,
-                    )
-                    await websocket.send(_wire_message(outbound_message))
-                    outbound_task = asyncio.create_task(self.outbound_messages.get())
-
                 if recv_task in done:
                     message = recv_task.result()
                     received_at = self.now()
@@ -226,6 +209,23 @@ class WebSocketCollectorRunner:
                     if stop.is_set():
                         return
                     recv_task = asyncio.create_task(websocket.recv())
+
+                if heartbeat_task is not None and heartbeat_task in done:
+                    assert self.heartbeat_message is not None
+                    assert self.heartbeat_interval_seconds is not None
+                    await websocket.send(_wire_message(self.heartbeat_message))
+                    heartbeat_task = asyncio.create_task(
+                        asyncio.sleep(self.heartbeat_interval_seconds)
+                    )
+
+                if outbound_task is not None and outbound_task in done:
+                    outbound_message = outbound_task.result()
+                    self.subscription = _apply_market_subscription_update(
+                        self.subscription,
+                        outbound_message,
+                    )
+                    await websocket.send(_wire_message(outbound_message))
+                    outbound_task = asyncio.create_task(self.outbound_messages.get())
 
                 if watchdog_task is not None and watchdog_task in done:
                     assert self.watchdog is not None
