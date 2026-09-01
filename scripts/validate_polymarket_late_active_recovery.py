@@ -191,7 +191,10 @@ def _arm_summary(
     max_target_gap = None
     if len(after_action) >= 2:
         max_target_gap = round(
-            max(second - first for first, second in zip(after_action, after_action[1:])),
+            max(
+                second - first
+                for first, second in zip(after_action, after_action[1:], strict=False)
+            ),
             3,
         )
 
@@ -336,10 +339,11 @@ async def main() -> None:
 
     action_mono = 0.0
     try:
-        if not await asyncio.gather(
+        opened = await asyncio.gather(
             _wait_for_connections(existing_connector, 1, timeout=10.0),
             _wait_for_connections(prototype_connector, 1, timeout=10.0),
-        ) == [True, True]:
+        )
+        if opened != [True, True]:
             raise RuntimeError("both validation arms must open initial connections")
 
         await _wait_until(action_at.timestamp())
