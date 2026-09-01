@@ -20,6 +20,11 @@ AFFECTED_LAST_EVENT_OFFSETS = {
     "btc-updown-15m-1788222600": 361.07,
     "btc-updown-15m-1788223500": 542.92,
 }
+HEALTHY_COMPARATOR_SLUGS = (
+    "btc-updown-15m-1788216300",
+    "btc-updown-15m-1788224400",
+    "btc-updown-15m-1788225300",
+)
 
 
 def _market_start_from_slug(slug: str) -> int:
@@ -48,8 +53,11 @@ def _offset_range(timestamps: list[int], start_epoch: int) -> list[int] | None:
 async def main() -> None:
     gamma = GammaClient()
     output: list[dict[str, object]] = []
+    slugs = list(AFFECTED_LAST_EVENT_OFFSETS) + list(HEALTHY_COMPARATOR_SLUGS)
+
     async with httpx.AsyncClient(base_url=DATA_API, timeout=20.0) as client:
-        for slug, last_event_offset in AFFECTED_LAST_EVENT_OFFSETS.items():
+        for slug in slugs:
+            last_event_offset = AFFECTED_LAST_EVENT_OFFSETS.get(slug)
             market = await gamma.get_market_by_slug(slug)
             if market is None:
                 output.append({"slug": slug, "error": "gamma_market_missing"})
@@ -84,7 +92,6 @@ async def main() -> None:
             ]
             start_epoch = _market_start_from_slug(slug)
             end_epoch = start_epoch + 900
-            cutoff_epoch = start_epoch + last_event_offset
             timestamps = sorted(
                 timestamp
                 for trade in matching
@@ -93,43 +100,55 @@ async def main() -> None:
             during_window = [
                 timestamp for timestamp in timestamps if start_epoch <= timestamp <= end_epoch
             ]
-            after_cutoff = [
-                timestamp for timestamp in during_window if timestamp > cutoff_epoch
-            ]
 
-            output.append(
-                {
-                    "slug": slug,
-                    "condition_id": condition_id,
-                    "window_start": datetime.fromtimestamp(start_epoch, tz=UTC).isoformat(),
-                    "bp_last_event_offset_seconds": last_event_offset,
-                    "bp_last_event_at": datetime.fromtimestamp(cutoff_epoch, tz=UTC).isoformat(),
-                    "gamma_volume": market.get("volume"),
-                    "gamma_volume_num": market.get("volumeNum"),
-                    "trade_count_returned": len(trades),
-                    "matching_market_trade_count": len(matching),
-                    "matching_trade_timestamp_offset_range_seconds": _offset_range(
-                        timestamps, start_epoch
-                    ),
-                    "trade_count_during_window": len(during_window),
-                    "trades_after_bp_last_event_before_window_end": len(after_cutoff),
-                    "first_trade_after_bp_last_event_offset_seconds": (
-                        None if not after_cutoff else after_cutoff[0] - start_epoch
-                    ),
-                    "last_trade_after_bp_last_event_offset_seconds": (
-                        None if not after_cutoff else after_cutoff[-1] - start_epoch
-                    ),
-                    "last_trade_in_window_offset_seconds": (
-                        None if not during_window else during_window[-1] - start_epoch
-                    ),
-                }
-            )
+            result: dict[str, object] = {
+                "kind": "affected" if last_event_offset is not None else "healthy_comparator",
+                "slug": slug,
+                "condition_id": condition_id,
+                "window_start": datetime.fromtimestamp(start_epoch, tz=UTC).isoformat(),
+                "gamma_volume": market.get("volume"),
+                "gamma_volume_num": market.get("volumeNum"),
+                "matching_market_trade_count": len(matching),
+                "matching_trade_timestamp_offset_range_seconds": _offset_range(
+                    timestamps, start_epoch
+                ),
+                "trade_count_during_window": len(during_window),
+                "first_trade_in_window_offset_seconds": (
+                    None if not during_window else during_window[0] - start_epoch
+                ),
+                "last_trade_in_window_offset_seconds": (
+                    None if not during_window else during_window[-1] - start_epoch
+                ),
+            }
+
+            if last_event_offset is not None:
+                cutoff_epoch = start_epoch + last_event_offset
+                after_cutoff = [
+                    timestamp for timestamp in during_window if timestamp > cutoff_epoch
+                ]
+                result.update(
+                    {
+                        "bp_last_event_offset_seconds": last_event_offset,
+                        "bp_last_event_at": datetime.fromtimestamp(
+                            cutoff_epoch, tz=UTC
+                        ).isoformat(),
+                        "trades_after_bp_last_event_before_window_end": len(after_cutoff),
+                        "first_trade_after_bp_last_event_offset_seconds": (
+                            None if not after_cutoff else after_cutoff[0] - start_epoch
+                        ),
+                        "last_trade_after_bp_last_event_offset_seconds": (
+                            None if not after_cutoff else after_cutoff[-1] - start_epoch
+                        ),
+                    }
+                )
+
+            output.append(result)
 
     print(
         json.dumps(
             {
                 "generated_at": datetime.now(UTC).isoformat(),
-                "mode": "affected_trade_activity",
+                "mode": "affected_trade_activity_with_comparators",
                 "taker_only": False,
                 "markets": output,
             },
