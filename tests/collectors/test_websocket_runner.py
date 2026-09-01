@@ -281,6 +281,56 @@ async def test_runner_cycles_with_full_subscription_for_replacement_control() ->
 
 
 @pytest.mark.asyncio
+async def test_runner_rejects_unknown_internal_control_without_provider_leak() -> None:
+    first = FakeWebSocket()
+    second = FakeWebSocket(["{\"sequence\": 9}"])
+    connector = FakeConnector([first, second])
+    incidents: list[FeedIncident] = []
+    stop = asyncio.Event()
+    outbound: asyncio.Queue[object] = asyncio.Queue()
+
+    def parser(message: object, received_at: datetime) -> list[RawEvent]:
+        stop.set()
+        return [raw_event(9, received_at)]
+
+    runner = WebSocketCollectorRunner(
+        source="polymarket",
+        stream="market",
+        url="wss://example.test/ws",
+        connector=connector,
+        subscription={"assets_ids": ["old"], "type": "market"},
+        parser=parser,
+        event_sink=lambda event: None,
+        incident_sink=incidents.append,
+        heartbeat_message="PING",
+        heartbeat_interval_seconds=30,
+        reconnect_policy=ReconnectPolicy(initial_seconds=0, maximum_seconds=0),
+        outbound_messages=outbound,
+    )
+
+    task = asyncio.create_task(runner.run(stop))
+    for _ in range(100):
+        if first.sent:
+            break
+        await asyncio.sleep(0.002)
+
+    await outbound.put({"_bp_control": "unknown_control", "assets_ids": ["new"]})
+    for _ in range(100):
+        if len(connector.urls) >= 2:
+            break
+        await asyncio.sleep(0.002)
+
+    if len(connector.urls) < 2:
+        stop.set()
+    await asyncio.wait_for(task, timeout=1)
+
+    assert first.sent == ['{"assets_ids":["old"],"type":"market"}']
+    assert connector.urls == ["wss://example.test/ws", "wss://example.test/ws"]
+    assert second.sent[0] == '{"assets_ids":["old"],"type":"market"}'
+    assert "error" in [incident.incident_type for incident in incidents]
+
+
+@pytest.mark.asyncio
 async def test_runner_sends_multiple_initial_subscriptions_without_client_heartbeat() -> None:
     ws = FakeWebSocket(['{"channel":"heartbeats","sequence_num":1,"events":[]}'])
     connector = FakeConnector([ws])
