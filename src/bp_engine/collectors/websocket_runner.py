@@ -179,7 +179,13 @@ class WebSocketCollectorRunner:
                     return_when=asyncio.FIRST_COMPLETED,
                 )
 
-                if stop_task in done and stop_task.result():
+                stop_requested = stop_task in done and stop_task.result()
+                recv_succeeded = (
+                    recv_task in done
+                    and not recv_task.cancelled()
+                    and recv_task.exception() is None
+                )
+                if stop_requested and not recv_succeeded:
                     return
 
                 if recv_task in done:
