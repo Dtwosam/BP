@@ -73,6 +73,26 @@ class FakeCoordinator:
         )
 
 
+class LateActiveCoordinator:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def refresh(self, now: datetime) -> SubscriptionDiff:
+        self.calls += 1
+        if self.calls == 1:
+            return SubscriptionDiff(
+                added=frozenset({"up-a", "down-a"}),
+                removed=frozenset(),
+                current=frozenset({"up-a", "down-a"}),
+            )
+        return SubscriptionDiff(
+            added=frozenset({"up-b", "down-b"}),
+            removed=frozenset(),
+            current=frozenset({"up-a", "down-a", "up-b", "down-b"}),
+            active_added=frozenset({"up-b", "down-b"}),
+        )
+
+
 class FakeRunner:
     def __init__(self) -> None:
         self.started = asyncio.Event()
@@ -120,6 +140,37 @@ async def test_polymarket_component_bootstraps_then_queues_rotation_updates() ->
         {"operation": "subscribe", "assets_ids": ["down-b", "up-b"]},
         {"operation": "unsubscribe", "assets_ids": ["down-a", "up-a"]},
     ]
+
+
+@pytest.mark.asyncio
+async def test_polymarket_component_cycles_socket_for_late_active_additions() -> None:
+    coordinator = LateActiveCoordinator()
+    runner = FakeRunner()
+    outbound: asyncio.Queue[object] = asyncio.Queue()
+
+    component = PolymarketCollectorComponent(
+        coordinator=coordinator,
+        runner_factory=lambda assets, queue: runner,
+        outbound_messages=outbound,
+        refresh_interval_seconds=0.01,
+        now=lambda: datetime(2026, 8, 20, 22, 30, tzinfo=UTC),
+    )
+    stop = asyncio.Event()
+    task = asyncio.create_task(component.run(stop))
+
+    await asyncio.wait_for(runner.started.wait(), timeout=1)
+    for _ in range(100):
+        if outbound.qsize() >= 1:
+            break
+        await asyncio.sleep(0.002)
+    stop.set()
+    await asyncio.wait_for(task, timeout=1)
+
+    assert outbound.qsize() == 1
+    assert outbound.get_nowait() == {
+        "_bp_control": "replace_market_subscription",
+        "assets_ids": ["down-a", "down-b", "up-a", "up-b"],
+    }
 
 
 @pytest.mark.asyncio
