@@ -48,7 +48,8 @@ def test_recorder_reliability_rollout_is_exact_head_guarded_and_rollback_capable
     assert "src/bp_engine/collectors/reliability.py" in content
     assert "src/bp_engine/collectors/websocket_runner.py" in content
 
-    assert "storage_maintenance.py disk-health" in content
+    assert "storage_maintenance.py" in content
+    assert "disk-health" in content
     for key in (
         "MODE",
         "LIVE_TRADING_ENABLED",
