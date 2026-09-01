@@ -233,6 +233,54 @@ async def test_runner_sends_dynamic_control_messages_without_reconnecting() -> N
 
 
 @pytest.mark.asyncio
+async def test_runner_cycles_with_full_subscription_for_replacement_control() -> None:
+    first = FakeWebSocket()
+    second = FakeWebSocket()
+    connector = FakeConnector([first, second])
+    stop = asyncio.Event()
+    outbound: asyncio.Queue[object] = asyncio.Queue()
+
+    runner = WebSocketCollectorRunner(
+        source="polymarket",
+        stream="market",
+        url="wss://example.test/ws",
+        connector=connector,
+        subscription={"assets_ids": ["old"], "type": "market"},
+        parser=lambda message, received_at: [],
+        event_sink=lambda event: None,
+        incident_sink=lambda incident: None,
+        heartbeat_message="PING",
+        heartbeat_interval_seconds=30,
+        reconnect_policy=ReconnectPolicy(initial_seconds=0, maximum_seconds=0),
+        outbound_messages=outbound,
+    )
+
+    task = asyncio.create_task(runner.run(stop))
+    for _ in range(100):
+        if first.sent:
+            break
+        await asyncio.sleep(0.002)
+
+    await outbound.put(
+        {
+            "_bp_control": "replace_market_subscription",
+            "assets_ids": ["new", "old"],
+        }
+    )
+    for _ in range(100):
+        if len(connector.urls) >= 2:
+            break
+        await asyncio.sleep(0.002)
+
+    stop.set()
+    await asyncio.wait_for(task, timeout=1)
+
+    assert connector.urls == ["wss://example.test/ws", "wss://example.test/ws"]
+    assert first.sent == ['{"assets_ids":["old"],"type":"market"}']
+    assert second.sent[0] == '{"assets_ids":["new","old"],"type":"market"}'
+
+
+@pytest.mark.asyncio
 async def test_runner_sends_multiple_initial_subscriptions_without_client_heartbeat() -> None:
     ws = FakeWebSocket(['{"channel":"heartbeats","sequence_num":1,"events":[]}'])
     connector = FakeConnector([ws])
