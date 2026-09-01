@@ -12,9 +12,7 @@ jobs:
   rotation-diagnostic:
     if: github.head_ref == 'investigate-polymarket-rotation-drift'
     runs-on: ubuntu-latest
-    timeout-minutes: 28
-    env:
-      POLYMARKET_ROTATION_DIAGNOSTIC_MODE: natural
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,8 +26,10 @@ jobs:
       - name: Install
         run: python -m pip install -e ".[dev]"
 
-      - name: Verify diagnostic
-        run: ruff check scripts/diagnose_polymarket_rotation_drift.py
+      - name: Verify diagnostics
+        run: |
+          ruff check scripts/diagnose_polymarket_rotation_drift.py
+          ruff check scripts/diagnose_polymarket_static_breadth.py
 
-      - name: Probe public websocket rotation
-        run: python scripts/diagnose_polymarket_rotation_drift.py
+      - name: Probe static broad public websocket subscription
+        run: python scripts/diagnose_polymarket_static_breadth.py
