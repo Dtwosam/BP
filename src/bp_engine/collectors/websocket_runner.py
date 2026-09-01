@@ -218,15 +218,6 @@ class WebSocketCollectorRunner:
                 if recv_task in done:
                     message = recv_task.result()
                     received_at = self.now()
-                    if self.watchdog is not None:
-                        recovery = self.watchdog.observe(
-                            self.source,
-                            self.stream,
-                            monotonic_time=self.monotonic(),
-                            observed_at=received_at,
-                        )
-                        if recovery is not None:
-                            await _call_sink(self.incident_sink, recovery)
                     events = self.parser(_decode_message(message), received_at)
                     for event in events:
                         if self.clock_skew_guard is not None:
@@ -239,6 +230,15 @@ class WebSocketCollectorRunner:
                             if incident is not None:
                                 await _call_sink(self.incident_sink, incident)
                         await _call_sink(self.event_sink, event)
+                    if events and self.watchdog is not None:
+                        recovery = self.watchdog.observe(
+                            self.source,
+                            self.stream,
+                            monotonic_time=self.monotonic(),
+                            observed_at=received_at,
+                        )
+                        if recovery is not None:
+                            await _call_sink(self.incident_sink, recovery)
                     if stop.is_set():
                         return
                     recv_task = asyncio.create_task(websocket.recv())
