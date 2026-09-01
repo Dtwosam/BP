@@ -76,8 +76,11 @@ def _apply_market_subscription_update(
 def _replacement_market_subscription(message: object) -> Mapping[str, object] | None:
     if not isinstance(message, Mapping):
         return None
-    if message.get("_bp_control") != "replace_market_subscription":
+    control = message.get("_bp_control")
+    if control is None:
         return None
+    if control != "replace_market_subscription":
+        raise ValueError("unsupported internal websocket control")
     asset_ids = message.get("assets_ids")
     if not isinstance(asset_ids, Sequence) or isinstance(asset_ids, (str, bytes)):
         raise ValueError("replacement market subscription requires asset ids")
