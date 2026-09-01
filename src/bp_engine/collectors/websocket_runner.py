@@ -194,7 +194,7 @@ class WebSocketCollectorRunner:
                 if stop_requested and not recv_succeeded:
                     return
 
-                if recv_task in done:
+                if recv_task in done and recv_succeeded:
                     message = recv_task.result()
                     received_at = self.now()
                     events = self.parser(_decode_message(message), received_at)
@@ -256,6 +256,9 @@ class WebSocketCollectorRunner:
                         0.001,
                     )
                     watchdog_task = asyncio.create_task(asyncio.sleep(interval))
+
+                if recv_task in done and not recv_succeeded:
+                    recv_task.result()
         finally:
             tasks = [recv_task, stop_task]
             if heartbeat_task is not None:
