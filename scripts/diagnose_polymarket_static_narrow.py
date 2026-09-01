@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import time
 from collections import defaultdict
 from datetime import UTC, datetime
@@ -72,6 +73,10 @@ def _summary(
 
 
 async def _run_probe() -> dict[str, object]:
+    configured_max_queue = int(os.environ.get("POLYMARKET_MAX_QUEUE", "16"))
+    if configured_max_queue <= 0:
+        raise ValueError("POLYMARKET_MAX_QUEUE must be greater than zero")
+
     now = datetime.now(UTC)
     markets = await discover_btc_markets(
         GammaClient(),
@@ -97,7 +102,12 @@ async def _run_probe() -> dict[str, object]:
     close_reason: str | None = None
     close_elapsed_seconds: float | None = None
 
-    async with connect(WS_URL, ping_interval=None, close_timeout=5) as websocket:
+    async with connect(
+        WS_URL,
+        ping_interval=None,
+        close_timeout=5,
+        max_queue=configured_max_queue,
+    ) as websocket:
         await websocket.send(
             json.dumps({"assets_ids": assets, "type": "market"}, separators=(",", ":"))
         )
@@ -165,6 +175,7 @@ async def _run_probe() -> dict[str, object]:
     finished = time.monotonic()
     return {
         "mode": "static_narrow",
+        "configured_max_queue": configured_max_queue,
         "generated_at": datetime.now(UTC).isoformat(),
         "configured_probe_seconds": PROBE_SECONDS,
         "elapsed_seconds": round(finished - started, 3),
