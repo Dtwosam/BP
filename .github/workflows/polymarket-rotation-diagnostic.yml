@@ -9,10 +9,10 @@ permissions:
   contents: read
 
 jobs:
-  aged-vs-fresh-dynamic-15m-add:
+  three-arm-socket-history:
     if: github.head_ref == 'investigate-polymarket-rotation-drift'
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,6 +24,6 @@ jobs:
       - name: Install
         run: python -m pip install -e ".[dev]"
       - name: Verify diagnostic
-        run: ruff check scripts/diagnose_polymarket_aged_vs_fresh_dynamic_add.py
-      - name: Compare aged and fresh dynamic 15m subscriptions
-        run: python scripts/diagnose_polymarket_aged_vs_fresh_dynamic_add.py
+        run: ruff check scripts/diagnose_polymarket_three_arm_socket_history.py
+      - name: Compare static-aged, rotating-aged, and fresh subscriptions
+        run: python scripts/diagnose_polymarket_three_arm_socket_history.py
