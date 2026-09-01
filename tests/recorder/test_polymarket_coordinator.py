@@ -78,6 +78,21 @@ async def test_refresh_adds_new_market_without_duplicating_shared_token() -> Non
 
 
 @pytest.mark.asyncio
+async def test_refresh_marks_newly_added_in_window_tokens_as_active_additions() -> None:
+    now = datetime(2026, 8, 20, 22, 0, tzinfo=UTC)
+    established = market(condition="established", start=now, horizon_seconds=900)
+    late = market(condition="late", start=now + timedelta(minutes=5))
+    discovery = FakeDiscovery([[established], [established, late]])
+    coordinator = PolymarketSubscriptionCoordinator(discovery, grace_seconds=30)
+
+    await coordinator.refresh(now)
+    diff = await coordinator.refresh(now + timedelta(minutes=6))
+
+    assert diff.added == frozenset({"up-late", "down-late"})
+    assert diff.active_added == frozenset({"up-late", "down-late"})
+
+
+@pytest.mark.asyncio
 async def test_rotation_keeps_old_tokens_until_grace_expires_then_removes_them() -> None:
     start = datetime(2026, 8, 20, 22, 0, tzinfo=UTC)
     old = market(condition="old", start=start)
