@@ -1,4 +1,5 @@
 import importlib
+import inspect
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -10,6 +11,7 @@ from bp_engine.storage import schema
 v2_forward = importlib.import_module("bp_engine.features.v2_forward")
 V2_FORWARD_EPOCH = v2_forward.V2_FORWARD_EPOCH
 discover_pending_v2_targets = v2_forward.discover_pending_v2_targets
+run_v2_forward_cycle = v2_forward.run_v2_forward_cycle
 
 EPOCH = datetime(2026, 9, 2, 12, 18, 2, tzinfo=UTC)
 CYCLE_AT = datetime(2026, 9, 2, 13, 0, 0, tzinfo=UTC)
@@ -161,3 +163,66 @@ def test_unexpected_v2_forward_offset_fails_closed() -> None:
 
         with pytest.raises(RuntimeError, match="unexpected V2 forward feature offset"):
             discover_pending_v2_targets(connection, cycle_at=CYCLE_AT)
+
+
+def test_forward_cycle_fills_only_missing_keys_and_is_idempotent() -> None:
+    engine = _engine()
+    start = datetime(2026, 9, 2, 12, 40, tzinfo=UTC)
+    with engine.begin() as connection:
+        _insert_market(connection, condition_id="partial-cycle", start_at=start)
+        for offset in (60, 180):
+            _insert_v2_feature(
+                connection,
+                condition_id="partial-cycle",
+                start_at=start,
+                offset=offset,
+            )
+
+        first = run_v2_forward_cycle(connection, cycle_at=CYCLE_AT)
+        second = run_v2_forward_cycle(connection, cycle_at=CYCLE_AT)
+
+    assert first.eligible_targets == 1
+    assert first.planned_rows == 4
+    assert first.existing == 2
+    assert first.inserted == 2
+    assert first.coverage_row_count == 4
+    assert first.coverage_market_count == 1
+    assert first.future_cutoff_violation_count == 0
+    assert first.policy_selected is False
+    assert first.automatic_promotion is False
+
+    assert second.eligible_targets == 0
+    assert second.planned_rows == 0
+    assert second.existing == 0
+    assert second.inserted == 0
+    assert second.coverage_row_count == 4
+
+
+def test_forward_cycle_fails_closed_on_coverage_invariant_violation(monkeypatch) -> None:
+    engine = _engine()
+    monkeypatch.setattr(
+        v2_forward,
+        "build_v2_coverage_report",
+        lambda _connection: {
+            "row_count": 0,
+            "market_count": 0,
+            "future_cutoff_violation_count": 1,
+            "policy_selected": False,
+            "automatic_promotion": False,
+        },
+    )
+    with engine.begin() as connection:
+        with pytest.raises(RuntimeError, match="V2 forward coverage invariant violation"):
+            run_v2_forward_cycle(connection, cycle_at=CYCLE_AT)
+
+
+def test_forward_module_remains_outcome_blind() -> None:
+    source = inspect.getsource(v2_forward).lower()
+    forbidden = (
+        "official_outcome",
+        "live_prediction_evaluations",
+        "paper_settlements",
+        "pnl",
+        "calibration",
+    )
+    assert all(term not in source for term in forbidden)
