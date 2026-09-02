@@ -1,0 +1,85 @@
+{
+  "phase": 14,
+  "evidence_type": "v2_gate_a_rollout_host_acceptance",
+  "date": "2026-09-02",
+  "verdict": "PASS",
+  "old_head": "be1f82f65d15b2e172495e6ae934ec9a78648c32",
+  "new_head": "d077e45f24704e6038c947169c84527e954de975",
+  "rollout_started": "2026-09-02T12:18:02Z",
+  "forward_epoch": "2026-09-02T12:18:02Z",
+  "host_evidence_file": "/var/lib/bp/evidence/phase14-v2-gate-a-rollout-20260902T122655Z.txt",
+  "services": {
+    "bp-recorder.service": "active",
+    "bp-postgres.service": "active",
+    "bp-dashboard-api.service": "active",
+    "bp-dashboard-web.service": "active",
+    "bp-paper-execution.service": "active",
+    "bp-live-predictor.service": "active",
+    "bp-prospective-outcomes.service": "active"
+  },
+  "safety": {
+    "mode": "research",
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0
+  },
+  "provenance": {
+    "real_last_trade_provenance": true,
+    "generic_activity_preserved_trade_timestamp": true,
+    "sample_condition_id": "0x089293b284e60baa86ca2d4b2df770a0b50a6128b0cf161298c4d90770cc6ab5",
+    "sample_last_trade_price": "0.67",
+    "sample_last_trade_source_at": "2026-09-02T12:19:38.229000Z",
+    "sample_last_trade_received_at": "2026-09-02T12:19:38.288699Z",
+    "sample_last_trade_event_dedupe_key": "sha256:c14fd2a37c117623bd3922215a4154390c02058e7993d5fc59c7f088a6b81792"
+  },
+  "forward_target": {
+    "condition_id": "0x3a1234c0b3f5680d0123a2e5bb573e86e053eca7fbe81cbe1b1dd7592ad2769c",
+    "slug": "btc-updown-5m-1788351600",
+    "start_at": "2026-09-02T12:20:00Z",
+    "end_at": "2026-09-02T12:25:00Z"
+  },
+  "feature_generation": {
+    "existing": 0,
+    "inserted": 4,
+    "planned_rows": 4,
+    "targets_considered": 1,
+    "missing_group_counts": {}
+  },
+  "feature_validation": {
+    "feature_version": "core-v2-last-trade",
+    "forward_row_count": 4,
+    "offsets": [60, 120, 180, 240],
+    "future_source_cutoff": 0
+  },
+  "coverage": {
+    "market_count": 1,
+    "row_count": 4,
+    "future_cutoff_violation_count": 0,
+    "invalid_nonfinite_value_count": 0,
+    "policy_selected": false,
+    "automatic_promotion": false,
+    "coverage_input_sha256": "44592883ca47d18337b4c4385f3e34badc00bc30e5a124a02c0c4c99cccf6891"
+  },
+  "observed_age_summary_seconds": {
+    "selected_book_min": 0.420679,
+    "selected_book_max": 1.109547,
+    "up_last_trade_source_min": 2.471,
+    "up_last_trade_source_max": 17.787,
+    "down_last_trade_source_min": 4.247,
+    "down_last_trade_source_max": 19.852
+  },
+  "soak": {
+    "passed": true,
+    "duration_seconds": 36,
+    "failures": []
+  },
+  "disk_before": {
+    "status": "ok",
+    "free_percent": 31.634109351054317
+  },
+  "disk_after": {
+    "status": "ok",
+    "free_percent": 31.511946168695104
+  },
+  "interpretation": "Operational Gate A acceptance only; one market/four rows is insufficient to choose V2 timing, freshness, calibration, edge, model, profitability, or promotion policy."
+}
