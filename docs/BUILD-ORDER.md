@@ -413,10 +413,16 @@ Do not automatically increase stake.
 
 ## Immediate next action
 
-**Continue money-disabled prospective paper evidence; do not start Phase 15.**
+**Remain in Phase 14 research and design a timestamp-coherent `market_price` V2 path; do not start Phase 15 and do not retune the V1 threshold from the prospective loss sample.**
 
-Phase 14 engineering is complete with `PHASE14_HOST_ACCEPTANCE=PASS`, but the Master live gate is closed. Production returned `GEOBLOCK_BLOCKED=true`; the existing prospective paper sample is too small; positive after-cost profitability has not been established; prospective calibration evidence remains insufficient; and explicit real-money authorization is absent.
+Read-only attribution on 2 September 2026 established a semantic timing defect in the accepted 5m V1 research path. The live `market_price` probability comes from the newest first-party CLOB `/prices-history` point at or before the scheduled prediction time, while executable edge is computed against a separately fresh selected-side WebSocket book. In the 27 settled-trade timing probe, every probability observation was 33–51 seconds old while every selected book was approximately 0–1 second old. The resulting cross-source timestamp mismatch can manufacture very large apparent edges near resolution and is now the leading root cause of the V1 prospective economic failure.
 
-The gate matrix is recorded in `docs/evidence/phase-14-closeout-20260830.json`. Continue collecting immutable prospective paper predictions, fills, settlements, and outcomes; evaluate after-cost expectancy with uncertainty; validate calibration prospectively; and re-check geographic/compliance eligibility only through official permitted mechanisms. Do not bypass restrictions or reinterpret research/paper authorization as live-spending authorization.
+Treat existing `live-prediction-v1` predictions, paper orders, settlements, and P&L as immutable evidence of the deployed V1 pipeline. Do not rewrite or discard them, but do not combine them with any future V2 profitability epoch or use them to choose a new freshness cutoff, calibration map, minimum-edge threshold, or model policy.
 
-`LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0` remain mandatory. Re-run the complete Master live gate before any Phase 15 transition.
+The approved V2 research direction is a new versioned market-price input derived from timestamped first-party Polymarket `last_trade_price` WebSocket evidence. The last-trade price must retain its own source/receipt timestamp; generic compact-state `last_event_at` is insufficient because later book or price-change events can refresh state without refreshing the trade. Missing or stale last-trade evidence must fail closed to no-trade. The existing 10-second selected-book freshness contract remains frozen and must not be loosened from the same prospective evidence.
+
+A V2 input/prediction contract requires a new validation chain. Do not automatically carry forward the V1 calibrator or `min_edge` policy, because those were selected under the asynchronous V1 eligibility contract. Re-run leakage-safe chronological research and validation under the V2 semantics; if independent historical timestamped last-trade evidence is insufficient, the V2 policy must remain `no_trade` while collecting a separate prospective shadow-evidence epoch.
+
+Existing research-only services may continue preserving immutable V1 evidence during design/implementation, but V1 prospective economics must not be treated as promotion evidence after this defect was established. `automatic_promotion=false` remains mandatory.
+
+`LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0` remain mandatory. The Master live gate remains `fail`, geographic/compliance eligibility remains unresolved/failed for live launch, and explicit real-money authorization is absent. Re-run the complete Master live gate only after a separately validated research policy exists; Phase 15 remains blocked.
