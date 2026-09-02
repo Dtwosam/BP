@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -119,6 +120,18 @@ def test_v2_forward_rollout_helper_is_exact_head_guarded_and_rollback_capable() 
         "max_daily_loss_usd=1",
     ):
         assert forbidden not in lowered
+
+
+def test_v2_forward_rollout_helper_has_clean_bash_syntax_check() -> None:
+    result = subprocess.run(
+        ["bash", "-n", str(HELPER)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stderr == "", result.stderr
 
 
 def test_v2_forward_rollout_scope_is_narrow() -> None:
