@@ -1,14 +1,15 @@
+import importlib
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import create_engine, insert
 
-from bp_engine.features.v2_forward import (
-    V2_FORWARD_EPOCH,
-    discover_pending_v2_targets,
-)
 from bp_engine.features.v2_models import V2_FEATURE_VERSION
 from bp_engine.storage import schema
+
+v2_forward = importlib.import_module("bp_engine.features.v2_forward")
+V2_FORWARD_EPOCH = v2_forward.V2_FORWARD_EPOCH
+discover_pending_v2_targets = v2_forward.discover_pending_v2_targets
 
 EPOCH = datetime(2026, 9, 2, 12, 18, 2, tzinfo=UTC)
 CYCLE_AT = datetime(2026, 9, 2, 13, 0, 0, tzinfo=UTC)
