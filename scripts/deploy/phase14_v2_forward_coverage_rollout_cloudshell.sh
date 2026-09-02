@@ -145,9 +145,13 @@ validate_rollout_scope() {
       scripts/deploy/phase14_v2_forward_coverage_rollout_cloudshell.sh)
         helper_seen=1
         ;;
+      scripts/deploy/ensure_storage_indexes.py)
+        ;;
       tests/features/test_v2_forward.py|tests/features/test_v2_forward_cli.py)
         ;;
       tests/deploy/test_phase14_v2_forward_coverage_deployment.py)
+        ;;
+      tests/deploy/test_phase14_v2_forward_state_index.py)
         ;;
       *)
         fail "unexpected_rollout_path:$path"
@@ -334,6 +338,7 @@ validate_rollout_scope
 for required_path in \
   deploy/bp-v2-forward-coverage.service \
   deploy/bp-v2-forward-coverage.timer \
+  scripts/deploy/ensure_storage_indexes.py \
   scripts/run_v2_forward_coverage.py \
   src/bp_engine/features/v2_forward.py \
   src/bp_engine/features/v2_forward_cli.py; do
@@ -349,6 +354,18 @@ git -C "$REPO" checkout --detach --force "$SHA" >/dev/null
 install -o root -g root -m 0644 "$REPO/deploy/$SERVICE_UNIT" "$SERVICE_PATH"
 install -o root -g root -m 0644 "$REPO/deploy/$TIMER_UNIT" "$TIMER_PATH"
 systemctl daemon-reload
+
+# Install the existing-host lookup index before the first collector cycle.
+if ! sudo -u bp env \
+    MODE=research \
+    LIVE_TRADING_ENABLED=false \
+    MAX_TRADE_SIZE_USD=0 \
+    MAX_DAILY_LOSS_USD=0 \
+    PYTHONPATH="$REPO/src" \
+    "$REPO/.venv/bin/python" "$REPO/scripts/deploy/ensure_storage_indexes.py" \
+    --env-file "$ENV_FILE"; then
+  fail "storage_index_install_failed"
+fi
 
 # The manual systemd cycle proves the installed unit can execute successfully.
 systemctl start "$SERVICE_UNIT"
