@@ -9,6 +9,10 @@ CI = ROOT / ".github" / "workflows" / "ci.yml"
 def test_v2_forward_service_is_hardened_research_only_oneshot() -> None:
     assert SERVICE.is_file(), SERVICE
     content = SERVICE.read_text(encoding="utf-8")
+    exec_start = (
+        "ExecStart=/opt/bp/.venv/bin/python "
+        "/opt/bp/scripts/run_v2_forward_coverage.py once --env-file /etc/bp/bp.env"
+    )
     required = (
         "Type=oneshot",
         "User=bp",
@@ -20,7 +24,7 @@ def test_v2_forward_service_is_hardened_research_only_oneshot() -> None:
         "Environment=LIVE_TRADING_ENABLED=false",
         "Environment=MAX_TRADE_SIZE_USD=0",
         "Environment=MAX_DAILY_LOSS_USD=0",
-        "ExecStart=/opt/bp/.venv/bin/python /opt/bp/scripts/run_v2_forward_coverage.py once --env-file /etc/bp/bp.env",
+        exec_start,
         "Requires=bp-postgres.service",
         "After=bp-postgres.service",
         "UMask=0077",
