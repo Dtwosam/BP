@@ -35,6 +35,12 @@ def validate_window(start: datetime, end: datetime) -> None:
         raise ValueError("start must be before end")
 
 
+def _normalize_stored_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None or value.utcoffset() is None:
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 def load_v2_targets(
     connection: Connection,
     *,
@@ -64,8 +70,8 @@ def load_v2_targets(
             condition_id=str(row["condition_id"]),
             slug=str(row["slug"]),
             horizon_seconds=int(row["horizon_seconds"]),
-            market_start_at=row["start_at"],
-            market_end_at=row["end_at"],
+            market_start_at=_normalize_stored_datetime(row["start_at"]),
+            market_end_at=_normalize_stored_datetime(row["end_at"]),
             up_token_id=str(row["up_token_id"]),
             down_token_id=str(row["down_token_id"]),
         )
