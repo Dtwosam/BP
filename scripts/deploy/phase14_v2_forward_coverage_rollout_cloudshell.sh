@@ -41,7 +41,7 @@ printf -v FROM_HEAD_Q '%q' "$EXPECTED_FROM_HEAD"
 printf -v BRANCH_Q '%q' "$BRANCH"
 printf -v ENV_FILE_Q '%q' "$ENV_FILE"
 
-REMOTE_SCRIPT=$(cat <<'REMOTE'
+read -r -d '' REMOTE_SCRIPT <<'REMOTE' || true
 set -Eeuo pipefail
 
 SHA="${PHASE14_V2_FORWARD_HEAD:?}"
@@ -463,7 +463,6 @@ echo "SERVICE_UNIT=$SERVICE_UNIT"
 echo "TIMER_UNIT=$TIMER_UNIT"
 echo "EVIDENCE_PATH=$EVIDENCE_PATH"
 REMOTE
-)
 
 gcloud compute ssh "$VM" \
   --zone "$ZONE" \
