@@ -80,6 +80,9 @@ SOAK_FILE=""
 SNAPSHOT_FILE=""
 PROVENANCE_FILE=""
 TARGET_FILE=""
+TARGET_CONDITION_ID=""
+TARGET_START=""
+TARGET_END=""
 FEATURE_STATS_FILE=""
 FEATURE_VERIFY_FILE=""
 COVERAGE_FILE=""
@@ -339,12 +342,13 @@ while time.monotonic() < deadline and proof is None:
         previous = previous_by_asset.get(asset)
         if previous is not None:
             prev_state = previous["state"] if isinstance(previous["state"], dict) else {}
-            same_trade = all(
-                prev_state.get(key) == state.get(key)
-                for key in required
-            )
+            same_trade = all(prev_state.get(key) == state.get(key) for key in required)
             generic_advanced = utc(row["last_event_at"]) > utc(previous["last_event_at"])
-            if same_trade and generic_advanced and all(state.get(key) not in (None, "") for key in required):
+            if (
+                same_trade
+                and generic_advanced
+                and all(state.get(key) not in (None, "") for key in required)
+            ):
                 preservation = {
                     "asset_id": asset,
                     "earlier_last_event_at": utc(previous["last_event_at"]).isoformat(),
@@ -450,16 +454,34 @@ PY
     cat "$TARGET_FILE" >&2 || true
     fail "forward_5m_market_not_observed"
   fi
+
+  mapfile -t target_fields < <("$REPO/.venv/bin/python" - "$TARGET_FILE" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+for key in ("condition_id", "start_at", "end_at"):
+    value = payload.get(key)
+    if not isinstance(value, str) or not value:
+        raise SystemExit(f"invalid forward target field: {key}")
+    print(value)
+PY
+  )
+  [[ ${#target_fields[@]} -eq 3 ]] || fail "invalid_forward_target_fields"
+  TARGET_CONDITION_ID=${target_fields[0]}
+  TARGET_START=${target_fields[1]}
+  TARGET_END=${target_fields[2]}
 }
 
 generate_and_verify_v2_features() {
-  local generation_end
-  generation_end=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   FEATURE_STATS_FILE=$(mktemp /var/tmp/bp-phase14-v2-gate-a-feature-stats.XXXXXX.json)
   if ! sudo -u bp env PYTHONPATH="$REPO/src" "$REPO/.venv/bin/python" \
       "$REPO/scripts/generate_v2_features.py" \
-      --start "$ROLLOUT_STARTED" \
-      --end "$generation_end" \
+      --start "$TARGET_START" \
+      --end "$TARGET_END" \
       --env-file "$ENV_FILE" \
       --preserve-existing > "$FEATURE_STATS_FILE"; then
     cat "$FEATURE_STATS_FILE" >&2 || true
@@ -473,17 +495,18 @@ import sys
 from pathlib import Path
 
 stats = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if int(stats.get("targets_considered", 0)) < 1:
-    raise SystemExit("no forward V2 targets considered")
-if int(stats.get("planned_rows", 0)) < 4:
-    raise SystemExit("fewer than four forward V2 rows planned")
-if int(stats.get("inserted", 0)) + int(stats.get("existing", 0)) < 4:
-    raise SystemExit("fewer than four immutable V2 rows materialized")
+if int(stats.get("targets_considered", 0)) != 1:
+    raise SystemExit("completed-target window must contain exactly one V2 target")
+if int(stats.get("planned_rows", 0)) != 4:
+    raise SystemExit("completed target must plan exactly four V2 rows")
+if int(stats.get("inserted", 0)) + int(stats.get("existing", 0)) != 4:
+    raise SystemExit("completed target must materialize exactly four immutable V2 rows")
 PY
 
   FEATURE_VERIFY_FILE=$(mktemp /var/tmp/bp-phase14-v2-gate-a-feature-verify.XXXXXX.json)
   if ! sudo -u bp env PYTHONPATH="$REPO/src" "$REPO/.venv/bin/python" - \
-      "$ENV_FILE" "$ROLLOUT_STARTED" > "$FEATURE_VERIFY_FILE" <<'PY'; then
+      "$ENV_FILE" "$TARGET_CONDITION_ID" "$TARGET_START" "$TARGET_END" \
+      > "$FEATURE_VERIFY_FILE" <<'PY'; then
 from __future__ import annotations
 
 import json
@@ -511,8 +534,9 @@ def parse(value: object) -> datetime:
     return datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone(UTC)
 
 
-env_file, started_raw = sys.argv[1:]
-started = parse(started_raw)
+env_file, target_condition_id, target_start_raw, target_end_raw = sys.argv[1:]
+target_start = parse(target_start_raw)
+target_end = parse(target_end_raw)
 settings = Settings(_env_file=env_file)
 engine = create_engine(settings.database_url)
 with engine.connect() as connection:
@@ -520,22 +544,22 @@ with engine.connect() as connection:
         connection.execute(
             select(market_features).where(
                 market_features.c.feature_version == V2,
-                market_features.c.market_start_at >= started,
+                market_features.c.condition_id == target_condition_id,
             )
         ).mappings()
     )
 engine.dispose()
-if len(rows) < 4:
-    raise SystemExit("fewer than four forward core-v2-last-trade rows")
+if len(rows) != 4:
+    raise SystemExit(f"expected exactly four forward core-v2-last-trade rows, got {len(rows)}")
 offsets = {int(row["feature_offset_seconds"]) for row in rows}
-if not EXPECTED_OFFSETS.issubset(offsets):
-    raise SystemExit(f"missing fixed V2 offsets: {sorted(EXPECTED_OFFSETS - offsets)}")
+if offsets != EXPECTED_OFFSETS:
+    raise SystemExit(f"unexpected fixed V2 offsets: {sorted(offsets)}")
 violations = []
 for row in rows:
     if int(row["horizon_seconds"]) != 300:
         violations.append(f"wrong_horizon:{row['condition_id']}")
-    if int(row["feature_offset_seconds"]) not in EXPECTED_OFFSETS:
-        violations.append(f"wrong_offset:{row['condition_id']}")
+    if utc(row["market_start_at"]) != target_start or utc(row["market_end_at"]) != target_end:
+        violations.append(f"wrong_market_window:{row['condition_id']}")
     feature_at = utc(row["feature_at"])
     for name, raw in dict(row["source_cutoffs"] or {}).items():
         cutoff = parse(raw)
@@ -545,6 +569,7 @@ if violations:
     raise SystemExit(";".join(violations))
 print(json.dumps({
     "feature_version": V2,
+    "condition_id": target_condition_id,
     "forward_row_count": len(rows),
     "offsets": sorted(offsets),
     "future_source_cutoff": 0,
