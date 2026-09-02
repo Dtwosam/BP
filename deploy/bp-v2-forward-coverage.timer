@@ -1,0 +1,11 @@
+[Unit]
+Description=Schedule BP V2 forward coverage collection
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Persistent=true
+Unit=bp-v2-forward-coverage.service
+
+[Install]
+WantedBy=timers.target

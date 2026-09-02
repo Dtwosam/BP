@@ -1,0 +1,25 @@
+{
+  "phase": 14,
+  "evidence_type": "v2_forward_collector_review_checkpoint",
+  "date": "2026-09-02",
+  "gate_a_deployed_head": "d077e45f24704e6038c947169c84527e954de975",
+  "gate_a_forward_epoch": "2026-09-02T12:18:02Z",
+  "collector_branch": "phase14-v2-gate-a-rollout-evidence",
+  "collector_code_checkpoint": "af8b2e4f741851df1b055b57c3fc44e39c7b6b06",
+  "canonical_docs_checkpoint": "0e61637e46c0dfab194b4e4602c5a41046569eed",
+  "prepackaging_ci_run": 1978,
+  "prepackaging_ci_run_id": 33639062997,
+  "prepackaging_test_count": 860,
+  "collector_production_rollout_performed": false,
+  "collector_timer_enabled_by_this_checkpoint": false,
+  "policy_selected": false,
+  "automatic_promotion": false,
+  "safety": {
+    "mode": "research",
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "phase15_permitted": false
+  },
+  "verification_policy": "Require fresh exact-head CI plus PR-triggered Historical Backfill Smoke, Live Recorder Smoke, and Recorder Short Soak before merge. Production collector activation remains a separate explicit authorization after review/merge."
+}

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.5 — 2 September 2026
+
+Phase 14 Gate A timestamp-coherent V2 is now **production-accepted for research evidence collection only**. The separately authorized guarded rollout advanced `/opt/bp` from `be1f82f65d15b2e172495e6ae934ec9a78648c32` to `d077e45f24704e6038c947169c84527e954de975` and established canonical forward epoch `2026-09-02T12:18:02Z`. All seven established research services stayed active with `MODE=research`, `LIVE_TRADING_ENABLED=false`, and both real-money limits at zero.
+
+Gate A host acceptance demonstrated real dedicated Polymarket WebSocket last-trade provider/receipt timestamps and dedupe identity, proved unrelated later market activity did not refresh the trade timestamp, and generated exactly four immutable `core-v2-last-trade` rows at 60/120/180/240 seconds for one completed post-epoch 5m market. Future-source-cutoff violations were zero. The outcome-blind coverage report observed one market/four rows and remained `policy_selected=false` / `automatic_promotion=false`; sanitized evidence is `docs/evidence/phase-14-v2-gate-a-rollout-20260902.json`.
+
+The follow-up continuous V2 forward-coverage collector is now implementation-complete on `phase14-v2-gate-a-rollout-evidence` but **not deployed or enabled**. It adds restart-safe discovery of completed post-epoch 5m markets with missing approved V2 keys, preserve-existing immutable generation, descriptive coverage reporting, a thin research-zero-money CLI, hardened systemd oneshot/timer packaging, and an exact-head rollback-capable rollout helper. The service permits local PostgreSQL networking while systemd denies non-loopback IP traffic; rollback restores code/unit state only and never deletes or rewrites `market_features`.
+
+Pre-packaging exact-head CI #1978 (`33639062997`) passed all 860 Python tests, Ruff, deployment-asset validation, health checks, dashboard tests/typecheck/build, wrapper compilation, and rollout-helper Bash syntax. Full diff review against deployed head `d077e45f24704e6038c947169c84527e954de975` leaves frozen V1 feature-service, live-prediction, calibration, and execution paths unchanged and introduces no migration, V2 label/outcome join, economic freshness/timing/model/calibration/edge policy, wallet/secret change, risk-limit increase, geoblock bypass, live activation, or Phase 15 implementation.
+
+Fresh documentation-complete CI plus PR-triggered Historical Backfill Smoke, Live Recorder Smoke, and Recorder Short Soak remain review gates before merge. Production activation of `bp-v2-forward-coverage.timer` is a **separate explicit authorization** after review/merge; this packaging work does not run that rollout. Existing V1 evidence remains immutable and separate, selected-book freshness stays exactly 10 seconds, `automatic_promotion=false`, the Master live gate remains `fail`, and Phase 15 remains blocked.
+
 ## 0.14.4 — 2 September 2026
 
 Phase 14 Gate A for the timestamp-coherent 5m `market_price` V2 path is now code/test complete on the isolated `phase14-market-price-v2-design` branch and is **under review, not deployed**. Gate A remains limited to source provenance and outcome-blind research features/diagnostics; it does not create or select a V2 trading policy.
