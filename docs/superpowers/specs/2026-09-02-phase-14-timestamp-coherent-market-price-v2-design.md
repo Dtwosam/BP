@@ -1,7 +1,7 @@
 # Phase 14 — Timestamp-Coherent Market-Price V2 Design
 
 **Date:** 2 September 2026  
-**Status:** Approved architecture; design review pending before implementation planning  
+**Status:** Gate A implementation under review; code/test complete, not deployed  
 **Phase:** 14 — live readiness research correction  
 **Mode:** RESEARCH only; live trading disabled; all real-money limits remain zero  
 **Canonical decision:** D-033  
