@@ -101,11 +101,13 @@ A market is eligible only when all of the following are true:
 
 - `horizon_seconds == 300`;
 - `start_at >= 2026-09-02T12:18:02Z`;
-- the market has fully ended before the collection cycle's cutoff time;
+- `end_at <= cycle_at - 15 seconds`;
 - static identity fields required by `V2FeatureTarget` are valid;
 - at least one of the four natural keys for `core-v2-last-trade` is absent.
 
-The collector must never generate features for an active market. It may apply a small operational end-of-market grace period, but that grace is not an economic freshness policy and must not alter feature timestamps.
+The 15-second post-end grace is purely operational: it avoids racing the recorder/database immediately at market close. It does not change the feature timestamps, does not alter as-of cutoffs, and is not a V2 economic freshness threshold.
+
+The collector must never generate features for an active market.
 
 For each eligible market:
 
