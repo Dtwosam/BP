@@ -84,6 +84,11 @@ def test_v2_gate_a_rollout_is_exact_head_guarded_and_research_only() -> None:
     assert "wait_for_forward_5m_market" in content
     assert "generate_v2_features.py" in content
     assert "--preserve-existing" in content
+    assert 'TARGET_START=' in content
+    assert 'TARGET_END=' in content
+    assert '--start "$TARGET_START"' in content
+    assert '--end "$TARGET_END"' in content
+    assert '--start "$ROLLOUT_STARTED"' not in content
     assert "core-v2-last-trade" in content
     for offset in (60, 120, 180, 240):
         assert str(offset) in content
