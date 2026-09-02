@@ -1,0 +1,28 @@
+[Unit]
+Description=BP V2 forward coverage collector
+Requires=bp-postgres.service
+After=bp-postgres.service
+
+[Service]
+Type=oneshot
+User=bp
+Group=bp
+WorkingDirectory=/opt/bp
+EnvironmentFile=/etc/bp/bp.env
+EnvironmentFile=/etc/bp/bp-prospective-runtime-safety.env
+Environment=MODE=research
+Environment=LIVE_TRADING_ENABLED=false
+Environment=MAX_TRADE_SIZE_USD=0
+Environment=MAX_DAILY_LOSS_USD=0
+ExecStart=/opt/bp/.venv/bin/python /opt/bp/scripts/run_v2_forward_coverage.py once --env-file /etc/bp/bp.env
+UMask=0077
+TimeoutStartSec=2min
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=full
+RestrictAddressFamilies=AF_UNIX
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-v2-forward-coverage
