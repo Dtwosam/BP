@@ -26,6 +26,11 @@ INDEX_STATEMENTS = (
     CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_market_state_1s_feed_bucket
     ON market_state_1s (source, stream, bucket_at)
     """,
+    """
+    CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_market_state_1s_polymarket_market_lookup
+    ON market_state_1s (instrument, asset_id, bucket_at DESC, last_event_at DESC, id DESC)
+    WHERE source = 'polymarket' AND stream = 'market'
+    """,
 )
 
 
