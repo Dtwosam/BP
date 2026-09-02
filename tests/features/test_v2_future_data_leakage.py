@@ -1,9 +1,9 @@
 from datetime import UTC, datetime, timedelta
 
+from bp_engine.features.v2_service import build_v2_feature
 from sqlalchemy import create_engine, insert
 
 from bp_engine.features.v2_models import V2FeatureTarget
-from bp_engine.features.v2_service import build_v2_feature
 from bp_engine.storage import schema
 
 START = datetime(2026, 9, 2, 11, 0, tzinfo=UTC)
@@ -45,7 +45,14 @@ def _state(*, price: str, source_at: datetime, received_at: datetime, dedupe: st
     }
 
 
-def _insert(connection, *, asset_id: str, bucket_at: datetime, last_event_at: datetime, state: dict) -> None:
+def _insert(
+    connection,
+    *,
+    asset_id: str,
+    bucket_at: datetime,
+    last_event_at: datetime,
+    state: dict,
+) -> None:
     connection.execute(
         insert(schema.market_state_1s).values(
             bucket_at=bucket_at,
