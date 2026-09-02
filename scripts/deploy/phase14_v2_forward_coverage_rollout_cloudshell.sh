@@ -324,7 +324,7 @@ OLD_HEAD=$(git -C "$REPO" rev-parse HEAD)
 OLD_BRANCH=$(git -C "$REPO" symbolic-ref --quiet --short HEAD || true)
 [[ "$OLD_HEAD" == "$EXPECTED_FROM_HEAD" ]] || fail "unexpected_deployed_head:$OLD_HEAD"
 
-git -C "$REPO" fetch --quiet origin "$BRANCH"
+git -C "$REPO" fetch --quiet origin "refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
 REMOTE_HEAD=$(git -C "$REPO" rev-parse "origin/$BRANCH")
 [[ "$REMOTE_HEAD" == "$SHA" ]] || fail "remote_branch_head_mismatch:$REMOTE_HEAD"
 git -C "$REPO" cat-file -e "$SHA^{commit}" || fail "candidate_commit_missing"
