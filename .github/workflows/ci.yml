@@ -98,6 +98,7 @@ jobs:
           python -m py_compile scripts/run_paper_execution.py
           python -m py_compile scripts/run_improvement.py
           python -m py_compile scripts/run_live_readiness.py
+          python -m py_compile scripts/run_v2_forward_coverage.py
           docker compose --env-file deploy/bp.env.example -f docker-compose.prod.yml config -q
 
       - name: Health check
