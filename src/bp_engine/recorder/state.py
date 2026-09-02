@@ -18,6 +18,12 @@ def _utc(value: datetime) -> datetime:
     return value.astimezone(UTC)
 
 
+def _iso_utc(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    return _utc(value).isoformat().replace("+00:00", "Z")
+
+
 def _decimal_text(value: Decimal) -> str:
     rendered = format(value, "f")
     if "." in rendered:
@@ -186,8 +192,12 @@ class MarketStateReducer:
                 event,
                 asset_id=str(asset_id) if asset_id is not None else None,
             )
+            price = payload.get("price")
+            if price is not None:
+                rendered_price = str(price)
+                tracked.state["last_price"] = rendered_price
+                tracked.state["last_trade_price"] = rendered_price
             field_map = {
-                "price": "last_price",
                 "size": "last_trade_size",
                 "side": "last_trade_side",
             }
@@ -195,6 +205,9 @@ class MarketStateReducer:
                 value = payload.get(source_name)
                 if value is not None:
                     tracked.state[state_name] = str(value)
+            tracked.state["last_trade_source_at"] = _iso_utc(event.source_timestamp)
+            tracked.state["last_trade_received_at"] = _iso_utc(event.received_at)
+            tracked.state["last_trade_event_dedupe_key"] = event.dedupe_key
 
     def _observe_bybit(self, event: RawEvent) -> None:
         payload = event.payload

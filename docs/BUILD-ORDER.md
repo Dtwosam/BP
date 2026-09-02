@@ -413,10 +413,16 @@ Do not automatically increase stake.
 
 ## Immediate next action
 
-**Continue money-disabled prospective paper evidence; do not start Phase 15.**
+**Review the completed Gate A timestamp-coherent `market_price` V2 implementation as a draft PR; do not deploy it, do not select a V2 policy, and do not start Phase 15.**
 
-Phase 14 engineering is complete with `PHASE14_HOST_ACCEPTANCE=PASS`, but the Master live gate is closed. Production returned `GEOBLOCK_BLOCKED=true`; the existing prospective paper sample is too small; positive after-cost profitability has not been established; prospective calibration evidence remains insufficient; and explicit real-money authorization is absent.
+Gate A implementation on `phase14-market-price-v2-design` is code/test complete and under review. It preserves dedicated Polymarket `last_trade_price` source/receipt timestamps and dedupe identity in compact state, adds an exact-token/as-of V2 source reader, materializes the separate 5m `core-v2-last-trade` feature contract at 60/120/180/240-second offsets, and adds a deterministic read-only outcome-blind coverage reporter. The implementation checkpoints passed full CI as Task 1 CI #1913, Task 2 CI #1918, Task 3 CI #1934, and Task 4 CI #1939.
 
-The gate matrix is recorded in `docs/evidence/phase-14-closeout-20260830.json`. Continue collecting immutable prospective paper predictions, fills, settlements, and outcomes; evaluate after-cost expectancy with uncertainty; validate calibration prospectively; and re-check geographic/compliance eligibility only through official permitted mechanisms. Do not bypass restrictions or reinterpret research/paper authorization as live-spending authorization.
+The frozen V1 path remains unchanged: `FEATURE_VERSION="core-v1"`, `src/bp_engine/features/service.py`, the full `src/bp_engine/live_prediction` subtree, and the full `src/bp_engine/calibration` subtree are byte-identical to `main`; selected-book freshness remains exactly 10 seconds. The Gate A diff contains no migration, live-order activation, wallet/secret change, risk-limit increase, geoblock bypass, or Phase 15 implementation.
 
-`LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0` remain mandatory. Re-run the complete Master live gate before any Phase 15 transition.
+Gate A has **not** been deployed. Therefore no forward production V2 provenance/feature-coverage epoch has been established and no production coverage result may be claimed. `policy_selected=false` and `automatic_promotion=false`; no V2 timing, last-trade freshness threshold, calibration, minimum-edge threshold, model policy, prospective V2 prediction path, or V2 paper-execution path has been selected or activated.
+
+Treat existing `live-prediction-v1` predictions, paper orders, settlements, and P&L as immutable evidence of the deployed V1 pipeline. Do not rewrite or discard them, do not combine them with any future V2 profitability epoch, and do not use the 27 V1 failures to choose V2 freshness/calibration/edge parameters.
+
+After draft-PR review, any recorder/V2 production rollout is a **separate explicit authorization step** with its own bounded acceptance and rollback plan. If such a rollout is later authorized and passes, collect only forward timestamped V2 source evidence first; run the outcome-blind coverage report before labeled/economic policy selection; and pre-register any finite freshness candidate set before joining outcomes. Until then, V2 remains research-only and undeployed.
+
+`LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0` remain mandatory. The Master live gate remains `fail`, geographic/compliance eligibility remains unresolved/failed for live launch, explicit real-money authorization is absent, and Phase 15 remains blocked.
