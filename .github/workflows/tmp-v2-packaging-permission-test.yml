@@ -20,14 +20,15 @@ jobs:
       - name: Apply asserted documentation updates
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "22a5d96fb9271906c0ec7929ca2cb67d2a7d672f"
+          test "$(git rev-parse HEAD^)" = "2c8f37d3652e1ab7918cf3c10e18ee15fcd88979"
           python scripts/tmp_v2_forward_packaging_update.py
+          python scripts/tmp_v2_forward_packaging_cleanup.py
           python -m json.tool PROJECT_STATE.json >/dev/null
           git diff --check
       - name: Commit clean review checkpoint
         run: |
           set -euo pipefail
-          git rm scripts/tmp_v2_forward_packaging_update.py .github/workflows/tmp-v2-packaging-permission-test.yml
+          git rm scripts/tmp_v2_forward_packaging_update.py scripts/tmp_v2_forward_packaging_cleanup.py .github/workflows/tmp-v2-packaging-permission-test.yml
           git diff --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
