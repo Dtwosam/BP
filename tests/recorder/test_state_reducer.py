@@ -6,6 +6,7 @@ from pathlib import Path
 from bp_engine.collectors.bybit_ws import parse_bybit_message
 from bp_engine.collectors.coinbase_ws import parse_coinbase_message
 from bp_engine.collectors.polymarket_ws import parse_polymarket_message
+from bp_engine.recorder.models import RawEvent
 from bp_engine.recorder.state import MarketStateReducer
 
 FIXTURES = Path(__file__).parents[1] / "fixtures"
@@ -53,6 +54,115 @@ def test_polymarket_price_change_tracks_each_asset_without_calling_it_a_trade() 
     assert snapshot.state["last_change_size"] == "200"
     assert snapshot.state["last_change_side"] == "BUY"
     assert "last_price" not in snapshot.state
+
+
+def test_polymarket_last_trade_preserves_dedicated_provenance() -> None:
+    received_at = datetime(2026, 8, 23, 20, 13, 30, 250_000, tzinfo=UTC)
+    event = parse_polymarket_message(
+        load("polymarket_ws", "last_trade_price.json"), received_at=received_at
+    )[0]
+    reducer = MarketStateReducer()
+
+    reducer.observe(event)
+    snapshot = reducer.snapshots(received_at)[0]
+
+    assert event.source_timestamp is not None
+    assert snapshot.state["last_trade_price"] == event.payload["price"]
+    assert snapshot.state["last_price"] == event.payload["price"]
+    assert snapshot.state["last_trade_size"] == event.payload["size"]
+    assert snapshot.state["last_trade_side"] == event.payload["side"]
+    assert snapshot.state["last_trade_source_at"] == event.source_timestamp.isoformat().replace(
+        "+00:00", "Z"
+    )
+    assert snapshot.state["last_trade_received_at"] == event.received_at.isoformat().replace(
+        "+00:00", "Z"
+    )
+    assert snapshot.state["last_trade_event_dedupe_key"] == event.dedupe_key
+
+
+def test_polymarket_book_activity_does_not_refresh_last_trade_provenance() -> None:
+    received_at = datetime(2026, 8, 23, 20, 13, 40, tzinfo=UTC)
+    trade = parse_polymarket_message(
+        load("polymarket_ws", "last_trade_price.json"), received_at=received_at
+    )[0]
+    assert trade.asset_id is not None
+    later_received_at = received_at.replace(microsecond=500_000)
+    price_change = RawEvent.build(
+        source="polymarket",
+        stream="market",
+        instrument=trade.instrument,
+        event_type="price_change",
+        source_timestamp=later_received_at,
+        received_at=later_received_at,
+        market_id=trade.market_id,
+        payload={
+            "event_type": "price_change",
+            "market": trade.market_id,
+            "price_changes": [
+                {
+                    "asset_id": trade.asset_id,
+                    "price": "0.50",
+                    "size": "12",
+                    "side": "BUY",
+                    "best_bid": "0.49",
+                    "best_ask": "0.51",
+                }
+            ],
+        },
+    )
+    reducer = MarketStateReducer()
+
+    reducer.observe(trade)
+    before = reducer.snapshots(received_at)[0]
+    reducer.observe(price_change)
+    after = reducer.snapshots(later_received_at)[0]
+
+    keys = (
+        "last_trade_price",
+        "last_trade_size",
+        "last_trade_side",
+        "last_trade_source_at",
+        "last_trade_received_at",
+        "last_trade_event_dedupe_key",
+    )
+    assert after.last_event_at == later_received_at
+    assert {key: after.state[key] for key in keys} == {
+        key: before.state[key] for key in keys
+    }
+    assert after.state["last_change_price"] == "0.50"
+
+
+def test_polymarket_last_trade_without_source_timestamp_is_not_timestamped_evidence() -> None:
+    received_at = datetime(2026, 8, 23, 20, 13, 50, tzinfo=UTC)
+    event = RawEvent.build(
+        source="polymarket",
+        stream="market",
+        instrument="condition-without-source-time",
+        event_type="last_trade_price",
+        source_timestamp=None,
+        received_at=received_at,
+        market_id="condition-without-source-time",
+        asset_id="token-without-source-time",
+        payload={
+            "event_type": "last_trade_price",
+            "asset_id": "token-without-source-time",
+            "market": "condition-without-source-time",
+            "price": "0.42",
+            "size": "3",
+            "side": "SELL",
+        },
+    )
+    reducer = MarketStateReducer()
+
+    reducer.observe(event)
+    snapshot = reducer.snapshots(received_at)[0]
+
+    assert snapshot.state["last_trade_price"] == "0.42"
+    assert snapshot.state["last_trade_source_at"] is None
+    assert snapshot.state["last_trade_received_at"] == received_at.isoformat().replace(
+        "+00:00", "Z"
+    )
+    assert snapshot.state["last_trade_event_dedupe_key"] == event.dedupe_key
 
 
 def test_bybit_zero_size_delta_removes_old_best_bid() -> None:
