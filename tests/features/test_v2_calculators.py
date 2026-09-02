@@ -2,7 +2,6 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from bp_engine.features.v2_calculators import last_trade_features
-
 from bp_engine.features.v2_models import LastTradeObservation
 
 FEATURE_AT = datetime(2026, 9, 2, 10, 0, tzinfo=UTC)
