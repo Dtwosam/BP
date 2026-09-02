@@ -134,6 +134,15 @@ def test_v2_forward_rollout_helper_has_clean_bash_syntax_check() -> None:
     assert result.stderr == "", result.stderr
 
 
+def test_v2_forward_rollout_fetches_candidate_into_remote_tracking_ref() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+    assert (
+        'git -C "$REPO" fetch --quiet origin '
+        '"refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"'
+    ) in content
+    assert 'git -C "$REPO" fetch --quiet origin "$BRANCH"' not in content
+
+
 def test_v2_forward_rollout_scope_is_narrow() -> None:
     content = HELPER.read_text(encoding="utf-8")
     for allowed in (
