@@ -68,7 +68,9 @@ def discover_pending_v2_targets(
         )
     ).mappings().all()
 
-    offsets_by_condition: dict[str, set[int]] = {condition_id: set() for condition_id in condition_ids}
+    offsets_by_condition: dict[str, set[int]] = {
+        condition_id: set() for condition_id in condition_ids
+    }
     for row in feature_rows:
         condition_id = str(row["condition_id"])
         offset = int(row["feature_offset_seconds"])
