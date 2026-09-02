@@ -1,4 +1,4 @@
-name: Temporary V2 packaging permission test
+name: Temporary V2 packaging updater
 
 on:
   push:
@@ -9,8 +9,29 @@ permissions:
   contents: write
 
 jobs:
-  test:
+  update-docs:
     runs-on: ubuntu-latest
     steps:
-      - name: No-op
-        run: echo branch-packaging-permission-ok
+      - name: Checkout review branch
+        uses: actions/checkout@v4
+        with:
+          ref: phase14-v2-gate-a-rollout-evidence
+          fetch-depth: 0
+      - name: Apply asserted documentation updates
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "22a5d96fb9271906c0ec7929ca2cb67d2a7d672f"
+          python scripts/tmp_v2_forward_packaging_update.py
+          python -m json.tool PROJECT_STATE.json >/dev/null
+          git diff --check
+      - name: Commit clean review checkpoint
+        run: |
+          set -euo pipefail
+          git rm scripts/tmp_v2_forward_packaging_update.py .github/workflows/tmp-v2-packaging-permission-test.yml
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "docs: record V2 forward collector review checkpoint"
+          git push origin HEAD:phase14-v2-gate-a-rollout-evidence
