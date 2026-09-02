@@ -1,10 +1,14 @@
 # Phase 14 — V2 Forward Coverage Collector Design
 
-**Date:** 2 September 2026  
-**Status:** Design approved; implementation not started  
-**Phase:** 14 — research correction / evidence collection  
-**Mode:** RESEARCH only; live trading disabled; all real-money limits remain zero  
+**Date:** 2 September 2026
+**Status:** Implementation complete; review packaging; not deployed
+**Phase:** 14 — research correction / evidence collection
+**Mode:** RESEARCH only; live trading disabled; all real-money limits remain zero
 **Canonical decision:** D-033
+
+**Implementation checkpoint:** `af8b2e4f741851df1b055b57c3fc44e39c7b6b06`
+**Pre-packaging verification:** CI #1978 / run `33639062997`, 860 tests, full Python/deployment/dashboard GREEN
+**Production collector activation:** not performed; separately authorized after review/merge
 
 ## 1. Purpose
 
@@ -76,19 +80,19 @@ The underlying task is periodic database reconciliation, not low-latency trading
 
 ### Components
 
-1. **`bp_engine.features.v2_forward`**  
+1. **`bp_engine.features.v2_forward`**
    Pure orchestration logic for eligible-target discovery and one collection cycle.
 
-2. **CLI / script**  
+2. **CLI / script**
    A thin entrypoint that loads settings, enforces research-zero-money safety, opens the database transaction, runs one cycle, and prints deterministic JSON stats.
 
-3. **`bp-v2-forward-coverage.service`**  
+3. **`bp-v2-forward-coverage.service`**
    Hardened unprivileged oneshot unit running as `bp`.
 
-4. **`bp-v2-forward-coverage.timer`**  
+4. **`bp-v2-forward-coverage.timer`**
    Runs the service every minute with a small boot delay and persistent catch-up semantics.
 
-5. **Guarded rollout helper**  
+5. **Guarded rollout helper**
    Exact-head production installation/acceptance with rollback of runtime files/service state on failure while never deleting already-collected immutable research evidence.
 
 ## 5. Eligibility and data flow

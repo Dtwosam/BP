@@ -1,8 +1,8 @@
 # BTC Polymarket Prediction Engine — Master Source of Truth
 
-**Status:** Active  
-**Version:** 0.1.0  
-**Frozen on:** 20 August 2026  
+**Status:** Active
+**Version:** 0.1.0
+**Frozen on:** 20 August 2026
 **Authority:** This file is the canonical source of truth for the project.
 
 ---
@@ -1238,7 +1238,7 @@ Bybit documentation can be rechecked at:
 
 # 30. Current project state
 
-As of **30 August 2026**:
+As of **2 September 2026**:
 
 - Phases 0 through 14 in the active repository build order have been implemented and closed through Phase 14 engineering readiness;
 - the current machine-readable state is `PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED`;
@@ -1248,6 +1248,7 @@ As of **30 August 2026**:
 - positive after-cost profitability has not been established;
 - geographic/compliance eligibility is not established for live launch;
 - live trading remains disabled and real-money trade-size/daily-loss limits remain zero;
+- Phase 14 Gate A timestamp-coherent V2 is production-accepted from forward epoch `2026-09-02T12:18:02Z`; the continuous V2 forward-coverage collector package is implemented and under review but is not deployed or enabled;
 - Phase 15 controlled live launch is not permitted.
 
 `PROJECT_STATE.json` is the machine-readable record of the exact current phase, accepted evidence, and next actions.
@@ -1344,3 +1345,21 @@ Missing or stale timestamped last-trade evidence must fail closed to no-trade. T
 The V1 calibration fit and validation-selected minimum-edge threshold cannot be carried forward automatically, because both were selected under the asynchronous V1 eligibility contract. V2 must rerun the leakage-safe chronological research chain under its own source semantics, with train/validation/test/holdout boundaries preserved. If independent historical timestamped last-trade evidence is insufficient to validate a V2 policy, the correct policy is `no_trade` while a separate prospective shadow-evidence epoch is collected. `automatic_promotion=false` remains mandatory.
 
 This V2 work is a Phase 14 research correction, not Phase 15. It does not authorize real orders, increase risk limits, alter geographic/compliance requirements, or count as live-gate progress by itself. `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0` remain mandatory. The complete Section 4.3 Master live gate and separate explicit real-money authorization remain prerequisites for any future controlled live launch.
+
+---
+
+# 36. Phase 14 Gate A production acceptance and continuous V2 forward-coverage boundary
+
+On 2 September 2026, the separately authorized research-only Gate A production rollout passed and advanced the deployed checkout from `be1f82f65d15b2e172495e6ae934ec9a78648c32` to `d077e45f24704e6038c947169c84527e954de975`. The canonical V2 forward epoch is `2026-09-02T12:18:02Z`. All seven established research services remained active and effective safety remained `MODE=research`, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0`.
+
+Host acceptance proved dedicated first-party Polymarket WebSocket last-trade provenance using provider source timestamp, BP receipt timestamp, price, and dedupe identity, and proved that unrelated later market activity did not refresh the dedicated last-trade timestamp. One fully completed post-epoch 5m market then produced exactly four immutable `core-v2-last-trade` feature rows at the frozen 60/120/180/240-second offsets, with zero future-source-cutoff violations. The outcome-blind coverage report observed one market/four rows, emitted `policy_selected=false` and `automatic_promotion=false`, and recorded coverage input SHA-256 `44592883ca47d18337b4c4385f3e34badc00bc30e5a124a02c0c4c99cccf6891`. Sanitized evidence is `docs/evidence/phase-14-v2-gate-a-rollout-20260902.json`.
+
+That one-market operational sample is not a V2 timing, freshness, calibration, model, edge, profitability, or promotion result. Observed selected-book ages were about 0.4–1.1 seconds while last-trade source ages reached about 18–20 seconds, reinforcing that policy selection must remain deferred and independent of both the V1 failure sample and this single acceptance market. Selected-book freshness remains frozen at 10 seconds, and no V2 last-trade freshness threshold is selected.
+
+The approved next operational package is a continuous **outcome-blind V2 forward-coverage collector**. It is limited to completed 5m markets starting at or after the canonical forward epoch, exactly the four approved feature offsets, immutable/preserve-existing semantics, descriptive coverage reporting, structured logging, and restart-safe reconciliation using database natural keys rather than a mutable cursor. It must not read labels/outcomes, compute accuracy/P&L/calibration metrics, choose a V2 policy, create V2 predictions or paper orders, mutate V1 evidence, alter the selected-book freshness rule, enable live trading, or begin Phase 15.
+
+The implementation package adds `bp_engine.features.v2_forward`, a thin research-zero-money CLI/script, hardened `bp-v2-forward-coverage.service` and persistent one-minute `bp-v2-forward-coverage.timer`, plus an exact-head rollback-capable rollout helper. The oneshot may connect only to the local PostgreSQL service over localhost/Unix networking; non-loopback IP traffic is denied by systemd. Rollback may restore checkout and unit state but must never delete, truncate, or rewrite immutable `market_features` or any other research ledger.
+
+Pre-packaging exact-head CI #1978 (`33639062997`) passed all 860 Python tests, Ruff, deployment validation, health checks, dashboard tests/typecheck/build, Python wrapper compilation, and rollout-helper Bash syntax. Full source-diff review against deployed head `d077e45f24704e6038c947169c84527e954de975` leaves the frozen V1 feature service and the complete `live_prediction`, `calibration`, and `execution` paths unchanged, with no migration, live activation, wallet/secret path, risk-limit increase, geographic bypass, V2 economic policy, or Phase 15 implementation.
+
+The continuous collector is **not yet deployed or enabled** at this checkpoint. Code review/merge and a separately explicit research-only production-rollout authorization are required before activating `bp-v2-forward-coverage.timer`. Even a later successful collector rollout would authorize only continuing outcome-blind forward evidence collection; it would not authorize the next research gate, policy selection, promotion, paper/live execution changes, or real-money trading. The Section 4.3 Master live gate remains `fail`, `automatic_promotion=false`, and Phase 15 remains blocked.

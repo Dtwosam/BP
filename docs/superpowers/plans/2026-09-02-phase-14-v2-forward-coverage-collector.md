@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-02-phase-14-v2-forward-coverage-collector-design.md`
 
+**Implementation status:** Tasks 1–5 complete and pre-packaging exact-head CI #1978 (`33639062997`) GREEN with 860 tests; Task 6 review packaging in progress. Production collector rollout remains separately gated and has not been performed.
+
 ## Global Constraints
 
 - Canonical forward epoch is exactly `2026-09-02T12:18:02Z`.
