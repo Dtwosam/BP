@@ -1313,7 +1313,6 @@ Paper reconciliation remained `OK` with zero violations across three paper order
 
 This negative prospective result does not prevent the separate research-only permanent installation of `bp-live-predictor.service` and `bp-prospective-outcomes.service` for continued immutable evidence collection. Such installation is an operational continuity step only; it cannot promote a model, change an evidence gate, or authorize live trading.
 
-
 ---
 
 # 34. Phase 14 permanent prospective research runtime installation
@@ -1327,3 +1326,21 @@ Corrected exact-head pre-host verification passed on candidate `d2b2d515a4b982c6
 The corrected production-host run returned `PHASE14_PROSPECTIVE_RUNTIME_INSTALL=PASS`. `/opt/bp` moved from `0189ff70fc628c71ab7c503bac369c34bf5ce8bc` to exact candidate `d2b2d515a4b982c691360fa1c6c46a461a665ff9`. `bp-live-predictor.service` is active and enabled, `bp-prospective-outcomes.service` is active and enabled, and all five established core services remained active: recorder, PostgreSQL, dashboard API, dashboard web, and paper execution. The root-controlled safety file is `/etc/bp/bp-prospective-runtime-safety.env`; its previous state was absent. Effective safety remained `MODE=research`, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0`. Sanitized repository evidence is `docs/evidence/phase-14-prospective-runtime-install-host-acceptance-20260831.json`; the host-local evidence file is `/var/lib/bp/evidence/phase14-prospective-runtime-install-20260831T131003Z.txt`.
 
 This operational PASS does not alter Section 4.3. Prospective after-cost profitability remains `fail`; prospective sample sufficiency and calibration remain `insufficient_evidence`; geographic/compliance eligibility remains `fail`; explicit real-money authorization remains `fail`; `automatic_promotion=false`; the overall Master live gate remains `fail`; and Phase 15 remains blocked.
+
+---
+
+# 35. Phase 14 V1 market-price timestamp-coherence defect and approved V2 research boundary
+
+On 2 September 2026, read-only attribution of the growing prospective 5m paper sample established a cross-source timestamp-coherence defect in the accepted V1 research path. The V1 raw probability is the newest first-party Polymarket CLOB `/prices-history` Up-token point satisfying `observed_at <= scheduled_at`, obtained with one-minute fidelity. The edge engine compares the calibrated result with a separately observed selected-side WebSocket best ask whose compact state is subject to the existing 10-second freshness contract.
+
+A transaction-level timing probe over 27 settled paper trades found that every probability observation was 33–51 seconds old at `scheduled_at`, while every selected-side book was approximately 0–1 second old. This makes it possible for V1 to interpret ordinary market movement between two materially different effective timestamps as very large apparent executable edge. The finding is consistent with the historical contract: `core-v1` recorded Polymarket token-price staleness but did not impose a token-price freshness gate; the accepted `market_price` champion consumed `pm_up_price`; Phase 8/9 selected timing/calibration/edge policy under that asynchronous source contract; and Phase 10 faithfully materialized the same meaning prospectively.
+
+Existing `live-prediction-v1` predictions, evaluations, paper orders, fills, settlements, reconciliation, and P&L remain immutable evidence of the deployed V1 pipeline. They must not be rewritten, erased, or post-hoc reclassified. They remain valid evidence that V1 as deployed loses money after costs. They must not, however, be blended into a future corrected V2 profitability epoch or used to select V2 freshness, calibration, minimum-edge, or model parameters.
+
+The approved V2 research direction is a new versioned market-price input built from first-party Polymarket WebSocket `last_trade_price` evidence with a dedicated trade timestamp and receipt timestamp preserved as part of provenance. The generic compact-state `last_event_at` cannot stand in for last-trade freshness because later book or price-change events may refresh state while the stored last trade remains old. An untimestamped REST `last-trade-price` response, midpoint, selected ask, opposite-token transform, or other synthesized value must not silently substitute for the V2 probability input.
+
+Missing or stale timestamped last-trade evidence must fail closed to no-trade. The existing 10-second selected-book freshness threshold remains frozen and must not be loosened from the same prospective sample. No numerical probability/last-trade freshness threshold may be chosen by inspecting the 27 V1 failures. Any V2 source-freshness rule must be derived and frozen independently under a new versioned research contract.
+
+The V1 calibration fit and validation-selected minimum-edge threshold cannot be carried forward automatically, because both were selected under the asynchronous V1 eligibility contract. V2 must rerun the leakage-safe chronological research chain under its own source semantics, with train/validation/test/holdout boundaries preserved. If independent historical timestamped last-trade evidence is insufficient to validate a V2 policy, the correct policy is `no_trade` while a separate prospective shadow-evidence epoch is collected. `automatic_promotion=false` remains mandatory.
+
+This V2 work is a Phase 14 research correction, not Phase 15. It does not authorize real orders, increase risk limits, alter geographic/compliance requirements, or count as live-gate progress by itself. `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0` remain mandatory. The complete Section 4.3 Master live gate and separate explicit real-money authorization remain prerequisites for any future controlled live launch.
