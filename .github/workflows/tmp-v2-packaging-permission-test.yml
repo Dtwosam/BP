@@ -1,0 +1,16 @@
+name: Temporary V2 packaging permission test
+
+on:
+  push:
+    branches:
+      - phase14-v2-gate-a-rollout-evidence
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: No-op
+        run: echo branch-packaging-permission-ok
