@@ -244,7 +244,6 @@ Calibration over 54 evaluations improved numerically after the frozen calibrator
 
 This evidence does not authorize promotion or Phase 15. The Master live gate remains `fail`, `automatic_promotion=false`, and all real-money controls remain disabled/zero. A separate permanent installation of the already-approved research-only predictor and prospective-outcome daemons may proceed solely to preserve prospective evidence continuity; successful installation must not be treated as economic validation or live-gate progress.
 
-
 ## D-032 — Permanent prospective research daemons are operational continuity, not live-gate progress
 **Date:** 31 Aug 2026  
 **Status:** Active
@@ -256,3 +255,19 @@ The first install attempt on candidate `196519555bed8f68d37654bd171dac23f681fd52
 Corrected exact-head install candidate `d2b2d515a4b982c691360fa1c6c46a461a665ff9` passed CI #1661 plus Historical Backfill Smoke #528, Live Recorder Smoke #635, and Recorder Short Soak #600, then passed production installation. The deployed head became `d2b2d515a4b982c691360fa1c6c46a461a665ff9`; both prospective daemons are active and enabled; recorder, PostgreSQL, dashboard API/web, and paper execution remained active; and the root-controlled runtime boundary is still `RESEARCH`, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0`.
 
 D-031's negative prospective profitability result is unchanged and remains canonical. No prospective threshold was retuned, no evidence gate was upgraded by the installation, `automatic_promotion=false`, the Master live gate remains `fail`, and Phase 15 remains blocked. Sanitized evidence: `docs/evidence/phase-14-prospective-runtime-install-host-acceptance-20260831.json`.
+
+## D-033 — V1 market-price edge is timestamp-incoherent; V2 must use separately timestamped current market-price evidence and a new validation epoch
+**Date:** 2 Sep 2026  
+**Status:** Active
+
+Read-only Phase 14 attribution established that the accepted 5m V1 path compares two observations with materially different effective times. The V1 raw probability is the newest first-party Polymarket CLOB `/prices-history` Up-token point satisfying `observed_at <= scheduled_at`, requested at one-minute fidelity. The executable selected-side ask comes from compact WebSocket book state with the existing 10-second freshness contract. A 27-settled-trade timing probe found probability ages of 33–51 seconds while selected-book ages were approximately 0–1 second for every trade. This cross-source timing mismatch can create large apparent edge when the market has moved substantially between the price-history observation and the executable book.
+
+This is an inherited research-contract defect rather than a paper-execution defect. `core-v1` exposed Polymarket token-price staleness as a feature but did not impose a token-price freshness gate; the accepted `market_price` champion uses `pm_up_price` itself; Phase 8/9 selected timing and edge policy under that asynchronous source contract; and Phase 10 faithfully materialized the same meaning prospectively. Existing V1 predictions, evaluations, paper orders/fills/settlements, and P&L remain immutable and valid evidence of the deployed V1 pipeline. They must not be rewritten or discarded, but they cannot be blended with a corrected V2 profitability epoch or used to choose V2 freshness, calibration, or edge thresholds.
+
+The approved V2 research direction is a new versioned market-price input based on first-party Polymarket WebSocket `last_trade_price` evidence with a dedicated trade timestamp/receipt timestamp. Generic compact-state `last_event_at` is not sufficient because later book or price-change events can refresh state without refreshing the last trade. Missing or stale last-trade evidence must fail closed to no-trade. Midpoint, selected ask, opposite-token transforms, or untimestamped REST last-trade responses must not silently substitute for the V2 probability input.
+
+The existing selected-book 10-second freshness contract remains frozen. No new probability freshness number may be selected from the 27 prospective failures. The V2 research chain must derive and freeze any source-freshness/eligibility rule independently, preserve chronological/leakage-safe selection, and create new feature/input/prediction/policy semantics rather than mutating V1.
+
+The V1 calibrator and minimum-edge threshold cannot be automatically carried forward because they were selected under the asynchronous V1 eligibility contract. V2 must rerun the permitted calibration/edge research chain under its new source semantics. If independent historical timestamped last-trade evidence is insufficient to validate a policy, V2 remains `no_trade` while collecting a separate prospective shadow-evidence epoch. `automatic_promotion=false` remains mandatory.
+
+This decision does not authorize live trading, Phase 15, a geographic bypass, a higher risk limit, or any real-money setting change. `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0` remain mandatory, and the complete Master live gate plus separate explicit real-money authorization remain prerequisites for any future controlled live launch.
