@@ -1,9 +1,9 @@
 from datetime import UTC, datetime, timedelta
 
-from bp_engine.features.v2_service import build_v2_feature
 from sqlalchemy import create_engine, insert
 
 from bp_engine.features.v2_models import V2FeatureTarget
+from bp_engine.features.v2_service import build_v2_feature
 from bp_engine.storage import schema
 
 START = datetime(2026, 9, 2, 11, 0, tzinfo=UTC)
