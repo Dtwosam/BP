@@ -1,11 +1,11 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from bp_engine.features.v2_service import build_v2_feature, plan_v2_feature_times
 from sqlalchemy import create_engine, insert
 
 from bp_engine.features.repository import MarketFeatureRepository
 from bp_engine.features.v2_models import V2_FEATURE_VERSION, V2FeatureTarget
+from bp_engine.features.v2_service import build_v2_feature, plan_v2_feature_times
 from bp_engine.storage import schema
 
 START = datetime(2026, 9, 2, 10, 0, tzinfo=UTC)
