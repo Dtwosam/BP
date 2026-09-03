@@ -121,7 +121,11 @@ async def test_later_backpressure_creates_a_distinct_episode() -> None:
     incidents: list[FeedIncident] = []
     sink = _BufferedEventSink(buffer, incidents.append)
 
-    async def run_episode(fill_sequence: int, blocked_sequence: int, recovery_sequence: int) -> None:
+    async def run_episode(
+        fill_sequence: int,
+        blocked_sequence: int,
+        recovery_sequence: int,
+    ) -> None:
         buffer.put_nowait(raw_event(fill_sequence, fill_sequence))
         blocked = asyncio.create_task(sink(raw_event(blocked_sequence, blocked_sequence)))
         await let_blocked_sinks_reach_queue_wait(blocked)
