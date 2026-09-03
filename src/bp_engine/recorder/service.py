@@ -263,6 +263,7 @@ def build_default_recorder_service(settings: object) -> RecorderService:
         sink=database_sink.write_events,
         batch_size=settings.recorder_batch_size,
         flush_interval_seconds=settings.recorder_flush_interval_seconds,
+        worker_count=settings.recorder_writer_workers,
     )
     state_snapshotter = MarketStateSnapshotter(
         reducer=state_reducer,
