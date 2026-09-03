@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.6 — 3 September 2026
+
+Phase 14 recorder backpressure reliability repair is **engineering-complete on draft PR #49 but not production-deployed**. Production diagnostics tied V2 source-data degradation to recorder overload: the shared raw-event queue reached 50,000 during bursty Polymarket traffic, followed by ping timeouts, reconnect loops, and an explicit upstream `slow consumer: send buffer full` close. The repair adds configurable bounded raw-event writer concurrency through `RECORDER_WRITER_WORKERS` with application default `1`, preserving the existing 50,000 queue, 500-event batch size, and 0.25-second flush interval until a separately authorized rollout selects a production worker count.
+
+Backpressure reporting is now coalesced into one `backpressure` start incident plus one `backpressure_recovered` summary per continuous overload episode, including duration and blocked-event count, instead of synchronously amplifying database pressure with one incident write per blocked event. Lossless bounded semantics remain: no event-dropping policy, sampling, V2 feature rewrite, durable spool, reconnect-policy change, or trading-path change is introduced.
+
+TDD preserved explicit RED/GREEN evidence for writer concurrency, configuration wiring, and overload-episode behavior. The deterministic synthetic Polymarket burst regression drives approximately 1,000 events/second—materially above the observed production peak—so the single-writer fixture reproduces local slow-consumer failure while four bounded workers persist every unique event without reconnect/error and continue heartbeat/control handling. A separate unsustainable-overload test proves producers block rather than silently dropping events.
+
+Fresh branch verification on implementation head `a0e6ccc2ec2120594f4fcd173cc0ecd34d8d92b9` passed CI, Historical Backfill Smoke, Live Recorder Smoke, and Recorder Short Soak. This is engineering evidence only, not production acceptance. `MODE=research`, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, `MAX_DAILY_LOSS_USD=0`, `automatic_promotion=false`, the frozen 10-second selected-book freshness rule, the Master live gate `fail`, and the Phase 15 block remain unchanged. Production rollout requires separate explicit authorization and a natural-load soak; rollback must never delete or rewrite collected evidence.
+
 ## 0.14.5 — 2 September 2026
 
 Phase 14 Gate A timestamp-coherent V2 is now **production-accepted for research evidence collection only**. The separately authorized guarded rollout advanced `/opt/bp` from `be1f82f65d15b2e172495e6ae934ec9a78648c32` to `d077e45f24704e6038c947169c84527e954de975` and established canonical forward epoch `2026-09-02T12:18:02Z`. All seven established research services stayed active with `MODE=research`, `LIVE_TRADING_ENABLED=false`, and both real-money limits at zero.

@@ -4,6 +4,7 @@ import os
 from enum import StrEnum
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -47,6 +48,7 @@ class Settings(BaseSettings):
     recorder_queue_maxsize: int = 50_000
     recorder_batch_size: int = 500
     recorder_flush_interval_seconds: float = 0.25
+    recorder_writer_workers: int = Field(default=1, ge=1)
     polymarket_refresh_interval_seconds: float = 30.0
     polymarket_subscription_grace_seconds: float = 30.0
     recorder_stale_after_seconds: float = 10.0

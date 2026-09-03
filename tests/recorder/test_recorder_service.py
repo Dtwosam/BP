@@ -3,11 +3,39 @@ from datetime import UTC, datetime
 
 import pytest
 
+from bp_engine.recorder.models import FeedIncident, RawEvent
 from bp_engine.recorder.polymarket_coordinator import SubscriptionDiff
 from bp_engine.recorder.service import (
     PolymarketCollectorComponent,
     RecorderService,
+    _BufferedEventSink,
 )
+from bp_engine.recorder.writer import EventBuffer
+
+
+def raw_event(sequence: int, second: int) -> RawEvent:
+    observed_at = datetime(2026, 9, 3, 17, 0, second, tzinfo=UTC)
+    return RawEvent.build(
+        source="polymarket",
+        stream="market",
+        instrument="condition-test",
+        event_type="last_trade_price",
+        source_timestamp=observed_at,
+        received_at=observed_at,
+        sequence=sequence,
+        asset_id="token-test",
+        payload={"asset_id": "token-test", "price": "0.5"},
+    )
+
+
+async def let_blocked_sinks_reach_queue_wait(*tasks: asyncio.Task[None]) -> None:
+    for _ in range(100):
+        if all(not task.done() for task in tasks):
+            await asyncio.sleep(0)
+            if all(not task.done() for task in tasks):
+                return
+        await asyncio.sleep(0)
+    raise AssertionError("event sinks did not remain blocked on the full queue")
 
 
 class FakeComponent:
@@ -52,6 +80,72 @@ async def test_service_propagates_component_failure_and_stops_siblings() -> None
         await asyncio.wait_for(service.run(stop), timeout=1)
 
     assert stop.is_set()
+
+
+@pytest.mark.asyncio
+async def test_backpressure_is_coalesced_and_recovery_preserves_every_event() -> None:
+    buffer = EventBuffer(maxsize=1)
+    incidents: list[FeedIncident] = []
+    sink = _BufferedEventSink(buffer, incidents.append)
+    buffer.put_nowait(raw_event(0, 0))
+
+    first = asyncio.create_task(sink(raw_event(1, 1)))
+    second = asyncio.create_task(sink(raw_event(2, 2)))
+    await let_blocked_sinks_reach_queue_wait(first, second)
+
+    drained = [(await buffer.get()).sequence]
+    await asyncio.sleep(0)
+    drained.append((await buffer.get()).sequence)
+    await asyncio.gather(first, second)
+    drained.append((await buffer.get()).sequence)
+
+    await sink(raw_event(3, 3))
+    drained.append((await buffer.get()).sequence)
+
+    assert set(drained) == {"0", "1", "2", "3"}
+    assert [incident.incident_type for incident in incidents] == [
+        "backpressure",
+        "backpressure_recovered",
+    ]
+    assert incidents[0].details["queue_size"] == 1
+    assert incidents[0].details["episode_started_at"] == "2026-09-03T17:00:01+00:00"
+    assert incidents[1].details["episode_started_at"] == "2026-09-03T17:00:01+00:00"
+    assert incidents[1].details["recovered_at"] == "2026-09-03T17:00:03+00:00"
+    assert incidents[1].details["blocked_event_count"] == 2
+    assert incidents[1].details["duration_seconds"] == 2.0
+
+
+@pytest.mark.asyncio
+async def test_later_backpressure_creates_a_distinct_episode() -> None:
+    buffer = EventBuffer(maxsize=1)
+    incidents: list[FeedIncident] = []
+    sink = _BufferedEventSink(buffer, incidents.append)
+
+    async def run_episode(
+        fill_sequence: int,
+        blocked_sequence: int,
+        recovery_sequence: int,
+    ) -> None:
+        buffer.put_nowait(raw_event(fill_sequence, fill_sequence))
+        blocked = asyncio.create_task(sink(raw_event(blocked_sequence, blocked_sequence)))
+        await let_blocked_sinks_reach_queue_wait(blocked)
+        await buffer.get()
+        await blocked
+        await buffer.get()
+        await sink(raw_event(recovery_sequence, recovery_sequence))
+        await buffer.get()
+
+    await run_episode(0, 1, 2)
+    await run_episode(3, 4, 5)
+
+    assert [incident.incident_type for incident in incidents] == [
+        "backpressure",
+        "backpressure_recovered",
+        "backpressure",
+        "backpressure_recovered",
+    ]
+    assert incidents[1].details["blocked_event_count"] == 1
+    assert incidents[3].details["blocked_event_count"] == 1
 
 
 class FakeCoordinator:
@@ -144,7 +238,10 @@ def test_default_builder_assembles_primary_recorder_components_without_network(t
     from bp_engine.config import Settings
     from bp_engine.recorder.service import build_default_recorder_service
 
-    settings = Settings(database_url=f"sqlite:///{tmp_path / 'recorder.db'}")
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'recorder.db'}",
+        recorder_writer_workers=3,
+    )
 
     service = build_default_recorder_service(settings)
 
@@ -158,4 +255,6 @@ def test_default_builder_assembles_primary_recorder_components_without_network(t
             "coinbase_spot",
         }
     )
+    writer_component = service._components["writer"]
+    assert writer_component._writer._worker_count == 3
     assert settings.live_trading_enabled is False

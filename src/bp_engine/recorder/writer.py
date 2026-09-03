@@ -53,15 +53,19 @@ class BatchWriter:
         sink: Sink,
         batch_size: int,
         flush_interval_seconds: float,
+        worker_count: int = 1,
     ) -> None:
         if batch_size <= 0:
             raise ValueError("batch_size must be greater than zero")
         if flush_interval_seconds <= 0:
             raise ValueError("flush_interval_seconds must be greater than zero")
+        if worker_count <= 0:
+            raise ValueError("worker_count must be greater than zero")
         self._buffer = buffer
         self._sink = sink
         self._batch_size = batch_size
         self._flush_interval_seconds = flush_interval_seconds
+        self._worker_count = worker_count
 
     async def _flush(self, batch: list[RawEvent]) -> None:
         if not batch:
@@ -93,14 +97,17 @@ class BatchWriter:
             return None, True
         return get_task.result(), False
 
-    async def run(self, stop: asyncio.Event) -> None:
+    async def _run_worker(self, stop: asyncio.Event) -> None:
         batch: list[RawEvent] = []
 
-        while not stop.is_set():
+        while True:
+            if stop.is_set() and self._buffer.empty():
+                break
+
             event, stopped = await self._wait_for_event_or_stop(stop)
             if event is None:
                 await self._flush(batch)
-                if stopped:
+                if stopped and self._buffer.empty():
                     break
                 continue
 
@@ -114,9 +121,18 @@ class BatchWriter:
             if len(batch) >= self._batch_size:
                 await self._flush(batch)
 
-        while not self._buffer.empty():
-            batch.append(self._buffer.get_nowait())
-            if len(batch) >= self._batch_size:
-                await self._flush(batch)
-
         await self._flush(batch)
+
+    async def run(self, stop: asyncio.Event) -> None:
+        workers = [
+            asyncio.create_task(self._run_worker(stop), name=f"recorder-writer-{index}")
+            for index in range(self._worker_count)
+        ]
+        try:
+            await asyncio.gather(*workers)
+        except BaseException:
+            for task in workers:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*workers, return_exceptions=True)
+            raise

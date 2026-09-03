@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Protocol
 
 from bp_engine.collectors.polymarket_ws import build_subscription_update
+from bp_engine.recorder.models import FeedIncident
 from bp_engine.recorder.polymarket_coordinator import PolymarketSubscriptionCoordinator
 
 
@@ -180,29 +181,72 @@ class _BufferedEventSink:
         self._buffer = buffer
         self._incident_sink = incident_sink
         self._state_reducer = state_reducer
+        self._backpressure_lock = asyncio.Lock()
+        self._backpressure_started_at: datetime | None = None
+        self._backpressure_blocked_events = 0
 
     async def _record_incident(self, incident: object) -> None:
         result = self._incident_sink(incident)
         if asyncio.iscoroutine(result):
             await result
 
+    async def _observe_backpressure(self, event: object) -> FeedIncident | None:
+        async with self._backpressure_lock:
+            self._backpressure_blocked_events += 1
+            if self._backpressure_started_at is not None:
+                return None
+            self._backpressure_started_at = event.received_at
+            started_at = self._backpressure_started_at
+
+        return FeedIncident(
+            source=event.source,
+            stream=event.stream,
+            incident_type="backpressure",
+            observed_at=event.received_at,
+            details={
+                "queue_size": self._buffer.qsize(),
+                "episode_started_at": started_at.isoformat(),
+            },
+        )
+
+    async def _recover_backpressure(self, event: object) -> FeedIncident | None:
+        async with self._backpressure_lock:
+            started_at = self._backpressure_started_at
+            if started_at is None:
+                return None
+            blocked_event_count = self._backpressure_blocked_events
+            self._backpressure_started_at = None
+            self._backpressure_blocked_events = 0
+
+        recovered_at = event.received_at
+        duration_seconds = max(0.0, (recovered_at - started_at).total_seconds())
+        return FeedIncident(
+            source=event.source,
+            stream=event.stream,
+            incident_type="backpressure_recovered",
+            observed_at=recovered_at,
+            details={
+                "episode_started_at": started_at.isoformat(),
+                "recovered_at": recovered_at.isoformat(),
+                "duration_seconds": duration_seconds,
+                "blocked_event_count": blocked_event_count,
+            },
+        )
+
     async def __call__(self, event: object) -> None:
-        from bp_engine.recorder.models import FeedIncident
         from bp_engine.recorder.writer import QueueBackpressure
 
         try:
             self._buffer.put_nowait(event)
         except QueueBackpressure:
-            await self._record_incident(
-                FeedIncident(
-                    source=event.source,
-                    stream=event.stream,
-                    incident_type="backpressure",
-                    observed_at=event.received_at,
-                    details={"queue_size": self._buffer.qsize()},
-                )
-            )
+            start_incident = await self._observe_backpressure(event)
+            if start_incident is not None:
+                await self._record_incident(start_incident)
             await self._buffer.put(event)
+        else:
+            recovery_incident = await self._recover_backpressure(event)
+            if recovery_incident is not None:
+                await self._record_incident(recovery_incident)
 
         if self._state_reducer is None:
             return
@@ -263,6 +307,7 @@ def build_default_recorder_service(settings: object) -> RecorderService:
         sink=database_sink.write_events,
         batch_size=settings.recorder_batch_size,
         flush_interval_seconds=settings.recorder_flush_interval_seconds,
+        worker_count=settings.recorder_writer_workers,
     )
     state_snapshotter = MarketStateSnapshotter(
         reducer=state_reducer,
