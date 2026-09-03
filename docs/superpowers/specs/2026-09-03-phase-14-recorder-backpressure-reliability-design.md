@@ -65,7 +65,7 @@ Replace the single serial raw-event database write path with a bounded worker po
 
 The `BatchWriter` abstraction will support a configurable worker count. Each worker independently drains bounded batches from the same `EventBuffer` and invokes the existing lossless `insert_events` repository path. PostgreSQL already provides idempotency through the immutable `dedupe_key` unique constraint and `ON CONFLICT DO NOTHING`, so concurrent batches are safe even if ordering across separate batches is not identical to arrival ordering.
 
-The initial production worker count must be conservative and configurable. The code default should remain compatible with existing tests; deployment may explicitly set a small value such as 4 only after stress/CI verification. The implementation must not spawn an unbounded database task per event or per frame.
+The setting is exactly `RECORDER_WRITER_WORKERS`, with an application default of `1` to preserve current behavior unless deployment explicitly opts into concurrency. The implementation must validate `>= 1` and must not spawn an unbounded database task per event or per frame. A later production rollout may set a higher bounded value only after stress/CI verification; the rollout value is not selected by this design.
 
 Raw event timestamps and dedupe keys remain authoritative for chronology. Consumers must not infer global arrival ordering from auto-increment IDs across concurrent transactions.
 
@@ -76,11 +76,11 @@ Backpressure must remain fail-closed and observable, but the recorder must not w
 Introduce an in-memory overload episode state in the buffered event sink:
 
 - on the first full-queue observation, emit one `backpressure` incident containing queue size and episode start metadata;
-- while the queue remains saturated, increment local counters without additional synchronous incident writes;
-- after the queue falls below a recovery threshold or a later event is accepted without waiting, emit one `backpressure_recovered` incident with duration and blocked-event count;
+- while the episode remains active, increment a local blocked-event counter without additional `backpressure` incident writes;
+- the first subsequent event that succeeds through `put_nowait` closes the episode and emits one `backpressure_recovered` incident containing episode duration and blocked-event count;
 - if the process exits during an active overload episode, lossless event handling still takes priority; the missing recovery summary is acceptable because the start incident remains durable.
 
-Incident coalescing must never suppress actual WebSocket `error`, `reconnect`, `connected`, `disconnected`, `stale`, or `recovered` incidents.
+This deterministic rule intentionally avoids a separate queue-depth recovery threshold. Incident coalescing must never suppress actual WebSocket `error`, `reconnect`, `connected`, `disconnected`, `stale`, or `recovered` incidents.
 
 ### 6.3 Preserve receive-path semantics
 
@@ -100,14 +100,12 @@ If triggered, the spool must be designed as a separate project because it change
 
 ## 7. Configuration
 
-Add one explicit recorder setting for bounded writer concurrency, for example:
-
-`RECORDER_WRITER_WORKERS`
+Add `RECORDER_WRITER_WORKERS` to recorder configuration.
 
 Requirements:
 
 - integer >= 1;
-- safe default preserving current behavior unless deployment opts in;
+- application default `1`;
 - represented in `.env.example`, `deploy/bp.env.example`, bootstrap configuration, and config tests;
 - no safety/trading setting changes.
 
@@ -130,7 +128,7 @@ No existing raw events or `market_features` rows are deleted or rewritten by thi
 
 If any writer worker raises an unexpected exception, the writer component must fail as a supervised recorder component rather than silently losing queued data. Recorder service supervision will then stop sibling components according to the existing fail-closed behavior.
 
-Backpressure episode bookkeeping must be thread-safe within the asyncio event loop and must not conceal database errors while recording incident start/recovery rows.
+Backpressure episode bookkeeping must be safe under the asyncio event loop and must not conceal database errors while recording incident start/recovery rows.
 
 WebSocket reconnect policy remains unchanged unless a test demonstrates an independent bug.
 
@@ -158,8 +156,8 @@ Create a deterministic fake Polymarket WebSocket burst materially above the obse
 
 The repaired design must prove:
 
-- receive processing continues while writer workers drain;
-- heartbeat/outbound handling is not starved under the tested sustainable rate;
+- receive processing continues while writer workers drain at the tested sustainable rate;
+- heartbeat/outbound handling is not starved at that rate;
 - all unique raw events reach the sink;
 - incident count remains bounded rather than scaling one-for-one with blocked events;
 - no reconnect is caused by local slow-consumer behavior in the synthetic sustainable-load case.
