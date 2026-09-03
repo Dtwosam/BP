@@ -1,7 +1,7 @@
 # Phase 14 Recorder Backpressure Reliability Repair Design
 
 Date: 2026-09-03
-Status: proposed for implementation after user review
+Status: approved for implementation; engineering complete on draft PR, not production-deployed
 Scope: research-only recorder reliability; no V2 policy/model selection and no trading activation
 
 ## 1. Problem statement
