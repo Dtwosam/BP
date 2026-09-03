@@ -30,142 +30,15 @@
 
 ---
 
-### Task 1: Add bounded writer-worker configuration and recorder wiring
-
-**Files:**
-- Modify: `src/bp_engine/config.py`
-- Modify: `src/bp_engine/recorder/service.py`
-- Modify: `tests/test_config.py`
-- Modify: `tests/recorder/test_recorder_service.py`
-- Modify: `.env.example`
-- Modify: `deploy/bp.env.example`
-- Modify: `scripts/deploy/bootstrap_ubuntu.sh`
-
-**Interfaces:**
-- Produces: `Settings.recorder_writer_workers: int`, environment key `RECORDER_WRITER_WORKERS`, and `BatchWriter(..., worker_count=settings.recorder_writer_workers)` wiring.
-- Consumes later: Task 2 implements the `BatchWriter.worker_count` constructor argument.
-
-- [ ] **Step 1: Write failing configuration tests**
-
-Add to `tests/test_config.py`:
-
-```python
-import pytest
-from pydantic import ValidationError
-
-
-def test_recorder_writer_workers_default_to_one_and_accept_bounded_override(monkeypatch) -> None:
-    assert Settings(_env_file=None).recorder_writer_workers == 1
-
-    monkeypatch.setenv("RECORDER_WRITER_WORKERS", "4")
-    assert Settings(_env_file=None).recorder_writer_workers == 4
-
-
-def test_recorder_writer_workers_reject_non_positive_values() -> None:
-    with pytest.raises(ValidationError):
-        Settings(_env_file=None, recorder_writer_workers=0)
-```
-
-Extend `test_recorder_defaults_are_bounded_and_keep_trading_disabled` with:
-
-```python
-assert settings.recorder_writer_workers == 1
-```
-
-- [ ] **Step 2: Run config RED**
-
-Run:
-
-```bash
-pytest tests/test_config.py -q
-```
-
-Expected: FAIL because `recorder_writer_workers` does not exist.
-
-- [ ] **Step 3: Implement the setting**
-
-In `src/bp_engine/config.py`, import `Field` and add the field beside the existing recorder settings:
-
-```python
-from pydantic import Field
-
-# ...
-recorder_queue_maxsize: int = 50_000
-recorder_batch_size: int = 500
-recorder_flush_interval_seconds: float = 0.25
-recorder_writer_workers: int = Field(default=1, ge=1)
-```
-
-- [ ] **Step 4: Add environment examples and bootstrap default**
-
-Add this exact line after `RECORDER_FLUSH_INTERVAL_SECONDS=0.25` in `.env.example`, `deploy/bp.env.example`, and the new-environment heredoc in `scripts/deploy/bootstrap_ubuntu.sh`:
-
-```text
-RECORDER_WRITER_WORKERS=1
-```
-
-Also add this existing-host bootstrap default after the `ensure_env_default` function:
-
-```bash
-ensure_env_default RECORDER_WRITER_WORKERS 1
-```
-
-Do not change any trading or existing queue/batch/flush values.
-
-- [ ] **Step 5: Wire the setting into recorder construction**
-
-In `src/bp_engine/recorder/service.py`, construct the writer as:
-
-```python
-writer = BatchWriter(
-    buffer=buffer,
-    sink=database_sink.write_events,
-    batch_size=settings.recorder_batch_size,
-    flush_interval_seconds=settings.recorder_flush_interval_seconds,
-    worker_count=settings.recorder_writer_workers,
-)
-```
-
-In `tests/recorder/test_recorder_service.py`, build with an explicit non-default value to prove the builder accepts it without changing safety:
-
-```python
-settings = Settings(
-    database_url=f"sqlite:///{tmp_path / 'recorder.db'}",
-    recorder_writer_workers=3,
-)
-```
-
-Keep the existing `settings.live_trading_enabled is False` assertion.
-
-- [ ] **Step 6: Run targeted GREEN**
-
-Run:
-
-```bash
-pytest tests/test_config.py tests/recorder/test_recorder_service.py -q
-ruff check src/bp_engine/config.py src/bp_engine/recorder/service.py tests/test_config.py tests/recorder/test_recorder_service.py
-```
-
-Expected: PASS after Task 2 supplies the new constructor argument; until then, the service test may remain RED specifically on `worker_count`.
-
-- [ ] **Step 7: Commit configuration contract**
-
-```bash
-git add src/bp_engine/config.py src/bp_engine/recorder/service.py tests/test_config.py tests/recorder/test_recorder_service.py .env.example deploy/bp.env.example scripts/deploy/bootstrap_ubuntu.sh
-git commit -m "feat: configure bounded recorder writer workers"
-```
-
----
-
-### Task 2: Implement bounded parallel `BatchWriter` workers
+### Task 1: Implement bounded parallel `BatchWriter` workers
 
 **Files:**
 - Modify: `src/bp_engine/recorder/writer.py`
 - Modify: `tests/recorder/test_writer.py`
 
 **Interfaces:**
-- Consumes: `worker_count: int` from Task 1.
 - Produces: `BatchWriter(..., worker_count: int = 1)`; a fixed set of worker tasks named `recorder-writer-0`, `recorder-writer-1`, etc.; fail-fast propagation of worker exceptions.
+- Consumed later: Task 2 wires `Settings.recorder_writer_workers` into this constructor.
 
 - [ ] **Step 1: Write constructor validation RED**
 
@@ -238,7 +111,13 @@ async def test_batch_writer_uses_bounded_parallel_workers() -> None:
     assert max_entered == 2
 ```
 
-Run it and confirm RED on the current single consumer.
+Run:
+
+```bash
+pytest tests/recorder/test_writer.py::test_batch_writer_uses_bounded_parallel_workers -q
+```
+
+Expected: FAIL on the current single-consumer implementation.
 
 - [ ] **Step 3: Write lossless burst/shutdown RED**
 
@@ -361,19 +240,138 @@ ruff check src/bp_engine/recorder/writer.py tests/recorder/test_writer.py
 
 Expected: all writer tests PASS, including existing batch-size, interval, and graceful-shutdown tests.
 
-- [ ] **Step 7: Run Task 1 service/config tests again**
-
-```bash
-pytest tests/test_config.py tests/recorder/test_recorder_service.py -q
-```
-
-Expected: PASS.
-
-- [ ] **Step 8: Commit the bounded worker pool**
+- [ ] **Step 7: Commit the bounded worker pool**
 
 ```bash
 git add src/bp_engine/recorder/writer.py tests/recorder/test_writer.py
 git commit -m "fix: drain recorder events with bounded writers"
+```
+
+---
+
+### Task 2: Add bounded writer-worker configuration and recorder wiring
+
+**Files:**
+- Modify: `src/bp_engine/config.py`
+- Modify: `src/bp_engine/recorder/service.py`
+- Modify: `tests/test_config.py`
+- Modify: `tests/recorder/test_recorder_service.py`
+- Modify: `.env.example`
+- Modify: `deploy/bp.env.example`
+- Modify: `scripts/deploy/bootstrap_ubuntu.sh`
+
+**Interfaces:**
+- Consumes: `BatchWriter(..., worker_count=...)` from Task 1.
+- Produces: `Settings.recorder_writer_workers: int`, environment key `RECORDER_WRITER_WORKERS`, and `BatchWriter(..., worker_count=settings.recorder_writer_workers)` wiring.
+
+- [ ] **Step 1: Write failing configuration tests**
+
+Add to `tests/test_config.py`:
+
+```python
+import pytest
+from pydantic import ValidationError
+
+
+def test_recorder_writer_workers_default_to_one_and_accept_bounded_override(monkeypatch) -> None:
+    assert Settings(_env_file=None).recorder_writer_workers == 1
+
+    monkeypatch.setenv("RECORDER_WRITER_WORKERS", "4")
+    assert Settings(_env_file=None).recorder_writer_workers == 4
+
+
+def test_recorder_writer_workers_reject_non_positive_values() -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, recorder_writer_workers=0)
+```
+
+Extend `test_recorder_defaults_are_bounded_and_keep_trading_disabled` with:
+
+```python
+assert settings.recorder_writer_workers == 1
+```
+
+- [ ] **Step 2: Run config RED**
+
+Run:
+
+```bash
+pytest tests/test_config.py -q
+```
+
+Expected: FAIL because `recorder_writer_workers` does not exist.
+
+- [ ] **Step 3: Implement the setting**
+
+In `src/bp_engine/config.py`, import `Field` and add the field beside the existing recorder settings:
+
+```python
+from pydantic import Field
+
+# ...
+recorder_queue_maxsize: int = 50_000
+recorder_batch_size: int = 500
+recorder_flush_interval_seconds: float = 0.25
+recorder_writer_workers: int = Field(default=1, ge=1)
+```
+
+- [ ] **Step 4: Add environment examples and bootstrap default**
+
+Add this exact line after `RECORDER_FLUSH_INTERVAL_SECONDS=0.25` in `.env.example`, `deploy/bp.env.example`, and the new-environment heredoc in `scripts/deploy/bootstrap_ubuntu.sh`:
+
+```text
+RECORDER_WRITER_WORKERS=1
+```
+
+Also add this existing-host bootstrap default after the `ensure_env_default` function:
+
+```bash
+ensure_env_default RECORDER_WRITER_WORKERS 1
+```
+
+Do not change any trading or existing queue/batch/flush values.
+
+- [ ] **Step 5: Wire the setting into recorder construction**
+
+In `src/bp_engine/recorder/service.py`, construct the writer as:
+
+```python
+writer = BatchWriter(
+    buffer=buffer,
+    sink=database_sink.write_events,
+    batch_size=settings.recorder_batch_size,
+    flush_interval_seconds=settings.recorder_flush_interval_seconds,
+    worker_count=settings.recorder_writer_workers,
+)
+```
+
+In `tests/recorder/test_recorder_service.py`, build with an explicit non-default value to prove the builder accepts it without changing safety:
+
+```python
+settings = Settings(
+    database_url=f"sqlite:///{tmp_path / 'recorder.db'}",
+    recorder_writer_workers=3,
+)
+```
+
+Keep the existing `settings.live_trading_enabled is False` assertion.
+
+- [ ] **Step 6: Run targeted GREEN**
+
+Run:
+
+```bash
+pytest tests/test_config.py tests/recorder/test_recorder_service.py -q
+ruff check src/bp_engine/config.py src/bp_engine/recorder/service.py tests/test_config.py tests/recorder/test_recorder_service.py
+```
+
+Expected: PASS.
+
+- [ ] **Step 7: Commit configuration contract**
+
+```bash
+git add src/bp_engine/config.py src/bp_engine/recorder/service.py tests/test_config.py tests/recorder/test_recorder_service.py .env.example deploy/bp.env.example scripts/deploy/bootstrap_ubuntu.sh
+git commit -m "feat: configure bounded recorder writer workers"
 ```
 
 ---
@@ -558,7 +556,7 @@ Create `tests/recorder/test_backpressure_stress.py` with a queue-backed fake Web
 
 Use `BURST_EVENTS = 2_000`, `QUEUE_SIZE = 100`, `BATCH_SIZE = 25`, and `WORKERS = 4`. These values intentionally make the old single-writer path saturate in a fast unit test without attempting to simulate five real minutes wall-clock.
 
-- [ ] **Step 2: Write sustainable burst RED/GREEN test**
+- [ ] **Step 2: Write sustainable burst regression**
 
 Use a fake persistence sink with bounded artificial latency:
 
