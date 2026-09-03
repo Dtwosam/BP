@@ -144,7 +144,10 @@ def test_default_builder_assembles_primary_recorder_components_without_network(t
     from bp_engine.config import Settings
     from bp_engine.recorder.service import build_default_recorder_service
 
-    settings = Settings(database_url=f"sqlite:///{tmp_path / 'recorder.db'}")
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'recorder.db'}",
+        recorder_writer_workers=3,
+    )
 
     service = build_default_recorder_service(settings)
 
@@ -158,4 +161,6 @@ def test_default_builder_assembles_primary_recorder_components_without_network(t
             "coinbase_spot",
         }
     )
+    writer_component = service._components["writer"]
+    assert writer_component._writer._worker_count == 3
     assert settings.live_trading_enabled is False
