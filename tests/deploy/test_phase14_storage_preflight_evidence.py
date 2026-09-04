@@ -88,6 +88,11 @@ def test_verify_preflight_transcript_accepts_expected_legacy_recovery_shape() ->
     assert report["headroom"]["required_free_bytes"] == 46 * GIB
     assert report["headroom"]["free_bytes"] == 59 * GIB
     assert report["archive"]["window_end"] == "2026-09-03T00:00:00+00:00"
+    assert report["target"] == {
+        "project": "project-4397f2c0-7098-4c1c-abb",
+        "zone": "us-east1-c",
+        "vm": "bp-recorder",
+    }
     assert report["archive"]["sha256"] == ARCHIVE_SHA256
     assert "raw_total_pretty" not in report
 
