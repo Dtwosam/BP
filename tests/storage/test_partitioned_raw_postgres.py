@@ -25,6 +25,7 @@ from bp_engine.storage.partitioned_raw import (
     ensure_partitioned_raw_storage,
     list_raw_partitions,
     raw_storage_mode,
+    rollback_partitioned_raw_storage,
 )
 from bp_engine.storage.recorder import RecorderRepository
 from bp_engine.storage.schema import (
@@ -732,3 +733,92 @@ def test_partitioned_health_fails_on_expired_partition_retention_lag(engine, tmp
     assert report["status"] == "critical"
     assert report["guards"]["retention_current"] is False
     assert report["raw_partitions"]["retention_lag_hours"] >= 1.0
+
+
+
+def test_partitioned_migration_rollback_restores_legacy_table_and_constraints(engine) -> None:
+    base = datetime(2026, 9, 5, 16, 5, tzinfo=UTC)
+    rows = [
+        {
+            "id": 501,
+            "source": "bybit",
+            "stream": "spot",
+            "instrument": "BTCUSDT",
+            "event_type": "trade",
+            "source_timestamp": base,
+            "received_at": base,
+            "sequence": "501",
+            "market_id": None,
+            "asset_id": None,
+            "payload": {"price": "61000"},
+            "dedupe_key": "sha256:" + "d" * 64,
+        },
+        {
+            "id": 502,
+            "source": "polymarket",
+            "stream": "market",
+            "instrument": "rollback-condition",
+            "event_type": "book",
+            "source_timestamp": base + timedelta(hours=1),
+            "received_at": base + timedelta(hours=1),
+            "sequence": "502",
+            "market_id": "rollback-condition",
+            "asset_id": "rollback-token",
+            "payload": {"bids": [], "asks": []},
+            "dedupe_key": "sha256:" + "e" * 64,
+        },
+    ]
+    with engine.begin() as connection:
+        connection.execute(insert(raw_market_events), rows)
+
+    migrated = ensure_partitioned_raw_storage(
+        engine,
+        now=base + timedelta(hours=1, minutes=10),
+        migrate_existing=True,
+    )
+    assert migrated.mode is RawStorageMode.PARTITIONED
+    assert migrated.rollback_table == "raw_market_events_legacy"
+
+    result = rollback_partitioned_raw_storage(engine)
+
+    assert result.restored_table == "raw_market_events"
+    assert result.restored_rows == 2
+    with engine.connect() as connection:
+        assert raw_storage_mode(connection) is RawStorageMode.LEGACY
+        assert connection.execute(
+            text("SELECT to_regclass('raw_market_events_legacy')")
+        ).scalar_one() is None
+        assert connection.execute(
+            text("SELECT to_regclass('raw_event_dedupe')")
+        ).scalar_one() is None
+        assert connection.execute(
+            text("SELECT to_regclass('raw_market_events_id_seq_v2')")
+        ).scalar_one() is None
+        actual = connection.execute(
+            text(
+                """
+                SELECT id, dedupe_key, received_at
+                FROM raw_market_events
+                ORDER BY id
+                """
+            )
+        ).all()
+        original_index_names = set(
+            connection.execute(
+                text(
+                    """
+                    SELECT indexname
+                    FROM pg_indexes
+                    WHERE schemaname = current_schema()
+                      AND tablename = 'raw_market_events'
+                    """
+                )
+            ).scalars()
+        )
+
+    assert actual == [
+        (501, "sha256:" + "d" * 64, base),
+        (502, "sha256:" + "e" * 64, base + timedelta(hours=1)),
+    ]
+    assert "uq_raw_market_events_dedupe_key" in original_index_names
+    assert not any(name.startswith("legacy_") for name in original_index_names)
