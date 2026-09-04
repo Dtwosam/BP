@@ -341,3 +341,21 @@ def test_partitioned_storage_rollout_requires_preflight_target_identity_match() 
     first_target_check = content.index("verified preflight PROJECT mismatch")
     assert first_target_check < content.index('gcloud config set project "$PROJECT"')
 
+def test_partitioned_storage_rollout_evidence_records_verified_target_identity() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        'TARGET_PROJECT="${PHASE14_PARTITIONED_STORAGE_PROJECT:?}"',
+        'TARGET_ZONE="${PHASE14_PARTITIONED_STORAGE_ZONE:?}"',
+        'TARGET_VM="${PHASE14_PARTITIONED_STORAGE_VM:?}"',
+        '"project": target_project',
+        '"zone": target_zone',
+        '"vm": target_vm',
+    ):
+        assert marker in content
+
+    evidence_builder = content.index('EVIDENCE_TMP=$(mktemp')
+    target_block = content.index('"target": {', evidence_builder)
+    pass_marker = content.index('"verdict": "PASS"', evidence_builder)
+    assert evidence_builder < pass_marker < target_block
+
