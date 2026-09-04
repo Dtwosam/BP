@@ -78,6 +78,7 @@ def verify_preflight_transcript(
     expected_project: str | None = None,
     expected_zone: str | None = None,
     expected_vm: str | None = None,
+    expected_archive_evidence: str | None = None,
     min_free_gib: int = 40,
     critical_reserve_gib: int = 15,
 ) -> dict[str, Any]:
@@ -136,6 +137,11 @@ def verify_preflight_transcript(
     archive_path = _required(values, "ARCHIVE_EVIDENCE")
     if not _ARCHIVE_RE.fullmatch(archive_path):
         raise PreflightVerificationError("archive evidence path is not canonical")
+    if (
+        expected_archive_evidence is not None
+        and archive_path != expected_archive_evidence
+    ):
+        raise PreflightVerificationError("unexpected ARCHIVE_EVIDENCE")
 
     archive_sha256 = _required(values, "ARCHIVE_EVIDENCE_SHA256")
     if not _SHA256_RE.fullmatch(archive_sha256):
@@ -215,6 +221,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--expected-project", required=True)
     parser.add_argument("--expected-zone", required=True)
     parser.add_argument("--expected-vm", required=True)
+    parser.add_argument("--expected-archive-evidence", required=True)
     parser.add_argument("--min-free-gib", type=int, default=40)
     parser.add_argument("--critical-reserve-gib", type=int, default=15)
     return parser
@@ -231,6 +238,7 @@ def main() -> int:
             expected_project=args.expected_project,
             expected_zone=args.expected_zone,
             expected_vm=args.expected_vm,
+            expected_archive_evidence=args.expected_archive_evidence,
             min_free_gib=args.min_free_gib,
             critical_reserve_gib=args.critical_reserve_gib,
         )

@@ -24,6 +24,7 @@ def test_cloudshell_evidence_runner_captures_and_verifies_without_host_mutation(
         '--expected-project "$PROJECT"',
         '--expected-zone "$ZONE"',
         '--expected-vm "$VM"',
+        '--expected-archive-evidence "$ARCHIVE_EVIDENCE"',
         "PHASE14_STORAGE_PREFLIGHT_EVIDENCE=PASS",
         "TRANSCRIPT=",
         "VERIFIED=",
