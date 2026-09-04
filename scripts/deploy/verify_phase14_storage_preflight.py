@@ -10,6 +10,7 @@ from typing import Any
 
 GIB = 1024**3
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _ARCHIVE_RE = re.compile(
     r"^/mnt/bp-data/evidence/"
     r"phase14-storage-recovery-24-48h-[0-9]{8}T[0-9]{6}Z\.json$"
@@ -124,6 +125,10 @@ def verify_preflight_transcript(
     if not _ARCHIVE_RE.fullmatch(archive_path):
         raise PreflightVerificationError("archive evidence path is not canonical")
 
+    archive_sha256 = _required(values, "ARCHIVE_EVIDENCE_SHA256")
+    if not _SHA256_RE.fullmatch(archive_sha256):
+        raise PreflightVerificationError("archive evidence SHA-256 is invalid")
+
     window_end = _required(values, "ARCHIVE_WINDOW_END")
     try:
         parsed_window_end = datetime.fromisoformat(window_end.replace("Z", "+00:00"))
@@ -173,6 +178,7 @@ def verify_preflight_transcript(
         },
         "archive": {
             "evidence_name": Path(archive_path).name,
+            "sha256": archive_sha256,
             "window_end": window_end,
         },
         "timers": {
