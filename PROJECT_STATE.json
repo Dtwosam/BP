@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.35",
-  "updated_at": "2026-09-04T21:26:47Z",
+  "source_of_truth_version": "0.14.36",
+  "updated_at": "2026-09-04T21:32:44Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -1715,6 +1715,17 @@
     "partitioned_storage_rollout_acceptance_evidence_publish_is_exclusive_hard_link": true,
     "partitioned_storage_rollout_acceptance_evidence_existing_path_not_overwritten": true,
     "partitioned_storage_rollout_acceptance_evidence_direct_install_to_canonical_path": false,
-    "partitioned_storage_rollout_atomic_evidence_publication_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
+    "partitioned_storage_rollout_atomic_evidence_publication_status": "MERGED_MAIN_NOT_PRODUCTION_RUN",
+    "partitioned_storage_rollout_atomic_evidence_publication_pr": 79,
+    "partitioned_storage_rollout_atomic_evidence_publication_final_branch_head": "5e0d0ed21259e56ff352579f6d0acef93d45eef9",
+    "partitioned_storage_rollout_atomic_evidence_publication_push_ci_run_id": 33921253828,
+    "partitioned_storage_rollout_atomic_evidence_publication_pr_ci_run_id": 33921289164,
+    "partitioned_storage_rollout_atomic_evidence_publication_historical_backfill_smoke_run_id": 33921289187,
+    "partitioned_storage_rollout_atomic_evidence_publication_live_recorder_smoke_run_id": 33921288925,
+    "partitioned_storage_rollout_atomic_evidence_publication_recorder_short_soak_run_id": 33921288949,
+    "partitioned_storage_rollout_atomic_evidence_publication_merge_commit": "f43fd5d85f1253c0d482526cea23d250d4b5801b",
+    "partitioned_storage_rollout_atomic_evidence_publication_post_merge_ci_run_id": 33921466538,
+    "partitioned_storage_rollout_atomic_evidence_publication_post_merge_ci_passed": true,
+    "partitioned_storage_rollout_atomic_evidence_publication_post_merge_test_count": 954
   }
 }
