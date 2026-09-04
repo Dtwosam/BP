@@ -2,6 +2,9 @@
 set -Eeuo pipefail
 umask 077
 
+PROJECT="${PHASE14_PARTITIONED_STORAGE_PROJECT:-project-4397f2c0-7098-4c1c-abb}"
+ZONE="${PHASE14_PARTITIONED_STORAGE_ZONE:-us-east1-c}"
+VM="${PHASE14_PARTITIONED_STORAGE_VM:-bp-recorder}"
 EXPECTED_FROM_HEAD="${PHASE14_PARTITIONED_STORAGE_FROM_HEAD:-}"
 EXPECTED_HEAD="${PHASE14_PARTITIONED_STORAGE_HEAD:-}"
 
@@ -82,6 +85,9 @@ if ! python "$VERIFIER" \
   --input "$TRANSCRIPT" \
   --expected-from-head "$EXPECTED_FROM_HEAD" \
   --expected-head "$EXPECTED_HEAD" \
+  --expected-project "$PROJECT" \
+  --expected-zone "$ZONE" \
+  --expected-vm "$VM" \
   > "$VERIFIED"; then
   rm -f "$VERIFIED"
   exit 1

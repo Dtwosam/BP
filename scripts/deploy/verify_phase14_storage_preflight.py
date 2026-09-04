@@ -75,6 +75,9 @@ def verify_preflight_transcript(
     *,
     expected_from_head: str,
     expected_head: str,
+    expected_project: str | None = None,
+    expected_zone: str | None = None,
+    expected_vm: str | None = None,
     min_free_gib: int = 40,
     critical_reserve_gib: int = 15,
 ) -> dict[str, Any]:
@@ -91,6 +94,12 @@ def verify_preflight_transcript(
     project = _required(values, "PROJECT")
     zone = _required(values, "ZONE")
     vm = _required(values, "VM")
+    if expected_project is not None and project != expected_project:
+        raise PreflightVerificationError("unexpected PROJECT")
+    if expected_zone is not None and zone != expected_zone:
+        raise PreflightVerificationError("unexpected ZONE")
+    if expected_vm is not None and vm != expected_vm:
+        raise PreflightVerificationError("unexpected VM")
     if _required(values, "PHASE14_PARTITIONED_STORAGE_PREFLIGHT") != "PASS":
         raise PreflightVerificationError("preflight did not report PASS")
 
@@ -203,6 +212,9 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--input", required=True)
     parser.add_argument("--expected-from-head", required=True)
     parser.add_argument("--expected-head", required=True)
+    parser.add_argument("--expected-project", required=True)
+    parser.add_argument("--expected-zone", required=True)
+    parser.add_argument("--expected-vm", required=True)
     parser.add_argument("--min-free-gib", type=int, default=40)
     parser.add_argument("--critical-reserve-gib", type=int, default=15)
     return parser
@@ -216,6 +228,9 @@ def main() -> int:
             transcript,
             expected_from_head=args.expected_from_head,
             expected_head=args.expected_head,
+            expected_project=args.expected_project,
+            expected_zone=args.expected_zone,
+            expected_vm=args.expected_vm,
             min_free_gib=args.min_free_gib,
             critical_reserve_gib=args.critical_reserve_gib,
         )

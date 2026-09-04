@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.39 — 4 September 2026
+
+Phase 14 independent read-only preflight verification now binds the expected production target before verified JSON is emitted. The verifier CLI requires explicit `--expected-project`, `--expected-zone`, and `--expected-vm` arguments; a transcript whose `PROJECT`, `ZONE`, or `VM` differs is rejected. The Cloud Shell evidence wrapper passes the same target identity used by the host preflight, so a digest cannot be reviewed as verified evidence for a different host target.
+
+Clean tests-only RED head `f1538dddb91e90428743eeb10e11977eb02f4596` failed exactly the new target-binding contract while all **955 existing tests passed** in CI `33925213952`. GREEN head `0fe9d7b7695dcec106f354454b3c535158e34e8d` passed CI `33925474551` with **956 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #82's integration record. Final head `c5877ece0c87d55cd913d1c2e6150549e69486a4` passed push CI `33924526514`, PR CI `33924555154`, Historical Backfill Smoke `33924555107`, Live Recorder Smoke `33924555159`, and Recorder Short Soak `33924555164`. PR #82 merged as `b35dd6b9746d67a03cd9a193eeaa181b9aa17494`; post-merge main CI `33924737056` passed **955 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.38 — 4 September 2026
 
 Phase 14 Cloud Shell preflight-evidence no-clobber handling is now integrated on `main`. PR #81 final head `a8f5abd5017f11cc3aa907d4abac104473d86f16` passed push CI `33924157181`, PR CI `33924183647`, Historical Backfill Smoke `33924183595`, Live Recorder Smoke `33924183487`, and Recorder Short Soak `33924183667`. It merged as `da439af9326d8e8c8cc5e6933ab75450e27dd0b9`; post-merge main CI `33924340156` then passed **955 tests** plus rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
