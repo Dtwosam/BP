@@ -88,6 +88,9 @@ def verify_preflight_transcript(
         )
 
     values = _parse_transcript(transcript)
+    project = _required(values, "PROJECT")
+    zone = _required(values, "ZONE")
+    vm = _required(values, "VM")
     if _required(values, "PHASE14_PARTITIONED_STORAGE_PREFLIGHT") != "PASS":
         raise PreflightVerificationError("preflight did not report PASS")
 
@@ -162,6 +165,11 @@ def verify_preflight_transcript(
         "mutations_performed": False,
         "recorder_state": "stopped",
         "storage_shape": "legacy_unmigrated",
+        "target": {
+            "project": project,
+            "zone": zone,
+            "vm": vm,
+        },
         "headroom": {
             "free_bytes": free_bytes,
             "root_free_bytes": root_free_bytes,
