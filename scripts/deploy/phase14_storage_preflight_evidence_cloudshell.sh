@@ -16,7 +16,7 @@ fi
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
 if [[ -z "$ROOT" ]]; then
-  echo "run this helper from a BP Git checkout" >&2
+  echo "run this helper from a BP repository working tree" >&2
   exit 2
 fi
 cd "$ROOT"
