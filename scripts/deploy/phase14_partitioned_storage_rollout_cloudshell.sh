@@ -929,9 +929,12 @@ Path(output_path).write_text(
     encoding="utf-8",
 )
 PY
+EVIDENCE_TMP_SHA256=$(sha256sum "$EVIDENCE_TMP" | awk '{print $1}')
+[[ "$EVIDENCE_TMP_SHA256" =~ ^[0-9a-f]{64}$ ]] || fail "rollout_evidence_digest_invalid"
 install -o bp -g bp -m 0640 "$EVIDENCE_TMP" "$EVIDENCE_PATH"
 EVIDENCE_SHA256=$(sha256sum "$EVIDENCE_PATH" | awk '{print $1}')
 [[ "$EVIDENCE_SHA256" =~ ^[0-9a-f]{64}$ ]] || fail "rollout_evidence_digest_invalid"
+[[ "$EVIDENCE_SHA256" == "$EVIDENCE_TMP_SHA256" ]] || fail "rollout_evidence_copy_mismatch"
 rm -f "$EVIDENCE_TMP"
 
 ROLLBACK_ARMED=0
