@@ -31,6 +31,28 @@ if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
   exit 2
 fi
 
+if ! ARCHIVE_EVIDENCE=$(python - <<'PY'
+from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
+
+payload = json.loads(Path("PROJECT_STATE.json").read_text(encoding="utf-8"))
+followup = payload.get("phase_14_storage_reliability_followup") or {}
+archive_evidence = followup.get("archive_recovery_host_evidence")
+if not isinstance(archive_evidence, str) or not re.fullmatch(
+    r"/mnt/bp-data/evidence/phase14-storage-recovery-24-48h-[0-9]{8}T[0-9]{6}Z\.json",
+    archive_evidence,
+):
+    raise SystemExit(1)
+print(archive_evidence)
+PY
+); then
+  echo "archive_evidence_binding_invalid" >&2
+  exit 2
+fi
+
 PREFLIGHT="scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh"
 VERIFIER="scripts/deploy/verify_phase14_storage_preflight.py"
 [[ -f "$PREFLIGHT" ]] || { echo "missing $PREFLIGHT" >&2; exit 2; }
@@ -40,7 +62,8 @@ STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 TRANSCRIPT="${PHASE14_STORAGE_PREFLIGHT_TRANSCRIPT:-$HOME/bp-phase14-storage-preflight-$STAMP.txt}"
 VERIFIED="${PHASE14_STORAGE_PREFLIGHT_VERIFIED:-$HOME/bp-phase14-storage-preflight-$STAMP.json}"
 
-bash "$PREFLIGHT" | tee "$TRANSCRIPT"
+PHASE14_PARTITIONED_STORAGE_ARCHIVE_EVIDENCE="$ARCHIVE_EVIDENCE" \
+  bash "$PREFLIGHT" | tee "$TRANSCRIPT"
 
 python "$VERIFIER" \
   --input "$TRANSCRIPT" \
@@ -49,5 +72,6 @@ python "$VERIFIER" \
   > "$VERIFIED"
 
 echo "PHASE14_STORAGE_PREFLIGHT_EVIDENCE=PASS"
+echo "ARCHIVE_EVIDENCE=$ARCHIVE_EVIDENCE"
 echo "TRANSCRIPT=$TRANSCRIPT"
 echo "VERIFIED=$VERIFIED"

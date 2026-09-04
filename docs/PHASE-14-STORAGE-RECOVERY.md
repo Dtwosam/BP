@@ -25,14 +25,14 @@ The helper fails closed unless all of the following are true:
 - protected-data free space is greater than the configured migration headroom;
 - the running PostgreSQL container's `/var/lib/postgresql/data` source is on the same filesystem as `/mnt/bp-data`;
 - the canonical archive directory is on that same filesystem;
-- the newest `phase14-storage-recovery-24-48h-*.json` evidence contains exactly 24 contiguous one-hour intervals;
+- the exact recovery evidence path recorded in candidate `PROJECT_STATE.json` contains exactly 24 contiguous one-hour intervals;
 - PostgreSQL can answer read-only storage-shape queries.
 
 The output includes current relation bytes/estimated rows, whether raw storage is already partitioned, whether legacy/ledger tables exist, timer states, data-disk/root free bytes, archive evidence identity, and `MUTATIONS_PERFORMED=false`.
 
 ## Run from Google Cloud Shell
 
-Use a **clean local checkout at the exact candidate SHA**. The evidence runner refuses to proceed if the local `HEAD` differs from `PHASE14_PARTITIONED_STORAGE_HEAD` or if the local working tree is dirty, so the helper and verifier used for evidence are bound to the candidate being evaluated.
+Use a **clean local checkout at the exact candidate SHA**. The evidence runner refuses to proceed if the local `HEAD` differs from `PHASE14_PARTITIONED_STORAGE_HEAD` or if the local working tree is dirty, so the helper and verifier used for evidence are bound to the candidate being evaluated. It also reads `phase_14_storage_reliability_followup.archive_recovery_host_evidence` from that exact candidate `PROJECT_STATE.json`, validates the canonical host path, and passes it to the remote preflight. The preflight no longer chooses a recovery JSON by mtime.
 
 ```bash
 export PHASE14_PARTITIONED_STORAGE_FROM_HEAD='<exact currently deployed production SHA>'
