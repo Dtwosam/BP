@@ -91,3 +91,16 @@ def test_cloudshell_evidence_runner_binds_local_files_to_exact_candidate() -> No
     ):
         assert marker in content
 
+def test_cloudshell_evidence_runner_binds_preflight_to_state_archive_path() -> None:
+    content = RUNNER.read_text(encoding="utf-8")
+
+    for marker in (
+        "PROJECT_STATE.json",
+        "archive_recovery_host_evidence",
+        "PHASE14_PARTITIONED_STORAGE_ARCHIVE_EVIDENCE",
+        "archive_evidence_binding_invalid",
+    ):
+        assert marker in content
+
+    assert 'PHASE14_PARTITIONED_STORAGE_ARCHIVE_EVIDENCE="$ARCHIVE_EVIDENCE"' in content
+
