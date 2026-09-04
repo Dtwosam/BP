@@ -359,3 +359,17 @@ def test_partitioned_storage_rollout_evidence_records_verified_target_identity()
     pass_marker = content.index('"verdict": "PASS"', evidence_builder)
     assert evidence_builder < pass_marker < target_block
 
+def test_partitioned_storage_rollout_hashes_and_validates_preflight_same_snapshot() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        "import hashlib",
+        'raw = Path(path).read_bytes()',
+        "hashlib.sha256(raw).hexdigest()",
+        "payload = json.loads(raw)",
+        "PREFLIGHT_VERIFIED_SHA256",
+    ):
+        assert marker in content
+
+    assert 'PREFLIGHT_VERIFIED_SHA256=$(sha256sum "$PREFLIGHT_VERIFIED"' not in content
+
