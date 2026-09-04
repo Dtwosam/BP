@@ -507,3 +507,36 @@ def test_rollout_durably_syncs_final_acceptance_evidence_before_disarm() -> None
     cleanup = content.index('rm -f "$EVIDENCE_TMP"', durable_sync)
     disarm = content.index("\nROLLBACK_ARMED=0\n", cleanup)
     assert compare < durable_sync < cleanup < disarm
+
+
+def test_rollout_removes_unaccepted_installed_evidence_before_rollback() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        "EVIDENCE_INSTALLED=false",
+        "EVIDENCE_INSTALLED=true",
+        'rm -f "$EVIDENCE_PATH"',
+        'sync -f "$EVIDENCE_DIR"',
+        "ROLLBACK_EVIDENCE_CLEANUP=PASS",
+        "ROLLBACK_EVIDENCE_CLEANUP=FAILED",
+    ):
+        assert marker in content
+
+    install = content.index(
+        'install -o bp -g bp -m 0640 "$EVIDENCE_TMP" "$EVIDENCE_PATH"'
+    )
+    installed = content.index("EVIDENCE_INSTALLED=true", install)
+    installed_digest = content.index(
+        'EVIDENCE_SHA256=$(sha256sum "$EVIDENCE_PATH"', installed
+    )
+    assert install < installed < installed_digest
+
+    on_exit = content.index("on_exit() {")
+    cleanup_guard = content.index(
+        'if [[ "$EVIDENCE_INSTALLED" == "true" && -n "$EVIDENCE_PATH" ]]',
+        on_exit,
+    )
+    cleanup = content.index('rm -f "$EVIDENCE_PATH"', cleanup_guard)
+    cleanup_sync = content.index('sync -f "$EVIDENCE_DIR"', cleanup)
+    rollback = content.index("rollback_partitioned_storage", cleanup_sync)
+    assert on_exit < cleanup_guard < cleanup < cleanup_sync < rollback
