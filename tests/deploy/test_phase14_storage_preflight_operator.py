@@ -78,3 +78,16 @@ def test_read_only_preflight_clamps_unknown_reltuples_estimate() -> None:
     assert "GREATEST(" in content
     assert "reltuples::bigint" in content
     assert "), 0)" in content
+
+def test_cloudshell_evidence_runner_binds_local_files_to_exact_candidate() -> None:
+    content = RUNNER.read_text(encoding="utf-8")
+
+    for marker in (
+        'LOCAL_HEAD=$(git rev-parse HEAD)',
+        '[[ "$LOCAL_HEAD" == "$EXPECTED_HEAD" ]]',
+        'git status --porcelain --untracked-files=all',
+        "local_candidate_head_mismatch",
+        "local_working_tree_dirty",
+    ):
+        assert marker in content
+
