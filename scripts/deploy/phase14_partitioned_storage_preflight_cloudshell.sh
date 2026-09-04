@@ -61,6 +61,7 @@ STORAGE_ARCHIVE_DIR=/mnt/bp-data/archive/raw
 EVIDENCE_DIR=/mnt/bp-data/evidence
 POSTGRES_DATA_SOURCE=""
 ARCHIVE_EVIDENCE=""
+ARCHIVE_EVIDENCE_SHA256=""
 ARCHIVE_WINDOW_END=""
 OLD_HEAD=""
 OLD_BRANCH=""
@@ -194,6 +195,10 @@ for item in intervals:
 print(str(payload["window_end"]))
 PY
   ) || fail "verified_24_48h_archive_evidence_invalid"
+
+  ARCHIVE_EVIDENCE_SHA256=$(sha256sum "$ARCHIVE_EVIDENCE" | awk '{print $1}')
+  [[ "$ARCHIVE_EVIDENCE_SHA256" =~ ^[0-9a-f]{64}$ ]] \
+    || fail "verified_24_48h_archive_evidence_digest_invalid"
 }
 
 capture_database_shape() {
@@ -277,6 +282,7 @@ echo "POSTGRES_DATA_SOURCE=$POSTGRES_DATA_SOURCE"
 echo "DEDICATED_DATA_FREE_BYTES=$FREE_BYTES"
 echo "ROOT_FREE_BYTES=$ROOT_FREE_BYTES"
 echo "ARCHIVE_EVIDENCE=$ARCHIVE_EVIDENCE"
+echo "ARCHIVE_EVIDENCE_SHA256=$ARCHIVE_EVIDENCE_SHA256"
 echo "ARCHIVE_WINDOW_END=$ARCHIVE_WINDOW_END"
 echo "RAW_TOTAL_BYTES=$RAW_TOTAL_BYTES"
 echo "RAW_TOTAL_PRETTY=$RAW_TOTAL_PRETTY"
