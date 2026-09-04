@@ -81,10 +81,11 @@ if [[ "$PREFLIGHT_VERIFIED" != /* ]]; then
 fi
 
 PREFLIGHT_VERIFIED_SHA256=$(sha256sum "$PREFLIGHT_VERIFIED" | awk '{print $1}')
-python - "$PREFLIGHT_VERIFIED" "$EXPECTED_FROM_HEAD" "$EXPECTED_HEAD" <<'PY'
+PREFLIGHT_ARCHIVE_BINDING=$(python - "$PREFLIGHT_VERIFIED" "$EXPECTED_FROM_HEAD" "$EXPECTED_HEAD" <<'PY'
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -104,7 +105,25 @@ if payload.get("recorder_state") != "stopped":
     raise SystemExit("verified preflight recorder state is not stopped")
 if payload.get("storage_shape") != "legacy_unmigrated":
     raise SystemExit("verified preflight storage shape is not legacy_unmigrated")
+
+archive = payload.get("archive") or {}
+evidence_name = archive.get("evidence_name")
+window_end = archive.get("window_end")
+if not isinstance(evidence_name, str) or not re.fullmatch(
+    r"phase14-storage-recovery-24-48h-[0-9]{8}T[0-9]{6}Z\.json",
+    evidence_name,
+):
+    raise SystemExit("verified preflight archive evidence name is invalid")
+if not isinstance(window_end, str) or not window_end:
+    raise SystemExit("verified preflight archive window_end is invalid")
+print(f"{evidence_name}\t{window_end}")
 PY
+)
+IFS=$'\t' read -r PREFLIGHT_ARCHIVE_EVIDENCE_NAME PREFLIGHT_ARCHIVE_WINDOW_END <<< "$PREFLIGHT_ARCHIVE_BINDING"
+if [[ -z "$PREFLIGHT_ARCHIVE_EVIDENCE_NAME" || -z "$PREFLIGHT_ARCHIVE_WINDOW_END" ]]; then
+  echo "archive_evidence_binding_mismatch" >&2
+  exit 2
+fi
 
 gcloud config set project "$PROJECT" >/dev/null
 
@@ -114,6 +133,8 @@ printf -v BRANCH_Q '%q' "$BRANCH"
 printf -v ENV_Q '%q' "$ENV_FILE"
 printf -v FREE_Q '%q' "$MIN_FREE_GIB"
 printf -v PREFLIGHT_SHA_Q '%q' "$PREFLIGHT_VERIFIED_SHA256"
+printf -v PREFLIGHT_ARCHIVE_NAME_Q '%q' "$PREFLIGHT_ARCHIVE_EVIDENCE_NAME"
+printf -v PREFLIGHT_ARCHIVE_WINDOW_Q '%q' "$PREFLIGHT_ARCHIVE_WINDOW_END"
 
 read -r -d '' WORKER <<'WORKER_EOF' || true
 set -Eeuo pipefail
@@ -124,6 +145,8 @@ BRANCH="${PHASE14_PARTITIONED_STORAGE_BRANCH:?}"
 ENV_FILE="${PHASE14_PARTITIONED_STORAGE_ENV_FILE:?}"
 MIN_FREE_GIB="${PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB:?}"
 PREFLIGHT_VERIFIED_SHA256="${PHASE14_PARTITIONED_STORAGE_PREFLIGHT_SHA256:?}"
+EXPECTED_ARCHIVE_EVIDENCE_NAME="${PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_NAME:?}"
+EXPECTED_ARCHIVE_WINDOW_END="${PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_WINDOW_END:?}"
 
 REPO=/opt/bp
 PYTHON="$REPO/.venv/bin/python"
@@ -465,10 +488,12 @@ partition_relation_bytes() {
 }
 
 verify_archive_evidence() {
-  ARCHIVE_EVIDENCE=$(ls -1t "$EVIDENCE_DIR"/phase14-storage-recovery-24-48h-*.json 2>/dev/null | head -n1 || true)
-  [[ -n "$ARCHIVE_EVIDENCE" ]] || fail "verified_24_48h_archive_evidence_missing"
+  [[ "$EXPECTED_ARCHIVE_EVIDENCE_NAME" =~ ^phase14-storage-recovery-24-48h-[0-9]{8}T[0-9]{6}Z\.json$ ]] \
+    || fail "archive_evidence_binding_mismatch"
+  ARCHIVE_EVIDENCE="$EVIDENCE_DIR/$EXPECTED_ARCHIVE_EVIDENCE_NAME"
+  [[ -f "$ARCHIVE_EVIDENCE" ]] || fail "verified_24_48h_archive_evidence_missing"
 
-  "$PYTHON" - "$ARCHIVE_EVIDENCE" <<'PY'
+  if ! "$PYTHON" - "$ARCHIVE_EVIDENCE" "$EXPECTED_ARCHIVE_WINDOW_END" <<'PY'
 from __future__ import annotations
 
 import json
@@ -477,6 +502,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+expected_window_end = sys.argv[2]
+if str(payload.get("window_end")) != expected_window_end:
+    raise SystemExit("archive_evidence_binding_mismatch")
+
 intervals = payload.get("intervals")
 if int(payload.get("hours", -1)) != 24:
     raise SystemExit("archive evidence hours must equal 24")
@@ -493,6 +522,9 @@ for item in intervals:
         raise SystemExit("archive evidence intervals are not contiguous")
     previous_end = end
 PY
+  then
+    fail "archive_evidence_binding_mismatch"
+  fi
 }
 
 rollback_partitioned_storage() {
@@ -791,7 +823,7 @@ UNIT="bp-phase14-partitioned-storage-$SHORT"
 WORKER_PATH="/var/tmp/$UNIT.sh"
 printf '%s' $WORKER_B64_Q | base64 -d > "$WORKER_PATH"
 chmod 0700 "$WORKER_PATH"
-systemd-run   --unit="$UNIT"   --description="BP Phase 14 partitioned storage rollout"   --property=Type=oneshot   --property=StandardOutput=journal   --property=StandardError=journal   --setenv=PHASE14_PARTITIONED_STORAGE_HEAD="$HEAD_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_FROM_HEAD="$FROM_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_BRANCH="$BRANCH_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_ENV_FILE="$ENV_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB="$FREE_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_SHA256="$PREFLIGHT_SHA_Q"   /bin/bash "$WORKER_PATH"
+systemd-run   --unit="$UNIT"   --description="BP Phase 14 partitioned storage rollout"   --property=Type=oneshot   --property=StandardOutput=journal   --property=StandardError=journal   --setenv=PHASE14_PARTITIONED_STORAGE_HEAD="$HEAD_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_FROM_HEAD="$FROM_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_BRANCH="$BRANCH_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_ENV_FILE="$ENV_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB="$FREE_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_SHA256="$PREFLIGHT_SHA_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_NAME="$PREFLIGHT_ARCHIVE_NAME_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_WINDOW_END="$PREFLIGHT_ARCHIVE_WINDOW_Q"   /bin/bash "$WORKER_PATH"
 echo "PHASE14_PARTITIONED_STORAGE_STARTED=PASS"
 echo "UNIT=$UNIT.service"
 echo "STATUS_COMMAND=sudo systemctl status $UNIT.service --no-pager -l"
@@ -806,6 +838,8 @@ echo "HEAD=$EXPECTED_HEAD"
 echo "MIN_FREE_GIB=$MIN_FREE_GIB"
 echo "PREFLIGHT_VERIFIED=$PREFLIGHT_VERIFIED"
 echo "PREFLIGHT_VERIFIED_SHA256=$PREFLIGHT_VERIFIED_SHA256"
+echo "PREFLIGHT_ARCHIVE_EVIDENCE_NAME=$PREFLIGHT_ARCHIVE_EVIDENCE_NAME"
+echo "PREFLIGHT_ARCHIVE_WINDOW_END=$PREFLIGHT_ARCHIVE_WINDOW_END"
 echo "Launching detached partitioned-storage rollout job; production recorder is not started."
 
 gcloud compute ssh "$VM"   --project="$PROJECT"   --zone="$ZONE"   --command="sudo env PHASE14_PARTITIONED_STORAGE_HEAD=$HEAD_Q PHASE14_PARTITIONED_STORAGE_FROM_HEAD=$FROM_Q PHASE14_PARTITIONED_STORAGE_BRANCH=$BRANCH_Q PHASE14_PARTITIONED_STORAGE_ENV_FILE=$ENV_Q PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB=$FREE_Q bash -s"   <<< "$LAUNCHER"

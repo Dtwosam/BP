@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.16 — 4 September 2026
+
+Phase 14 partition-migration chain-of-custody hardening now binds the production worker to the exact recovery archive evidence referenced by the verified read-only preflight. The launcher extracts the preflight archive `evidence_name` and `window_end`, validates the canonical evidence-name shape, and passes both into the detached worker. The worker no longer selects the latest matching recovery JSON; it requires the exact preflight-bound file and matching `window_end` before migration.
+
+TDD preserved the boundary: RED head `aa2ad57931b9d6fc9913e6f41465b0ec6b3e6207` failed exactly the new archive-binding contract while all 933 existing tests passed in CI `33898147639`. GREEN implementation head `8738102bb78c5b036c9e0fc9e41e8f5360a5bcd7` passed CI `33898435814` with **934 tests**, rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or migration was executed, no approval values were set, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.15 — 4 September 2026
 
 Phase 14 partition-migration launcher hardening now binds the Cloud Shell rollout helper to the exact candidate source tree before any Google Cloud interaction. The helper resolves the local repository root, requires local `HEAD` to equal the exact `PHASE14_PARTITIONED_STORAGE_HEAD`, and rejects any tracked or untracked working-tree change. This closes a stale-helper gap where an older or locally modified launcher could otherwise target a newer candidate while omitting safety gates added later.
