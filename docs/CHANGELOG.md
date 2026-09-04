@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.32 — 4 September 2026
+
+Phase 14 final rollout acceptance evidence is now explicitly flushed to persistent storage before rollback protection is disarmed. After the generated and installed acceptance JSON SHA-256 digests match, the worker runs `sync -f "$EVIDENCE_PATH"`; any failure exits with `rollout_evidence_sync_failed` while `ROLLBACK_ARMED=1`. Temp cleanup and rollback disarm remain strictly after the durability barrier.
+
+Clean tests-only RED head `9196c96f626189431f5dde025c68954b4d6f8b89` failed exactly the new durability-ordering contract while all **951 existing tests passed** in CI `33917015980`. GREEN implementation head `5ac83363476dfe5aff7ab69d66094f5bcb8da299` passed CI `33917183016` with **952 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.31 — 4 September 2026
 
 Phase 14 acceptance-evidence copy integrity is now integrated on `main`. PR #74 final head `3bd69fbb7e3a25ad8583cc305605ce8a01523e52` passed push CI `33914801853`, PR CI `33914857531`, Historical Backfill Smoke `33914857480`, Live Recorder Smoke `33914857492`, and Recorder Short Soak `33914857490`. It merged as `f64c51a7703705c1bedde9a2b9f0ad489297ed92`; post-merge main CI `33916124578` then passed **951 tests** plus rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
