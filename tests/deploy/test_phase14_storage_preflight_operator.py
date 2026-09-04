@@ -111,6 +111,9 @@ def test_cloudshell_evidence_runner_reports_verified_digest_without_approval() -
     content = RUNNER.read_text(encoding="utf-8")
 
     for marker in (
+        'TRANSCRIPT_SHA256=$(sha256sum "$TRANSCRIPT"',
+        'echo "TRANSCRIPT_SHA256=$TRANSCRIPT_SHA256"',
+        "verified_preflight_transcript_digest_mismatch",
         'VERIFIED_SHA256=$(sha256sum "$VERIFIED"',
         'echo "VERIFIED_SHA256=$VERIFIED_SHA256"',
         "verified_preflight_digest_invalid",
