@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.30 — 4 September 2026
+
+Phase 14 final acceptance now proves the canonical installed rollout evidence is byte-for-byte identical to the JSON the worker generated before rollback is disarmed. The worker computes and validates `EVIDENCE_TMP_SHA256` from the generated temp JSON, installs the file, computes and validates `EVIDENCE_SHA256` from the installed canonical artifact, and fails closed with `rollout_evidence_copy_mismatch` unless the two digests are equal. Temp cleanup and `ROLLBACK_ARMED=0` occur only after this equality proof.
+
+Clean tests-only RED head `c51c18d7ae3b3bc0241d563446a39c527b6e2ede` failed exactly the new acceptance-evidence copy-integrity contract while all **950 existing tests passed** in CI `33914373039`. GREEN implementation head `02ccc1bee37fe3684cf2e9c045323aadf8681333` passed CI `33914527287` with **951 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #73's integration record. Final branch head `77ab6d02714aa02ed557220c56ba13923d8ebb96` passed push CI `33913970548`, PR CI `33914019616`, Historical Backfill Smoke `33914019596`, Live Recorder Smoke `33914019574`, and Recorder Short Soak `33914019629`. PR #73 merged to `main` as `926c0a37a792c76028a90ac66997e49a73198467`; post-merge main CI `33914224405` then passed **950 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.29 — 4 September 2026
 
 Phase 14 final rollout acceptance now gives the installed PASS evidence an explicit SHA-256 identity before rollback protection is disarmed. After the acceptance JSON is installed at its canonical evidence path, the worker computes `EVIDENCE_SHA256`, requires a valid lowercase 64-character digest, and only then sets `ROLLBACK_ARMED=0`. The PASS output prints both `EVIDENCE_PATH` and `EVIDENCE_SHA256`, allowing the exact accepted artifact to be referenced independently rather than by path alone.
