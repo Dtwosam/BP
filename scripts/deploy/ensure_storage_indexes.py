@@ -88,11 +88,9 @@ def main() -> int:
     concurrent_engine = engine.execution_options(isolation_level="AUTOCOMMIT")
     with concurrent_engine.connect() as connection:
         for statement in INDEX_STATEMENTS:
-            if (
-                storage_mode is RawStorageMode.PARTITIONED
-                and "raw_market_events" in statement
-            ):
-                continue
+            if storage_mode is RawStorageMode.PARTITIONED:
+                if "raw_market_events" in statement:
+                    continue
             connection.execute(text(statement))
 
     return 0
