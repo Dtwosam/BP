@@ -37,6 +37,7 @@ ZONE=us-east1-c
 FROM_HEAD={FROM_HEAD}
 HEAD={HEAD}
 MIN_FREE_GIB=40
+ENV_FILE=/etc/bp/bp.env
 Running read-only Phase 14 partitioned-storage production preflight.
 PHASE14_PARTITIONED_STORAGE_PREFLIGHT=PASS
 FROM_HEAD={FROM_HEAD}
@@ -198,6 +199,8 @@ def test_verify_preflight_cli_emits_sanitized_json(tmp_path: Path) -> None:
                 "/mnt/bp-data/evidence/"
                 "phase14-storage-recovery-24-48h-20260904T015955Z.json"
             ),
+            "--expected-env-file",
+            "/etc/bp/bp.env",
         ],
         cwd=ROOT,
         capture_output=True,
@@ -316,4 +319,21 @@ def test_verified_preflight_binds_configured_min_free_gib() -> None:
             expected_from_head=FROM_HEAD,
             expected_head=HEAD,
             min_free_gib=41,
+        )
+
+
+def test_verified_preflight_binds_expected_environment_file() -> None:
+    verifier = VERIFIER.read_text(encoding="utf-8")
+    preflight = PREFLIGHT.read_text(encoding="utf-8")
+
+    assert "--expected-env-file" in verifier
+    assert "unexpected ENV_FILE" in verifier
+    assert 'echo "ENV_FILE=$ENV_FILE"' in preflight
+
+    with pytest.raises(PreflightVerificationError, match="unexpected ENV_FILE"):
+        verify_preflight_transcript(
+            _transcript(),
+            expected_from_head=FROM_HEAD,
+            expected_head=HEAD,
+            expected_env_file="/etc/bp/other.env",
         )
