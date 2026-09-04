@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.12 — 4 September 2026
+
+Phase 14 partition-migration rollout hardening now re-proves the live PostgreSQL storage shape instead of relying only on the earlier verified preflight JSON. The rollout queries the current `raw_market_events` partition metadata plus the presence of `raw_market_events_legacy` and `raw_event_dedupe`, using configured `POSTGRES_USER` / `POSTGRES_DB` with the existing `bp` defaults. It fails closed if the raw table is already partitioned or either migration-created relation already exists.
+
+The schema-shape guard runs once before any rollout mutation and again after managed services are stopped, before candidate checkout and migration apply. Together with the already-merged exact-SHA evidence binding and dynamic headroom recheck, this prevents a stale preflight from silently authorizing a host whose schema changed or entered a partial migration state after evidence capture.
+
+TDD preserved the boundary. RED head `6072c0cb708b61cd5f7cd6eed92d3c834c02d3d7` failed exactly the new live-shape contract while **929 existing tests passed** in CI `33893361325`. Initial implementation head `030fdec38cd4070a6589b76e413b8b2688b20e9d` satisfied the new contract but CI `33893576423` correctly caught a Bash syntax regression; the rollout asset was rebuilt from clean `main` without weakening the guard. Repaired GREEN head `6c80ebc9b52330c4888db472660abcf4ed7e17ac` passed CI `33893788997` with **930 tests**, Ruff, rollout/deployment syntax validation, health, and dashboard tests/typecheck/build.
+
+No production preflight or migration was executed. Production migration authorization remains false/separate, the recorder remains stopped for storage recovery, rollback requirements are unchanged, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, `automatic_promotion=false`, the Master live gate remains `fail`, and Phase 15/live trading remain blocked.
+
 ## 0.14.11 — 4 September 2026
 
 Phase 14 partition-migration rollout hardening now enforces parity with the already-merged read-only storage preflight. The future production rollout helper requires `PHASE14_PARTITIONED_STORAGE_PREFLIGHT_VERIFIED` to reference the verified preflight JSON and rejects it unless the verdict is `PASS`, deployed/candidate/remote SHAs match the exact rollout inputs, `mutations_performed=false`, the recorder was stopped, and the verified storage shape is `legacy_unmigrated`. The verified JSON's SHA-256 is carried into the detached worker and written into eventual rollout evidence for chain-of-custody.

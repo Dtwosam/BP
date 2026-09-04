@@ -338,6 +338,37 @@ verify_dedicated_data_filesystem() {
   [[ "$data_device" == "$archive_device" ]]     || fail "postgres_and_archive_filesystems_differ"
 }
 
+verify_unmigrated_storage_shape() {
+  local postgres_user postgres_db row
+  local raw_partitioned legacy_table_present dedupe_table_present
+
+  postgres_user=$(read_env POSTGRES_USER)
+  postgres_db=$(read_env POSTGRES_DB)
+  postgres_user=${postgres_user:-bp}
+  postgres_db=${postgres_db:-bp}
+
+  row=$(docker compose \
+    --env-file "$ENV_FILE" \
+    -f "$REPO/docker-compose.prod.yml" \
+    exec -T postgres \
+    psql -U "$postgres_user" -d "$postgres_db" -At -F '|' -c "
+      SELECT
+        EXISTS (
+          SELECT 1
+          FROM pg_partitioned_table p
+          JOIN pg_class c ON c.oid = p.partrelid
+          WHERE c.oid = 'public.raw_market_events'::regclass
+        ),
+        to_regclass('public.raw_market_events_legacy') IS NOT NULL,
+        to_regclass('public.raw_event_dedupe') IS NOT NULL;
+    ") || fail "postgres_storage_shape_query_failed"
+
+  IFS='|' read -r raw_partitioned legacy_table_present dedupe_table_present <<< "$row"
+  [[ "$raw_partitioned" == "f" ]] || fail "raw_storage_already_partitioned"
+  [[ "$legacy_table_present" == "f" ]] || fail "rollback_legacy_table_already_present"
+  [[ "$dedupe_table_present" == "f" ]] || fail "dedupe_ledger_already_present"
+}
+
 verify_migration_headroom() {
   local postgres_user postgres_db raw_total_bytes free_bytes
   local critical_reserve_bytes configured_minimum_bytes required_free_bytes
@@ -450,6 +481,7 @@ require_research_zero_money
 require_recorder_stopped
 verify_dedicated_data_filesystem
 verify_archive_evidence
+verify_unmigrated_storage_shape
 verify_migration_headroom
 
 OLD_HEAD=$(git -C "$REPO" rev-parse HEAD)
@@ -470,6 +502,7 @@ cp -a "$ENV_FILE" "$ENV_BACKUP"
 ROLLBACK_ARMED=1
 stop_managed_units
 require_recorder_stopped
+verify_unmigrated_storage_shape
 verify_migration_headroom
 
 git -C "$REPO" checkout --detach --force "$SHA" >/dev/null
