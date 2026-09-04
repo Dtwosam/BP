@@ -71,7 +71,14 @@ python "$VERIFIER" \
   --expected-head "$EXPECTED_HEAD" \
   > "$VERIFIED"
 
+VERIFIED_SHA256=$(sha256sum "$VERIFIED" | awk '{print $1}')
+[[ "$VERIFIED_SHA256" =~ ^[0-9a-f]{64}$ ]] || {
+  echo "verified_preflight_digest_invalid" >&2
+  exit 2
+}
+
 echo "PHASE14_STORAGE_PREFLIGHT_EVIDENCE=PASS"
 echo "ARCHIVE_EVIDENCE=$ARCHIVE_EVIDENCE"
 echo "TRANSCRIPT=$TRANSCRIPT"
 echo "VERIFIED=$VERIFIED"
+echo "VERIFIED_SHA256=$VERIFIED_SHA256"
