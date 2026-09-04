@@ -430,3 +430,15 @@ def test_rollout_finally_proves_original_rollback_relation_survives() -> None:
     evidence = content.index("EVIDENCE_TMP=$(mktemp", final_check)
     assert restore < final_check < evidence
 
+def test_rollout_rechecks_storage_health_after_restore_before_evidence() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    assert "verify_partitioned_storage_health()" in content
+    assert content.count('verify_partitioned_storage_health "$DISK_JSON"') >= 2
+
+    restore = content.rindex("restore_managed_units")
+    rollback = content.index("verify_final_rollback_material", restore)
+    final_health = content.index('verify_partitioned_storage_health "$DISK_JSON"', rollback)
+    evidence = content.index('EVIDENCE_PATH="$EVIDENCE_DIR/', final_health)
+    assert restore < rollback < final_health < evidence
+
