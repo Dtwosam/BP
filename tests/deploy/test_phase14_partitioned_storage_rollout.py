@@ -129,3 +129,12 @@ def test_partitioned_storage_rollout_assets_have_clean_syntax_and_ci_validation(
     ci = CI.read_text(encoding="utf-8")
     assert "bash -n scripts/deploy/phase14_partitioned_storage_rollout_cloudshell.sh" in ci
     assert "python -m py_compile scripts/deploy/migrate_partitioned_raw_storage.py" in ci
+
+
+
+def test_partitioned_storage_exact_parity_is_streaming_and_temp_space_bounded() -> None:
+    content = MIGRATOR.read_text(encoding="utf-8")
+
+    assert "stream_results" in content
+    assert "RAW_PARITY_ROWS_CHECKED" in content
+    assert "EXCEPT ALL" not in content
