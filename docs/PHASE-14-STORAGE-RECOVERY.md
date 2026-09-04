@@ -32,30 +32,25 @@ The output includes current relation bytes/estimated rows, whether raw storage i
 
 ## Run from Google Cloud Shell
 
-From a checkout containing the verified helper and verifier:
+Use a **clean local checkout at the exact candidate SHA**. The evidence runner refuses to proceed if the local `HEAD` differs from `PHASE14_PARTITIONED_STORAGE_HEAD` or if the local working tree is dirty, so the helper and verifier used for evidence are bound to the candidate being evaluated.
 
 ```bash
 export PHASE14_PARTITIONED_STORAGE_FROM_HEAD='<exact currently deployed production SHA>'
 export PHASE14_PARTITIONED_STORAGE_HEAD='<exact verified candidate SHA>'
 export PHASE14_PARTITIONED_STORAGE_BRANCH='main'
 
-STAMP=$(date -u +%Y%m%dT%H%M%SZ)
-TRANSCRIPT="$HOME/bp-phase14-storage-preflight-$STAMP.txt"
-VERIFIED="$HOME/bp-phase14-storage-preflight-$STAMP.json"
-
-bash scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh \
-  | tee "$TRANSCRIPT"
-
-python scripts/deploy/verify_phase14_storage_preflight.py \
-  --input "$TRANSCRIPT" \
-  --expected-from-head "$PHASE14_PARTITIONED_STORAGE_FROM_HEAD" \
-  --expected-head "$PHASE14_PARTITIONED_STORAGE_HEAD" \
-  > "$VERIFIED"
-
-cat "$VERIFIED"
+bash scripts/deploy/phase14_storage_preflight_evidence_cloudshell.sh
 ```
 
-These files are created in Cloud Shell, not on the production VM. Do not substitute a shortened SHA.
+The operator wrapper uses `umask 077`, runs the existing read-only host preflight, captures its transcript in Cloud Shell, and then runs `scripts/deploy/verify_phase14_storage_preflight.py` against that exact transcript. On success it emits:
+
+```text
+PHASE14_STORAGE_PREFLIGHT_EVIDENCE=PASS
+TRANSCRIPT=<Cloud Shell transcript path>
+VERIFIED=<Cloud Shell verified JSON path>
+```
+
+The transcript and verified JSON are created in Cloud Shell, not on the production VM. By default they are written under `$HOME`; custom paths may be supplied with `PHASE14_STORAGE_PREFLIGHT_TRANSCRIPT` and `PHASE14_STORAGE_PREFLIGHT_VERIFIED`. Do not substitute a shortened SHA and do not run the wrapper from a modified checkout.
 
 The raw preflight must end with:
 
