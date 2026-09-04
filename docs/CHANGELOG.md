@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.21 — 4 September 2026
+
+Phase 14 storage-preflight chain-of-custody now includes production target identity. The deterministic verifier preserves the exact `PROJECT`, `ZONE`, and `VM` emitted by the captured read-only preflight. Before any gcloud project selection or production VM contact, the partition-rollout launcher rejects verified evidence unless all three target fields exactly match its own project, zone, and VM. A valid preflight from one host can therefore no longer be silently reused against another target.
+
+RED head `177d7469be3aefba5d42d19b3bcc0c786b149a34` failed exactly the two new target-identity contracts while all **940 existing tests passed** in CI `33905027494`. GREEN implementation head `fd869c78fa17df08e73a5cdc1d7a8d0958225cd8` passed CI `33905075693` with **942 tests**, Ruff, rollout Bash syntax validation, verifier compilation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #64's integration record. Final branch head `3f214a17000bb6efceecd3d90c7d2caece454d91` passed push CI `33904722938`, PR CI `33904765174`, Historical Backfill Smoke `33904765122`, Live Recorder Smoke `33904765129`, and Recorder Short Soak `33904765163`. PR #64 merged to `main` as `17475e26cf2b5dc520213e6d7b05591a4e43925e`; post-merge CI `33904960699` then passed **941 tests** plus both preflight Bash syntax validations, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.20 — 4 September 2026
 
 Phase 14 read-only storage preflight chain-of-custody is now bound to the canonical recovery evidence path recorded in the exact candidate state. The clean exact-head Cloud Shell evidence wrapper reads `phase_14_storage_reliability_followup.archive_recovery_host_evidence` from `PROJECT_STATE.json`, validates its canonical host-path shape, and passes that exact path to the remote read-only preflight. The preflight rejects a missing/malformed binding and no longer selects the newest matching recovery JSON by filesystem mtime.

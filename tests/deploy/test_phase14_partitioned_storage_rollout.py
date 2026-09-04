@@ -324,3 +324,20 @@ def test_partitioned_storage_rollout_evidence_records_preflight_archive_binding(
     pass_marker = content.index('"verdict": "PASS"', evidence_builder)
     assert evidence_builder < pass_marker
 
+def test_partitioned_storage_rollout_requires_preflight_target_identity_match() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        'target = payload.get("target") or {}',
+        'target.get("project") != expected_project',
+        'target.get("zone") != expected_zone',
+        'target.get("vm") != expected_vm',
+        "verified preflight PROJECT mismatch",
+        "verified preflight ZONE mismatch",
+        "verified preflight VM mismatch",
+    ):
+        assert marker in content
+
+    first_target_check = content.index("verified preflight PROJECT mismatch")
+    assert first_target_check < content.index('gcloud config set project "$PROJECT"')
+
