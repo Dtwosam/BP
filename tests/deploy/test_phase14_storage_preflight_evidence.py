@@ -19,6 +19,7 @@ CI = ROOT / ".github" / "workflows" / "ci.yml"
 FROM_HEAD = "c29fe227f959305f67031e922ca659869a826c4f"
 HEAD = "a8bf5b5c68e8556a65f091ae4e14b677d24650f7"
 GIB = 1024**3
+ARCHIVE_SHA256 = "a" * 64
 
 
 def _transcript(
@@ -47,7 +48,7 @@ POSTGRES_DATA_SOURCE=/var/lib/docker/volumes/bp_bp_postgres_data/_data
 DEDICATED_DATA_FREE_BYTES={dedicated_free_bytes}
 ROOT_FREE_BYTES={177 * GIB}
 ARCHIVE_EVIDENCE=/mnt/bp-data/evidence/phase14-storage-recovery-24-48h-20260904T015955Z.json
-ARCHIVE_EVIDENCE_SHA256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ARCHIVE_EVIDENCE_SHA256={ARCHIVE_SHA256}
 ARCHIVE_WINDOW_END=2026-09-03T00:00:00+00:00
 RAW_TOTAL_BYTES={raw_total_bytes}
 RAW_TOTAL_PRETTY=31 GB
@@ -87,7 +88,7 @@ def test_verify_preflight_transcript_accepts_expected_legacy_recovery_shape() ->
     assert report["headroom"]["required_free_bytes"] == 46 * GIB
     assert report["headroom"]["free_bytes"] == 59 * GIB
     assert report["archive"]["window_end"] == "2026-09-03T00:00:00+00:00"
-    assert report["archive"]["sha256"] == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    assert report["archive"]["sha256"] == ARCHIVE_SHA256
     assert "raw_total_pretty" not in report
 
 
