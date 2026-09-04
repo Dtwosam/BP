@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+
 from scripts.deploy.verify_phase14_storage_preflight import (
     PreflightVerificationError,
     verify_preflight_transcript,
