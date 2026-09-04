@@ -8,6 +8,8 @@ The schema-shape guard runs once before any rollout mutation and again after man
 
 TDD preserved the boundary. RED head `6072c0cb708b61cd5f7cd6eed92d3c834c02d3d7` failed exactly the new live-shape contract while **929 existing tests passed** in CI `33893361325`. Initial implementation head `030fdec38cd4070a6589b76e413b8b2688b20e9d` satisfied the new contract but CI `33893576423` correctly caught a Bash syntax regression; the rollout asset was rebuilt from clean `main` without weakening the guard. Repaired GREEN head `6c80ebc9b52330c4888db472660abcf4ed7e17ac` passed CI `33893788997` with **930 tests**, Ruff, rollout/deployment syntax validation, health, and dashboard tests/typecheck/build.
 
+PR #56 then passed the complete exact-head integration gate on `d56588ae0073eed5c350df9716a36f3a55a9a2df`: push CI `33894032124`, PR CI `33894191483`, Historical Backfill Smoke `33894191580`, Live Recorder Smoke `33894191513`, and Recorder Short Soak `33894191530` all succeeded. It merged to `main` as `fe025bc0ff204545fd4138aff9dd9c957572c248`; post-merge CI `33894382583` then passed **930 tests** plus rollout/deployment syntax validation, health, and dashboard tests/typecheck/build.
+
 No production preflight or migration was executed. Production migration authorization remains false/separate, the recorder remains stopped for storage recovery, rollback requirements are unchanged, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, `automatic_promotion=false`, the Master live gate remains `fail`, and Phase 15/live trading remain blocked.
 
 ## 0.14.11 — 4 September 2026
