@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.31 — 4 September 2026
+
+Phase 14 acceptance-evidence copy integrity is now integrated on `main`. PR #74 final head `3bd69fbb7e3a25ad8583cc305605ce8a01523e52` passed push CI `33914801853`, PR CI `33914857531`, Historical Backfill Smoke `33914857480`, Live Recorder Smoke `33914857492`, and Recorder Short Soak `33914857490`. It merged as `f64c51a7703705c1bedde9a2b9f0ad489297ed92`; post-merge main CI `33916124578` then passed **951 tests** plus rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+The merged worker hashes the generated temp acceptance JSON before install, hashes the canonical installed acceptance JSON after install, and fails closed with `rollout_evidence_copy_mismatch` unless the SHA-256 digests are identical before temp cleanup and rollback disarm. This closes the PR #74 integration record; it does not authorize production execution.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.30 — 4 September 2026
 
 Phase 14 final acceptance now proves the canonical installed rollout evidence is byte-for-byte identical to the JSON the worker generated before rollback is disarmed. The worker computes and validates `EVIDENCE_TMP_SHA256` from the generated temp JSON, installs the file, computes and validates `EVIDENCE_SHA256` from the installed canonical artifact, and fails closed with `rollout_evidence_copy_mismatch` unless the two digests are equal. Temp cleanup and `ROLLBACK_ARMED=0` occur only after this equality proof.
