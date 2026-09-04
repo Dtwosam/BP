@@ -172,13 +172,13 @@ validate_rollout_scope() {
   while IFS= read -r path; do
     [[ -n "$path" ]] || continue
     case "$path" in
-      PROJECT_STATE.json|docs/*|tests/*|.github/workflows/ci.yml|deploy/bp.env.example)
+      PROJECT_STATE.json|docs/*|tests/*|.github/workflows/ci.yml|deploy/bp.env.example|.env.example)
         ;;
       src/bp_engine/storage/*|src/bp_engine/config.py|src/bp_engine/recorder/service.py|src/bp_engine/recorder/writer.py)
         ;;
       src/bp_engine/collectors/reliability.py|src/bp_engine/collectors/websocket_runner.py)
         ;;
-      scripts/storage_maintenance.py|scripts/deploy/ensure_storage_indexes.py|scripts/deploy/ensure_phase12_replay_indexes.py)
+      scripts/storage_maintenance.py|scripts/deploy/bootstrap_ubuntu.sh|scripts/deploy/ensure_storage_indexes.py|scripts/deploy/ensure_phase12_replay_indexes.py)
         ;;
       scripts/deploy/migrate_partitioned_raw_storage.py|scripts/deploy/phase14_partitioned_storage_rollout_cloudshell.sh)
         ;;
@@ -425,6 +425,8 @@ apply = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 verify = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
 if apply.get("rollback_material_retained") is not True:
     raise SystemExit("migration did not retain rollback material")
+if apply.get("rollback_table") != "raw_market_events_legacy":
+    raise SystemExit("migration did not preserve raw_market_events_legacy")
 if apply.get("non_raw_table_counts_before") != apply.get("non_raw_table_counts_after"):
     raise SystemExit("non-raw table counts changed during migration")
 checks = verify.get("verification") or {}
