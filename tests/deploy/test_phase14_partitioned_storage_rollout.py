@@ -373,3 +373,18 @@ def test_partitioned_storage_rollout_hashes_and_validates_preflight_same_snapsho
 
     assert 'PREFLIGHT_VERIFIED_SHA256=$(sha256sum "$PREFLIGHT_VERIFIED"' not in content
 
+def test_partitioned_storage_rollout_binds_approval_to_verified_preflight_digest() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        "PHASE14_PARTITIONED_STORAGE_APPROVED_PREFLIGHT_SHA256",
+        "APPROVED_PREFLIGHT_SHA256",
+        '[[ "$APPROVED_PREFLIGHT_SHA256" == "$PREFLIGHT_VERIFIED_SHA256" ]]',
+        "migration_approval_preflight_mismatch",
+    ):
+        assert marker in content
+
+    assert content.index("migration_approval_preflight_mismatch") < content.index(
+        'gcloud config set project "$PROJECT"'
+    )
+
