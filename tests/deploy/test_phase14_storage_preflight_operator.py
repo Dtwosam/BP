@@ -104,3 +104,15 @@ def test_cloudshell_evidence_runner_binds_preflight_to_state_archive_path() -> N
 
     assert 'PHASE14_PARTITIONED_STORAGE_ARCHIVE_EVIDENCE="$ARCHIVE_EVIDENCE"' in content
 
+def test_cloudshell_evidence_runner_reports_verified_digest_without_approval() -> None:
+    content = RUNNER.read_text(encoding="utf-8")
+
+    for marker in (
+        'VERIFIED_SHA256=$(sha256sum "$VERIFIED"',
+        'echo "VERIFIED_SHA256=$VERIFIED_SHA256"',
+        "verified_preflight_digest_invalid",
+    ):
+        assert marker in content
+
+    assert "PHASE14_PARTITIONED_STORAGE_APPROVED_PREFLIGHT_SHA256=" not in content
+
