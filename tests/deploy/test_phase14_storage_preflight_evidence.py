@@ -245,3 +245,27 @@ def test_verify_preflight_transcript_rejects_invalid_archive_sha256() -> None:
             expected_head=HEAD,
         )
 
+
+def test_verified_preflight_binds_expected_target_identity() -> None:
+    content = VERIFIER.read_text(encoding="utf-8")
+
+    for marker in (
+        "--expected-project",
+        "--expected-zone",
+        "--expected-vm",
+        "unexpected PROJECT",
+        "unexpected ZONE",
+        "unexpected VM",
+    ):
+        assert marker in content
+
+    transcript = _transcript()
+    with pytest.raises(PreflightVerificationError, match="unexpected PROJECT"):
+        verify_preflight_transcript(
+            transcript,
+            expected_from_head=FROM_HEAD,
+            expected_head=HEAD,
+            expected_project="wrong-project",
+            expected_zone="us-east1-c",
+            expected_vm="bp-recorder",
+        )
