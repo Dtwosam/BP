@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.23 — 4 September 2026
+
+Phase 14 verified-preflight chain-of-custody now hashes and validates the exact same byte snapshot before partition rollout. The launcher previously computed `PREFLIGHT_VERIFIED_SHA256` with `sha256sum` and then reopened the JSON in Python for validation. It now reads the file bytes once in Python, computes SHA-256 from those bytes, parses those same bytes, and returns the digest together with the validated archive binding. A local file change between separate digest and validation reads can therefore no longer make the recorded digest refer to different content than the evidence actually checked.
+
+Tests-only RED head `fefa6f0c5d4c5c9d316e2e97cb80eabdb97a1799` failed exactly the new same-snapshot contract while all **943 existing tests passed** in CI `33906530270`. GREEN implementation head `b8c669c16ad9029dcb393bf17a6e07ff42e4dc59` passed CI `33906575169` with **944 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #66's integration record. Final branch head `bce2681e72d02f1c9ac29f31649224fca91e1c00` passed push CI `33906246243`, PR CI `33906289074`, Historical Backfill Smoke `33906288841`, Live Recorder Smoke `33906289071`, and Recorder Short Soak `33906289100`. PR #66 merged to `main` as `16ccc92fb042ff2fa9885f93213c8f35495edc83`; post-merge main CI `33906470620` then passed **943 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.22 — 4 September 2026
 
 Phase 14 rollout acceptance evidence now preserves the exact production target identity that was already verified before any cloud contact. The detached worker receives the validated `PROJECT`, `ZONE`, and `VM`, and eventual rollout JSON records those values in a `target` block alongside the existing exact-SHA transition, recovery-archive identity, verified-preflight digest, migration headroom, physical-release proof, and safety fields. This makes a future accepted migration artifact auditable back to the same target whose identity was checked in the read-only preflight chain.
