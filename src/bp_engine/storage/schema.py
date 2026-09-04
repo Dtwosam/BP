@@ -125,6 +125,27 @@ feed_status = Table(
     UniqueConstraint("source", "stream", name="uq_feed_status_source_stream"),
 )
 
+storage_maintenance_runs = Table(
+    "storage_maintenance_runs",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("started_at", DateTime(timezone=True), nullable=False),
+    Column("completed_at", DateTime(timezone=True), nullable=True),
+    Column("status", String(24), nullable=False),
+    Column("storage_mode", String(24), nullable=False),
+    Column("partitions_retired", Integer, nullable=False, default=0),
+    Column("dedupe_rows_removed", Integer, nullable=False, default=0),
+    Column("disk_status", String(24), nullable=True),
+    Column("error", Text, nullable=True),
+)
+
+Index(
+    "ix_storage_maintenance_runs_status_completed",
+    storage_maintenance_runs.c.status,
+    storage_maintenance_runs.c.completed_at,
+)
+
+
 historical_backfill_runs = Table(
     "historical_backfill_runs",
     metadata,
