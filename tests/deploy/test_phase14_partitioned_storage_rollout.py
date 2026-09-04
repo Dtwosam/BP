@@ -219,3 +219,26 @@ def test_partitioned_storage_rollout_requires_explicit_sha_bound_approval() -> N
         "gcloud config set project"
     )
 
+def test_partitioned_storage_rollout_requires_partition_retirement_physical_release() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        "partition_relation_bytes",
+        'PARTITION_BYTES_BEFORE_MAINTENANCE=$(partition_relation_bytes)',
+        'PARTITION_BYTES_AFTER_MAINTENANCE=$(partition_relation_bytes)',
+        "nonempty_partition_retirement_not_observed",
+        "partition_dedupe_cleanup_mismatch",
+        "partition_relation_bytes_not_released",
+        "PARTITION_BYTES_RELEASED",
+    ):
+        assert marker in content
+
+    before = content.index(
+        'PARTITION_BYTES_BEFORE_MAINTENANCE=$(partition_relation_bytes)'
+    )
+    maintenance = content.index('scripts/storage_maintenance.py" run')
+    after = content.index(
+        'PARTITION_BYTES_AFTER_MAINTENANCE=$(partition_relation_bytes)'
+    )
+    assert before < maintenance < after
+
