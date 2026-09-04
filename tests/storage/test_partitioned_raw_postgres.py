@@ -10,6 +10,12 @@ from sqlalchemy import create_engine, insert, text
 from sqlalchemy.exc import DBAPIError
 
 from bp_engine.recorder.models import RawEvent
+from bp_engine.recorder.state import MarketStateSnapshot
+from bp_engine.storage.maintenance import (
+    ArchiveVerificationError,
+    archive_interval,
+    retire_verified_partition,
+)
 from bp_engine.storage.partitioned_raw import (
     RawStorageMode,
     drop_raw_partition,
@@ -18,7 +24,7 @@ from bp_engine.storage.partitioned_raw import (
     raw_storage_mode,
 )
 from bp_engine.storage.recorder import RecorderRepository
-from bp_engine.storage.schema import raw_market_events
+from bp_engine.storage.schema import market_state_1s, raw_market_events
 
 DATABASE_URL = os.getenv("BP_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -38,6 +44,11 @@ def engine():
             connection.execute(text("DROP TABLE IF EXISTS raw_market_events_legacy CASCADE"))
             connection.execute(text("DROP TABLE IF EXISTS raw_event_dedupe CASCADE"))
             connection.execute(text("DROP SEQUENCE IF EXISTS raw_market_events_id_seq_v2 CASCADE"))
+            state_exists = connection.execute(
+                text("SELECT to_regclass('market_state_1s')")
+            ).scalar_one()
+            if state_exists is not None:
+                connection.execute(text("DELETE FROM market_state_1s"))
 
     reset()
     raw_market_events.create(value)
@@ -409,4 +420,163 @@ def test_partitioned_writer_missing_hour_rolls_back_dedupe_claim(engine) -> None
             {"dedupe_key": event.dedupe_key},
         ).scalar_one()
 
+    assert ledger_count == 0
+
+
+
+def _archive_paths(archive_dir, manifest):
+    return (
+        archive_dir / manifest.archive_name,
+        archive_dir / f"{manifest.archive_name}.manifest.json",
+    )
+
+
+def _advance_required_compact_feeds(engine, at: datetime) -> None:
+    market_state_1s.create(engine, checkfirst=True)
+    repository = RecorderRepository()
+    feeds = (
+        ("bybit", "spot", "BTCUSDT"),
+        ("bybit", "linear", "BTCUSDT"),
+        ("coinbase", "spot", "BTC-USD"),
+        ("polymarket", "market", "partitioned-dedupe-condition"),
+    )
+    snapshots = [
+        MarketStateSnapshot(
+            bucket_at=at,
+            state_key=f"partitioned-raw-test/{source}/{stream}",
+            source=source,
+            stream=stream,
+            instrument=instrument,
+            last_event_at=at,
+            state={"test": True},
+        )
+        for source, stream, instrument in feeds
+    ]
+    with engine.begin() as connection:
+        repository.upsert_state_snapshots(connection, snapshots)
+
+
+def _seed_partitioned_hour(engine, start_at: datetime, count: int = 2) -> list[RawEvent]:
+    ensure_partitioned_raw_storage(
+        engine,
+        now=start_at + timedelta(minutes=1),
+    )
+    events = [
+        _event(start_at + timedelta(minutes=5 + index), sequence=100 + index)
+        for index in range(count)
+    ]
+    repository = RecorderRepository()
+    with engine.begin() as connection:
+        assert repository.insert_events(connection, events) == count
+    return events
+
+
+def test_partition_retirement_missing_archive_keeps_raw_and_dedupe(engine, tmp_path) -> None:
+    start_at = datetime(2026, 9, 4, 15, tzinfo=UTC)
+    events = _seed_partitioned_hour(engine, start_at, count=1)
+    end_at = start_at + timedelta(hours=1)
+
+    with pytest.raises(ArchiveVerificationError, match="missing"):
+        retire_verified_partition(
+            engine,
+            tmp_path / "missing.jsonl.gz",
+            tmp_path / "missing.jsonl.gz.manifest.json",
+        )
+
+    assert any(item.start_at == start_at for item in list_raw_partitions(engine))
+    with engine.connect() as connection:
+        raw_count = connection.execute(
+            text(
+                """
+                SELECT count(*) FROM raw_market_events
+                WHERE received_at >= :start_at AND received_at < :end_at
+                """
+            ),
+            {"start_at": start_at, "end_at": end_at},
+        ).scalar_one()
+        ledger_count = connection.execute(
+            text(
+                """
+                SELECT count(*) FROM raw_event_dedupe
+                WHERE dedupe_key = :dedupe_key
+                """
+            ),
+            {"dedupe_key": events[0].dedupe_key},
+        ).scalar_one()
+    assert raw_count == 1
+    assert ledger_count == 1
+
+
+def test_partition_retirement_corrupt_archive_keeps_partition(engine, tmp_path) -> None:
+    start_at = datetime(2026, 9, 4, 16, tzinfo=UTC)
+    _seed_partitioned_hour(engine, start_at)
+    end_at = start_at + timedelta(hours=1)
+    archive_dir = tmp_path / "archive"
+    manifest = archive_interval(engine, archive_dir, start_at, end_at)
+    archive_path, manifest_path = _archive_paths(archive_dir, manifest)
+    archive_path.write_bytes(archive_path.read_bytes() + b"tamper")
+
+    with pytest.raises(ArchiveVerificationError, match="SHA-256"):
+        retire_verified_partition(engine, archive_path, manifest_path)
+
+    assert any(item.start_at == start_at for item in list_raw_partitions(engine))
+
+
+def test_partition_retirement_requires_compact_state_advance(engine, tmp_path) -> None:
+    start_at = datetime(2026, 9, 4, 17, tzinfo=UTC)
+    _seed_partitioned_hour(engine, start_at)
+    end_at = start_at + timedelta(hours=1)
+    archive_dir = tmp_path / "archive"
+    manifest = archive_interval(engine, archive_dir, start_at, end_at)
+    archive_path, manifest_path = _archive_paths(archive_dir, manifest)
+
+    with pytest.raises(RuntimeError, match="compact state"):
+        retire_verified_partition(engine, archive_path, manifest_path)
+
+    assert any(item.start_at == start_at for item in list_raw_partitions(engine))
+
+
+def test_verified_partition_retirement_drops_relation_then_dedupe(engine, tmp_path) -> None:
+    start_at = datetime(2026, 9, 4, 18, tzinfo=UTC)
+    events = _seed_partitioned_hour(engine, start_at)
+    end_at = start_at + timedelta(hours=1)
+    archive_dir = tmp_path / "archive"
+    manifest = archive_interval(engine, archive_dir, start_at, end_at)
+    archive_path, manifest_path = _archive_paths(archive_dir, manifest)
+    _advance_required_compact_feeds(engine, end_at + timedelta(seconds=1))
+    partition_name = "raw_market_events_20260904_18"
+
+    with engine.connect() as connection:
+        relation_bytes = connection.execute(
+            text("SELECT pg_total_relation_size(to_regclass(:name))"),
+            {"name": partition_name},
+        ).scalar_one()
+    assert relation_bytes > 0
+
+    result = retire_verified_partition(
+        engine,
+        archive_path,
+        manifest_path,
+        batch_size=1,
+    )
+
+    assert result.partition_name == partition_name
+    assert result.archived_rows == len(events)
+    assert result.dedupe_rows_removed == len(events)
+    with engine.connect() as connection:
+        relation = connection.execute(
+            text("SELECT to_regclass(:name)"),
+            {"name": partition_name},
+        ).scalar_one()
+        ledger_count = connection.execute(
+            text(
+                """
+                SELECT count(*) FROM raw_event_dedupe
+                WHERE received_at >= :start_at AND received_at < :end_at
+                """
+            ),
+            {"start_at": start_at, "end_at": end_at},
+        ).scalar_one()
+
+    assert relation is None
     assert ledger_count == 0
