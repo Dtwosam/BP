@@ -286,15 +286,16 @@ verify_dedicated_data_filesystem() {
   container_id=$(docker compose     --env-file "$ENV_FILE"     -f "$REPO/docker-compose.prod.yml"     ps -q postgres)
   [[ -n "$container_id" ]] || fail "postgres_container_missing"
   POSTGRES_DATA_SOURCE=$(docker inspect "$container_id"     --format '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql/data"}}{{.Source}}{{end}}{{end}}')
-  case "$POSTGRES_DATA_SOURCE" in
-    /mnt/bp-data/*)
-      ;;
-    *)
-      fail "postgres_data_not_on_dedicated_filesystem"
-      ;;
-  esac
+  [[ -n "$POSTGRES_DATA_SOURCE" && -e "$POSTGRES_DATA_SOURCE" ]]     || fail "postgres_data_source_missing"
 
-  [[ "$(stat -c %d "$POSTGRES_DATA_SOURCE")" == "$(stat -c %d "$STORAGE_ARCHIVE_DIR")" ]]     || fail "postgres_and_archive_filesystems_differ"
+  local data_device archive_device protected_device
+  data_device=$(stat -c %d "$POSTGRES_DATA_SOURCE")
+  archive_device=$(stat -c %d "$STORAGE_ARCHIVE_DIR")
+  protected_device=$(stat -c %d /mnt/bp-data)
+
+  [[ "$data_device" == "$protected_device" ]]     || fail "postgres_data_not_on_dedicated_filesystem"
+  [[ "$archive_device" == "$protected_device" ]]     || fail "archive_not_on_dedicated_filesystem"
+  [[ "$data_device" == "$archive_device" ]]     || fail "postgres_and_archive_filesystems_differ"
 }
 
 verify_archive_evidence() {
