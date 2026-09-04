@@ -80,17 +80,19 @@ if [[ "$PREFLIGHT_VERIFIED" != /* ]]; then
   exit 2
 fi
 
-PREFLIGHT_VERIFIED_SHA256=$(sha256sum "$PREFLIGHT_VERIFIED" | awk '{print $1}')
 PREFLIGHT_ARCHIVE_BINDING=$(python - "$PREFLIGHT_VERIFIED" "$EXPECTED_FROM_HEAD" "$EXPECTED_HEAD" "$PROJECT" "$ZONE" "$VM" <<'PY'
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
 from pathlib import Path
 
 path, expected_from_head, expected_head, expected_project, expected_zone, expected_vm = sys.argv[1:]
-payload = json.loads(Path(path).read_text(encoding="utf-8"))
+raw = Path(path).read_bytes()
+preflight_verified_sha256 = hashlib.sha256(raw).hexdigest()
+payload = json.loads(raw)
 if payload.get("verdict") != "PASS":
     raise SystemExit("verified preflight verdict is not PASS")
 if payload.get("from_head") != expected_from_head:
@@ -129,11 +131,11 @@ if not isinstance(archive_sha256, str) or not re.fullmatch(
     raise SystemExit("verified preflight archive SHA-256 is invalid")
 if not isinstance(window_end, str) or not window_end:
     raise SystemExit("verified preflight archive window_end is invalid")
-print(f"{evidence_name}\t{archive_sha256}\t{window_end}")
+print(f"{preflight_verified_sha256}\t{evidence_name}\t{archive_sha256}\t{window_end}")
 PY
 )
-IFS=$'\t' read -r PREFLIGHT_ARCHIVE_EVIDENCE_NAME PREFLIGHT_ARCHIVE_SHA256 PREFLIGHT_ARCHIVE_WINDOW_END <<< "$PREFLIGHT_ARCHIVE_BINDING"
-if [[ -z "$PREFLIGHT_ARCHIVE_EVIDENCE_NAME" || -z "$PREFLIGHT_ARCHIVE_SHA256" || -z "$PREFLIGHT_ARCHIVE_WINDOW_END" ]]; then
+IFS=$'\t' read -r PREFLIGHT_VERIFIED_SHA256 PREFLIGHT_ARCHIVE_EVIDENCE_NAME PREFLIGHT_ARCHIVE_SHA256 PREFLIGHT_ARCHIVE_WINDOW_END <<< "$PREFLIGHT_ARCHIVE_BINDING"
+if [[ ! "$PREFLIGHT_VERIFIED_SHA256" =~ ^[0-9a-f]{64}$ || -z "$PREFLIGHT_ARCHIVE_EVIDENCE_NAME" || -z "$PREFLIGHT_ARCHIVE_SHA256" || -z "$PREFLIGHT_ARCHIVE_WINDOW_END" ]]; then
   echo "archive_evidence_binding_mismatch" >&2
   exit 2
 fi
