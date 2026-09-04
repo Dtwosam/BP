@@ -2,7 +2,7 @@
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
   "source_of_truth_version": "0.14.8",
-  "updated_at": "2026-09-04T13:20:48Z",
+  "updated_at": "2026-09-04T13:27:19Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -634,8 +634,7 @@
   ],
   "next_actions": [
     "Keep bp-recorder.service stopped while storage recovery is incomplete; do not lower disk thresholds, manually delete unarchived raw rows, or bypass the recorder storage-health ExecCondition.",
-    "Integrate the read-only Phase 14 storage preflight helper after exact-head CI/PR smoke verification. The preflight may inspect production readiness but must not mutate checkout, services, PostgreSQL, or host evidence state.",
-    "Run the read-only storage preflight against the exact deployed-from SHA and verified main candidate when production access is available. A PASS is prerequisite evidence only and does not authorize migration.",
+    "Run the merged read-only Phase 14 storage preflight from docs/PHASE-14-STORAGE-RECOVERY.md against the exact deployed-from SHA and verified main candidate when production access is available. A PASS is prerequisite evidence only and performs no production mutation.",
     "Treat the partitioned PostgreSQL production migration as a separate explicit authorization step. The rollout must reverify /mnt/bp-data filesystem identity, safe headroom, exact 24–48h archive evidence, research/zero-money safety, retained rollback material, and recorder-stopped state before mutation.",
     "After any separately authorized storage migration passes parity and one verified archive-to-partition-drop cycle proves physical relation-size release, enable maintenance/disk-health timers and keep recorder stopped until the recorder restart gate.",
     "Only after storage health is accepted, deploy the already-merged recorder reliability repair with RECORDER_WRITER_WORKERS=4, restart the recorder in a controlled step, verify all four feeds and natural-load no-drop/backpressure behavior, and preserve V2 Gate A invariants.",
@@ -1156,6 +1155,11 @@
     "read_only_preflight_runbook": "docs/PHASE-14-STORAGE-RECOVERY.md",
     "read_only_preflight_contract": "production-read-only; no checkout/fetch/service/database/evidence-file mutation",
     "read_only_preflight_host_run_performed": false,
-    "read_only_preflight_mutations_performed": false
+    "read_only_preflight_mutations_performed": false,
+    "read_only_preflight_status": "MERGED_MAIN_NOT_HOST_RUN",
+    "read_only_preflight_merge_commit": "99255f06f329207031071759ce6cb360da518819",
+    "read_only_preflight_post_merge_ci_run_id": 33878036846,
+    "read_only_preflight_post_merge_ci_passed": true,
+    "read_only_preflight_post_merge_test_count": 907
   }
 }
