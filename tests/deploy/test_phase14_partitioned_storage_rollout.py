@@ -307,3 +307,20 @@ def test_partitioned_storage_rollout_rechecks_archive_after_managed_units_stop()
 
     assert initial_check < stop_boundary < second_check < migration_apply
 
+def test_partitioned_storage_rollout_evidence_records_preflight_archive_binding() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        '"source_archive_evidence_sha256": archive_evidence_sha256',
+        '"source_archive_window_end": archive_window_end',
+        '"$EXPECTED_ARCHIVE_SHA256"',
+        '"$EXPECTED_ARCHIVE_WINDOW_END"',
+        "archive_evidence_sha256,",
+        "archive_window_end,",
+    ):
+        assert marker in content
+
+    evidence_builder = content.index('EVIDENCE_TMP=$(mktemp')
+    pass_marker = content.index('"verdict": "PASS"', evidence_builder)
+    assert evidence_builder < pass_marker
+
