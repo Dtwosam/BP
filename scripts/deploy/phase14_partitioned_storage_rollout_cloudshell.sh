@@ -212,6 +212,7 @@ VERIFY_JSON=""
 MAINTENANCE_JSON=""
 DISK_JSON=""
 EVIDENCE_PATH=""
+EVIDENCE_STAGE=""
 EVIDENCE_INSTALLED=false
 ARCHIVE_EVIDENCE=""
 POSTGRES_DATA_SOURCE=""
@@ -663,7 +664,7 @@ on_exit() {
     fi
     rollback_partitioned_storage
   fi
-  rm -f "${ENV_BACKUP:-}" "${APPLY_JSON:-}" "${VERIFY_JSON:-}"     "${MAINTENANCE_JSON:-}" "${DISK_JSON:-}"
+  rm -f "${ENV_BACKUP:-}" "${APPLY_JSON:-}" "${VERIFY_JSON:-}"     "${MAINTENANCE_JSON:-}" "${DISK_JSON:-}" "${EVIDENCE_STAGE:-}"
   exit "$rc"
 }
 trap on_exit EXIT
@@ -940,8 +941,12 @@ Path(output_path).write_text(
 PY
 EVIDENCE_TMP_SHA256=$(sha256sum "$EVIDENCE_TMP" | awk '{print $1}')
 [[ "$EVIDENCE_TMP_SHA256" =~ ^[0-9a-f]{64}$ ]] || fail "rollout_evidence_digest_invalid"
-install -o bp -g bp -m 0640 "$EVIDENCE_TMP" "$EVIDENCE_PATH"
+EVIDENCE_STAGE=$(mktemp "$EVIDENCE_DIR/.phase14-partitioned-storage-rollout-$STAMP.XXXXXX.json")
+install -o bp -g bp -m 0640 "$EVIDENCE_TMP" "$EVIDENCE_STAGE"
+sync -f "$EVIDENCE_STAGE" || fail "rollout_evidence_stage_sync_failed"
+ln "$EVIDENCE_STAGE" "$EVIDENCE_PATH" || fail "rollout_evidence_publish_failed"
 EVIDENCE_INSTALLED=true
+rm -f "$EVIDENCE_STAGE"
 EVIDENCE_SHA256=$(sha256sum "$EVIDENCE_PATH" | awk '{print $1}')
 [[ "$EVIDENCE_SHA256" =~ ^[0-9a-f]{64}$ ]] || fail "rollout_evidence_digest_invalid"
 [[ "$EVIDENCE_SHA256" == "$EVIDENCE_TMP_SHA256" ]] || fail "rollout_evidence_copy_mismatch"
