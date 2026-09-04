@@ -288,11 +288,25 @@ def build_default_recorder_service(settings: object) -> RecorderService:
     from bp_engine.recorder.polymarket_coordinator import PolymarketSubscriptionCoordinator
     from bp_engine.recorder.state import MarketStateReducer, MarketStateSnapshotter
     from bp_engine.recorder.writer import BatchWriter, EventBuffer
+    from bp_engine.storage.partitioned_raw import (
+        RawStorageMode,
+        ensure_partitioned_raw_storage,
+        raw_storage_mode,
+    )
     from bp_engine.storage.recorder import RecorderRepository
     from bp_engine.storage.schema import metadata
 
     engine = create_engine(settings.database_url)
     metadata.create_all(engine)
+    if engine.dialect.name == "postgresql":
+        with engine.connect() as connection:
+            storage_mode = raw_storage_mode(connection)
+        if storage_mode is RawStorageMode.PARTITIONED:
+            ensure_partitioned_raw_storage(
+                engine,
+                now=datetime.now(UTC),
+                migrate_existing=False,
+            )
     repository = RecorderRepository()
     database_sink = _DatabaseSink(engine, repository)
     buffer = EventBuffer(maxsize=settings.recorder_queue_maxsize)
