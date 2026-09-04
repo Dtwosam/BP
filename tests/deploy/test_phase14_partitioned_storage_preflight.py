@@ -98,3 +98,17 @@ def test_storage_preflight_has_clean_syntax_and_ci_validation() -> None:
 
     ci = CI.read_text(encoding="utf-8")
     assert "bash -n scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh" in ci
+
+def test_storage_preflight_requires_exact_operator_bound_archive_evidence() -> None:
+    content = PREFLIGHT.read_text(encoding="utf-8")
+
+    for marker in (
+        "PHASE14_PARTITIONED_STORAGE_ARCHIVE_EVIDENCE",
+        "EXPECTED_ARCHIVE_EVIDENCE",
+        "archive_evidence_binding_invalid",
+        'ARCHIVE_EVIDENCE="$EXPECTED_ARCHIVE_EVIDENCE"',
+    ):
+        assert marker in content
+
+    assert 'ls -1t "$EVIDENCE_DIR"/phase14-storage-recovery-24-48h-' not in content
+
