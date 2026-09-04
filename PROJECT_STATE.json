@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.30",
-  "updated_at": "2026-09-04T20:07:22Z",
+  "source_of_truth_version": "0.14.31",
+  "updated_at": "2026-09-04T20:26:28Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -1629,6 +1629,17 @@
     "partitioned_storage_rollout_acceptance_evidence_copy_integrity_test_count": 951,
     "partitioned_storage_rollout_acceptance_evidence_generated_sha256_checked": true,
     "partitioned_storage_rollout_acceptance_evidence_installed_matches_generated": true,
-    "partitioned_storage_rollout_acceptance_evidence_copy_integrity_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
+    "partitioned_storage_rollout_acceptance_evidence_copy_integrity_status": "MERGED_MAIN_NOT_PRODUCTION_RUN",
+    "partitioned_storage_rollout_acceptance_evidence_copy_integrity_pr": 74,
+    "partitioned_storage_rollout_acceptance_evidence_copy_integrity_final_branch_head": "3bd69fbb7e3a25ad8583cc305605ce8a01523e52",
+    "partitioned_storage_rollout_acceptance_evidence_copy_integrity_push_ci_run_id": 33914801853,
+    "partitioned_storage_rollout_acceptance_evidence_copy_integrity_pr_ci_run_id": 33914857531,
+    "partitioned_storage_rollout_acceptance_evidence_copy_integrity_historical_backfill_smoke_run_id": 33914857480,
+    "partitioned_storage_rollout_acceptance_evidence_copy_integrity_live_recorder_smoke_run_id": 33914857492,
+    "partitioned_storage_rollout_acceptance_evidence_copy_integrity_recorder_short_soak_run_id": 33914857490,
+    "partitioned_storage_rollout_acceptance_evidence_copy_integrity_merge_commit": "f64c51a7703705c1bedde9a2b9f0ad489297ed92",
+    "partitioned_storage_rollout_acceptance_evidence_copy_integrity_post_merge_ci_run_id": 33916124578,
+    "partitioned_storage_rollout_acceptance_evidence_copy_integrity_post_merge_ci_passed": true,
+    "partitioned_storage_rollout_acceptance_evidence_copy_integrity_post_merge_test_count": 951
   }
 }
