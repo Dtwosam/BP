@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.8",
-  "updated_at": "2026-09-04T13:27:19Z",
+  "source_of_truth_version": "0.14.9",
+  "updated_at": "2026-09-04T13:55:57Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -634,8 +634,8 @@
   ],
   "next_actions": [
     "Keep bp-recorder.service stopped while storage recovery is incomplete; do not lower disk thresholds, manually delete unarchived raw rows, or bypass the recorder storage-health ExecCondition.",
-    "Run the merged read-only Phase 14 storage preflight from docs/PHASE-14-STORAGE-RECOVERY.md against the exact deployed-from SHA and verified main candidate when production access is available. A PASS is prerequisite evidence only and performs no production mutation.",
-    "Treat the partitioned PostgreSQL production migration as a separate explicit authorization step. The rollout must reverify /mnt/bp-data filesystem identity, safe headroom, exact 24–48h archive evidence, research/zero-money safety, retained rollback material, and recorder-stopped state before mutation.",
+    "Run the merged read-only Phase 14 storage preflight from docs/PHASE-14-STORAGE-RECOVERY.md against the exact deployed-from SHA and exact verified main candidate when production access is available; capture the Cloud Shell transcript and pass it through scripts/deploy/verify_phase14_storage_preflight.py. A verified PASS is prerequisite evidence only and performs no production mutation.",
+    "Treat the partitioned PostgreSQL production migration as a separate explicit authorization step. The rollout must reverify /mnt/bp-data filesystem identity, dynamic migration headroom preserving the 15GiB critical reserve, exact 24–48h archive evidence, research/zero-money safety, retained rollback material, unmigrated legacy storage shape, and recorder-stopped state before mutation.",
     "After any separately authorized storage migration passes parity and one verified archive-to-partition-drop cycle proves physical relation-size release, enable maintenance/disk-health timers and keep recorder stopped until the recorder restart gate.",
     "Only after storage health is accepted, deploy the already-merged recorder reliability repair with RECORDER_WRITER_WORKERS=4, restart the recorder in a controlled step, verify all four feeds and natural-load no-drop/backpressure behavior, and preserve V2 Gate A invariants.",
     "Do not authorize Gate B, V2 policy/model/calibration/edge/min-edge selection, V2 paper execution, Phase 15, geographic bypass, or live trading; keep selected-book freshness exactly 10 seconds and automatic_promotion=false."
@@ -1160,6 +1160,15 @@
     "read_only_preflight_merge_commit": "99255f06f329207031071759ce6cb360da518819",
     "read_only_preflight_post_merge_ci_run_id": 33878036846,
     "read_only_preflight_post_merge_ci_passed": true,
-    "read_only_preflight_post_merge_test_count": 907
+    "read_only_preflight_post_merge_test_count": 907,
+    "read_only_preflight_evidence_verifier": "scripts/deploy/verify_phase14_storage_preflight.py",
+    "read_only_preflight_evidence_verifier_implementation_head": "7ab6108895016debde778a941650970cd7d7106f",
+    "read_only_preflight_evidence_verifier_ci_run_id": 33880625104,
+    "read_only_preflight_evidence_verifier_ci_passed": true,
+    "read_only_preflight_evidence_verifier_test_count": 922,
+    "read_only_preflight_dynamic_headroom_rule": "max(configured_minimum_free_bytes, raw_market_events_total_bytes + 15GiB_critical_reserve)",
+    "read_only_preflight_requires_unmigrated_legacy_shape": true,
+    "read_only_preflight_rejects_conflicting_transcript_fields": true,
+    "read_only_preflight_verified_host_evidence_available": false
   }
 }
