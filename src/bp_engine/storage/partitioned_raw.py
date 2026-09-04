@@ -9,6 +9,7 @@ from sqlalchemy import Connection, Engine, text
 
 _DEDUPE_PARTITIONS = 16
 _RAW_PARTITION_RE = re.compile(r"^raw_market_events_(\d{8})_(\d{2})$")
+_LEGACY_INDEX_RE = re.compile(r"^legacy_\d{2}_(.+)$")
 _SEQUENCE_NAME = "raw_market_events_id_seq_v2"
 _ROLLBACK_TABLE = "raw_market_events_legacy"
 
@@ -46,6 +47,12 @@ class RawPartition:
     name: str
     start_at: datetime
     end_at: datetime
+
+
+@dataclass(frozen=True)
+class RawStorageRollback:
+    restored_table: str
+    restored_rows: int
 
 
 def _require_aware_utc(value: datetime, *, field: str) -> datetime:
@@ -526,6 +533,68 @@ def ensure_partitioned_raw_storage(
             mode=RawStorageMode.PARTITIONED,
             migrated_rows=row_count,
             rollback_table=_ROLLBACK_TABLE,
+        )
+
+
+
+def _restore_legacy_indexes(connection: Connection) -> None:
+    names = connection.execute(
+        text(
+            """
+            SELECT indexname
+            FROM pg_indexes
+            WHERE schemaname = current_schema()
+              AND tablename = 'raw_market_events'
+            ORDER BY indexname
+            """
+        )
+    ).scalars()
+    for raw_name in names:
+        old_name = str(raw_name)
+        match = _LEGACY_INDEX_RE.fullmatch(old_name)
+        if match is None:
+            continue
+        restored_name = match.group(1)
+        connection.execute(
+            text(
+                f"ALTER INDEX {_quote(connection, old_name)} "
+                f"RENAME TO {_quote(connection, restored_name)}"
+            )
+        )
+
+
+def rollback_partitioned_raw_storage(engine: Engine) -> RawStorageRollback:
+    if engine.dialect.name != "postgresql":
+        raise ValueError("partitioned raw rollback requires PostgreSQL")
+
+    with engine.begin() as connection:
+        if raw_storage_mode(connection) is not RawStorageMode.PARTITIONED:
+            raise RuntimeError("raw_market_events is not partitioned")
+        if not _relation_exists(connection, _ROLLBACK_TABLE):
+            raise RuntimeError(
+                f"rollback table {_ROLLBACK_TABLE!r} is missing"
+            )
+
+        rollback_stats = _legacy_stats(connection, _ROLLBACK_TABLE)
+        rollback_rows = int(rollback_stats[0])
+
+        connection.execute(text("DROP TABLE raw_market_events CASCADE"))
+        connection.execute(text("DROP TABLE IF EXISTS raw_event_dedupe CASCADE"))
+        connection.execute(text(f"DROP SEQUENCE IF EXISTS {_SEQUENCE_NAME} CASCADE"))
+        connection.execute(
+            text(f"ALTER TABLE {_ROLLBACK_TABLE} RENAME TO raw_market_events")
+        )
+        _restore_legacy_indexes(connection)
+
+        restored_stats = _legacy_stats(connection, "raw_market_events")
+        if restored_stats != rollback_stats:
+            raise RuntimeError("raw rollback parity validation failed")
+        if raw_storage_mode(connection) is not RawStorageMode.LEGACY:
+            raise RuntimeError("raw rollback did not restore legacy storage mode")
+
+        return RawStorageRollback(
+            restored_table="raw_market_events",
+            restored_rows=rollback_rows,
         )
 
 
