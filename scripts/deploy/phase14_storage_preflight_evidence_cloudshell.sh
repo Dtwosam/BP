@@ -22,10 +22,10 @@ fi
 cd "$ROOT"
 
 LOCAL_HEAD=$(git rev-parse HEAD)
-if [[ "$LOCAL_HEAD" != "$EXPECTED_HEAD" ]]; then
+[[ "$LOCAL_HEAD" == "$EXPECTED_HEAD" ]] || {
   echo "local_candidate_head_mismatch:$LOCAL_HEAD" >&2
   exit 2
-fi
+}
 if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
   echo "local_working_tree_dirty" >&2
   exit 2
