@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.42 — 4 September 2026
+
+Phase 14 independent read-only preflight verification now binds the configured migration free-space floor to the captured transcript. The verifier reads `MIN_FREE_GIB` from the preflight evidence and requires it to equal the threshold used for verification. The Cloud Shell evidence wrapper explicitly passes `PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB` to the verifier, so a custom production threshold cannot be silently reduced to or represented as the default 40 GiB value.
+
+Clean tests-only RED head `941d4670e181f5dbdea164b3081547190c67c211` failed exactly the new free-space-threshold binding contract while all **957 existing tests passed** in CI `33927883440`. GREEN head `53c186b4378787e182859dbe4f15106dbd113b42` passed CI `33928075496` with **958 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also records PR #85's integration. Final head `246e94afbf049c348ab1574748104d953205fbe2` passed push CI `33927542818`, PR CI `33927569436`, Historical Backfill Smoke `33927569464`, Live Recorder Smoke `33927569463`, and Recorder Short Soak `33927569484`. PR #85 merged as `84bd7935d8ea657f999a80c1c5cfd9fb12da7e85`; post-merge main CI `33927715393` passed **957 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.41 — 4 September 2026
 
 Phase 14 independent read-only preflight verification now binds the exact recovery archive evidence path before verified JSON is emitted. The verifier CLI requires an explicit `--expected-archive-evidence` path, and the Cloud Shell evidence wrapper passes the canonical archive selected from `PROJECT_STATE.json`. A transcript naming a different recovery archive is rejected even if that alternate path matches the canonical filename pattern.
