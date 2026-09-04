@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.41 — 4 September 2026
+
+Phase 14 independent read-only preflight verification now binds the exact recovery archive evidence path before verified JSON is emitted. The verifier CLI requires an explicit `--expected-archive-evidence` path, and the Cloud Shell evidence wrapper passes the canonical archive selected from `PROJECT_STATE.json`. A transcript naming a different recovery archive is rejected even if that alternate path matches the canonical filename pattern.
+
+Clean tests-only RED head `6480fa34d337c719a5a4139a12bd8be14021e715` failed exactly the new archive-binding contract while all **956 existing tests passed** in CI `33927179956`. GREEN head `1984f69b98e7ecd60cd30c35b976bd5462c5c8fb` passed CI `33927346608` with **957 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #84's integration record. Final head `c9506d161613dce47fb8a71bd4bb8a87bf5a87a5` passed push CI `33926105364`, PR CI `33926140785`, Historical Backfill Smoke `33926140869`, Live Recorder Smoke `33926140811`, and Recorder Short Soak `33926140830`. PR #84 merged as `97bbe426182cfacaace2b8aa64d929059d34f606`; post-merge main CI `33926308381` passed **956 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.40 — 4 September 2026
 
 Phase 14 verified preflight target binding is now integrated on `main`. PR #83 final head `829b1e5658fd409390f982f5901cf86b67e630c6` passed push CI `33925695975`, PR CI `33925723843`, Historical Backfill Smoke `33925723819`, Live Recorder Smoke `33925723818`, and Recorder Short Soak `33925723795`. It merged as `2ac8fad310eddf767598ac0610e0d89c5cfdc96b`; post-merge main CI `33925903210` then passed **956 tests** plus rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
