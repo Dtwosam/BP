@@ -81,7 +81,7 @@ if [[ "$PREFLIGHT_VERIFIED" != /* ]]; then
 fi
 
 PREFLIGHT_VERIFIED_SHA256=$(sha256sum "$PREFLIGHT_VERIFIED" | awk '{print $1}')
-PREFLIGHT_ARCHIVE_BINDING=$(python - "$PREFLIGHT_VERIFIED" "$EXPECTED_FROM_HEAD" "$EXPECTED_HEAD" <<'PY'
+PREFLIGHT_ARCHIVE_BINDING=$(python - "$PREFLIGHT_VERIFIED" "$EXPECTED_FROM_HEAD" "$EXPECTED_HEAD" "$PROJECT" "$ZONE" "$VM" <<'PY'
 from __future__ import annotations
 
 import json
@@ -89,7 +89,7 @@ import re
 import sys
 from pathlib import Path
 
-path, expected_from_head, expected_head = sys.argv[1:]
+path, expected_from_head, expected_head, expected_project, expected_zone, expected_vm = sys.argv[1:]
 payload = json.loads(Path(path).read_text(encoding="utf-8"))
 if payload.get("verdict") != "PASS":
     raise SystemExit("verified preflight verdict is not PASS")
@@ -105,6 +105,14 @@ if payload.get("recorder_state") != "stopped":
     raise SystemExit("verified preflight recorder state is not stopped")
 if payload.get("storage_shape") != "legacy_unmigrated":
     raise SystemExit("verified preflight storage shape is not legacy_unmigrated")
+
+target = payload.get("target") or {}
+if target.get("project") != expected_project:
+    raise SystemExit("verified preflight PROJECT mismatch")
+if target.get("zone") != expected_zone:
+    raise SystemExit("verified preflight ZONE mismatch")
+if target.get("vm") != expected_vm:
+    raise SystemExit("verified preflight VM mismatch")
 
 archive = payload.get("archive") or {}
 evidence_name = archive.get("evidence_name")
