@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-04-phase-14-partitioned-raw-retention-design.md`
 
-**Implementation status:** Tasks 1–6 engineering-verified on `44ba80fc9e6fdafb6e29c40b0d634d22c86d12e4` with 903 tests and all three PR smoke gates green. Task 7 documentation/source-of-truth reconciliation and final docs-complete exact-head verification are in progress. Production migration remains unperformed and separately gated.
+**Implementation status:** Tasks 1–6 engineering-verified on `44ba80fc9e6fdafb6e29c40b0d634d22c86d12e4`. Task 7 documentation/source-of-truth reconciliation and docs-complete verification passed on `3c8bb5cb9f80e077e506dc80d329053a9350d568`: 903 tests, Ruff, deployment/health/dashboard validation, Historical Backfill Smoke, Live Recorder Smoke, and Recorder Short Soak all green. The final evidence-recording head still requires its exact-head recheck before PR #50 leaves draft. Production migration remains unperformed and separately gated.
 
 ## Global Constraints
 
@@ -272,24 +272,24 @@
 - Project status remains `PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED`.
 - Add a Phase 14 storage-recovery/reliability checkpoint; do not rewrite older Phase 3 acceptance evidence.
 
-- [ ] **Step 1: Update docs with measured incident and new physical-retention contract**
+- [x] **Step 1: Update docs with measured incident and new physical-retention contract**
   - Record why Phase 3 chunked deletion was superseded by partition drop.
   - Keep original Phase 3 evidence immutable.
 
-- [ ] **Step 2: Update PROJECT_STATE truthfully**
+- [x] **Step 2: Update PROJECT_STATE truthfully**
   - Record engineering candidate, test evidence, production recorder-stopped recovery state.
   - Do not claim production partition rollout until host acceptance occurs.
 
-- [ ] **Step 3: Run exact-head full CI via GitHub Actions**
+- [x] **Step 3: Run exact-head full CI via GitHub Actions**
   - Required: Ruff, complete pytest suite, deployment validation, dashboard tests/typecheck/build.
 
-- [ ] **Step 4: Trigger/verify PR smoke gates**
+- [x] **Step 4: Trigger/verify PR smoke gates**
   - Historical Backfill Smoke.
   - Live Recorder Smoke.
   - Recorder Short Soak.
   - Treat smoke tests as engineering verification only; no production rollout.
 
-- [ ] **Step 5: Diff review against `main`**
+- [x] **Step 5: Diff review against `main`**
   - Verify no model/policy/calibration/edge/live-order/geoblock/Phase 15 changes.
   - Verify selected-book 10-second freshness untouched.
 
