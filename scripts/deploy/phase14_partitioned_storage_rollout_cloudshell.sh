@@ -9,6 +9,7 @@ EXPECTED_HEAD="${PHASE14_PARTITIONED_STORAGE_HEAD:-}"
 EXPECTED_FROM_HEAD="${PHASE14_PARTITIONED_STORAGE_FROM_HEAD:-}"
 ENV_FILE="${PHASE14_PARTITIONED_STORAGE_ENV_FILE:-/etc/bp/bp.env}"
 MIN_FREE_GIB="${PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB:-40}"
+PREFLIGHT_VERIFIED="${PHASE14_PARTITIONED_STORAGE_PREFLIGHT_VERIFIED:-}"
 
 if [[ ! "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
   echo "PHASE14_PARTITIONED_STORAGE_HEAD must be the exact 40-character verified candidate SHA" >&2
@@ -38,6 +39,40 @@ if ! gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q
   echo "no active gcloud account; authorize Cloud Shell and rerun" >&2
   exit 2
 fi
+if [[ -z "$PREFLIGHT_VERIFIED" || ! -r "$PREFLIGHT_VERIFIED" ]]; then
+  echo "verified_preflight_missing" >&2
+  exit 2
+fi
+if [[ "$PREFLIGHT_VERIFIED" != /* ]]; then
+  echo "PHASE14_PARTITIONED_STORAGE_PREFLIGHT_VERIFIED must be an absolute path" >&2
+  exit 2
+fi
+
+PREFLIGHT_VERIFIED_SHA256=$(sha256sum "$PREFLIGHT_VERIFIED" | awk '{print $1}')
+python - "$PREFLIGHT_VERIFIED" "$EXPECTED_FROM_HEAD" "$EXPECTED_HEAD" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+path, expected_from_head, expected_head = sys.argv[1:]
+payload = json.loads(Path(path).read_text(encoding="utf-8"))
+if payload.get("verdict") != "PASS":
+    raise SystemExit("verified preflight verdict is not PASS")
+if payload.get("from_head") != expected_from_head:
+    raise SystemExit("verified preflight FROM_HEAD mismatch")
+if payload.get("head") != expected_head:
+    raise SystemExit("verified preflight HEAD mismatch")
+if payload.get("remote_head") != expected_head:
+    raise SystemExit("verified preflight REMOTE_HEAD mismatch")
+if payload.get("mutations_performed") is not False:
+    raise SystemExit("verified preflight reported mutations")
+if payload.get("recorder_state") != "stopped":
+    raise SystemExit("verified preflight recorder state is not stopped")
+if payload.get("storage_shape") != "legacy_unmigrated":
+    raise SystemExit("verified preflight storage shape is not legacy_unmigrated")
+PY
 
 gcloud config set project "$PROJECT" >/dev/null
 
@@ -46,6 +81,7 @@ printf -v FROM_Q '%q' "$EXPECTED_FROM_HEAD"
 printf -v BRANCH_Q '%q' "$BRANCH"
 printf -v ENV_Q '%q' "$ENV_FILE"
 printf -v FREE_Q '%q' "$MIN_FREE_GIB"
+printf -v PREFLIGHT_SHA_Q '%q' "$PREFLIGHT_VERIFIED_SHA256"
 
 read -r -d '' WORKER <<'WORKER_EOF' || true
 set -Eeuo pipefail
@@ -55,6 +91,7 @@ EXPECTED_FROM_HEAD="${PHASE14_PARTITIONED_STORAGE_FROM_HEAD:?}"
 BRANCH="${PHASE14_PARTITIONED_STORAGE_BRANCH:?}"
 ENV_FILE="${PHASE14_PARTITIONED_STORAGE_ENV_FILE:?}"
 MIN_FREE_GIB="${PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB:?}"
+PREFLIGHT_VERIFIED_SHA256="${PHASE14_PARTITIONED_STORAGE_PREFLIGHT_SHA256:?}"
 
 REPO=/opt/bp
 PYTHON="$REPO/.venv/bin/python"
@@ -74,6 +111,9 @@ MAINTENANCE_JSON=""
 DISK_JSON=""
 ARCHIVE_EVIDENCE=""
 POSTGRES_DATA_SOURCE=""
+MIGRATION_FREE_BYTES=""
+MIGRATION_RAW_TOTAL_BYTES=""
+MIGRATION_REQUIRED_FREE_BYTES=""
 
 MANAGED_UNITS=(
   bp-dashboard-api.service
@@ -298,6 +338,41 @@ verify_dedicated_data_filesystem() {
   [[ "$data_device" == "$archive_device" ]]     || fail "postgres_and_archive_filesystems_differ"
 }
 
+verify_migration_headroom() {
+  local postgres_user postgres_db raw_total_bytes free_bytes
+  local critical_reserve_bytes configured_minimum_bytes required_free_bytes
+
+  postgres_user=$(read_env POSTGRES_USER)
+  postgres_db=$(read_env POSTGRES_DB)
+  postgres_user=${postgres_user:-bp}
+  postgres_db=${postgres_db:-bp}
+
+  raw_total_bytes=$(docker compose \
+    --env-file "$ENV_FILE" \
+    -f "$REPO/docker-compose.prod.yml" \
+    exec -T postgres \
+    psql -U "$postgres_user" -d "$postgres_db" -At -c \
+    "SELECT pg_total_relation_size('public.raw_market_events')::bigint;") \
+    || fail "postgres_raw_relation_size_query_failed"
+  raw_total_bytes=$(printf '%s' "$raw_total_bytes" | tr -d '[:space:]')
+  [[ "$raw_total_bytes" =~ ^[0-9]+$ ]] || fail "invalid_raw_relation_size"
+
+  free_bytes=$(df --output=avail -B1 /mnt/bp-data | tail -n1 | tr -d ' ')
+  [[ "$free_bytes" =~ ^[0-9]+$ ]] || fail "invalid_dedicated_data_free_bytes"
+
+  critical_reserve_bytes=$((15 * 1024 * 1024 * 1024))
+  configured_minimum_bytes=$((MIN_FREE_GIB * 1024 * 1024 * 1024))
+  required_free_bytes=$((raw_total_bytes + critical_reserve_bytes))
+  if (( required_free_bytes < configured_minimum_bytes )); then
+    required_free_bytes=$configured_minimum_bytes
+  fi
+
+  MIGRATION_FREE_BYTES=$free_bytes
+  MIGRATION_RAW_TOTAL_BYTES=$raw_total_bytes
+  MIGRATION_REQUIRED_FREE_BYTES=$required_free_bytes
+  (( free_bytes >= required_free_bytes )) || fail "insufficient_migration_headroom"
+}
+
 verify_archive_evidence() {
   ARCHIVE_EVIDENCE=$(ls -1t "$EVIDENCE_DIR"/phase14-storage-recovery-24-48h-*.json 2>/dev/null | head -n1 || true)
   [[ -n "$ARCHIVE_EVIDENCE" ]] || fail "verified_24_48h_archive_evidence_missing"
@@ -375,6 +450,7 @@ require_research_zero_money
 require_recorder_stopped
 verify_dedicated_data_filesystem
 verify_archive_evidence
+verify_migration_headroom
 
 OLD_HEAD=$(git -C "$REPO" rev-parse HEAD)
 OLD_BRANCH=$(git -C "$REPO" symbolic-ref --quiet --short HEAD || true)
@@ -394,6 +470,7 @@ cp -a "$ENV_FILE" "$ENV_BACKUP"
 ROLLBACK_ARMED=1
 stop_managed_units
 require_recorder_stopped
+verify_migration_headroom
 
 git -C "$REPO" checkout --detach --force "$SHA" >/dev/null
 [[ "$(git -C "$REPO" rev-parse HEAD)" == "$SHA" ]] || fail "candidate_checkout_failed"
@@ -490,7 +567,7 @@ install -d -o bp -g bp -m 0750 "$EVIDENCE_DIR"
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 EVIDENCE_PATH="$EVIDENCE_DIR/phase14-partitioned-storage-rollout-$STAMP.json"
 EVIDENCE_TMP=$(mktemp /var/tmp/bp-partitioned-storage-evidence.XXXXXX.json)
-"$PYTHON" -   "$APPLY_JSON" "$VERIFY_JSON" "$MAINTENANCE_JSON" "$DISK_JSON"   "$EVIDENCE_TMP" "$OLD_HEAD" "$SHA" "$ARCHIVE_EVIDENCE" "$POSTGRES_DATA_SOURCE" <<'PY'
+"$PYTHON" -   "$APPLY_JSON" "$VERIFY_JSON" "$MAINTENANCE_JSON" "$DISK_JSON"   "$EVIDENCE_TMP" "$OLD_HEAD" "$SHA" "$ARCHIVE_EVIDENCE" "$POSTGRES_DATA_SOURCE"   "$PREFLIGHT_VERIFIED_SHA256" "$MIGRATION_FREE_BYTES" "$MIGRATION_RAW_TOTAL_BYTES" "$MIGRATION_REQUIRED_FREE_BYTES" <<'PY'
 from __future__ import annotations
 
 import json
@@ -508,6 +585,10 @@ from pathlib import Path
     new_head,
     archive_evidence,
     postgres_data_source,
+    preflight_verified_sha256,
+    migration_free_bytes,
+    migration_raw_total_bytes,
+    migration_required_free_bytes,
 ) = sys.argv[1:]
 payload = {
     "verdict": "PASS",
@@ -525,6 +606,13 @@ payload = {
     "archive_dir": "/mnt/bp-data/archive/raw",
     "postgres_data_source": postgres_data_source,
     "source_archive_evidence": archive_evidence,
+    "verified_preflight_sha256": preflight_verified_sha256,
+    "pre_migration_headroom": {
+        "free_bytes": int(migration_free_bytes),
+        "raw_total_bytes": int(migration_raw_total_bytes),
+        "required_free_bytes": int(migration_required_free_bytes),
+        "critical_reserve_gib": 15,
+    },
     "migration": json.loads(Path(apply_path).read_text(encoding="utf-8")),
     "verification": json.loads(Path(verify_path).read_text(encoding="utf-8")),
     "maintenance": json.loads(Path(maintenance_path).read_text(encoding="utf-8")),
@@ -559,7 +647,7 @@ UNIT="bp-phase14-partitioned-storage-$SHORT"
 WORKER_PATH="/var/tmp/$UNIT.sh"
 printf '%s' $WORKER_B64_Q | base64 -d > "$WORKER_PATH"
 chmod 0700 "$WORKER_PATH"
-systemd-run   --unit="$UNIT"   --description="BP Phase 14 partitioned storage rollout"   --property=Type=oneshot   --property=StandardOutput=journal   --property=StandardError=journal   --setenv=PHASE14_PARTITIONED_STORAGE_HEAD="$HEAD_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_FROM_HEAD="$FROM_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_BRANCH="$BRANCH_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_ENV_FILE="$ENV_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB="$FREE_Q"   /bin/bash "$WORKER_PATH"
+systemd-run   --unit="$UNIT"   --description="BP Phase 14 partitioned storage rollout"   --property=Type=oneshot   --property=StandardOutput=journal   --property=StandardError=journal   --setenv=PHASE14_PARTITIONED_STORAGE_HEAD="$HEAD_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_FROM_HEAD="$FROM_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_BRANCH="$BRANCH_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_ENV_FILE="$ENV_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB="$FREE_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_SHA256="$PREFLIGHT_SHA_Q"   /bin/bash "$WORKER_PATH"
 echo "PHASE14_PARTITIONED_STORAGE_STARTED=PASS"
 echo "UNIT=$UNIT.service"
 echo "STATUS_COMMAND=sudo systemctl status $UNIT.service --no-pager -l"
@@ -572,6 +660,8 @@ echo "ZONE=$ZONE"
 echo "FROM_HEAD=$EXPECTED_FROM_HEAD"
 echo "HEAD=$EXPECTED_HEAD"
 echo "MIN_FREE_GIB=$MIN_FREE_GIB"
+echo "PREFLIGHT_VERIFIED=$PREFLIGHT_VERIFIED"
+echo "PREFLIGHT_VERIFIED_SHA256=$PREFLIGHT_VERIFIED_SHA256"
 echo "Launching detached partitioned-storage rollout job; production recorder is not started."
 
 gcloud compute ssh "$VM"   --project="$PROJECT"   --zone="$ZONE"   --command="sudo env PHASE14_PARTITIONED_STORAGE_HEAD=$HEAD_Q PHASE14_PARTITIONED_STORAGE_FROM_HEAD=$FROM_Q PHASE14_PARTITIONED_STORAGE_BRANCH=$BRANCH_Q PHASE14_PARTITIONED_STORAGE_ENV_FILE=$ENV_Q PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB=$FREE_Q bash -s"   <<< "$LAUNCHER"
