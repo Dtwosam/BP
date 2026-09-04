@@ -1,17 +1,23 @@
 from __future__ import annotations
 
 import os
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
+from threading import Barrier
 
 import pytest
 from sqlalchemy import create_engine, insert, text
+from sqlalchemy.exc import DBAPIError
 
+from bp_engine.recorder.models import RawEvent
 from bp_engine.storage.partitioned_raw import (
     RawStorageMode,
+    drop_raw_partition,
     ensure_partitioned_raw_storage,
     list_raw_partitions,
     raw_storage_mode,
 )
+from bp_engine.storage.recorder import RecorderRepository
 from bp_engine.storage.schema import raw_market_events
 
 DATABASE_URL = os.getenv("BP_TEST_DATABASE_URL")
@@ -275,3 +281,132 @@ def test_explicit_migration_preserves_rows_ids_dedupe_and_feed_ranges(engine) ->
         ("polymarket", "market", 1, 104, 104),
     ]
     assert next_id > 109
+
+
+
+def _event(received_at: datetime, sequence: int = 1) -> RawEvent:
+    return RawEvent.build(
+        source="polymarket",
+        stream="market",
+        instrument="partitioned-dedupe-condition",
+        event_type="last_trade_price",
+        source_timestamp=received_at,
+        received_at=received_at,
+        sequence=sequence,
+        market_id="partitioned-dedupe-condition",
+        asset_id="partitioned-dedupe-token",
+        payload={"sequence": sequence, "price": "0.51"},
+    )
+
+
+def test_partitioned_writer_preserves_replay_dedupe(engine) -> None:
+    now = datetime(2026, 9, 4, 12, 5, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now)
+    repository = RecorderRepository()
+    event = _event(now)
+
+    with engine.begin() as connection:
+        assert repository.insert_events(connection, [event]) == 1
+        assert repository.insert_events(connection, [event]) == 0
+
+    with engine.connect() as connection:
+        raw_count = connection.execute(
+            text(
+                """
+                SELECT count(*)
+                FROM raw_market_events
+                WHERE dedupe_key = :dedupe_key
+                """
+            ),
+            {"dedupe_key": event.dedupe_key},
+        ).scalar_one()
+        ledger_count = connection.execute(
+            text(
+                """
+                SELECT count(*)
+                FROM raw_event_dedupe
+                WHERE dedupe_key = :dedupe_key
+                """
+            ),
+            {"dedupe_key": event.dedupe_key},
+        ).scalar_one()
+
+    assert raw_count == 1
+    assert ledger_count == 1
+
+
+def test_partitioned_writer_concurrent_duplicate_race_persists_one_row(engine) -> None:
+    now = datetime(2026, 9, 4, 13, 5, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now)
+    event = _event(now, sequence=2)
+    barrier = Barrier(2)
+
+    def write_once() -> int:
+        repository = RecorderRepository()
+        with engine.begin() as connection:
+            barrier.wait(timeout=5)
+            return repository.insert_events(connection, [event])
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _index: write_once(), range(2)))
+
+    assert sorted(results) == [0, 1]
+    with engine.connect() as connection:
+        raw_count = connection.execute(
+            text(
+                """
+                SELECT count(*)
+                FROM raw_market_events
+                WHERE dedupe_key = :dedupe_key
+                """
+            ),
+            {"dedupe_key": event.dedupe_key},
+        ).scalar_one()
+        ledger_count = connection.execute(
+            text(
+                """
+                SELECT count(*)
+                FROM raw_event_dedupe
+                WHERE dedupe_key = :dedupe_key
+                """
+            ),
+            {"dedupe_key": event.dedupe_key},
+        ).scalar_one()
+
+    assert raw_count == 1
+    assert ledger_count == 1
+
+
+def test_partitioned_writer_missing_hour_rolls_back_dedupe_claim(engine) -> None:
+    now = datetime(2026, 9, 4, 14, 5, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now)
+    event = _event(now, sequence=3)
+    start_at = now.replace(minute=0, second=0, microsecond=0)
+    end_at = start_at + timedelta(hours=1)
+
+    with engine.begin() as connection:
+        dropped = drop_raw_partition(
+            connection,
+            start_at=start_at,
+            end_at=end_at,
+        )
+    assert dropped == "raw_market_events_20260904_14"
+
+    repository = RecorderRepository()
+    with pytest.raises(DBAPIError, match="no partition"):
+        with engine.begin() as connection:
+            repository.insert_events(connection, [event])
+
+    with engine.connect() as connection:
+        ledger_count = connection.execute(
+            text(
+                """
+                SELECT count(*)
+                FROM raw_event_dedupe
+                WHERE dedupe_key = :dedupe_key
+                """
+            ),
+            {"dedupe_key": event.dedupe_key},
+        ).scalar_one()
+
+    assert ledger_count == 0
