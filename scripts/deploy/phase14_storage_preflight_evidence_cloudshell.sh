@@ -62,14 +62,30 @@ STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 TRANSCRIPT="${PHASE14_STORAGE_PREFLIGHT_TRANSCRIPT:-$HOME/bp-phase14-storage-preflight-$STAMP.txt}"
 VERIFIED="${PHASE14_STORAGE_PREFLIGHT_VERIFIED:-$HOME/bp-phase14-storage-preflight-$STAMP.json}"
 
-PHASE14_PARTITIONED_STORAGE_ARCHIVE_EVIDENCE="$ARCHIVE_EVIDENCE" \
-  bash "$PREFLIGHT" | tee "$TRANSCRIPT"
+[[ "$TRANSCRIPT" != "$VERIFIED" ]] || {
+  echo "preflight_evidence_paths_must_differ" >&2
+  exit 2
+}
+(set -o noclobber; : > "$TRANSCRIPT") || {
+  echo "preflight_transcript_path_exists" >&2
+  exit 2
+}
 
-python "$VERIFIER" \
+PHASE14_PARTITIONED_STORAGE_ARCHIVE_EVIDENCE="$ARCHIVE_EVIDENCE" \
+  bash "$PREFLIGHT" | tee -a "$TRANSCRIPT"
+
+(set -o noclobber; : > "$VERIFIED") || {
+  echo "preflight_verified_path_exists" >&2
+  exit 2
+}
+if ! python "$VERIFIER" \
   --input "$TRANSCRIPT" \
   --expected-from-head "$EXPECTED_FROM_HEAD" \
   --expected-head "$EXPECTED_HEAD" \
-  > "$VERIFIED"
+  > "$VERIFIED"; then
+  rm -f "$VERIFIED"
+  exit 1
+fi
 
 VERIFIED_SHA256=$(sha256sum "$VERIFIED" | awk '{print $1}')
 [[ "$VERIFIED_SHA256" =~ ^[0-9a-f]{64}$ ]] || {

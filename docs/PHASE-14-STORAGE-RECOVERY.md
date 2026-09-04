@@ -50,7 +50,7 @@ TRANSCRIPT=<Cloud Shell transcript path>
 VERIFIED=<Cloud Shell verified JSON path>
 ```
 
-The transcript and verified JSON are created in Cloud Shell, not on the production VM. By default they are written under `$HOME`; custom paths may be supplied with `PHASE14_STORAGE_PREFLIGHT_TRANSCRIPT` and `PHASE14_STORAGE_PREFLIGHT_VERIFIED`. Do not substitute a shortened SHA and do not run the wrapper from a modified checkout. After verification succeeds, the wrapper also prints `VERIFIED_SHA256=<64-hex>` for review and approval bookkeeping. That output is evidence only: the wrapper never sets `PHASE14_PARTITIONED_STORAGE_APPROVED_PREFLIGHT_SHA256` and does not authorize migration.
+The transcript and verified JSON are created in Cloud Shell, not on the production VM. By default they are written under `$HOME`; custom paths may be supplied with `PHASE14_STORAGE_PREFLIGHT_TRANSCRIPT` and `PHASE14_STORAGE_PREFLIGHT_VERIFIED`. The two paths must differ and must not already exist: the wrapper reserves each with shell `noclobber`, appends the transcript only after the transcript path is reserved, and removes the reserved verified JSON if independent verification fails. A failed host preflight therefore leaves its transcript for review without creating verified JSON, while same-second reruns and reused custom paths fail closed instead of overwriting earlier evidence. Do not substitute a shortened SHA and do not run the wrapper from a modified checkout. After verification succeeds, the wrapper also prints `VERIFIED_SHA256=<64-hex>` for review and approval bookkeeping. That output is evidence only: the wrapper never sets `PHASE14_PARTITIONED_STORAGE_APPROVED_PREFLIGHT_SHA256` and does not authorize migration.
 
 The raw preflight must end with:
 

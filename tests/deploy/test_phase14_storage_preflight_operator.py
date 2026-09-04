@@ -18,7 +18,7 @@ def test_cloudshell_evidence_runner_captures_and_verifies_without_host_mutation(
         "PHASE14_PARTITIONED_STORAGE_HEAD",
         "phase14_partitioned_storage_preflight_cloudshell.sh",
         "verify_phase14_storage_preflight.py",
-        'tee "$TRANSCRIPT"',
+        'tee -a "$TRANSCRIPT"',
         '--expected-from-head "$EXPECTED_FROM_HEAD"',
         '--expected-head "$EXPECTED_HEAD"',
         "PHASE14_STORAGE_PREFLIGHT_EVIDENCE=PASS",
@@ -116,3 +116,44 @@ def test_cloudshell_evidence_runner_reports_verified_digest_without_approval() -
 
     assert "PHASE14_PARTITIONED_STORAGE_APPROVED_PREFLIGHT_SHA256=" not in content
 
+
+def test_cloudshell_evidence_runner_reserves_local_evidence_paths_without_clobber() -> None:
+    content = RUNNER.read_text(encoding="utf-8")
+
+    for marker in (
+        '[[ "$TRANSCRIPT" != "$VERIFIED" ]]',
+        "preflight_evidence_paths_must_differ",
+        '(set -o noclobber; : > "$TRANSCRIPT")',
+        "preflight_transcript_path_exists",
+        'tee -a "$TRANSCRIPT"',
+        '(set -o noclobber; : > "$VERIFIED")',
+        "preflight_verified_path_exists",
+        'rm -f "$VERIFIED"',
+    ):
+        assert marker in content
+
+    transcript = content.index('TRANSCRIPT="${PHASE14_STORAGE_PREFLIGHT_TRANSCRIPT:-')
+    verified = content.index('VERIFIED="${PHASE14_STORAGE_PREFLIGHT_VERIFIED:-', transcript)
+    distinct = content.index('[[ "$TRANSCRIPT" != "$VERIFIED" ]]', verified)
+    reserve_transcript = content.index(
+        '(set -o noclobber; : > "$TRANSCRIPT")',
+        distinct,
+    )
+    preflight = content.index('bash "$PREFLIGHT" | tee -a "$TRANSCRIPT"', reserve_transcript)
+    reserve_verified = content.index(
+        '(set -o noclobber; : > "$VERIFIED")',
+        preflight,
+    )
+    verifier = content.index('python "$VERIFIER"', reserve_verified)
+    cleanup_failed_verified = content.index('rm -f "$VERIFIED"', verifier)
+
+    assert (
+        transcript
+        < verified
+        < distinct
+        < reserve_transcript
+        < preflight
+        < reserve_verified
+        < verifier
+        < cleanup_failed_verified
+    )
