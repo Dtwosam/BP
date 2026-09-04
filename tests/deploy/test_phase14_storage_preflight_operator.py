@@ -18,7 +18,7 @@ def test_cloudshell_evidence_runner_captures_and_verifies_without_host_mutation(
         "PHASE14_PARTITIONED_STORAGE_HEAD",
         "phase14_partitioned_storage_preflight_cloudshell.sh",
         "verify_phase14_storage_preflight.py",
-        'tee "$TRANSCRIPT"',
+        'tee -a "$TRANSCRIPT"',
         '--expected-from-head "$EXPECTED_FROM_HEAD"',
         '--expected-head "$EXPECTED_HEAD"',
         "PHASE14_STORAGE_PREFLIGHT_EVIDENCE=PASS",
