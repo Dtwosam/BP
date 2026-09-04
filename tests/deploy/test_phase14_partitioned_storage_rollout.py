@@ -388,13 +388,16 @@ def test_partitioned_storage_rollout_binds_approval_to_verified_preflight_digest
         'gcloud config set project "$PROJECT"'
     )
 
-def test_partitioned_storage_rollout_evidence_records_explicit_approval_scope() -> None:
+
+def test_rollout_evidence_records_explicit_approval_scope() -> None:
     content = HELPER.read_text(encoding="utf-8")
 
     for marker in (
-        'APPROVED_FROM_HEAD="${PHASE14_PARTITIONED_STORAGE_APPROVED_FROM_HEAD:?}"',
+        'APPROVED_FROM_HEAD="${PHASE14_PARTITIONED_STORAGE_'
+        'APPROVED_FROM_HEAD:?}"',
         'APPROVED_HEAD="${PHASE14_PARTITIONED_STORAGE_APPROVED_HEAD:?}"',
-        'APPROVED_PREFLIGHT_SHA256="${PHASE14_PARTITIONED_STORAGE_APPROVED_PREFLIGHT_SHA256:?}"',
+        'APPROVED_PREFLIGHT_SHA256="${PHASE14_PARTITIONED_STORAGE_'
+        'APPROVED_PREFLIGHT_SHA256:?}"',
         '"approval": {',
         '"from_sha": approved_from_head',
         '"candidate_sha": approved_head',
