@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.32",
-  "updated_at": "2026-09-04T20:39:18Z",
+  "source_of_truth_version": "0.14.33",
+  "updated_at": "2026-09-04T20:45:37Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -1651,6 +1651,17 @@
     "partitioned_storage_rollout_acceptance_evidence_durability_test_count": 952,
     "partitioned_storage_rollout_acceptance_evidence_durability_sync_command": "sync -f",
     "partitioned_storage_rollout_acceptance_evidence_durably_synced_before_disarm": true,
-    "partitioned_storage_rollout_acceptance_evidence_durability_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
+    "partitioned_storage_rollout_acceptance_evidence_durability_status": "MERGED_MAIN_NOT_PRODUCTION_RUN",
+    "partitioned_storage_rollout_acceptance_evidence_durability_pr": 76,
+    "partitioned_storage_rollout_acceptance_evidence_durability_final_branch_head": "2cbeaa055c1e37a6268e7a26464fcc9dec9beeb9",
+    "partitioned_storage_rollout_acceptance_evidence_durability_push_ci_run_id": 33917470395,
+    "partitioned_storage_rollout_acceptance_evidence_durability_pr_ci_run_id": 33917513711,
+    "partitioned_storage_rollout_acceptance_evidence_durability_historical_backfill_smoke_run_id": 33917513493,
+    "partitioned_storage_rollout_acceptance_evidence_durability_live_recorder_smoke_run_id": 33917513774,
+    "partitioned_storage_rollout_acceptance_evidence_durability_recorder_short_soak_run_id": 33917513615,
+    "partitioned_storage_rollout_acceptance_evidence_durability_merge_commit": "7447d70f6b16c583e5f553d786c9649cd441cbda",
+    "partitioned_storage_rollout_acceptance_evidence_durability_post_merge_ci_run_id": 33917709776,
+    "partitioned_storage_rollout_acceptance_evidence_durability_post_merge_ci_passed": true,
+    "partitioned_storage_rollout_acceptance_evidence_durability_post_merge_test_count": 952
   }
 }
