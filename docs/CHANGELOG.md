@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.33 — 4 September 2026
+
+Phase 14 acceptance-evidence durability is now integrated on `main`. PR #76 final head `2cbeaa055c1e37a6268e7a26464fcc9dec9beeb9` passed push CI `33917470395`, PR CI `33917513711`, Historical Backfill Smoke `33917513493`, Live Recorder Smoke `33917513774`, and Recorder Short Soak `33917513615`. It merged as `7447d70f6b16c583e5f553d786c9649cd441cbda`; post-merge main CI `33917709776` then passed **952 tests** plus rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+The merged worker performs `sync -f "$EVIDENCE_PATH"` only after generated/installed SHA-256 equality is proven and before temp cleanup or rollback disarm. A sync failure exits with `rollout_evidence_sync_failed` while rollback remains armed. This closes the PR #76 integration record; it does not authorize production execution.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.32 — 4 September 2026
 
 Phase 14 final rollout acceptance evidence is now explicitly flushed to persistent storage before rollback protection is disarmed. After the generated and installed acceptance JSON SHA-256 digests match, the worker runs `sync -f "$EVIDENCE_PATH"`; any failure exits with `rollout_evidence_sync_failed` while `ROLLBACK_ARMED=1`. Temp cleanup and rollback disarm remain strictly after the durability barrier.
