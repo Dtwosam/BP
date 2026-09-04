@@ -785,12 +785,14 @@ PARTITION_BYTES_AFTER_MAINTENANCE=$(partition_relation_bytes)
   || fail "partition_relation_bytes_not_released"
 PARTITION_BYTES_RELEASED=$((PARTITION_BYTES_BEFORE_MAINTENANCE - PARTITION_BYTES_AFTER_MAINTENANCE))
 
-DISK_JSON=$(mktemp /var/tmp/bp-partitioned-storage-health.XXXXXX.json)
-if ! sudo -u bp "$PYTHON" "$REPO/scripts/storage_maintenance.py" disk-health     --env-file "$ENV_FILE" > "$DISK_JSON"; then
-  cat "$DISK_JSON" >&2 || true
-  fail "partitioned_storage_composite_health_failed"
-fi
-"$PYTHON" - "$DISK_JSON" <<'PY'
+verify_partitioned_storage_health() {
+  local health_json="$1"
+  if ! sudo -u bp "$PYTHON" "$REPO/scripts/storage_maintenance.py" disk-health \
+    --env-file "$ENV_FILE" > "$health_json"; then
+    cat "$health_json" >&2 || true
+    fail "partitioned_storage_composite_health_failed"
+  fi
+  "$PYTHON" - "$health_json" <<'PY'
 from __future__ import annotations
 
 import json
@@ -810,6 +812,10 @@ if not all(guards.get(key) is True for key in (
 )):
     raise SystemExit("composite storage guard is not fully healthy")
 PY
+}
+
+DISK_JSON=$(mktemp /var/tmp/bp-partitioned-storage-health.XXXXXX.json)
+verify_partitioned_storage_health "$DISK_JSON"
 
 systemctl enable --now bp-storage-maintenance.timer
 systemctl enable --now bp-storage-disk-health.timer
@@ -824,6 +830,7 @@ require_research_zero_money
 validate_automatic_promotion_false
 [[ "$(git -C "$REPO" rev-parse HEAD)" == "$SHA" ]] || fail "deployed_head_changed"
 verify_final_rollback_material
+verify_partitioned_storage_health "$DISK_JSON"
 
 install -d -o bp -g bp -m 0750 "$EVIDENCE_DIR"
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)

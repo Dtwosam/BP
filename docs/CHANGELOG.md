@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.28 — 4 September 2026
+
+Phase 14 final rollout acceptance now refreshes composite partitioned-storage health after managed-unit restoration instead of embedding only the health snapshot captured before restoration. The existing disk-health validation is factored into `verify_partitioned_storage_health`; it still runs after the maintenance/physical-release cycle and now runs again after managed services are restored, the recorder is re-confirmed stopped, research/zero-money safety is rechecked, the deployed candidate SHA is rechecked, and final rollback material is proven. The second call overwrites the same `DISK_JSON` consumed by acceptance evidence, so final PASS evidence carries the post-restoration health state.
+
+Clean tests-only RED head `69bf5c43cdbce9119b0b7656c8547dd4659207c2` failed exactly the new final-health ordering contract while all **948 existing tests passed** in CI `33913074098`. GREEN implementation head `b20967d0c7ee7bd429aec31c1a522b725320a98a` passed CI `33913033605` with **949 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #71's integration record. Final branch head `85f0d419e8657c40700e953bd995fd6984b25e5e` passed push CI `33910606177`, PR CI `33910647686`, Historical Backfill Smoke `33910647693`, Live Recorder Smoke `33910647769`, and Recorder Short Soak `33910647694`. PR #71 merged to `main` as `0910e86e70119145a880d47fce6ba9fa1e214928`; post-merge main CI `33910822989` then passed **948 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.27 — 4 September 2026
 
 Phase 14 final rollout acceptance now proves rollback material survives through the complete migration/maintenance cycle instead of relying only on the migrator's earlier retention claim. During the existing pre-migration headroom query the worker captures the PostgreSQL relation OID of the original `raw_market_events` table. Because the migration preserves that table by rename, final acceptance re-queries `raw_market_events_legacy` after partition retirement, physical-release verification, health checks, and service restoration; it must retain the exact original OID and nonzero relation bytes or rollout fails closed.
