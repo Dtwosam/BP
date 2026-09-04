@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.18 — 4 September 2026
+
+Phase 14 storage-migration chain-of-custody now rechecks the exact preflight-bound recovery evidence at the last safe pre-mutation boundary. The worker already verified archive filename, SHA-256, and window before any rollout mutation; it now repeats that complete validation after rollback is armed, managed services are stopped, and the recorder is re-confirmed stopped, before candidate checkout and partition-migration apply.
+
+This matches the existing second live schema-shape and dynamic-headroom checks and closes the remaining in-worker time-of-check/time-of-use window in which the recovery evidence could otherwise change between initial host validation and database mutation.
+
+RED head `cb6206e92be55aaf63eeb72d4a9b90a4c459732f` failed exactly the new ordering contract while all **937 existing tests passed** in CI `33902402577`. GREEN implementation head `b71dd10a8631da1e859a4037efd00f9df3615f9e` passed CI `33902455764` with **938 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+No production preflight or partition migration was executed, no production approval values were set, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.17 — 4 September 2026
 
 Phase 14 storage-recovery chain-of-custody hardening now binds future partition migration to the exact bytes of the recovery evidence observed during the read-only preflight, not only its filename and `window_end`. The preflight computes a read-only SHA-256 after validating the canonical 24-hour recovery file, emits it in the transcript, and the deterministic verifier requires an exact lowercase 64-character digest and preserves it in the verified JSON.
