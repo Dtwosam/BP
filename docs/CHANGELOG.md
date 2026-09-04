@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.43 — 4 September 2026
+
+Phase 14 configured free-space-threshold binding is now integrated on `main`. PR #86 final head `bf307b4b17a359c238494697e804ea0ce0d0465f` passed push CI `33928281477`, PR CI `33928311555`, Historical Backfill Smoke `33928311601`, Live Recorder Smoke `33928311447`, and Recorder Short Soak `33928311436`. It merged as `d24aff16c6ad4392ba797f869f6a03445cbc9c74`; post-merge main CI `33928453785` then passed **958 tests** plus rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+The merged verifier now requires transcript `MIN_FREE_GIB` to equal the threshold used for verification, and the Cloud Shell evidence wrapper explicitly forwards `PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB`. This closes the PR #86 integration record.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.42 — 4 September 2026
 
 Phase 14 independent read-only preflight verification now binds the configured migration free-space floor to the captured transcript. The verifier reads `MIN_FREE_GIB` from the preflight evidence and requires it to equal the threshold used for verification. The Cloud Shell evidence wrapper explicitly passes `PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB` to the verifier, so a custom production threshold cannot be silently reduced to or represented as the default 40 GiB value.
