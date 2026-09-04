@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-04-phase-14-partitioned-raw-retention-design.md`
 
+**Implementation status:** Tasks 1–6 engineering-verified on `44ba80fc9e6fdafb6e29c40b0d634d22c86d12e4` with 903 tests and all three PR smoke gates green. Task 7 documentation/source-of-truth reconciliation and final docs-complete exact-head verification are in progress. Production migration remains unperformed and separately gated.
+
 ## Global Constraints
 
 - `MODE=research`
