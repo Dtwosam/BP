@@ -98,6 +98,7 @@ jobs:
           bash -n scripts/deploy/phase14_v2_forward_coverage_rollout_cloudshell.sh
           python -m py_compile scripts/deploy/ensure_phase12_replay_indexes.py
           python -m py_compile scripts/deploy/migrate_partitioned_raw_storage.py
+          python -m py_compile scripts/deploy/verify_phase14_storage_preflight.py
           python -m py_compile scripts/run_live_prediction.py scripts/report_live_predictions.py scripts/run_dashboard_api.py
           python -m py_compile scripts/run_paper_execution.py
           python -m py_compile scripts/run_improvement.py
