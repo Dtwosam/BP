@@ -3,8 +3,14 @@
 **Date:** 4 September 2026  
 **Phase:** 14 — live readiness engineering, live gate blocked  
 **Branch:** `design/phase14-partitioned-raw-retention`  
-**Status:** in-chat design approved; written spec pending user review; implementation not started  
-**Production:** recorder intentionally stopped during recovery; no live trading
+**Status:** engineering implementation verified on draft PR #50; production migration not performed  
+**Production:** recorder intentionally stopped during recovery; partition migration not performed; no live trading
+
+## Engineering verification
+
+Implementation checkpoint `44ba80fc9e6fdafb6e29c40b0d634d22c86d12e4` passed Ruff, full deployment validation, health check, dashboard tests/typecheck/build, 903 Python/PostgreSQL tests, Historical Backfill Smoke `33874446822`, Live Recorder Smoke `33874446877`, and Recorder Short Soak `33874446903`. Exact-row migration verification is streaming and bounded-memory, rollback restores the preserved legacy monolith transactionally, and the detached rollout helper leaves the recorder stopped with rollback material retained.
+
+This verification is engineering evidence only. It does not authorize or claim a production partition migration, recorder restart, Gate B, V2 policy/model/calibration/edge selection, Phase 15, or live trading.
 
 ## Goal
 
