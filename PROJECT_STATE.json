@@ -2,7 +2,7 @@
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
   "source_of_truth_version": "0.14.10",
-  "updated_at": "2026-09-04T14:39:16Z",
+  "updated_at": "2026-09-04T14:45:01Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -1186,6 +1186,17 @@
     "read_only_preflight_operator_requires_clean_local_tree": true,
     "read_only_preflight_postgres_identity_from_env": true,
     "read_only_preflight_reltuples_clamped_nonnegative": true,
-    "read_only_preflight_operator_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_HOST_RUN"
+    "read_only_preflight_operator_status": "MERGED_MAIN_NOT_HOST_RUN",
+    "read_only_preflight_operator_pr": 53,
+    "read_only_preflight_operator_final_branch_head": "be358f47de944e9d9318b8244fb732fb8b3202e1",
+    "read_only_preflight_operator_push_ci_run_id": 33885085546,
+    "read_only_preflight_operator_pr_ci_run_id": 33885158191,
+    "read_only_preflight_operator_historical_backfill_smoke_run_id": 33885158365,
+    "read_only_preflight_operator_live_recorder_smoke_run_id": 33885158067,
+    "read_only_preflight_operator_recorder_short_soak_run_id": 33885158081,
+    "read_only_preflight_operator_merge_commit": "8c4f4eea533b01ada05307ef5e9fd4c5df304878",
+    "read_only_preflight_operator_post_merge_ci_run_id": 33885404731,
+    "read_only_preflight_operator_post_merge_ci_passed": true,
+    "read_only_preflight_operator_post_merge_test_count": 927
   }
 }

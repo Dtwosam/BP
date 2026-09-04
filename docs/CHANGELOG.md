@@ -8,6 +8,8 @@ The underlying read-only preflight was also hardened to honor configured `POSTGR
 
 TDD preserved both boundaries. RED head `2e91eac477a3ddcde5e35c344fa616dc83191d47` produced exactly four new operator-contract failures while the existing 922 tests passed; the first implementation checkpoint `7a4f7190225392666df5214dbf8ae2d26276664c` passed 926 tests. A second RED head `6f099c3c21ebe5e6a9dcef4fa8ebd0ad3850230d` then failed only the new exact-local-candidate contract with 926 existing tests passing. Final engineering head `79261f5365236170fc27413c6021c0d699e75ced` passed CI `33884829744` with **927 tests**, Ruff, deployment validation, health, and dashboard tests/typecheck/build.
 
+PR #53 then passed the complete exact-head integration gate on `be358f47de944e9d9318b8244fb732fb8b3202e1`: push CI `33885085546`, PR CI `33885158191`, Historical Backfill Smoke `33885158365`, Live Recorder Smoke `33885158067`, and Recorder Short Soak `33885158081` all succeeded. It merged to `main` as `8c4f4eea533b01ada05307ef5e9fd4c5df304878`; post-merge CI `33885404731` then passed **927 tests** plus Ruff, deployment validation, health, and dashboard tests/typecheck/build.
+
 No production host preflight was run by this engineering work, no production mutation occurred, and the recorder remains stopped for storage recovery. A verified read-only preflight remains prerequisite evidence only; the partition migration still requires separate explicit production authorization, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, `automatic_promotion=false`, the Master live gate remains `fail`, and Phase 15/live trading remain blocked.
 
 ## 0.14.9 — 4 September 2026
