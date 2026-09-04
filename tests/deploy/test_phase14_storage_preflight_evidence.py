@@ -227,9 +227,9 @@ def test_preflight_captures_archive_evidence_sha256_read_only() -> None:
 
 
 def test_verify_preflight_transcript_rejects_invalid_archive_sha256() -> None:
-    transcript = _replace_last_field(_transcript(), "ARCHIVE_EVIDENCE_SHA256", "not-a-digest")
+    transcript = _replace_last_field(\n        _transcript(), "ARCHIVE_EVIDENCE_SHA256", "not-a-digest"\n    )
 
-    with pytest.raises(PreflightVerificationError, match="archive evidence SHA-256 is invalid"):
+    with pytest.raises(\n        PreflightVerificationError, match="archive evidence SHA-256 is invalid"\n    ):
         verify_preflight_transcript(
             transcript,
             expected_from_head=FROM_HEAD,
