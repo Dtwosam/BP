@@ -5,6 +5,7 @@ umask 077
 PROJECT="${PHASE14_PARTITIONED_STORAGE_PROJECT:-project-4397f2c0-7098-4c1c-abb}"
 ZONE="${PHASE14_PARTITIONED_STORAGE_ZONE:-us-east1-c}"
 VM="${PHASE14_PARTITIONED_STORAGE_VM:-bp-recorder}"
+MIN_FREE_GIB="${PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB:-40}"
 EXPECTED_FROM_HEAD="${PHASE14_PARTITIONED_STORAGE_FROM_HEAD:-}"
 EXPECTED_HEAD="${PHASE14_PARTITIONED_STORAGE_HEAD:-}"
 
@@ -89,6 +90,7 @@ if ! python "$VERIFIER" \
   --expected-zone "$ZONE" \
   --expected-vm "$VM" \
   --expected-archive-evidence "$ARCHIVE_EVIDENCE" \
+  --min-free-gib "$MIN_FREE_GIB" \
   > "$VERIFIED"; then
   rm -f "$VERIFIED"
   exit 1
