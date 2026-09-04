@@ -33,6 +33,7 @@ from bp_engine.storage.schema import (
     raw_market_events,
     storage_maintenance_runs,
 )
+from scripts.deploy.migrate_partitioned_raw_storage import _exact_raw_parity
 
 DATABASE_URL = os.getenv("BP_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -822,3 +823,61 @@ def test_partitioned_migration_rollback_restores_legacy_table_and_constraints(en
     ]
     assert "uq_raw_market_events_dedupe_key" in original_index_names
     assert not any(name.startswith("legacy_") for name in original_index_names)
+
+
+
+def test_streaming_exact_raw_parity_detects_payload_mismatch(engine) -> None:
+    base = datetime(2026, 9, 5, 18, 5, tzinfo=UTC)
+    rows = [
+        {
+            "id": 601,
+            "source": "coinbase",
+            "stream": "spot",
+            "instrument": "BTC-USD",
+            "event_type": "ticker",
+            "source_timestamp": base,
+            "received_at": base,
+            "sequence": "601",
+            "market_id": None,
+            "asset_id": None,
+            "payload": {"price": "62000"},
+            "dedupe_key": "sha256:" + "f" * 64,
+        },
+        {
+            "id": 602,
+            "source": "bybit",
+            "stream": "linear",
+            "instrument": "BTCUSDT",
+            "event_type": "trade",
+            "source_timestamp": base + timedelta(minutes=1),
+            "received_at": base + timedelta(minutes=1),
+            "sequence": "602",
+            "market_id": None,
+            "asset_id": None,
+            "payload": {"price": "62001"},
+            "dedupe_key": "sha256:" + "0" * 64,
+        },
+    ]
+    with engine.begin() as connection:
+        connection.execute(insert(raw_market_events), rows)
+
+    ensure_partitioned_raw_storage(
+        engine,
+        now=base + timedelta(minutes=10),
+        migrate_existing=True,
+    )
+    assert _exact_raw_parity(engine) == 2
+
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                UPDATE raw_market_events
+                SET payload = '{"price":"99999"}'::jsonb
+                WHERE id = 602
+                """
+            )
+        )
+
+    with pytest.raises(RuntimeError, match="exact row parity failed"):
+        _exact_raw_parity(engine)
