@@ -83,7 +83,8 @@ def test_partitioned_storage_rollout_preserves_research_zero_money_and_rollback(
         "raw_market_events_legacy",
         "synthetic",
         "ROLLBACK",
-        "/mnt/bp-data/evidence/phase14-partitioned-storage-rollout-",
+        "EVIDENCE_DIR=/mnt/bp-data/evidence",
+        "phase14-partitioned-storage-rollout-",
     ):
         assert expected in content
 
