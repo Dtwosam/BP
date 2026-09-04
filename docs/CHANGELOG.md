@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.14 — 4 September 2026
+
+Phase 14 partition-migration acceptance now proves physical raw-storage release instead of treating a successful maintenance command as sufficient. After migration parity, the rollout captures total attached `raw_market_events` child-relation bytes, runs one partitioned maintenance cycle, requires at least one retired interval with `archived_rows > 0`, and requires `dedupe_rows_removed == archived_rows` for each non-empty retired interval.
+
+The helper then captures attached partition bytes again and fails closed with rollback unless the post-maintenance value is strictly lower. Eventual rollout evidence records partition bytes before maintenance, partition bytes after maintenance, bytes released, and a non-empty-retirement verification flag. This directly enforces the existing acceptance requirement to demonstrate a real archive-to-partition-drop cycle and physical relation-size release before rollout PASS.
+
+TDD preserved the boundary. RED head `a6765fa5774177d5717ea8974e657339681669bc` failed exactly the new physical-release contract while **931 existing tests passed** in CI `33896005691`. GREEN implementation head `0305f193e51538d361ab30d18defe1ba9c7c00da` passed CI `33896237045` with **932 tests**, Ruff, rollout/deployment syntax validation, health, and dashboard tests/typecheck/build. PR #58 is the integration vehicle for this engineering-only hardening.
+
+No production preflight or migration was executed and no migration approval values were set. Production approval remains false/separate, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, `automatic_promotion=false`, the Master live gate remains `fail`, and Phase 15/live trading remain blocked.
+
 ## 0.14.13 — 4 September 2026
 
 Phase 14 production partition-migration approval is now machine-enforced instead of being only an operational/documentation boundary. The rollout helper requires `PHASE14_PARTITIONED_STORAGE_APPROVED_FROM_HEAD` and `PHASE14_PARTITIONED_STORAGE_APPROVED_HEAD` to be exact 40-character SHAs that match the exact deployed-from and candidate SHAs supplied to the rollout. Missing, malformed, stale, or mismatched approval values fail closed with `migration_approval_missing_or_invalid` before `gcloud config set project` or any production VM contact.
