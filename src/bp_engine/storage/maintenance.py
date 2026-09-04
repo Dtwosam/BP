@@ -15,6 +15,11 @@ from typing import Any
 from sqlalchemy import Engine, func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 
+from bp_engine.storage.partitioned_raw import (
+    RawStorageMode,
+    drop_raw_partition,
+    raw_storage_mode,
+)
 from bp_engine.storage.recorder import RecorderRepository
 from bp_engine.storage.schema import market_state_1s, raw_market_events
 
@@ -39,6 +44,13 @@ class ArchiveManifest:
     row_count: int
     compressed_bytes: int
     sha256: str
+
+
+@dataclass(frozen=True)
+class PartitionRetirementResult:
+    partition_name: str
+    archived_rows: int
+    dedupe_rows_removed: int
 
 
 def _utc(value: datetime) -> datetime:
@@ -278,6 +290,88 @@ def _compact_feeds_advanced(
             if latest is None or _utc(latest) <= end_at:
                 return False
     return True
+
+
+def retire_verified_partition(
+    engine: Engine,
+    archive_path: Path | str,
+    manifest_path: Path | str,
+    *,
+    batch_size: int = 50_000,
+    required_feeds: tuple[tuple[str, str], ...] = REQUIRED_COMPACT_FEEDS,
+) -> PartitionRetirementResult:
+    if batch_size <= 0:
+        raise ValueError("batch_size must be greater than zero")
+    if engine.dialect.name != "postgresql":
+        raise ValueError("partition retirement requires PostgreSQL")
+
+    manifest = verify_archive(archive_path, manifest_path)
+    if manifest.end_at != manifest.start_at + timedelta(hours=1):
+        raise ArchiveVerificationError("partition archive must cover exactly one hour")
+    if manifest.start_at.minute or manifest.start_at.second or manifest.start_at.microsecond:
+        raise ArchiveVerificationError("partition archive must start on a UTC hour")
+
+    if not _compact_feeds_advanced(engine, manifest.end_at, required_feeds):
+        raise RuntimeError("compact state has not advanced beyond archived partition")
+
+    with engine.begin() as connection:
+        if raw_storage_mode(connection) is not RawStorageMode.PARTITIONED:
+            raise RuntimeError("raw_market_events is not partitioned")
+        live_rows = int(
+            connection.execute(
+                select(func.count(raw_market_events.c.id)).where(
+                    raw_market_events.c.received_at >= manifest.start_at,
+                    raw_market_events.c.received_at < manifest.end_at,
+                )
+            ).scalar_one()
+        )
+        if live_rows != manifest.row_count:
+            raise ArchiveVerificationError(
+                "verified archive row count does not match live partition"
+            )
+        partition_name = drop_raw_partition(
+            connection,
+            start_at=manifest.start_at,
+            end_at=manifest.end_at,
+        )
+        if partition_name is None:
+            raise RuntimeError("raw partition is missing")
+
+    dedupe_rows_removed = 0
+    while True:
+        with engine.begin() as connection:
+            result = connection.execute(
+                text(
+                    """
+                    WITH doomed AS (
+                        SELECT dedupe_key
+                        FROM raw_event_dedupe
+                        WHERE received_at >= :start_at
+                          AND received_at < :end_at
+                        ORDER BY received_at, dedupe_key
+                        LIMIT :batch_size
+                    )
+                    DELETE FROM raw_event_dedupe AS target
+                    USING doomed
+                    WHERE target.dedupe_key = doomed.dedupe_key
+                    """
+                ),
+                {
+                    "start_at": manifest.start_at,
+                    "end_at": manifest.end_at,
+                    "batch_size": batch_size,
+                },
+            )
+        deleted = int(result.rowcount or 0)
+        dedupe_rows_removed += deleted
+        if deleted < batch_size:
+            break
+
+    return PartitionRetirementResult(
+        partition_name=partition_name,
+        archived_rows=manifest.row_count,
+        dedupe_rows_removed=dedupe_rows_removed,
+    )
 
 
 def _raw_interval_is_empty(engine: Engine, start_at: datetime, end_at: datetime) -> bool:
