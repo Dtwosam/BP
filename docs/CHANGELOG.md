@@ -8,6 +8,8 @@ The mutation path also independently re-proves migration headroom instead of rel
 
 TDD preserved the boundary: RED head `bf5f55ae58ff4f3828d5a11eb6430ba80fdac02e` failed exactly the two new rollout-precondition contracts while all 927 existing tests passed. GREEN engineering head `c6bc79ab6a832d26d421bd37797156c0b9219b8c` passed CI `33887804985` with **929 tests**, Ruff, deployment validation, health, and dashboard tests/typecheck/build.
 
+PR #54 then passed the complete exact-head integration gate on `0601cf95d43bd949a7087645a3c4879d158e333d`: push CI `33888063457`, PR CI `33888096498`, Historical Backfill Smoke `33888096374`, Live Recorder Smoke `33888096668`, and Recorder Short Soak `33888096363` all succeeded. It merged to `main` as `4e4ef004ba805438d8a7e68aa365d92754e57f4a`; post-merge CI `33888318645` then passed **929 tests** plus Ruff, deployment validation, health, and dashboard tests/typecheck/build.
+
 No production preflight or migration was executed by this work. The recorder remains stopped for storage recovery, production migration authorization remains false, rollback material requirements remain unchanged, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, `automatic_promotion=false`, the Master live gate remains `fail`, and Phase 15/live trading remain blocked.
 
 ## 0.14.10 — 4 September 2026
