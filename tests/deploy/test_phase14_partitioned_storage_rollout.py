@@ -279,3 +279,21 @@ def test_partitioned_storage_rollout_binds_host_archive_to_verified_preflight() 
 
     assert 'ls -1t "$EVIDENCE_DIR"/phase14-storage-recovery-24-48h-' not in content
 
+def test_partitioned_storage_rollout_binds_host_archive_bytes_to_verified_preflight() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        'archive.get("sha256")',
+        "PREFLIGHT_ARCHIVE_SHA256",
+        "EXPECTED_ARCHIVE_SHA256",
+        'sha256sum "$ARCHIVE_EVIDENCE"',
+        "archive_evidence_digest_mismatch",
+        "PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_SHA256",
+    ):
+        assert marker in content
+
+    verify_fn = content.index("verify_archive_evidence()")
+    digest_check = content.index('sha256sum "$ARCHIVE_EVIDENCE"', verify_fn)
+    migration_apply = content.index("migrate_partitioned_raw_storage.py apply")
+    assert verify_fn < digest_check < migration_apply
+
