@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.31",
-  "updated_at": "2026-09-04T20:26:28Z",
+  "source_of_truth_version": "0.14.32",
+  "updated_at": "2026-09-04T20:39:18Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -1640,6 +1640,17 @@
     "partitioned_storage_rollout_acceptance_evidence_copy_integrity_merge_commit": "f64c51a7703705c1bedde9a2b9f0ad489297ed92",
     "partitioned_storage_rollout_acceptance_evidence_copy_integrity_post_merge_ci_run_id": 33916124578,
     "partitioned_storage_rollout_acceptance_evidence_copy_integrity_post_merge_ci_passed": true,
-    "partitioned_storage_rollout_acceptance_evidence_copy_integrity_post_merge_test_count": 951
+    "partitioned_storage_rollout_acceptance_evidence_copy_integrity_post_merge_test_count": 951,
+    "partitioned_storage_rollout_acceptance_evidence_durability_branch": "phase14-storage-rollout-acceptance-evidence-durability",
+    "partitioned_storage_rollout_acceptance_evidence_durability_red_head": "9196c96f626189431f5dde025c68954b4d6f8b89",
+    "partitioned_storage_rollout_acceptance_evidence_durability_red_ci_run_id": 33917015980,
+    "partitioned_storage_rollout_acceptance_evidence_durability_red_existing_test_count": 951,
+    "partitioned_storage_rollout_acceptance_evidence_durability_implementation_head": "5ac83363476dfe5aff7ab69d66094f5bcb8da299",
+    "partitioned_storage_rollout_acceptance_evidence_durability_ci_run_id": 33917183016,
+    "partitioned_storage_rollout_acceptance_evidence_durability_ci_passed": true,
+    "partitioned_storage_rollout_acceptance_evidence_durability_test_count": 952,
+    "partitioned_storage_rollout_acceptance_evidence_durability_sync_command": "sync -f",
+    "partitioned_storage_rollout_acceptance_evidence_durably_synced_before_disarm": true,
+    "partitioned_storage_rollout_acceptance_evidence_durability_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
   }
 }

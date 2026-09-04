@@ -490,3 +490,20 @@ def test_rollout_proves_installed_evidence_matches_generated_bytes() -> None:
     disarm = content.index("\nROLLBACK_ARMED=0\n", cleanup)
     assert temp_digest < install < installed_digest < compare < cleanup < disarm
 
+
+def test_rollout_durably_syncs_final_acceptance_evidence_before_disarm() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        'sync -f "$EVIDENCE_PATH"',
+        "rollout_evidence_sync_failed",
+    ):
+        assert marker in content
+
+    compare = content.index(
+        '[[ "$EVIDENCE_SHA256" == "$EVIDENCE_TMP_SHA256" ]]'
+    )
+    durable_sync = content.index('sync -f "$EVIDENCE_PATH"', compare)
+    cleanup = content.index('rm -f "$EVIDENCE_TMP"', durable_sync)
+    disarm = content.index("\nROLLBACK_ARMED=0\n", cleanup)
+    assert compare < durable_sync < cleanup < disarm
