@@ -93,6 +93,7 @@ jobs:
           bash -n scripts/deploy/phase14_prospective_runtime_cloudshell.sh
           bash -n scripts/deploy/phase14_recorder_reliability_rollout_cloudshell.sh
           bash -n scripts/deploy/phase14_partitioned_storage_rollout_cloudshell.sh
+          bash -n scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh
           bash -n scripts/deploy/phase14_v2_gate_a_rollout_cloudshell.sh
           bash -n scripts/deploy/phase14_v2_forward_coverage_rollout_cloudshell.sh
           python -m py_compile scripts/deploy/ensure_phase12_replay_indexes.py

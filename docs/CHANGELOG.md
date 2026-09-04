@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.14.8 — 4 September 2026
+
+Phase 14 partitioned raw-retention reliability is now **merged to `main` but still not production-migrated**. PR #50 merged as `89b00ba8df4acdfad075cb31df596c86dc148f08`; post-merge CI `33875494229` passed 903 Python/PostgreSQL tests plus Ruff, deployment validation, health check, and dashboard tests/typecheck/build. This repository integration does not authorize or claim any production schema migration, recorder restart, Gate B work, Phase 15 work, or live-trading change.
+
+A follow-up read-only production preflight has been implemented on branch `phase14-storage-preflight`. The helper `scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh` validates the exact deployed-from SHA, exact remote candidate SHA, clean deployed checkout, research/zero-money environment, stopped-recorder state, `/mnt/bp-data` filesystem identity/headroom, verified 24–48h recovery archive evidence, PostgreSQL data-source mount identity, raw relation size/shape, and storage-timer states.
+
+The preflight intentionally excludes the production mutation surface: no `git fetch`/checkout/reset, no service stop/start/restart/enable, no schema migrator, no storage-maintenance run, no host evidence-file write, and no PostgreSQL write command. A successful result ends with `PHASE14_PARTITIONED_STORAGE_PREFLIGHT=PASS` and `MUTATIONS_PERFORMED=false`. The operational runbook is `docs/PHASE-14-STORAGE-RECOVERY.md`.
+
+Engineering head `402d338172f2d6a9afe3ea7d945bce28a1076edb` passed CI `33877421392` with **907 tests**, Ruff, deployment validation, health check, and dashboard verification. Host preflight execution has not yet been performed. A preflight PASS is prerequisite evidence only; the actual partitioned PostgreSQL migration remains a separate explicit production authorization and must still end with `RECORDER_RESTARTED=false` and retained rollback material.
+
+`MODE=research`, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, `MAX_DAILY_LOSS_USD=0`, `automatic_promotion=false`, selected-book freshness exactly 10 seconds, Gate B blocked, Master live-gate `fail`, and Phase 15 blocked remain unchanged.
 ## 0.14.7 — 4 September 2026
 
 Phase 14 partitioned raw-retention reliability is **engineering-verified on draft PR #50 and not production-migrated**. The 4 September storage incident showed that the Phase 3 archive-before-delete contract bounded logical rows but did not physically bound PostgreSQL relation files at the observed recorder rate: `raw_market_events` reached approximately 157 GB total (about 113 GB heap plus 44 GB indexes), root free space fell to roughly 15 GiB / 93% used, and the hourly maintenance timer had been inactive for several days. The recorder was intentionally stopped fail-closed and remains stopped during storage recovery.
