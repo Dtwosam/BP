@@ -8,6 +8,8 @@ The rollout launcher extracts that verified archive digest together with the alr
 
 Clean tests-only RED head `497e001d57a5dcc65237fec11dc67b7089c5995a` failed exactly four new digest-contract tests while all **933 existing tests passed** in CI `33901674705`. GREEN implementation head `b874b5215d171d181cad2b1626a60b36e91a5e78` passed CI `33901670503` with **937 tests**, Ruff, preflight/rollout Bash syntax validation, verifier compilation, health, and dashboard tests/typecheck/build.
 
+PR #61 then passed the complete exact-head integration gate on `d3b9f20be85d55444d629a795ec5d21a89955c94`: push CI `33901933926`, PR CI `33901981894`, Historical Backfill Smoke `33901981926`, Live Recorder Smoke `33901981957`, and Recorder Short Soak `33901982376` all succeeded. It merged to `main` as `58455ac8ef9aa858a261fd48631f97866dffef38`; post-merge CI `33902155063` then passed **937 tests** plus preflight/rollout Bash syntax validation, verifier compilation, health, and dashboard checks.
+
 No production preflight or partition migration was executed, no production approval values were set, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
 
 ## 0.14.16 — 4 September 2026
