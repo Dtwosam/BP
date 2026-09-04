@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.19 — 4 September 2026
+
+Phase 14 rollout acceptance evidence now preserves the exact preflight-bound recovery artifact identity used by the migration safety checks. Eventual rollout JSON records the source recovery evidence path together with its preflight-captured SHA-256 and `window_end`, in addition to the already-recorded verified-preflight SHA-256. The worker does not invent or recompute a new acceptance identity here; it persists the exact values that were already validated before mutation and revalidated after managed services stopped.
+
+Tests-only RED head `9e2d92eb32fc15b10d73c3ed5c22fa39e978f9d2` failed exactly the new rollout-evidence contract while all **938 existing tests passed** in CI `33903768602`. GREEN implementation head `aef6eab69d1734d4a891ef794641ad392123897e` passed CI `33903803698` with **939 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes the integration record for PR #62. Final branch head `47da8ccde36dba6f0e3e53a21a5653258f586b62` passed push CI `33902699410`, PR CI `33902733871`, Historical Backfill Smoke `33902733803`, Live Recorder Smoke `33902733733`, and Recorder Short Soak `33902733738`. PR #62 merged to `main` as `1451e441dbed389a924285ec9396375e4d6f415c`; post-merge CI `33902940041` then passed **938 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.18 — 4 September 2026
 
 Phase 14 storage-migration chain-of-custody now rechecks the exact preflight-bound recovery evidence at the last safe pre-mutation boundary. The worker already verified archive filename, SHA-256, and window before any rollout mutation; it now repeats that complete validation after rollback is armed, managed services are stopped, and the recorder is re-confirmed stopped, before candidate checkout and partition-migration apply.
