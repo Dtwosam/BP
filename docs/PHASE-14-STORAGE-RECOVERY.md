@@ -67,7 +67,13 @@ A preflight/verifier PASS is evidence that the host satisfies the non-mutating p
 
 ## Production migration boundary
 
-The partitioned-storage rollout remains separately gated. When explicitly authorized, the rollout helper rechecks the safety boundary and then performs the controlled migration with rollback armed. A successful migration must still leave:
+The partitioned-storage rollout remains separately gated. Engineering verification, a read-only preflight PASS, and merge to `main` do **not** authorize the migration.
+
+When migration is separately and explicitly authorized, the rollout helper now requires `PHASE14_PARTITIONED_STORAGE_PREFLIGHT_VERIFIED` to point to the readable absolute path of the verified JSON produced by the preflight operator. Before it contacts the production VM, it fails closed unless that JSON reports `PASS`, matches the exact deployed-from and candidate/remote SHAs, reports `mutations_performed=false`, confirms `RECORDER_STATE=stopped`, and identifies `storage_shape=legacy_unmigrated`. The helper computes a SHA-256 of that verified evidence and records the digest in the eventual rollout evidence.
+
+The host worker then independently rechecks the live storage boundary. It measures the current legacy `raw_market_events` total relation bytes using the configured `POSTGRES_USER` / `POSTGRES_DB`, recomputes required free space as `max(configured floor, raw relation bytes + 15 GiB critical reserve)`, and fails closed on insufficient headroom. That dynamic check runs before mutation and again after managed services are stopped, immediately before candidate checkout/migration, so a stale preflight cannot silently weaken the mutation boundary.
+
+Only after those checks and the separate explicit authorization may the helper perform the controlled migration with rollback armed. A successful migration must still leave:
 
 - `RECORDER_RESTARTED=false`;
 - `ROLLBACK_MATERIAL_RETAINED=true`;

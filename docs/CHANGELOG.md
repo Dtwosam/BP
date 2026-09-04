@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.11 — 4 September 2026
+
+Phase 14 partition-migration rollout hardening now enforces parity with the already-merged read-only storage preflight. The future production rollout helper requires `PHASE14_PARTITIONED_STORAGE_PREFLIGHT_VERIFIED` to reference the verified preflight JSON and rejects it unless the verdict is `PASS`, deployed/candidate/remote SHAs match the exact rollout inputs, `mutations_performed=false`, the recorder was stopped, and the verified storage shape is `legacy_unmigrated`. The verified JSON's SHA-256 is carried into the detached worker and written into eventual rollout evidence for chain-of-custody.
+
+The mutation path also independently re-proves migration headroom instead of relying on a potentially stale preflight. Before mutation and again after managed services are stopped, the rollout queries the current legacy `raw_market_events` total relation size using configured `POSTGRES_USER` / `POSTGRES_DB`, re-reads protected-filesystem free bytes, and requires `max(configured minimum, raw relation bytes + 15 GiB critical reserve)`. Failure exits before migration apply.
+
+TDD preserved the boundary: RED head `bf5f55ae58ff4f3828d5a11eb6430ba80fdac02e` failed exactly the two new rollout-precondition contracts while all 927 existing tests passed. GREEN engineering head `c6bc79ab6a832d26d421bd37797156c0b9219b8c` passed CI `33887804985` with **929 tests**, Ruff, deployment validation, health, and dashboard tests/typecheck/build.
+
+No production preflight or migration was executed by this work. The recorder remains stopped for storage recovery, production migration authorization remains false, rollback material requirements remain unchanged, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, `automatic_promotion=false`, the Master live gate remains `fail`, and Phase 15/live trading remain blocked.
+
 ## 0.14.10 — 4 September 2026
 
 Phase 14 storage-preflight operator hardening now provides a single Cloud Shell evidence runner, `scripts/deploy/phase14_storage_preflight_evidence_cloudshell.sh`, that captures the existing read-only production preflight transcript and immediately runs the deterministic verifier against it. The wrapper uses `umask 077`, requires the local checkout `HEAD` to equal the exact candidate SHA, rejects a dirty local working tree, and emits the transcript/verified-JSON paths only after both stages pass. This closes the possibility of producing evidence with stale or locally modified helper/verifier files while the remote branch independently points at the expected candidate.
