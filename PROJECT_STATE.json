@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.7",
-  "updated_at": "2026-09-04T12:47:19Z",
+  "source_of_truth_version": "0.14.8",
+  "updated_at": "2026-09-04T13:20:48Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -625,6 +625,7 @@
     "Phase 14 V2 forward coverage collector implementation completed and CI-verified with outcome-blind restart-safe collection, hardened systemd oneshot/timer packaging, and rollback-capable rollout tooling; collector production activation remains separately gated and not performed"
   ],
   "not_completed": [
+    "Read-only production storage preflight host run",
     "Production partitioned raw-storage migration and host acceptance",
     "Production recorder reliability rollout with RECORDER_WRITER_WORKERS=4 and natural-load acceptance",
     "V2 Gate B and any V2 policy/model/calibration/edge/min-edge selection",
@@ -633,8 +634,9 @@
   ],
   "next_actions": [
     "Keep bp-recorder.service stopped while storage recovery is incomplete; do not lower disk thresholds, manually delete unarchived raw rows, or bypass the recorder storage-health ExecCondition.",
-    "Complete review and integration of draft PR #50 for partitioned raw retention after docs-complete exact-head CI and all PR smoke gates; engineering/merge does not authorize production migration.",
-    "Treat the partitioned PostgreSQL production migration as a separate explicit authorization step. The rollout must verify /mnt/bp-data filesystem identity, safe headroom, exact 24–48h archive evidence, research/zero-money safety, retained rollback material, and recorder-stopped state before mutation.",
+    "Integrate the read-only Phase 14 storage preflight helper after exact-head CI/PR smoke verification. The preflight may inspect production readiness but must not mutate checkout, services, PostgreSQL, or host evidence state.",
+    "Run the read-only storage preflight against the exact deployed-from SHA and verified main candidate when production access is available. A PASS is prerequisite evidence only and does not authorize migration.",
+    "Treat the partitioned PostgreSQL production migration as a separate explicit authorization step. The rollout must reverify /mnt/bp-data filesystem identity, safe headroom, exact 24–48h archive evidence, research/zero-money safety, retained rollback material, and recorder-stopped state before mutation.",
     "After any separately authorized storage migration passes parity and one verified archive-to-partition-drop cycle proves physical relation-size release, enable maintenance/disk-health timers and keep recorder stopped until the recorder restart gate.",
     "Only after storage health is accepted, deploy the already-merged recorder reliability repair with RECORDER_WRITER_WORKERS=4, restart the recorder in a controlled step, verify all four feeds and natural-load no-drop/backpressure behavior, and preserve V2 Gate A invariants.",
     "Do not authorize Gate B, V2 policy/model/calibration/edge/min-edge selection, V2 paper execution, Phase 15, geographic bypass, or live trading; keep selected-book freshness exactly 10 seconds and automatic_promotion=false."
@@ -1108,7 +1110,7 @@
     "partitioned_storage_historical_backfill_smoke_run_id": 33874446822,
     "partitioned_storage_live_recorder_smoke_run_id": 33874446877,
     "partitioned_storage_recorder_short_soak_run_id": 33874446903,
-    "partitioned_storage_engineering_status": "ENGINEERING_VERIFIED_DRAFT_PR_NOT_PRODUCTION_DEPLOYED",
+    "partitioned_storage_engineering_status": "MERGED_MAIN_NOT_PRODUCTION_DEPLOYED",
     "partitioned_storage_production_migration_performed": false,
     "partitioned_storage_production_rollout_authorized": false,
     "partitioned_storage_rollout_helper": "scripts/deploy/phase14_partitioned_storage_rollout_cloudshell.sh",
@@ -1139,6 +1141,21 @@
     "diff_review_against_deployed_head": "PASS_WITH_EXPECTED_PR49_RECORDER_RELIABILITY_ANCESTRY",
     "v2_policy_model_calibration_edge_paths_changed": false,
     "production_partition_migration_performed": false,
-    "production_recorder_restarted": false
+    "production_recorder_restarted": false,
+    "partitioned_storage_merge_commit": "89b00ba8df4acdfad075cb31df596c86dc148f08",
+    "partitioned_storage_merged_at": "2026-09-04T12:58:08Z",
+    "partitioned_storage_post_merge_ci_run_id": 33875494229,
+    "partitioned_storage_post_merge_ci_passed": true,
+    "partitioned_storage_post_merge_test_count": 903,
+    "read_only_preflight_branch": "phase14-storage-preflight",
+    "read_only_preflight_implementation_head": "402d338172f2d6a9afe3ea7d945bce28a1076edb",
+    "read_only_preflight_ci_run_id": 33877421392,
+    "read_only_preflight_ci_passed": true,
+    "read_only_preflight_test_count": 907,
+    "read_only_preflight_helper": "scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh",
+    "read_only_preflight_runbook": "docs/PHASE-14-STORAGE-RECOVERY.md",
+    "read_only_preflight_contract": "production-read-only; no checkout/fetch/service/database/evidence-file mutation",
+    "read_only_preflight_host_run_performed": false,
+    "read_only_preflight_mutations_performed": false
   }
 }
