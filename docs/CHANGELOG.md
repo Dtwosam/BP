@@ -6,6 +6,8 @@ Phase 14 partition-migration launcher hardening now binds the Cloud Shell rollou
 
 TDD preserved the boundary: RED head `558475a6d29421cf15477cc012c10b086897b020` failed exactly the new local-candidate contract while all 932 existing tests passed in CI `33897191570`. GREEN implementation head `fff7adf984259b28a03b20ceff6d06cd906f5153` passed CI `33897354206` with **933 tests**, rollout Bash syntax validation, health, and dashboard checks.
 
+PR #59 then passed the complete exact-head integration gate on `42549a77cdfcc6a9fcedd2ae2302ff24c525a299`: push CI `33897575270`, PR CI `33897620395`, Historical Backfill Smoke `33897620428`, Live Recorder Smoke `33897620391`, and Recorder Short Soak `33897620444` all succeeded. It merged to `main` as `9ec294cc5f3aec29ece1c3628544d53a908c3b4b`; post-merge CI `33897830149` then passed **933 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
 No production preflight or partition migration was executed. No production migration approval values were set; approval remains false, the recorder remains stopped for storage recovery, rollback requirements are unchanged, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
 
 ## 0.14.14 — 4 September 2026
