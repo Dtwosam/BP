@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.38 — 4 September 2026
+
+Phase 14 Cloud Shell preflight-evidence no-clobber handling is now integrated on `main`. PR #81 final head `a8f5abd5017f11cc3aa907d4abac104473d86f16` passed push CI `33924157181`, PR CI `33924183647`, Historical Backfill Smoke `33924183595`, Live Recorder Smoke `33924183487`, and Recorder Short Soak `33924183667`. It merged as `da439af9326d8e8c8cc5e6933ab75450e27dd0b9`; post-merge main CI `33924340156` then passed **955 tests** plus rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+The merged operator wrapper refuses aliased transcript/verified paths, reserves each local evidence path with shell `noclobber`, captures the transcript only after reservation, and removes the reserved verified JSON if independent verification fails. Earlier Cloud Shell evidence therefore cannot be silently replaced by same-second reruns or reused custom output paths. This closes the PR #81 integration record.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.37 — 4 September 2026
 
 Phase 14's Cloud Shell read-only preflight evidence wrapper now fails closed instead of replacing local operator evidence. Transcript and verified-output paths must differ. The wrapper reserves the transcript path with shell `noclobber` before contacting the host, captures output with append-only `tee -a` into that reserved file, then reserves the verified JSON path before running the independent verifier. A verifier failure removes that reserved JSON while preserving the failed transcript for review. Same-second reruns and explicit paths that already exist therefore cannot silently overwrite earlier evidence.
