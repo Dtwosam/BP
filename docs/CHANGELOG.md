@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.24 — 4 September 2026
+
+Phase 14 production-migration approval is now bound to the exact verified-preflight snapshot, not only the deployed-from and candidate Git SHAs. The rollout requires `PHASE14_PARTITIONED_STORAGE_APPROVED_PREFLIGHT_SHA256` to be a valid SHA-256 and to equal the single-snapshot `PREFLIGHT_VERIFIED_SHA256` before any gcloud project selection or VM contact. An approval for the same Git transition therefore cannot be silently reused with different verified preflight evidence, target identity, or recovery-archive binding.
+
+The approved digest remains a separate explicit approval input. A read-only preflight PASS may provide evidence for review, but it does not populate or imply the approval value. Missing or malformed approval inputs fail closed with `migration_approval_missing_or_invalid`; a different valid digest fails with `migration_approval_preflight_mismatch`.
+
+Tests-only RED head `e72aa9214553d1fd8d01abbdafcdcc0bb9b11a19` failed exactly the new approval/preflight binding contract while all **944 existing tests passed** in CI `33907153503`. GREEN implementation head `e33e9c6a80339a56e11db2546f524b7a8fae9157` passed CI `33907187924` with **945 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #67's integration record. Final branch head `029bdcb37887aedfd38200c6605e9717232d3f19` passed push CI `33906866448`, PR CI `33906908614`, Historical Backfill Smoke `33906908683`, Live Recorder Smoke `33906908581`, and Recorder Short Soak `33906908514`. PR #67 merged to `main` as `8629a076719416b0a81aee360e182cefe52c288d`; post-merge main CI `33907100569` then passed **944 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.23 — 4 September 2026
 
 Phase 14 verified-preflight chain-of-custody now hashes and validates the exact same byte snapshot before partition rollout. The launcher previously computed `PREFLIGHT_VERIFIED_SHA256` with `sha256sum` and then reopened the JSON in Python for validation. It now reads the file bytes once in Python, computes SHA-256 from those bytes, parses those same bytes, and returns the digest together with the validated archive binding. A local file change between separate digest and validation reads can therefore no longer make the recorded digest refer to different content than the evidence actually checked.
