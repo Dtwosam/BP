@@ -203,3 +203,19 @@ def test_partitioned_storage_rollout_rechecks_unmigrated_shape_before_mutation()
     candidate_checkout = content.index('git -C "$REPO" checkout --detach --force "$SHA"', stopped)
     assert second_check < candidate_checkout
 
+def test_partitioned_storage_rollout_requires_explicit_sha_bound_authorization() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        "PHASE14_PARTITIONED_STORAGE_AUTHORIZED_FROM_HEAD",
+        "PHASE14_PARTITIONED_STORAGE_AUTHORIZED_HEAD",
+        "migration_authorization_missing_or_invalid",
+        '[[ "$AUTHORIZED_FROM_HEAD" == "$EXPECTED_FROM_HEAD" ]]',
+        '[[ "$AUTHORIZED_HEAD" == "$EXPECTED_HEAD" ]]',
+    ):
+        assert marker in content
+
+    assert content.index("migration_authorization_missing_or_invalid") < content.index(
+        "gcloud config set project"
+    )
+
