@@ -4,7 +4,6 @@ import os
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import create_engine, insert, text
 
 from bp_engine.storage.partitioned_raw import (
     RawStorageMode,
@@ -12,6 +11,8 @@ from bp_engine.storage.partitioned_raw import (
     list_raw_partitions,
     raw_storage_mode,
 )
+from sqlalchemy import create_engine, insert, text
+
 from bp_engine.storage.schema import raw_market_events
 
 DATABASE_URL = os.getenv("BP_TEST_DATABASE_URL")
