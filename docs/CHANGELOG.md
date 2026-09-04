@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.37 — 4 September 2026
+
+Phase 14's Cloud Shell read-only preflight evidence wrapper now fails closed instead of replacing local operator evidence. Transcript and verified-output paths must differ. The wrapper reserves the transcript path with shell `noclobber` before contacting the host, captures output with append-only `tee -a` into that reserved file, then reserves the verified JSON path before running the independent verifier. A verifier failure removes that reserved JSON while preserving the failed transcript for review. Same-second reruns and explicit paths that already exist therefore cannot silently overwrite earlier evidence.
+
+Clean tests-only RED head `839029eab35cc98336b5a12498660cb5aeec88b5` failed exactly the new no-clobber contract while all **954 existing tests passed** in CI `33923655774`. Initial implementation head `85aee00a64e6acb04cd380a7062e4b0898ec5796` correctly introduced path reservation but CI `33923821630` found one legacy assertion still expecting truncating `tee` (**954 passed, 1 failed**). Final repaired head `facd4a0c410ece29c32d901a9fe1eb20e2e0ac6d` updated only that legacy marker and passed CI `33923962021` with **955 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #80's integration record. Final head `3de41e4012ed60150c9f5aad62ed3242e69eceba` passed push CI `33922467215`, PR CI `33922487128`, Historical Backfill Smoke `33922487129`, Live Recorder Smoke `33922487107`, and Recorder Short Soak `33922487103`. PR #80 merged as `4054fc5fa1ab0de53cb3e55e66270e734a3d9dbd`; post-merge main CI `33922637255` passed **954 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.36 — 4 September 2026
 
 Phase 14 atomic acceptance-evidence publication is now integrated on `main`. PR #79 final head `5e0d0ed21259e56ff352579f6d0acef93d45eef9` passed push CI `33921253828`, PR CI `33921289164`, Historical Backfill Smoke `33921289187`, Live Recorder Smoke `33921288925`, and Recorder Short Soak `33921288949`. It merged as `f43fd5d85f1253c0d482526cea23d250d4b5801b`; post-merge main CI `33921466538` then passed **954 tests** plus rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
