@@ -317,3 +317,25 @@ def test_verified_preflight_binds_configured_min_free_gib() -> None:
             expected_head=HEAD,
             min_free_gib=41,
         )
+
+
+def test_verified_preflight_binds_expected_environment_file() -> None:
+    verifier = VERIFIER.read_text(encoding="utf-8")
+    preflight = PREFLIGHT.read_text(encoding="utf-8")
+
+    assert "--expected-env-file" in verifier
+    assert "unexpected ENV_FILE" in verifier
+    assert 'echo "ENV_FILE=$ENV_FILE"' in preflight
+
+    transcript = _transcript().replace(
+        "MIN_FREE_GIB=40\n",
+        "MIN_FREE_GIB=40\nENV_FILE=/etc/bp/bp.env\n",
+        1,
+    )
+    with pytest.raises(PreflightVerificationError, match="unexpected ENV_FILE"):
+        verify_preflight_transcript(
+            transcript,
+            expected_from_head=FROM_HEAD,
+            expected_head=HEAD,
+            expected_env_file="/etc/bp/other.env",
+        )
