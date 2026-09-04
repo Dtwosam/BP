@@ -5,7 +5,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-
 from scripts.deploy.verify_phase14_storage_preflight import (
     PreflightVerificationError,
     verify_preflight_transcript,
@@ -116,7 +115,7 @@ def test_verify_preflight_transcript_rejects_boundary_violations(
         )
 
 
-def test_verify_preflight_transcript_rejects_free_space_that_cannot_duplicate_raw_plus_reserve() -> None:
+def test_verify_preflight_transcript_rejects_insufficient_duplication_headroom() -> None:
     with pytest.raises(
         PreflightVerificationError,
         match="insufficient migration headroom",
