@@ -1126,6 +1126,19 @@
     "live_trading_enabled": false,
     "max_trade_size_usd": 0,
     "max_daily_loss_usd": 0,
-    "phase15_permitted": false
+    "phase15_permitted": false,
+    "docs_complete_verification_head": "3c8bb5cb9f80e077e506dc80d329053a9350d568",
+    "docs_complete_ci_push_run_id": 33874992186,
+    "docs_complete_ci_pr_run_id": 33874996785,
+    "docs_complete_test_count": 903,
+    "docs_complete_historical_backfill_smoke_run_id": 33874996686,
+    "docs_complete_live_recorder_smoke_run_id": 33874996539,
+    "docs_complete_recorder_short_soak_run_id": 33874996667,
+    "docs_complete_exact_head_gates_passed": true,
+    "diff_review_against_main": "PASS_STORAGE_CONFIG_DEPLOYMENT_DOCS_TESTS_ONLY",
+    "diff_review_against_deployed_head": "PASS_WITH_EXPECTED_PR49_RECORDER_RELIABILITY_ANCESTRY",
+    "v2_policy_model_calibration_edge_paths_changed": false,
+    "production_partition_migration_performed": false,
+    "production_recorder_restarted": false
   }
 }
