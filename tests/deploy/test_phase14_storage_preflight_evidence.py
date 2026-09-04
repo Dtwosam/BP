@@ -92,8 +92,8 @@ def test_verify_preflight_transcript_accepts_expected_legacy_recovery_shape() ->
 @pytest.mark.parametrize(
     ("field", "value", "reason"),
     [
-        ("FROM_HEAD", "0" * 40, "unexpected FROM_HEAD"),
-        ("HEAD", "1" * 40, "unexpected HEAD"),
+        ("FROM_HEAD", "0" * 40, "conflicting FROM_HEAD"),
+        ("HEAD", "1" * 40, "conflicting HEAD"),
         ("REMOTE_HEAD", "2" * 40, "unexpected REMOTE_HEAD"),
         ("RECORDER_STATE", "active", "recorder is not stopped"),
         ("RAW_PARTITIONED", "t", "raw storage is already partitioned"),
