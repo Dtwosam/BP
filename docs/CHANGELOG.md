@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.10 — 4 September 2026
+
+Phase 14 storage-preflight operator hardening now provides a single Cloud Shell evidence runner, `scripts/deploy/phase14_storage_preflight_evidence_cloudshell.sh`, that captures the existing read-only production preflight transcript and immediately runs the deterministic verifier against it. The wrapper uses `umask 077`, requires the local checkout `HEAD` to equal the exact candidate SHA, rejects a dirty local working tree, and emits the transcript/verified-JSON paths only after both stages pass. This closes the possibility of producing evidence with stale or locally modified helper/verifier files while the remote branch independently points at the expected candidate.
+
+The underlying read-only preflight was also hardened to honor configured `POSTGRES_USER` and `POSTGRES_DB` values from the production environment instead of assuming `bp/bp`, while retaining `bp` as the existing default. PostgreSQL `reltuples` estimates are clamped to a non-negative value before entering the evidence transcript so an unanalyzed relation cannot produce an invalid negative estimated-row count. CI now syntax-checks the evidence runner itself.
+
+TDD preserved both boundaries. RED head `2e91eac477a3ddcde5e35c344fa616dc83191d47` produced exactly four new operator-contract failures while the existing 922 tests passed; the first implementation checkpoint `7a4f7190225392666df5214dbf8ae2d26276664c` passed 926 tests. A second RED head `6f099c3c21ebe5e6a9dcef4fa8ebd0ad3850230d` then failed only the new exact-local-candidate contract with 926 existing tests passing. Final engineering head `79261f5365236170fc27413c6021c0d699e75ced` passed CI `33884829744` with **927 tests**, Ruff, deployment validation, health, and dashboard tests/typecheck/build.
+
+No production host preflight was run by this engineering work, no production mutation occurred, and the recorder remains stopped for storage recovery. A verified read-only preflight remains prerequisite evidence only; the partition migration still requires separate explicit production authorization, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, `automatic_promotion=false`, the Master live gate remains `fail`, and Phase 15/live trading remain blocked.
+
 ## 0.14.9 — 4 September 2026
 
 Phase 14 storage recovery preflight evidence is now deterministic and migration-headroom aware. A pure verifier, `scripts/deploy/verify_phase14_storage_preflight.py`, consumes the captured Cloud Shell preflight transcript and fails closed on conflicting duplicate fields, stale/unexpected deployed or candidate SHAs, an active recorder, any mutation claim, a non-canonical recovery archive path, or an already/partially migrated raw schema.

@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.9",
-  "updated_at": "2026-09-04T14:02:31Z",
+  "source_of_truth_version": "0.14.10",
+  "updated_at": "2026-09-04T14:39:16Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -1175,6 +1175,17 @@
     "read_only_preflight_evidence_verifier_merge_commit": "b567d1118d93910a56462ea1b45d9f2a1f728f77",
     "read_only_preflight_evidence_verifier_post_merge_ci_run_id": 33881303833,
     "read_only_preflight_evidence_verifier_post_merge_ci_passed": true,
-    "read_only_preflight_evidence_verifier_post_merge_test_count": 922
+    "read_only_preflight_evidence_verifier_post_merge_test_count": 922,
+    "read_only_preflight_operator_branch": "phase14-storage-preflight-operator",
+    "read_only_preflight_operator_implementation_head": "79261f5365236170fc27413c6021c0d699e75ced",
+    "read_only_preflight_operator_ci_run_id": 33884829744,
+    "read_only_preflight_operator_ci_passed": true,
+    "read_only_preflight_operator_test_count": 927,
+    "read_only_preflight_operator_runner": "scripts/deploy/phase14_storage_preflight_evidence_cloudshell.sh",
+    "read_only_preflight_operator_requires_exact_local_head": true,
+    "read_only_preflight_operator_requires_clean_local_tree": true,
+    "read_only_preflight_postgres_identity_from_env": true,
+    "read_only_preflight_reltuples_clamped_nonnegative": true,
+    "read_only_preflight_operator_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_HOST_RUN"
   }
 }
