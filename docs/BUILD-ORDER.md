@@ -415,7 +415,7 @@ Do not automatically increase stake.
 
 **Run and independently verify the read-only Phase 14 production storage preflight when host access is available; keep the recorder stopped and preserve the separate explicit authorization gate for the actual partition migration.**
 
-The partitioned-storage implementation is merged to `main`; the read-only preflight is merged; and the follow-up transcript verifier is engineering-verified on `phase14-storage-preflight-evidence`. Preflight evidence must be captured in Cloud Shell and validated with `scripts/deploy/verify_phase14_storage_preflight.py` as documented in `docs/PHASE-14-STORAGE-RECOVERY.md`.
+The partitioned-storage implementation, read-only preflight, and deterministic transcript verifier are all merged to `main`; PR #52 merged the verifier layer as `b567d1118d93910a56462ea1b45d9f2a1f728f77`, with post-merge CI `33881303833` passing 922 tests plus deployment/health/dashboard checks. Preflight evidence must be captured in Cloud Shell and validated with `scripts/deploy/verify_phase14_storage_preflight.py` as documented in `docs/PHASE-14-STORAGE-RECOVERY.md`.
 
 The verifier requires exact deployed/candidate SHA agreement, `RECORDER_STATE=stopped`, `MUTATIONS_PERFORMED=false`, canonical 24–48h recovery evidence, unequivocally unmigrated legacy raw storage, and sufficient migration headroom. Required free space is the larger of the configured floor and the current `raw_market_events` total relation size plus the unchanged 15 GiB critical reserve. Conflicting duplicate transcript fields fail closed.
 
