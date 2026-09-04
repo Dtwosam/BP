@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.20 — 4 September 2026
+
+Phase 14 read-only storage preflight chain-of-custody is now bound to the canonical recovery evidence path recorded in the exact candidate state. The clean exact-head Cloud Shell evidence wrapper reads `phase_14_storage_reliability_followup.archive_recovery_host_evidence` from `PROJECT_STATE.json`, validates its canonical host-path shape, and passes that exact path to the remote read-only preflight. The preflight rejects a missing/malformed binding and no longer selects the newest matching recovery JSON by filesystem mtime.
+
+RED head `ba0a4462d5ac22f60ab5a99a683d423604adf350` failed exactly the two new state/archive binding contracts while all **939 existing tests passed** in CI `33904374260`. GREEN implementation head `05833429f1ed7445a7b663a40978d48f1a8555a3` passed CI `33904435994` with **941 tests**, Ruff, both preflight Bash syntax validations, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #63's integration record. Final branch head `44669e518326af15e44409881172d9274de749e4` passed push CI `33904091140`, PR CI `33904134033`, Historical Backfill Smoke `33904134048`, Live Recorder Smoke `33904134027`, and Recorder Short Soak `33904134087`. PR #63 merged to `main` as `278834d91906b85fb26a9d4b850c968b7241e643`; post-merge CI `33904327566` then passed **939 tests** plus rollout syntax, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.19 — 4 September 2026
 
 Phase 14 rollout acceptance evidence now preserves the exact preflight-bound recovery artifact identity used by the migration safety checks. Eventual rollout JSON records the source recovery evidence path together with its preflight-captured SHA-256 and `window_end`, in addition to the already-recorded verified-preflight SHA-256. The worker does not invent or recompute a new acceptance identity here; it persists the exact values that were already validated before mutation and revalidated after managed services stopped.
