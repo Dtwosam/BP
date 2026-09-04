@@ -2,7 +2,7 @@
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
   "source_of_truth_version": "0.14.9",
-  "updated_at": "2026-09-04T13:55:57Z",
+  "updated_at": "2026-09-04T14:02:31Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -1169,6 +1169,12 @@
     "read_only_preflight_dynamic_headroom_rule": "max(configured_minimum_free_bytes, raw_market_events_total_bytes + 15GiB_critical_reserve)",
     "read_only_preflight_requires_unmigrated_legacy_shape": true,
     "read_only_preflight_rejects_conflicting_transcript_fields": true,
-    "read_only_preflight_verified_host_evidence_available": false
+    "read_only_preflight_verified_host_evidence_available": false,
+    "read_only_preflight_evidence_verifier_status": "MERGED_MAIN_NOT_HOST_RUN",
+    "read_only_preflight_evidence_verifier_pr": 52,
+    "read_only_preflight_evidence_verifier_merge_commit": "b567d1118d93910a56462ea1b45d9f2a1f728f77",
+    "read_only_preflight_evidence_verifier_post_merge_ci_run_id": 33881303833,
+    "read_only_preflight_evidence_verifier_post_merge_ci_passed": true,
+    "read_only_preflight_evidence_verifier_post_merge_test_count": 922
   }
 }
