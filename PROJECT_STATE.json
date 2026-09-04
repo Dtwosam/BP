@@ -2,7 +2,7 @@
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
   "source_of_truth_version": "0.14.14",
-  "updated_at": "2026-09-04T16:40:00Z",
+  "updated_at": "2026-09-04T16:45:00Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -1278,6 +1278,16 @@
     "partitioned_storage_rollout_requires_dedupe_cleanup_parity": true,
     "partitioned_storage_rollout_requires_physical_partition_byte_release": true,
     "partitioned_storage_rollout_physical_release_pr": 58,
-    "partitioned_storage_rollout_physical_release_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
+    "partitioned_storage_rollout_physical_release_status": "MERGED_MAIN_NOT_PRODUCTION_RUN",
+    "partitioned_storage_rollout_physical_release_final_branch_head": "604df58f48538a46518775053a5a638d54539122",
+    "partitioned_storage_rollout_physical_release_push_ci_run_id": 33896515382,
+    "partitioned_storage_rollout_physical_release_pr_ci_run_id": 33896529731,
+    "partitioned_storage_rollout_physical_release_historical_backfill_smoke_run_id": 33896529562,
+    "partitioned_storage_rollout_physical_release_live_recorder_smoke_run_id": 33896529796,
+    "partitioned_storage_rollout_physical_release_recorder_short_soak_run_id": 33896529803,
+    "partitioned_storage_rollout_physical_release_merge_commit": "c111ebdd29a584a05a46bfeb8d505b04f4558680",
+    "partitioned_storage_rollout_physical_release_post_merge_ci_run_id": 33896713148,
+    "partitioned_storage_rollout_physical_release_post_merge_ci_passed": true,
+    "partitioned_storage_rollout_physical_release_post_merge_test_count": 932
   }
 }
