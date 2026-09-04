@@ -683,6 +683,33 @@ def test_partitioned_health_fails_when_current_hour_partition_is_missing(engine,
     assert report["guards"]["current_partition_present"] is False
 
 
+
+def test_partitioned_health_tolerates_one_additional_hourly_cycle(engine, tmp_path) -> None:
+    now = datetime(2026, 9, 5, 15, 30, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now)
+    _record_maintenance_success(engine, now - timedelta(minutes=10))
+    tolerated_start = (
+        now.replace(minute=0, second=0, microsecond=0) - timedelta(hours=25)
+    )
+    with engine.begin() as connection:
+        ensure_hour_partitions(
+            connection,
+            start_at=tolerated_start,
+            hours_ahead=0,
+        )
+
+    report = build_composite_storage_health(
+        engine,
+        tmp_path,
+        _storage_settings(tmp_path, hot_raw_hours=24),
+        now=now,
+    )
+
+    assert report["status"] == "ok"
+    assert report["guards"]["retention_current"] is True
+    assert report["raw_partitions"]["retention_lag_hours"] == pytest.approx(1.0)
+
+
 def test_partitioned_health_fails_on_expired_partition_retention_lag(engine, tmp_path) -> None:
     now = datetime(2026, 9, 5, 14, 30, tzinfo=UTC)
     ensure_partitioned_raw_storage(engine, now=now)
