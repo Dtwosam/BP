@@ -139,3 +139,41 @@ def test_partitioned_storage_exact_parity_is_streaming_and_temp_space_bounded() 
     assert 'progress_label="RAW_PARITY"' in content
     assert 'f"{progress_label}_ROWS_CHECKED={checked}"' in content
     assert "EXCEPT ALL" not in content
+
+def test_partitioned_storage_rollout_requires_verified_preflight_evidence() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        "PHASE14_PARTITIONED_STORAGE_PREFLIGHT_VERIFIED",
+        "verified_preflight_missing",
+        'payload.get("verdict") != "PASS"',
+        'payload.get("from_head") != expected_from_head',
+        'payload.get("head") != expected_head',
+        'payload.get("remote_head") != expected_head',
+        'payload.get("mutations_performed") is not False',
+        'payload.get("recorder_state") != "stopped"',
+        'payload.get("storage_shape") != "legacy_unmigrated"',
+        "PREFLIGHT_VERIFIED_SHA256",
+    ):
+        assert marker in content
+
+
+def test_partitioned_storage_rollout_rechecks_dynamic_migration_headroom_before_apply() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        "verify_migration_headroom",
+        "pg_total_relation_size('public.raw_market_events')",
+        'postgres_user=$(read_env POSTGRES_USER)',
+        'postgres_db=$(read_env POSTGRES_DB)',
+        "critical_reserve_bytes=$((15 * 1024 * 1024 * 1024))",
+        "raw_total_bytes + critical_reserve_bytes",
+        "insufficient_migration_headroom",
+        "MIGRATION_REQUIRED_FREE_BYTES",
+    ):
+        assert marker in content
+
+    assert content.index("verify_migration_headroom") < content.index(
+        "migrate_partitioned_raw_storage.py apply"
+    )
+
