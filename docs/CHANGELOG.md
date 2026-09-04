@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.34 — 4 September 2026
+
+Phase 14 rollback handling now removes canonical PASS evidence that was installed but never accepted. The worker sets `EVIDENCE_INSTALLED=true` only after the final JSON install succeeds. If a later digest/copy/durability/temp-cleanup failure exits while `ROLLBACK_ARMED=1`, the exit trap attempts to remove that canonical evidence path, runs `sync -f` on the evidence directory, emits `ROLLBACK_EVIDENCE_CLEANUP=PASS` or `FAILED`, and then invokes the existing partition-storage rollback regardless of cleanup outcome. A failed rollout therefore no longer normally leaves an installed PASS artifact looking like accepted rollout evidence.
+
+Clean tests-only RED head `a96ce18e5db82ac764a11ce8208aaff26d7cd121` failed exactly the new rollback-evidence cleanup contract while all **952 existing tests passed** in CI `33919826004`. GREEN implementation head `04bb8c779a1ed20f863207b2d83faa798bbf70dd` passed CI `33919998745` with **953 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #77's integration record. Final head `475646cd50d23d887268af76f598d54b8d05167d` passed push CI `33917946210`, PR CI `33917988880`, Historical Backfill Smoke `33917988837`, Live Recorder Smoke `33917988671`, and Recorder Short Soak `33917988802`. PR #77 merged as `844f253d7a17afca305157937f7812189d0a9c41`; post-merge main CI `33919618388` passed **952 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.33 — 4 September 2026
 
 Phase 14 acceptance-evidence durability is now integrated on `main`. PR #76 final head `2cbeaa055c1e37a6268e7a26464fcc9dec9beeb9` passed push CI `33917470395`, PR CI `33917513711`, Historical Backfill Smoke `33917513493`, Live Recorder Smoke `33917513774`, and Recorder Short Soak `33917513615`. It merged as `7447d70f6b16c583e5f553d786c9649cd441cbda`; post-merge main CI `33917709776` then passed **952 tests** plus rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
