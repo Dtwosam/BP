@@ -93,6 +93,24 @@ if ! python "$VERIFIER" \
   exit 1
 fi
 
+TRANSCRIPT_SHA256=$(sha256sum "$TRANSCRIPT" | awk '{print $1}')
+VERIFIED_TRANSCRIPT_SHA256=$(python - "$VERIFIED" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+print(str(payload.get("transcript_sha256", "")))
+PY
+)
+if [[ ! "$TRANSCRIPT_SHA256" =~ ^[0-9a-f]{64}$ || "$VERIFIED_TRANSCRIPT_SHA256" != "$TRANSCRIPT_SHA256" ]]; then
+  rm -f "$VERIFIED"
+  echo "verified_preflight_transcript_digest_mismatch" >&2
+  exit 2
+fi
+
 VERIFIED_SHA256=$(sha256sum "$VERIFIED" | awk '{print $1}')
 [[ "$VERIFIED_SHA256" =~ ^[0-9a-f]{64}$ ]] || {
   echo "verified_preflight_digest_invalid" >&2
@@ -102,5 +120,6 @@ VERIFIED_SHA256=$(sha256sum "$VERIFIED" | awk '{print $1}')
 echo "PHASE14_STORAGE_PREFLIGHT_EVIDENCE=PASS"
 echo "ARCHIVE_EVIDENCE=$ARCHIVE_EVIDENCE"
 echo "TRANSCRIPT=$TRANSCRIPT"
+echo "TRANSCRIPT_SHA256=$TRANSCRIPT_SHA256"
 echo "VERIFIED=$VERIFIED"
 echo "VERIFIED_SHA256=$VERIFIED_SHA256"
