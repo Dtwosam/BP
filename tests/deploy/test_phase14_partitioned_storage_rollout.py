@@ -297,3 +297,13 @@ def test_partitioned_storage_rollout_binds_host_archive_bytes_to_verified_prefli
     migration_apply = content.index("migrate_partitioned_raw_storage.py apply")
     assert verify_fn < digest_check < migration_apply
 
+def test_partitioned_storage_rollout_rechecks_archive_after_managed_units_stop() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    initial_check = content.index("verify_archive_evidence")
+    stop_boundary = content.index("ROLLBACK_ARMED=1\nstop_managed_units")
+    second_check = content.index("verify_archive_evidence", stop_boundary)
+    migration_apply = content.index("migrate_partitioned_raw_storage.py apply", second_check)
+
+    assert initial_check < stop_boundary < second_check < migration_apply
+
