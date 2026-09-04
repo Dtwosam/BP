@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.15 — 4 September 2026
+
+Phase 14 partition-migration launcher hardening now binds the Cloud Shell rollout helper to the exact candidate source tree before any Google Cloud interaction. The helper resolves the local repository root, requires local `HEAD` to equal the exact `PHASE14_PARTITIONED_STORAGE_HEAD`, and rejects any tracked or untracked working-tree change. This closes a stale-helper gap where an older or locally modified launcher could otherwise target a newer candidate while omitting safety gates added later.
+
+TDD preserved the boundary: RED head `558475a6d29421cf15477cc012c10b086897b020` failed exactly the new local-candidate contract while all 932 existing tests passed in CI `33897191570`. GREEN implementation head `fff7adf984259b28a03b20ceff6d06cd906f5153` passed CI `33897354206` with **933 tests**, rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed. No production migration approval values were set; approval remains false, the recorder remains stopped for storage recovery, rollback requirements are unchanged, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.14 — 4 September 2026
 
 Phase 14 partition-migration acceptance now proves physical raw-storage release instead of treating a successful maintenance command as sufficient. After migration parity, the rollout captures total attached `raw_market_events` child-relation bytes, runs one partitioned maintenance cycle, requires at least one retired interval with `archived_rows > 0`, and requires `dedupe_rows_removed == archived_rows` for each non-empty retired interval.
