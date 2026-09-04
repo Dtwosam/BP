@@ -198,6 +198,8 @@ def test_verify_preflight_cli_emits_sanitized_json(tmp_path: Path) -> None:
                 "/mnt/bp-data/evidence/"
                 "phase14-storage-recovery-24-48h-20260904T015955Z.json"
             ),
+            "--expected-env-file",
+            "/etc/bp/bp.env",
         ],
         cwd=ROOT,
         capture_output=True,
