@@ -88,6 +88,7 @@ if ! python "$VERIFIER" \
   --expected-project "$PROJECT" \
   --expected-zone "$ZONE" \
   --expected-vm "$VM" \
+  --expected-archive-evidence "$ARCHIVE_EVIDENCE" \
   > "$VERIFIED"; then
   rm -f "$VERIFIED"
   exit 1
