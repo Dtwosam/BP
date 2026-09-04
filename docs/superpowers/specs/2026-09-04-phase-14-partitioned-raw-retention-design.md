@@ -3,7 +3,7 @@
 **Date:** 4 September 2026  
 **Phase:** 14 — live readiness engineering, live gate blocked  
 **Branch:** `design/phase14-partitioned-raw-retention`  
-**Status:** approved design; implementation not started  
+**Status:** in-chat design approved; written spec pending user review; implementation not started  
 **Production:** recorder intentionally stopped during recovery; no live trading
 
 ## Goal
@@ -93,7 +93,7 @@ Read callers continue to query `raw_market_events`; partitioning is transparent 
 
 Native range partitioning cannot enforce the current global `UNIQUE(dedupe_key)` invariant unless `received_at` participates in the unique key. Adding `received_at` would silently weaken replay dedupe because the same provider event can be replayed at a later receive time.
 
-Instead, production adds `raw_event_dedupe`, hash-partitioned by `dedupe_key`.
+Instead, production adds `raw_event_dedupe`, hash-partitioned by `dedupe_key` into exactly 16 fixed partitions. Sixteen keeps each uniqueness/index structure small without adding operationally unnecessary partition count.
 
 Logical ledger columns:
 
@@ -105,9 +105,9 @@ received_at  receive timestamp for retention cleanup
 
 The ledger has a database-enforced primary key on `dedupe_key`. Fixed hash partitions keep uniqueness enforceable because the partition key is itself the unique key.
 
-A single shared PostgreSQL sequence allocates `id` values. Raw rows use the ID returned by the dedupe claim. This preserves globally monotonic/unique generated event IDs in normal recorder operation without requiring an unsupported single-column primary key on the range-partitioned raw parent.
+A single shared PostgreSQL sequence allocates `id` values. Raw rows use the ID returned by the dedupe claim. This preserves globally unique generated event IDs in normal recorder operation without requiring an unsupported single-column primary key on the range-partitioned raw parent. Parallel writers do not imply global commit chronology from `id`, matching the already accepted bounded-parallel writer semantics.
 
-The raw table may enforce `(received_at, id)` as its partition-compatible row key. Ordering remains `(received_at, id)`, exactly as existing readers already use.
+The raw parent MUST enforce `PRIMARY KEY (received_at, id)`, which PostgreSQL permits because the range partition key participates in the key. Ordering remains `(received_at, id)`, exactly as existing readers already use. The shared sequence remains the source of global generated-ID uniqueness; the composite primary key is the database row-identity constraint compatible with range partitioning.
 
 ### 3. Transactional recorder write path
 
@@ -232,9 +232,9 @@ The existing warning and critical free-space thresholds are not silently lowered
 
 ### 10. Dedicated production data filesystem
 
-The recovered production host now has PostgreSQL on the dedicated `/mnt/bp-data` filesystem. Production configuration should make the canonical archive directory live on the same protected data filesystem or provide an explicit persistent bind mount to it.
+The recovered production host now has PostgreSQL on the dedicated `/mnt/bp-data` filesystem. Production configuration MUST make the canonical archive directory live on the same protected data filesystem or provide an explicit persistent bind mount to it.
 
-The storage guard must evaluate the filesystem that actually contains PostgreSQL raw storage, not an unrelated root path.
+Add `STORAGE_HEALTH_PATH` as an optional absolute-path setting. When unset, it defaults to `STORAGE_ARCHIVE_DIR` for backward compatibility. Production sets it to `/mnt/bp-data`. The composite storage guard evaluates `STORAGE_HEALTH_PATH`, so it checks the filesystem that actually contains PostgreSQL raw storage rather than an unrelated root path.
 
 The repository remains portable: mount device names and GCP disk IDs are deployment concerns, not application constants.
 
@@ -280,7 +280,7 @@ Sequence:
 12. perform controlled table-name swap while all database writers are stopped;
 13. verify existing read paths against the new parent;
 14. verify a synthetic duplicate is suppressed transactionally;
-15. verify a new synthetic event routes to the expected current-hour partition, then remove the synthetic evidence within the same controlled validation fixture or isolated test database—not the production evidence ledger;
+15. verify a new synthetic event routes to the expected current-hour partition inside an explicit transaction that is rolled back; no synthetic production evidence is committed;
 16. retain rollback material until post-swap verification passes;
 17. reclaim rollback storage only after the accepted rollback gate.
 
