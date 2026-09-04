@@ -155,6 +155,10 @@ def verify_preflight_transcript(
     if parsed_window_end.tzinfo is None or parsed_window_end.utcoffset() is None:
         raise PreflightVerificationError("archive window_end is not timezone-aware")
 
+    transcript_min_free_gib = _integer(values, "MIN_FREE_GIB", minimum=25)
+    if transcript_min_free_gib != min_free_gib:
+        raise PreflightVerificationError("unexpected MIN_FREE_GIB")
+
     free_bytes = _integer(values, "DEDICATED_DATA_FREE_BYTES", minimum=1)
     root_free_bytes = _integer(values, "ROOT_FREE_BYTES", minimum=1)
     raw_total_bytes = _integer(values, "RAW_TOTAL_BYTES", minimum=1)
