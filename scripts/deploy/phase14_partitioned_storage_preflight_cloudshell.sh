@@ -216,6 +216,25 @@ capture_database_shape() {
   IFS=$'\t' read -r     RAW_TOTAL_BYTES     RAW_TOTAL_PRETTY     RAW_ESTIMATED_ROWS     RAW_PARTITIONED     LEGACY_TABLE_PRESENT     DEDUPE_TABLE_PRESENT <<< "$row"
 }
 
+
+verify_migration_headroom() {
+  local raw_total_bytes critical_reserve_bytes configured_minimum_bytes required_free_bytes
+  raw_total_bytes=$RAW_TOTAL_BYTES
+  critical_reserve_bytes=$((15 * 1024 * 1024 * 1024))
+  configured_minimum_bytes=$((MIN_FREE_GIB * 1024 * 1024 * 1024))
+  required_free_bytes=$((raw_total_bytes + critical_reserve_bytes))
+  if (( required_free_bytes < configured_minimum_bytes )); then
+    required_free_bytes=$configured_minimum_bytes
+  fi
+  (( FREE_BYTES >= required_free_bytes )) || fail "insufficient_migration_headroom"
+}
+
+verify_unmigrated_storage_shape() {
+  [[ "$RAW_PARTITIONED" == "f" ]] || fail "raw_storage_already_partitioned"
+  [[ "$LEGACY_TABLE_PRESENT" == "f" ]] || fail "rollback_legacy_table_already_present"
+  [[ "$DEDUPE_TABLE_PRESENT" == "f" ]] || fail "dedupe_ledger_already_present"
+}
+
 capture_timer_state() {
   MAINTENANCE_TIMER_STATE=$(systemctl is-active bp-storage-maintenance.timer 2>/dev/null || true)
   DISK_HEALTH_TIMER_STATE=$(systemctl is-active bp-storage-disk-health.timer 2>/dev/null || true)
@@ -240,6 +259,8 @@ REMOTE_HEAD=$(git -C "$REPO" ls-remote --exit-code origin "refs/heads/$BRANCH" |
 verify_dedicated_data_filesystem
 verify_archive_evidence
 capture_database_shape
+verify_migration_headroom
+verify_unmigrated_storage_shape
 capture_timer_state
 
 echo "PHASE14_PARTITIONED_STORAGE_PREFLIGHT=PASS"

@@ -32,26 +32,43 @@ The output includes current relation bytes/estimated rows, whether raw storage i
 
 ## Run from Google Cloud Shell
 
-From a checkout containing the verified helper:
+From a checkout containing the verified helper and verifier:
 
 ```bash
 export PHASE14_PARTITIONED_STORAGE_FROM_HEAD='<exact currently deployed production SHA>'
 export PHASE14_PARTITIONED_STORAGE_HEAD='<exact verified candidate SHA>'
 export PHASE14_PARTITIONED_STORAGE_BRANCH='main'
 
-bash scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh
+STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+TRANSCRIPT="$HOME/bp-phase14-storage-preflight-$STAMP.txt"
+VERIFIED="$HOME/bp-phase14-storage-preflight-$STAMP.json"
+
+bash scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh \
+  | tee "$TRANSCRIPT"
+
+python scripts/deploy/verify_phase14_storage_preflight.py \
+  --input "$TRANSCRIPT" \
+  --expected-from-head "$PHASE14_PARTITIONED_STORAGE_FROM_HEAD" \
+  --expected-head "$PHASE14_PARTITIONED_STORAGE_HEAD" \
+  > "$VERIFIED"
+
+cat "$VERIFIED"
 ```
 
-Do not substitute a shortened SHA.
+These files are created in Cloud Shell, not on the production VM. Do not substitute a shortened SHA.
 
-A successful result ends with:
+The raw preflight must end with:
 
 ```text
 PHASE14_PARTITIONED_STORAGE_PREFLIGHT=PASS
 MUTATIONS_PERFORMED=false
 ```
 
-A preflight PASS is evidence that the host satisfies the non-mutating prerequisites at that moment. It is **not** authorization to run `phase14_partitioned_storage_rollout_cloudshell.sh` and does not imply migration acceptance.
+The independent verifier then rejects conflicting duplicate fields, stale/unexpected SHAs, an active recorder, an already/partially migrated raw schema, a non-canonical recovery archive path, any mutation claim, or insufficient migration headroom. Required free space is the larger of the configured 40 GiB floor and the current raw relation size plus the unchanged 15 GiB critical reserve.
+
+A verified JSON result has `"verdict": "PASS"`, `"mutations_performed": false`, and `"storage_shape": "legacy_unmigrated"`. It intentionally omits the PostgreSQL mount source and display-only relation-size strings.
+
+A preflight/verifier PASS is evidence that the host satisfies the non-mutating prerequisites at that moment. It is **not** authorization to run `phase14_partitioned_storage_rollout_cloudshell.sh` and does not imply migration acceptance.
 
 ## Production migration boundary
 

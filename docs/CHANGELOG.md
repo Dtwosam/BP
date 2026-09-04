@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.9 — 4 September 2026
+
+Phase 14 storage recovery preflight evidence is now deterministic and migration-headroom aware. A pure verifier, `scripts/deploy/verify_phase14_storage_preflight.py`, consumes the captured Cloud Shell preflight transcript and fails closed on conflicting duplicate fields, stale/unexpected deployed or candidate SHAs, an active recorder, any mutation claim, a non-canonical recovery archive path, or an already/partially migrated raw schema.
+
+The read-only host preflight now also requires the production raw schema to be unequivocally legacy/unmigrated (`raw_market_events` not partitioned, no `raw_market_events_legacy`, no `raw_event_dedupe`) and applies a dynamic free-space rule before any future migration is considered. Required protected-data free space is `max(configured minimum, raw_market_events total relation bytes + 15 GiB critical reserve)`, preserving the existing critical reserve while allowing the migration to duplicate the retained raw relation and keep rollback material.
+
+Engineering head `7ab6108895016debde778a941650970cd7d7106f` passed CI `33880625104` with **922 tests**, Ruff, deployment validation, health check, and dashboard tests/typecheck/build. The recovery runbook now captures the raw transcript in Cloud Shell and independently verifies it into sanitized JSON; neither step writes to the production VM or authorizes the partition migration.
+
+The production host preflight has still not been run from this session because no connected Compute Engine access is available. The production partition migration remains separately explicitly authorized, `bp-recorder.service` remains stopped, and no Gate B, V2 policy/model/calibration/edge, Phase 15, geography-bypass, or live-trading behavior changed. Selected-book freshness remains exactly 10 seconds and `automatic_promotion=false`.
 ## 0.14.8 — 4 September 2026
 
 Phase 14 partitioned raw-retention reliability is now **merged to `main` but still not production-migrated**. PR #50 merged as `89b00ba8df4acdfad075cb31df596c86dc148f08`; post-merge CI `33875494229` passed 903 Python/PostgreSQL tests plus Ruff, deployment validation, health check, and dashboard tests/typecheck/build. This repository integration does not authorize or claim any production schema migration, recorder restart, Gate B work, Phase 15 work, or live-trading change.
