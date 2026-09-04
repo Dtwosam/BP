@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.17 — 4 September 2026
+
+Phase 14 storage-recovery chain-of-custody hardening now binds future partition migration to the exact bytes of the recovery evidence observed during the read-only preflight, not only its filename and `window_end`. The preflight computes a read-only SHA-256 after validating the canonical 24-hour recovery file, emits it in the transcript, and the deterministic verifier requires an exact lowercase 64-character digest and preserves it in the verified JSON.
+
+The rollout launcher extracts that verified archive digest together with the already-bound evidence name and window. The detached worker re-hashes the exact host evidence file and fails closed with `archive_evidence_digest_mismatch` unless the current bytes match the preflight-captured SHA-256, before any partition migration apply. This closes the remaining same-name/time-of-check-to-time-of-use gap for recovery evidence.
+
+Clean tests-only RED head `497e001d57a5dcc65237fec11dc67b7089c5995a` failed exactly four new digest-contract tests while all **933 existing tests passed** in CI `33901674705`. GREEN implementation head `b874b5215d171d181cad2b1626a60b36e91a5e78` passed CI `33901670503` with **937 tests**, Ruff, preflight/rollout Bash syntax validation, verifier compilation, health, and dashboard tests/typecheck/build.
+
+No production preflight or partition migration was executed, no production approval values were set, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.16 — 4 September 2026
 
 Phase 14 partition-migration chain-of-custody hardening now binds the production worker to the exact recovery archive evidence referenced by the verified read-only preflight. The launcher extracts the preflight archive `evidence_name` and `window_end`, validates the canonical evidence-name shape, and passes both into the detached worker. The worker no longer selects the latest matching recovery JSON; it requires the exact preflight-bound file and matching `window_end` before migration.

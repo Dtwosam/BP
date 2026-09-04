@@ -108,19 +108,24 @@ if payload.get("storage_shape") != "legacy_unmigrated":
 
 archive = payload.get("archive") or {}
 evidence_name = archive.get("evidence_name")
+archive_sha256 = archive.get("sha256")
 window_end = archive.get("window_end")
 if not isinstance(evidence_name, str) or not re.fullmatch(
     r"phase14-storage-recovery-24-48h-[0-9]{8}T[0-9]{6}Z\.json",
     evidence_name,
 ):
     raise SystemExit("verified preflight archive evidence name is invalid")
+if not isinstance(archive_sha256, str) or not re.fullmatch(
+    r"[0-9a-f]{64}", archive_sha256
+):
+    raise SystemExit("verified preflight archive SHA-256 is invalid")
 if not isinstance(window_end, str) or not window_end:
     raise SystemExit("verified preflight archive window_end is invalid")
-print(f"{evidence_name}\t{window_end}")
+print(f"{evidence_name}\t{archive_sha256}\t{window_end}")
 PY
 )
-IFS=$'\t' read -r PREFLIGHT_ARCHIVE_EVIDENCE_NAME PREFLIGHT_ARCHIVE_WINDOW_END <<< "$PREFLIGHT_ARCHIVE_BINDING"
-if [[ -z "$PREFLIGHT_ARCHIVE_EVIDENCE_NAME" || -z "$PREFLIGHT_ARCHIVE_WINDOW_END" ]]; then
+IFS=$'\t' read -r PREFLIGHT_ARCHIVE_EVIDENCE_NAME PREFLIGHT_ARCHIVE_SHA256 PREFLIGHT_ARCHIVE_WINDOW_END <<< "$PREFLIGHT_ARCHIVE_BINDING"
+if [[ -z "$PREFLIGHT_ARCHIVE_EVIDENCE_NAME" || -z "$PREFLIGHT_ARCHIVE_SHA256" || -z "$PREFLIGHT_ARCHIVE_WINDOW_END" ]]; then
   echo "archive_evidence_binding_mismatch" >&2
   exit 2
 fi
@@ -134,6 +139,7 @@ printf -v ENV_Q '%q' "$ENV_FILE"
 printf -v FREE_Q '%q' "$MIN_FREE_GIB"
 printf -v PREFLIGHT_SHA_Q '%q' "$PREFLIGHT_VERIFIED_SHA256"
 printf -v PREFLIGHT_ARCHIVE_NAME_Q '%q' "$PREFLIGHT_ARCHIVE_EVIDENCE_NAME"
+printf -v PREFLIGHT_ARCHIVE_SHA_Q '%q' "$PREFLIGHT_ARCHIVE_SHA256"
 printf -v PREFLIGHT_ARCHIVE_WINDOW_Q '%q' "$PREFLIGHT_ARCHIVE_WINDOW_END"
 
 read -r -d '' WORKER <<'WORKER_EOF' || true
@@ -146,6 +152,7 @@ ENV_FILE="${PHASE14_PARTITIONED_STORAGE_ENV_FILE:?}"
 MIN_FREE_GIB="${PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB:?}"
 PREFLIGHT_VERIFIED_SHA256="${PHASE14_PARTITIONED_STORAGE_PREFLIGHT_SHA256:?}"
 EXPECTED_ARCHIVE_EVIDENCE_NAME="${PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_NAME:?}"
+EXPECTED_ARCHIVE_SHA256="${PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_SHA256:?}"
 EXPECTED_ARCHIVE_WINDOW_END="${PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_WINDOW_END:?}"
 
 REPO=/opt/bp
@@ -492,6 +499,12 @@ verify_archive_evidence() {
     || fail "archive_evidence_binding_mismatch"
   ARCHIVE_EVIDENCE="$EVIDENCE_DIR/$EXPECTED_ARCHIVE_EVIDENCE_NAME"
   [[ -f "$ARCHIVE_EVIDENCE" ]] || fail "verified_24_48h_archive_evidence_missing"
+  [[ "$EXPECTED_ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]] \
+    || fail "archive_evidence_digest_mismatch"
+  local archive_sha256
+  archive_sha256=$(sha256sum "$ARCHIVE_EVIDENCE" | awk '{print $1}')
+  [[ "$archive_sha256" == "$EXPECTED_ARCHIVE_SHA256" ]] \
+    || fail "archive_evidence_digest_mismatch"
 
   if ! "$PYTHON" - "$ARCHIVE_EVIDENCE" "$EXPECTED_ARCHIVE_WINDOW_END" <<'PY'
 from __future__ import annotations
@@ -823,7 +836,7 @@ UNIT="bp-phase14-partitioned-storage-$SHORT"
 WORKER_PATH="/var/tmp/$UNIT.sh"
 printf '%s' $WORKER_B64_Q | base64 -d > "$WORKER_PATH"
 chmod 0700 "$WORKER_PATH"
-systemd-run   --unit="$UNIT"   --description="BP Phase 14 partitioned storage rollout"   --property=Type=oneshot   --property=StandardOutput=journal   --property=StandardError=journal   --setenv=PHASE14_PARTITIONED_STORAGE_HEAD="$HEAD_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_FROM_HEAD="$FROM_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_BRANCH="$BRANCH_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_ENV_FILE="$ENV_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB="$FREE_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_SHA256="$PREFLIGHT_SHA_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_NAME="$PREFLIGHT_ARCHIVE_NAME_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_WINDOW_END="$PREFLIGHT_ARCHIVE_WINDOW_Q"   /bin/bash "$WORKER_PATH"
+systemd-run   --unit="$UNIT"   --description="BP Phase 14 partitioned storage rollout"   --property=Type=oneshot   --property=StandardOutput=journal   --property=StandardError=journal   --setenv=PHASE14_PARTITIONED_STORAGE_HEAD="$HEAD_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_FROM_HEAD="$FROM_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_BRANCH="$BRANCH_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_ENV_FILE="$ENV_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB="$FREE_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_SHA256="$PREFLIGHT_SHA_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_NAME="$PREFLIGHT_ARCHIVE_NAME_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_SHA256="$PREFLIGHT_ARCHIVE_SHA_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_WINDOW_END="$PREFLIGHT_ARCHIVE_WINDOW_Q"   /bin/bash "$WORKER_PATH"
 echo "PHASE14_PARTITIONED_STORAGE_STARTED=PASS"
 echo "UNIT=$UNIT.service"
 echo "STATUS_COMMAND=sudo systemctl status $UNIT.service --no-pager -l"
@@ -839,6 +852,7 @@ echo "MIN_FREE_GIB=$MIN_FREE_GIB"
 echo "PREFLIGHT_VERIFIED=$PREFLIGHT_VERIFIED"
 echo "PREFLIGHT_VERIFIED_SHA256=$PREFLIGHT_VERIFIED_SHA256"
 echo "PREFLIGHT_ARCHIVE_EVIDENCE_NAME=$PREFLIGHT_ARCHIVE_EVIDENCE_NAME"
+echo "PREFLIGHT_ARCHIVE_SHA256=$PREFLIGHT_ARCHIVE_SHA256"
 echo "PREFLIGHT_ARCHIVE_WINDOW_END=$PREFLIGHT_ARCHIVE_WINDOW_END"
 echo "Launching detached partitioned-storage rollout job; production recorder is not started."
 
