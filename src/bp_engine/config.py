@@ -59,9 +59,11 @@ class Settings(BaseSettings):
     storage_archive_retention_hours: int = 24
     storage_state_retention_days: int = 90
     storage_archive_dir: str = "/var/lib/bp/archive/raw"
+    storage_health_path: str | None = None
     storage_warning_free_gib: int = 25
     storage_critical_free_gib: int = 15
     storage_delete_batch_size: int = 50_000
+    storage_maintenance_max_age_hours: int = Field(default=2, ge=1)
 
     polymarket_ws_url: str = "wss://ws-subscriptions-clob.polymarket.com/ws/market"
     bybit_spot_ws_url: str = "wss://stream.bybit.com/v5/public/spot"
