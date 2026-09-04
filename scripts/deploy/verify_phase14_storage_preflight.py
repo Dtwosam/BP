@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -223,7 +224,8 @@ def _parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = _parser().parse_args()
     try:
-        transcript = Path(args.input).read_text(encoding="utf-8")
+        transcript_bytes = Path(args.input).read_bytes()
+        transcript = transcript_bytes.decode("utf-8")
         report = verify_preflight_transcript(
             transcript,
             expected_from_head=args.expected_from_head,
@@ -234,6 +236,7 @@ def main() -> int:
             min_free_gib=args.min_free_gib,
             critical_reserve_gib=args.critical_reserve_gib,
         )
+        report["transcript_sha256"] = hashlib.sha256(transcript_bytes).hexdigest()
     except (OSError, PreflightVerificationError) as exc:
         print(f"PHASE14_STORAGE_PREFLIGHT_EVIDENCE=FAIL: {exc}", file=sys.stderr)
         return 1
