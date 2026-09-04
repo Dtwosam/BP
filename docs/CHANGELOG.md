@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.36 — 4 September 2026
+
+Phase 14 atomic acceptance-evidence publication is now integrated on `main`. PR #79 final head `5e0d0ed21259e56ff352579f6d0acef93d45eef9` passed push CI `33921253828`, PR CI `33921289164`, Historical Backfill Smoke `33921289187`, Live Recorder Smoke `33921288925`, and Recorder Short Soak `33921288949`. It merged as `f43fd5d85f1253c0d482526cea23d250d4b5801b`; post-merge main CI `33921466538` then passed **954 tests** plus rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+The merged worker stages generated acceptance JSON on the canonical evidence filesystem, synchronizes the stage, publishes it with a non-replacing hard link, and only then marks the canonical artifact installed. Existing same-name evidence cannot be silently overwritten, and a failed staging copy cannot create canonical PASS evidence. This closes the PR #79 integration record; it does not authorize production execution.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.35 — 4 September 2026
 
 Phase 14 final rollout acceptance evidence is now published through an exclusive same-filesystem staging boundary instead of copying directly into the canonical pathname. The worker installs generated JSON into a hidden staging file under the canonical evidence directory, synchronizes that staged file, then uses a hard link to publish the staged inode at `EVIDENCE_PATH`. Because the link operation does not replace an existing destination, a same-name canonical artifact fails closed with `rollout_evidence_publish_failed` instead of being overwritten. A failed staging copy also cannot leave a canonical PASS artifact. The worker sets `EVIDENCE_INSTALLED=true` only after publication succeeds, removes the hidden stage, and preserves the existing canonical digest/copy-integrity/durability checks before rollback disarm.
