@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.35 — 4 September 2026
+
+Phase 14 final rollout acceptance evidence is now published through an exclusive same-filesystem staging boundary instead of copying directly into the canonical pathname. The worker installs generated JSON into a hidden staging file under the canonical evidence directory, synchronizes that staged file, then uses a hard link to publish the staged inode at `EVIDENCE_PATH`. Because the link operation does not replace an existing destination, a same-name canonical artifact fails closed with `rollout_evidence_publish_failed` instead of being overwritten. A failed staging copy also cannot leave a canonical PASS artifact. The worker sets `EVIDENCE_INSTALLED=true` only after publication succeeds, removes the hidden stage, and preserves the existing canonical digest/copy-integrity/durability checks before rollback disarm.
+
+Clean tests-only RED head `7b6e222318498de14da53e300fd86eb4301732be` failed exactly the new exclusive staged-publication contract while all **953 existing tests passed** in CI `33920621979`. Initial implementation head `a90cf0685e3dc9f1c1a3e214041cd7d657454a2f` correctly changed the publication boundary but CI `33920781374` revealed three older ordering assertions still referenced the removed direct-install step (**951 passed, 3 failed**). Final repaired head `a0cc64aae7e78718f8a703fd3a92f76519fceed8` updated only those legacy assertions and passed CI `33921020153` with **954 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #78's integration record. Final head `7faab47197d6e105af40176c08f8cab981992665` passed push CI `33920244547`, PR CI `33920273558`, Historical Backfill Smoke `33920273463`, Live Recorder Smoke `33920273488`, and Recorder Short Soak `33920273569`. PR #78 merged as `d93825ebb39625dddba9af79ff4bf734e11d1866`; post-merge main CI `33920435721` passed **953 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.34 — 4 September 2026
 
 Phase 14 rollback handling now removes canonical PASS evidence that was installed but never accepted. The worker sets `EVIDENCE_INSTALLED=true` only after the final JSON install succeeds. If a later digest/copy/durability/temp-cleanup failure exits while `ROLLBACK_ARMED=1`, the exit trap attempts to remove that canonical evidence path, runs `sync -f` on the evidence directory, emits `ROLLBACK_EVIDENCE_CLEANUP=PASS` or `FAILED`, and then invokes the existing partition-storage rollback regardless of cleanup outcome. A failed rollout therefore no longer normally leaves an installed PASS artifact looking like accepted rollout evidence.
