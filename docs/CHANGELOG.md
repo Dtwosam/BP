@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.41 — 4 September 2026
+
+Phase 14 verified preflight evidence now cryptographically binds the exact raw transcript bytes. The independent verifier reads the transcript as bytes, verifies its parsed safety fields, and embeds `transcript_sha256` in the verified JSON. The Cloud Shell wrapper then independently re-hashes the transcript, requires equality with the embedded digest, removes the verified JSON on mismatch, and emits `TRANSCRIPT_SHA256` only after that equality proof. Verified JSON can therefore be traced to the exact transcript bytes from which it was produced.
+
+Clean tests-only RED head `1ca9962d38dc9eaa16db0fce54ce1dea27f44b0d` failed exactly the new transcript-digest contract while all **956 existing tests passed** in CI `33926512157`. GREEN head `984a6f41fcfb96809f71c4df03ddb69fe875549d` passed CI `33926698070` with **957 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #84's integration record. Final head `c9506d161613dce47fb8a71bd4bb8a87bf5a87a5` passed push CI `33926105364`, PR CI `33926140785`, Historical Backfill Smoke `33926140869`, Live Recorder Smoke `33926140811`, and Recorder Short Soak `33926140830`. PR #84 merged as `97bbe426182cfacaace2b8aa64d929059d34f606`; post-merge main CI `33926308381` passed **956 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.40 — 4 September 2026
 
 Phase 14 verified preflight target binding is now integrated on `main`. PR #83 final head `829b1e5658fd409390f982f5901cf86b67e630c6` passed push CI `33925695975`, PR CI `33925723843`, Historical Backfill Smoke `33925723819`, Live Recorder Smoke `33925723818`, and Recorder Short Soak `33925723795`. It merged as `2ac8fad310eddf767598ac0610e0d89c5cfdc96b`; post-merge main CI `33925903210` then passed **956 tests** plus rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
