@@ -242,3 +242,23 @@ def test_partitioned_storage_rollout_requires_partition_retirement_physical_rele
     )
     assert before < maintenance < after
 
+def test_partitioned_storage_rollout_binds_local_helper_to_exact_clean_candidate() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        'ROOT=$(git rev-parse --show-toplevel',
+        'LOCAL_HEAD=$(git rev-parse HEAD)',
+        '[[ "$LOCAL_HEAD" == "$EXPECTED_HEAD" ]]',
+        'git status --porcelain --untracked-files=all',
+        "local_candidate_head_mismatch",
+        "local_working_tree_dirty",
+    ):
+        assert marker in content
+
+    assert content.index("local_candidate_head_mismatch") < content.index(
+        "gcloud config set project"
+    )
+    assert content.index("local_working_tree_dirty") < content.index(
+        "gcloud config set project"
+    )
+

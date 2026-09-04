@@ -45,6 +45,24 @@ if ! [[ "$MIN_FREE_GIB" =~ ^[0-9]+$ ]] || (( MIN_FREE_GIB < 25 )); then
   echo "PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB must be an integer >= 25" >&2
   exit 2
 fi
+
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
+if [[ -z "$ROOT" ]]; then
+  echo "local_repository_missing" >&2
+  exit 2
+fi
+cd "$ROOT"
+
+LOCAL_HEAD=$(git rev-parse HEAD)
+[[ "$LOCAL_HEAD" == "$EXPECTED_HEAD" ]] || {
+  echo "local_candidate_head_mismatch:$LOCAL_HEAD" >&2
+  exit 2
+}
+if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
+  echo "local_working_tree_dirty" >&2
+  exit 2
+fi
+
 if ! command -v gcloud >/dev/null 2>&1; then
   echo "gcloud is required; run this helper from Google Cloud Shell" >&2
   exit 2
