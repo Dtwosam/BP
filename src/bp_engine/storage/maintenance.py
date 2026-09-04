@@ -665,7 +665,7 @@ def build_composite_storage_health(
     )
     max_age_hours = int(getattr(settings, "storage_maintenance_max_age_hours", 2))
     maintenance_fresh = age_hours is not None and age_hours <= max_age_hours
-    retention_current = not expired
+    retention_current = retention_lag_hours <= 1.0
 
     guards = {
         "maintenance_fresh": maintenance_fresh,
