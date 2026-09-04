@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.13 — 4 September 2026
+
+Phase 14 production partition-migration approval is now machine-enforced instead of being only an operational/documentation boundary. The rollout helper requires `PHASE14_PARTITIONED_STORAGE_APPROVED_FROM_HEAD` and `PHASE14_PARTITIONED_STORAGE_APPROVED_HEAD` to be exact 40-character SHAs that match the exact deployed-from and candidate SHAs supplied to the rollout. Missing, malformed, stale, or mismatched approval values fail closed with `migration_approval_missing_or_invalid` before `gcloud config set project` or any production VM contact.
+
+The approval inputs are intentionally separate from the verified preflight JSON. A preflight PASS still cannot create or imply production approval, and approval for one SHA transition cannot be silently reused for another. Existing verified-preflight binding, live legacy-schema rechecks, dynamic migration-headroom rechecks, rollback retention, recorder-stopped enforcement, and research/zero-money gates remain unchanged.
+
+TDD preserved the boundary. RED head `754a2d358bc1b57048487183f1604cc011b81774` failed exactly the new approval contract while **930 existing tests passed** in CI `33894763732`. GREEN implementation head `aba1d6d64efe4a8b9bd11003c1b89e0c40407c10` passed CI `33895003158` with **931 tests**, Ruff, rollout/deployment syntax validation, health, and dashboard tests/typecheck/build. PR #57 is the integration vehicle for this engineering-only hardening.
+
+No approval values were set and no production preflight or migration was executed. Production migration approval remains false/separate, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, `automatic_promotion=false`, the Master live gate remains `fail`, and Phase 15/live trading remain blocked.
+
 ## 0.14.12 — 4 September 2026
 
 Phase 14 partition-migration rollout hardening now re-proves the live PostgreSQL storage shape instead of relying only on the earlier verified preflight JSON. The rollout queries the current `raw_market_events` partition metadata plus the presence of `raw_market_events_legacy` and `raw_event_dedupe`, using configured `POSTGRES_USER` / `POSTGRES_DB` with the existing `bp` defaults. It fails closed if the raw table is already partitioned or either migration-created relation already exists.

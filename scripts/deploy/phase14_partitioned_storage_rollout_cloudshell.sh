@@ -7,6 +7,8 @@ VM="${PHASE14_PARTITIONED_STORAGE_VM:-bp-recorder}"
 BRANCH="${PHASE14_PARTITIONED_STORAGE_BRANCH:-main}"
 EXPECTED_HEAD="${PHASE14_PARTITIONED_STORAGE_HEAD:-}"
 EXPECTED_FROM_HEAD="${PHASE14_PARTITIONED_STORAGE_FROM_HEAD:-}"
+APPROVED_FROM_HEAD="${PHASE14_PARTITIONED_STORAGE_APPROVED_FROM_HEAD:-}"
+APPROVED_HEAD="${PHASE14_PARTITIONED_STORAGE_APPROVED_HEAD:-}"
 ENV_FILE="${PHASE14_PARTITIONED_STORAGE_ENV_FILE:-/etc/bp/bp.env}"
 MIN_FREE_GIB="${PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB:-40}"
 PREFLIGHT_VERIFIED="${PHASE14_PARTITIONED_STORAGE_PREFLIGHT_VERIFIED:-}"
@@ -19,6 +21,18 @@ if [[ ! "$EXPECTED_FROM_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
   echo "PHASE14_PARTITIONED_STORAGE_FROM_HEAD must be the exact 40-character expected deployed SHA" >&2
   exit 2
 fi
+if [[ ! "$APPROVED_FROM_HEAD" =~ ^[0-9a-f]{40}$ || ! "$APPROVED_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "migration_approval_missing_or_invalid" >&2
+  exit 2
+fi
+[[ "$APPROVED_FROM_HEAD" == "$EXPECTED_FROM_HEAD" ]] || {
+  echo "migration_approval_missing_or_invalid" >&2
+  exit 2
+}
+[[ "$APPROVED_HEAD" == "$EXPECTED_HEAD" ]] || {
+  echo "migration_approval_missing_or_invalid" >&2
+  exit 2
+}
 if ! [[ "$BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]; then
   echo "PHASE14_PARTITIONED_STORAGE_BRANCH contains unsupported characters" >&2
   exit 2
