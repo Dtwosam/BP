@@ -462,3 +462,24 @@ def test_rollout_hashes_final_acceptance_evidence_before_disarm() -> None:
     disarm = content.index("\nROLLBACK_ARMED=0\n", digest)
     assert install < digest < disarm
 
+def test_rollout_proves_installed_evidence_matches_generated_bytes() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        'EVIDENCE_TMP_SHA256=$(sha256sum "$EVIDENCE_TMP"',
+        '[[ "$EVIDENCE_SHA256" == "$EVIDENCE_TMP_SHA256" ]]' ,
+        "rollout_evidence_copy_mismatch",
+    ):
+        assert marker in content
+
+    temp_digest = content.index('EVIDENCE_TMP_SHA256=$(sha256sum "$EVIDENCE_TMP"')
+    install = content.index(
+        'install -o bp -g bp -m 0640 "$EVIDENCE_TMP" "$EVIDENCE_PATH"',
+        temp_digest,
+    )
+    installed_digest = content.index('EVIDENCE_SHA256=$(sha256sum "$EVIDENCE_PATH"', install)
+    compare = content.index('[[ "$EVIDENCE_SHA256" == "$EVIDENCE_TMP_SHA256" ]]' , installed_digest)
+    cleanup = content.index('rm -f "$EVIDENCE_TMP"', compare)
+    disarm = content.index("\nROLLBACK_ARMED=0\n", cleanup)
+    assert temp_digest < install < installed_digest < compare < cleanup < disarm
+
