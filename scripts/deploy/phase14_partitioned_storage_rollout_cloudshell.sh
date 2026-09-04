@@ -747,7 +747,7 @@ install -d -o bp -g bp -m 0750 "$EVIDENCE_DIR"
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 EVIDENCE_PATH="$EVIDENCE_DIR/phase14-partitioned-storage-rollout-$STAMP.json"
 EVIDENCE_TMP=$(mktemp /var/tmp/bp-partitioned-storage-evidence.XXXXXX.json)
-"$PYTHON" -   "$APPLY_JSON" "$VERIFY_JSON" "$MAINTENANCE_JSON" "$DISK_JSON"   "$EVIDENCE_TMP" "$OLD_HEAD" "$SHA" "$ARCHIVE_EVIDENCE" "$POSTGRES_DATA_SOURCE"   "$PREFLIGHT_VERIFIED_SHA256" "$MIGRATION_FREE_BYTES" "$MIGRATION_RAW_TOTAL_BYTES" "$MIGRATION_REQUIRED_FREE_BYTES"   "$PARTITION_BYTES_BEFORE_MAINTENANCE" "$PARTITION_BYTES_AFTER_MAINTENANCE" "$PARTITION_BYTES_RELEASED" <<'PY'
+"$PYTHON" -   "$APPLY_JSON" "$VERIFY_JSON" "$MAINTENANCE_JSON" "$DISK_JSON"   "$EVIDENCE_TMP" "$OLD_HEAD" "$SHA" "$ARCHIVE_EVIDENCE" "$POSTGRES_DATA_SOURCE"   "$PREFLIGHT_VERIFIED_SHA256" "$EXPECTED_ARCHIVE_SHA256" "$EXPECTED_ARCHIVE_WINDOW_END" "$MIGRATION_FREE_BYTES" "$MIGRATION_RAW_TOTAL_BYTES" "$MIGRATION_REQUIRED_FREE_BYTES"   "$PARTITION_BYTES_BEFORE_MAINTENANCE" "$PARTITION_BYTES_AFTER_MAINTENANCE" "$PARTITION_BYTES_RELEASED" <<'PY'
 from __future__ import annotations
 
 import json
@@ -766,6 +766,8 @@ from pathlib import Path
     archive_evidence,
     postgres_data_source,
     preflight_verified_sha256,
+    archive_evidence_sha256,
+    archive_window_end,
     migration_free_bytes,
     migration_raw_total_bytes,
     migration_required_free_bytes,
@@ -789,6 +791,8 @@ payload = {
     "archive_dir": "/mnt/bp-data/archive/raw",
     "postgres_data_source": postgres_data_source,
     "source_archive_evidence": archive_evidence,
+    "source_archive_evidence_sha256": archive_evidence_sha256,
+    "source_archive_window_end": archive_window_end,
     "verified_preflight_sha256": preflight_verified_sha256,
     "pre_migration_headroom": {
         "free_bytes": int(migration_free_bytes),
