@@ -21,6 +21,16 @@ if [[ -z "$ROOT" ]]; then
 fi
 cd "$ROOT"
 
+LOCAL_HEAD=$(git rev-parse HEAD)
+if [[ "$LOCAL_HEAD" != "$EXPECTED_HEAD" ]]; then
+  echo "local_candidate_head_mismatch:$LOCAL_HEAD" >&2
+  exit 2
+fi
+if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
+  echo "local_working_tree_dirty" >&2
+  exit 2
+fi
+
 PREFLIGHT="scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh"
 VERIFIER="scripts/deploy/verify_phase14_storage_preflight.py"
 [[ -f "$PREFLIGHT" ]] || { echo "missing $PREFLIGHT" >&2; exit 2; }
