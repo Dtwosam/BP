@@ -7,6 +7,7 @@ VM="${PHASE14_PARTITIONED_STORAGE_VM:-bp-recorder}"
 BRANCH="${PHASE14_PARTITIONED_STORAGE_BRANCH:-main}"
 EXPECTED_HEAD="${PHASE14_PARTITIONED_STORAGE_HEAD:-}"
 EXPECTED_FROM_HEAD="${PHASE14_PARTITIONED_STORAGE_FROM_HEAD:-}"
+EXPECTED_ARCHIVE_EVIDENCE="${PHASE14_PARTITIONED_STORAGE_ARCHIVE_EVIDENCE:-}"
 ENV_FILE="${PHASE14_PARTITIONED_STORAGE_ENV_FILE:-/etc/bp/bp.env}"
 MIN_FREE_GIB="${PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB:-40}"
 
@@ -16,6 +17,10 @@ if [[ ! "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
 fi
 if [[ ! "$EXPECTED_FROM_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
   echo "PHASE14_PARTITIONED_STORAGE_FROM_HEAD must be the exact 40-character expected deployed SHA" >&2
+  exit 2
+fi
+if ! [[ "$EXPECTED_ARCHIVE_EVIDENCE" =~ ^/mnt/bp-data/evidence/phase14-storage-recovery-24-48h-[0-9]{8}T[0-9]{6}Z\.json$ ]]; then
+  echo "archive_evidence_binding_invalid" >&2
   exit 2
 fi
 if ! [[ "$BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]; then
@@ -41,6 +46,7 @@ fi
 
 printf -v HEAD_Q '%q' "$EXPECTED_HEAD"
 printf -v FROM_Q '%q' "$EXPECTED_FROM_HEAD"
+printf -v ARCHIVE_EVIDENCE_Q '%q' "$EXPECTED_ARCHIVE_EVIDENCE"
 printf -v BRANCH_Q '%q' "$BRANCH"
 printf -v ENV_Q '%q' "$ENV_FILE"
 printf -v FREE_Q '%q' "$MIN_FREE_GIB"
@@ -50,6 +56,7 @@ set -Eeuo pipefail
 
 SHA="${PHASE14_PARTITIONED_STORAGE_HEAD:?}"
 EXPECTED_FROM_HEAD="${PHASE14_PARTITIONED_STORAGE_FROM_HEAD:?}"
+EXPECTED_ARCHIVE_EVIDENCE="${PHASE14_PARTITIONED_STORAGE_ARCHIVE_EVIDENCE:?}"
 BRANCH="${PHASE14_PARTITIONED_STORAGE_BRANCH:?}"
 ENV_FILE="${PHASE14_PARTITIONED_STORAGE_ENV_FILE:?}"
 MIN_FREE_GIB="${PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB:?}"
@@ -164,8 +171,10 @@ verify_dedicated_data_filesystem() {
 }
 
 verify_archive_evidence() {
-  ARCHIVE_EVIDENCE=$(ls -1t "$EVIDENCE_DIR"/phase14-storage-recovery-24-48h-*.json 2>/dev/null | head -n1 || true)
-  [[ -n "$ARCHIVE_EVIDENCE" ]] || fail "verified_24_48h_archive_evidence_missing"
+  ARCHIVE_EVIDENCE="$EXPECTED_ARCHIVE_EVIDENCE"
+  [[ "$ARCHIVE_EVIDENCE" =~ ^/mnt/bp-data/evidence/phase14-storage-recovery-24-48h-[0-9]{8}T[0-9]{6}Z\.json$ ]] \
+    || fail "archive_evidence_binding_invalid"
+  [[ -f "$ARCHIVE_EVIDENCE" ]] || fail "verified_24_48h_archive_evidence_missing"
 
   ARCHIVE_WINDOW_END=$("$REPO/.venv/bin/python" - "$ARCHIVE_EVIDENCE" <<'PY'
 from __future__ import annotations
@@ -303,4 +312,4 @@ echo "HEAD=$EXPECTED_HEAD"
 echo "MIN_FREE_GIB=$MIN_FREE_GIB"
 echo "Running read-only Phase 14 partitioned-storage production preflight."
 
-gcloud compute ssh "$VM"   --project="$PROJECT"   --zone="$ZONE"   --command="sudo env PHASE14_PARTITIONED_STORAGE_HEAD=$HEAD_Q PHASE14_PARTITIONED_STORAGE_FROM_HEAD=$FROM_Q PHASE14_PARTITIONED_STORAGE_BRANCH=$BRANCH_Q PHASE14_PARTITIONED_STORAGE_ENV_FILE=$ENV_Q PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB=$FREE_Q bash -s"   <<< "$WORKER"
+gcloud compute ssh "$VM"   --project="$PROJECT"   --zone="$ZONE"   --command="sudo env PHASE14_PARTITIONED_STORAGE_HEAD=$HEAD_Q PHASE14_PARTITIONED_STORAGE_FROM_HEAD=$FROM_Q PHASE14_PARTITIONED_STORAGE_ARCHIVE_EVIDENCE=$ARCHIVE_EVIDENCE_Q PHASE14_PARTITIONED_STORAGE_BRANCH=$BRANCH_Q PHASE14_PARTITIONED_STORAGE_ENV_FILE=$ENV_Q PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB=$FREE_Q bash -s"   <<< "$WORKER"
