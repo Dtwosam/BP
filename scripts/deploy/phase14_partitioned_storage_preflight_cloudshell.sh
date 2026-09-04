@@ -197,12 +197,16 @@ PY
 }
 
 capture_database_shape() {
-  local row
-  row=$(docker compose     --env-file "$ENV_FILE"     -f "$REPO/docker-compose.prod.yml"     exec -T postgres     psql -U bp -d bp -AtF $'\t' -c "
+  local row postgres_user postgres_db
+  postgres_user=$(read_env POSTGRES_USER)
+  postgres_db=$(read_env POSTGRES_DB)
+  postgres_user=${postgres_user:-bp}
+  postgres_db=${postgres_db:-bp}
+  row=$(docker compose     --env-file "$ENV_FILE"     -f "$REPO/docker-compose.prod.yml"     exec -T postgres     psql -U "$postgres_user" -d "$postgres_db" -AtF $'\t' -c "
       SELECT
         pg_total_relation_size('public.raw_market_events')::bigint,
         pg_size_pretty(pg_total_relation_size('public.raw_market_events')),
-        COALESCE((SELECT reltuples::bigint FROM pg_class WHERE oid = 'public.raw_market_events'::regclass), 0),
+        COALESCE((SELECT GREATEST(reltuples::bigint, 0) FROM pg_class WHERE oid = 'public.raw_market_events'::regclass), 0),
         EXISTS (
           SELECT 1
           FROM pg_partitioned_table p
