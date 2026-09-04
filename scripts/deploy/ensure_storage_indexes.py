@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import argparse
 import time
+from datetime import UTC, datetime
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
 
 from bp_engine.config import Settings
+from bp_engine.storage.partitioned_raw import (
+    RawStorageMode,
+    ensure_partitioned_raw_storage,
+)
 from bp_engine.storage.schema import metadata
 
 INDEX_STATEMENTS = (
@@ -66,9 +71,16 @@ def main() -> int:
     engine = create_engine(settings.database_url)
     _wait_for_database(engine, args.database_ready_timeout_seconds)
 
-    # Fresh databases need their tables before indexes can be installed. Existing
-    # hosts are left intact because SQLAlchemy create_all does not alter tables.
+    # Fresh databases need their tables before indexes can be installed.
     metadata.create_all(engine)
+    setup = ensure_partitioned_raw_storage(
+        engine,
+        now=datetime.now(UTC),
+        migrate_existing=False,
+    )
+    storage_mode = setup.mode
+    if storage_mode is RawStorageMode.LEGACY:
+        print("POPULATED LEGACY RAW STORAGE LEFT UNCHANGED")
 
     # Concurrent builds avoid blocking the high-rate recorder on existing hosts.
     # AUTOCOMMIT is required because PostgreSQL forbids CREATE INDEX CONCURRENTLY
@@ -76,6 +88,9 @@ def main() -> int:
     concurrent_engine = engine.execution_options(isolation_level="AUTOCOMMIT")
     with concurrent_engine.connect() as connection:
         for statement in INDEX_STATEMENTS:
+            if storage_mode is RawStorageMode.PARTITIONED:
+                if "raw_market_events" in statement:
+                    continue
             connection.execute(text(statement))
 
     return 0

@@ -271,3 +271,20 @@ The existing selected-book 10-second freshness contract remains frozen. No new p
 The V1 calibrator and minimum-edge threshold cannot be automatically carried forward because they were selected under the asynchronous V1 eligibility contract. V2 must rerun the permitted calibration/edge research chain under its new source semantics. If independent historical timestamped last-trade evidence is insufficient to validate a policy, V2 remains `no_trade` while collecting a separate prospective shadow-evidence epoch. `automatic_promotion=false` remains mandatory.
 
 This decision does not authorize live trading, Phase 15, a geographic bypass, a higher risk limit, or any real-money setting change. `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0` remain mandatory, and the complete Master live gate plus separate explicit real-money authorization remain prerequisites for any future controlled live launch.
+
+## D-034 — Physical raw retention uses verified hourly partition drop; monolithic DELETE remains legacy compatibility
+**Date:** 4 Sep 2026  
+**Status:** Active
+
+D-011 remains authoritative for the retention meaning: approximately 24 hours of hot raw PostgreSQL data followed by 24 additional hours of verified local archive retention, for roughly 48 hours of full-raw recoverability. This decision changes the primary PostgreSQL **physical retirement mechanism**, not those retention windows or the archive-before-retire safety contract.
+
+Production evidence on 4 September showed why the distinction matters. The monolithic `raw_market_events` relation reached approximately 157 GB total while root free space approached the existing 15 GiB critical reserve. Chunked `DELETE` safely removed logically expired rows only after archive verification, but PostgreSQL retained reusable relation pages instead of returning enough relation files to the operating-system filesystem. A failed/inactive maintenance timer also demonstrated that disk-only supervision was insufficient to detect retention drift early.
+
+The approved Phase 14 architecture therefore uses hourly PostgreSQL `RANGE(received_at)` children for `raw_market_events`, a fixed 16-way hash-partitioned `raw_event_dedupe` ledger to preserve global `dedupe_key` uniqueness, and one shared sequence for generated event IDs. An expired raw child may be dropped only after its exact canonical archive/manifest verifies, required compact feeds have advanced beyond the hour, and the live child row count still equals the verified manifest row count. Dedupe-ledger cleanup follows partition drop. Legacy/SQLite compatibility may retain bounded row deletion, but production physical-capacity safety is based on verified partition removal.
+
+Storage health additionally requires a successful maintenance heartbeat no older than two hours, a writable current-hour partition, and retention lag within the approved one-extra-hour tolerance, while preserving the existing free-space warning/critical thresholds. Production uses deployment configuration to evaluate the protected data filesystem; `/mnt/bp-data` is a host concern and is not hard-coded as the portable application default.
+
+Migration from a populated legacy table is never implicit recorder startup behavior. It requires the explicit exact-SHA migration/rollback path, the recorder stopped, research/zero-money gates, verified recovery archives, safe filesystem headroom, exact parity checks, and retained rollback material. Engineering verification or merge does not authorize the production migration. The migration has not been performed as of this decision.
+
+This decision changes no V2 timing/freshness/model/calibration/edge policy, no selected-book freshness rule, no execution policy, no geographic rule, and no live-trading authorization. Gate B and Phase 15 remain blocked and `automatic_promotion=false`.
+

@@ -93,6 +93,7 @@ STORAGE_ARCHIVE_DIR=/var/lib/bp/archive/raw
 STORAGE_WARNING_FREE_GIB=25
 STORAGE_CRITICAL_FREE_GIB=15
 STORAGE_DELETE_BATCH_SIZE=50000
+STORAGE_MAINTENANCE_MAX_AGE_HOURS=2
 POLYMARKET_WS_URL=wss://ws-subscriptions-clob.polymarket.com/ws/market
 BYBIT_SPOT_WS_URL=wss://stream.bybit.com/v5/public/spot
 BYBIT_LINEAR_WS_URL=wss://stream.bybit.com/v5/public/linear
@@ -116,6 +117,7 @@ ensure_env_default STORAGE_ARCHIVE_DIR /var/lib/bp/archive/raw
 ensure_env_default STORAGE_WARNING_FREE_GIB 25
 ensure_env_default STORAGE_CRITICAL_FREE_GIB 15
 ensure_env_default STORAGE_DELETE_BATCH_SIZE 50000
+ensure_env_default STORAGE_MAINTENANCE_MAX_AGE_HOURS 2
 
 chown root:"${BP_GROUP}" "${ENV_FILE}"
 chmod 0640 "${ENV_FILE}"

@@ -7,6 +7,7 @@ from sqlalchemy import Connection, delete, insert, select, text
 
 from bp_engine.recorder.models import FeedIncident, RawEvent
 from bp_engine.recorder.state import MarketStateSnapshot
+from bp_engine.storage.partitioned_raw import RawStorageMode, raw_storage_mode
 from bp_engine.storage.schema import feed_incidents, market_state_1s, raw_market_events
 
 
@@ -24,6 +25,9 @@ class RecorderRepository:
             statement = sqlite_insert(raw_market_events).values(rows)
             statement = statement.on_conflict_do_nothing(index_elements=["dedupe_key"])
         elif dialect == "postgresql":
+            if raw_storage_mode(connection) is RawStorageMode.PARTITIONED:
+                return self._insert_partitioned_events(connection, rows)
+
             from sqlalchemy.dialects.postgresql import insert as postgres_insert
 
             statement = postgres_insert(raw_market_events).values(rows)
@@ -33,6 +37,54 @@ class RecorderRepository:
 
         result = connection.execute(statement)
         return int(result.rowcount or 0)
+
+    @staticmethod
+    def _insert_partitioned_events(
+        connection: Connection,
+        rows: Sequence[dict[str, object]],
+    ) -> int:
+        unique_rows: dict[str, dict[str, object]] = {}
+        for row in rows:
+            dedupe_key = str(row["dedupe_key"])
+            unique_rows.setdefault(dedupe_key, row)
+
+        values_sql: list[str] = []
+        parameters: dict[str, object] = {}
+        for index, (dedupe_key, row) in enumerate(unique_rows.items()):
+            dedupe_parameter = f"dedupe_key_{index}"
+            received_parameter = f"received_at_{index}"
+            values_sql.append(f"(:{dedupe_parameter}, :{received_parameter})")
+            parameters[dedupe_parameter] = dedupe_key
+            parameters[received_parameter] = row["received_at"]
+
+        claims = connection.execute(
+            text(
+                """
+                INSERT INTO raw_event_dedupe (dedupe_key, received_at)
+                VALUES
+                """
+                + ", ".join(values_sql)
+                + """
+                ON CONFLICT (dedupe_key) DO NOTHING
+                RETURNING dedupe_key, id
+                """
+            ),
+            parameters,
+        ).mappings()
+        claimed_ids = {
+            str(claim["dedupe_key"]): int(claim["id"])
+            for claim in claims
+        }
+        if not claimed_ids:
+            return 0
+
+        raw_rows = [
+            {**row, "id": claimed_ids[dedupe_key]}
+            for dedupe_key, row in unique_rows.items()
+            if dedupe_key in claimed_ids
+        ]
+        connection.execute(insert(raw_market_events).values(raw_rows))
+        return len(raw_rows)
 
     def upsert_state_snapshots(
         self,
