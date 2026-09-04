@@ -410,3 +410,23 @@ def test_rollout_evidence_records_explicit_approval_scope() -> None:
     pass_marker = content.index('"verdict": "PASS"', evidence_builder)
     assert evidence_builder < pass_marker < approval_block
 
+def test_rollout_finally_proves_original_rollback_relation_survives() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        "MIGRATION_RAW_RELATION_OID",
+        "verify_final_rollback_material",
+        "'public.raw_market_events'::regclass::oid::bigint",
+        "to_regclass('public.raw_market_events_legacy')::oid::bigint",
+        "rollback_material_relation_changed",
+        "ROLLBACK_LEGACY_RELATION_OID",
+        '"rollback_material_relation_oid"',
+        '"rollback_material_relation_bytes"',
+    ):
+        assert marker in content
+
+    restore = content.index("restore_managed_units")
+    final_check = content.index("verify_final_rollback_material", restore)
+    evidence = content.index("EVIDENCE_TMP=$(mktemp", final_check)
+    assert restore < final_check < evidence
+
