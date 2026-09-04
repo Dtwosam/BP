@@ -128,6 +128,9 @@ POSTGRES_DATA_SOURCE=""
 MIGRATION_FREE_BYTES=""
 MIGRATION_RAW_TOTAL_BYTES=""
 MIGRATION_REQUIRED_FREE_BYTES=""
+PARTITION_BYTES_BEFORE_MAINTENANCE=""
+PARTITION_BYTES_AFTER_MAINTENANCE=""
+PARTITION_BYTES_RELEASED=""
 
 MANAGED_UNITS=(
   bp-dashboard-api.service
@@ -418,6 +421,31 @@ verify_migration_headroom() {
   (( free_bytes >= required_free_bytes )) || fail "insufficient_migration_headroom"
 }
 
+partition_relation_bytes() {
+  local postgres_user postgres_db value
+  postgres_user=$(read_env POSTGRES_USER)
+  postgres_db=$(read_env POSTGRES_DB)
+  postgres_user=${postgres_user:-bp}
+  postgres_db=${postgres_db:-bp}
+
+  value=$(docker compose \
+    --env-file "$ENV_FILE" \
+    -f "$REPO/docker-compose.prod.yml" \
+    exec -T postgres \
+    psql -U "$postgres_user" -d "$postgres_db" -At -c "
+      SELECT COALESCE(sum(pg_total_relation_size(child.oid)), 0)::bigint
+      FROM pg_inherits
+      JOIN pg_class AS parent ON parent.oid = pg_inherits.inhparent
+      JOIN pg_namespace AS parent_ns ON parent_ns.oid = parent.relnamespace
+      JOIN pg_class AS child ON child.oid = pg_inherits.inhrelid
+      WHERE parent_ns.nspname = current_schema()
+        AND parent.relname = 'raw_market_events';
+    ") || fail "postgres_partition_relation_size_query_failed"
+  value=$(printf '%s' "$value" | tr -d '[:space:]')
+  [[ "$value" =~ ^[0-9]+$ ]] || fail "invalid_partition_relation_bytes"
+  printf '%s\n' "$value"
+}
+
 verify_archive_evidence() {
   ARCHIVE_EVIDENCE=$(ls -1t "$EVIDENCE_DIR"/phase14-storage-recovery-24-48h-*.json 2>/dev/null | head -n1 || true)
   [[ -n "$ARCHIVE_EVIDENCE" ]] || fail "verified_24_48h_archive_evidence_missing"
@@ -565,11 +593,52 @@ if checks.get("current_plus_two_future_present") is not True:
     raise SystemExit("current + two future partitions are missing")
 PY
 
+PARTITION_BYTES_BEFORE_MAINTENANCE=$(partition_relation_bytes)
+(( PARTITION_BYTES_BEFORE_MAINTENANCE > 0 )) || fail "partition_relation_bytes_before_maintenance_missing"
+
 MAINTENANCE_JSON=$(mktemp /var/tmp/bp-partitioned-storage-maintenance.XXXXXX.json)
 if ! sudo -u bp "$PYTHON" "$REPO/scripts/storage_maintenance.py" run     --env-file "$ENV_FILE" > "$MAINTENANCE_JSON"; then
   cat "$MAINTENANCE_JSON" >&2 || true
   fail "partitioned_storage_maintenance_cycle_failed"
 fi
+
+if ! "$PYTHON" - "$MAINTENANCE_JSON" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+if payload.get("storage_mode") != "partitioned":
+    raise SystemExit("maintenance did not run in partitioned mode")
+if int(payload.get("partitions_retired", 0)) < 1:
+    raise SystemExit("nonempty_partition_retirement_not_observed")
+
+nonempty = []
+for item in payload.get("raw_intervals") or []:
+    if not isinstance(item, dict) or not item.get("partition"):
+        continue
+    archived_rows = int(item.get("archived_rows", 0))
+    if archived_rows <= 0:
+        continue
+    dedupe_rows_removed = int(item.get("dedupe_rows_removed", -1))
+    if dedupe_rows_removed != archived_rows:
+        raise SystemExit("partition_dedupe_cleanup_mismatch")
+    nonempty.append(item)
+
+if not nonempty:
+    raise SystemExit("nonempty_partition_retirement_not_observed")
+PY
+then
+  cat "$MAINTENANCE_JSON" >&2 || true
+  fail "partition_retirement_acceptance_failed"
+fi
+
+PARTITION_BYTES_AFTER_MAINTENANCE=$(partition_relation_bytes)
+(( PARTITION_BYTES_AFTER_MAINTENANCE < PARTITION_BYTES_BEFORE_MAINTENANCE )) \
+  || fail "partition_relation_bytes_not_released"
+PARTITION_BYTES_RELEASED=$((PARTITION_BYTES_BEFORE_MAINTENANCE - PARTITION_BYTES_AFTER_MAINTENANCE))
 
 DISK_JSON=$(mktemp /var/tmp/bp-partitioned-storage-health.XXXXXX.json)
 if ! sudo -u bp "$PYTHON" "$REPO/scripts/storage_maintenance.py" disk-health     --env-file "$ENV_FILE" > "$DISK_JSON"; then
@@ -614,7 +683,7 @@ install -d -o bp -g bp -m 0750 "$EVIDENCE_DIR"
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 EVIDENCE_PATH="$EVIDENCE_DIR/phase14-partitioned-storage-rollout-$STAMP.json"
 EVIDENCE_TMP=$(mktemp /var/tmp/bp-partitioned-storage-evidence.XXXXXX.json)
-"$PYTHON" -   "$APPLY_JSON" "$VERIFY_JSON" "$MAINTENANCE_JSON" "$DISK_JSON"   "$EVIDENCE_TMP" "$OLD_HEAD" "$SHA" "$ARCHIVE_EVIDENCE" "$POSTGRES_DATA_SOURCE"   "$PREFLIGHT_VERIFIED_SHA256" "$MIGRATION_FREE_BYTES" "$MIGRATION_RAW_TOTAL_BYTES" "$MIGRATION_REQUIRED_FREE_BYTES" <<'PY'
+"$PYTHON" -   "$APPLY_JSON" "$VERIFY_JSON" "$MAINTENANCE_JSON" "$DISK_JSON"   "$EVIDENCE_TMP" "$OLD_HEAD" "$SHA" "$ARCHIVE_EVIDENCE" "$POSTGRES_DATA_SOURCE"   "$PREFLIGHT_VERIFIED_SHA256" "$MIGRATION_FREE_BYTES" "$MIGRATION_RAW_TOTAL_BYTES" "$MIGRATION_REQUIRED_FREE_BYTES"   "$PARTITION_BYTES_BEFORE_MAINTENANCE" "$PARTITION_BYTES_AFTER_MAINTENANCE" "$PARTITION_BYTES_RELEASED" <<'PY'
 from __future__ import annotations
 
 import json
@@ -636,6 +705,9 @@ from pathlib import Path
     migration_free_bytes,
     migration_raw_total_bytes,
     migration_required_free_bytes,
+    partition_bytes_before_maintenance,
+    partition_bytes_after_maintenance,
+    partition_bytes_released,
 ) = sys.argv[1:]
 payload = {
     "verdict": "PASS",
@@ -660,6 +732,12 @@ payload = {
         "required_free_bytes": int(migration_required_free_bytes),
         "critical_reserve_gib": 15,
     },
+    "partition_retirement_acceptance": {
+        "partition_bytes_before_maintenance": int(partition_bytes_before_maintenance),
+        "partition_bytes_after_maintenance": int(partition_bytes_after_maintenance),
+        "partition_bytes_released": int(partition_bytes_released),
+        "nonempty_partition_retirement_verified": True,
+    },
     "migration": json.loads(Path(apply_path).read_text(encoding="utf-8")),
     "verification": json.loads(Path(verify_path).read_text(encoding="utf-8")),
     "maintenance": json.loads(Path(maintenance_path).read_text(encoding="utf-8")),
@@ -680,6 +758,7 @@ echo "PHASE14_PARTITIONED_STORAGE_ROLLOUT=PASS"
 echo "FROM_HEAD=$OLD_HEAD"
 echo "HEAD=$SHA"
 echo "EVIDENCE_PATH=$EVIDENCE_PATH"
+echo "PARTITION_BYTES_RELEASED=$PARTITION_BYTES_RELEASED"
 echo "RECORDER_RESTARTED=false"
 echo "ROLLBACK_MATERIAL_RETAINED=true"
 WORKER_EOF
