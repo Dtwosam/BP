@@ -3,6 +3,14 @@
 **Phase:** 3 — retention, compact state, archives, disk protection  
 **Live trading:** Disabled
 
+> **Phase 14 supersession note — 4 September 2026**
+>
+> This document remains the historical Phase 3 deployment/acceptance record and still defines the canonical 24-hour hot raw + 24 additional archive-hour retention meaning. The original archive-before-bounded-`DELETE` procedure is retained for legacy/compatibility storage, but it is no longer the approved production physical-capacity mechanism at the observed recorder volume.
+>
+> Phase 14 incident evidence showed a monolithic `raw_market_events` relation of approximately 157 GB while root free space approached the existing critical reserve. PostgreSQL row deletion bounded logical retention but did not reliably return relation files to the filesystem. D-034 therefore supersedes the production physical-retirement mechanism with exact hourly archive verification followed by PostgreSQL child-partition drop and then dedupe-ledger cleanup.
+>
+> **Current recovery host warning:** do not follow the recorder-restart steps in this historical runbook while the 4 September 2026 recovery is active. `bp-recorder.service` remains intentionally stopped. The partitioned production migration has not been performed and requires a separate explicit authorization plus exact-SHA host acceptance. Production configuration must set `STORAGE_HEALTH_PATH=/mnt/bp-data` only after the rollout helper verifies PostgreSQL and the archive directory are actually on that protected filesystem. Never bypass the existing disk thresholds or manually delete unarchived raw rows.
+
 Phase 3 keeps the Phase 2 recorder architecture but bounds high-rate raw storage. It adds a one-second compact market-state table, verified compressed raw archives, bounded deletion, archive/state retention, and disk-health timers.
 
 The safety defaults remain explicit:
