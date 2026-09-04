@@ -47,6 +47,7 @@ POSTGRES_DATA_SOURCE=/var/lib/docker/volumes/bp_bp_postgres_data/_data
 DEDICATED_DATA_FREE_BYTES={dedicated_free_bytes}
 ROOT_FREE_BYTES={177 * GIB}
 ARCHIVE_EVIDENCE=/mnt/bp-data/evidence/phase14-storage-recovery-24-48h-20260904T015955Z.json
+ARCHIVE_EVIDENCE_SHA256=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ARCHIVE_WINDOW_END=2026-09-03T00:00:00+00:00
 RAW_TOTAL_BYTES={raw_total_bytes}
 RAW_TOTAL_PRETTY=31 GB
@@ -86,6 +87,7 @@ def test_verify_preflight_transcript_accepts_expected_legacy_recovery_shape() ->
     assert report["headroom"]["required_free_bytes"] == 46 * GIB
     assert report["headroom"]["free_bytes"] == 59 * GIB
     assert report["archive"]["window_end"] == "2026-09-03T00:00:00+00:00"
+    assert report["archive"]["sha256"] == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     assert "raw_total_pretty" not in report
 
 
@@ -215,3 +217,21 @@ def test_preflight_helper_enforces_dynamic_headroom_and_unmigrated_shape() -> No
 def test_preflight_verifier_has_ci_syntax_validation() -> None:
     ci = CI.read_text(encoding="utf-8")
     assert "python -m py_compile scripts/deploy/verify_phase14_storage_preflight.py" in ci
+
+def test_preflight_captures_archive_evidence_sha256_read_only() -> None:
+    content = PREFLIGHT.read_text(encoding="utf-8")
+
+    assert 'ARCHIVE_EVIDENCE_SHA256=$(sha256sum "$ARCHIVE_EVIDENCE"' in content
+    assert 'echo "ARCHIVE_EVIDENCE_SHA256=$ARCHIVE_EVIDENCE_SHA256"' in content
+
+
+def test_verify_preflight_transcript_rejects_invalid_archive_sha256() -> None:
+    transcript = _replace_last_field(_transcript(), "ARCHIVE_EVIDENCE_SHA256", "not-a-digest")
+
+    with pytest.raises(PreflightVerificationError, match="archive evidence SHA-256 is invalid"):
+        verify_preflight_transcript(
+            transcript,
+            expected_from_head=FROM_HEAD,
+            expected_head=HEAD,
+        )
+
