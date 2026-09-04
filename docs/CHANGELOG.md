@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.27 — 4 September 2026
+
+Phase 14 final rollout acceptance now proves rollback material survives through the complete migration/maintenance cycle instead of relying only on the migrator's earlier retention claim. During the existing pre-migration headroom query the worker captures the PostgreSQL relation OID of the original `raw_market_events` table. Because the migration preserves that table by rename, final acceptance re-queries `raw_market_events_legacy` after partition retirement, physical-release verification, health checks, and service restoration; it must retain the exact original OID and nonzero relation bytes or rollout fails closed.
+
+This proof avoids an expensive full-table scan of the roughly 157 GB legacy relation. Eventual acceptance JSON records `rollback_material_original_relation_oid`, `rollback_material_relation_oid`, and `rollback_material_relation_bytes`, so the existing `rollback_material_retained=true` claim is backed by a final live relation-identity check.
+
+RED head `47ab3d8fe9fb588eb4a263bc8be46b5b9c238afa` failed exactly the new rollback-retention contract while all **947 existing tests passed** in CI `33910240165`. GREEN implementation head `40799f0201f0fcd60659c1a21b7ea61e30101989` passed CI `33910354157` with **948 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #70's integration record. Final branch head `6738de3d0a8378a4341462b2e9f21473e5702d03` passed push CI `33909837433`, PR CI `33909887548`, Historical Backfill Smoke `33909887519`, Live Recorder Smoke `33909887558`, and Recorder Short Soak `33909887464`. PR #70 merged to `main` as `4665e1f2f44ce48b2d0bc816a1de07dea2d17272`; post-merge main CI `33910096178` then passed **947 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.26 — 4 September 2026
 
 Phase 14 rollout acceptance evidence now preserves the explicit authorization scope that was validated before production contact. The launcher passes the approved deployed-from SHA, approved candidate SHA, and approved verified-preflight SHA-256 into the detached worker. The worker rechecks all three against its expected transition and preflight digest, then eventual PASS evidence records them in an `approval` block. An accepted rollout artifact can therefore be audited against the exact authorization tuple rather than inferring authorization solely from transition/evidence fields.
