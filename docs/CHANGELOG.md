@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.40 — 4 September 2026
+
+Phase 14 verified preflight target binding is now integrated on `main`. PR #83 final head `829b1e5658fd409390f982f5901cf86b67e630c6` passed push CI `33925695975`, PR CI `33925723843`, Historical Backfill Smoke `33925723819`, Live Recorder Smoke `33925723818`, and Recorder Short Soak `33925723795`. It merged as `2ac8fad310eddf767598ac0610e0d89c5cfdc96b`; post-merge main CI `33925903210` then passed **956 tests** plus rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+The merged independent verifier now requires explicit expected production project, zone, and VM values in its CLI path and rejects any target mismatch before verified JSON is emitted. The Cloud Shell evidence wrapper passes the same target identity used for the host preflight. This closes the PR #83 integration record.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.39 — 4 September 2026
 
 Phase 14 independent read-only preflight verification now binds the expected production target before verified JSON is emitted. The verifier CLI requires explicit `--expected-project`, `--expected-zone`, and `--expected-vm` arguments; a transcript whose `PROJECT`, `ZONE`, or `VM` differs is rejected. The Cloud Shell evidence wrapper passes the same target identity used by the host preflight, so a digest cannot be reviewed as verified evidence for a different host target.
