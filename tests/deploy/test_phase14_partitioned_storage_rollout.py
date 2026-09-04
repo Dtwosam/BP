@@ -177,3 +177,29 @@ def test_partitioned_storage_rollout_rechecks_dynamic_migration_headroom_before_
         "migrate_partitioned_raw_storage.py apply"
     )
 
+def test_partitioned_storage_rollout_rechecks_unmigrated_shape_before_mutation() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        "verify_unmigrated_storage_shape",
+        "pg_partitioned_table",
+        "to_regclass('public.raw_market_events_legacy') IS NOT NULL",
+        "to_regclass('public.raw_event_dedupe') IS NOT NULL",
+        "raw_storage_already_partitioned",
+        "rollback_legacy_table_already_present",
+        "dedupe_ledger_already_present",
+    ):
+        assert marker in content
+
+    assert content.count("verify_unmigrated_storage_shape") >= 3
+
+    runtime_start = content.index("trap on_exit EXIT")
+    first_check = content.index("verify_unmigrated_storage_shape", runtime_start)
+    rollback_arm = content.index("ROLLBACK_ARMED=1", runtime_start)
+    assert first_check < rollback_arm
+
+    stopped = content.index("stop_managed_units", rollback_arm)
+    second_check = content.index("verify_unmigrated_storage_shape", stopped)
+    candidate_checkout = content.index('git -C "$REPO" checkout --detach --force "$SHA"', stopped)
+    assert second_check < candidate_checkout
+
