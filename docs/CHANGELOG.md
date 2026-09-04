@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.29 — 4 September 2026
+
+Phase 14 final rollout acceptance now gives the installed PASS evidence an explicit SHA-256 identity before rollback protection is disarmed. After the acceptance JSON is installed at its canonical evidence path, the worker computes `EVIDENCE_SHA256`, requires a valid lowercase 64-character digest, and only then sets `ROLLBACK_ARMED=0`. The PASS output prints both `EVIDENCE_PATH` and `EVIDENCE_SHA256`, allowing the exact accepted artifact to be referenced independently rather than by path alone.
+
+Clean RED head `ac0b2eb17e1c5d689abfbcf00af83fa2d6e4c548` failed exactly the new acceptance-evidence digest ordering contract while all **949 existing tests passed** in CI `33913585370`. GREEN implementation head `b923649810de950a29843d0436a006f54cd4c62d` passed CI `33913739000` with **950 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #72's integration record. Final branch head `2e5993a1076a3016689fd3c6d13ed0c05c82286c` passed push CI `33913309701`, PR CI `33913349880`, Historical Backfill Smoke `33913349856`, Live Recorder Smoke `33913349841`, and Recorder Short Soak `33913349865`. PR #72 merged to `main` as `b9e2a1c6905e781bbe332aa2676da8cde2264ad5`; post-merge main CI `33913522443` then passed **949 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.28 — 4 September 2026
 
 Phase 14 final rollout acceptance now refreshes composite partitioned-storage health after managed-unit restoration instead of embedding only the health snapshot captured before restoration. The existing disk-health validation is factored into `verify_partitioned_storage_health`; it still runs after the maintenance/physical-release cycle and now runs again after managed services are restored, the recorder is re-confirmed stopped, research/zero-money safety is rechecked, the deployed candidate SHA is rechecked, and final rollback material is proven. The second call overwrites the same `DISK_JSON` consumed by acceptance evidence, so final PASS evidence carries the post-restoration health state.
