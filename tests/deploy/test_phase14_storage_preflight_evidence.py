@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -275,3 +276,37 @@ def test_verified_preflight_binds_expected_target_identity() -> None:
             expected_zone="us-east1-c",
             expected_vm="bp-recorder",
         )
+
+
+def test_verify_preflight_cli_binds_exact_transcript_sha256(tmp_path: Path) -> None:
+    transcript = tmp_path / "preflight.txt"
+    transcript.write_text(_transcript(), encoding="utf-8")
+
+    completed = subprocess.run(
+        [
+            "python",
+            str(VERIFIER),
+            "--input",
+            str(transcript),
+            "--expected-from-head",
+            FROM_HEAD,
+            "--expected-head",
+            HEAD,
+            "--expected-project",
+            "project-4397f2c0-7098-4c1c-abb",
+            "--expected-zone",
+            "us-east1-c",
+            "--expected-vm",
+            "bp-recorder",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    payload = json.loads(completed.stdout)
+    assert payload["transcript_sha256"] == hashlib.sha256(
+        transcript.read_bytes()
+    ).hexdigest()
