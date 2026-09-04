@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import UTC, datetime, timedelta
+from itertools import zip_longest
 from typing import Any
 
 from sqlalchemy import Engine, create_engine, text
@@ -91,7 +93,56 @@ def _feed_ranges(engine: Engine, table_name: str) -> list[dict[str, Any]]:
         return [dict(row) for row in rows]
 
 
-def _exact_raw_diff_count(engine: Engine) -> int:
+def _stream_exact_parity(
+    engine: Engine,
+    *,
+    left_sql: str,
+    right_sql: str,
+    progress_label: str,
+) -> int:
+    sentinel = object()
+    checked = 0
+    with engine.connect() as left_connection, engine.connect() as right_connection:
+        left_rows = (
+            left_connection.execution_options(stream_results=True, yield_per=10_000)
+            .execute(text(left_sql))
+            .tuples()
+        )
+        right_rows = (
+            right_connection.execution_options(stream_results=True, yield_per=10_000)
+            .execute(text(right_sql))
+            .tuples()
+        )
+        for left_row, right_row in zip_longest(
+            left_rows,
+            right_rows,
+            fillvalue=sentinel,
+        ):
+            if left_row is sentinel or right_row is sentinel:
+                raise RuntimeError(
+                    f"{progress_label.lower()} row count changed during exact parity scan"
+                )
+            if tuple(left_row) != tuple(right_row):
+                raise RuntimeError(
+                    f"{progress_label.lower()} exact row parity failed at row {checked + 1}"
+                )
+            checked += 1
+            if checked % 1_000_000 == 0:
+                print(
+                    f"{progress_label}_ROWS_CHECKED={checked}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+
+    print(
+        f"{progress_label}_ROWS_CHECKED={checked}",
+        file=sys.stderr,
+        flush=True,
+    )
+    return checked
+
+
+def _exact_raw_parity(engine: Engine) -> int:
     columns = """
         id,
         source,
@@ -106,25 +157,20 @@ def _exact_raw_diff_count(engine: Engine) -> int:
         payload,
         dedupe_key
     """
-    with engine.connect() as connection:
-        return int(
-            connection.execute(
-                text(
-                    f"""
-                    SELECT count(*)
-                    FROM (
-                        (SELECT {columns} FROM raw_market_events_legacy
-                         EXCEPT ALL
-                         SELECT {columns} FROM raw_market_events)
-                        UNION ALL
-                        (SELECT {columns} FROM raw_market_events
-                         EXCEPT ALL
-                         SELECT {columns} FROM raw_market_events_legacy)
-                    ) AS diff
-                    """
-                )
-            ).scalar_one()
-        )
+    return _stream_exact_parity(
+        engine,
+        left_sql=f"""
+            SELECT {columns}
+            FROM raw_market_events_legacy
+            ORDER BY received_at, id
+        """,
+        right_sql=f"""
+            SELECT {columns}
+            FROM raw_market_events
+            ORDER BY received_at, id
+        """,
+        progress_label="RAW_PARITY",
+    )
 
 
 def non_raw_table_counts(engine: Engine) -> dict[str, int]:
@@ -168,26 +214,26 @@ def _ledger_stats(engine: Engine) -> dict[str, int]:
                 """
             )
         ).mappings().one()
-        mapping_diff = connection.execute(
-            text(
-                """
-                SELECT count(*)
-                FROM (
-                    (SELECT dedupe_key, id, received_at FROM raw_event_dedupe
-                     EXCEPT ALL
-                     SELECT dedupe_key, id, received_at FROM raw_market_events)
-                    UNION ALL
-                    (SELECT dedupe_key, id, received_at FROM raw_market_events
-                     EXCEPT ALL
-                     SELECT dedupe_key, id, received_at FROM raw_event_dedupe)
-                ) AS diff
-                """
-            )
-        ).scalar_one()
+
+    mapping_rows_checked = _stream_exact_parity(
+        engine,
+        left_sql="""
+            SELECT dedupe_key, id, received_at
+            FROM raw_event_dedupe
+            ORDER BY dedupe_key
+        """,
+        right_sql="""
+            SELECT dedupe_key, id, received_at
+            FROM raw_market_events
+            ORDER BY dedupe_key
+        """,
+        progress_label="DEDUPE_PARITY",
+    )
     return {
         "row_count": int(row["row_count"]),
         "distinct_dedupe_keys": int(row["distinct_dedupe_keys"]),
-        "mapping_diff_count": int(mapping_diff),
+        "mapping_diff_count": 0,
+        "mapping_rows_checked": mapping_rows_checked,
     }
 
 
@@ -281,7 +327,7 @@ def _verify(engine: Engine) -> dict[str, Any]:
     current = _raw_stats(engine, "raw_market_events")
     legacy_feeds = _feed_ranges(engine, "raw_market_events_legacy")
     current_feeds = _feed_ranges(engine, "raw_market_events")
-    exact_diff_count = _exact_raw_diff_count(engine)
+    exact_raw_rows_checked = _exact_raw_parity(engine)
     ledger = _ledger_stats(engine)
     sequence_position = _sequence_position(engine)
 
@@ -289,8 +335,8 @@ def _verify(engine: Engine) -> dict[str, Any]:
         raise RuntimeError("raw aggregate parity verification failed")
     if current_feeds != legacy_feeds:
         raise RuntimeError("raw per-feed parity verification failed")
-    if exact_diff_count != 0:
-        raise RuntimeError("raw exact-row parity verification failed")
+    if exact_raw_rows_checked != int(current["row_count"]):
+        raise RuntimeError("raw exact-row parity row count does not match aggregate")
     if ledger["row_count"] != int(current["row_count"]):
         raise RuntimeError("dedupe ledger cardinality does not match raw rows")
     if ledger["distinct_dedupe_keys"] != ledger["row_count"]:
@@ -316,7 +362,8 @@ def _verify(engine: Engine) -> dict[str, Any]:
         "storage_mode": mode.value,
         "raw_stats": current,
         "raw_feed_ranges": current_feeds,
-        "exact_raw_diff_count": exact_diff_count,
+        "exact_raw_diff_count": 0,
+        "exact_raw_rows_checked": exact_raw_rows_checked,
         "dedupe": ledger,
         "sequence_position": sequence_position,
         "partition_count": len(partitions),
