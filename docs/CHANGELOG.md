@@ -6,6 +6,8 @@ Phase 14 partition-migration chain-of-custody hardening now binds the production
 
 TDD preserved the boundary: RED head `aa2ad57931b9d6fc9913e6f41465b0ec6b3e6207` failed exactly the new archive-binding contract while all 933 existing tests passed in CI `33898147639`. GREEN implementation head `8738102bb78c5b036c9e0fc9e41e8f5360a5bcd7` passed CI `33898435814` with **934 tests**, rollout Bash syntax validation, health, and dashboard checks.
 
+PR #60 then passed the complete exact-head integration gate on `e37f58824afdd7de52a4373a77730056b4aa047c`: push CI `33898669119`, PR CI `33898705601`, Historical Backfill Smoke `33898705613`, Live Recorder Smoke `33898705636`, and Recorder Short Soak `33898705599` all succeeded. It merged to `main` as `b4582d1c92026257c7c5e5b84fd87d1131432aa8`; post-merge CI `33898942009` then passed **934 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
 No production preflight or migration was executed, no approval values were set, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
 
 ## 0.14.15 — 4 September 2026
