@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.22 — 4 September 2026
+
+Phase 14 rollout acceptance evidence now preserves the exact production target identity that was already verified before any cloud contact. The detached worker receives the validated `PROJECT`, `ZONE`, and `VM`, and eventual rollout JSON records those values in a `target` block alongside the existing exact-SHA transition, recovery-archive identity, verified-preflight digest, migration headroom, physical-release proof, and safety fields. This makes a future accepted migration artifact auditable back to the same target whose identity was checked in the read-only preflight chain.
+
+Tests-only RED head `0e8d7edbe6be9018a45e2b66b6da106b106ebb99` failed exactly the new target-evidence contract while all **942 existing tests passed** in CI `33905672009`. GREEN implementation head `e62d8dd62500c4f2b286cb09aa3f79439ba34914` passed CI `33905706971` with **943 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #65's integration record. Final branch head `aa1e5f68c2ebde309d335284f1afb4c79c3aa6c7` passed push CI `33905361519`, PR CI `33905405821`, Historical Backfill Smoke `33905405928`, Live Recorder Smoke `33905405816`, and Recorder Short Soak `33905405858`. PR #65 merged to `main` as `b0a9a0d57ed19fedf7f8492b3c1b31429d7f97fc`; post-merge main CI `33905610315` then passed **942 tests** plus rollout Bash syntax validation, verifier compilation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.21 — 4 September 2026
 
 Phase 14 storage-preflight chain-of-custody now includes production target identity. The deterministic verifier preserves the exact `PROJECT`, `ZONE`, and `VM` emitted by the captured read-only preflight. Before any gcloud project selection or production VM contact, the partition-rollout launcher rejects verified evidence unless all three target fields exactly match its own project, zone, and VM. A valid preflight from one host can therefore no longer be silently reused against another target.

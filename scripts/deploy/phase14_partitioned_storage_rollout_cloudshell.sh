@@ -140,6 +140,9 @@ fi
 
 gcloud config set project "$PROJECT" >/dev/null
 
+printf -v PROJECT_Q '%q' "$PROJECT"
+printf -v ZONE_Q '%q' "$ZONE"
+printf -v VM_Q '%q' "$VM"
 printf -v HEAD_Q '%q' "$EXPECTED_HEAD"
 printf -v FROM_Q '%q' "$EXPECTED_FROM_HEAD"
 printf -v BRANCH_Q '%q' "$BRANCH"
@@ -155,6 +158,9 @@ set -Eeuo pipefail
 
 SHA="${PHASE14_PARTITIONED_STORAGE_HEAD:?}"
 EXPECTED_FROM_HEAD="${PHASE14_PARTITIONED_STORAGE_FROM_HEAD:?}"
+TARGET_PROJECT="${PHASE14_PARTITIONED_STORAGE_PROJECT:?}"
+TARGET_ZONE="${PHASE14_PARTITIONED_STORAGE_ZONE:?}"
+TARGET_VM="${PHASE14_PARTITIONED_STORAGE_VM:?}"
 BRANCH="${PHASE14_PARTITIONED_STORAGE_BRANCH:?}"
 ENV_FILE="${PHASE14_PARTITIONED_STORAGE_ENV_FILE:?}"
 MIN_FREE_GIB="${PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB:?}"
@@ -755,7 +761,7 @@ install -d -o bp -g bp -m 0750 "$EVIDENCE_DIR"
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 EVIDENCE_PATH="$EVIDENCE_DIR/phase14-partitioned-storage-rollout-$STAMP.json"
 EVIDENCE_TMP=$(mktemp /var/tmp/bp-partitioned-storage-evidence.XXXXXX.json)
-"$PYTHON" -   "$APPLY_JSON" "$VERIFY_JSON" "$MAINTENANCE_JSON" "$DISK_JSON"   "$EVIDENCE_TMP" "$OLD_HEAD" "$SHA" "$ARCHIVE_EVIDENCE" "$POSTGRES_DATA_SOURCE"   "$PREFLIGHT_VERIFIED_SHA256" "$EXPECTED_ARCHIVE_SHA256" "$EXPECTED_ARCHIVE_WINDOW_END" "$MIGRATION_FREE_BYTES" "$MIGRATION_RAW_TOTAL_BYTES" "$MIGRATION_REQUIRED_FREE_BYTES"   "$PARTITION_BYTES_BEFORE_MAINTENANCE" "$PARTITION_BYTES_AFTER_MAINTENANCE" "$PARTITION_BYTES_RELEASED" <<'PY'
+"$PYTHON" -   "$APPLY_JSON" "$VERIFY_JSON" "$MAINTENANCE_JSON" "$DISK_JSON"   "$EVIDENCE_TMP" "$OLD_HEAD" "$SHA" "$TARGET_PROJECT" "$TARGET_ZONE" "$TARGET_VM" "$ARCHIVE_EVIDENCE" "$POSTGRES_DATA_SOURCE"   "$PREFLIGHT_VERIFIED_SHA256" "$EXPECTED_ARCHIVE_SHA256" "$EXPECTED_ARCHIVE_WINDOW_END" "$MIGRATION_FREE_BYTES" "$MIGRATION_RAW_TOTAL_BYTES" "$MIGRATION_REQUIRED_FREE_BYTES"   "$PARTITION_BYTES_BEFORE_MAINTENANCE" "$PARTITION_BYTES_AFTER_MAINTENANCE" "$PARTITION_BYTES_RELEASED" <<'PY'
 from __future__ import annotations
 
 import json
@@ -771,6 +777,9 @@ from pathlib import Path
     output_path,
     old_head,
     new_head,
+    target_project,
+    target_zone,
+    target_vm,
     archive_evidence,
     postgres_data_source,
     preflight_verified_sha256,
@@ -788,6 +797,11 @@ payload = {
     "recorded_at": datetime.now(UTC).isoformat(),
     "deployed_from_sha": old_head,
     "candidate_sha": new_head,
+    "target": {
+        "project": target_project,
+        "zone": target_zone,
+        "vm": target_vm,
+    },
     "safety": {
         "mode": "research",
         "live_trading_enabled": False,
@@ -849,7 +863,7 @@ UNIT="bp-phase14-partitioned-storage-$SHORT"
 WORKER_PATH="/var/tmp/$UNIT.sh"
 printf '%s' $WORKER_B64_Q | base64 -d > "$WORKER_PATH"
 chmod 0700 "$WORKER_PATH"
-systemd-run   --unit="$UNIT"   --description="BP Phase 14 partitioned storage rollout"   --property=Type=oneshot   --property=StandardOutput=journal   --property=StandardError=journal   --setenv=PHASE14_PARTITIONED_STORAGE_HEAD="$HEAD_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_FROM_HEAD="$FROM_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_BRANCH="$BRANCH_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_ENV_FILE="$ENV_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB="$FREE_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_SHA256="$PREFLIGHT_SHA_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_NAME="$PREFLIGHT_ARCHIVE_NAME_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_SHA256="$PREFLIGHT_ARCHIVE_SHA_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_WINDOW_END="$PREFLIGHT_ARCHIVE_WINDOW_Q"   /bin/bash "$WORKER_PATH"
+systemd-run   --unit="$UNIT"   --description="BP Phase 14 partitioned storage rollout"   --property=Type=oneshot   --property=StandardOutput=journal   --property=StandardError=journal   --setenv=PHASE14_PARTITIONED_STORAGE_HEAD="$HEAD_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_FROM_HEAD="$FROM_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PROJECT="$PROJECT_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_ZONE="$ZONE_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_VM="$VM_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_BRANCH="$BRANCH_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_ENV_FILE="$ENV_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB="$FREE_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_SHA256="$PREFLIGHT_SHA_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_NAME="$PREFLIGHT_ARCHIVE_NAME_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_SHA256="$PREFLIGHT_ARCHIVE_SHA_Q"   --setenv=PHASE14_PARTITIONED_STORAGE_PREFLIGHT_ARCHIVE_WINDOW_END="$PREFLIGHT_ARCHIVE_WINDOW_Q"   /bin/bash "$WORKER_PATH"
 echo "PHASE14_PARTITIONED_STORAGE_STARTED=PASS"
 echo "UNIT=$UNIT.service"
 echo "STATUS_COMMAND=sudo systemctl status $UNIT.service --no-pager -l"
