@@ -930,6 +930,8 @@ Path(output_path).write_text(
 )
 PY
 install -o bp -g bp -m 0640 "$EVIDENCE_TMP" "$EVIDENCE_PATH"
+EVIDENCE_SHA256=$(sha256sum "$EVIDENCE_PATH" | awk '{print $1}')
+[[ "$EVIDENCE_SHA256" =~ ^[0-9a-f]{64}$ ]] || fail "rollout_evidence_digest_invalid"
 rm -f "$EVIDENCE_TMP"
 
 ROLLBACK_ARMED=0
@@ -937,6 +939,7 @@ echo "PHASE14_PARTITIONED_STORAGE_ROLLOUT=PASS"
 echo "FROM_HEAD=$OLD_HEAD"
 echo "HEAD=$SHA"
 echo "EVIDENCE_PATH=$EVIDENCE_PATH"
+echo "EVIDENCE_SHA256=$EVIDENCE_SHA256"
 echo "PARTITION_BYTES_RELEASED=$PARTITION_BYTES_RELEASED"
 echo "RECORDER_RESTARTED=false"
 echo "ROLLBACK_MATERIAL_RETAINED=true"
