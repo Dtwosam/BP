@@ -262,3 +262,20 @@ def test_partitioned_storage_rollout_binds_local_helper_to_exact_clean_candidate
         "gcloud config set project"
     )
 
+def test_partitioned_storage_rollout_binds_host_archive_to_verified_preflight() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        'archive.get("evidence_name")',
+        'archive.get("window_end")',
+        "PREFLIGHT_ARCHIVE_EVIDENCE_NAME",
+        "PREFLIGHT_ARCHIVE_WINDOW_END",
+        "EXPECTED_ARCHIVE_EVIDENCE_NAME",
+        "EXPECTED_ARCHIVE_WINDOW_END",
+        'ARCHIVE_EVIDENCE="$EVIDENCE_DIR/$EXPECTED_ARCHIVE_EVIDENCE_NAME"',
+        "archive_evidence_binding_mismatch",
+    ):
+        assert marker in content
+
+    assert 'ls -1t "$EVIDENCE_DIR"/phase14-storage-recovery-24-48h-' not in content
+
