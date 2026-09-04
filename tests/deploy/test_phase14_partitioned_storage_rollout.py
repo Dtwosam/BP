@@ -540,3 +540,61 @@ def test_rollout_removes_unaccepted_installed_evidence_before_rollback() -> None
     cleanup_sync = content.index('sync -f "$EVIDENCE_DIR"', cleanup)
     rollback = content.index("rollback_partitioned_storage", cleanup_sync)
     assert on_exit < cleanup_guard < cleanup < cleanup_sync < rollback
+
+
+def test_rollout_publishes_acceptance_evidence_exclusively_from_staged_file() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        'EVIDENCE_STAGE=""',
+        'EVIDENCE_STAGE=$(mktemp "$EVIDENCE_DIR/.phase14-partitioned-storage-rollout-',
+        'install -o bp -g bp -m 0640 "$EVIDENCE_TMP" "$EVIDENCE_STAGE"',
+        'sync -f "$EVIDENCE_STAGE" || fail "rollout_evidence_stage_sync_failed"',
+        'ln "$EVIDENCE_STAGE" "$EVIDENCE_PATH" || fail "rollout_evidence_publish_failed"',
+        'rm -f "$EVIDENCE_STAGE"',
+        '"${EVIDENCE_STAGE:-}"',
+    ):
+        assert marker in content
+
+    assert (
+        'install -o bp -g bp -m 0640 "$EVIDENCE_TMP" "$EVIDENCE_PATH"'
+        not in content
+    )
+
+    temp_digest = content.index(
+        'EVIDENCE_TMP_SHA256=$(sha256sum "$EVIDENCE_TMP"'
+    )
+    stage = content.index(
+        'EVIDENCE_STAGE=$(mktemp "$EVIDENCE_DIR/.phase14-partitioned-storage-rollout-',
+        temp_digest,
+    )
+    stage_install = content.index(
+        'install -o bp -g bp -m 0640 "$EVIDENCE_TMP" "$EVIDENCE_STAGE"',
+        stage,
+    )
+    stage_sync = content.index(
+        'sync -f "$EVIDENCE_STAGE" || fail "rollout_evidence_stage_sync_failed"',
+        stage_install,
+    )
+    publish = content.index(
+        'ln "$EVIDENCE_STAGE" "$EVIDENCE_PATH" || fail "rollout_evidence_publish_failed"',
+        stage_sync,
+    )
+    installed = content.index("EVIDENCE_INSTALLED=true", publish)
+    stage_cleanup = content.index('rm -f "$EVIDENCE_STAGE"', installed)
+    installed_digest = content.index(
+        'EVIDENCE_SHA256=$(sha256sum "$EVIDENCE_PATH"', stage_cleanup
+    )
+    disarm = content.index("\nROLLBACK_ARMED=0\n", installed_digest)
+
+    assert (
+        temp_digest
+        < stage
+        < stage_install
+        < stage_sync
+        < publish
+        < installed
+        < stage_cleanup
+        < installed_digest
+        < disarm
+    )
