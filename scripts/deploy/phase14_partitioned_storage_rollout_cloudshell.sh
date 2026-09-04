@@ -214,8 +214,11 @@ DISK_JSON=""
 ARCHIVE_EVIDENCE=""
 POSTGRES_DATA_SOURCE=""
 MIGRATION_FREE_BYTES=""
+MIGRATION_RAW_RELATION_OID=""
 MIGRATION_RAW_TOTAL_BYTES=""
 MIGRATION_REQUIRED_FREE_BYTES=""
+ROLLBACK_LEGACY_RELATION_OID=""
+ROLLBACK_LEGACY_RELATION_BYTES=""
 PARTITION_BYTES_BEFORE_MAINTENANCE=""
 PARTITION_BYTES_AFTER_MAINTENANCE=""
 PARTITION_BYTES_RELEASED=""
@@ -475,7 +478,7 @@ verify_unmigrated_storage_shape() {
 }
 
 verify_migration_headroom() {
-  local postgres_user postgres_db raw_total_bytes free_bytes
+  local postgres_user postgres_db row raw_relation_oid raw_total_bytes free_bytes
   local critical_reserve_bytes configured_minimum_bytes required_free_bytes
 
   postgres_user=$(read_env POSTGRES_USER)
@@ -483,14 +486,20 @@ verify_migration_headroom() {
   postgres_user=${postgres_user:-bp}
   postgres_db=${postgres_db:-bp}
 
-  raw_total_bytes=$(docker compose \
+  row=$(docker compose \
     --env-file "$ENV_FILE" \
     -f "$REPO/docker-compose.prod.yml" \
     exec -T postgres \
-    psql -U "$postgres_user" -d "$postgres_db" -At -c \
-    "SELECT pg_total_relation_size('public.raw_market_events')::bigint;") \
-    || fail "postgres_raw_relation_size_query_failed"
+    psql -U "$postgres_user" -d "$postgres_db" -At -F '|' -c "
+      SELECT
+        'public.raw_market_events'::regclass::oid::bigint,
+        pg_total_relation_size('public.raw_market_events')::bigint;
+    ") || fail "postgres_raw_relation_size_query_failed"
+  IFS='|' read -r raw_relation_oid raw_total_bytes <<< "$row"
+  raw_relation_oid=$(printf '%s' "$raw_relation_oid" | tr -d '[:space:]')
   raw_total_bytes=$(printf '%s' "$raw_total_bytes" | tr -d '[:space:]')
+  [[ "$raw_relation_oid" =~ ^[0-9]+$ ]] || fail "invalid_raw_relation_oid"
+  (( raw_relation_oid > 0 )) || fail "invalid_raw_relation_oid"
   [[ "$raw_total_bytes" =~ ^[0-9]+$ ]] || fail "invalid_raw_relation_size"
 
   free_bytes=$(df --output=avail -B1 /mnt/bp-data | tail -n1 | tr -d ' ')
@@ -504,6 +513,7 @@ verify_migration_headroom() {
   fi
 
   MIGRATION_FREE_BYTES=$free_bytes
+  MIGRATION_RAW_RELATION_OID=$raw_relation_oid
   MIGRATION_RAW_TOTAL_BYTES=$raw_total_bytes
   MIGRATION_REQUIRED_FREE_BYTES=$required_free_bytes
   (( free_bytes >= required_free_bytes )) || fail "insufficient_migration_headroom"
@@ -532,6 +542,37 @@ partition_relation_bytes() {
   value=$(printf '%s' "$value" | tr -d '[:space:]')
   [[ "$value" =~ ^[0-9]+$ ]] || fail "invalid_partition_relation_bytes"
   printf '%s\n' "$value"
+}
+
+verify_final_rollback_material() {
+  local postgres_user postgres_db row legacy_relation_oid legacy_relation_bytes
+  postgres_user=$(read_env POSTGRES_USER)
+  postgres_db=$(read_env POSTGRES_DB)
+  postgres_user=${postgres_user:-bp}
+  postgres_db=${postgres_db:-bp}
+
+  row=$(docker compose \
+    --env-file "$ENV_FILE" \
+    -f "$REPO/docker-compose.prod.yml" \
+    exec -T postgres \
+    psql -U "$postgres_user" -d "$postgres_db" -At -F '|' -c "
+      SELECT
+        to_regclass('public.raw_market_events_legacy')::oid::bigint,
+        pg_total_relation_size(
+          to_regclass('public.raw_market_events_legacy')
+        )::bigint;
+    ") || fail "postgres_rollback_material_query_failed"
+  IFS='|' read -r legacy_relation_oid legacy_relation_bytes <<< "$row"
+  legacy_relation_oid=$(printf '%s' "$legacy_relation_oid" | tr -d '[:space:]')
+  legacy_relation_bytes=$(printf '%s' "$legacy_relation_bytes" | tr -d '[:space:]')
+  [[ "$legacy_relation_oid" =~ ^[0-9]+$ ]] || fail "rollback_material_missing"
+  [[ "$legacy_relation_oid" == "$MIGRATION_RAW_RELATION_OID" ]] \
+    || fail "rollback_material_relation_changed"
+  [[ "$legacy_relation_bytes" =~ ^[0-9]+$ ]] || fail "rollback_material_size_invalid"
+  (( legacy_relation_bytes > 0 )) || fail "rollback_material_empty"
+
+  ROLLBACK_LEGACY_RELATION_OID=$legacy_relation_oid
+  ROLLBACK_LEGACY_RELATION_BYTES=$legacy_relation_bytes
 }
 
 verify_archive_evidence() {
@@ -782,12 +823,13 @@ require_recorder_stopped
 require_research_zero_money
 validate_automatic_promotion_false
 [[ "$(git -C "$REPO" rev-parse HEAD)" == "$SHA" ]] || fail "deployed_head_changed"
+verify_final_rollback_material
 
 install -d -o bp -g bp -m 0750 "$EVIDENCE_DIR"
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 EVIDENCE_PATH="$EVIDENCE_DIR/phase14-partitioned-storage-rollout-$STAMP.json"
 EVIDENCE_TMP=$(mktemp /var/tmp/bp-partitioned-storage-evidence.XXXXXX.json)
-"$PYTHON" -   "$APPLY_JSON" "$VERIFY_JSON" "$MAINTENANCE_JSON" "$DISK_JSON"   "$EVIDENCE_TMP" "$OLD_HEAD" "$SHA" "$APPROVED_FROM_HEAD" "$APPROVED_HEAD" "$APPROVED_PREFLIGHT_SHA256" "$TARGET_PROJECT" "$TARGET_ZONE" "$TARGET_VM" "$ARCHIVE_EVIDENCE" "$POSTGRES_DATA_SOURCE"   "$PREFLIGHT_VERIFIED_SHA256" "$EXPECTED_ARCHIVE_SHA256" "$EXPECTED_ARCHIVE_WINDOW_END" "$MIGRATION_FREE_BYTES" "$MIGRATION_RAW_TOTAL_BYTES" "$MIGRATION_REQUIRED_FREE_BYTES"   "$PARTITION_BYTES_BEFORE_MAINTENANCE" "$PARTITION_BYTES_AFTER_MAINTENANCE" "$PARTITION_BYTES_RELEASED" <<'PY'
+"$PYTHON" -   "$APPLY_JSON" "$VERIFY_JSON" "$MAINTENANCE_JSON" "$DISK_JSON"   "$EVIDENCE_TMP" "$OLD_HEAD" "$SHA" "$APPROVED_FROM_HEAD" "$APPROVED_HEAD" "$APPROVED_PREFLIGHT_SHA256" "$TARGET_PROJECT" "$TARGET_ZONE" "$TARGET_VM" "$ARCHIVE_EVIDENCE" "$POSTGRES_DATA_SOURCE"   "$PREFLIGHT_VERIFIED_SHA256" "$EXPECTED_ARCHIVE_SHA256" "$EXPECTED_ARCHIVE_WINDOW_END" "$MIGRATION_FREE_BYTES" "$MIGRATION_RAW_RELATION_OID" "$MIGRATION_RAW_TOTAL_BYTES" "$MIGRATION_REQUIRED_FREE_BYTES" "$ROLLBACK_LEGACY_RELATION_OID" "$ROLLBACK_LEGACY_RELATION_BYTES"   "$PARTITION_BYTES_BEFORE_MAINTENANCE" "$PARTITION_BYTES_AFTER_MAINTENANCE" "$PARTITION_BYTES_RELEASED" <<'PY'
 from __future__ import annotations
 
 import json
@@ -815,8 +857,11 @@ from pathlib import Path
     archive_evidence_sha256,
     archive_window_end,
     migration_free_bytes,
+    migration_raw_relation_oid,
     migration_raw_total_bytes,
     migration_required_free_bytes,
+    rollback_legacy_relation_oid,
+    rollback_legacy_relation_bytes,
     partition_bytes_before_maintenance,
     partition_bytes_after_maintenance,
     partition_bytes_released,
@@ -850,6 +895,9 @@ payload = {
     "source_archive_evidence_sha256": archive_evidence_sha256,
     "source_archive_window_end": archive_window_end,
     "verified_preflight_sha256": preflight_verified_sha256,
+    "rollback_material_original_relation_oid": int(migration_raw_relation_oid),
+    "rollback_material_relation_oid": int(rollback_legacy_relation_oid),
+    "rollback_material_relation_bytes": int(rollback_legacy_relation_bytes),
     "pre_migration_headroom": {
         "free_bytes": int(migration_free_bytes),
         "raw_total_bytes": int(migration_raw_total_bytes),
