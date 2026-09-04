@@ -28,7 +28,11 @@ def _parse_transcript(transcript: str) -> dict[str, str]:
             continue
         key, value = line.split("=", 1)
         if re.fullmatch(r"[A-Z][A-Z0-9_]*", key):
-            values[key] = value.strip()
+            normalized = value.strip()
+            existing = values.get(key)
+            if existing is not None and existing != normalized:
+                raise PreflightVerificationError(f"conflicting {key} values")
+            values[key] = normalized
     return values
 
 
