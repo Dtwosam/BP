@@ -1,0 +1,33 @@
+name: Polymarket Transport Backpressure Diagnostic
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  active-reconnect-continuity:
+    if: github.head_ref == 'investigate-polymarket-transport-backpressure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+
+      - name: Verify diagnostic
+        run: ruff check scripts/diagnose_polymarket_transport_active_reconnect.py
+
+      - name: Reproduce active-add failure and verify full-set reconnect
+        run: python scripts/diagnose_polymarket_transport_active_reconnect.py
