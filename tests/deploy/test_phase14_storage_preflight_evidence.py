@@ -275,3 +275,27 @@ def test_verified_preflight_binds_expected_target_identity() -> None:
             expected_zone="us-east1-c",
             expected_vm="bp-recorder",
         )
+
+
+def test_verified_preflight_binds_expected_archive_evidence_path() -> None:
+    content = VERIFIER.read_text(encoding="utf-8")
+
+    for marker in (
+        "--expected-archive-evidence",
+        "unexpected ARCHIVE_EVIDENCE",
+    ):
+        assert marker in content
+
+    with pytest.raises(
+        PreflightVerificationError,
+        match="unexpected ARCHIVE_EVIDENCE",
+    ):
+        verify_preflight_transcript(
+            _transcript(),
+            expected_from_head=FROM_HEAD,
+            expected_head=HEAD,
+            expected_archive_evidence=(
+                "/mnt/bp-data/evidence/"
+                "phase14-storage-recovery-24-48h-20260904T020000Z.json"
+            ),
+        )
