@@ -425,8 +425,8 @@ def test_rollout_finally_proves_original_rollback_relation_survives() -> None:
     ):
         assert marker in content
 
-    restore = content.index("restore_managed_units")
-    final_check = content.index("verify_final_rollback_material", restore)
+    restore = content.rindex("\nrestore_managed_units\n")
+    final_check = content.index("\nverify_final_rollback_material\n", restore)
     evidence = content.index("EVIDENCE_TMP=$(mktemp", final_check)
     assert restore < final_check < evidence
 
