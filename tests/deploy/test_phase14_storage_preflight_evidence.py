@@ -193,6 +193,11 @@ def test_verify_preflight_cli_emits_sanitized_json(tmp_path: Path) -> None:
             "us-east1-c",
             "--expected-vm",
             "bp-recorder",
+            "--expected-archive-evidence",
+            (
+                "/mnt/bp-data/evidence/"
+                "phase14-storage-recovery-24-48h-20260904T015955Z.json"
+            ),
         ],
         cwd=ROOT,
         capture_output=True,
