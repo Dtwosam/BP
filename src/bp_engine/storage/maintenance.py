@@ -18,10 +18,15 @@ from sqlalchemy.exc import SQLAlchemyError
 from bp_engine.storage.partitioned_raw import (
     RawStorageMode,
     drop_raw_partition,
+    list_raw_partitions,
     raw_storage_mode,
 )
 from bp_engine.storage.recorder import RecorderRepository
-from bp_engine.storage.schema import market_state_1s, raw_market_events
+from bp_engine.storage.schema import (
+    market_state_1s,
+    raw_market_events,
+    storage_maintenance_runs,
+)
 
 GIB = 1024**3
 REQUIRED_COMPACT_FEEDS = (
@@ -508,11 +513,208 @@ def project_raw_bytes_per_day(
     return int((recent_event_count / recent_window_hours) * 24 * average_bytes_per_event)
 
 
+def _floor_hour(value: datetime) -> datetime:
+    return _require_aware_utc(value, field="timestamp").replace(
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+
+
+def _latest_successful_maintenance(engine: Engine) -> datetime | None:
+    try:
+        with engine.connect() as connection:
+            value = connection.execute(
+                select(func.max(storage_maintenance_runs.c.completed_at)).where(
+                    storage_maintenance_runs.c.status == "success"
+                )
+            ).scalar_one()
+    except SQLAlchemyError:
+        return None
+    if value is None:
+        return None
+    return _utc(value)
+
+
+def _partition_relation_bytes(engine: Engine) -> int | None:
+    if engine.dialect.name != "postgresql":
+        return None
+    try:
+        with engine.connect() as connection:
+            value = connection.execute(
+                text(
+                    """
+                    SELECT COALESCE(sum(pg_total_relation_size(child.oid)), 0)
+                    FROM pg_inherits
+                    JOIN pg_class AS parent ON parent.oid = pg_inherits.inhparent
+                    JOIN pg_namespace AS parent_ns ON parent_ns.oid = parent.relnamespace
+                    JOIN pg_class AS child ON child.oid = pg_inherits.inhrelid
+                    WHERE parent_ns.nspname = current_schema()
+                      AND parent.relname = 'raw_market_events'
+                    """
+                )
+            ).scalar_one()
+    except SQLAlchemyError:
+        return None
+    return int(value or 0)
+
+
+def _dedupe_relation_bytes(engine: Engine) -> int | None:
+    if engine.dialect.name != "postgresql":
+        return None
+    try:
+        with engine.connect() as connection:
+            value = connection.execute(
+                text(
+                    """
+                    SELECT COALESCE(sum(pg_total_relation_size(child.oid)), 0)
+                    FROM pg_inherits
+                    JOIN pg_class AS parent ON parent.oid = pg_inherits.inhparent
+                    JOIN pg_namespace AS parent_ns ON parent_ns.oid = parent.relnamespace
+                    JOIN pg_class AS child ON child.oid = pg_inherits.inhrelid
+                    WHERE parent_ns.nspname = current_schema()
+                      AND parent.relname = 'raw_event_dedupe'
+                    """
+                )
+            ).scalar_one()
+    except SQLAlchemyError:
+        return None
+    return int(value or 0)
+
+
+def build_composite_storage_health(
+    engine: Engine,
+    path: Path | str,
+    settings: object,
+    *,
+    now: datetime | None = None,
+    disk_usage_fn: Callable[[Path | str], object] = shutil.disk_usage,
+) -> dict[str, Any]:
+    now_at = datetime.now(UTC) if now is None else _require_aware_utc(now, field="now")
+    target = Path(path)
+    target.mkdir(parents=True, exist_ok=True)
+    disk = _disk_health_from_usage(
+        target,
+        disk_usage_fn(target),
+        warning_free_gib=settings.storage_warning_free_gib,
+        critical_free_gib=settings.storage_critical_free_gib,
+    )
+
+    mode = RawStorageMode.LEGACY
+    if engine.dialect.name == "postgresql":
+        try:
+            with engine.connect() as connection:
+                mode = raw_storage_mode(connection)
+        except SQLAlchemyError:
+            mode = RawStorageMode.LEGACY
+
+    if mode is not RawStorageMode.PARTITIONED:
+        return {
+            **disk,
+            "storage_mode": mode.value,
+            "guards": {
+                "maintenance_fresh": True,
+                "current_partition_present": True,
+                "retention_current": True,
+            },
+            "maintenance": {
+                "last_success_at": None,
+                "age_hours": None,
+                "max_age_hours": int(
+                    getattr(settings, "storage_maintenance_max_age_hours", 2)
+                ),
+            },
+            "raw_partitions": {
+                "count": 0,
+                "oldest_start_at": None,
+                "newest_end_at": None,
+                "oldest_age_hours": None,
+                "retention_lag_hours": 0.0,
+                "bytes": None,
+                "dedupe_bytes": None,
+            },
+        }
+
+    partitions = list_raw_partitions(engine)
+    current_hour = _floor_hour(now_at)
+    current_present = any(
+        partition.start_at <= now_at < partition.end_at
+        for partition in partitions
+    )
+    eligible_end = _floor_hour(
+        now_at - timedelta(hours=int(settings.storage_hot_raw_hours))
+    )
+    expired = [
+        partition
+        for partition in partitions
+        if partition.end_at <= eligible_end
+    ]
+    retention_lag_hours = 0.0
+    if expired:
+        retention_lag_hours = max(
+            0.0,
+            (eligible_end - min(item.start_at for item in expired)).total_seconds()
+            / 3600.0,
+        )
+
+    latest_success = _latest_successful_maintenance(engine)
+    age_hours = (
+        None
+        if latest_success is None
+        else max(0.0, (now_at - latest_success).total_seconds() / 3600.0)
+    )
+    max_age_hours = int(getattr(settings, "storage_maintenance_max_age_hours", 2))
+    maintenance_fresh = age_hours is not None and age_hours <= max_age_hours
+    retention_current = not expired
+
+    guards = {
+        "maintenance_fresh": maintenance_fresh,
+        "current_partition_present": current_present,
+        "retention_current": retention_current,
+    }
+    status = disk["status"]
+    if not all(guards.values()):
+        status = "critical"
+
+    oldest = min(partitions, key=lambda item: item.start_at) if partitions else None
+    newest = max(partitions, key=lambda item: item.end_at) if partitions else None
+    oldest_age_hours = (
+        None
+        if oldest is None
+        else max(0.0, (now_at - oldest.start_at).total_seconds() / 3600.0)
+    )
+
+    return {
+        **disk,
+        "status": status,
+        "storage_mode": mode.value,
+        "guards": guards,
+        "maintenance": {
+            "last_success_at": _iso_utc(latest_success),
+            "age_hours": age_hours,
+            "max_age_hours": max_age_hours,
+        },
+        "raw_partitions": {
+            "count": len(partitions),
+            "current_hour_start_at": _iso_utc(current_hour),
+            "oldest_start_at": _iso_utc(oldest.start_at) if oldest else None,
+            "newest_end_at": _iso_utc(newest.end_at) if newest else None,
+            "oldest_age_hours": oldest_age_hours,
+            "retention_lag_hours": retention_lag_hours,
+            "bytes": _partition_relation_bytes(engine),
+            "dedupe_bytes": _dedupe_relation_bytes(engine),
+        },
+    }
+
+
 def _postgres_raw_total_bytes(engine: Engine) -> int | None:
     if engine.dialect.name != "postgresql":
         return None
     try:
         with engine.connect() as connection:
+            mode = raw_storage_mode(connection)
+            if mode is RawStorageMode.PARTITIONED:
+                return _partition_relation_bytes(engine)
             value = connection.execute(
                 text("SELECT pg_total_relation_size('raw_market_events')")
             ).scalar_one()
@@ -568,12 +770,34 @@ def build_storage_report(
 
     archive_files = list(archive_path.glob("*.jsonl.gz"))
     archive_bytes = sum(path.stat().st_size for path in archive_files)
-    disk = _disk_health_from_usage(
-        archive_path,
-        disk_usage_fn(archive_path),
-        warning_free_gib=settings.storage_warning_free_gib,
-        critical_free_gib=settings.storage_critical_free_gib,
+    health_path = Path(getattr(settings, "storage_health_path", None) or archive_path)
+    composite = build_composite_storage_health(
+        engine,
+        health_path,
+        settings,
+        now=now_at,
+        disk_usage_fn=disk_usage_fn,
     )
+    disk = {
+        key: composite[key]
+        for key in (
+            "path",
+            "status",
+            "total_bytes",
+            "used_bytes",
+            "free_bytes",
+            "free_percent",
+            "warning_free_bytes",
+            "critical_free_bytes",
+        )
+    }
+    projected_hours_to_critical: float | None = None
+    if projected_bytes_per_day and projected_bytes_per_day > 0:
+        hourly_growth = projected_bytes_per_day / 24.0
+        projected_hours_to_critical = max(
+            0.0,
+            (disk["free_bytes"] - disk["critical_free_bytes"]) / hourly_growth,
+        )
 
     return {
         "generated_at": _iso_utc(now_at),
@@ -596,6 +820,12 @@ def build_storage_report(
             "bytes": archive_bytes,
         },
         "disk": disk,
+        "storage_mode": composite["storage_mode"],
+        "maintenance": composite["maintenance"],
+        "raw_partitions": {
+            **composite["raw_partitions"],
+            "projected_hours_to_critical": projected_hours_to_critical,
+        },
         "retention": {
             "hot_raw_hours": settings.storage_hot_raw_hours,
             "archive_retention_hours": settings.storage_archive_retention_hours,
