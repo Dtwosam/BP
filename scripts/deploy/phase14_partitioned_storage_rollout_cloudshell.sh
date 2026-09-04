@@ -211,6 +211,8 @@ APPLY_JSON=""
 VERIFY_JSON=""
 MAINTENANCE_JSON=""
 DISK_JSON=""
+EVIDENCE_PATH=""
+EVIDENCE_INSTALLED=false
 ARCHIVE_EVIDENCE=""
 POSTGRES_DATA_SOURCE=""
 MIGRATION_FREE_BYTES=""
@@ -652,6 +654,13 @@ on_exit() {
   local rc=$?
   trap - EXIT
   if (( rc != 0 && ROLLBACK_ARMED == 1 )); then
+    if [[ "$EVIDENCE_INSTALLED" == "true" && -n "$EVIDENCE_PATH" ]]; then
+      if rm -f "$EVIDENCE_PATH" && sync -f "$EVIDENCE_DIR"; then
+        echo "ROLLBACK_EVIDENCE_CLEANUP=PASS" >&2
+      else
+        echo "ROLLBACK_EVIDENCE_CLEANUP=FAILED" >&2
+      fi
+    fi
     rollback_partitioned_storage
   fi
   rm -f "${ENV_BACKUP:-}" "${APPLY_JSON:-}" "${VERIFY_JSON:-}"     "${MAINTENANCE_JSON:-}" "${DISK_JSON:-}"
@@ -932,6 +941,7 @@ PY
 EVIDENCE_TMP_SHA256=$(sha256sum "$EVIDENCE_TMP" | awk '{print $1}')
 [[ "$EVIDENCE_TMP_SHA256" =~ ^[0-9a-f]{64}$ ]] || fail "rollout_evidence_digest_invalid"
 install -o bp -g bp -m 0640 "$EVIDENCE_TMP" "$EVIDENCE_PATH"
+EVIDENCE_INSTALLED=true
 EVIDENCE_SHA256=$(sha256sum "$EVIDENCE_PATH" | awk '{print $1}')
 [[ "$EVIDENCE_SHA256" =~ ^[0-9a-f]{64}$ ]] || fail "rollout_evidence_digest_invalid"
 [[ "$EVIDENCE_SHA256" == "$EVIDENCE_TMP_SHA256" ]] || fail "rollout_evidence_copy_mismatch"
