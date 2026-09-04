@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.44 — 4 September 2026
+
+Phase 14 independent read-only preflight verification now binds the production environment-file path used for compose and PostgreSQL inspection. The preflight transcript records `ENV_FILE`; the Cloud Shell evidence wrapper explicitly resolves and forwards the same `PHASE14_PARTITIONED_STORAGE_ENV_FILE` value to the host preflight and to the verifier; and the verifier rejects a transcript whose `ENV_FILE` differs from that expected path before emitting verified JSON.
+
+Clean tests-only RED head `5fc84a23160bc118ebb927569407b9d027f54d23` failed exactly the new environment-file binding contract while all **958 existing tests passed** in CI `33929947172`. Initial implementation head `5307e7ffadd1e09ac1948a1430c29fa4c05679ed` introduced the runtime binding correctly but CI `33930168330` exposed one legacy CLI transcript fixture that omitted the new `ENV_FILE` field (**958 passed, 1 failed**). Final repaired head `5364dccf884031c2ab3e3553616c34f9f46a538f` updated only that fixture and passed CI `33930285235` with **959 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #87's integration record. Final head `205bf38c3b23d988866cdca63c427524d3ab821f` passed push CI `33928759822`, PR CI `33929622818`, Historical Backfill Smoke `33929622815`, Live Recorder Smoke `33929622868`, and Recorder Short Soak `33929622873`. PR #87 merged as `52ff789c1caeb2476111efc5b2c4529794753976`; post-merge main CI `33929752391` passed **958 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.43 — 4 September 2026
 
 Phase 14 configured free-space-threshold binding is now integrated on `main`. PR #86 final head `bf307b4b17a359c238494697e804ea0ce0d0465f` passed push CI `33928281477`, PR CI `33928311555`, Historical Backfill Smoke `33928311601`, Live Recorder Smoke `33928311447`, and Recorder Short Soak `33928311436`. It merged as `d24aff16c6ad4392ba797f869f6a03445cbc9c74`; post-merge main CI `33928453785` then passed **958 tests** plus rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
