@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.14.26 — 4 September 2026
+
+Phase 14 rollout acceptance evidence now preserves the explicit authorization scope that was validated before production contact. The launcher passes the approved deployed-from SHA, approved candidate SHA, and approved verified-preflight SHA-256 into the detached worker. The worker rechecks all three against its expected transition and preflight digest, then eventual PASS evidence records them in an `approval` block. An accepted rollout artifact can therefore be audited against the exact authorization tuple rather than inferring authorization solely from transition/evidence fields.
+
+Clean tests-only RED head `88c615040aa428b9a320d3111eabfd61850192fc` failed exactly the new approval-scope evidence contract while all **946 existing tests passed** in CI `33909569234`. GREEN implementation head `ae3b3c6bfb10045c3052cb16669ef53580218baa` passed CI `33909522738` with **947 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint is engineering-only until merged. No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
+## 0.14.25 — 4 September 2026
+
+Phase 14 read-only preflight evidence now exposes the exact deterministic verified-JSON SHA-256 for human/operator review without weakening the separate approval boundary. After the verifier writes a PASS JSON, the Cloud Shell wrapper computes and validates `VERIFIED_SHA256` and prints it alongside the verified evidence path. The wrapper deliberately does not set or emit `PHASE14_PARTITIONED_STORAGE_APPROVED_PREFLIGHT_SHA256`; authorization remains a separate explicit action.
+
+Tests-only RED head `cdc7018b0f57e2a7ade55168f92807187b40cee0` failed exactly the new digest-output contract while all **945 existing tests passed** in CI `33907751909`. GREEN/final head `0a479a981abab53187b31efb26f1bf3a2c070d2a` passed CI `33907797066` with **946 tests**, Ruff, evidence-wrapper Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+PR #69 final head `0a479a981abab53187b31efb26f1bf3a2c070d2a` passed push CI `33907797066`, PR CI `33909028843`, Historical Backfill Smoke `33909028729`, Live Recorder Smoke `33909028693`, and Recorder Short Soak `33909028790`. It merged to `main` as `8f582230aa9dccccea38263979444d27c6358835`; post-merge main CI `33909248229` then passed **946 tests** plus evidence-wrapper Bash syntax validation, health, and dashboard checks.
+
+This checkpoint also closes PR #68's integration record. Final head `04152f58d88e775b048c7c7ba8c3d39a48a05c67` passed push CI `33907452114`, PR CI `33907500421`, Historical Backfill Smoke `33907500406`, Live Recorder Smoke `33907500442`, and Recorder Short Soak `33907500456`. PR #68 merged as `44cdaece72fe4e9e7bc460c3e998aab21b54c1d0`; post-merge main CI `33907692147` passed **945 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.24 — 4 September 2026
 
 Phase 14 production-migration approval is now bound to the exact verified-preflight snapshot, not only the deployed-from and candidate Git SHAs. The rollout requires `PHASE14_PARTITIONED_STORAGE_APPROVED_PREFLIGHT_SHA256` to be a valid SHA-256 and to equal the single-snapshot `PREFLIGHT_VERIFIED_SHA256` before any gcloud project selection or VM contact. An approval for the same Git transition therefore cannot be silently reused with different verified preflight evidence, target identity, or recovery-archive binding.
