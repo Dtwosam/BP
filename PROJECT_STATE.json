@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.11",
-  "updated_at": "2026-09-04T15:16:00Z",
+  "source_of_truth_version": "0.14.12",
+  "updated_at": "2026-09-04T16:13:30Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -1219,6 +1219,19 @@
     "partitioned_storage_rollout_preflight_parity_merge_commit": "4e4ef004ba805438d8a7e68aa365d92754e57f4a",
     "partitioned_storage_rollout_preflight_parity_post_merge_ci_run_id": 33888318645,
     "partitioned_storage_rollout_preflight_parity_post_merge_ci_passed": true,
-    "partitioned_storage_rollout_preflight_parity_post_merge_test_count": 929
+    "partitioned_storage_rollout_preflight_parity_post_merge_test_count": 929,
+    "partitioned_storage_rollout_shape_recheck_branch": "phase14-storage-rollout-shape-recheck",
+    "partitioned_storage_rollout_shape_recheck_red_head": "6072c0cb708b61cd5f7cd6eed92d3c834c02d3d7",
+    "partitioned_storage_rollout_shape_recheck_red_ci_run_id": 33893361325,
+    "partitioned_storage_rollout_shape_recheck_red_existing_test_count": 929,
+    "partitioned_storage_rollout_shape_recheck_shell_repair_head": "030fdec38cd4070a6589b76e413b8b2688b20e9d",
+    "partitioned_storage_rollout_shape_recheck_shell_repair_ci_run_id": 33893576423,
+    "partitioned_storage_rollout_shape_recheck_implementation_head": "6c80ebc9b52330c4888db472660abcf4ed7e17ac",
+    "partitioned_storage_rollout_shape_recheck_ci_run_id": 33893788997,
+    "partitioned_storage_rollout_shape_recheck_ci_passed": true,
+    "partitioned_storage_rollout_shape_recheck_test_count": 930,
+    "partitioned_storage_rollout_requires_live_unmigrated_shape_recheck": true,
+    "partitioned_storage_rollout_live_shape_recheck_timing": "before mutation and again after managed services stop, before candidate checkout/migration apply",
+    "partitioned_storage_rollout_shape_recheck_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
   }
 }
