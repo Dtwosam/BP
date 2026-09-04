@@ -60,6 +60,14 @@ MUTATIONS_PERFORMED={mutations_performed}
 """
 
 
+def _replace_last_field(transcript: str, field: str, value: str) -> str:
+    lines = transcript.splitlines()
+    matches = [index for index, line in enumerate(lines) if line.startswith(f"{field}=")]
+    assert matches, field
+    lines[matches[-1]] = f"{field}={value}"
+    return "\n".join(lines) + "\n"
+
+
 def test_verify_preflight_transcript_accepts_expected_legacy_recovery_shape() -> None:
     report = verify_preflight_transcript(
         _transcript(),
@@ -99,12 +107,7 @@ def test_verify_preflight_transcript_rejects_boundary_violations(
     value: str,
     reason: str,
 ) -> None:
-    transcript = _transcript()
-    transcript = transcript.replace(
-        next(line for line in transcript.splitlines() if line.startswith(f"{field}=")),
-        f"{field}={value}",
-        1,
-    )
+    transcript = _replace_last_field(_transcript(), field, value)
 
     with pytest.raises(PreflightVerificationError, match=reason):
         verify_preflight_transcript(
@@ -113,6 +116,21 @@ def test_verify_preflight_transcript_rejects_boundary_violations(
             expected_head=HEAD,
             min_free_gib=40,
             critical_reserve_gib=15,
+        )
+
+
+def test_verify_preflight_transcript_rejects_conflicting_duplicate_head_fields() -> None:
+    transcript = _transcript().replace(
+        f"FROM_HEAD={FROM_HEAD}\nHEAD={HEAD}\nMIN_FREE_GIB=40",
+        f"FROM_HEAD={'0' * 40}\nHEAD={HEAD}\nMIN_FREE_GIB=40",
+        1,
+    )
+
+    with pytest.raises(PreflightVerificationError, match="conflicting FROM_HEAD"):
+        verify_preflight_transcript(
+            transcript,
+            expected_from_head=FROM_HEAD,
+            expected_head=HEAD,
         )
 
 
