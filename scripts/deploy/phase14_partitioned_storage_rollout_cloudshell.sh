@@ -607,6 +607,7 @@ cp -a "$ENV_FILE" "$ENV_BACKUP"
 ROLLBACK_ARMED=1
 stop_managed_units
 require_recorder_stopped
+verify_archive_evidence
 verify_unmigrated_storage_shape
 verify_migration_headroom
 
