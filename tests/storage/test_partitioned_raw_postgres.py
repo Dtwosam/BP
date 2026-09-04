@@ -9,22 +9,29 @@ import pytest
 from sqlalchemy import create_engine, insert, text
 from sqlalchemy.exc import DBAPIError
 
+from bp_engine.config import Settings
 from bp_engine.recorder.models import RawEvent
 from bp_engine.recorder.state import MarketStateSnapshot
 from bp_engine.storage.maintenance import (
     ArchiveVerificationError,
     archive_interval,
+    build_composite_storage_health,
     retire_verified_partition,
 )
 from bp_engine.storage.partitioned_raw import (
     RawStorageMode,
     drop_raw_partition,
+    ensure_hour_partitions,
     ensure_partitioned_raw_storage,
     list_raw_partitions,
     raw_storage_mode,
 )
 from bp_engine.storage.recorder import RecorderRepository
-from bp_engine.storage.schema import market_state_1s, raw_market_events
+from bp_engine.storage.schema import (
+    market_state_1s,
+    raw_market_events,
+    storage_maintenance_runs,
+)
 
 DATABASE_URL = os.getenv("BP_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -580,3 +587,121 @@ def test_verified_partition_retirement_drops_relation_then_dedupe(engine, tmp_pa
 
     assert relation is None
     assert ledger_count == 0
+
+
+
+def _storage_settings(tmp_path, *, hot_raw_hours: int = 24) -> Settings:
+    return Settings(
+        _env_file=None,
+        storage_archive_dir=str(tmp_path / "archive"),
+        storage_health_path=str(tmp_path),
+        storage_hot_raw_hours=hot_raw_hours,
+        storage_warning_free_gib=0,
+        storage_critical_free_gib=0,
+        storage_maintenance_max_age_hours=2,
+    )
+
+
+def _record_maintenance_success(engine, completed_at: datetime) -> None:
+    storage_maintenance_runs.create(engine, checkfirst=True)
+    with engine.begin() as connection:
+        connection.execute(
+            insert(storage_maintenance_runs).values(
+                started_at=completed_at - timedelta(minutes=1),
+                completed_at=completed_at,
+                status="success",
+                storage_mode="partitioned",
+                partitions_retired=0,
+                dedupe_rows_removed=0,
+                disk_status="ok",
+                error=None,
+            )
+        )
+
+
+def test_partitioned_health_requires_fresh_maintenance_heartbeat(engine, tmp_path) -> None:
+    now = datetime(2026, 9, 5, 12, 30, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now)
+    settings = _storage_settings(tmp_path)
+
+    missing = build_composite_storage_health(
+        engine,
+        tmp_path,
+        settings,
+        now=now,
+    )
+    assert missing["status"] == "critical"
+    assert missing["guards"]["maintenance_fresh"] is False
+    assert missing["maintenance"]["last_success_at"] is None
+
+    _record_maintenance_success(engine, now - timedelta(hours=3))
+    stale = build_composite_storage_health(
+        engine,
+        tmp_path,
+        settings,
+        now=now,
+    )
+    assert stale["status"] == "critical"
+    assert stale["guards"]["maintenance_fresh"] is False
+    assert stale["maintenance"]["age_hours"] == pytest.approx(3.0)
+
+    _record_maintenance_success(engine, now - timedelta(minutes=30))
+    healthy = build_composite_storage_health(
+        engine,
+        tmp_path,
+        settings,
+        now=now,
+    )
+    assert healthy["status"] == "ok"
+    assert healthy["guards"] == {
+        "maintenance_fresh": True,
+        "current_partition_present": True,
+        "retention_current": True,
+    }
+
+
+def test_partitioned_health_fails_when_current_hour_partition_is_missing(engine, tmp_path) -> None:
+    now = datetime(2026, 9, 5, 13, 30, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now)
+    _record_maintenance_success(engine, now - timedelta(minutes=15))
+    current = now.replace(minute=0, second=0, microsecond=0)
+    with engine.begin() as connection:
+        assert drop_raw_partition(
+            connection,
+            start_at=current,
+            end_at=current + timedelta(hours=1),
+        ) is not None
+
+    report = build_composite_storage_health(
+        engine,
+        tmp_path,
+        _storage_settings(tmp_path),
+        now=now,
+    )
+
+    assert report["status"] == "critical"
+    assert report["guards"]["current_partition_present"] is False
+
+
+def test_partitioned_health_fails_on_expired_partition_retention_lag(engine, tmp_path) -> None:
+    now = datetime(2026, 9, 5, 14, 30, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now)
+    _record_maintenance_success(engine, now - timedelta(minutes=10))
+    old_start = now.replace(minute=0, second=0, microsecond=0) - timedelta(hours=26)
+    with engine.begin() as connection:
+        ensure_hour_partitions(
+            connection,
+            start_at=old_start,
+            hours_ahead=0,
+        )
+
+    report = build_composite_storage_health(
+        engine,
+        tmp_path,
+        _storage_settings(tmp_path, hot_raw_hours=24),
+        now=now,
+    )
+
+    assert report["status"] == "critical"
+    assert report["guards"]["retention_current"] is False
+    assert report["raw_partitions"]["retention_lag_hours"] >= 1.0
