@@ -430,3 +430,18 @@ def test_rollout_finally_proves_original_rollback_relation_survives() -> None:
     evidence = content.index("EVIDENCE_TMP=$(mktemp", final_check)
     assert restore < final_check < evidence
 
+def test_rollout_hashes_final_acceptance_evidence_before_disarm() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        'EVIDENCE_SHA256=$(sha256sum "$EVIDENCE_PATH"',
+        "rollout_evidence_digest_invalid",
+        'echo "EVIDENCE_SHA256=$EVIDENCE_SHA256"',
+    ):
+        assert marker in content
+
+    install = content.index('install -o bp -g bp -m 0640 "$EVIDENCE_TMP" "$EVIDENCE_PATH"')
+    digest = content.index('EVIDENCE_SHA256=$(sha256sum "$EVIDENCE_PATH"', install)
+    disarm = content.index("\nROLLBACK_ARMED=0\n", digest)
+    assert install < digest < disarm
+
