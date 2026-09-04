@@ -136,5 +136,6 @@ def test_partitioned_storage_exact_parity_is_streaming_and_temp_space_bounded() 
     content = MIGRATOR.read_text(encoding="utf-8")
 
     assert "stream_results" in content
-    assert "RAW_PARITY_ROWS_CHECKED" in content
+    assert 'progress_label="RAW_PARITY"' in content
+    assert 'f"{progress_label}_ROWS_CHECKED={checked}"' in content
     assert "EXCEPT ALL" not in content
