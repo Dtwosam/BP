@@ -2,7 +2,7 @@
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
   "source_of_truth_version": "0.14.15",
-  "updated_at": "2026-09-04T16:52:00Z",
+  "updated_at": "2026-09-04T16:58:00Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -1299,6 +1299,17 @@
     "partitioned_storage_rollout_local_candidate_binding_test_count": 933,
     "partitioned_storage_rollout_requires_exact_local_candidate_head": true,
     "partitioned_storage_rollout_requires_clean_local_tree": true,
-    "partitioned_storage_rollout_local_candidate_binding_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
+    "partitioned_storage_rollout_local_candidate_binding_status": "MERGED_MAIN_NOT_PRODUCTION_RUN",
+    "partitioned_storage_rollout_local_candidate_binding_pr": 59,
+    "partitioned_storage_rollout_local_candidate_binding_final_branch_head": "42549a77cdfcc6a9fcedd2ae2302ff24c525a299",
+    "partitioned_storage_rollout_local_candidate_binding_push_ci_run_id": 33897575270,
+    "partitioned_storage_rollout_local_candidate_binding_pr_ci_run_id": 33897620395,
+    "partitioned_storage_rollout_local_candidate_binding_historical_backfill_smoke_run_id": 33897620428,
+    "partitioned_storage_rollout_local_candidate_binding_live_recorder_smoke_run_id": 33897620391,
+    "partitioned_storage_rollout_local_candidate_binding_recorder_short_soak_run_id": 33897620444,
+    "partitioned_storage_rollout_local_candidate_binding_merge_commit": "9ec294cc5f3aec29ece1c3628544d53a908c3b4b",
+    "partitioned_storage_rollout_local_candidate_binding_post_merge_ci_run_id": 33897830149,
+    "partitioned_storage_rollout_local_candidate_binding_post_merge_ci_passed": true,
+    "partitioned_storage_rollout_local_candidate_binding_post_merge_test_count": 933
   }
 }
