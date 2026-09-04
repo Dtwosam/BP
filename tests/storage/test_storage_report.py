@@ -151,3 +151,38 @@ def test_storage_report_cli_loads_explicit_env_file(tmp_path) -> None:
         "state_retention_days": 60,
     }
     assert report["disk"]["path"] == str(archive_dir)
+
+
+
+def test_storage_report_uses_explicit_storage_health_path(tmp_path) -> None:
+    database_path = tmp_path / "health-path.db"
+    database_url = f"sqlite+pysqlite:///{database_path}"
+    engine = create_engine(database_url)
+    metadata.create_all(engine)
+    archive_dir = tmp_path / "archive"
+    health_dir = tmp_path / "data"
+    archive_dir.mkdir()
+    health_dir.mkdir()
+    settings = Settings(
+        _env_file=None,
+        database_url=database_url,
+        storage_archive_dir=str(archive_dir),
+        storage_health_path=str(health_dir),
+    )
+
+    observed_paths = []
+
+    def usage(path):
+        observed_paths.append(path)
+        return DiskUsage(100 * GIB, 60 * GIB, 40 * GIB)
+
+    report = build_storage_report(
+        engine,
+        archive_dir,
+        settings,
+        disk_usage_fn=usage,
+        now=datetime(2026, 9, 5, 15, tzinfo=UTC),
+    )
+
+    assert report["disk"]["path"] == str(health_dir)
+    assert observed_paths == [health_dir]
