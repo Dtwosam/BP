@@ -9,6 +9,7 @@ EXPECTED_HEAD="${PHASE14_PARTITIONED_STORAGE_HEAD:-}"
 EXPECTED_FROM_HEAD="${PHASE14_PARTITIONED_STORAGE_FROM_HEAD:-}"
 APPROVED_FROM_HEAD="${PHASE14_PARTITIONED_STORAGE_APPROVED_FROM_HEAD:-}"
 APPROVED_HEAD="${PHASE14_PARTITIONED_STORAGE_APPROVED_HEAD:-}"
+APPROVED_PREFLIGHT_SHA256="${PHASE14_PARTITIONED_STORAGE_APPROVED_PREFLIGHT_SHA256:-}"
 ENV_FILE="${PHASE14_PARTITIONED_STORAGE_ENV_FILE:-/etc/bp/bp.env}"
 MIN_FREE_GIB="${PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB:-40}"
 PREFLIGHT_VERIFIED="${PHASE14_PARTITIONED_STORAGE_PREFLIGHT_VERIFIED:-}"
@@ -21,7 +22,7 @@ if [[ ! "$EXPECTED_FROM_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
   echo "PHASE14_PARTITIONED_STORAGE_FROM_HEAD must be the exact 40-character expected deployed SHA" >&2
   exit 2
 fi
-if [[ ! "$APPROVED_FROM_HEAD" =~ ^[0-9a-f]{40}$ || ! "$APPROVED_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
+if [[ ! "$APPROVED_FROM_HEAD" =~ ^[0-9a-f]{40}$ || ! "$APPROVED_HEAD" =~ ^[0-9a-f]{40}$ || ! "$APPROVED_PREFLIGHT_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
   echo "migration_approval_missing_or_invalid" >&2
   exit 2
 fi
@@ -139,6 +140,10 @@ if [[ ! "$PREFLIGHT_VERIFIED_SHA256" =~ ^[0-9a-f]{64}$ || -z "$PREFLIGHT_ARCHIVE
   echo "archive_evidence_binding_mismatch" >&2
   exit 2
 fi
+[[ "$APPROVED_PREFLIGHT_SHA256" == "$PREFLIGHT_VERIFIED_SHA256" ]] || {
+  echo "migration_approval_preflight_mismatch" >&2
+  exit 2
+}
 
 gcloud config set project "$PROJECT" >/dev/null
 
