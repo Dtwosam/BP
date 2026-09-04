@@ -430,6 +430,7 @@ def test_rollout_finally_proves_original_rollback_relation_survives() -> None:
     evidence = content.index("EVIDENCE_TMP=$(mktemp", final_check)
     assert restore < final_check < evidence
 
+
 def test_rollout_rechecks_storage_health_after_restore_before_evidence() -> None:
     content = HELPER.read_text(encoding="utf-8")
 
