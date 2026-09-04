@@ -115,11 +115,13 @@ if not isinstance(evidence_name, str) or not re.fullmatch(
     evidence_name,
 ):
     raise SystemExit("verified preflight archive evidence name is invalid")
-if not isinstance(archive_sha256, str) or not re.fullmatch(r"[0-9a-f]{64}", archive_sha256):
+if not isinstance(archive_sha256, str) or not re.fullmatch(
+    r"[0-9a-f]{64}", archive_sha256
+):
     raise SystemExit("verified preflight archive SHA-256 is invalid")
 if not isinstance(window_end, str) or not window_end:
     raise SystemExit("verified preflight archive window_end is invalid")
-print(f"{evidence_name}\t{archive_sha256}\t{window_end}")
+print(f"{evidence_name}\\t{archive_sha256}\\t{window_end}")
 PY
 )
 IFS=
@@ -496,10 +498,12 @@ verify_archive_evidence() {
     || fail "archive_evidence_binding_mismatch"
   ARCHIVE_EVIDENCE="$EVIDENCE_DIR/$EXPECTED_ARCHIVE_EVIDENCE_NAME"
   [[ -f "$ARCHIVE_EVIDENCE" ]] || fail "verified_24_48h_archive_evidence_missing"
-  [[ "$EXPECTED_ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]] || fail "archive_evidence_digest_mismatch"
+  [[ "$EXPECTED_ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]] \
+    || fail "archive_evidence_digest_mismatch"
   local archive_sha256
   archive_sha256=$(sha256sum "$ARCHIVE_EVIDENCE" | awk '{print $1}')
-  [[ "$archive_sha256" == "$EXPECTED_ARCHIVE_SHA256" ]] || fail "archive_evidence_digest_mismatch"
+  [[ "$archive_sha256" == "$EXPECTED_ARCHIVE_SHA256" ]] \
+    || fail "archive_evidence_digest_mismatch"
 
   if ! "$PYTHON" - "$ARCHIVE_EVIDENCE" "$EXPECTED_ARCHIVE_WINDOW_END" <<'PY'
 from __future__ import annotations
