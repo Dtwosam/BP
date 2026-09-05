@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.89 — 5 September 2026
+
+PR #132 merged the read-only storage-preflight deployed-from state binding to `main` as `5406ae99b1a2db3096cdf2e7956499f7d2764d97`. Final branch head `2bec2c0f82ec4110292871098fe9d471592e169f` passed push CI `33978979423`, PR CI `33979041132`, Historical Backfill Smoke `33979041160`, Live Recorder Smoke `33979041104`, and Recorder Short Soak `33979041139`; post-merge main CI `33979137937` then passed **985 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. Before transcript reservation or cloud contact, the operator's deployed-from SHA must match the exact recovery-era production head stored in the candidate state. No production preflight, storage migration, migration authorization, service mutation, Gate B authorization, live-trading change, or Phase 15 transition occurred.
+
 ## 0.14.88 — 5 September 2026
 
 The Phase 14 read-only storage-preflight evidence wrapper now binds the operator-supplied deployed-from SHA to the exact candidate `PROJECT_STATE.json` before transcript reservation or any cloud contact. The existing strict single-read candidate-state parser validates `phase_14_storage_reliability_followup.production_deployed_head_before_recovery` as an exact 40-character SHA and requires it to equal `PHASE14_PARTITIONED_STORAGE_FROM_HEAD`. A stale or mistyped deployed SHA therefore fails locally instead of reaching the production preflight.
