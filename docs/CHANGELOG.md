@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.61 — 5 September 2026
+
+PR #104 merged verified-preflight critical-reserve binding to `main` as `1289d1634c0ed358581ed8358b2302f782e99611`. Final branch head `f1ab47fb8b79d01054f72b03fa76276fe23f86d4` passed push CI `33965248512`, PR CI `33965349434`, Historical Backfill Smoke `33965349408`, Live Recorder Smoke `33965349384`, and Recorder Short Soak `33965349402`; post-merge main CI `33965440093` then passed **971 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. Rollout rejects verified preflight evidence unless `headroom.critical_reserve_gib=15`, matching the unchanged reserve used by the official preflight and live migration-headroom rechecks. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.60 — 5 September 2026
 
 Phase 14 partitioned-storage rollout now binds the independently verified preflight critical reserve before any cloud project selection or production VM contact. The rollout requires `headroom.critical_reserve_gib=15`, matching the unchanged 15 GiB reserve used by the official preflight and the rollout's live migration-headroom rechecks. This prevents a separately generated verified PASS reviewed with a larger reserve from later running under the rollout's fixed 15 GiB reserve without an explicit mismatch failure.

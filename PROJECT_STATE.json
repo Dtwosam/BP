@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.60",
-  "updated_at": "2026-09-05T12:08:11Z",
+  "source_of_truth_version": "0.14.61",
+  "updated_at": "2026-09-05T12:15:08Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2103,6 +2103,17 @@
     "partitioned_storage_rollout_preflight_critical_reserve_binding_ci_passed": true,
     "partitioned_storage_rollout_preflight_critical_reserve_binding_test_count": 971,
     "partitioned_storage_rollout_requires_verified_critical_reserve_gib_15": true,
-    "partitioned_storage_rollout_preflight_critical_reserve_binding_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
+    "partitioned_storage_rollout_preflight_critical_reserve_binding_status": "MERGED_MAIN_NOT_PRODUCTION_RUN",
+    "partitioned_storage_rollout_preflight_critical_reserve_binding_pr": 104,
+    "partitioned_storage_rollout_preflight_critical_reserve_binding_final_branch_head": "f1ab47fb8b79d01054f72b03fa76276fe23f86d4",
+    "partitioned_storage_rollout_preflight_critical_reserve_binding_push_ci_run_id": 33965248512,
+    "partitioned_storage_rollout_preflight_critical_reserve_binding_pr_ci_run_id": 33965349434,
+    "partitioned_storage_rollout_preflight_critical_reserve_binding_historical_backfill_smoke_run_id": 33965349408,
+    "partitioned_storage_rollout_preflight_critical_reserve_binding_live_recorder_smoke_run_id": 33965349384,
+    "partitioned_storage_rollout_preflight_critical_reserve_binding_recorder_short_soak_run_id": 33965349402,
+    "partitioned_storage_rollout_preflight_critical_reserve_binding_merge_commit": "1289d1634c0ed358581ed8358b2302f782e99611",
+    "partitioned_storage_rollout_preflight_critical_reserve_binding_post_merge_ci_run_id": 33965440093,
+    "partitioned_storage_rollout_preflight_critical_reserve_binding_post_merge_ci_passed": true,
+    "partitioned_storage_rollout_preflight_critical_reserve_binding_post_merge_test_count": 971
   }
 }
