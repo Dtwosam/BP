@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.45 — 4 September 2026
+
+Phase 14 environment-file binding is now integrated on `main`. PR #88 final head `57d98a08eb81fcc2f3baa0a3eea540865f3ff807` passed push CI `33930495625`, PR CI `33930620522`, Historical Backfill Smoke `33930620498`, Live Recorder Smoke `33930620492`, and Recorder Short Soak `33930620510`. It merged as `35b5b09d6e98067d438877ce24d0f5e8079a821d`; post-merge main CI `33930749893` then passed **959 tests** plus rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+The merged read-only preflight records the resolved `ENV_FILE`; the Cloud Shell evidence wrapper explicitly forwards that same path to both preflight and verifier; and the verifier rejects any environment-file mismatch before verified JSON is emitted. This closes the PR #88 integration record.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.44 — 4 September 2026
 
 Phase 14 independent read-only preflight verification now binds the production environment-file path used for compose and PostgreSQL inspection. The preflight transcript records `ENV_FILE`; the Cloud Shell evidence wrapper explicitly resolves and forwards the same `PHASE14_PARTITIONED_STORAGE_ENV_FILE` value to the host preflight and to the verifier; and the verifier rejects a transcript whose `ENV_FILE` differs from that expected path before emitting verified JSON.
