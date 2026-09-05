@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.72",
-  "updated_at": "2026-09-05T14:32:12Z",
+  "source_of_truth_version": "0.14.73",
+  "updated_at": "2026-09-05T14:37:53Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2231,6 +2231,17 @@
     "partitioned_storage_rollout_preflight_archive_window_end_consistency_ci_passed": true,
     "partitioned_storage_rollout_preflight_archive_window_end_consistency_test_count": 977,
     "partitioned_storage_rollout_requires_verified_archive_window_end_consistency": true,
-    "partitioned_storage_rollout_preflight_archive_window_end_consistency_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
+    "partitioned_storage_rollout_preflight_archive_window_end_consistency_status": "MERGED_MAIN_NOT_PRODUCTION_RUN",
+    "partitioned_storage_rollout_preflight_archive_window_end_consistency_pr": 116,
+    "partitioned_storage_rollout_preflight_archive_window_end_consistency_final_branch_head": "ea0953b5da96dcc6a5a0fdcbd2bbef0be65702ce",
+    "partitioned_storage_rollout_preflight_archive_window_end_consistency_push_ci_run_id": 33972159546,
+    "partitioned_storage_rollout_preflight_archive_window_end_consistency_pr_ci_run_id": 33972211650,
+    "partitioned_storage_rollout_preflight_archive_window_end_consistency_historical_backfill_smoke_run_id": 33972211651,
+    "partitioned_storage_rollout_preflight_archive_window_end_consistency_live_recorder_smoke_run_id": 33972211645,
+    "partitioned_storage_rollout_preflight_archive_window_end_consistency_recorder_short_soak_run_id": 33972211644,
+    "partitioned_storage_rollout_preflight_archive_window_end_consistency_merge_commit": "9222f6fd0709d2f0d0c5202191c64bf65670dc7e",
+    "partitioned_storage_rollout_preflight_archive_window_end_consistency_post_merge_ci_run_id": 33972317705,
+    "partitioned_storage_rollout_preflight_archive_window_end_consistency_post_merge_ci_passed": true,
+    "partitioned_storage_rollout_preflight_archive_window_end_consistency_post_merge_test_count": 977
   }
 }
