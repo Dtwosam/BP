@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.71 — 5 September 2026
+
+PR #114 merged verified-preflight root-filesystem free-space consistency validation to `main` as `ca4d5acaaf0e0bc859b2a9979d41311257ac5445`. Final branch head `62b5139ba1417cfce2d8917d07b9fe1d9bdd469f` passed push CI `33971541151`, PR CI `33971542837`, Historical Backfill Smoke `33971542839`, Live Recorder Smoke `33971542836`, and Recorder Short Soak `33971542846`; post-merge main CI `33971665075` then passed **976 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. Rollout locally re-validates `headroom.root_free_bytes` as a positive integer before any `gcloud` command, matching the independent verifier's existing output contract. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.70 — 5 September 2026
 
 Phase 14 partitioned-storage rollout now validates the verifier's recorded root-filesystem free-space field before any `gcloud` command. The independent preflight verifier already requires `headroom.root_free_bytes` to be a positive integer; rollout now re-enforces that same verified JSON shape locally instead of accepting a hand-built PASS that omits or malforms the field.
