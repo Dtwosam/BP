@@ -137,11 +137,15 @@ if payload.get("env_file") != expected_env_file:
     raise SystemExit("verified preflight ENV_FILE mismatch")
 
 safety = payload.get("safety") or {}
+max_trade_size_usd = safety.get("max_trade_size_usd")
+max_daily_loss_usd = safety.get("max_daily_loss_usd")
 if (
     safety.get("mode") != "research"
     or safety.get("live_trading_enabled") is not False
-    or safety.get("max_trade_size_usd") != 0
-    or safety.get("max_daily_loss_usd") != 0
+    or type(max_trade_size_usd) is not int
+    or max_trade_size_usd != 0
+    or type(max_daily_loss_usd) is not int
+    or max_daily_loss_usd != 0
     or safety.get("automatic_promotion") is not False
 ):
     raise SystemExit("verified preflight safety mismatch")
