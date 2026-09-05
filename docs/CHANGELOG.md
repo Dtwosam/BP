@@ -6,7 +6,7 @@ The second explicitly authorized Phase 14 rollout, bound to candidate `cc61d2903
 
 The exact deployed-from `c29fe227f959305f67031e922ca659869a826c4f` → candidate diff contains three legitimate Phase 14 preflight-support scripts omitted from the rollout scope allowlist: `phase14_partitioned_storage_preflight_cloudshell.sh`, `phase14_storage_preflight_evidence_cloudshell.sh`, and `verify_phase14_storage_preflight.py`. The scope fix adds only those exact paths and a regression requiring all three; it does not widen the rollout to arbitrary deploy scripts or weaken any live safety gate.
 
-PR #140 had already merged the launcher-runtime expansion fix as `cc61d290390ce9cbe6a52ae55fab591709abd438`, with post-merge CI `33986786740` passing. Because this new scope fix changes the candidate SHA, the prior approval/preflight tuple is no longer reusable. After the scope fix merges and post-merge CI passes, freeze `main`, rerun the read-only production preflight against that exact final SHA, and require another explicit migration approval. Migration authorization is false/unset.
+PR #140 had already merged the launcher-runtime expansion fix as `cc61d290390ce9cbe6a52ae55fab591709abd438`, with post-merge CI `33986786740` passing. Because this new scope fix changes the candidate SHA, the prior approval/preflight tuple is no longer reusable. Once this fix is on `main` and post-merge CI passes, freeze `main`, rerun the read-only production preflight against that exact final SHA, and require another explicit migration approval. Migration authorization is false/unset.
 
 ## 0.14.95 — 5 September 2026
 
