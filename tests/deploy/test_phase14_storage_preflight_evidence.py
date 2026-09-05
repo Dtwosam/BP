@@ -137,8 +137,8 @@ def test_verify_preflight_transcript_rejects_boundary_violations(
 
 def test_verify_preflight_transcript_rejects_conflicting_duplicate_head_fields() -> None:
     transcript = _transcript().replace(
-        f"FROM_HEAD={FROM_HEAD}\nHEAD={HEAD}\nMIN_FREE_GIB=40",
-        f"FROM_HEAD={'0' * 40}\nHEAD={HEAD}\nMIN_FREE_GIB=40",
+        f"FROM_HEAD={FROM_HEAD}\nHEAD={HEAD}\nBRANCH=main\nMIN_FREE_GIB=40",
+        f"FROM_HEAD={'0' * 40}\nHEAD={HEAD}\nBRANCH=main\nMIN_FREE_GIB=40",
         1,
     )
 
