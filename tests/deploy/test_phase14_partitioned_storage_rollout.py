@@ -158,6 +158,22 @@ def test_partitioned_storage_rollout_requires_verified_preflight_evidence() -> N
         assert marker in content
 
 
+
+def test_partitioned_storage_rollout_requires_verified_preflight_branch_match() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        '"$PROJECT" "$ZONE" "$VM" "$BRANCH"',
+        "expected_branch",
+        'payload.get("remote_branch") != expected_branch',
+        "verified preflight BRANCH mismatch",
+    ):
+        assert marker in content
+
+    branch_check = content.index("verified preflight BRANCH mismatch")
+    cloud_contact = content.index('gcloud config set project "$PROJECT"')
+    assert branch_check < cloud_contact
+
 def test_partitioned_storage_rollout_rechecks_dynamic_migration_headroom_before_apply() -> None:
     content = HELPER.read_text(encoding="utf-8")
 
