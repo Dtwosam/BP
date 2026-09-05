@@ -600,6 +600,17 @@ def test_rollout_publishes_acceptance_evidence_exclusively_from_staged_file() ->
     )
 
 
+def test_rollout_validates_local_preflight_evidence_before_gcloud_auth_probe() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    verified_missing = content.index("verified_preflight_missing")
+    preflight_parse = content.index("PREFLIGHT_ARCHIVE_BINDING=$(python")
+    approved_digest = content.index("migration_approval_preflight_mismatch")
+    gcloud_auth = content.index("gcloud auth list")
+
+    assert verified_missing < preflight_parse < approved_digest < gcloud_auth
+
+
 def test_partitioned_storage_rollout_binds_verified_preflight_remote_branch() -> None:
     content = HELPER.read_text(encoding="utf-8")
 
