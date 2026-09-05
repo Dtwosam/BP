@@ -765,6 +765,25 @@ def test_rollout_validates_verified_preflight_root_free_bytes_before_gcloud() ->
         assert marker in binding
 
 
+def test_rollout_validates_verified_preflight_archive_window_end_before_gcloud() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    preflight_check = content.index("PREFLIGHT_ARCHIVE_BINDING=$(python")
+    gcloud_auth = content.index("gcloud auth list")
+
+    binding = content[preflight_check:gcloud_auth]
+    for marker in (
+        "from datetime import datetime",
+        'parsed_window_end = datetime.fromisoformat(window_end.replace("Z", "+00:00"))',
+        "except ValueError as exc:",
+        "parsed_window_end.tzinfo is None",
+        "parsed_window_end.utcoffset() is None",
+        "verified preflight archive window_end is invalid",
+        "verified preflight archive window_end is not timezone-aware",
+    ):
+        assert marker in binding
+
+
 def test_rollout_validates_verified_preflight_raw_shape_semantics_before_gcloud() -> None:
     content = HELPER.read_text(encoding="utf-8")
 
