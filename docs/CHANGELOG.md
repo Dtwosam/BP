@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.87 — 5 September 2026
+
+PR #130 merged the V2 forward-collector source-of-truth reconciliation to `main` as `c4c78de63b1ca2fbd5d21d87be5a98e7f8950e42`. Final branch head `be4f586b4f0a63a195f4fda270598cb11c97c68a` passed push CI `33977923947`, PR CI `33978012880`, Historical Backfill Smoke `33978012884`, Live Recorder Smoke `33978012876`, and Recorder Short Soak `33978012923`; post-merge main CI `33978128868` then passed **984 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The Master and machine-readable state now agree that the continuous V2 forward-coverage collector was deployed research-only/outcome-blind before the 4 September storage incident, while its current active/enabled runtime state remains deliberately unasserted during storage recovery. Gate B remains unauthorized, `automatic_promotion=false`, live trading remains disabled, and Phase 15 remains blocked.
+
 ## 0.14.86 — 5 September 2026
 
 Phase 14 source-of-truth reconciliation corrected a stale V2 forward-coverage collector status. The Master still described the continuous collector as review-only/not deployed, while the later storage-recovery checkpoint in `PROJECT_STATE.json` records the collector as `DEPLOYED_PRODUCTION_RESEARCH_ONLY_OUTCOME_BLIND`, with production rollout performed on head `c29fe227f959305f67031e922ca659869a826c4f`; the 3 September recorder-reliability diagnosis also records the collector producing production missing/stale Polymarket coverage evidence.
