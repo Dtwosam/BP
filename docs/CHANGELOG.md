@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.86 — 5 September 2026
+
+Phase 14 source-of-truth reconciliation corrected a stale V2 forward-coverage collector status. The Master still described the continuous collector as review-only/not deployed, while the later storage-recovery checkpoint in `PROJECT_STATE.json` records the collector as `DEPLOYED_PRODUCTION_RESEARCH_ONLY_OUTCOME_BLIND`, with production rollout performed on head `c29fe227f959305f67031e922ca659869a826c4f`; the 3 September recorder-reliability diagnosis also records the collector producing production missing/stale Polymarket coverage evidence.
+
+The current record now distinguishes historical deployment from present runtime state: the collector was deployed before the 4 September storage incident, but its active/enabled state is not asserted while storage recovery is in progress. Gate B remains unauthorized, no V2 policy/model/calibration/edge/min-edge selection is implied, `automatic_promotion=false`, live trading remains disabled, and Phase 15 remains blocked.
+
+A regression test now fails if `PROJECT_STATE.json` again records the collector rollout as performed while the Master/current summary claims it was never deployed.
+
 ## 0.14.85 — 5 September 2026
 
 PR #128 merged early local storage-preflight operator configuration validation to `main` as `0d0c7e4d9b5fca59ac54f2efca8ca75699b4f4e3`. Final branch head `76d05673c5b3af0c925c16ab0c2011c84206891e` passed push CI `33976728232`, PR CI `33976740685`, Historical Backfill Smoke `33976740693`, Live Recorder Smoke `33976740724`, and Recorder Short Soak `33976740674`; post-merge main CI `33976856064` then passed **983 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
