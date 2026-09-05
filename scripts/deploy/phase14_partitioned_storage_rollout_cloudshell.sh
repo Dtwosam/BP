@@ -140,6 +140,25 @@ if headroom.get("minimum_free_gib") != int(expected_min_free_gib):
 if headroom.get("critical_reserve_gib") != 15:
     raise SystemExit("verified preflight critical reserve mismatch")
 
+free_bytes = headroom.get("free_bytes")
+raw_total_bytes = headroom.get("raw_total_bytes")
+required_free_bytes = headroom.get("required_free_bytes")
+if (
+    type(free_bytes) is not int
+    or free_bytes < 1
+    or type(raw_total_bytes) is not int
+    or raw_total_bytes < 1
+    or type(required_free_bytes) is not int
+    or required_free_bytes < 1
+):
+    raise SystemExit("verified preflight headroom mismatch")
+expected_required_free_bytes = max(
+    int(expected_min_free_gib) * 1024 * 1024 * 1024,
+    raw_total_bytes + 15 * 1024 * 1024 * 1024,
+)
+if required_free_bytes != expected_required_free_bytes or free_bytes < required_free_bytes:
+    raise SystemExit("verified preflight headroom mismatch")
+
 archive = payload.get("archive") or {}
 evidence_name = archive.get("evidence_name")
 archive_sha256 = archive.get("sha256")

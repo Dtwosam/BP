@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.66 — 5 September 2026
+
+Phase 14 partitioned-storage rollout now validates verified-preflight migration-headroom semantics before any `gcloud` command. In addition to the already-bound configured floor and fixed 15 GiB critical reserve, rollout requires integer `free_bytes`, `raw_total_bytes`, and `required_free_bytes`, recomputes `max(configured minimum, raw total bytes + 15 GiB)`, requires the verified `required_free_bytes` to equal that value, and rejects a PASS whose verified free bytes are below its own requirement.
+
+Clean tests-only RED head `19071f8453ab05108325c25403a0c85c1a78c9ce` failed exactly the missing headroom-consistency contract while all **973 existing tests passed** in CI `33968416654`. GREEN head `2fb70cda2a6892b7d07d66b990ad1ddfefd6f7af` passed CI `33968576546` with **974 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+This remains engineering-only until merged. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.65 — 5 September 2026
 
 PR #108 merged verified-preflight JSON duplicate-key rejection to `main` as `c1bcb3f6bba948f979509339c3995584e8ae48a7`. Final branch head `65b478b5a5823bc4fac343fb20fdf62c7e21c942` passed push CI `33967720522`, PR CI `33967811111`, Historical Backfill Smoke `33967811146`, Live Recorder Smoke `33967811084`, and Recorder Short Soak `33967811163`; post-merge main CI `33967910111` then passed **973 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
