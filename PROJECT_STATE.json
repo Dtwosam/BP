@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.79",
-  "updated_at": "2026-09-05T15:21:40Z",
+  "source_of_truth_version": "0.14.80",
+  "updated_at": "2026-09-05T15:25:58Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2314,6 +2314,18 @@
     "partitioned_storage_rollout_preflight_json_nonfinite_rejection_merge_commit": "71504cec335f2b915a1f9e547ba8d590f1144868",
     "partitioned_storage_rollout_preflight_json_nonfinite_rejection_post_merge_ci_run_id": 33974492303,
     "partitioned_storage_rollout_preflight_json_nonfinite_rejection_post_merge_ci_passed": true,
-    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_post_merge_test_count": 980
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_post_merge_test_count": 980,
+    "partitioned_storage_preflight_project_state_strict_json_branch": "phase14-storage-preflight-project-state-strict-json",
+    "partitioned_storage_preflight_project_state_strict_json_red_head": "fc3ec792192349c99a7effe779fb42b917b6f851",
+    "partitioned_storage_preflight_project_state_strict_json_red_ci_run_id": 33974672514,
+    "partitioned_storage_preflight_project_state_strict_json_red_existing_test_count": 980,
+    "partitioned_storage_preflight_project_state_strict_json_green_head": "82883aa6c12e7abdc2a188fb272990a980ab1f4c",
+    "partitioned_storage_preflight_project_state_strict_json_ci_run_id": 33974699483,
+    "partitioned_storage_preflight_project_state_strict_json_ci_passed": true,
+    "partitioned_storage_preflight_project_state_strict_json_test_count": 981,
+    "partitioned_storage_preflight_project_state_single_snapshot_binding": true,
+    "partitioned_storage_preflight_project_state_rejects_duplicate_keys": true,
+    "partitioned_storage_preflight_project_state_rejects_nonfinite_constants": true,
+    "partitioned_storage_preflight_project_state_strict_json_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
   }
 }

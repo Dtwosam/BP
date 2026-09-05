@@ -46,30 +46,42 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from pathlib import Path
 
-payload = json.loads(Path("PROJECT_STATE.json").read_text(encoding="utf-8"))
+raw = Path("PROJECT_STATE.json").read_bytes()
+
+
+def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    payload: dict[str, object] = {}
+    for key, value in pairs:
+        if key in payload:
+            raise SystemExit(f"project state JSON contains duplicate key: {key}")
+        payload[key] = value
+    return payload
+
+
+def reject_nonfinite_constant(value: str) -> object:
+    raise SystemExit(f"project state JSON contains non-finite constant: {value}")
+
+
+payload = json.loads(
+    raw,
+    object_pairs_hook=reject_duplicate_keys,
+    parse_constant=reject_nonfinite_constant,
+)
+if not isinstance(payload, dict):
+    raise SystemExit("project state JSON root is not an object")
+
 followup = payload.get("phase_14_storage_reliability_followup") or {}
 archive_evidence = followup.get("archive_recovery_host_evidence")
 if not isinstance(archive_evidence, str) or not re.fullmatch(
     r"/mnt/bp-data/evidence/phase14-storage-recovery-24-48h-[0-9]{8}T[0-9]{6}Z\.json",
     archive_evidence,
 ):
+    print("archive_evidence_binding_invalid", file=sys.stderr)
     raise SystemExit(1)
-print(archive_evidence)
-PY
-); then
-  echo "archive_evidence_binding_invalid" >&2
-  exit 2
-fi
 
-if ! python - <<'PY'
-from __future__ import annotations
-
-import json
-from pathlib import Path
-
-payload = json.loads(Path("PROJECT_STATE.json").read_text(encoding="utf-8"))
 values: list[object] = []
 
 
@@ -86,10 +98,12 @@ def walk(value: object) -> None:
 
 walk(payload)
 if not values or any(item is not False for item in values):
+    print("automatic_promotion_binding_invalid", file=sys.stderr)
     raise SystemExit(1)
+
+print(archive_evidence)
 PY
-then
-  echo "automatic_promotion_binding_invalid" >&2
+); then
   exit 2
 fi
 

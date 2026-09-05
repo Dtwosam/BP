@@ -112,6 +112,28 @@ def test_cloudshell_evidence_runner_binds_preflight_to_state_archive_path() -> N
 
     assert 'PHASE14_PARTITIONED_STORAGE_ARCHIVE_EVIDENCE="$ARCHIVE_EVIDENCE"' in content
 
+def test_cloudshell_evidence_runner_strictly_parses_project_state_once() -> None:
+    content = RUNNER.read_text(encoding="utf-8")
+
+    state_binding = content.index('ARCHIVE_EVIDENCE=$(python')
+    preflight = content.index('bash "$PREFLIGHT" | tee -a "$TRANSCRIPT"', state_binding)
+    binding = content[state_binding:preflight]
+
+    for marker in (
+        'raw = Path("PROJECT_STATE.json").read_bytes()',
+        "def reject_duplicate_keys",
+        "object_pairs_hook=reject_duplicate_keys",
+        "def reject_nonfinite_constant",
+        "parse_constant=reject_nonfinite_constant",
+        "archive_evidence_binding_invalid",
+        "automatic_promotion_binding_invalid",
+    ):
+        assert marker in binding
+
+    assert binding.count('Path("PROJECT_STATE.json")') == 1
+    assert binding.count("json.loads(") == 1
+
+
 def test_cloudshell_evidence_runner_reports_verified_digest_without_approval() -> None:
     content = RUNNER.read_text(encoding="utf-8")
 
