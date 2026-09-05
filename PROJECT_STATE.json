@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.87",
-  "updated_at": "2026-09-05T16:32:43Z",
+  "source_of_truth_version": "0.14.88",
+  "updated_at": "2026-09-05T16:47:08Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2399,6 +2399,16 @@
     "partitioned_storage_preflight_local_config_validation_merge_commit": "0d0c7e4d9b5fca59ac54f2efca8ca75699b4f4e3",
     "partitioned_storage_preflight_local_config_validation_post_merge_ci_run_id": 33976856064,
     "partitioned_storage_preflight_local_config_validation_post_merge_ci_passed": true,
-    "partitioned_storage_preflight_local_config_validation_post_merge_test_count": 983
+    "partitioned_storage_preflight_local_config_validation_post_merge_test_count": 983,
+    "read_only_preflight_from_head_state_binding_branch": "phase14-storage-preflight-from-head-state-binding",
+    "read_only_preflight_from_head_state_binding_red_head": "d38ab3a16ccf02a4b509befe174bc5271f55f2d4",
+    "read_only_preflight_from_head_state_binding_red_ci_run_id": 33978837483,
+    "read_only_preflight_from_head_state_binding_red_existing_test_count": 984,
+    "read_only_preflight_from_head_state_binding_green_head": "acbc797ca510d40b93395bc698ead7c83633e767",
+    "read_only_preflight_from_head_state_binding_ci_run_id": 33978855023,
+    "read_only_preflight_from_head_state_binding_ci_passed": true,
+    "read_only_preflight_from_head_state_binding_test_count": 985,
+    "read_only_preflight_requires_state_bound_deployed_from_head": true,
+    "read_only_preflight_from_head_state_binding_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
   }
 }

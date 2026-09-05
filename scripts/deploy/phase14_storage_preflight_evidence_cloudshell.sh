@@ -53,6 +53,7 @@ if ! ARCHIVE_EVIDENCE=$(python - <<'PY'
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -82,6 +83,21 @@ if not isinstance(payload, dict):
     raise SystemExit("project state JSON root is not an object")
 
 followup = payload.get("phase_14_storage_reliability_followup") or {}
+production_from_head = followup.get("production_deployed_head_before_recovery")
+expected_from_head = os.environ.get("PHASE14_PARTITIONED_STORAGE_FROM_HEAD", "")
+if not isinstance(production_from_head, str) or not re.fullmatch(
+    r"[0-9a-f]{40}",
+    production_from_head,
+):
+    print("production_from_head_binding_invalid", file=sys.stderr)
+    raise SystemExit(1)
+if production_from_head != expected_from_head:
+    print(
+        f"production_from_head_binding_mismatch:{production_from_head}",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
 archive_evidence = followup.get("archive_recovery_host_evidence")
 if not isinstance(archive_evidence, str) or not re.fullmatch(
     r"/mnt/bp-data/evidence/phase14-storage-recovery-24-48h-[0-9]{8}T[0-9]{6}Z\.json",
