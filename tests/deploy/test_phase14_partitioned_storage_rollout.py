@@ -623,3 +623,32 @@ def test_rollout_acceptance_evidence_records_verified_remote_branch() -> None:
     assert '"$BRANCH"' in content[evidence_builder:evidence_payload]
     assert 'remote_branch' in content[evidence_builder:evidence_payload]
     assert '"remote_branch": remote_branch' in content[evidence_payload:]
+
+
+def test_rollout_binds_verified_preflight_min_free_gib_before_cloud_contact() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    preflight_check = content.index("PREFLIGHT_ARCHIVE_BINDING=$(python")
+    cloud_contact = content.index('gcloud config set project "$PROJECT"')
+
+    binding = content[preflight_check:cloud_contact]
+    for marker in (
+        '"$MIN_FREE_GIB"',
+        "expected_min_free_gib",
+        'headroom = payload.get("headroom") or {}',
+        'headroom.get("minimum_free_gib") != int(expected_min_free_gib)',
+        "verified preflight MIN_FREE_GIB mismatch",
+    ):
+        assert marker in binding
+
+
+def test_rollout_acceptance_evidence_records_configured_min_free_gib() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    evidence_builder = content.index('EVIDENCE_TMP=$(mktemp')
+    evidence_payload = content.index('payload = {', evidence_builder)
+
+    builder = content[evidence_builder:evidence_payload]
+    assert '"$MIN_FREE_GIB"' in builder
+    assert "minimum_free_gib" in builder
+    assert '"minimum_free_gib": int(minimum_free_gib)' in content[evidence_payload:]
