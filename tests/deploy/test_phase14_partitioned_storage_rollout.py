@@ -729,6 +729,26 @@ def test_rollout_binds_verified_preflight_critical_reserve_before_cloud_contact(
         assert marker in binding
 
 
+def test_rollout_validates_verified_preflight_headroom_semantics_before_gcloud() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    preflight_check = content.index("PREFLIGHT_ARCHIVE_BINDING=$(python")
+    gcloud_auth = content.index("gcloud auth list")
+
+    binding = content[preflight_check:gcloud_auth]
+    for marker in (
+        'free_bytes = headroom.get("free_bytes")',
+        'raw_total_bytes = headroom.get("raw_total_bytes")',
+        'required_free_bytes = headroom.get("required_free_bytes")',
+        "expected_required_free_bytes = max(",
+        "raw_total_bytes + 15 * 1024 * 1024 * 1024",
+        "required_free_bytes != expected_required_free_bytes",
+        "free_bytes < required_free_bytes",
+        "verified preflight headroom mismatch",
+    ):
+        assert marker in binding
+
+
 def test_rollout_acceptance_evidence_records_configured_min_free_gib() -> None:
     content = HELPER.read_text(encoding="utf-8")
 
