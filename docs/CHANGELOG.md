@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.94 — 5 September 2026
+
+The verified read-only production preflight recorded in 0.14.93 was valid when captured against candidate/remote `ad4ca7d5b65400ba657caeea35b2035ffba39a0b`, but PR #138 then merged the PASS record and advanced `origin/main` to `4ba49409442615bb49fc9c522441abe784adf7d3`. The production rollout intentionally fetches the selected remote branch immediately before mutation and requires `origin/<branch>` to equal the preflight-approved candidate, failing with `remote_candidate_head_changed` otherwise. Therefore the prior PASS is now **superseded for migration use** and must not be used to authorize rollout.
+
+This correction makes the operational sequence explicit: after this correction merges, freeze `main`, rerun the read-only preflight against that exact final `main` SHA, and do not merge any further code, documentation, or evidence-record commits to `main` between the verified PASS and migration completion/abort. Record the next PASS externally in its Cloud Shell transcript/verified JSON and defer any source-of-truth PASS-record merge until after migration or an explicit abort. PR #138 itself merged as `4ba49409442615bb49fc9c522441abe784adf7d3`, and post-merge CI `33984593089` passed.
+
+Migration authorization remains false/unset. No partition migration, service mutation, Gate B authorization, live-trading change, geographic bypass, or Phase 15 transition occurred.
+
 ## 0.14.93 — 5 September 2026
 
 The hardened Phase 14 read-only production storage preflight has now **passed and been independently verified** against deployed-from SHA `c29fe227f959305f67031e922ca659869a826c4f` and candidate/remote SHA `ad4ca7d5b65400ba657caeea35b2035ffba39a0b`. The production worker reported `RECORDER_STATE=stopped`, `MUTATIONS_PERFORMED=false`, the required research/zero-money settings, the canonical recovery archive, legacy-unmigrated raw-storage shape, and sufficient migration headroom. The evidence wrapper completed with exit code 0 and emitted `PHASE14_STORAGE_PREFLIGHT_EVIDENCE=PASS`.

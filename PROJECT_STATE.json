@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.93",
-  "updated_at": "2026-09-05T18:31:49Z",
+  "source_of_truth_version": "0.14.94",
+  "updated_at": "2026-09-05T18:38:30Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2463,7 +2463,7 @@
     "read_only_preflight_worker_stdin_hardening_post_merge_ci_run_id": 33983907097,
     "read_only_preflight_worker_stdin_hardening_post_merge_ci_passed": true,
     "read_only_preflight_worker_stdin_hardening_post_merge_test_count": 989,
-    "read_only_preflight_production_verified_status": "VERIFIED_PASS_AWAITING_EXPLICIT_MIGRATION_AUTHORIZATION",
+    "read_only_preflight_production_verified_status": "VERIFIED_PASS_SUPERSEDED_BY_MAIN_ADVANCE_RERUN_REQUIRED",
     "read_only_preflight_production_verified_at": "2026-09-05T18:31:49Z",
     "read_only_preflight_production_verified_project": "project-4397f2c0-7098-4c1c-abb",
     "read_only_preflight_production_verified_zone": "us-east1-c",
@@ -2496,6 +2496,11 @@
     "partitioned_storage_migration_authorized": false,
     "partitioned_storage_approved_from_head": null,
     "partitioned_storage_approved_head": null,
-    "partitioned_storage_approved_preflight_sha256": null
+    "partitioned_storage_approved_preflight_sha256": null,
+    "read_only_preflight_production_verified_superseded_by_main_head": "4ba49409442615bb49fc9c522441abe784adf7d3",
+    "read_only_preflight_production_verified_superseded_reason": "PR #138 advanced origin/main after the PASS was captured; rollout requires origin/main to equal the preflight candidate SHA",
+    "read_only_preflight_rerun_required_before_migration": true,
+    "read_only_preflight_freeze_main_after_next_pass": true,
+    "read_only_preflight_defer_pass_record_merge_until_migration_or_abort": true
   }
 }
