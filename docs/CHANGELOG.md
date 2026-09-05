@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.69 — 5 September 2026
+
+PR #112 merged verified-preflight raw-shape consistency validation to `main` as `ad1d92b6bc618aa6c41728c434e4bc798b26f4f9`. Final branch head `05a3ce6f6e4f0c9e884b4471ec9cdea35edecf02` passed push CI `33970727415`, PR CI `33970835693`, Historical Backfill Smoke `33970835724`, Live Recorder Smoke `33970835743`, and Recorder Short Soak `33970835667`; post-merge main CI `33970937676` then passed **975 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. Rollout reconciles top-level `storage_shape=legacy_unmigrated` with the verifier's underlying raw-shape facts before any `gcloud` command. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.68 — 5 September 2026
 
 Phase 14 partitioned-storage rollout now validates verified-preflight raw-storage shape semantics before any `gcloud` command. In addition to the top-level `storage_shape=legacy_unmigrated` claim, rollout requires the verifier's `raw` block to report `partitioned=false`, `legacy_table_present=false`, `dedupe_table_present=false`, and a non-negative integer `estimated_rows`. This prevents a contradictory or manually constructed verified JSON from claiming an unmigrated shape while its underlying raw-shape facts say otherwise.
