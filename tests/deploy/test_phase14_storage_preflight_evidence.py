@@ -447,3 +447,32 @@ def test_verified_preflight_binds_expected_remote_branch() -> None:
             expected_head=HEAD,
             expected_branch="release",
         )
+
+
+def test_operator_captures_preflight_stderr_in_transcript() -> None:
+    operator = OPERATOR.read_text(encoding="utf-8")
+
+    assert 'bash "$PREFLIGHT" 2>&1 | tee -a "$TRANSCRIPT"' in operator
+
+
+def test_preflight_remote_head_lookup_does_not_consume_worker_stdin() -> None:
+    preflight = PREFLIGHT.read_text(encoding="utf-8")
+
+    marker = (
+        'git -C "$REPO" ls-remote --exit-code origin '
+        '"refs/heads/$BRANCH" </dev/null'
+    )
+    assert marker in preflight
+
+
+def test_preflight_worker_runs_from_command_argument_with_stdin_isolated() -> None:
+    preflight = PREFLIGHT.read_text(encoding="utf-8")
+
+    assert '<<< "$WORKER"' not in preflight
+    for marker in (
+        'WORKER_B64=$(printf',
+        "PHASE14_PARTITIONED_STORAGE_WORKER_B64=",
+        'exec bash -c \\"\\$worker\\"',
+        "</dev/null",
+    ):
+        assert marker in preflight

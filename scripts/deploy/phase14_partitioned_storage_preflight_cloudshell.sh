@@ -275,7 +275,7 @@ OLD_HEAD=$(git -C "$REPO" rev-parse HEAD)
 OLD_BRANCH=$(git -C "$REPO" symbolic-ref --quiet --short HEAD || true)
 [[ "$OLD_HEAD" == "$EXPECTED_FROM_HEAD" ]] || fail "unexpected_deployed_head:$OLD_HEAD"
 
-REMOTE_HEAD=$(git -C "$REPO" ls-remote --exit-code origin "refs/heads/$BRANCH" | awk 'NR == 1 {print $1}')
+REMOTE_HEAD=$(git -C "$REPO" ls-remote --exit-code origin "refs/heads/$BRANCH" </dev/null | awk 'NR == 1 {print $1}')
 [[ -n "$REMOTE_HEAD" ]] || fail "remote_candidate_head_missing"
 [[ "$REMOTE_HEAD" == "$SHA" ]] || fail "remote_candidate_head_changed"
 
@@ -319,4 +319,16 @@ echo "MIN_FREE_GIB=$MIN_FREE_GIB"
 echo "ENV_FILE=$ENV_FILE"
 echo "Running read-only Phase 14 partitioned-storage production preflight."
 
-gcloud compute ssh "$VM"   --project="$PROJECT"   --zone="$ZONE"   --command="sudo env PHASE14_PARTITIONED_STORAGE_HEAD=$HEAD_Q PHASE14_PARTITIONED_STORAGE_FROM_HEAD=$FROM_Q PHASE14_PARTITIONED_STORAGE_ARCHIVE_EVIDENCE=$ARCHIVE_EVIDENCE_Q PHASE14_PARTITIONED_STORAGE_BRANCH=$BRANCH_Q PHASE14_PARTITIONED_STORAGE_ENV_FILE=$ENV_Q PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB=$FREE_Q bash -s"   <<< "$WORKER"
+WORKER_B64=$(printf '%s' "$WORKER" | base64 | tr -d '\n')
+[[ "$WORKER_B64" =~ ^[A-Za-z0-9+/=]+$ ]] || {
+  echo "worker_encoding_invalid" >&2
+  exit 2
+}
+printf -v WORKER_B64_Q '%q' "$WORKER_B64"
+
+REMOTE_COMMAND="sudo env PHASE14_PARTITIONED_STORAGE_HEAD=$HEAD_Q PHASE14_PARTITIONED_STORAGE_FROM_HEAD=$FROM_Q PHASE14_PARTITIONED_STORAGE_ARCHIVE_EVIDENCE=$ARCHIVE_EVIDENCE_Q PHASE14_PARTITIONED_STORAGE_BRANCH=$BRANCH_Q PHASE14_PARTITIONED_STORAGE_ENV_FILE=$ENV_Q PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB=$FREE_Q PHASE14_PARTITIONED_STORAGE_WORKER_B64=$WORKER_B64_Q bash -c 'worker=\$(printf %s \"\$PHASE14_PARTITIONED_STORAGE_WORKER_B64\" | base64 -d) || exit 2; exec bash -c \"\$worker\"' </dev/null"
+
+gcloud compute ssh "$VM" \
+  --project="$PROJECT" \
+  --zone="$ZONE" \
+  --command="$REMOTE_COMMAND"
