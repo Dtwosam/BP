@@ -598,3 +598,17 @@ def test_rollout_publishes_acceptance_evidence_exclusively_from_staged_file() ->
         < installed_digest
         < disarm
     )
+
+
+def test_partitioned_storage_rollout_binds_verified_preflight_remote_branch() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        "expected_branch",
+        'payload.get("remote_branch") != expected_branch',
+        "verified preflight BRANCH mismatch",
+    ):
+        assert marker in content
+
+    branch_check = content.index("verified preflight BRANCH mismatch")
+    assert branch_check < content.index('gcloud config set project "$PROJECT"')
