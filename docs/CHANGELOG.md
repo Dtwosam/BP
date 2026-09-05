@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.58 — 5 September 2026
+
+Phase 14 partitioned-storage rollout now independently binds the verified preflight research/zero-money safety block before any cloud project selection or production VM contact. The single-snapshot verified-preflight parser fails closed unless `safety.mode=research`, `live_trading_enabled=false`, both trade/loss limits are zero, and `automatic_promotion=false`. This adds a direct rollout-side safety check instead of relying only on the verifier and approved evidence digest.
+
+Clean tests-only RED head `927b8c34fbe37e72fb1cffa775b4dc5d6e35e085` failed exactly the missing safety-binding contract while all **969 existing tests passed** in CI `33963087728`. GREEN head `8e74b75aac0615a421a163c4f8ba5118587f38f6` passed CI `33963162573` with **970 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+This remains engineering-only until merged. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.57 — 5 September 2026
 
 PR #100 merged verified-preflight environment-file identity binding to `main` as `3e997104fb36bbcc342138bee3aa0a8dc5cb385d`. Final branch head `5fe989a5de89f034cca705d8a8edd9a9bdd4c208` passed push CI `33962257414`, PR CI `33962348039`, Historical Backfill Smoke `33962348023`, Live Recorder Smoke `33962348027`, and Recorder Short Soak `33962348024`; post-merge main CI `33962440603` then passed **969 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
