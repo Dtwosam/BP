@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.49 — 5 September 2026
+
+PR #92 closed the verified remote-branch preflight binding on `main`. Final branch head `98d3383305d8d284b8f4629c7206281bdbb7fc7e` passed push CI `33936055750`, PR CI `33936135738`, Historical Backfill Smoke `33936135715`, Live Recorder Smoke `33936135718`, and Recorder Short Soak `33936135882`. It merged as `11a1aad961be3d0b372eacf8f85bb54682b791fe`; post-merge main CI `33936241254` then passed **962 tests** plus Ruff, rollout/deployment validation, health, and dashboard checks.
+
+The source-of-truth now records the branch-binding checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.48 — 5 September 2026
 
 Phase 14 verified preflight evidence now binds the exact remote branch whose head was checked before any production host contact. The Cloud Shell evidence wrapper resolves and validates `PHASE14_PARTITIONED_STORAGE_BRANCH`, forwards that same branch to the read-only preflight, and passes it as `--expected-branch` to the independent verifier. The preflight records `BRANCH=<name>` in the captured transcript; the verifier rejects any mismatch and preserves the verified value as `remote_branch` in JSON.
