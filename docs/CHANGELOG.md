@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.57 — 5 September 2026
+
+PR #100 merged verified-preflight environment-file identity binding to `main` as `3e997104fb36bbcc342138bee3aa0a8dc5cb385d`. Final branch head `5fe989a5de89f034cca705d8a8edd9a9bdd4c208` passed push CI `33962257414`, PR CI `33962348039`, Historical Backfill Smoke `33962348023`, Live Recorder Smoke `33962348027`, and Recorder Short Soak `33962348024`; post-merge main CI `33962440603` then passed **969 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. Verified preflight JSON preserves the exact environment-file path as `env_file`; the rollout requires that path to equal `PHASE14_PARTITIONED_STORAGE_ENV_FILE` before production contact; and eventual rollout PASS evidence records the same configured path. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.56 — 5 September 2026
 
 Phase 14 verified-preflight environment-file identity is now preserved end to end through the partitioned-storage rollout. The independent verifier records the exact already-validated `ENV_FILE` as `env_file` in PASS JSON. Before any cloud project selection or production VM contact, the rollout requires that verified `env_file` to exactly match its configured `PHASE14_PARTITIONED_STORAGE_ENV_FILE`; eventual PASS evidence records the same configured path as `env_file`.
