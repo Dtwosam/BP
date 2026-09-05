@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.46 — 5 September 2026
+
+Phase 14 independent read-only preflight verification now explicitly proves the research/zero-money safety boundary from the captured host transcript. After the host has checked the production environment, the preflight emits `MODE=research`, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0`. The independent verifier requires those exact values before emitting PASS JSON and records them in its `safety` block.
+
+Clean tests-only RED head `ae770eec5b0a5d63c4b03fb96df91a533806fd53` failed exactly the new safety-evidence contract while all **959 existing tests passed** in CI `33933861573`. GREEN head `16a56064135f8e6a779a71e63ba9cb374e27898f` passed CI `33934002653` with **960 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #89's integration record. Final head `fd6c73f706d9970f10e652342eb7d2342392ec06` passed push CI `33930921860`, PR CI `33931027053`, Historical Backfill Smoke `33931027058`, Live Recorder Smoke `33931027036`, and Recorder Short Soak `33931027038`. PR #89 merged as `4fac6293ffd94eae2ea10f2e3a62e6282672afba`; post-merge main CI `33933659341` passed **959 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.45 — 4 September 2026
 
 Phase 14 environment-file binding is now integrated on `main`. PR #88 final head `57d98a08eb81fcc2f3baa0a3eea540865f3ff807` passed push CI `33930495625`, PR CI `33930620522`, Historical Backfill Smoke `33930620498`, Live Recorder Smoke `33930620492`, and Recorder Short Soak `33930620510`. It merged as `35b5b09d6e98067d438877ce24d0f5e8079a821d`; post-merge main CI `33930749893` then passed **959 tests** plus rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
