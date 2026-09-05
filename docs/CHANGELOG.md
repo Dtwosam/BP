@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.51 — 5 September 2026
+
+PR #94 closed the rollout-to-verified-preflight remote-branch binding on `main`. Final branch head `a9da161a7ecb73ef0f8865b60e632260c31facd9` passed push CI `33937121381`, PR CI `33937206772`, Historical Backfill Smoke `33937206857`, Live Recorder Smoke `33937207005`, and Recorder Short Soak `33937206836`. It merged as `b20e883041a469d6552796f84e9c905e44899bdf`; post-merge main CI `33937297658` then passed **963 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.50 — 5 September 2026
 
 Phase 14 partitioned-storage rollout now binds the verified preflight's exact remote branch before any production contact. The rollout reads `remote_branch` from the same verified-preflight byte snapshot already used for SHA/target/archive validation and fails closed with `verified preflight BRANCH mismatch` unless it equals the rollout's `PHASE14_PARTITIONED_STORAGE_BRANCH`.
