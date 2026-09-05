@@ -85,7 +85,18 @@ from pathlib import Path
 path, expected_from_head, expected_head, expected_branch, expected_project, expected_zone, expected_vm, expected_env_file, expected_min_free_gib = sys.argv[1:]
 raw = Path(path).read_bytes()
 preflight_verified_sha256 = hashlib.sha256(raw).hexdigest()
-payload = json.loads(raw)
+
+
+def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    payload: dict[str, object] = {}
+    for key, value in pairs:
+        if key in payload:
+            raise SystemExit(f"verified preflight JSON contains duplicate key: {key}")
+        payload[key] = value
+    return payload
+
+
+payload = json.loads(raw, object_pairs_hook=reject_duplicate_keys)
 if payload.get("verdict") != "PASS":
     raise SystemExit("verified preflight verdict is not PASS")
 if payload.get("from_head") != expected_from_head:
