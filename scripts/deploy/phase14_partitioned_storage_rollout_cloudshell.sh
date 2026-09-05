@@ -81,7 +81,7 @@ if [[ "$PREFLIGHT_VERIFIED" != /* ]]; then
   exit 2
 fi
 
-PREFLIGHT_ARCHIVE_BINDING=$(python - "$PREFLIGHT_VERIFIED" "$EXPECTED_FROM_HEAD" "$EXPECTED_HEAD" "$BRANCH" "$PROJECT" "$ZONE" "$VM" <<'PY'
+PREFLIGHT_ARCHIVE_BINDING=$(python - "$PREFLIGHT_VERIFIED" "$EXPECTED_FROM_HEAD" "$EXPECTED_HEAD" "$BRANCH" "$PROJECT" "$ZONE" "$VM" "$MIN_FREE_GIB" <<'PY'
 from __future__ import annotations
 
 import hashlib
@@ -90,7 +90,7 @@ import re
 import sys
 from pathlib import Path
 
-path, expected_from_head, expected_head, expected_branch, expected_project, expected_zone, expected_vm = sys.argv[1:]
+path, expected_from_head, expected_head, expected_branch, expected_project, expected_zone, expected_vm, expected_min_free_gib = sys.argv[1:]
 raw = Path(path).read_bytes()
 preflight_verified_sha256 = hashlib.sha256(raw).hexdigest()
 payload = json.loads(raw)
@@ -118,6 +118,10 @@ if target.get("zone") != expected_zone:
     raise SystemExit("verified preflight ZONE mismatch")
 if target.get("vm") != expected_vm:
     raise SystemExit("verified preflight VM mismatch")
+
+headroom = payload.get("headroom") or {}
+if headroom.get("minimum_free_gib") != int(expected_min_free_gib):
+    raise SystemExit("verified preflight MIN_FREE_GIB mismatch")
 
 archive = payload.get("archive") or {}
 evidence_name = archive.get("evidence_name")
@@ -848,7 +852,7 @@ install -d -o bp -g bp -m 0750 "$EVIDENCE_DIR"
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 EVIDENCE_PATH="$EVIDENCE_DIR/phase14-partitioned-storage-rollout-$STAMP.json"
 EVIDENCE_TMP=$(mktemp /var/tmp/bp-partitioned-storage-evidence.XXXXXX.json)
-"$PYTHON" -   "$APPLY_JSON" "$VERIFY_JSON" "$MAINTENANCE_JSON" "$DISK_JSON"   "$EVIDENCE_TMP" "$OLD_HEAD" "$SHA" "$BRANCH" "$APPROVED_FROM_HEAD" "$APPROVED_HEAD" "$APPROVED_PREFLIGHT_SHA256" "$TARGET_PROJECT" "$TARGET_ZONE" "$TARGET_VM" "$ARCHIVE_EVIDENCE" "$POSTGRES_DATA_SOURCE"   "$PREFLIGHT_VERIFIED_SHA256" "$EXPECTED_ARCHIVE_SHA256" "$EXPECTED_ARCHIVE_WINDOW_END" "$MIGRATION_FREE_BYTES" "$MIGRATION_RAW_RELATION_OID" "$MIGRATION_RAW_TOTAL_BYTES" "$MIGRATION_REQUIRED_FREE_BYTES" "$ROLLBACK_LEGACY_RELATION_OID" "$ROLLBACK_LEGACY_RELATION_BYTES"   "$PARTITION_BYTES_BEFORE_MAINTENANCE" "$PARTITION_BYTES_AFTER_MAINTENANCE" "$PARTITION_BYTES_RELEASED" <<'PY'
+"$PYTHON" -   "$APPLY_JSON" "$VERIFY_JSON" "$MAINTENANCE_JSON" "$DISK_JSON"   "$EVIDENCE_TMP" "$OLD_HEAD" "$SHA" "$BRANCH" "$MIN_FREE_GIB" "$APPROVED_FROM_HEAD" "$APPROVED_HEAD" "$APPROVED_PREFLIGHT_SHA256" "$TARGET_PROJECT" "$TARGET_ZONE" "$TARGET_VM" "$ARCHIVE_EVIDENCE" "$POSTGRES_DATA_SOURCE"   "$PREFLIGHT_VERIFIED_SHA256" "$EXPECTED_ARCHIVE_SHA256" "$EXPECTED_ARCHIVE_WINDOW_END" "$MIGRATION_FREE_BYTES" "$MIGRATION_RAW_RELATION_OID" "$MIGRATION_RAW_TOTAL_BYTES" "$MIGRATION_REQUIRED_FREE_BYTES" "$ROLLBACK_LEGACY_RELATION_OID" "$ROLLBACK_LEGACY_RELATION_BYTES"   "$PARTITION_BYTES_BEFORE_MAINTENANCE" "$PARTITION_BYTES_AFTER_MAINTENANCE" "$PARTITION_BYTES_RELEASED" <<'PY'
 from __future__ import annotations
 
 import json
@@ -865,6 +869,7 @@ from pathlib import Path
     old_head,
     new_head,
     remote_branch,
+    minimum_free_gib,
     approved_from_head,
     approved_head,
     approved_preflight_sha256,
@@ -922,6 +927,7 @@ payload = {
     "pre_migration_headroom": {
         "free_bytes": int(migration_free_bytes),
         "raw_total_bytes": int(migration_raw_total_bytes),
+        "minimum_free_gib": int(minimum_free_gib),
         "required_free_bytes": int(migration_required_free_bytes),
         "critical_reserve_gib": 15,
     },
