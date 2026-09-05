@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.70",
-  "updated_at": "2026-09-05T14:17:59Z",
+  "source_of_truth_version": "0.14.71",
+  "updated_at": "2026-09-05T14:24:45Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2210,6 +2210,17 @@
     "partitioned_storage_rollout_preflight_root_free_consistency_ci_passed": true,
     "partitioned_storage_rollout_preflight_root_free_consistency_test_count": 976,
     "partitioned_storage_rollout_requires_verified_root_free_bytes_consistency": true,
-    "partitioned_storage_rollout_preflight_root_free_consistency_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
+    "partitioned_storage_rollout_preflight_root_free_consistency_status": "MERGED_MAIN_NOT_PRODUCTION_RUN",
+    "partitioned_storage_rollout_preflight_root_free_consistency_pr": 114,
+    "partitioned_storage_rollout_preflight_root_free_consistency_final_branch_head": "62b5139ba1417cfce2d8917d07b9fe1d9bdd469f",
+    "partitioned_storage_rollout_preflight_root_free_consistency_push_ci_run_id": 33971541151,
+    "partitioned_storage_rollout_preflight_root_free_consistency_pr_ci_run_id": 33971542837,
+    "partitioned_storage_rollout_preflight_root_free_consistency_historical_backfill_smoke_run_id": 33971542839,
+    "partitioned_storage_rollout_preflight_root_free_consistency_live_recorder_smoke_run_id": 33971542836,
+    "partitioned_storage_rollout_preflight_root_free_consistency_recorder_short_soak_run_id": 33971542846,
+    "partitioned_storage_rollout_preflight_root_free_consistency_merge_commit": "ca4d5acaaf0e0bc859b2a9979d41311257ac5445",
+    "partitioned_storage_rollout_preflight_root_free_consistency_post_merge_ci_run_id": 33971665075,
+    "partitioned_storage_rollout_preflight_root_free_consistency_post_merge_ci_passed": true,
+    "partitioned_storage_rollout_preflight_root_free_consistency_post_merge_test_count": 976
   }
 }
