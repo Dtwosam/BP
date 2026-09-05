@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.72 — 5 September 2026
+
+Phase 14 partitioned-storage rollout now validates verified-preflight archive `window_end` timestamp semantics before any `gcloud` command. The independent verifier already requires the archive timestamp to parse as ISO-8601 and carry timezone information; rollout now repeats that same check locally instead of accepting a hand-built PASS with a malformed or timezone-naive archive timestamp.
+
+Clean tests-only RED head `08f5132b4e4b9698ae7e890cd238f06f0f544f53` failed exactly the missing archive-window contract while all **976 existing tests passed** in CI `33972005600`. GREEN head `20066b0fb59ed6a3039064132ad6b7be831fef9e` passed CI `33972034131` with **977 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+This remains engineering-only until merged. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.71 — 5 September 2026
 
 PR #114 merged verified-preflight root-filesystem free-space consistency validation to `main` as `ca4d5acaaf0e0bc859b2a9979d41311257ac5445`. Final branch head `62b5139ba1417cfce2d8917d07b9fe1d9bdd469f` passed push CI `33971541151`, PR CI `33971542837`, Historical Backfill Smoke `33971542839`, Live Recorder Smoke `33971542836`, and Recorder Short Soak `33971542846`; post-merge main CI `33971665075` then passed **976 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
