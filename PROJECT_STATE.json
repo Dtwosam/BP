@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.94",
-  "updated_at": "2026-09-05T18:38:30Z",
+  "source_of_truth_version": "0.14.95",
+  "updated_at": "2026-09-05T19:17:31Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2501,6 +2501,14 @@
     "read_only_preflight_production_verified_superseded_reason": "PR #138 advanced origin/main after the PASS was captured; rollout requires origin/main to equal the preflight candidate SHA",
     "read_only_preflight_rerun_required_before_migration": true,
     "read_only_preflight_freeze_main_after_next_pass": true,
-    "read_only_preflight_defer_pass_record_merge_until_migration_or_abort": true
+    "read_only_preflight_defer_pass_record_merge_until_migration_or_abort": true,
+    "partitioned_storage_authorized_launch_attempt_status": "FAILED_LOCAL_BEFORE_VM_CONTACT",
+    "partitioned_storage_authorized_launch_attempt_error": "SHORT: unbound variable",
+    "partitioned_storage_authorized_launch_attempt_candidate_head": "e5c8e9474d68b2ee94e5a01c761f1e0cee585f61",
+    "partitioned_storage_authorized_launch_attempt_preflight_sha256": "048765fc06f3998c03a08199170690582c8c7207c90fa335e2a7a8fc79f5aa35",
+    "partitioned_storage_authorized_launch_attempt_vm_contacted": false,
+    "partitioned_storage_authorized_launch_attempt_production_mutation": false,
+    "partitioned_storage_rollout_launcher_runtime_expansion_fix_pr": 140,
+    "partitioned_storage_rollout_launcher_runtime_expansion_fix_status": "IN_REVIEW_FRESH_PREFLIGHT_AND_APPROVAL_REQUIRED_AFTER_MERGE"
   }
 }
