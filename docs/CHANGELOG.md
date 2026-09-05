@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.60 — 5 September 2026
+
+Phase 14 partitioned-storage rollout now binds the independently verified preflight critical reserve before any cloud project selection or production VM contact. The rollout requires `headroom.critical_reserve_gib=15`, matching the unchanged 15 GiB reserve used by the official preflight and the rollout's live migration-headroom rechecks. This prevents a separately generated verified PASS reviewed with a larger reserve from later running under the rollout's fixed 15 GiB reserve without an explicit mismatch failure.
+
+Clean tests-only RED head `0476175546f72a83f80a08ec567b813f86e2bffa` failed exactly the missing critical-reserve-binding contract while all **970 existing tests passed** in CI `33965037171`. GREEN head `f6b8367fd4d312d29117f46e569fd2a83fb2ea70` passed CI `33965126229` with **971 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+This remains engineering-only until merged. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.59 — 5 September 2026
 
 PR #102 merged verified-preflight research/zero-money safety binding to `main` as `3a842b5b3c064dc782aeb83cde6eaf2a585f7f82`. Final branch head `2afd40d547d6b7c274ec660b59b0773cb22313b7` passed push CI `33963285443`, PR CI `33963371435`, Historical Backfill Smoke `33963371446`, Live Recorder Smoke `33963371430`, and Recorder Short Soak `33963371411`; post-merge main CI `33963460863` then passed **970 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.

@@ -134,6 +134,8 @@ if (
 headroom = payload.get("headroom") or {}
 if headroom.get("minimum_free_gib") != int(expected_min_free_gib):
     raise SystemExit("verified preflight MIN_FREE_GIB mismatch")
+if headroom.get("critical_reserve_gib") != 15:
+    raise SystemExit("verified preflight critical reserve mismatch")
 
 archive = payload.get("archive") or {}
 evidence_name = archive.get("evidence_name")

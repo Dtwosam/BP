@@ -689,6 +689,20 @@ def test_rollout_binds_verified_preflight_min_free_gib_before_cloud_contact() ->
         assert marker in binding
 
 
+def test_rollout_binds_verified_preflight_critical_reserve_before_cloud_contact() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    preflight_check = content.index("PREFLIGHT_ARCHIVE_BINDING=$(python")
+    cloud_contact = content.index('gcloud config set project "$PROJECT"')
+
+    binding = content[preflight_check:cloud_contact]
+    for marker in (
+        'headroom.get("critical_reserve_gib") != 15',
+        "verified preflight critical reserve mismatch",
+    ):
+        assert marker in binding
+
+
 def test_rollout_acceptance_evidence_records_configured_min_free_gib() -> None:
     content = HELPER.read_text(encoding="utf-8")
 
