@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.65 — 5 September 2026
+
+PR #108 merged verified-preflight JSON duplicate-key rejection to `main` as `c1bcb3f6bba948f979509339c3995584e8ae48a7`. Final branch head `65b478b5a5823bc4fac343fb20fdf62c7e21c942` passed push CI `33967720522`, PR CI `33967811111`, Historical Backfill Smoke `33967811146`, Live Recorder Smoke `33967811084`, and Recorder Short Soak `33967811163`; post-merge main CI `33967910111` then passed **973 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. Approved verified-preflight JSON is parsed from the same byte snapshot used for its SHA-256, and duplicate object keys at any nesting level fail locally before any `gcloud` command. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.64 — 5 September 2026
 
 Phase 14 partitioned-storage rollout now rejects ambiguous verified-preflight JSON with duplicate object keys before any `gcloud` command. The same single-read byte snapshot still supplies both the approved SHA-256 and parsed evidence, but parsing now uses a recursive duplicate-key hook so duplicate keys at any nesting level fail closed instead of inheriting Python JSON's last-value-wins behavior.
