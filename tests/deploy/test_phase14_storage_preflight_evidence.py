@@ -37,6 +37,7 @@ VM=bp-recorder
 ZONE=us-east1-c
 FROM_HEAD={FROM_HEAD}
 HEAD={HEAD}
+BRANCH=main
 MIN_FREE_GIB=40
 ENV_FILE=/etc/bp/bp.env
 MODE=research
@@ -194,6 +195,8 @@ def test_verify_preflight_cli_emits_sanitized_json(tmp_path: Path) -> None:
             FROM_HEAD,
             "--expected-head",
             HEAD,
+            "--expected-branch",
+            "main",
             "--expected-project",
             "project-4397f2c0-7098-4c1c-abb",
             "--expected-zone",
@@ -417,11 +420,15 @@ def test_verified_preflight_binds_expected_remote_branch() -> None:
     ):
         assert marker in operator + preflight + verifier
 
-    transcript = _transcript().replace(
-        "ENV_FILE=/etc/bp/bp.env\n",
-        "BRANCH=main\nENV_FILE=/etc/bp/bp.env\n",
-        1,
+    transcript = _transcript()
+    report = verify_preflight_transcript(
+        transcript,
+        expected_from_head=FROM_HEAD,
+        expected_head=HEAD,
+        expected_branch="main",
     )
+    assert report["remote_branch"] == "main"
+
     with pytest.raises(PreflightVerificationError, match="unexpected BRANCH"):
         verify_preflight_transcript(
             transcript,
