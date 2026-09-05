@@ -43,6 +43,7 @@ MODE=research
 LIVE_TRADING_ENABLED=false
 MAX_TRADE_SIZE_USD=0
 MAX_DAILY_LOSS_USD=0
+AUTOMATIC_PROMOTION=false
 Running read-only Phase 14 partitioned-storage production preflight.
 PHASE14_PARTITIONED_STORAGE_PREFLIGHT=PASS
 FROM_HEAD={FROM_HEAD}
@@ -387,8 +388,9 @@ def test_verified_preflight_binds_candidate_automatic_promotion_false() -> None:
 
     assert "unexpected AUTOMATIC_PROMOTION" in verifier
 
-    transcript = _transcript() + "AUTOMATIC_PROMOTION=false\n"
-    transcript = _replace_last_field(transcript, "AUTOMATIC_PROMOTION", "true")
+    transcript = _replace_last_field(
+        _transcript(), "AUTOMATIC_PROMOTION", "true"
+    )
 
     with pytest.raises(
         PreflightVerificationError,
