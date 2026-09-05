@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.56 — 5 September 2026
+
+Phase 14 verified-preflight environment-file identity is now preserved end to end through the partitioned-storage rollout. The independent verifier records the exact already-validated `ENV_FILE` as `env_file` in PASS JSON. Before any cloud project selection or production VM contact, the rollout requires that verified `env_file` to exactly match its configured `PHASE14_PARTITIONED_STORAGE_ENV_FILE`; eventual PASS evidence records the same configured path as `env_file`.
+
+Clean tests-only RED head `f2b6ae64a0d60d33185622dfd0f705e9ef207a18` failed exactly the three missing contracts while all **966 existing tests passed** in CI `33961997010`. GREEN head `19ee0c82f6bdf2e402a3354006311e2cd11e87bb` passed CI `33962079609` with **969 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+This remains engineering-only until merged. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.55 — 5 September 2026
 
 PR #98 merged rollout-to-verified-preflight configured free-space-floor binding to `main` as `7ccc43aa4225787975612bcf23acebdd6ee2f3a8`. Final branch head `380d16fae89d5899f1016c62b0cd29f564982355` passed push CI `33960205917`, PR CI `33960306226`, Historical Backfill Smoke `33960306239`, Live Recorder Smoke `33960306219`, and Recorder Short Soak `33960306206`; post-merge main CI `33960402112` then passed **966 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
