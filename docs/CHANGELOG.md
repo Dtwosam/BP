@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.64 — 5 September 2026
+
+Phase 14 partitioned-storage rollout now rejects ambiguous verified-preflight JSON with duplicate object keys before any `gcloud` command. The same single-read byte snapshot still supplies both the approved SHA-256 and parsed evidence, but parsing now uses a recursive duplicate-key hook so duplicate keys at any nesting level fail closed instead of inheriting Python JSON's last-value-wins behavior.
+
+Clean tests-only RED head `61e226bbd2210a9c635a6bad6b0cefb07365aabf` failed exactly the missing duplicate-key contract while all **972 existing tests passed** in CI `33967408925`. Implementation head `dab1ab2481ebf6e8bb405ad6abd48ed75520a41a` added the runtime rejection; CI `33967488424` showed the new contract passing while exposing one stale same-snapshot assertion that still required the old plain `json.loads(raw)` call (**972 passed, 1 failed**). Final repaired head `7e30444be91509e19629c98f8aa7e106d2dc40c1` updated only that assertion and passed CI `33967580571` with **973 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+This remains engineering-only until merged. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.63 — 5 September 2026
 
 PR #106 merged local verified-preflight-before-gcloud ordering to `main` as `5c659fa133446417d8dc9b5f0d6d6db90bada2d0`. Final branch head `a2b21a6911a92b34ea708b3f23ddd9c9b23c0b34` passed push CI `33966736619`, PR CI `33966842331`, Historical Backfill Smoke `33966842222`, Live Recorder Smoke `33966842202`, and Recorder Short Soak `33966842313`; post-merge main CI `33966929138` then passed **972 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.

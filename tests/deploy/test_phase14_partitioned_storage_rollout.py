@@ -366,7 +366,7 @@ def test_partitioned_storage_rollout_hashes_and_validates_preflight_same_snapsho
         "import hashlib",
         'raw = Path(path).read_bytes()',
         "hashlib.sha256(raw).hexdigest()",
-        "payload = json.loads(raw)",
+        "payload = json.loads(raw, object_pairs_hook=reject_duplicate_keys)",
         "PREFLIGHT_VERIFIED_SHA256",
     ):
         assert marker in content
@@ -598,6 +598,21 @@ def test_rollout_publishes_acceptance_evidence_exclusively_from_staged_file() ->
         < installed_digest
         < disarm
     )
+
+
+def test_rollout_rejects_duplicate_verified_preflight_json_keys_before_gcloud() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    preflight_check = content.index("PREFLIGHT_ARCHIVE_BINDING=$(python")
+    gcloud_auth = content.index("gcloud auth list")
+
+    binding = content[preflight_check:gcloud_auth]
+    for marker in (
+        "object_pairs_hook=reject_duplicate_keys",
+        "def reject_duplicate_keys",
+        "verified preflight JSON contains duplicate key",
+    ):
+        assert marker in binding
 
 
 def test_rollout_validates_local_preflight_evidence_before_gcloud_auth_probe() -> None:
