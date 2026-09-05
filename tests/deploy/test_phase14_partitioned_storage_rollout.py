@@ -662,8 +662,10 @@ def test_rollout_binds_verified_preflight_research_zero_money_safety_before_clou
         'safety = payload.get("safety") or {}',
         'safety.get("mode") != "research"',
         'safety.get("live_trading_enabled") is not False',
-        'safety.get("max_trade_size_usd") != 0',
-        'safety.get("max_daily_loss_usd") != 0',
+        'max_trade_size_usd = safety.get("max_trade_size_usd")',
+        'max_trade_size_usd != 0',
+        'max_daily_loss_usd = safety.get("max_daily_loss_usd")',
+        'max_daily_loss_usd != 0',
         'safety.get("automatic_promotion") is not False',
         "verified preflight safety mismatch",
     ):
