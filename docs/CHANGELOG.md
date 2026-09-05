@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.84 — 5 September 2026
+
+The Phase 14 storage-preflight evidence wrapper now validates its environment-file path and migration headroom floor locally before project-state parsing, transcript reservation, or any preflight invocation. `PHASE14_PARTITIONED_STORAGE_ENV_FILE` must be absolute, and `PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB` must be an integer of at least 25, matching the underlying read-only preflight's existing input contract while failing malformed operator inputs earlier.
+
+Clean tests-only RED head `3001749b023a56f788f5fdfb24b9bfc3d92eeca1` failed exactly the missing early-validation contract while all **982 existing tests passed** in CI `33976585071`. GREEN head `2da8f3b59f2074ada77f03d3cd61a666fc0b9162` passed CI `33976595483` with **983 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+This remains engineering-only until merged. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.83 — 5 September 2026
 
 PR #126 merged explicit storage-preflight operator configuration binding to `main` as `7241b95fa3671fbfbe88a1ed16e6da4957ded5b2`. Final branch head `50485ad39142d74b3bcbacc3490075b1162a1909` passed push CI `33976203872`, PR CI `33976216347`, Historical Backfill Smoke `33976216309`, Live Recorder Smoke `33976216337`, and Recorder Short Soak `33976216452`; post-merge main CI `33976320638` then passed **982 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
