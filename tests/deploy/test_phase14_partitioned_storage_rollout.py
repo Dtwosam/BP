@@ -749,6 +749,26 @@ def test_rollout_validates_verified_preflight_headroom_semantics_before_gcloud()
         assert marker in binding
 
 
+def test_rollout_validates_verified_preflight_raw_shape_semantics_before_gcloud() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    preflight_check = content.index("PREFLIGHT_ARCHIVE_BINDING=$(python")
+    gcloud_auth = content.index("gcloud auth list")
+
+    binding = content[preflight_check:gcloud_auth]
+    for marker in (
+        'raw_state = payload.get("raw") or {}',
+        'raw_state.get("partitioned") is not False',
+        'raw_state.get("legacy_table_present") is not False',
+        'raw_state.get("dedupe_table_present") is not False',
+        'estimated_rows = raw_state.get("estimated_rows")',
+        'type(estimated_rows) is not int',
+        'estimated_rows < 0',
+        "verified preflight raw shape mismatch",
+    ):
+        assert marker in binding
+
+
 def test_rollout_acceptance_evidence_records_configured_min_free_gib() -> None:
     content = HELPER.read_text(encoding="utf-8")
 
