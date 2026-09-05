@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.90 — 5 September 2026
+
+Phase 14 now has executable CI proof that a deployed-from SHA mismatch is rejected locally by the real read-only storage-preflight evidence wrapper. The regression creates a clean temporary Git candidate whose `PROJECT_STATE.json` records the production recovery head, supplies a different valid 40-character `PHASE14_PARTITIONED_STORAGE_FROM_HEAD`, invokes the actual wrapper, and requires `production_from_head_binding_mismatch` before the wrapper can even reach its preflight-file checks or emit PASS.
+
+Verification head `5f4c1b62005dd1be1c1bb864ef577dcc3e79c43f` passed CI `33979536234` with **986 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks. This is a test-only assurance checkpoint; the already-merged fail-closed operator behavior is unchanged.
+
+No production host contact, storage migration, migration authorization, service mutation, Gate B authorization, live-trading change, or Phase 15 transition occurred.
+
 ## 0.14.89 — 5 September 2026
 
 PR #132 merged the read-only storage-preflight deployed-from state binding to `main` as `5406ae99b1a2db3096cdf2e7956499f7d2764d97`. Final branch head `2bec2c0f82ec4110292871098fe9d471592e169f` passed push CI `33978979423`, PR CI `33979041132`, Historical Backfill Smoke `33979041160`, Live Recorder Smoke `33979041104`, and Recorder Short Soak `33979041139`; post-merge main CI `33979137937` then passed **985 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.

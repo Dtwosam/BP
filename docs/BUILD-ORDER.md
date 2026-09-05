@@ -475,6 +475,8 @@ A follow-up read-only preflight from-head state-binding checkpoint on `phase14-s
 
 PR #132 merged the read-only storage-preflight deployed-from state binding to `main` as `5406ae99b1a2db3096cdf2e7956499f7d2764d97`. Final head `2bec2c0f82ec4110292871098fe9d471592e169f` passed push CI `33978979423`, PR CI `33979041132`, Historical Backfill Smoke `33979041160`, Live Recorder Smoke `33979041104`, and Recorder Short Soak `33979041139`; post-merge main CI `33979137937` then passed 985 tests plus rollout/deployment validation, research-mode health, and dashboard checks. The checkpoint is now `MERGED_MAIN_NOT_PRODUCTION_RUN`; no production preflight or migration was executed and no migration authorization was set.
 
+A verification-only follow-up on `phase14-storage-preflight-from-head-behavior-proof` now executes the real read-only preflight evidence wrapper inside a clean temporary Git candidate and proves a valid-but-wrong deployed-from SHA exits with `production_from_head_binding_mismatch` before preflight invocation or PASS output. Verification head `5f4c1b62005dd1be1c1bb864ef577dcc3e79c43f` passed CI `33979536234` with 986 tests plus rollout/deployment validation, research-mode health, and dashboard checks. The underlying operator behavior is unchanged; no production preflight or migration was executed and no migration authorization was set.
+
 ---
 
 ## Immediate next action

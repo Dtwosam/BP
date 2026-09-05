@@ -1,3 +1,5 @@
+import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -132,6 +134,84 @@ def test_cloudshell_evidence_runner_strictly_parses_project_state_once() -> None
 
     assert binding.count('Path("PROJECT_STATE.json")') == 1
     assert binding.count("json.loads(") == 1
+
+
+def test_cloudshell_evidence_runner_rejects_from_head_mismatch_before_preflight(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    for command in (
+        ["git", "init", "-b", "main"],
+        ["git", "config", "user.email", "ci@example.invalid"],
+        ["git", "config", "user.name", "CI"],
+    ):
+        completed = subprocess.run(
+            command,
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert completed.returncode == 0, completed.stderr
+
+    deployed_head = "c29fe227f959305f67031e922ca659869a826c4f"
+    state = {
+        "phase_14_storage_reliability_followup": {
+            "production_deployed_head_before_recovery": deployed_head,
+            "archive_recovery_host_evidence": (
+                "/mnt/bp-data/evidence/"
+                "phase14-storage-recovery-24-48h-20260904T015955Z.json"
+            ),
+            "automatic_promotion": False,
+        }
+    }
+    (repo / "PROJECT_STATE.json").write_text(
+        json.dumps(state, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    for command in (
+        ["git", "add", "PROJECT_STATE.json"],
+        ["git", "commit", "-m", "test fixture"],
+    ):
+        completed = subprocess.run(
+            command,
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert completed.returncode == 0, completed.stderr
+
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "PHASE14_PARTITIONED_STORAGE_FROM_HEAD": "0" * 40,
+            "PHASE14_PARTITIONED_STORAGE_HEAD": head,
+            "PHASE14_PARTITIONED_STORAGE_BRANCH": "main",
+        }
+    )
+    completed = subprocess.run(
+        ["bash", str(RUNNER)],
+        cwd=repo,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 2
+    assert f"production_from_head_binding_mismatch:{deployed_head}" in completed.stderr
+    assert "missing scripts/deploy/" not in completed.stderr
+    assert "PHASE14_STORAGE_PREFLIGHT_EVIDENCE=PASS" not in completed.stdout
 
 
 def test_cloudshell_evidence_runner_binds_deployed_from_head_to_candidate_state() -> None:
