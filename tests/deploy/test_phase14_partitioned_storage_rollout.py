@@ -366,7 +366,7 @@ def test_partitioned_storage_rollout_hashes_and_validates_preflight_same_snapsho
         "import hashlib",
         'raw = Path(path).read_bytes()',
         "hashlib.sha256(raw).hexdigest()",
-        "payload = json.loads(raw)",
+        "payload = json.loads(raw, object_pairs_hook=reject_duplicate_keys)",
         "PREFLIGHT_VERIFIED_SHA256",
     ):
         assert marker in content
