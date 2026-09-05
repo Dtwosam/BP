@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.92 — 5 September 2026
+
+A read-only Phase 14 production storage-preflight attempt against candidate `fb5def00896777c505377615e389f64088b127d1` contacted `bp-recorder` and confirmed the required research/zero-money boundary (`MODE=research`, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, `MAX_DAILY_LOSS_USD=0`), but the remote worker returned exit code 0 without emitting the mandatory `PHASE14_PARTITIONED_STORAGE_PREFLIGHT=PASS` marker. The attempt is therefore **not accepted as a preflight PASS** and must be rerun. The production repo origin was confirmed as `https://github.com/Dtwosam/BP.git`. No storage migration, service mutation, migration authorization, Gate B authorization, live-trading change, or Phase 15 transition occurred.
+
+PR #136 merged preflight observability and worker-stdin hardening to `main` as `c9d94041993b59e41642faff684dd031cbe71012`. Final branch head `ab7713b594703f6672eb108b138a7f78143bc6ff` passed push CI `33983797325`, PR CI `33983799393`, Historical Backfill Smoke `33983799495`, Live Recorder Smoke `33983799373`, and Recorder Short Soak `33983799420`; post-merge main CI `33983907097` then passed **989 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The evidence wrapper now captures host stderr in the Cloud Shell transcript, and the remote preflight worker is no longer supplied as a `bash -s` stdin stream that child processes could consume. The worker is encoded locally, passed as command data, and executed with remote stdin isolated at `/dev/null`; `git ls-remote` is also explicitly stdin-isolated. The checkpoint is `MERGED_MAIN_PRODUCTION_RERUN_REQUIRED`. A verified PASS remains prerequisite evidence only and does not authorize the partition migration.
+
 ## 0.14.91 — 5 September 2026
 
 PR #134 merged the executable storage-preflight deployed-from mismatch proof to `main` as `ec4a3ffeb1919246cda56e869f3de7cdc0b68df0`. Final branch head `3b2c163bbdcd8871baf3383f91d86cecb55375ef` passed push CI `33979683145`, PR CI `33979705258`, Historical Backfill Smoke `33979705234`, Live Recorder Smoke `33979705245`, and Recorder Short Soak `33979705267`; post-merge main CI `33979820091` then passed **986 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
