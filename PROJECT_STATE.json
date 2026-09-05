@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.73",
-  "updated_at": "2026-09-05T14:37:53Z",
+  "source_of_truth_version": "0.14.74",
+  "updated_at": "2026-09-05T14:52:39Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2242,6 +2242,19 @@
     "partitioned_storage_rollout_preflight_archive_window_end_consistency_merge_commit": "9222f6fd0709d2f0d0c5202191c64bf65670dc7e",
     "partitioned_storage_rollout_preflight_archive_window_end_consistency_post_merge_ci_run_id": 33972317705,
     "partitioned_storage_rollout_preflight_archive_window_end_consistency_post_merge_ci_passed": true,
-    "partitioned_storage_rollout_preflight_archive_window_end_consistency_post_merge_test_count": 977
+    "partitioned_storage_rollout_preflight_archive_window_end_consistency_post_merge_test_count": 977,
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_branch": "phase14-storage-rollout-preflight-safety-zero-type-consistency",
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_red_head": "cfce31a924fab2cc6832bdce174bb0a5cc5a35e7",
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_red_ci_run_id": 33972885858,
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_red_existing_test_count": 977,
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_initial_implementation_head": "2d1924b166e02886b10de66cbb098f6936085ef6",
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_initial_implementation_ci_run_id": 33972909252,
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_initial_implementation_ci_passed": false,
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_green_head": "6afd3257e3a1ea6120bbebff05353166458f74b1",
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_ci_run_id": 33973043120,
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_ci_passed": true,
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_test_count": 978,
+    "partitioned_storage_rollout_requires_verified_zero_money_integer_types": true,
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
   }
 }
