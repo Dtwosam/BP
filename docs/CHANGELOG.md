@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.75 — 5 September 2026
+
+PR #118 merged verified-preflight integer zero-money safety validation to `main` as `84bf292e9e6cd99fbacf5415098972315c079c63`. Final branch head `a0332b9fa158b2a1bedf9a4cfa612b48de825480` passed push CI `33973213954`, PR CI `33973192885`, Historical Backfill Smoke `33973192804`, Live Recorder Smoke `33973192826`, and Recorder Short Soak `33973192819`; post-merge main CI `33973295321` then passed **978 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. Rollout requires both verified zero-money limit fields to be actual integer zeros before any `gcloud` command, so boolean or floating-point zero lookalikes cannot satisfy the reviewed safety snapshot. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.74 — 5 September 2026
 
 Phase 14 partitioned-storage rollout now requires the verified-preflight zero-money safety values to retain the verifier's integer JSON shape before any `gcloud` command. `safety.max_trade_size_usd` and `safety.max_daily_loss_usd` must both be actual integers equal to zero, so JSON `false` or floating-point `0.0` can no longer satisfy the local rollout safety binding merely because Python compares them equal to integer zero.
