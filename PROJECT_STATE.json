@@ -1076,7 +1076,16 @@
     "max_daily_loss_usd": 0,
     "phase15_permitted": false,
     "forward_coverage_collector_production_rollout_commit": "c29fe227f959305f67031e922ca659869a826c4f",
-    "forward_coverage_collector_runtime_state_after_storage_incident": "not_asserted_while_storage_recovery_is_in_progress"
+    "forward_coverage_collector_runtime_state_after_storage_incident": "not_asserted_while_storage_recovery_is_in_progress",
+    "forward_coverage_source_truth_reconciliation_branch": "phase14-v2-forward-collector-source-truth-reconciliation-clean",
+    "forward_coverage_source_truth_reconciliation_red_head": "4fc713d78f22357d47fc98ccf975c193085e1afa",
+    "forward_coverage_source_truth_reconciliation_red_ci_run_id": 33977714790,
+    "forward_coverage_source_truth_reconciliation_red_existing_test_count": 983,
+    "forward_coverage_source_truth_reconciliation_green_head": "cffa01b02d6f7a674ab9e93dc631c41e641854ed",
+    "forward_coverage_source_truth_reconciliation_ci_run_id": 33977795425,
+    "forward_coverage_source_truth_reconciliation_ci_passed": true,
+    "forward_coverage_source_truth_reconciliation_test_count": 984,
+    "forward_coverage_source_truth_reconciliation_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
   },
   "phase_14_storage_reliability_followup": {
     "incident_date": "2026-09-04",
