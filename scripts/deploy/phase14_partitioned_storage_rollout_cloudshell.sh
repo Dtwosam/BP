@@ -114,6 +114,17 @@ if payload.get("recorder_state") != "stopped":
 if payload.get("storage_shape") != "legacy_unmigrated":
     raise SystemExit("verified preflight storage shape is not legacy_unmigrated")
 
+raw_state = payload.get("raw") or {}
+estimated_rows = raw_state.get("estimated_rows")
+if (
+    raw_state.get("partitioned") is not False
+    or raw_state.get("legacy_table_present") is not False
+    or raw_state.get("dedupe_table_present") is not False
+    or type(estimated_rows) is not int
+    or estimated_rows < 0
+):
+    raise SystemExit("verified preflight raw shape mismatch")
+
 target = payload.get("target") or {}
 if target.get("project") != expected_project:
     raise SystemExit("verified preflight PROJECT mismatch")
