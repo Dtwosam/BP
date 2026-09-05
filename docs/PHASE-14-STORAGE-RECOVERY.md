@@ -32,7 +32,7 @@ The output includes current relation bytes/estimated rows, whether raw storage i
 
 ## Run from Google Cloud Shell
 
-Use a **clean local checkout at the exact candidate SHA**. The evidence runner refuses to proceed if the local `HEAD` differs from `PHASE14_PARTITIONED_STORAGE_HEAD` or if the local working tree is dirty, so the helper and verifier used for evidence are bound to the candidate being evaluated. It also reads `phase_14_storage_reliability_followup.archive_recovery_host_evidence` from that exact candidate `PROJECT_STATE.json`, validates the canonical host path, and passes it to the remote preflight. The preflight no longer chooses a recovery JSON by mtime.
+Use a **clean local checkout at the exact candidate SHA**. The evidence runner refuses to proceed if the local `HEAD` differs from `PHASE14_PARTITIONED_STORAGE_HEAD` or if the local working tree is dirty, so the helper and verifier used for evidence are bound to the candidate being evaluated. From the same strict single-read candidate `PROJECT_STATE.json` snapshot, it now also requires `phase_14_storage_reliability_followup.production_deployed_head_before_recovery` to be an exact 40-character SHA equal to `PHASE14_PARTITIONED_STORAGE_FROM_HEAD`; a stale or mistyped deployed-from SHA therefore fails before transcript reservation or cloud contact. The same snapshot supplies `phase_14_storage_reliability_followup.archive_recovery_host_evidence`, whose canonical host path is validated and passed to the remote preflight. The preflight no longer chooses a recovery JSON by mtime.
 
 ```bash
 export PHASE14_PARTITIONED_STORAGE_FROM_HEAD='<exact currently deployed production SHA>'
