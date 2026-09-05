@@ -485,7 +485,9 @@ PR #136 merged read-only preflight observability and worker-stdin hardening to `
 
 ## Immediate next action
 
-**Run and independently verify the read-only Phase 14 production storage preflight when host access is available; keep the recorder stopped and preserve the separate explicit authorization gate for the actual partition migration.**
+**The read-only Phase 14 production storage preflight is independently verified PASS. Keep the recorder stopped and require separate explicit production authorization before running the partition migration for deployed-from `c29fe227f959305f67031e922ca659869a826c4f` → candidate `ad4ca7d5b65400ba657caeea35b2035ffba39a0b`, bound to verified-preflight SHA-256 `df97c53b627b37cf00e57263ab092ec6f33290d027c3138ee4a1bcfbf98a0687`.**
+
+Production preflight evidence captured at 2026-09-05T18:31:49Z is now accepted as verified PASS: recorder stopped, mutations false, research/zero-money boundary intact, canonical archive `phase14-storage-recovery-24-48h-20260904T015955Z.json` bound by SHA-256 `76d3b4cfa4d2a6d976795eeadeb7ea11de46747ef88c3f5486292295e764bd5c`, raw storage still legacy/unmigrated, dedicated-data free bytes `62289272832`, raw relation bytes `29804167168`, and verified-preflight digest `df97c53b627b37cf00e57263ab092ec6f33290d027c3138ee4a1bcfbf98a0687`. Migration approval remains false/unset; this evidence must not be interpreted as authorization.
 
 The partitioned-storage implementation, read-only preflight, deterministic transcript verifier, and operator-hardening wrapper are all merged to `main`. PR #52 merged the verifier layer as `b567d1118d93910a56462ea1b45d9f2a1f728f77`; PR #53 merged the one-command evidence operator path as `8c4f4eea533b01ada05307ef5e9fd4c5df304878`. Final PR-head gates on `be358f47de944e9d9318b8244fb732fb8b3202e1` passed push CI `33885085546`, PR CI `33885158191`, Historical Backfill Smoke `33885158365`, Live Recorder Smoke `33885158067`, and Recorder Short Soak `33885158081`; post-merge CI `33885404731` then passed 927 tests plus Ruff, deployment validation, health, and dashboard checks.
 
