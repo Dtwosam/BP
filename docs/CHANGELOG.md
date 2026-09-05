@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.48 — 5 September 2026
+
+Phase 14 verified preflight evidence now binds the exact remote branch whose head was checked before any production host contact. The Cloud Shell evidence wrapper resolves and validates `PHASE14_PARTITIONED_STORAGE_BRANCH`, forwards that same branch to the read-only preflight, and passes it as `--expected-branch` to the independent verifier. The preflight records `BRANCH=<name>` in the captured transcript; the verifier rejects any mismatch and preserves the verified value as `remote_branch` in JSON.
+
+Clean tests-only RED head `7c0e473469a8097b1d2a2d07aeb67bfdc9ea1dde` failed exactly the new branch-binding contract while all **961 existing tests passed** in CI `33935696092`. Initial GREEN head `dbf757ebb27e7bf05df7bb2e6e5c9c4dce76ab57` implemented the runtime binding, and CI `33935842015` showed the new contract passing while exposing one stale duplicate-HEAD transcript fixture (**961 passed, 1 failed**). Final repaired head `f9c497a216669d20fd823147118eb089c6d37144` updated only that legacy fixture and passed CI `33935922189` with **962 tests**, Ruff, rollout/deployment validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also closes PR #91's promotion-binding integration record. Final head `77120f4409dffca7a58c0ad91ab270f8ca00d6c4` passed push CI `33934811990`, PR CI `33934846807`, Historical Backfill Smoke `33934846797`, Live Recorder Smoke `33934846810`, and Recorder Short Soak `33934846784`. PR #91 merged as `cdb94191d11cf66887a7edced01405be3df6e6a5`; post-merge main CI `33934991463` passed **961 tests** plus rollout/deployment validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.47 — 5 September 2026
 
 Phase 14 preflight evidence now binds the exact candidate's automatic-promotion safety state before any production host contact. The Cloud Shell evidence wrapper walks the clean exact-head candidate `PROJECT_STATE.json`, requires every `automatic_promotion` field to be `false`, and fails with `automatic_promotion_binding_invalid` otherwise. After the local check succeeds, it writes `AUTOMATIC_PROMOTION=false` into the already-reserved transcript. The independent verifier requires that exact value and records `automatic_promotion: false` in verified JSON.
