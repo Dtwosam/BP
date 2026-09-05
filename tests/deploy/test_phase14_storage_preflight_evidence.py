@@ -457,4 +457,8 @@ def test_operator_captures_preflight_stderr_in_transcript() -> None:
 def test_preflight_remote_head_lookup_does_not_consume_worker_stdin() -> None:
     preflight = PREFLIGHT.read_text(encoding="utf-8")
 
-    assert 'git -C "$REPO" ls-remote --exit-code origin "refs/heads/$BRANCH" </dev/null' in preflight
+    marker = (
+        'git -C "$REPO" ls-remote --exit-code origin '
+        '"refs/heads/$BRANCH" </dev/null'
+    )
+    assert marker in preflight
