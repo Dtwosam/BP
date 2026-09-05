@@ -23,6 +23,14 @@ if ! [[ "$BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]; then
   echo "PHASE14_PARTITIONED_STORAGE_BRANCH contains unsupported characters" >&2
   exit 2
 fi
+if [[ "$ENV_FILE" != /* ]]; then
+  echo "PHASE14_PARTITIONED_STORAGE_ENV_FILE must be absolute" >&2
+  exit 2
+fi
+if ! [[ "$MIN_FREE_GIB" =~ ^[0-9]+$ ]] || (( MIN_FREE_GIB < 25 )); then
+  echo "PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB must be an integer >= 25" >&2
+  exit 2
+fi
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
 if [[ -z "$ROOT" ]]; then
