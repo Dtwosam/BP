@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.53 — 5 September 2026
+
+PR #96 merged rollout acceptance-evidence remote-branch recording to `main` as `0b71f4e6d5cf5e3794388428eb9daaee9628987e`. Final branch head `7e5baa7377e8bb616e0f42913834ff4b6f53f250` passed push CI `33958422803`, PR CI `33958518764`, Historical Backfill Smoke `33958518768`, Live Recorder Smoke `33958518788`, and Recorder Short Soak `33958518767`; post-merge main CI `33958630448` then passed **964 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. Eventual partitioned-storage rollout PASS evidence preserves `remote_branch` in addition to the already-bound candidate, target, approval, archive, and verified-preflight identities. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.52 — 5 September 2026
 
 Phase 14 partitioned-storage rollout acceptance evidence now preserves the exact remote branch already validated against the verified preflight. The detached worker passes its bound `BRANCH` into the final evidence builder, which records it as `remote_branch` alongside the candidate SHA, target identity, approval scope, archive identity, and verified-preflight digest. This closes the audit gap where branch identity was enforced before production contact but omitted from eventual PASS evidence.
