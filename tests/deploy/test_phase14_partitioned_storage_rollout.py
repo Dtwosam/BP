@@ -698,6 +698,25 @@ def test_rollout_acceptance_evidence_records_configured_env_file() -> None:
     assert '"env_file": env_file' in content[evidence_payload:]
 
 
+def test_rollout_requires_integer_zero_money_safety_values_before_cloud_contact() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    preflight_check = content.index("PREFLIGHT_ARCHIVE_BINDING=$(python")
+    cloud_contact = content.index('gcloud config set project "$PROJECT"')
+
+    binding = content[preflight_check:cloud_contact]
+    for marker in (
+        'max_trade_size_usd = safety.get("max_trade_size_usd")',
+        'type(max_trade_size_usd) is not int',
+        'max_trade_size_usd != 0',
+        'max_daily_loss_usd = safety.get("max_daily_loss_usd")',
+        'type(max_daily_loss_usd) is not int',
+        'max_daily_loss_usd != 0',
+        "verified preflight safety mismatch",
+    ):
+        assert marker in binding
+
+
 def test_rollout_binds_verified_preflight_min_free_gib_before_cloud_contact() -> None:
     content = HELPER.read_text(encoding="utf-8")
 
