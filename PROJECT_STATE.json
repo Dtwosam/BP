@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.78",
-  "updated_at": "2026-09-05T15:17:20Z",
+  "source_of_truth_version": "0.14.79",
+  "updated_at": "2026-09-05T15:21:40Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2303,6 +2303,17 @@
     "partitioned_storage_rollout_preflight_json_nonfinite_rejection_ci_passed": true,
     "partitioned_storage_rollout_preflight_json_nonfinite_rejection_test_count": 980,
     "partitioned_storage_rollout_rejects_nonfinite_verified_json_constants": true,
-    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_status": "MERGED_MAIN_NOT_PRODUCTION_RUN",
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_pr": 122,
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_final_branch_head": "84929c289a8cf2de52baeb8e548b8171dee5aab1",
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_push_ci_run_id": 33974385203,
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_pr_ci_run_id": 33974399342,
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_historical_backfill_smoke_run_id": 33974399282,
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_live_recorder_smoke_run_id": 33974399350,
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_recorder_short_soak_run_id": 33974399501,
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_merge_commit": "71504cec335f2b915a1f9e547ba8d590f1144868",
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_post_merge_ci_run_id": 33974492303,
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_post_merge_ci_passed": true,
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_post_merge_test_count": 980
   }
 }
