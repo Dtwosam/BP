@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.47 — 5 September 2026
+
+Phase 14 preflight evidence now binds the exact candidate's automatic-promotion safety state before any production host contact. The Cloud Shell evidence wrapper walks the clean exact-head candidate `PROJECT_STATE.json`, requires every `automatic_promotion` field to be `false`, and fails with `automatic_promotion_binding_invalid` otherwise. After the local check succeeds, it writes `AUTOMATIC_PROMOTION=false` into the already-reserved transcript. The independent verifier requires that exact value and records `automatic_promotion: false` in verified JSON.
+
+Clean tests-only RED head `d46c54f065fbbd76de11b8dfb0ac72cd6bde0e5d` failed exactly the new promotion-binding contract while all **960 existing tests passed** in CI `33934509086`. GREEN head `e253baca46e9ddd2e7906a978f6fe03f8cad8ec1` passed CI `33934639110` with **961 tests**, Ruff, rollout Bash syntax validation, health, and dashboard tests/typecheck/build.
+
+This checkpoint also records PR #90 integration. Final head `16c2043caab88928509da6851cb0ebaf09c0460f` passed push CI `33934166276`, PR CI `33934188337`, Historical Backfill Smoke `33934188319`, Live Recorder Smoke `33934188412`, and Recorder Short Soak `33934188405`. PR #90 merged as `0e1b6257ed9ea51d44314db9477045ceea63e42b`; post-merge main CI `33934316885` passed **960 tests** plus rollout Bash syntax validation, health, and dashboard checks.
+
+No production preflight or partition migration was executed, no production migration approval values were set, production approval remains false, the recorder remains stopped for storage recovery, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.46 — 5 September 2026
 
 Phase 14 independent read-only preflight verification now explicitly proves the research/zero-money safety boundary from the captured host transcript. After the host has checked the production environment, the preflight emits `MODE=research`, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0`. The independent verifier requires those exact values before emitting PASS JSON and records them in its `safety` block.
