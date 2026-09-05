@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.85 — 5 September 2026
+
+PR #128 merged early local storage-preflight operator configuration validation to `main` as `0d0c7e4d9b5fca59ac54f2efca8ca75699b4f4e3`. Final branch head `76d05673c5b3af0c925c16ab0c2011c84206891e` passed push CI `33976728232`, PR CI `33976740685`, Historical Backfill Smoke `33976740693`, Live Recorder Smoke `33976740724`, and Recorder Short Soak `33976740674`; post-merge main CI `33976856064` then passed **983 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. The evidence wrapper rejects a non-absolute environment-file path or invalid/<25 GiB migration floor before candidate-state parsing, evidence reservation, or read-only preflight invocation. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.84 — 5 September 2026
 
 The Phase 14 storage-preflight evidence wrapper now validates its environment-file path and migration headroom floor locally before project-state parsing, transcript reservation, or any preflight invocation. `PHASE14_PARTITIONED_STORAGE_ENV_FILE` must be absolute, and `PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB` must be an integer of at least 25, matching the underlying read-only preflight's existing input contract while failing malformed operator inputs earlier.
