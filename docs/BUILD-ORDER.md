@@ -469,6 +469,8 @@ A follow-up preflight-operator local-configuration checkpoint on `phase14-storag
 
 PR #128 merged early local storage-preflight configuration validation to `main` as `0d0c7e4d9b5fca59ac54f2efca8ca75699b4f4e3`. Final head `76d05673c5b3af0c925c16ab0c2011c84206891e` passed push CI `33976728232`, PR CI `33976740685`, Historical Backfill Smoke `33976740693`, Live Recorder Smoke `33976740724`, and Recorder Short Soak `33976740674`; post-merge main CI `33976856064` then passed 983 tests plus rollout/deployment validation, research-mode health, and dashboard checks. The checkpoint is now `MERGED_MAIN_NOT_PRODUCTION_RUN`; no production preflight or migration was executed and no migration authorization was set.
 
+PR #130 reconciled the Phase 14 V2 forward-collector source of truth and merged to `main` as `c4c78de63b1ca2fbd5d21d87be5a98e7f8950e42`. The canonical record now reflects that the collector had been deployed research-only/outcome-blind on production head `c29fe227f959305f67031e922ca659869a826c4f` before the 4 September storage incident; current collector active/enabled state is not asserted during storage recovery. Final head `be4f586b4f0a63a195f4fda270598cb11c97c68a` passed all PR gates and post-merge main CI `33978128868` passed 984 tests. This changes no Gate B, policy, money, migration, or Phase 15 authorization.
+
 ---
 
 ## Immediate next action
