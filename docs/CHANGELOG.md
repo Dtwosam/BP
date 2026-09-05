@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.74 — 5 September 2026
+
+Phase 14 partitioned-storage rollout now requires the verified-preflight zero-money safety values to retain the verifier's integer JSON shape before any `gcloud` command. `safety.max_trade_size_usd` and `safety.max_daily_loss_usd` must both be actual integers equal to zero, so JSON `false` or floating-point `0.0` can no longer satisfy the local rollout safety binding merely because Python compares them equal to integer zero.
+
+Clean tests-only RED head `cfce31a924fab2cc6832bdce174bb0a5cc5a35e7` failed exactly the missing type contract while all **977 existing tests passed** in CI `33972885858`. Initial implementation head `2d1924b166e02886b10de66cbb098f6936085ef6` added the runtime checks; CI `33972909252` showed the new contract passing while exposing one stale legacy source-marker assertion (**977 passed, 1 failed**). Final repaired head `6afd3257e3a1ea6120bbebff05353166458f74b1` updated only that assertion and passed CI `33973043120` with **978 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+This remains engineering-only until merged. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.73 — 5 September 2026
 
 PR #116 merged verified-preflight archive-window timestamp consistency validation to `main` as `9222f6fd0709d2f0d0c5202191c64bf65670dc7e`. Final branch head `ea0953b5da96dcc6a5a0fdcbd2bbef0be65702ce` passed push CI `33972159546`, PR CI `33972211650`, Historical Backfill Smoke `33972211651`, Live Recorder Smoke `33972211645`, and Recorder Short Soak `33972211644`; post-merge main CI `33972317705` then passed **977 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
