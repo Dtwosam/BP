@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.88 — 5 September 2026
+
+The Phase 14 read-only storage-preflight evidence wrapper now binds the operator-supplied deployed-from SHA to the exact candidate `PROJECT_STATE.json` before transcript reservation or any cloud contact. The existing strict single-read candidate-state parser validates `phase_14_storage_reliability_followup.production_deployed_head_before_recovery` as an exact 40-character SHA and requires it to equal `PHASE14_PARTITIONED_STORAGE_FROM_HEAD`. A stale or mistyped deployed SHA therefore fails locally instead of reaching the production preflight.
+
+Clean tests-only RED head `d38ab3a16ccf02a4b509befe174bc5271f55f2d4` passed Ruff and failed exactly the new state-binding contract while all **984 existing tests passed** in CI `33978837483`. GREEN head `acbc797ca510d40b93395bc698ead7c83633e767` passed CI `33978855023` with **985 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+This remains engineering-only until merged. No production host contact, storage migration, migration authorization, service mutation, Gate B authorization, or Phase 15/live-trading change occurred.
+
 ## 0.14.87 — 5 September 2026
 
 PR #130 merged the V2 forward-collector source-of-truth reconciliation to `main` as `c4c78de63b1ca2fbd5d21d87be5a98e7f8950e42`. Final branch head `be4f586b4f0a63a195f4fda270598cb11c97c68a` passed push CI `33977923947`, PR CI `33978012880`, Historical Backfill Smoke `33978012884`, Live Recorder Smoke `33978012876`, and Recorder Short Soak `33978012923`; post-merge main CI `33978128868` then passed **984 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
