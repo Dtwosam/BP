@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.52 — 5 September 2026
+
+Phase 14 partitioned-storage rollout acceptance evidence now preserves the exact remote branch already validated against the verified preflight. The detached worker passes its bound `BRANCH` into the final evidence builder, which records it as `remote_branch` alongside the candidate SHA, target identity, approval scope, archive identity, and verified-preflight digest. This closes the audit gap where branch identity was enforced before production contact but omitted from eventual PASS evidence.
+
+Clean tests-only RED head `9e376f50f3a08a6c34ac941f4ca460650b147dbc` failed exactly the missing final-evidence branch identity contract while all **963 existing tests passed** in CI `33958228899`. GREEN head `9c824bdc3c822a57b4f7f5abd7e62959848a1be0` passed CI `33958306826` with **964 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+This remains engineering-only until merged. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.51 — 5 September 2026
 
 PR #94 closed the rollout-to-verified-preflight remote-branch binding on `main`. Final branch head `a9da161a7ecb73ef0f8865b60e632260c31facd9` passed push CI `33937121381`, PR CI `33937206772`, Historical Backfill Smoke `33937206857`, Live Recorder Smoke `33937207005`, and Recorder Short Soak `33937206836`. It merged as `b20e883041a469d6552796f84e9c905e44899bdf`; post-merge main CI `33937297658` then passed **963 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
