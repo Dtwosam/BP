@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.85",
-  "updated_at": "2026-09-05T16:08:40Z",
+  "source_of_truth_version": "0.14.86",
+  "updated_at": "2026-09-05T16:21:33Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -622,7 +622,7 @@
     "Phase 14 read-only 27-trade timing probe established 33–51 second V1 /prices-history probability age versus approximately 0–1 second selected-book age",
     "Phase 14 timestamp-coherent market-price V2 research architecture approved under D-033 with V1 evidence preserved and no live/money change",
     "Phase 14 Gate A timestamp-coherent market-price V2 production rollout passed on exact deployed head d077e45f24704e6038c947169c84527e954de975 with a forward epoch of 2026-09-02T12:18:02Z, one completed post-epoch market, four immutable core-v2-last-trade rows, zero future-cutoff violations, and no V2 policy selection",
-    "Phase 14 V2 forward coverage collector implementation completed and CI-verified with outcome-blind restart-safe collection, hardened systemd oneshot/timer packaging, and rollback-capable rollout tooling; collector production activation remains separately gated and not performed"
+    "Phase 14 V2 forward coverage collector was subsequently deployed research-only/outcome-blind on production head c29fe227f959305f67031e922ca659869a826c4f before the 4 September storage incident; its runtime state is not asserted while storage recovery is in progress and Gate B remains unauthorized"
   ],
   "not_completed": [
     "Read-only production storage preflight host run",
