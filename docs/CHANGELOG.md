@@ -2,9 +2,9 @@
 
 ## 0.14.77 — 5 September 2026
 
-PR #120 merged verified-preflight integer headroom-configuration validation to `main` as `f7cbec028bec5b615e58941c4ba92ad40db7c7c7`. Final branch head `2161d055fb907123b7fade4b64ccdf7c194fd059` passed push CI `33973651541`, PR CI `33973665934`, Historical Backfill Smoke `33973665861`, Live Recorder Smoke `33973665867`, and Recorder Short Soak `33973665864`; post-merge main CI `33973798254` then passed **979 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+PR #120 merged verified-preflight headroom scalar-type validation to `main` as `f7cbec028bec5b615e58941c4ba92ad40db7c7c7`. Final branch head `2161d055fb907123b7fade4b64ccdf7c194fd059` passed push CI `33973651541`, PR CI `33973665934`, Historical Backfill Smoke `33973665861`, Live Recorder Smoke `33973665867`, and Recorder Short Soak `33973665864`; post-merge main CI `33973798254` then passed **979 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
 
-The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. Rollout requires both verified configured-headroom fields to be actual integers before any `gcloud` command, so floating-point numeric lookalikes cannot satisfy the reviewed migration-headroom snapshot. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. Rollout requires verified `headroom.minimum_free_gib` and `headroom.critical_reserve_gib` to retain integer JSON types before any `gcloud` command. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
 
 ## 0.14.76 — 5 September 2026
 
