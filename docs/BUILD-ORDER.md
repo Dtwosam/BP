@@ -471,6 +471,8 @@ PR #128 merged early local storage-preflight configuration validation to `main` 
 
 PR #130 reconciled the Phase 14 V2 forward-collector source of truth and merged to `main` as `c4c78de63b1ca2fbd5d21d87be5a98e7f8950e42`. The canonical record now reflects that the collector had been deployed research-only/outcome-blind on production head `c29fe227f959305f67031e922ca659869a826c4f` before the 4 September storage incident; current collector active/enabled state is not asserted during storage recovery. Final head `be4f586b4f0a63a195f4fda270598cb11c97c68a` passed all PR gates and post-merge main CI `33978128868` passed 984 tests. This changes no Gate B, policy, money, migration, or Phase 15 authorization.
 
+A follow-up read-only preflight from-head state-binding checkpoint on `phase14-storage-preflight-from-head-state-binding` now requires the operator-supplied `PHASE14_PARTITIONED_STORAGE_FROM_HEAD` to equal the exact candidate `PROJECT_STATE.json` value at `phase_14_storage_reliability_followup.production_deployed_head_before_recovery` before transcript reservation or any cloud contact. Clean tests-only RED head `d38ab3a16ccf02a4b509befe174bc5271f55f2d4` failed exactly this missing contract while 984 existing tests passed in CI `33978837483`; GREEN head `acbc797ca510d40b93395bc698ead7c83633e767` passed CI `33978855023` with 985 tests plus rollout/deployment validation, research-mode health, and dashboard checks. This remains engineering-only until merged; no production preflight or migration was executed and no migration authorization was set.
+
 ---
 
 ## Immediate next action
