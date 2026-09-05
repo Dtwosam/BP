@@ -108,6 +108,11 @@ require_research_zero_money() {
   if [[ "$mode" != "research" ||         "$live_trading_enabled" != "false" ||         "$max_trade_size_usd" != "0" ||         "$max_daily_loss_usd" != "0" ]]; then
     fail "research_zero_money_boundary_not_satisfied"
   fi
+
+  echo "MODE=$mode"
+  echo "LIVE_TRADING_ENABLED=$live_trading_enabled"
+  echo "MAX_TRADE_SIZE_USD=$max_trade_size_usd"
+  echo "MAX_DAILY_LOSS_USD=$max_daily_loss_usd"
 }
 
 validate_deployed_checkout() {

@@ -119,6 +119,19 @@ def verify_preflight_transcript(
     if _required(values, "RECORDER_STATE") != "stopped":
         raise PreflightVerificationError("recorder is not stopped")
 
+    mode = _required(values, "MODE")
+    live_trading_enabled = _required(values, "LIVE_TRADING_ENABLED")
+    max_trade_size_usd = _required(values, "MAX_TRADE_SIZE_USD")
+    max_daily_loss_usd = _required(values, "MAX_DAILY_LOSS_USD")
+    if mode != "research":
+        raise PreflightVerificationError("unexpected MODE")
+    if live_trading_enabled != "false":
+        raise PreflightVerificationError("unexpected LIVE_TRADING_ENABLED")
+    if max_trade_size_usd != "0":
+        raise PreflightVerificationError("unexpected MAX_TRADE_SIZE_USD")
+    if max_daily_loss_usd != "0":
+        raise PreflightVerificationError("unexpected MAX_DAILY_LOSS_USD")
+
     mutations_raw = _required(values, "MUTATIONS_PERFORMED").lower()
     if mutations_raw != "false":
         raise PreflightVerificationError("preflight reported production mutations")
@@ -190,6 +203,12 @@ def verify_preflight_transcript(
         "mutations_performed": False,
         "recorder_state": "stopped",
         "storage_shape": "legacy_unmigrated",
+        "safety": {
+            "mode": mode,
+            "live_trading_enabled": False,
+            "max_trade_size_usd": 0,
+            "max_daily_loss_usd": 0,
+        },
         "target": {
             "project": project,
             "zone": zone,
