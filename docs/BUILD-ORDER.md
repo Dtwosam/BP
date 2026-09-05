@@ -459,6 +459,8 @@ PR #122 merged strict verified-preflight JSON constant rejection to `main` as `7
 
 A follow-up preflight-operator strict-state checkpoint on `phase14-storage-preflight-project-state-strict-json` now reads the exact candidate `PROJECT_STATE.json` bytes once, rejects recursive duplicate keys and non-finite JSON constants, and derives both the canonical recovery archive path and the global `automatic_promotion=false` assertion from that same parsed snapshot before the remote preflight is invoked. Clean tests-only RED head `fc3ec792192349c99a7effe779fb42b917b6f851` failed exactly this missing contract while 980 existing tests passed in CI `33974672514`; GREEN head `82883aa6c12e7abdc2a188fb272990a980ab1f4c` passed CI `33974699483` with 981 tests plus rollout/deployment validation, research-mode health, and dashboard checks. This remains engineering-only until merged; no production preflight or migration was executed and no migration authorization was set.
 
+PR #124 merged strict single-snapshot candidate-state binding to `main` as `bfed99b6f8591fcdb7784e5d1399ca2945e8599c`. Final head `d3e8689887927eedbf80cd461158a49063b6bc85` passed push CI `33974867767`, PR CI `33974878464`, Historical Backfill Smoke `33974878459`, Live Recorder Smoke `33974878381`, and Recorder Short Soak `33974878387`; post-merge main CI `33974966377` then passed 981 tests plus rollout/deployment validation, research-mode health, and dashboard checks. The checkpoint is now `MERGED_MAIN_NOT_PRODUCTION_RUN`; no production preflight or migration was executed and no migration authorization was set.
+
 ---
 
 ## Immediate next action
