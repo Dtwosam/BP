@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.67 — 5 September 2026
+
+PR #110 merged verified-preflight headroom self-consistency validation to `main` as `c863d2545e3e0e02db06f3a885466ec03e15c009`. Final branch head `81e8de3da6b891112641b489df8138525be41d37` passed push CI `33968735460`, PR CI `33968822319`, Historical Backfill Smoke `33968822366`, Live Recorder Smoke `33968822411`, and Recorder Short Soak `33968822374`; post-merge main CI `33968910285` then passed **974 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. Rollout validates that verified preflight headroom fields are integer and internally consistent with `max(configured minimum, raw total bytes + 15 GiB)`, and rejects a verified PASS whose recorded free bytes do not meet its own required amount before any `gcloud` command. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.66 — 5 September 2026
 
 Phase 14 partitioned-storage rollout now validates verified-preflight migration-headroom semantics before any `gcloud` command. In addition to the already-bound configured floor and fixed 15 GiB critical reserve, rollout requires integer `free_bytes`, `raw_total_bytes`, and `required_free_bytes`, recomputes `max(configured minimum, raw total bytes + 15 GiB)`, requires the verified `required_free_bytes` to equal that value, and rejects a PASS whose verified free bytes are below its own requirement.
