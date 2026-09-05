@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.68 — 5 September 2026
+
+Phase 14 partitioned-storage rollout now validates verified-preflight raw-storage shape semantics before any `gcloud` command. In addition to the top-level `storage_shape=legacy_unmigrated` claim, rollout requires the verifier's `raw` block to report `partitioned=false`, `legacy_table_present=false`, `dedupe_table_present=false`, and a non-negative integer `estimated_rows`. This prevents a contradictory or manually constructed verified JSON from claiming an unmigrated shape while its underlying raw-shape facts say otherwise.
+
+Clean tests-only RED head `d24a8212c9c32d977d3e8de726d3ebb3584f2f46` failed exactly the missing raw-shape consistency contract while all **974 existing tests passed** in CI `33970455986`. GREEN head `20561a4fc86264314b6eac01a95690dea5e4d046` passed CI `33970547273` with **975 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+This remains engineering-only until merged. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.67 — 5 September 2026
 
 PR #110 merged verified-preflight headroom self-consistency validation to `main` as `c863d2545e3e0e02db06f3a885466ec03e15c009`. Final branch head `81e8de3da6b891112641b489df8138525be41d37` passed push CI `33968735460`, PR CI `33968822319`, Historical Backfill Smoke `33968822366`, Live Recorder Smoke `33968822411`, and Recorder Short Soak `33968822374`; post-merge main CI `33968910285` then passed **974 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
