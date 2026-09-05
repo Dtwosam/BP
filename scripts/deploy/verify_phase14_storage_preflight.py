@@ -75,6 +75,7 @@ def verify_preflight_transcript(
     *,
     expected_from_head: str,
     expected_head: str,
+    expected_branch: str | None = None,
     expected_project: str | None = None,
     expected_zone: str | None = None,
     expected_vm: str | None = None,
@@ -115,6 +116,12 @@ def verify_preflight_transcript(
         raise PreflightVerificationError("unexpected HEAD")
     if remote_head != expected_head:
         raise PreflightVerificationError("unexpected REMOTE_HEAD")
+
+    branch = None
+    if expected_branch is not None:
+        branch = _required(values, "BRANCH")
+        if branch != expected_branch:
+            raise PreflightVerificationError("unexpected BRANCH")
 
     if _required(values, "RECORDER_STATE") != "stopped":
         raise PreflightVerificationError("recorder is not stopped")
@@ -204,6 +211,7 @@ def verify_preflight_transcript(
         "from_head": from_head,
         "head": head,
         "remote_head": remote_head,
+        "remote_branch": branch,
         "mutations_performed": False,
         "recorder_state": "stopped",
         "storage_shape": "legacy_unmigrated",
@@ -252,6 +260,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--input", required=True)
     parser.add_argument("--expected-from-head", required=True)
     parser.add_argument("--expected-head", required=True)
+    parser.add_argument("--expected-branch", required=True)
     parser.add_argument("--expected-project", required=True)
     parser.add_argument("--expected-zone", required=True)
     parser.add_argument("--expected-vm", required=True)
@@ -270,6 +279,7 @@ def main() -> int:
             transcript,
             expected_from_head=args.expected_from_head,
             expected_head=args.expected_head,
+            expected_branch=args.expected_branch,
             expected_project=args.expected_project,
             expected_zone=args.expected_zone,
             expected_vm=args.expected_vm,
