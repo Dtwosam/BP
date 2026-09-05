@@ -465,6 +465,8 @@ A follow-up preflight-operator explicit-configuration checkpoint on `phase14-sto
 
 PR #126 merged explicit storage-preflight configuration binding to `main` as `7241b95fa3671fbfbe88a1ed16e6da4957ded5b2`. Final head `50485ad39142d74b3bcbacc3490075b1162a1909` passed push CI `33976203872`, PR CI `33976216347`, Historical Backfill Smoke `33976216309`, Live Recorder Smoke `33976216337`, and Recorder Short Soak `33976216452`; post-merge main CI `33976320638` then passed 982 tests plus rollout/deployment validation, research-mode health, and dashboard checks. The checkpoint is now `MERGED_MAIN_NOT_PRODUCTION_RUN`; no production preflight or migration was executed and no migration authorization was set.
 
+A follow-up preflight-operator local-configuration checkpoint on `phase14-storage-preflight-local-config-validation` now rejects a non-absolute `ENV_FILE` or non-integer/<25 `MIN_FREE_GIB` before candidate-state parsing, evidence-path reservation, or invocation of the underlying read-only preflight. Clean tests-only RED head `3001749b023a56f788f5fdfb24b9bfc3d92eeca1` failed exactly this missing contract while 982 existing tests passed in CI `33976585071`; GREEN head `2da8f3b59f2074ada77f03d3cd61a666fc0b9162` passed CI `33976595483` with 983 tests plus rollout/deployment validation, research-mode health, and dashboard checks. This remains engineering-only until merged; no production preflight or migration was executed and no migration authorization was set.
+
 ---
 
 ## Immediate next action
