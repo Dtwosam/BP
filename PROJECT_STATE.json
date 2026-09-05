@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.85",
-  "updated_at": "2026-09-05T16:08:40Z",
+  "source_of_truth_version": "0.14.86",
+  "updated_at": "2026-09-05T16:23:31Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -622,7 +622,7 @@
     "Phase 14 read-only 27-trade timing probe established 33–51 second V1 /prices-history probability age versus approximately 0–1 second selected-book age",
     "Phase 14 timestamp-coherent market-price V2 research architecture approved under D-033 with V1 evidence preserved and no live/money change",
     "Phase 14 Gate A timestamp-coherent market-price V2 production rollout passed on exact deployed head d077e45f24704e6038c947169c84527e954de975 with a forward epoch of 2026-09-02T12:18:02Z, one completed post-epoch market, four immutable core-v2-last-trade rows, zero future-cutoff violations, and no V2 policy selection",
-    "Phase 14 V2 forward coverage collector implementation completed and CI-verified with outcome-blind restart-safe collection, hardened systemd oneshot/timer packaging, and rollback-capable rollout tooling; collector production activation remains separately gated and not performed"
+    "Phase 14 V2 forward coverage collector was subsequently deployed research-only/outcome-blind on production head c29fe227f959305f67031e922ca659869a826c4f before the 4 September storage incident; its runtime state is not asserted while storage recovery is in progress and Gate B remains unauthorized"
   ],
   "not_completed": [
     "Read-only production storage preflight host run",
@@ -1076,7 +1076,16 @@
     "max_daily_loss_usd": 0,
     "phase15_permitted": false,
     "forward_coverage_collector_production_rollout_commit": "c29fe227f959305f67031e922ca659869a826c4f",
-    "forward_coverage_collector_runtime_state_after_storage_incident": "not_asserted_while_storage_recovery_is_in_progress"
+    "forward_coverage_collector_runtime_state_after_storage_incident": "not_asserted_while_storage_recovery_is_in_progress",
+    "forward_coverage_source_truth_reconciliation_branch": "phase14-v2-forward-collector-source-truth-reconciliation-clean",
+    "forward_coverage_source_truth_reconciliation_red_head": "4fc713d78f22357d47fc98ccf975c193085e1afa",
+    "forward_coverage_source_truth_reconciliation_red_ci_run_id": 33977714790,
+    "forward_coverage_source_truth_reconciliation_red_existing_test_count": 983,
+    "forward_coverage_source_truth_reconciliation_green_head": "cffa01b02d6f7a674ab9e93dc631c41e641854ed",
+    "forward_coverage_source_truth_reconciliation_ci_run_id": 33977795425,
+    "forward_coverage_source_truth_reconciliation_ci_passed": true,
+    "forward_coverage_source_truth_reconciliation_test_count": 984,
+    "forward_coverage_source_truth_reconciliation_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
   },
   "phase_14_storage_reliability_followup": {
     "incident_date": "2026-09-04",

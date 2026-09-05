@@ -1,3 +1,4 @@
+import json
 import subprocess
 from pathlib import Path
 
@@ -160,6 +161,36 @@ def test_v2_forward_rollout_scope_is_narrow() -> None:
         "tests/deploy/test_phase14_v2_forward_coverage_deployment.py",
     ):
         assert allowed in content
+
+
+def test_v2_forward_current_source_of_truth_matches_recorded_rollout_state() -> None:
+    state_text = (ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8")
+    state = json.loads(state_text)
+    followup = state["phase_14_market_price_v2_followup"]
+    master = (
+        ROOT / "docs" / "MASTER-SOURCE-OF-TRUTH.md"
+    ).read_text(encoding="utf-8")
+
+    assert followup["forward_coverage_collector_production_rollout_performed"] is True
+    assert (
+        followup["forward_coverage_collector_implementation_status"]
+        == "DEPLOYED_PRODUCTION_RESEARCH_ONLY_OUTCOME_BLIND"
+    )
+    assert (
+        followup["forward_coverage_collector_runtime_state_after_storage_incident"]
+        == "not_asserted_while_storage_recovery_is_in_progress"
+    )
+
+    stale_state = (
+        "collector production activation remains separately gated and not performed"
+    )
+    stale_master = (
+        "continuous V2 forward-coverage collector package is implemented and under review "
+        "but is not deployed or enabled"
+    )
+    assert stale_state not in state_text
+    assert stale_master not in master
+    assert "continuous V2 forward-coverage collector was subsequently deployed" in master
 
 
 def test_ci_validates_v2_forward_runtime_assets() -> None:
