@@ -612,3 +612,14 @@ def test_partitioned_storage_rollout_binds_verified_preflight_remote_branch() ->
 
     branch_check = content.index("verified preflight BRANCH mismatch")
     assert branch_check < content.index('gcloud config set project "$PROJECT"')
+
+
+def test_rollout_acceptance_evidence_records_verified_remote_branch() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    evidence_builder = content.index('EVIDENCE_TMP=$(mktemp')
+    evidence_payload = content.index('payload = {', evidence_builder)
+
+    assert '"$BRANCH"' in content[evidence_builder:evidence_payload]
+    assert 'remote_branch' in content[evidence_builder:evidence_payload]
+    assert '"remote_branch": remote_branch' in content[evidence_payload:]
