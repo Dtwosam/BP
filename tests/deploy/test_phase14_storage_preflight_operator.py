@@ -134,6 +134,25 @@ def test_cloudshell_evidence_runner_strictly_parses_project_state_once() -> None
     assert binding.count("json.loads(") == 1
 
 
+def test_cloudshell_evidence_runner_validates_local_env_and_headroom_before_state_binding() -> None:
+    content = RUNNER.read_text(encoding="utf-8")
+    preflight_content = PREFLIGHT.read_text(encoding="utf-8")
+
+    env_check = 'if [[ "$ENV_FILE" != /* ]]; then'
+    env_error = "PHASE14_PARTITIONED_STORAGE_ENV_FILE must be absolute"
+    headroom_check = 'if ! [[ "$MIN_FREE_GIB" =~ ^[0-9]+$ ]] || (( MIN_FREE_GIB < 25 )); then'
+    headroom_error = "PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB must be an integer >= 25"
+
+    for marker in (env_check, env_error, headroom_check, headroom_error):
+        assert marker in preflight_content
+        assert marker in content
+
+    state_binding = content.index('ARCHIVE_EVIDENCE=$(python')
+    transcript = content.index('TRANSCRIPT="${PHASE14_STORAGE_PREFLIGHT_TRANSCRIPT:-')
+    assert content.index(env_check) < state_binding < transcript
+    assert content.index(headroom_check) < state_binding < transcript
+
+
 def test_cloudshell_evidence_runner_explicitly_binds_preflight_configuration() -> None:
     content = RUNNER.read_text(encoding="utf-8")
 
