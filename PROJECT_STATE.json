@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.61",
-  "updated_at": "2026-09-05T12:15:08Z",
+  "source_of_truth_version": "0.14.62",
+  "updated_at": "2026-09-05T12:39:18Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2114,6 +2114,16 @@
     "partitioned_storage_rollout_preflight_critical_reserve_binding_merge_commit": "1289d1634c0ed358581ed8358b2302f782e99611",
     "partitioned_storage_rollout_preflight_critical_reserve_binding_post_merge_ci_run_id": 33965440093,
     "partitioned_storage_rollout_preflight_critical_reserve_binding_post_merge_ci_passed": true,
-    "partitioned_storage_rollout_preflight_critical_reserve_binding_post_merge_test_count": 971
+    "partitioned_storage_rollout_preflight_critical_reserve_binding_post_merge_test_count": 971,
+    "partitioned_storage_rollout_local_evidence_before_gcloud_branch": "phase14-storage-rollout-local-evidence-before-gcloud",
+    "partitioned_storage_rollout_local_evidence_before_gcloud_red_head": "61d55549eb03f0bc0ff99ac49c928fde97adb390",
+    "partitioned_storage_rollout_local_evidence_before_gcloud_red_ci_run_id": 33966508887,
+    "partitioned_storage_rollout_local_evidence_before_gcloud_red_existing_test_count": 971,
+    "partitioned_storage_rollout_local_evidence_before_gcloud_green_head": "210833ea4d9278ab950c4f59911237394dc89aa2",
+    "partitioned_storage_rollout_local_evidence_before_gcloud_ci_run_id": 33966588761,
+    "partitioned_storage_rollout_local_evidence_before_gcloud_ci_passed": true,
+    "partitioned_storage_rollout_local_evidence_before_gcloud_test_count": 972,
+    "partitioned_storage_rollout_validates_local_evidence_before_gcloud_auth": true,
+    "partitioned_storage_rollout_local_evidence_before_gcloud_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
   }
 }

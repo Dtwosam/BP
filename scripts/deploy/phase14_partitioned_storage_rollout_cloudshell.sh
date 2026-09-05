@@ -64,14 +64,6 @@ if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
   exit 2
 fi
 
-if ! command -v gcloud >/dev/null 2>&1; then
-  echo "gcloud is required; run this helper from Google Cloud Shell" >&2
-  exit 2
-fi
-if ! gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q .; then
-  echo "no active gcloud account; authorize Cloud Shell and rerun" >&2
-  exit 2
-fi
 if [[ -z "$PREFLIGHT_VERIFIED" || ! -r "$PREFLIGHT_VERIFIED" ]]; then
   echo "verified_preflight_missing" >&2
   exit 2
@@ -164,6 +156,15 @@ fi
   echo "migration_approval_preflight_mismatch" >&2
   exit 2
 }
+
+if ! command -v gcloud >/dev/null 2>&1; then
+  echo "gcloud is required; run this helper from Google Cloud Shell" >&2
+  exit 2
+fi
+if ! gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q .; then
+  echo "no active gcloud account; authorize Cloud Shell and rerun" >&2
+  exit 2
+fi
 
 gcloud config set project "$PROJECT" >/dev/null
 
