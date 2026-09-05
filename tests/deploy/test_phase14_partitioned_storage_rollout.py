@@ -615,6 +615,21 @@ def test_rollout_rejects_duplicate_verified_preflight_json_keys_before_gcloud() 
         assert marker in binding
 
 
+def test_rollout_rejects_nonfinite_verified_preflight_json_constants_before_gcloud() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    preflight_check = content.index("PREFLIGHT_ARCHIVE_BINDING=$(python")
+    gcloud_auth = content.index("gcloud auth list")
+
+    binding = content[preflight_check:gcloud_auth]
+    for marker in (
+        "parse_constant=reject_nonfinite_constant",
+        "def reject_nonfinite_constant",
+        "verified preflight JSON contains non-finite constant",
+    ):
+        assert marker in binding
+
+
 def test_rollout_validates_local_preflight_evidence_before_gcloud_auth_probe() -> None:
     content = HELPER.read_text(encoding="utf-8")
 
