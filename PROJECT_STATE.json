@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.77",
-  "updated_at": "2026-09-05T15:08:05Z",
+  "source_of_truth_version": "0.14.78",
+  "updated_at": "2026-09-05T15:17:20Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2290,6 +2290,19 @@
     "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_merge_commit": "f7cbec028bec5b615e58941c4ba92ad40db7c7c7",
     "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_post_merge_ci_run_id": 33973798254,
     "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_post_merge_ci_passed": true,
-    "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_post_merge_test_count": 979
+    "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_post_merge_test_count": 979,
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_branch": "phase14-storage-rollout-preflight-json-nonfinite-rejection",
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_red_head": "cf18496b798cade7d46da84b95c3fa98b258fa79",
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_red_ci_run_id": 33974156401,
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_red_existing_test_count": 979,
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_initial_implementation_head": "3f4892d6acabb460dd245db9d58a24f32cb35249",
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_initial_implementation_ci_run_id": 33974180570,
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_initial_implementation_ci_passed": false,
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_green_head": "e4a65abee20387f9b1a66d4f0980886f6d3c072e",
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_ci_run_id": 33974269257,
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_ci_passed": true,
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_test_count": 980,
+    "partitioned_storage_rollout_rejects_nonfinite_verified_json_constants": true,
+    "partitioned_storage_rollout_preflight_json_nonfinite_rejection_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
   }
 }

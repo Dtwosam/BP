@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.78 — 5 September 2026
+
+Phase 14 partitioned-storage rollout now rejects non-standard non-finite constants in approved verified-preflight JSON before any `gcloud` command. Python's permissive JSON decoder accepts `NaN`, `Infinity`, and `-Infinity` by default even though the verifier emits ordinary strict JSON; the rollout parser now supplies an explicit `parse_constant` rejection hook so a manually constructed approval snapshot cannot introduce those values anywhere in the reviewed JSON.
+
+Clean tests-only RED head `cf18496b798cade7d46da84b95c3fa98b258fa79` failed exactly the missing strict-JSON contract while all **979 existing tests passed** in CI `33974156401`. Initial implementation head `3f4892d6acabb460dd245db9d58a24f32cb35249` added the parser rejection; CI `33974180570` showed the new contract passing while exposing one stale same-snapshot source assertion (**979 passed, 1 failed**). Final repaired head `e4a65abee20387f9b1a66d4f0980886f6d3c072e` updated only that assertion and passed CI `33974269257` with **980 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+This remains engineering-only until merged. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.77 — 5 September 2026
 
 PR #120 merged verified-preflight headroom scalar-type validation to `main` as `f7cbec028bec5b615e58941c4ba92ad40db7c7c7`. Final branch head `2161d055fb907123b7fade4b64ccdf7c194fd059` passed push CI `33973651541`, PR CI `33973665934`, Historical Backfill Smoke `33973665861`, Live Recorder Smoke `33973665867`, and Recorder Short Soak `33973665864`; post-merge main CI `33973798254` then passed **979 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
