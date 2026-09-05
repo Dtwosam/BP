@@ -168,10 +168,9 @@ def verify_preflight_transcript(
     ):
         raise PreflightVerificationError("unexpected ARCHIVE_EVIDENCE")
 
-    if expected_env_file is not None:
-        env_file = _required(values, "ENV_FILE")
-        if env_file != expected_env_file:
-            raise PreflightVerificationError("unexpected ENV_FILE")
+    env_file = _required(values, "ENV_FILE")
+    if expected_env_file is not None and env_file != expected_env_file:
+        raise PreflightVerificationError("unexpected ENV_FILE")
 
     archive_sha256 = _required(values, "ARCHIVE_EVIDENCE_SHA256")
     if not _SHA256_RE.fullmatch(archive_sha256):
@@ -212,6 +211,7 @@ def verify_preflight_transcript(
         "head": head,
         "remote_head": remote_head,
         "remote_branch": branch,
+        "env_file": env_file,
         "mutations_performed": False,
         "recorder_state": "stopped",
         "storage_shape": "legacy_unmigrated",

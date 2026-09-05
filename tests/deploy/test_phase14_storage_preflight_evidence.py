@@ -348,6 +348,17 @@ def test_verified_preflight_binds_expected_environment_file() -> None:
         )
 
 
+def test_verified_preflight_json_preserves_expected_environment_file() -> None:
+    report = verify_preflight_transcript(
+        _transcript(),
+        expected_from_head=FROM_HEAD,
+        expected_head=HEAD,
+        expected_env_file="/etc/bp/bp.env",
+    )
+
+    assert report["env_file"] == "/etc/bp/bp.env"
+
+
 def test_verified_preflight_rechecks_research_zero_money_boundary() -> None:
     preflight = PREFLIGHT.read_text(encoding="utf-8")
     verifier = VERIFIER.read_text(encoding="utf-8")
