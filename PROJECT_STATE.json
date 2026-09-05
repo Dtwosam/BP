@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.95",
-  "updated_at": "2026-09-05T19:17:31Z",
+  "source_of_truth_version": "0.14.96",
+  "updated_at": "2026-09-05T19:25:32Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2502,13 +2502,24 @@
     "read_only_preflight_rerun_required_before_migration": true,
     "read_only_preflight_freeze_main_after_next_pass": true,
     "read_only_preflight_defer_pass_record_merge_until_migration_or_abort": true,
-    "partitioned_storage_authorized_launch_attempt_status": "FAILED_LOCAL_BEFORE_VM_CONTACT",
-    "partitioned_storage_authorized_launch_attempt_error": "SHORT: unbound variable",
-    "partitioned_storage_authorized_launch_attempt_candidate_head": "e5c8e9474d68b2ee94e5a01c761f1e0cee585f61",
-    "partitioned_storage_authorized_launch_attempt_preflight_sha256": "048765fc06f3998c03a08199170690582c8c7207c90fa335e2a7a8fc79f5aa35",
-    "partitioned_storage_authorized_launch_attempt_vm_contacted": false,
+    "partitioned_storage_authorized_launch_attempt_status": "FAILED_VM_PRE_MUTATION_ROLLOUT_SCOPE",
+    "partitioned_storage_authorized_launch_attempt_error": "unexpected_rollout_path:scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh",
+    "partitioned_storage_authorized_launch_attempt_candidate_head": "cc61d290390ce9cbe6a52ae55fab591709abd438",
+    "partitioned_storage_authorized_launch_attempt_preflight_sha256": "098a24d2eedfb91a6a0b7c3254f5a586320cb9ad89ae2f6c6ac5a15a04ffc182",
+    "partitioned_storage_authorized_launch_attempt_vm_contacted": true,
     "partitioned_storage_authorized_launch_attempt_production_mutation": false,
     "partitioned_storage_rollout_launcher_runtime_expansion_fix_pr": 140,
-    "partitioned_storage_rollout_launcher_runtime_expansion_fix_status": "IN_REVIEW_FRESH_PREFLIGHT_AND_APPROVAL_REQUIRED_AFTER_MERGE"
+    "partitioned_storage_rollout_launcher_runtime_expansion_fix_status": "MERGED_MAIN_FRESH_PREFLIGHT_COMPLETED_APPROVAL_ATTEMPTED",
+    "partitioned_storage_rollout_launcher_runtime_expansion_fix_merge_commit": "cc61d290390ce9cbe6a52ae55fab591709abd438",
+    "partitioned_storage_rollout_launcher_runtime_expansion_fix_post_merge_ci_run_id": 33986786740,
+    "partitioned_storage_rollout_launcher_runtime_expansion_fix_post_merge_ci_passed": true,
+    "partitioned_storage_authorized_launch_attempt_rollback_armed": false,
+    "partitioned_storage_authorized_launch_attempt_failure_time": "2026-09-05T19:25:32Z",
+    "partitioned_storage_rollout_scope_preflight_support_fix_status": "IN_REVIEW_FRESH_PREFLIGHT_AND_APPROVAL_REQUIRED_AFTER_MERGE",
+    "partitioned_storage_rollout_scope_preflight_support_paths": [
+      "scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh",
+      "scripts/deploy/phase14_storage_preflight_evidence_cloudshell.sh",
+      "scripts/deploy/verify_phase14_storage_preflight.py"
+    ]
   }
 }
