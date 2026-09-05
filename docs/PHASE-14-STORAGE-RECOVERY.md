@@ -67,6 +67,8 @@ The evidence wrapper explicitly supplies its resolved project, zone, VM, candida
 
 A preflight/verifier PASS is evidence that the host satisfies the non-mutating prerequisites at that moment. It is **not** authorization to run `phase14_partitioned_storage_rollout_cloudshell.sh` and does not imply migration acceptance.
 
+**Remote-branch freeze rule:** once a verified PASS is intended to support rollout, the selected remote branch must remain frozen at that exact candidate SHA until migration completes or is explicitly aborted. Do not merge code, documentation, changelog, or evidence-record commits to that branch after the PASS. The rollout fetches `origin/$BRANCH` immediately before mutation and requires it to equal the approved/preflight candidate; if the branch advances, the prior PASS is stale for rollout and the read-only preflight must be rerun against the new exact branch head. Source-of-truth recording of the new PASS should therefore be deferred until after migration or abort so recording the evidence does not itself invalidate it.
+
 ## Production migration boundary
 
 The partitioned-storage rollout remains separately gated. Engineering verification, a read-only preflight PASS, and merge to `main` do **not** authorize the migration.
