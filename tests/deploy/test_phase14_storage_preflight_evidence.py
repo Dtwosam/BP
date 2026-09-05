@@ -339,6 +339,14 @@ def test_verified_preflight_binds_expected_environment_file() -> None:
     assert "unexpected ENV_FILE" in verifier
     assert 'echo "ENV_FILE=$ENV_FILE"' in preflight
 
+    report = verify_preflight_transcript(
+        _transcript(),
+        expected_from_head=FROM_HEAD,
+        expected_head=HEAD,
+        expected_env_file="/etc/bp/bp.env",
+    )
+    assert report["env_file"] == "/etc/bp/bp.env"
+
     with pytest.raises(PreflightVerificationError, match="unexpected ENV_FILE"):
         verify_preflight_transcript(
             _transcript(),
