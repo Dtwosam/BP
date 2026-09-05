@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.64",
-  "updated_at": "2026-09-05T13:00:36Z",
+  "source_of_truth_version": "0.14.65",
+  "updated_at": "2026-09-05T13:07:22Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2147,6 +2147,17 @@
     "partitioned_storage_rollout_preflight_json_duplicate_key_rejection_ci_passed": true,
     "partitioned_storage_rollout_preflight_json_duplicate_key_rejection_test_count": 973,
     "partitioned_storage_rollout_rejects_duplicate_verified_preflight_json_keys": true,
-    "partitioned_storage_rollout_preflight_json_duplicate_key_rejection_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
+    "partitioned_storage_rollout_preflight_json_duplicate_key_rejection_status": "MERGED_MAIN_NOT_PRODUCTION_RUN",
+    "partitioned_storage_rollout_preflight_json_duplicate_key_rejection_pr": 108,
+    "partitioned_storage_rollout_preflight_json_duplicate_key_rejection_final_branch_head": "65b478b5a5823bc4fac343fb20fdf62c7e21c942",
+    "partitioned_storage_rollout_preflight_json_duplicate_key_rejection_push_ci_run_id": 33967720522,
+    "partitioned_storage_rollout_preflight_json_duplicate_key_rejection_pr_ci_run_id": 33967811111,
+    "partitioned_storage_rollout_preflight_json_duplicate_key_rejection_historical_backfill_smoke_run_id": 33967811146,
+    "partitioned_storage_rollout_preflight_json_duplicate_key_rejection_live_recorder_smoke_run_id": 33967811084,
+    "partitioned_storage_rollout_preflight_json_duplicate_key_rejection_recorder_short_soak_run_id": 33967811163,
+    "partitioned_storage_rollout_preflight_json_duplicate_key_rejection_merge_commit": "c1bcb3f6bba948f979509339c3995584e8ae48a7",
+    "partitioned_storage_rollout_preflight_json_duplicate_key_rejection_post_merge_ci_run_id": 33967910111,
+    "partitioned_storage_rollout_preflight_json_duplicate_key_rejection_post_merge_ci_passed": true,
+    "partitioned_storage_rollout_preflight_json_duplicate_key_rejection_post_merge_test_count": 973
   }
 }
