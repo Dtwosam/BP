@@ -151,9 +151,11 @@ if (
     raise SystemExit("verified preflight safety mismatch")
 
 headroom = payload.get("headroom") or {}
-if headroom.get("minimum_free_gib") != int(expected_min_free_gib):
+minimum_free_gib = headroom.get("minimum_free_gib")
+if type(minimum_free_gib) is not int or minimum_free_gib != int(expected_min_free_gib):
     raise SystemExit("verified preflight MIN_FREE_GIB mismatch")
-if headroom.get("critical_reserve_gib") != 15:
+critical_reserve_gib = headroom.get("critical_reserve_gib")
+if type(critical_reserve_gib) is not int or critical_reserve_gib != 15:
     raise SystemExit("verified preflight critical reserve mismatch")
 
 free_bytes = headroom.get("free_bytes")

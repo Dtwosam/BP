@@ -730,7 +730,8 @@ def test_rollout_binds_verified_preflight_min_free_gib_before_cloud_contact() ->
         '"$MIN_FREE_GIB"',
         "expected_min_free_gib",
         'headroom = payload.get("headroom") or {}',
-        'headroom.get("minimum_free_gib") != int(expected_min_free_gib)',
+        'minimum_free_gib = headroom.get("minimum_free_gib")',
+        'minimum_free_gib != int(expected_min_free_gib)',
         "verified preflight MIN_FREE_GIB mismatch",
     ):
         assert marker in binding
@@ -744,7 +745,28 @@ def test_rollout_binds_verified_preflight_critical_reserve_before_cloud_contact(
 
     binding = content[preflight_check:cloud_contact]
     for marker in (
-        'headroom.get("critical_reserve_gib") != 15',
+        'critical_reserve_gib = headroom.get("critical_reserve_gib")',
+        'critical_reserve_gib != 15',
+        "verified preflight critical reserve mismatch",
+    ):
+        assert marker in binding
+
+
+def test_rollout_requires_integer_verified_headroom_configuration_before_gcloud() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    preflight_check = content.index("PREFLIGHT_ARCHIVE_BINDING=$(python")
+    gcloud_auth = content.index("gcloud auth list")
+
+    binding = content[preflight_check:gcloud_auth]
+    for marker in (
+        'minimum_free_gib = headroom.get("minimum_free_gib")',
+        'type(minimum_free_gib) is not int',
+        'minimum_free_gib != int(expected_min_free_gib)',
+        'critical_reserve_gib = headroom.get("critical_reserve_gib")',
+        'type(critical_reserve_gib) is not int',
+        'critical_reserve_gib != 15',
+        "verified preflight MIN_FREE_GIB mismatch",
         "verified preflight critical reserve mismatch",
     ):
         assert marker in binding

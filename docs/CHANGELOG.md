@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.76 — 5 September 2026
+
+Phase 14 partitioned-storage rollout now requires the verified-preflight configured headroom scalars to retain the independent verifier's integer JSON shape before any `gcloud` command. `headroom.minimum_free_gib` must be an actual integer equal to the configured rollout floor, and `headroom.critical_reserve_gib` must be an actual integer equal to 15, so floating-point lookalikes such as `40.0` and `15.0` can no longer satisfy the local binding by numeric equality alone.
+
+Clean tests-only RED head `0567b43434dff6f945282c4f7e6c7b8ff39e50a8` failed exactly the missing type contract while all **978 existing tests passed** in CI `33973216084`. Initial implementation head `5d25e0a0a59007942c1476d5271748e1f49021e0` added the runtime checks; CI `33973224422` showed the new contract passing while exposing two stale legacy source-marker assertions (**977 passed, 2 failed**). Final repaired head `82b0ea09e45b155c11aa18a761c5ceda472a7783` updated only those assertions and passed CI `33973275844` with **979 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+This remains engineering-only until merged. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.75 — 5 September 2026
 
 PR #118 merged verified-preflight integer zero-money safety validation to `main` as `84bf292e9e6cd99fbacf5415098972315c079c63`. Final branch head `a0332b9fa158b2a1bedf9a4cfa612b48de825480` passed push CI `33973213954`, PR CI `33973192885`, Historical Backfill Smoke `33973192804`, Live Recorder Smoke `33973192826`, and Recorder Short Soak `33973192819`; post-merge main CI `33973295321` then passed **978 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
