@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.86",
-  "updated_at": "2026-09-05T16:23:31Z",
+  "source_of_truth_version": "0.14.87",
+  "updated_at": "2026-09-05T16:32:43Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -1085,7 +1085,18 @@
     "forward_coverage_source_truth_reconciliation_ci_run_id": 33977795425,
     "forward_coverage_source_truth_reconciliation_ci_passed": true,
     "forward_coverage_source_truth_reconciliation_test_count": 984,
-    "forward_coverage_source_truth_reconciliation_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
+    "forward_coverage_source_truth_reconciliation_status": "MERGED_MAIN_NOT_PRODUCTION_RUN",
+    "forward_coverage_source_truth_reconciliation_pr": 130,
+    "forward_coverage_source_truth_reconciliation_final_branch_head": "be4f586b4f0a63a195f4fda270598cb11c97c68a",
+    "forward_coverage_source_truth_reconciliation_push_ci_run_id": 33977923947,
+    "forward_coverage_source_truth_reconciliation_pr_ci_run_id": 33978012880,
+    "forward_coverage_source_truth_reconciliation_historical_backfill_smoke_run_id": 33978012884,
+    "forward_coverage_source_truth_reconciliation_live_recorder_smoke_run_id": 33978012876,
+    "forward_coverage_source_truth_reconciliation_recorder_short_soak_run_id": 33978012923,
+    "forward_coverage_source_truth_reconciliation_merge_commit": "c4c78de63b1ca2fbd5d21d87be5a98e7f8950e42",
+    "forward_coverage_source_truth_reconciliation_post_merge_ci_run_id": 33978128868,
+    "forward_coverage_source_truth_reconciliation_post_merge_ci_passed": true,
+    "forward_coverage_source_truth_reconciliation_post_merge_test_count": 984
   },
   "phase_14_storage_reliability_followup": {
     "incident_date": "2026-09-04",
