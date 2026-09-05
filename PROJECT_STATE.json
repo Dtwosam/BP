@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.55",
-  "updated_at": "2026-09-05T10:22:19Z",
+  "source_of_truth_version": "0.14.56",
+  "updated_at": "2026-09-05T11:00:52Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2049,6 +2049,18 @@
     "partitioned_storage_rollout_preflight_min_free_binding_merge_commit": "7ccc43aa4225787975612bcf23acebdd6ee2f3a8",
     "partitioned_storage_rollout_preflight_min_free_binding_post_merge_ci_run_id": 33960402112,
     "partitioned_storage_rollout_preflight_min_free_binding_post_merge_ci_passed": true,
-    "partitioned_storage_rollout_preflight_min_free_binding_post_merge_test_count": 966
+    "partitioned_storage_rollout_preflight_min_free_binding_post_merge_test_count": 966,
+    "partitioned_storage_rollout_preflight_env_file_binding_branch": "phase14-storage-rollout-preflight-env-file-binding",
+    "partitioned_storage_rollout_preflight_env_file_binding_red_head": "f2b6ae64a0d60d33185622dfd0f705e9ef207a18",
+    "partitioned_storage_rollout_preflight_env_file_binding_red_ci_run_id": 33961997010,
+    "partitioned_storage_rollout_preflight_env_file_binding_red_existing_test_count": 966,
+    "partitioned_storage_rollout_preflight_env_file_binding_green_head": "19ee0c82f6bdf2e402a3354006311e2cd11e87bb",
+    "partitioned_storage_rollout_preflight_env_file_binding_ci_run_id": 33962079609,
+    "partitioned_storage_rollout_preflight_env_file_binding_ci_passed": true,
+    "partitioned_storage_rollout_preflight_env_file_binding_test_count": 969,
+    "verified_preflight_records_env_file": true,
+    "partitioned_storage_rollout_requires_verified_env_file_match": true,
+    "partitioned_storage_rollout_acceptance_evidence_records_env_file": true,
+    "partitioned_storage_rollout_preflight_env_file_binding_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
   }
 }
