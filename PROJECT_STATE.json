@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.81",
-  "updated_at": "2026-09-05T15:31:03Z",
+  "source_of_truth_version": "0.14.82",
+  "updated_at": "2026-09-05T15:53:25Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2337,6 +2337,16 @@
     "partitioned_storage_preflight_project_state_strict_json_merge_commit": "bfed99b6f8591fcdb7784e5d1399ca2945e8599c",
     "partitioned_storage_preflight_project_state_strict_json_post_merge_ci_run_id": 33974966377,
     "partitioned_storage_preflight_project_state_strict_json_post_merge_ci_passed": true,
-    "partitioned_storage_preflight_project_state_strict_json_post_merge_test_count": 981
+    "partitioned_storage_preflight_project_state_strict_json_post_merge_test_count": 981,
+    "partitioned_storage_preflight_explicit_config_binding_branch": "phase14-storage-preflight-explicit-config-binding",
+    "partitioned_storage_preflight_explicit_config_binding_red_head": "06aa61eeda06dd6dce87d5e62298c949227f16b1",
+    "partitioned_storage_preflight_explicit_config_binding_red_ci_run_id": 33976089765,
+    "partitioned_storage_preflight_explicit_config_binding_red_existing_test_count": 981,
+    "partitioned_storage_preflight_explicit_config_binding_green_head": "79ec3df3619afb77bf68a7a72851084a7a9eee23",
+    "partitioned_storage_preflight_explicit_config_binding_ci_run_id": 33976100121,
+    "partitioned_storage_preflight_explicit_config_binding_ci_passed": true,
+    "partitioned_storage_preflight_explicit_config_binding_test_count": 982,
+    "partitioned_storage_preflight_explicit_config_binding": true,
+    "partitioned_storage_preflight_explicit_config_binding_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
   }
 }

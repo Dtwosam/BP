@@ -63,6 +63,8 @@ The independent verifier is invoked with the expected production `PROJECT`, `ZON
 
 A verified JSON result has `"verdict": "PASS"`, `"mutations_performed": false`, and `"storage_shape": "legacy_unmigrated"`. Its `remote_branch` field preserves the exact verified remote branch, its top-level `env_file` preserves the exact already-validated `ENV_FILE`, its `target` block preserves the exact `PROJECT`, `ZONE`, and `VM` from the captured preflight, and its archive block carries the exact SHA-256 of the canonical recovery evidence file captured read-only during preflight. It intentionally omits the PostgreSQL mount source and display-only relation-size strings.
 
+The evidence wrapper explicitly supplies its resolved project, zone, VM, candidate/deployed SHAs, canonical archive path, branch, environment-file path, and migration headroom floor to the underlying read-only preflight, then supplies those same resolved values to independent verification. This avoids relying on inherited environment state or duplicated defaults remaining synchronized across the collection and verification stages.
+
 A preflight/verifier PASS is evidence that the host satisfies the non-mutating prerequisites at that moment. It is **not** authorization to run `phase14_partitioned_storage_rollout_cloudshell.sh` and does not imply migration acceptance.
 
 ## Production migration boundary

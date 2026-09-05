@@ -134,6 +134,25 @@ def test_cloudshell_evidence_runner_strictly_parses_project_state_once() -> None
     assert binding.count("json.loads(") == 1
 
 
+def test_cloudshell_evidence_runner_explicitly_binds_preflight_configuration() -> None:
+    content = RUNNER.read_text(encoding="utf-8")
+
+    preflight = content.index('bash "$PREFLIGHT" | tee -a "$TRANSCRIPT"')
+    invocation = content[max(0, preflight - 1200):preflight]
+    for marker in (
+        'PHASE14_PARTITIONED_STORAGE_PROJECT="$PROJECT"',
+        'PHASE14_PARTITIONED_STORAGE_ZONE="$ZONE"',
+        'PHASE14_PARTITIONED_STORAGE_VM="$VM"',
+        'PHASE14_PARTITIONED_STORAGE_HEAD="$EXPECTED_HEAD"',
+        'PHASE14_PARTITIONED_STORAGE_FROM_HEAD="$EXPECTED_FROM_HEAD"',
+        'PHASE14_PARTITIONED_STORAGE_ARCHIVE_EVIDENCE="$ARCHIVE_EVIDENCE"',
+        'PHASE14_PARTITIONED_STORAGE_BRANCH="$BRANCH"',
+        'PHASE14_PARTITIONED_STORAGE_ENV_FILE="$ENV_FILE"',
+        'PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB="$MIN_FREE_GIB"',
+    ):
+        assert marker in invocation
+
+
 def test_cloudshell_evidence_runner_reports_verified_digest_without_approval() -> None:
     content = RUNNER.read_text(encoding="utf-8")
 
