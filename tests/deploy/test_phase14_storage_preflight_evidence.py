@@ -38,6 +38,10 @@ FROM_HEAD={FROM_HEAD}
 HEAD={HEAD}
 MIN_FREE_GIB=40
 ENV_FILE=/etc/bp/bp.env
+MODE=research
+LIVE_TRADING_ENABLED=false
+MAX_TRADE_SIZE_USD=0
+MAX_DAILY_LOSS_USD=0
 Running read-only Phase 14 partitioned-storage production preflight.
 PHASE14_PARTITIONED_STORAGE_PREFLIGHT=PASS
 FROM_HEAD={FROM_HEAD}
@@ -359,14 +363,7 @@ def test_verified_preflight_rechecks_research_zero_money_boundary() -> None:
     ):
         assert marker in verifier
 
-    transcript = (
-        _transcript()
-        + "MODE=research\n"
-        + "LIVE_TRADING_ENABLED=false\n"
-        + "MAX_TRADE_SIZE_USD=0\n"
-        + "MAX_DAILY_LOSS_USD=0\n"
-    )
-    transcript = _replace_last_field(transcript, "MODE", "live")
+    transcript = _replace_last_field(_transcript(), "MODE", "live")
 
     with pytest.raises(PreflightVerificationError, match="unexpected MODE"):
         verify_preflight_transcript(
