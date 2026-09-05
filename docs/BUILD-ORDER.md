@@ -409,6 +409,8 @@ Do not automatically increase stake.
 
 **Current status:** blocked. Do not begin Phase 15 until every Master Source of Truth live-gate item is `pass` and explicit real-money authorization exists.
 
+
+A follow-up rollout/preflight environment-file checkpoint on `phase14-storage-rollout-preflight-env-file-binding` now preserves the independently verified preflight `ENV_FILE` as typed `env_file` JSON, requires it to exactly match rollout `PHASE14_PARTITIONED_STORAGE_ENV_FILE` before `gcloud config set project` or production VM contact, and records the configured path in eventual rollout PASS evidence. Clean tests-only RED head `f2b6ae64a0d60d33185622dfd0f705e9ef207a18` failed exactly the three missing contracts while 966 existing tests passed in CI `33961997010`; GREEN head `19ee0c82f6bdf2e402a3354006311e2cd11e87bb` passed CI `33962079609` with 969 tests plus rollout/deployment validation, research-mode health, and dashboard checks. This remains engineering-only until merged; no production preflight or migration was executed and no migration authorization was set.
 ---
 
 ## Immediate next action
