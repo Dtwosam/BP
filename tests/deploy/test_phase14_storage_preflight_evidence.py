@@ -447,3 +447,8 @@ def test_verified_preflight_binds_expected_remote_branch() -> None:
             expected_head=HEAD,
             expected_branch="release",
         )
+
+def test_operator_captures_preflight_stderr_in_transcript() -> None:
+    operator = OPERATOR.read_text(encoding="utf-8")
+
+    assert 'bash "$PREFLIGHT" 2>&1 | tee -a "$TRANSCRIPT"' in operator
