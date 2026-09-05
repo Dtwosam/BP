@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.74",
-  "updated_at": "2026-09-05T14:52:39Z",
+  "source_of_truth_version": "0.14.75",
+  "updated_at": "2026-09-05T14:58:06Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2255,6 +2255,17 @@
     "partitioned_storage_rollout_preflight_safety_zero_type_consistency_ci_passed": true,
     "partitioned_storage_rollout_preflight_safety_zero_type_consistency_test_count": 978,
     "partitioned_storage_rollout_requires_verified_zero_money_integer_types": true,
-    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_status": "MERGED_MAIN_NOT_PRODUCTION_RUN",
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_pr": 118,
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_final_branch_head": "a0332b9fa158b2a1bedf9a4cfa612b48de825480",
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_push_ci_run_id": 33973213954,
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_pr_ci_run_id": 33973192885,
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_historical_backfill_smoke_run_id": 33973192804,
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_live_recorder_smoke_run_id": 33973192826,
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_recorder_short_soak_run_id": 33973192819,
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_merge_commit": "84bf292e9e6cd99fbacf5415098972315c079c63",
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_post_merge_ci_run_id": 33973295321,
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_post_merge_ci_passed": true,
+    "partitioned_storage_rollout_preflight_safety_zero_type_consistency_post_merge_test_count": 978
   }
 }
