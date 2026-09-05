@@ -14,6 +14,7 @@ from scripts.deploy.verify_phase14_storage_preflight import (
 ROOT = Path(__file__).resolve().parents[2]
 VERIFIER = ROOT / "scripts" / "deploy" / "verify_phase14_storage_preflight.py"
 PREFLIGHT = ROOT / "scripts" / "deploy" / "phase14_partitioned_storage_preflight_cloudshell.sh"
+OPERATOR = ROOT / "scripts" / "deploy" / "phase14_storage_preflight_evidence_cloudshell.sh"
 CI = ROOT / ".github" / "workflows" / "ci.yml"
 
 FROM_HEAD = "c29fe227f959305f67031e922ca659869a826c4f"
@@ -42,6 +43,7 @@ MODE=research
 LIVE_TRADING_ENABLED=false
 MAX_TRADE_SIZE_USD=0
 MAX_DAILY_LOSS_USD=0
+AUTOMATIC_PROMOTION=false
 Running read-only Phase 14 partitioned-storage production preflight.
 PHASE14_PARTITIONED_STORAGE_PREFLIGHT=PASS
 FROM_HEAD={FROM_HEAD}
@@ -366,6 +368,34 @@ def test_verified_preflight_rechecks_research_zero_money_boundary() -> None:
     transcript = _replace_last_field(_transcript(), "MODE", "live")
 
     with pytest.raises(PreflightVerificationError, match="unexpected MODE"):
+        verify_preflight_transcript(
+            transcript,
+            expected_from_head=FROM_HEAD,
+            expected_head=HEAD,
+        )
+
+
+def test_verified_preflight_binds_candidate_automatic_promotion_false() -> None:
+    operator = OPERATOR.read_text(encoding="utf-8")
+    verifier = VERIFIER.read_text(encoding="utf-8")
+
+    for marker in (
+        "automatic_promotion",
+        "AUTOMATIC_PROMOTION=false",
+        "automatic_promotion_binding_invalid",
+    ):
+        assert marker in operator
+
+    assert "unexpected AUTOMATIC_PROMOTION" in verifier
+
+    transcript = _replace_last_field(
+        _transcript(), "AUTOMATIC_PROMOTION", "true"
+    )
+
+    with pytest.raises(
+        PreflightVerificationError,
+        match="unexpected AUTOMATIC_PROMOTION",
+    ):
         verify_preflight_transcript(
             transcript,
             expected_from_head=FROM_HEAD,

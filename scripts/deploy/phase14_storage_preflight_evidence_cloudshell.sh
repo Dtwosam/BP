@@ -58,6 +58,36 @@ PY
   exit 2
 fi
 
+if ! python - <<'PY'
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+payload = json.loads(Path("PROJECT_STATE.json").read_text(encoding="utf-8"))
+values: list[object] = []
+
+
+def walk(value: object) -> None:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key == "automatic_promotion":
+                values.append(item)
+            walk(item)
+    elif isinstance(value, list):
+        for item in value:
+            walk(item)
+
+
+walk(payload)
+if not values or any(item is not False for item in values):
+    raise SystemExit(1)
+PY
+then
+  echo "automatic_promotion_binding_invalid" >&2
+  exit 2
+fi
+
 PREFLIGHT="scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh"
 VERIFIER="scripts/deploy/verify_phase14_storage_preflight.py"
 [[ -f "$PREFLIGHT" ]] || { echo "missing $PREFLIGHT" >&2; exit 2; }
@@ -75,6 +105,7 @@ VERIFIED="${PHASE14_STORAGE_PREFLIGHT_VERIFIED:-$HOME/bp-phase14-storage-preflig
   echo "preflight_transcript_path_exists" >&2
   exit 2
 }
+echo "AUTOMATIC_PROMOTION=false" >> "$TRANSCRIPT"
 
 PHASE14_PARTITIONED_STORAGE_ARCHIVE_EVIDENCE="$ARCHIVE_EVIDENCE" \
 PHASE14_PARTITIONED_STORAGE_ENV_FILE="$ENV_FILE" \
