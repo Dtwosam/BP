@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.83 — 5 September 2026
+
+PR #126 merged explicit storage-preflight operator configuration binding to `main` as `7241b95fa3671fbfbe88a1ed16e6da4957ded5b2`. Final branch head `50485ad39142d74b3bcbacc3490075b1162a1909` passed push CI `33976203872`, PR CI `33976216347`, Historical Backfill Smoke `33976216309`, Live Recorder Smoke `33976216337`, and Recorder Short Soak `33976216452`; post-merge main CI `33976320638` then passed **982 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. The evidence wrapper explicitly propagates its resolved production target, exact SHA transition, archive binding, branch, environment-file path, and headroom floor into the underlying read-only preflight before independently verifying those same values. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.82 — 5 September 2026
 
 The Phase 14 storage-preflight evidence wrapper now explicitly passes its resolved project, zone, VM, candidate/deployed SHAs, canonical archive path, branch, environment-file path, and migration headroom floor into the underlying read-only preflight invocation. Collection and independent verification therefore consume the same resolved operator configuration without relying on inherited environment state or duplicated defaults remaining synchronized across scripts.
