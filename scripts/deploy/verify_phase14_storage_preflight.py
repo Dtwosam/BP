@@ -132,6 +132,10 @@ def verify_preflight_transcript(
     if max_daily_loss_usd != "0":
         raise PreflightVerificationError("unexpected MAX_DAILY_LOSS_USD")
 
+    automatic_promotion = _required(values, "AUTOMATIC_PROMOTION")
+    if automatic_promotion != "false":
+        raise PreflightVerificationError("unexpected AUTOMATIC_PROMOTION")
+
     mutations_raw = _required(values, "MUTATIONS_PERFORMED").lower()
     if mutations_raw != "false":
         raise PreflightVerificationError("preflight reported production mutations")
@@ -208,6 +212,7 @@ def verify_preflight_transcript(
             "live_trading_enabled": False,
             "max_trade_size_usd": 0,
             "max_daily_loss_usd": 0,
+            "automatic_promotion": False,
         },
         "target": {
             "project": project,
