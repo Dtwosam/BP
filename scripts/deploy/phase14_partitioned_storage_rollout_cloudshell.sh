@@ -419,6 +419,10 @@ validate_rollout_scope() {
         ;;
       scripts/deploy/migrate_partitioned_raw_storage.py|scripts/deploy/phase14_partitioned_storage_rollout_cloudshell.sh)
         ;;
+      scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh|\
+scripts/deploy/phase14_storage_preflight_evidence_cloudshell.sh|\
+scripts/deploy/verify_phase14_storage_preflight.py)
+        ;;
       *)
         fail "unexpected_rollout_path:$path"
         ;;
