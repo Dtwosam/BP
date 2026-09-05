@@ -749,6 +749,22 @@ def test_rollout_validates_verified_preflight_headroom_semantics_before_gcloud()
         assert marker in binding
 
 
+def test_rollout_validates_verified_preflight_root_free_bytes_before_gcloud() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    preflight_check = content.index("PREFLIGHT_ARCHIVE_BINDING=$(python")
+    gcloud_auth = content.index("gcloud auth list")
+
+    binding = content[preflight_check:gcloud_auth]
+    for marker in (
+        'root_free_bytes = headroom.get("root_free_bytes")',
+        'type(root_free_bytes) is not int',
+        'root_free_bytes < 1',
+        "verified preflight headroom mismatch",
+    ):
+        assert marker in binding
+
+
 def test_rollout_validates_verified_preflight_raw_shape_semantics_before_gcloud() -> None:
     content = HELPER.read_text(encoding="utf-8")
 

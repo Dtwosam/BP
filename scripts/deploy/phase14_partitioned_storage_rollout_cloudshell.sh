@@ -152,11 +152,14 @@ if headroom.get("critical_reserve_gib") != 15:
     raise SystemExit("verified preflight critical reserve mismatch")
 
 free_bytes = headroom.get("free_bytes")
+root_free_bytes = headroom.get("root_free_bytes")
 raw_total_bytes = headroom.get("raw_total_bytes")
 required_free_bytes = headroom.get("required_free_bytes")
 if (
     type(free_bytes) is not int
     or free_bytes < 1
+    or type(root_free_bytes) is not int
+    or root_free_bytes < 1
     or type(raw_total_bytes) is not int
     or raw_total_bytes < 1
     or type(required_free_bytes) is not int
