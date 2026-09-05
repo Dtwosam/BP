@@ -461,6 +461,8 @@ A follow-up preflight-operator strict-state checkpoint on `phase14-storage-prefl
 
 PR #124 merged strict single-snapshot candidate-state binding to `main` as `bfed99b6f8591fcdb7784e5d1399ca2945e8599c`. Final head `d3e8689887927eedbf80cd461158a49063b6bc85` passed push CI `33974867767`, PR CI `33974878464`, Historical Backfill Smoke `33974878459`, Live Recorder Smoke `33974878381`, and Recorder Short Soak `33974878387`; post-merge main CI `33974966377` then passed 981 tests plus rollout/deployment validation, research-mode health, and dashboard checks. The checkpoint is now `MERGED_MAIN_NOT_PRODUCTION_RUN`; no production preflight or migration was executed and no migration authorization was set.
 
+A follow-up preflight-operator explicit-configuration checkpoint on `phase14-storage-preflight-explicit-config-binding` now requires the evidence wrapper to pass its resolved `PROJECT`, `ZONE`, `VM`, candidate/deployed SHAs, canonical archive path, branch, environment-file path, and `MIN_FREE_GIB` explicitly into the underlying read-only preflight before independent verification. Clean tests-only RED head `06aa61eeda06dd6dce87d5e62298c949227f16b1` failed exactly this missing contract while 981 existing tests passed in CI `33976089765`; GREEN head `79ec3df3619afb77bf68a7a72851084a7a9eee23` passed CI `33976100121` with 982 tests plus rollout/deployment validation, research-mode health, and dashboard checks. This remains engineering-only until merged; no production preflight or migration was executed and no migration authorization was set.
+
 ---
 
 ## Immediate next action
