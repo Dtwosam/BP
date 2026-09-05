@@ -134,6 +134,24 @@ def test_cloudshell_evidence_runner_strictly_parses_project_state_once() -> None
     assert binding.count("json.loads(") == 1
 
 
+def test_cloudshell_evidence_runner_binds_deployed_from_head_to_candidate_state() -> None:
+    content = RUNNER.read_text(encoding="utf-8")
+
+    state_binding = content.index('ARCHIVE_EVIDENCE=$(python')
+    transcript = content.index('TRANSCRIPT="${PHASE14_STORAGE_PREFLIGHT_TRANSCRIPT:-')
+    binding = content[state_binding:transcript]
+
+    for marker in (
+        'production_deployed_head_before_recovery',
+        'PHASE14_PARTITIONED_STORAGE_FROM_HEAD',
+        'production_from_head_binding_invalid',
+        'production_from_head_binding_mismatch',
+    ):
+        assert marker in binding
+
+    assert binding.count('Path("PROJECT_STATE.json")') == 1
+
+
 def test_cloudshell_evidence_runner_validates_local_env_and_headroom_before_state_binding() -> None:
     content = RUNNER.read_text(encoding="utf-8")
     preflight_content = PREFLIGHT.read_text(encoding="utf-8")
