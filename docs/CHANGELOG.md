@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.55 — 5 September 2026
+
+PR #98 merged rollout-to-verified-preflight configured free-space-floor binding to `main` as `7ccc43aa4225787975612bcf23acebdd6ee2f3a8`. Final branch head `380d16fae89d5899f1016c62b0cd29f564982355` passed push CI `33960205917`, PR CI `33960306226`, Historical Backfill Smoke `33960306239`, Live Recorder Smoke `33960306219`, and Recorder Short Soak `33960306206`; post-merge main CI `33960402112` then passed **966 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. The rollout cannot contact production unless its configured `PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB` exactly matches verified-preflight `headroom.minimum_free_gib`, and eventual PASS evidence records that same configured floor. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.54 — 5 September 2026
 
 Phase 14 partitioned-storage rollout now binds its configured migration free-space floor to the independently verified preflight before any cloud project selection or production VM contact. The launcher passes `PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB` into the same single-snapshot verified-preflight validation path and fails closed with `verified preflight MIN_FREE_GIB mismatch` unless `headroom.minimum_free_gib` exactly matches the rollout value. Eventual PASS evidence also records that configured floor as `pre_migration_headroom.minimum_free_gib`.
