@@ -5,6 +5,7 @@ umask 077
 PROJECT="${PHASE14_PARTITIONED_STORAGE_PROJECT:-project-4397f2c0-7098-4c1c-abb}"
 ZONE="${PHASE14_PARTITIONED_STORAGE_ZONE:-us-east1-c}"
 VM="${PHASE14_PARTITIONED_STORAGE_VM:-bp-recorder}"
+BRANCH="${PHASE14_PARTITIONED_STORAGE_BRANCH:-main}"
 MIN_FREE_GIB="${PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB:-40}"
 ENV_FILE="${PHASE14_PARTITIONED_STORAGE_ENV_FILE:-/etc/bp/bp.env}"
 EXPECTED_FROM_HEAD="${PHASE14_PARTITIONED_STORAGE_FROM_HEAD:-}"
@@ -16,6 +17,10 @@ if [[ ! "$EXPECTED_FROM_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
 fi
 if [[ ! "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
   echo "PHASE14_PARTITIONED_STORAGE_HEAD must be the exact 40-character candidate SHA" >&2
+  exit 2
+fi
+if ! [[ "$BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+  echo "PHASE14_PARTITIONED_STORAGE_BRANCH contains unsupported characters" >&2
   exit 2
 fi
 
@@ -108,6 +113,7 @@ VERIFIED="${PHASE14_STORAGE_PREFLIGHT_VERIFIED:-$HOME/bp-phase14-storage-preflig
 echo "AUTOMATIC_PROMOTION=false" >> "$TRANSCRIPT"
 
 PHASE14_PARTITIONED_STORAGE_ARCHIVE_EVIDENCE="$ARCHIVE_EVIDENCE" \
+PHASE14_PARTITIONED_STORAGE_BRANCH="$BRANCH" \
 PHASE14_PARTITIONED_STORAGE_ENV_FILE="$ENV_FILE" \
   bash "$PREFLIGHT" | tee -a "$TRANSCRIPT"
 
@@ -119,6 +125,7 @@ if ! python "$VERIFIER" \
   --input "$TRANSCRIPT" \
   --expected-from-head "$EXPECTED_FROM_HEAD" \
   --expected-head "$EXPECTED_HEAD" \
+  --expected-branch "$BRANCH" \
   --expected-project "$PROJECT" \
   --expected-zone "$ZONE" \
   --expected-vm "$VM" \

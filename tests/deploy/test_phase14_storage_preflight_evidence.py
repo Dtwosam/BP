@@ -37,6 +37,7 @@ VM=bp-recorder
 ZONE=us-east1-c
 FROM_HEAD={FROM_HEAD}
 HEAD={HEAD}
+BRANCH=main
 MIN_FREE_GIB=40
 ENV_FILE=/etc/bp/bp.env
 MODE=research
@@ -136,8 +137,8 @@ def test_verify_preflight_transcript_rejects_boundary_violations(
 
 def test_verify_preflight_transcript_rejects_conflicting_duplicate_head_fields() -> None:
     transcript = _transcript().replace(
-        f"FROM_HEAD={FROM_HEAD}\nHEAD={HEAD}\nMIN_FREE_GIB=40",
-        f"FROM_HEAD={'0' * 40}\nHEAD={HEAD}\nMIN_FREE_GIB=40",
+        f"FROM_HEAD={FROM_HEAD}\nHEAD={HEAD}\nBRANCH=main\nMIN_FREE_GIB=40",
+        f"FROM_HEAD={'0' * 40}\nHEAD={HEAD}\nBRANCH=main\nMIN_FREE_GIB=40",
         1,
     )
 
@@ -194,6 +195,8 @@ def test_verify_preflight_cli_emits_sanitized_json(tmp_path: Path) -> None:
             FROM_HEAD,
             "--expected-head",
             HEAD,
+            "--expected-branch",
+            "main",
             "--expected-project",
             "project-4397f2c0-7098-4c1c-abb",
             "--expected-zone",
@@ -400,4 +403,36 @@ def test_verified_preflight_binds_candidate_automatic_promotion_false() -> None:
             transcript,
             expected_from_head=FROM_HEAD,
             expected_head=HEAD,
+        )
+
+
+def test_verified_preflight_binds_expected_remote_branch() -> None:
+    operator = OPERATOR.read_text(encoding="utf-8")
+    preflight = PREFLIGHT.read_text(encoding="utf-8")
+    verifier = VERIFIER.read_text(encoding="utf-8")
+
+    for marker in (
+        'BRANCH="${PHASE14_PARTITIONED_STORAGE_BRANCH:-main}"',
+        'PHASE14_PARTITIONED_STORAGE_BRANCH="$BRANCH"',
+        'echo "BRANCH=$BRANCH"',
+        "--expected-branch",
+        "unexpected BRANCH",
+    ):
+        assert marker in operator + preflight + verifier
+
+    transcript = _transcript()
+    report = verify_preflight_transcript(
+        transcript,
+        expected_from_head=FROM_HEAD,
+        expected_head=HEAD,
+        expected_branch="main",
+    )
+    assert report["remote_branch"] == "main"
+
+    with pytest.raises(PreflightVerificationError, match="unexpected BRANCH"):
+        verify_preflight_transcript(
+            transcript,
+            expected_from_head=FROM_HEAD,
+            expected_head=HEAD,
+            expected_branch="release",
         )
