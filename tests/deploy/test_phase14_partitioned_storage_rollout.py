@@ -625,6 +625,25 @@ def test_rollout_acceptance_evidence_records_verified_remote_branch() -> None:
     assert '"remote_branch": remote_branch' in content[evidence_payload:]
 
 
+def test_rollout_binds_verified_preflight_research_zero_money_safety_before_cloud_contact() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    preflight_check = content.index("PREFLIGHT_ARCHIVE_BINDING=$(python")
+    cloud_contact = content.index('gcloud config set project "$PROJECT"')
+
+    binding = content[preflight_check:cloud_contact]
+    for marker in (
+        'safety = payload.get("safety") or {}',
+        'safety.get("mode") != "research"',
+        'safety.get("live_trading_enabled") is not False',
+        'safety.get("max_trade_size_usd") != 0',
+        'safety.get("max_daily_loss_usd") != 0',
+        'safety.get("automatic_promotion") is not False',
+        "verified preflight safety mismatch",
+    ):
+        assert marker in binding
+
+
 def test_rollout_binds_verified_preflight_env_file_before_cloud_contact() -> None:
     content = HELPER.read_text(encoding="utf-8")
 
