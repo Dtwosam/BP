@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.95 — 5 September 2026
+
+The explicitly authorized Phase 14 partitioned-storage rollout for candidate `e5c8e9474d68b2ee94e5a01c761f1e0cee585f61` did **not** reach the production VM. After the local candidate/preflight authorization checks passed, the Cloud Shell helper failed while constructing its remote launcher with `SHORT: unbound variable`. The failure occurred before the helper's final `gcloud compute ssh` invocation, so no production schema/service mutation occurred and the recorder/storage state was not changed by this attempt.
+
+PR #140 fixes the launcher-expansion defect by deferring VM-runtime `SHORT`, `UNIT`, and `WORKER_PATH` expansion to the remote shell and adds a regression covering those escaped bindings. All existing exact-SHA, verified-preflight, recorder-stopped, headroom, rollback, and research/zero-money gates remain unchanged.
+
+Because the fix changes the candidate SHA, the prior approval tuple and verified preflight SHA-256 `048765fc06f3998c03a08199170690582c8c7207c90fa335e2a7a8fc79f5aa35` are not reusable. After PR #140 merges and post-merge CI passes, freeze `main`, rerun the read-only production preflight against that exact final SHA, and require a new explicit migration approval bound to the new verified-preflight digest. Migration authorization is currently false/unset.
+
 ## 0.14.94 — 5 September 2026
 
 The verified read-only production preflight recorded in 0.14.93 was valid when captured against candidate/remote `ad4ca7d5b65400ba657caeea35b2035ffba39a0b`, but PR #138 then merged the PASS record and advanced `origin/main` to `4ba49409442615bb49fc9c522441abe784adf7d3`. The production rollout intentionally fetches the selected remote branch immediately before mutation and requires `origin/<branch>` to equal the preflight-approved candidate, failing with `remote_candidate_head_changed` otherwise. Therefore the prior PASS is now **superseded for migration use** and must not be used to authorize rollout.

@@ -485,7 +485,7 @@ PR #136 merged read-only preflight observability and worker-stdin hardening to `
 
 ## Immediate next action
 
-**After this correction merges, freeze `main` and rerun the read-only Phase 14 production storage preflight against that exact final `main` SHA. Do not merge any further commits after the new verified PASS until partition migration completes or is explicitly aborted. The prior PASS against `ad4ca7d5b65400ba657caeea35b2035ffba39a0b` is superseded because PR #138 advanced `origin/main`; migration authorization remains separate and false/unset.**
+**Merge the Phase 14 rollout-launcher runtime-expansion fix, verify post-merge CI, then freeze `main` and rerun the read-only production storage preflight against that exact new `main` SHA. The prior approval/preflight tuple is invalid for the new candidate; require a fresh explicit migration approval before retrying production rollout.**
 
 Production preflight evidence captured at 2026-09-05T18:31:49Z was verified PASS at capture time but is superseded for migration use because origin/main advanced afterward: recorder stopped, mutations false, research/zero-money boundary intact, canonical archive `phase14-storage-recovery-24-48h-20260904T015955Z.json` bound by SHA-256 `76d3b4cfa4d2a6d976795eeadeb7ea11de46747ef88c3f5486292295e764bd5c`, raw storage still legacy/unmigrated, dedicated-data free bytes `62289272832`, raw relation bytes `29804167168`, and verified-preflight digest `df97c53b627b37cf00e57263ab092ec6f33290d027c3138ee4a1bcfbf98a0687`. Migration approval remains false/unset; this evidence must not be interpreted as authorization.
 
