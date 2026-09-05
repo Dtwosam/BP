@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.81 — 5 September 2026
+
+PR #124 merged strict single-snapshot candidate-state binding for the Phase 14 storage-preflight evidence wrapper to `main` as `bfed99b6f8591fcdb7784e5d1399ca2945e8599c`. Final branch head `d3e8689887927eedbf80cd461158a49063b6bc85` passed push CI `33974867767`, PR CI `33974878464`, Historical Backfill Smoke `33974878459`, Live Recorder Smoke `33974878381`, and Recorder Short Soak `33974878387`; post-merge main CI `33974966377` then passed **981 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. The evidence wrapper reads exact candidate `PROJECT_STATE.json` bytes once, rejects duplicate keys/non-finite constants, and derives both archive binding and `automatic_promotion=false` from that same snapshot before remote preflight invocation. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.80 — 5 September 2026
 
 The Phase 14 storage-preflight evidence wrapper now derives its canonical archive binding and `automatic_promotion=false` safety assertion from one strict byte snapshot of the exact candidate `PROJECT_STATE.json` before invoking the remote preflight. Recursive duplicate object keys and Python-specific non-finite constants are rejected, so last-value-wins or permissive JSON parsing cannot make the two local safety checks interpret ambiguous state differently.
