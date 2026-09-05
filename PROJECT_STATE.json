@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.90",
-  "updated_at": "2026-09-05T17:00:44Z",
+  "source_of_truth_version": "0.14.91",
+  "updated_at": "2026-09-05T17:06:11Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2427,6 +2427,17 @@
     "read_only_preflight_from_head_behavior_proof_ci_passed": true,
     "read_only_preflight_from_head_behavior_proof_test_count": 986,
     "read_only_preflight_from_head_mismatch_fails_before_preflight_invocation": true,
-    "read_only_preflight_from_head_behavior_proof_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
+    "read_only_preflight_from_head_behavior_proof_status": "MERGED_MAIN_NOT_PRODUCTION_RUN",
+    "read_only_preflight_from_head_behavior_proof_pr": 134,
+    "read_only_preflight_from_head_behavior_proof_final_branch_head": "3b2c163bbdcd8871baf3383f91d86cecb55375ef",
+    "read_only_preflight_from_head_behavior_proof_push_ci_run_id": 33979683145,
+    "read_only_preflight_from_head_behavior_proof_pr_ci_run_id": 33979705258,
+    "read_only_preflight_from_head_behavior_proof_historical_backfill_smoke_run_id": 33979705234,
+    "read_only_preflight_from_head_behavior_proof_live_recorder_smoke_run_id": 33979705245,
+    "read_only_preflight_from_head_behavior_proof_recorder_short_soak_run_id": 33979705267,
+    "read_only_preflight_from_head_behavior_proof_merge_commit": "ec4a3ffeb1919246cda56e869f3de7cdc0b68df0",
+    "read_only_preflight_from_head_behavior_proof_post_merge_ci_run_id": 33979820091,
+    "read_only_preflight_from_head_behavior_proof_post_merge_ci_passed": true,
+    "read_only_preflight_from_head_behavior_proof_post_merge_test_count": 986
   }
 }
