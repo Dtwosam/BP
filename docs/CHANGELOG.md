@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.79 — 5 September 2026
+
+PR #122 merged strict verified-preflight JSON constant rejection to `main` as `71504cec335f2b915a1f9e547ba8d590f1144868`. Final branch head `84929c289a8cf2de52baeb8e548b8171dee5aab1` passed push CI `33974385203`, PR CI `33974399342`, Historical Backfill Smoke `33974399282`, Live Recorder Smoke `33974399350`, and Recorder Short Soak `33974399501`; post-merge main CI `33974492303` then passed **980 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. Approved verified-preflight JSON rejects duplicate keys and Python-specific non-finite constants before any `gcloud` command, while preserving same-snapshot hashing and validation. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.78 — 5 September 2026
 
 Phase 14 partitioned-storage rollout now rejects non-standard non-finite constants in approved verified-preflight JSON before any `gcloud` command. Python's permissive JSON decoder accepts `NaN`, `Infinity`, and `-Infinity` by default even though the verifier emits ordinary strict JSON; the rollout parser now supplies an explicit `parse_constant` rejection hook so a manually constructed approval snapshot cannot introduce those values anywhere in the reviewed JSON.
