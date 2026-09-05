@@ -2515,11 +2515,12 @@
     "partitioned_storage_rollout_launcher_runtime_expansion_fix_post_merge_ci_passed": true,
     "partitioned_storage_authorized_launch_attempt_rollback_armed": false,
     "partitioned_storage_authorized_launch_attempt_failure_time": "2026-09-05T19:25:32Z",
-    "partitioned_storage_rollout_scope_preflight_support_fix_status": "IN_REVIEW_FRESH_PREFLIGHT_AND_APPROVAL_REQUIRED_AFTER_MERGE",
+    "partitioned_storage_rollout_scope_preflight_support_fix_status": "MERGED_MAIN_FRESH_PREFLIGHT_AND_APPROVAL_REQUIRED",
     "partitioned_storage_rollout_scope_preflight_support_paths": [
       "scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh",
       "scripts/deploy/phase14_storage_preflight_evidence_cloudshell.sh",
       "scripts/deploy/verify_phase14_storage_preflight.py"
-    ]
+    ],
+    "partitioned_storage_rollout_scope_preflight_support_fix_pr": 141
   }
 }
