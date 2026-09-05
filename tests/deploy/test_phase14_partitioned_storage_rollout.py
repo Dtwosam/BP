@@ -873,3 +873,20 @@ def test_rollout_acceptance_evidence_records_configured_min_free_gib() -> None:
     assert '"$MIN_FREE_GIB"' in builder
     assert "minimum_free_gib" in builder
     assert '"minimum_free_gib": int(minimum_free_gib)' in content[evidence_payload:]
+
+def test_partitioned_storage_rollout_defers_launcher_runtime_expansion_to_remote_shell() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        r'SHORT=\${PHASE14_PARTITIONED_STORAGE_HEAD:0:12}',
+        r'UNIT="bp-phase14-partitioned-storage-\$SHORT"',
+        r'WORKER_PATH="/var/tmp/\$UNIT.sh"',
+        r'> "\$WORKER_PATH"',
+        r'chmod 0700 "\$WORKER_PATH"',
+        r'--unit="\$UNIT"',
+        r'/bin/bash "\$WORKER_PATH"',
+        r'echo "UNIT=\$UNIT.service"',
+        r'echo "STATUS_COMMAND=sudo systemctl status \$UNIT.service --no-pager -l"',
+        r'echo "LOG_COMMAND=sudo journalctl -u \$UNIT.service -f"',
+    ):
+        assert marker in content
