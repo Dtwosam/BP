@@ -625,6 +625,34 @@ def test_rollout_acceptance_evidence_records_verified_remote_branch() -> None:
     assert '"remote_branch": remote_branch' in content[evidence_payload:]
 
 
+def test_rollout_binds_verified_preflight_env_file_before_cloud_contact() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    preflight_check = content.index("PREFLIGHT_ARCHIVE_BINDING=$(python")
+    cloud_contact = content.index('gcloud config set project "$PROJECT"')
+
+    binding = content[preflight_check:cloud_contact]
+    for marker in (
+        '"$ENV_FILE"',
+        "expected_env_file",
+        'payload.get("env_file") != expected_env_file',
+        "verified preflight ENV_FILE mismatch",
+    ):
+        assert marker in binding
+
+
+def test_rollout_acceptance_evidence_records_configured_env_file() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    evidence_builder = content.index('EVIDENCE_TMP=$(mktemp')
+    evidence_payload = content.index('payload = {', evidence_builder)
+
+    builder = content[evidence_builder:evidence_payload]
+    assert '"$ENV_FILE"' in builder
+    assert "env_file" in builder
+    assert '"env_file": env_file' in content[evidence_payload:]
+
+
 def test_rollout_binds_verified_preflight_min_free_gib_before_cloud_contact() -> None:
     content = HELPER.read_text(encoding="utf-8")
 
