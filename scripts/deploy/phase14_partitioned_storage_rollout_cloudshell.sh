@@ -97,7 +97,15 @@ def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
     return payload
 
 
-payload = json.loads(raw, object_pairs_hook=reject_duplicate_keys)
+def reject_nonfinite_constant(value: str) -> object:
+    raise SystemExit(f"verified preflight JSON contains non-finite constant: {value}")
+
+
+payload = json.loads(
+    raw,
+    object_pairs_hook=reject_duplicate_keys,
+    parse_constant=reject_nonfinite_constant,
+)
 if payload.get("verdict") != "PASS":
     raise SystemExit("verified preflight verdict is not PASS")
 if payload.get("from_head") != expected_from_head:
