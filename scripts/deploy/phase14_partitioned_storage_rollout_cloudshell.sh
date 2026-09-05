@@ -121,6 +121,16 @@ if target.get("vm") != expected_vm:
 if payload.get("env_file") != expected_env_file:
     raise SystemExit("verified preflight ENV_FILE mismatch")
 
+safety = payload.get("safety") or {}
+if (
+    safety.get("mode") != "research"
+    or safety.get("live_trading_enabled") is not False
+    or safety.get("max_trade_size_usd") != 0
+    or safety.get("max_daily_loss_usd") != 0
+    or safety.get("automatic_promotion") is not False
+):
+    raise SystemExit("verified preflight safety mismatch")
+
 headroom = payload.get("headroom") or {}
 if headroom.get("minimum_free_gib") != int(expected_min_free_gib):
     raise SystemExit("verified preflight MIN_FREE_GIB mismatch")
