@@ -81,7 +81,7 @@ if [[ "$PREFLIGHT_VERIFIED" != /* ]]; then
   exit 2
 fi
 
-PREFLIGHT_ARCHIVE_BINDING=$(python - "$PREFLIGHT_VERIFIED" "$EXPECTED_FROM_HEAD" "$EXPECTED_HEAD" "$PROJECT" "$ZONE" "$VM" <<'PY'
+PREFLIGHT_ARCHIVE_BINDING=$(python - "$PREFLIGHT_VERIFIED" "$EXPECTED_FROM_HEAD" "$EXPECTED_HEAD" "$BRANCH" "$PROJECT" "$ZONE" "$VM" <<'PY'
 from __future__ import annotations
 
 import hashlib
@@ -90,7 +90,7 @@ import re
 import sys
 from pathlib import Path
 
-path, expected_from_head, expected_head, expected_project, expected_zone, expected_vm = sys.argv[1:]
+path, expected_from_head, expected_head, expected_branch, expected_project, expected_zone, expected_vm = sys.argv[1:]
 raw = Path(path).read_bytes()
 preflight_verified_sha256 = hashlib.sha256(raw).hexdigest()
 payload = json.loads(raw)
@@ -102,6 +102,8 @@ if payload.get("head") != expected_head:
     raise SystemExit("verified preflight HEAD mismatch")
 if payload.get("remote_head") != expected_head:
     raise SystemExit("verified preflight REMOTE_HEAD mismatch")
+if payload.get("remote_branch") != expected_branch:
+    raise SystemExit("verified preflight BRANCH mismatch")
 if payload.get("mutations_performed") is not False:
     raise SystemExit("verified preflight reported mutations")
 if payload.get("recorder_state") != "stopped":
