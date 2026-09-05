@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.48",
-  "updated_at": "2026-09-05T01:23:05Z",
+  "source_of_truth_version": "0.14.49",
+  "updated_at": "2026-09-05T01:29:45Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -1974,6 +1974,17 @@
     "storage_preflight_records_branch": true,
     "storage_preflight_verifier_expected_branch_bound": true,
     "storage_preflight_verified_json_records_remote_branch": true,
-    "storage_preflight_verified_branch_binding_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
+    "storage_preflight_verified_branch_binding_status": "MERGED_MAIN_NOT_PRODUCTION_RUN",
+    "storage_preflight_verified_branch_binding_pr": 92,
+    "storage_preflight_verified_branch_binding_final_branch_head": "98d3383305d8d284b8f4629c7206281bdbb7fc7e",
+    "storage_preflight_verified_branch_binding_push_ci_run_id": 33936055750,
+    "storage_preflight_verified_branch_binding_pr_ci_run_id": 33936135738,
+    "storage_preflight_verified_branch_binding_historical_backfill_smoke_run_id": 33936135715,
+    "storage_preflight_verified_branch_binding_live_recorder_smoke_run_id": 33936135718,
+    "storage_preflight_verified_branch_binding_recorder_short_soak_run_id": 33936135882,
+    "storage_preflight_verified_branch_binding_merge_commit": "11a1aad961be3d0b372eacf8f85bb54682b791fe",
+    "storage_preflight_verified_branch_binding_post_merge_ci_run_id": 33936241254,
+    "storage_preflight_verified_branch_binding_post_merge_ci_passed": true,
+    "storage_preflight_verified_branch_binding_post_merge_test_count": 962
   }
 }
