@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.96 — 5 September 2026
+
+The second explicitly authorized Phase 14 rollout, bound to candidate `cc61d290390ce9cbe6a52ae55fab591709abd438` and verified-preflight SHA-256 `098a24d2eedfb91a6a0b7c3254f5a586320cb9ad89ae2f6c6ac5a15a04ffc182`, reached the production VM but failed **before mutation** with `REASON=unexpected_rollout_path:scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh`. The failure occurred in `validate_rollout_scope` before `capture_unit_state`, before `ROLLBACK_ARMED=1`, before managed-unit stops, candidate checkout, environment edits, or `migrate_partitioned_raw_storage.py apply`. No production schema or service mutation occurred.
+
+The exact deployed-from `c29fe227f959305f67031e922ca659869a826c4f` → candidate diff contains three legitimate Phase 14 preflight-support scripts omitted from the rollout scope allowlist: `phase14_partitioned_storage_preflight_cloudshell.sh`, `phase14_storage_preflight_evidence_cloudshell.sh`, and `verify_phase14_storage_preflight.py`. The scope fix adds only those exact paths and a regression requiring all three; it does not widen the rollout to arbitrary deploy scripts or weaken any live safety gate.
+
+PR #140 had already merged the launcher-runtime expansion fix as `cc61d290390ce9cbe6a52ae55fab591709abd438`, with post-merge CI `33986786740` passing. Because this new scope fix changes the candidate SHA, the prior approval/preflight tuple is no longer reusable. After the scope fix merges and post-merge CI passes, freeze `main`, rerun the read-only production preflight against that exact final SHA, and require another explicit migration approval. Migration authorization is false/unset.
+
 ## 0.14.95 — 5 September 2026
 
 The explicitly authorized Phase 14 partitioned-storage rollout for candidate `e5c8e9474d68b2ee94e5a01c761f1e0cee585f61` did **not** reach the production VM. After the local candidate/preflight authorization checks passed, the Cloud Shell helper failed while constructing its remote launcher with `SHORT: unbound variable`. The failure occurred before the helper's final `gcloud compute ssh` invocation, so no production schema/service mutation occurred and the recorder/storage state was not changed by this attempt.
