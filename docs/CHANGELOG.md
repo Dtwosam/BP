@@ -6,7 +6,7 @@ Phase 14 source-of-truth reconciliation corrected a stale V2 forward-coverage co
 
 The current record now distinguishes historical deployment from present runtime state: the collector was deployed before the 4 September storage incident, but its active/enabled state is not asserted while storage recovery is in progress. Gate B remains unauthorized, no V2 policy/model/calibration/edge/min-edge selection is implied, `automatic_promotion=false`, live trading remains disabled, and Phase 15 remains blocked.
 
-A regression test now fails if `PROJECT_STATE.json` again records the collector rollout as performed while the Master/current summary claims it was never deployed.
+A regression test now fails if `PROJECT_STATE.json` again records the collector rollout as performed while the Master/current summary claims it was never deployed. Clean tests-only RED head `4fc713d78f22357d47fc98ccf975c193085e1afa` failed exactly this stale-status contract while all **983 existing tests passed** in CI `33977714790`; GREEN head `cffa01b02d6f7a674ab9e93dc631c41e641854ed` passed CI `33977795425` with **984 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
 
 ## 0.14.85 — 5 September 2026
 
