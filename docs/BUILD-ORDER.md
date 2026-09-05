@@ -473,6 +473,8 @@ PR #130 reconciled the Phase 14 V2 forward-collector source of truth and merged 
 
 A follow-up read-only preflight from-head state-binding checkpoint on `phase14-storage-preflight-from-head-state-binding` now requires the operator-supplied `PHASE14_PARTITIONED_STORAGE_FROM_HEAD` to equal the exact candidate `PROJECT_STATE.json` value at `phase_14_storage_reliability_followup.production_deployed_head_before_recovery` before transcript reservation or any cloud contact. Clean tests-only RED head `d38ab3a16ccf02a4b509befe174bc5271f55f2d4` failed exactly this missing contract while 984 existing tests passed in CI `33978837483`; GREEN head `acbc797ca510d40b93395bc698ead7c83633e767` passed CI `33978855023` with 985 tests plus rollout/deployment validation, research-mode health, and dashboard checks. This remains engineering-only until merged; no production preflight or migration was executed and no migration authorization was set.
 
+PR #132 merged the read-only storage-preflight deployed-from state binding to `main` as `5406ae99b1a2db3096cdf2e7956499f7d2764d97`. Final head `2bec2c0f82ec4110292871098fe9d471592e169f` passed push CI `33978979423`, PR CI `33979041132`, Historical Backfill Smoke `33979041160`, Live Recorder Smoke `33979041104`, and Recorder Short Soak `33979041139`; post-merge main CI `33979137937` then passed 985 tests plus rollout/deployment validation, research-mode health, and dashboard checks. The checkpoint is now `MERGED_MAIN_NOT_PRODUCTION_RUN`; no production preflight or migration was executed and no migration authorization was set.
+
 ---
 
 ## Immediate next action
