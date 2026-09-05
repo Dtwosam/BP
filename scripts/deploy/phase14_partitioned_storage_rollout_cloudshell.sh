@@ -80,6 +80,7 @@ import hashlib
 import json
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 
 path, expected_from_head, expected_head, expected_branch, expected_project, expected_zone, expected_vm, expected_env_file, expected_min_free_gib = sys.argv[1:]
@@ -188,6 +189,12 @@ if not isinstance(archive_sha256, str) or not re.fullmatch(
     raise SystemExit("verified preflight archive SHA-256 is invalid")
 if not isinstance(window_end, str) or not window_end:
     raise SystemExit("verified preflight archive window_end is invalid")
+try:
+    parsed_window_end = datetime.fromisoformat(window_end.replace("Z", "+00:00"))
+except ValueError as exc:
+    raise SystemExit("verified preflight archive window_end is invalid") from exc
+if parsed_window_end.tzinfo is None or parsed_window_end.utcoffset() is None:
+    raise SystemExit("verified preflight archive window_end is not timezone-aware")
 print(f"{preflight_verified_sha256}\t{evidence_name}\t{archive_sha256}\t{window_end}")
 PY
 )
