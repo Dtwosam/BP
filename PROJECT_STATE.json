@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.62",
-  "updated_at": "2026-09-05T12:39:18Z",
+  "source_of_truth_version": "0.14.63",
+  "updated_at": "2026-09-05T12:46:36Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2124,6 +2124,17 @@
     "partitioned_storage_rollout_local_evidence_before_gcloud_ci_passed": true,
     "partitioned_storage_rollout_local_evidence_before_gcloud_test_count": 972,
     "partitioned_storage_rollout_validates_local_evidence_before_gcloud_auth": true,
-    "partitioned_storage_rollout_local_evidence_before_gcloud_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
+    "partitioned_storage_rollout_local_evidence_before_gcloud_status": "MERGED_MAIN_NOT_PRODUCTION_RUN",
+    "partitioned_storage_rollout_local_evidence_before_gcloud_pr": 106,
+    "partitioned_storage_rollout_local_evidence_before_gcloud_final_branch_head": "a2b21a6911a92b34ea708b3f23ddd9c9b23c0b34",
+    "partitioned_storage_rollout_local_evidence_before_gcloud_push_ci_run_id": 33966736619,
+    "partitioned_storage_rollout_local_evidence_before_gcloud_pr_ci_run_id": 33966842331,
+    "partitioned_storage_rollout_local_evidence_before_gcloud_historical_backfill_smoke_run_id": 33966842222,
+    "partitioned_storage_rollout_local_evidence_before_gcloud_live_recorder_smoke_run_id": 33966842202,
+    "partitioned_storage_rollout_local_evidence_before_gcloud_recorder_short_soak_run_id": 33966842313,
+    "partitioned_storage_rollout_local_evidence_before_gcloud_merge_commit": "5c659fa133446417d8dc9b5f0d6d6db90bada2d0",
+    "partitioned_storage_rollout_local_evidence_before_gcloud_post_merge_ci_run_id": 33966929138,
+    "partitioned_storage_rollout_local_evidence_before_gcloud_post_merge_ci_passed": true,
+    "partitioned_storage_rollout_local_evidence_before_gcloud_post_merge_test_count": 972
   }
 }

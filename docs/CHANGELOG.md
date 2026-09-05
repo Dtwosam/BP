@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.63 — 5 September 2026
+
+PR #106 merged local verified-preflight-before-gcloud ordering to `main` as `5c659fa133446417d8dc9b5f0d6d6db90bada2d0`. Final branch head `a2b21a6911a92b34ea708b3f23ddd9c9b23c0b34` passed push CI `33966736619`, PR CI `33966842331`, Historical Backfill Smoke `33966842222`, Live Recorder Smoke `33966842202`, and Recorder Short Soak `33966842313`; post-merge main CI `33966929138` then passed **972 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The source-of-truth now records this checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. Rollout completes all local verified-preflight validation and approved-digest matching before invoking any `gcloud` command. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.62 — 5 September 2026
 
 Phase 14 partitioned-storage rollout now validates the complete local verified-preflight evidence and explicit approved-preflight digest before invoking any `gcloud` command. The launcher checks verified evidence availability, parses and binds the same single-snapshot JSON, and requires `PHASE14_PARTITIONED_STORAGE_APPROVED_PREFLIGHT_SHA256` to equal that snapshot digest before the Cloud Shell authentication probe. Invalid or stale local evidence therefore fails entirely locally instead of reaching the cloud tooling path.
