@@ -890,3 +890,14 @@ def test_partitioned_storage_rollout_defers_launcher_runtime_expansion_to_remote
         r'echo "LOG_COMMAND=sudo journalctl -u \$UNIT.service -f"',
     ):
         assert marker in content
+
+
+def test_partitioned_storage_rollout_allows_phase14_preflight_support_scripts() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        "scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh",
+        "scripts/deploy/phase14_storage_preflight_evidence_cloudshell.sh",
+        "scripts/deploy/verify_phase14_storage_preflight.py",
+    ):
+        assert marker in content
