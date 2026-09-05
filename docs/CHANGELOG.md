@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.82 — 5 September 2026
+
+The Phase 14 storage-preflight evidence wrapper now explicitly passes its resolved project, zone, VM, candidate/deployed SHAs, canonical archive path, branch, environment-file path, and migration headroom floor into the underlying read-only preflight invocation. Collection and independent verification therefore consume the same resolved operator configuration without relying on inherited environment state or duplicated defaults remaining synchronized across scripts.
+
+Clean tests-only RED head `06aa61eeda06dd6dce87d5e62298c949227f16b1` failed exactly the missing explicit-binding contract while all **981 existing tests passed** in CI `33976089765`. GREEN head `79ec3df3619afb77bf68a7a72851084a7a9eee23` passed CI `33976100121` with **982 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+This remains engineering-only until merged. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.81 — 5 September 2026
 
 PR #124 merged strict single-snapshot candidate-state binding for the Phase 14 storage-preflight evidence wrapper to `main` as `bfed99b6f8591fcdb7784e5d1399ca2945e8599c`. Final branch head `d3e8689887927eedbf80cd461158a49063b6bc85` passed push CI `33974867767`, PR CI `33974878464`, Historical Backfill Smoke `33974878459`, Live Recorder Smoke `33974878381`, and Recorder Short Soak `33974878387`; post-merge main CI `33974966377` then passed **981 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
