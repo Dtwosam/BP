@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.62 — 5 September 2026
+
+Phase 14 partitioned-storage rollout now validates the complete local verified-preflight evidence and explicit approved-preflight digest before invoking any `gcloud` command. The launcher checks verified evidence availability, parses and binds the same single-snapshot JSON, and requires `PHASE14_PARTITIONED_STORAGE_APPROVED_PREFLIGHT_SHA256` to equal that snapshot digest before the Cloud Shell authentication probe. Invalid or stale local evidence therefore fails entirely locally instead of reaching the cloud tooling path.
+
+Clean tests-only RED head `61d55549eb03f0bc0ff99ac49c928fde97adb390` failed exactly the missing ordering contract while all **971 existing tests passed** in CI `33966508887`. GREEN head `210833ea4d9278ab950c4f59911237394dc89aa2` passed CI `33966588761` with **972 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+This remains engineering-only until merged. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.61 — 5 September 2026
 
 PR #104 merged verified-preflight critical-reserve binding to `main` as `1289d1634c0ed358581ed8358b2302f782e99611`. Final branch head `f1ab47fb8b79d01054f72b03fa76276fe23f86d4` passed push CI `33965248512`, PR CI `33965349434`, Historical Backfill Smoke `33965349408`, Live Recorder Smoke `33965349384`, and Recorder Short Soak `33965349402`; post-merge main CI `33965440093` then passed **971 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
