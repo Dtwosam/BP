@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.76",
-  "updated_at": "2026-09-05T15:01:41Z",
+  "source_of_truth_version": "0.14.77",
+  "updated_at": "2026-09-05T15:08:05Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2279,6 +2279,17 @@
     "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_ci_passed": true,
     "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_test_count": 979,
     "partitioned_storage_rollout_requires_verified_headroom_configuration_integer_types": true,
-    "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_status": "ENGINEERING_VERIFIED_NOT_MERGED_NOT_PRODUCTION_RUN"
+    "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_status": "MERGED_MAIN_NOT_PRODUCTION_RUN",
+    "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_pr": 120,
+    "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_final_branch_head": "2161d055fb907123b7fade4b64ccdf7c194fd059",
+    "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_push_ci_run_id": 33973651541,
+    "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_pr_ci_run_id": 33973665934,
+    "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_historical_backfill_smoke_run_id": 33973665861,
+    "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_live_recorder_smoke_run_id": 33973665867,
+    "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_recorder_short_soak_run_id": 33973665864,
+    "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_merge_commit": "f7cbec028bec5b615e58941c4ba92ad40db7c7c7",
+    "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_post_merge_ci_run_id": 33973798254,
+    "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_post_merge_ci_passed": true,
+    "partitioned_storage_rollout_preflight_headroom_scalar_type_consistency_post_merge_test_count": 979
   }
 }
