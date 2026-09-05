@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.91 — 5 September 2026
+
+PR #134 merged the executable storage-preflight deployed-from mismatch proof to `main` as `ec4a3ffeb1919246cda56e869f3de7cdc0b68df0`. Final branch head `3b2c163bbdcd8871baf3383f91d86cecb55375ef` passed push CI `33979683145`, PR CI `33979705258`, Historical Backfill Smoke `33979705234`, Live Recorder Smoke `33979705245`, and Recorder Short Soak `33979705267`; post-merge main CI `33979820091` then passed **986 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+The source-of-truth now records this test-only assurance checkpoint as `MERGED_MAIN_NOT_PRODUCTION_RUN`. CI executes the real evidence wrapper in a clean temporary candidate and proves a valid-but-wrong deployed-from SHA fails locally before preflight invocation. No production host contact, storage migration, migration authorization, service mutation, Gate B authorization, live-trading change, or Phase 15 transition occurred.
+
 ## 0.14.90 — 5 September 2026
 
 Phase 14 now has executable CI proof that a deployed-from SHA mismatch is rejected locally by the real read-only storage-preflight evidence wrapper. The regression creates a clean temporary Git candidate whose `PROJECT_STATE.json` records the production recovery head, supplies a different valid 40-character `PHASE14_PARTITIONED_STORAGE_FROM_HEAD`, invokes the actual wrapper, and requires `production_from_head_binding_mismatch` before the wrapper can even reach its preflight-file checks or emit PASS.
