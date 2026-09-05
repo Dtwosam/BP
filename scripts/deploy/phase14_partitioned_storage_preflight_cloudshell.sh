@@ -275,7 +275,7 @@ OLD_HEAD=$(git -C "$REPO" rev-parse HEAD)
 OLD_BRANCH=$(git -C "$REPO" symbolic-ref --quiet --short HEAD || true)
 [[ "$OLD_HEAD" == "$EXPECTED_FROM_HEAD" ]] || fail "unexpected_deployed_head:$OLD_HEAD"
 
-REMOTE_HEAD=$(git -C "$REPO" ls-remote --exit-code origin "refs/heads/$BRANCH" | awk 'NR == 1 {print $1}')
+REMOTE_HEAD=$(git -C "$REPO" ls-remote --exit-code origin "refs/heads/$BRANCH" </dev/null | awk 'NR == 1 {print $1}')
 [[ -n "$REMOTE_HEAD" ]] || fail "remote_candidate_head_missing"
 [[ "$REMOTE_HEAD" == "$SHA" ]] || fail "remote_candidate_head_changed"
 
