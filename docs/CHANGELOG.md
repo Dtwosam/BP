@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.54 — 5 September 2026
+
+Phase 14 partitioned-storage rollout now binds its configured migration free-space floor to the independently verified preflight before any cloud project selection or production VM contact. The launcher passes `PHASE14_PARTITIONED_STORAGE_MIN_FREE_GIB` into the same single-snapshot verified-preflight validation path and fails closed with `verified preflight MIN_FREE_GIB mismatch` unless `headroom.minimum_free_gib` exactly matches the rollout value. Eventual PASS evidence also records that configured floor as `pre_migration_headroom.minimum_free_gib`.
+
+Clean tests-only RED head `8fbd49c96fd1d798754c8e7effb32cea38ddfa6c` failed exactly the two missing contracts while all **964 existing tests passed** in CI `33960005630`. GREEN head `c5b20aebed835fb6352c9e0669177c77591f103f` passed CI `33960086061` with **966 tests**, Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
+
+This remains engineering-only until merged. No production preflight or partition migration was executed, no migration approval values were set, the recorder remains stopped, Gate B remains unauthorized, selected-book freshness remains exactly 10 seconds, and Phase 15/live trading remain blocked.
+
 ## 0.14.53 — 5 September 2026
 
 PR #96 merged rollout acceptance-evidence remote-branch recording to `main` as `0b71f4e6d5cf5e3794388428eb9daaee9628987e`. Final branch head `7e5baa7377e8bb616e0f42913834ff4b6f53f250` passed push CI `33958422803`, PR CI `33958518764`, Historical Backfill Smoke `33958518768`, Live Recorder Smoke `33958518788`, and Recorder Short Soak `33958518767`; post-merge main CI `33958630448` then passed **964 tests** plus Ruff, rollout/deployment validation, research-mode health, and dashboard checks.
