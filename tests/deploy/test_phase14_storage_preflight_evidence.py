@@ -401,3 +401,31 @@ def test_verified_preflight_binds_candidate_automatic_promotion_false() -> None:
             expected_from_head=FROM_HEAD,
             expected_head=HEAD,
         )
+
+
+def test_verified_preflight_binds_expected_remote_branch() -> None:
+    operator = OPERATOR.read_text(encoding="utf-8")
+    preflight = PREFLIGHT.read_text(encoding="utf-8")
+    verifier = VERIFIER.read_text(encoding="utf-8")
+
+    for marker in (
+        'BRANCH="${PHASE14_PARTITIONED_STORAGE_BRANCH:-main}"',
+        'PHASE14_PARTITIONED_STORAGE_BRANCH="$BRANCH"',
+        'echo "BRANCH=$BRANCH"',
+        "--expected-branch",
+        "unexpected BRANCH",
+    ):
+        assert marker in operator + preflight + verifier
+
+    transcript = _transcript().replace(
+        "ENV_FILE=/etc/bp/bp.env\n",
+        "BRANCH=main\nENV_FILE=/etc/bp/bp.env\n",
+        1,
+    )
+    with pytest.raises(PreflightVerificationError, match="unexpected BRANCH"):
+        verify_preflight_transcript(
+            transcript,
+            expected_from_head=FROM_HEAD,
+            expected_head=HEAD,
+            expected_branch="release",
+        )
