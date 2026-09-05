@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.93 — 5 September 2026
+
+The hardened Phase 14 read-only production storage preflight has now **passed and been independently verified** against deployed-from SHA `c29fe227f959305f67031e922ca659869a826c4f` and candidate/remote SHA `ad4ca7d5b65400ba657caeea35b2035ffba39a0b`. The production worker reported `RECORDER_STATE=stopped`, `MUTATIONS_PERFORMED=false`, the required research/zero-money settings, the canonical recovery archive, legacy-unmigrated raw-storage shape, and sufficient migration headroom. The evidence wrapper completed with exit code 0 and emitted `PHASE14_STORAGE_PREFLIGHT_EVIDENCE=PASS`.
+
+Verified production values include dedicated-data free bytes `62289272832`, root free bytes `189985116160`, raw relation bytes `29804167168` (`28 GB`), estimated raw rows `24448686`, archive SHA-256 `76d3b4cfa4d2a6d976795eeadeb7ea11de46747ef88c3f5486292295e764bd5c`, and verified-preflight JSON SHA-256 `df97c53b627b37cf00e57263ab092ec6f33290d027c3138ee4a1bcfbf98a0687`. Both storage-health timers remain inactive and the recorder remains stopped.
+
+This verified PASS is prerequisite evidence only. Production partition migration authorization remains **false and unset**: approved-from SHA, approved candidate SHA, and approved verified-preflight digest are all unset. No migration, service mutation, Gate B authorization, live-trading change, geographic bypass, or Phase 15 transition occurred. The next step is the separate explicit production-migration authorization for exactly this SHA/evidence tuple.
+
 ## 0.14.92 — 5 September 2026
 
 A read-only Phase 14 production storage-preflight attempt against candidate `fb5def00896777c505377615e389f64088b127d1` contacted `bp-recorder` and confirmed the required research/zero-money boundary (`MODE=research`, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, `MAX_DAILY_LOSS_USD=0`), but the remote worker returned exit code 0 without emitting the mandatory `PHASE14_PARTITIONED_STORAGE_PREFLIGHT=PASS` marker. The attempt is therefore **not accepted as a preflight PASS** and must be rerun. The production repo origin was confirmed as `https://github.com/Dtwosam/BP.git`. No storage migration, service mutation, migration authorization, Gate B authorization, live-trading change, or Phase 15 transition occurred.
