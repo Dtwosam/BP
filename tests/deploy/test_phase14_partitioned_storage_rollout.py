@@ -901,3 +901,22 @@ def test_partitioned_storage_rollout_allows_phase14_preflight_support_scripts() 
         "scripts/deploy/verify_phase14_storage_preflight.py",
     ):
         assert marker in content
+
+
+def test_partitioned_storage_verification_refreshes_current_future_partitions() -> None:
+    content = MIGRATOR.read_text(encoding="utf-8")
+
+    for marker in (
+        "ensure_hour_partitions",
+        "with engine.begin() as connection:",
+        "start_at=now",
+        "hours_ahead=2",
+        'raise RuntimeError("current + two future raw partitions are not provisioned")',
+    ):
+        assert marker in content
+
+    verify = content.index("def _verify(")
+    refresh = content.index("ensure_hour_partitions(", verify)
+    parity = content.index('legacy = _raw_stats(engine, "raw_market_events_legacy")', verify)
+    partition_check = content.index("partitions = list_raw_partitions(engine)", verify)
+    assert verify < refresh < parity < partition_check

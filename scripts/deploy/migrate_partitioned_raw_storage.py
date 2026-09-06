@@ -13,6 +13,7 @@ from bp_engine.config import Settings
 from bp_engine.recorder.models import RawEvent
 from bp_engine.storage.partitioned_raw import (
     RawStorageMode,
+    ensure_hour_partitions,
     ensure_partitioned_raw_storage,
     list_raw_partitions,
     raw_storage_mode,
@@ -318,8 +319,14 @@ def _synthetic_transaction_checks(engine: Engine, now: datetime) -> dict[str, An
 
 def _verify(engine: Engine) -> dict[str, Any]:
     now = datetime.now(UTC)
-    with engine.connect() as connection:
+    with engine.begin() as connection:
         mode = raw_storage_mode(connection)
+        if mode is RawStorageMode.PARTITIONED:
+            ensure_hour_partitions(
+                connection,
+                start_at=now,
+                hours_ahead=2,
+            )
     if mode is not RawStorageMode.PARTITIONED:
         raise RuntimeError(f"expected partitioned raw storage, found {mode.value!r}")
 

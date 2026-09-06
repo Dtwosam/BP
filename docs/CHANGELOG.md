@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.97 — 6 September 2026
+
+The explicitly authorized Phase 14 partitioned-storage rollout for candidate `87e08fcff6a0c6aeb32dd360ec1e56fab76ce73f` reached the production migration path and successfully copied/verified `24,482,850` raw rows before failing inside the apply verifier with `RuntimeError: current + two future raw partitions are not provisioned`. The rollout had provisioned current + two future partitions at migration start, but the exact raw/dedupe parity scans ran for multiple hours; by verification time, the wall-clock window had advanced beyond the originally provisioned future partitions.
+
+Rollback protection was armed and completed successfully. Production returned to deployed head `c29fe227f959305f67031e922ca659869a826c4f`, restored exactly `24,482,850` rows to monolithic `raw_market_events`, reported `storage_mode=legacy`, left `RECORDER_RESTARTED=false`, and left both storage timers inactive. The recorder unit currently reports `failed`; it remains non-running and must not be restarted while storage recovery is incomplete.
+
+The fix preserves the current+2 safety invariant rather than weakening it: each migration verification now idempotently refreshes exactly the current hour plus two future hourly partitions using the existing partition helper immediately before checking that required window. This makes verification robust to long-running parity scans while retaining the same no-default-partition and fail-closed acceptance behavior. A regression requires the refresh to occur before parity/partition validation.
+
+Because the fix changes the candidate SHA, the prior `87e08fcf...` approval and verified-preflight SHA-256 `934fe56f24b4195e7560d78526ab5c79a5f0d9daceb38adb284e77aac0b8e3b3` are not reusable. After the fix merges and post-merge CI passes, freeze `main`, rerun the read-only production preflight against that exact final SHA, and require a fresh explicit migration approval. Migration authorization is false/unset.
+
 ## 0.14.96 — 5 September 2026
 
 The second explicitly authorized Phase 14 rollout, bound to candidate `cc61d290390ce9cbe6a52ae55fab591709abd438` and verified-preflight SHA-256 `098a24d2eedfb91a6a0b7c3254f5a586320cb9ad89ae2f6c6ac5a15a04ffc182`, reached the production VM but failed **before mutation** with `REASON=unexpected_rollout_path:scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh`. The failure occurred in `validate_rollout_scope` before `capture_unit_state`, before `ROLLBACK_ARMED=1`, before managed-unit stops, candidate checkout, environment edits, or `migrate_partitioned_raw_storage.py apply`. No production schema or service mutation occurred.
