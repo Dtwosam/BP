@@ -2530,7 +2530,8 @@
     "partitioned_storage_authorized_launch_attempt_recorder_state_after_rollback": "failed",
     "partitioned_storage_authorized_launch_attempt_maintenance_timer_state_after_rollback": "inactive",
     "partitioned_storage_authorized_launch_attempt_disk_health_timer_state_after_rollback": "inactive",
-    "partitioned_storage_verification_partition_drift_fix_status": "IN_REVIEW_FRESH_PREFLIGHT_AND_APPROVAL_REQUIRED_AFTER_MERGE",
-    "partitioned_storage_verification_partition_drift_root_cause": "Verification used a fixed migration-start current+2 partition window; the multi-hour exact parity scan crossed that window before the verifier checked it."
+    "partitioned_storage_verification_partition_drift_fix_status": "MERGED_MAIN_FRESH_PREFLIGHT_AND_APPROVAL_REQUIRED",
+    "partitioned_storage_verification_partition_drift_root_cause": "Verification used a fixed migration-start current+2 partition window; the multi-hour exact parity scan crossed that window before the verifier checked it.",
+    "partitioned_storage_verification_partition_drift_fix_pr": 142
   }
 }
