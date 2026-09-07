@@ -842,7 +842,7 @@ PARTITION_BYTES_BEFORE_MAINTENANCE=$(partition_relation_bytes)
 (( PARTITION_BYTES_BEFORE_MAINTENANCE > 0 )) || fail "partition_relation_bytes_before_maintenance_missing"
 
 MAINTENANCE_JSON=$(mktemp /var/tmp/bp-partitioned-storage-maintenance.XXXXXX.json)
-if ! sudo -u bp "$PYTHON" "$REPO/scripts/storage_maintenance.py" run     --env-file "$ENV_FILE" > "$MAINTENANCE_JSON"; then
+if ! sudo -u bp "$PYTHON" "$REPO/scripts/storage_maintenance.py" run     --env-file "$ENV_FILE"     --allow-terminal-partial-compact-cutoff > "$MAINTENANCE_JSON"; then
   cat "$MAINTENANCE_JSON" >&2 || true
   fail "partitioned_storage_maintenance_cycle_failed"
 fi
@@ -870,6 +870,12 @@ for item in payload.get("raw_intervals") or []:
     dedupe_rows_removed = int(item.get("dedupe_rows_removed", -1))
     if dedupe_rows_removed != archived_rows:
         raise SystemExit("partition_dedupe_cleanup_mismatch")
+    compact_cutoff_at = item.get("compact_cutoff_at")
+    if not isinstance(compact_cutoff_at, str) or not compact_cutoff_at:
+        raise SystemExit("partition_compact_cutoff_missing")
+    terminal_partial = item.get("terminal_partial_compact_cutoff")
+    if not isinstance(terminal_partial, bool):
+        raise SystemExit("partition_terminal_partial_marker_invalid")
     nonempty.append(item)
 
 if not nonempty:
