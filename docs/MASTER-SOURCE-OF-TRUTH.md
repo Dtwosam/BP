@@ -273,6 +273,8 @@ The database design must support:
 
 Do not store every high-frequency raw update forever without a retention strategy.
 
+For the current Phase 14 production storage architecture, physical raw retirement uses verified hourly partitions. Normal retirement requires compact state beyond the full hourly interval. A separately gated stopped-recorder recovery may retire only the terminal partially populated partition at its last retained raw timestamp when there are no later raw rows and every required compact feed is strictly beyond that timestamp; this recovery exception must be explicit and auditable and must not alter steady-state retention semantics.
+
 ## 6.3 Dashboard
 
 - Next.js
