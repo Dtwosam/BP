@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.98 — 7 September 2026
+
+The explicitly authorized Phase 14 partitioned-storage rollout for candidate `f5609891bea3170015147e9be94fb7b0cb655976` completed both full exact raw/dedupe verification passes over `24,482,850` retained rows and progressed into the archive-to-partition-drop maintenance cycle. Maintenance then failed at 2026-09-07T10:39:21Z with `RuntimeError: compact state has not advanced beyond archived partition` and `REASON=partitioned_storage_maintenance_cycle_failed`. Rollback remained armed and completed at 10:45:53Z, restoring exactly `24,482,850` rows to legacy `raw_market_events`, returning the deployed checkout to `c29fe227f959305f67031e922ca659869a826c4f`, leaving the recorder non-running, and restoring both storage timers inactive.
+
+Read-only production diagnostics show this is not a compact-state data gap. The final retained raw event is at `2026-09-03T22:31:22.922427Z`, while the latest compact-state timestamps for Bybit linear, Bybit spot, Coinbase spot, and Polymarket market are all around `22:32:12Z`—roughly 50 seconds beyond the retained raw tail. The failure is therefore a stopped-recorder terminal-partition edge case: the final hourly child nominally ends at 23:00, but its final 28+ minutes contain no retained raw rows, so the existing full-hour compact watermark can never advance to 23:00 while the recorder is intentionally stopped.
+
+The recovery fix does not weaken normal maintenance. Steady-state retirement still requires all required compact feeds beyond the full hourly partition end. The controlled stopped-recorder rollout opts into a recovery-only terminal-partial rule: the final partially populated partition may use its last retained raw timestamp as the compact cutoff only when no raw row exists at or after the nominal partition end and every required compact feed is strictly beyond that last retained raw timestamp. Maintenance output records the exact cutoff and whether the recovery-only rule was used; rollout acceptance validates those audit fields. A partition with any later raw data remains ineligible.
+
+Because this fix changes the candidate SHA, the prior `f5609891...` approval and verified-preflight SHA-256 `3042b01c92a0abe6495776c96b87673c3ccfa801c05024748ad61b70d048e801` are not reusable. After merge and post-merge CI, freeze the new exact `main` SHA, rerun the read-only production preflight, and require fresh explicit migration approval. Migration authorization is false/unset.
+
 ## 0.14.97 — 6 September 2026
 
 The explicitly authorized Phase 14 partitioned-storage rollout for candidate `87e08fcff6a0c6aeb32dd360ec1e56fab76ce73f` reached the production migration path and successfully copied/verified `24,482,850` raw rows before failing inside the apply verifier with `RuntimeError: current + two future raw partitions are not provisioned`. The rollout had provisioned current + two future partitions at migration start, but the exact raw/dedupe parity scans ran for multiple hours; by verification time, the wall-clock window had advanced beyond the originally provisioned future partitions.
