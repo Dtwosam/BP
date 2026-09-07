@@ -56,6 +56,8 @@ class PartitionRetirementResult:
     partition_name: str
     archived_rows: int
     dedupe_rows_removed: int
+    compact_cutoff_at: datetime
+    terminal_partial_compact_cutoff: bool
 
 
 def _utc(value: datetime) -> datetime:
@@ -297,6 +299,32 @@ def _compact_feeds_advanced(
     return True
 
 
+def _terminal_partial_compact_cutoff(
+    engine: Engine,
+    manifest: ArchiveManifest,
+) -> datetime | None:
+    with engine.connect() as connection:
+        latest_in_partition = connection.execute(
+            select(func.max(raw_market_events.c.received_at)).where(
+                raw_market_events.c.received_at >= manifest.start_at,
+                raw_market_events.c.received_at < manifest.end_at,
+            )
+        ).scalar_one()
+        later_raw = connection.execute(
+            select(raw_market_events.c.id)
+            .where(raw_market_events.c.received_at >= manifest.end_at)
+            .limit(1)
+        ).first()
+
+    if latest_in_partition is None or later_raw is not None:
+        return None
+
+    cutoff = _utc(latest_in_partition)
+    if cutoff >= manifest.end_at:
+        return None
+    return cutoff
+
+
 def retire_verified_partition(
     engine: Engine,
     archive_path: Path | str,
@@ -304,6 +332,7 @@ def retire_verified_partition(
     *,
     batch_size: int = 50_000,
     required_feeds: tuple[tuple[str, str], ...] = REQUIRED_COMPACT_FEEDS,
+    allow_terminal_partial_compact_cutoff: bool = False,
 ) -> PartitionRetirementResult:
     if batch_size <= 0:
         raise ValueError("batch_size must be greater than zero")
@@ -316,8 +345,22 @@ def retire_verified_partition(
     if manifest.start_at.minute or manifest.start_at.second or manifest.start_at.microsecond:
         raise ArchiveVerificationError("partition archive must start on a UTC hour")
 
-    if not _compact_feeds_advanced(engine, manifest.end_at, required_feeds):
-        raise RuntimeError("compact state has not advanced beyond archived partition")
+    compact_cutoff_at = manifest.end_at
+    terminal_partial_compact_cutoff = False
+    if not _compact_feeds_advanced(engine, compact_cutoff_at, required_feeds):
+        terminal_cutoff = (
+            _terminal_partial_compact_cutoff(engine, manifest)
+            if allow_terminal_partial_compact_cutoff
+            else None
+        )
+        if terminal_cutoff is None or not _compact_feeds_advanced(
+            engine,
+            terminal_cutoff,
+            required_feeds,
+        ):
+            raise RuntimeError("compact state has not advanced beyond archived partition")
+        compact_cutoff_at = terminal_cutoff
+        terminal_partial_compact_cutoff = True
 
     with engine.begin() as connection:
         if raw_storage_mode(connection) is not RawStorageMode.PARTITIONED:
@@ -376,6 +419,8 @@ def retire_verified_partition(
         partition_name=partition_name,
         archived_rows=manifest.row_count,
         dedupe_rows_removed=dedupe_rows_removed,
+        compact_cutoff_at=compact_cutoff_at,
+        terminal_partial_compact_cutoff=terminal_partial_compact_cutoff,
     )
 
 

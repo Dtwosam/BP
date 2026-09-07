@@ -49,6 +49,15 @@ def parse_args() -> argparse.Namespace:
     run.add_argument("--archive-retention-hours", type=int, default=None)
     run.add_argument("--state-retention-days", type=int, default=None)
     run.add_argument("--delete-batch-size", type=int, default=None)
+    run.add_argument(
+        "--allow-terminal-partial-compact-cutoff",
+        action="store_true",
+        help=(
+            "Recovery-only: permit the final partially populated raw partition to "
+            "use the last retained raw timestamp as the compact-state cutoff when "
+            "no later raw rows exist"
+        ),
+    )
 
     health = subparsers.add_parser("disk-health", help="Report free-space status")
     health.add_argument("--env-file", default=None)
@@ -284,6 +293,9 @@ def _run_command(args: argparse.Namespace) -> int:
                     archive_path,
                     manifest_path,
                     batch_size=settings.storage_delete_batch_size,
+                    allow_terminal_partial_compact_cutoff=(
+                        args.allow_terminal_partial_compact_cutoff
+                    ),
                 )
                 partitions_retired += 1
                 dedupe_rows_removed += retired.dedupe_rows_removed
@@ -295,6 +307,12 @@ def _run_command(args: argparse.Namespace) -> int:
                         "archived_rows": manifest.row_count,
                         "partition": retired.partition_name,
                         "dedupe_rows_removed": retired.dedupe_rows_removed,
+                        "compact_cutoff_at": (
+                            retired.compact_cutoff_at.isoformat().replace("+00:00", "Z")
+                        ),
+                        "terminal_partial_compact_cutoff": (
+                            retired.terminal_partial_compact_cutoff
+                        ),
                         "sha256": manifest.sha256,
                     }
                 )

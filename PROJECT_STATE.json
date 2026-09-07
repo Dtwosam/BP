@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.97",
-  "updated_at": "2026-09-06T05:07:32Z",
+  "source_of_truth_version": "0.14.98",
+  "updated_at": "2026-09-07T10:45:53Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2502,10 +2502,10 @@
     "read_only_preflight_rerun_required_before_migration": true,
     "read_only_preflight_freeze_main_after_next_pass": true,
     "read_only_preflight_defer_pass_record_merge_until_migration_or_abort": true,
-    "partitioned_storage_authorized_launch_attempt_status": "FAILED_VM_MUTATED_ROLLED_BACK_PARTITION_WINDOW_DRIFT",
-    "partitioned_storage_authorized_launch_attempt_error": "current + two future raw partitions are not provisioned",
-    "partitioned_storage_authorized_launch_attempt_candidate_head": "87e08fcff6a0c6aeb32dd360ec1e56fab76ce73f",
-    "partitioned_storage_authorized_launch_attempt_preflight_sha256": "934fe56f24b4195e7560d78526ab5c79a5f0d9daceb38adb284e77aac0b8e3b3",
+    "partitioned_storage_authorized_launch_attempt_status": "FAILED_VM_MUTATED_ROLLED_BACK_TERMINAL_COMPACT_BOUNDARY",
+    "partitioned_storage_authorized_launch_attempt_error": "compact state has not advanced beyond archived partition",
+    "partitioned_storage_authorized_launch_attempt_candidate_head": "f5609891bea3170015147e9be94fb7b0cb655976",
+    "partitioned_storage_authorized_launch_attempt_preflight_sha256": "3042b01c92a0abe6495776c96b87673c3ccfa801c05024748ad61b70d048e801",
     "partitioned_storage_authorized_launch_attempt_vm_contacted": true,
     "partitioned_storage_authorized_launch_attempt_production_mutation": true,
     "partitioned_storage_rollout_launcher_runtime_expansion_fix_pr": 140,
@@ -2514,7 +2514,7 @@
     "partitioned_storage_rollout_launcher_runtime_expansion_fix_post_merge_ci_run_id": 33986786740,
     "partitioned_storage_rollout_launcher_runtime_expansion_fix_post_merge_ci_passed": true,
     "partitioned_storage_authorized_launch_attempt_rollback_armed": true,
-    "partitioned_storage_authorized_launch_attempt_failure_time": "2026-09-06T05:00:47Z",
+    "partitioned_storage_authorized_launch_attempt_failure_time": "2026-09-07T10:39:21Z",
     "partitioned_storage_rollout_scope_preflight_support_fix_status": "MERGED_MAIN_FRESH_PREFLIGHT_AND_APPROVAL_REQUIRED",
     "partitioned_storage_rollout_scope_preflight_support_paths": [
       "scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh",
@@ -2523,7 +2523,7 @@
     ],
     "partitioned_storage_rollout_scope_preflight_support_fix_pr": 141,
     "partitioned_storage_authorized_launch_attempt_rollback_complete": true,
-    "partitioned_storage_authorized_launch_attempt_rollback_completed_at": "2026-09-06T05:07:32Z",
+    "partitioned_storage_authorized_launch_attempt_rollback_completed_at": "2026-09-07T10:45:53Z",
     "partitioned_storage_authorized_launch_attempt_restored_rows": 24482850,
     "partitioned_storage_authorized_launch_attempt_restored_storage_mode": "legacy",
     "partitioned_storage_authorized_launch_attempt_deployed_head_after_rollback": "c29fe227f959305f67031e922ca659869a826c4f",
@@ -2532,6 +2532,19 @@
     "partitioned_storage_authorized_launch_attempt_disk_health_timer_state_after_rollback": "inactive",
     "partitioned_storage_verification_partition_drift_fix_status": "MERGED_MAIN_FRESH_PREFLIGHT_AND_APPROVAL_REQUIRED",
     "partitioned_storage_verification_partition_drift_root_cause": "Verification used a fixed migration-start current+2 partition window; the multi-hour exact parity scan crossed that window before the verifier checked it.",
-    "partitioned_storage_verification_partition_drift_fix_pr": 142
+    "partitioned_storage_verification_partition_drift_fix_pr": 142,
+    "partitioned_storage_authorized_launch_attempt_second_raw_parity_passed": true,
+    "partitioned_storage_authorized_launch_attempt_second_dedupe_parity_rows_checked": 24482850,
+    "partitioned_storage_terminal_partial_retirement_root_cause": "The final retained raw partition is partially populated through 2026-09-03T22:31:22.922427Z, but the strict compact guard requires all required feeds beyond the nominal 23:00 partition end. With the recorder intentionally stopped, compact state cannot advance through the empty remainder of that hour.",
+    "partitioned_storage_terminal_partial_retirement_compact_diagnostic": {
+      "bybit_linear_compact_last_event_at": "2026-09-03T22:32:12.815402Z",
+      "bybit_spot_compact_last_event_at": "2026-09-03T22:32:12.830254Z",
+      "coinbase_spot_compact_last_event_at": "2026-09-03T22:32:12.767961Z",
+      "polymarket_market_compact_last_event_at": "2026-09-03T22:32:12.815025Z",
+      "final_raw_received_at": "2026-09-03T22:31:22.922427Z",
+      "all_required_compact_feeds_beyond_final_raw": true
+    },
+    "partitioned_storage_terminal_partial_retirement_fix_status": "MERGED_MAIN_FRESH_PREFLIGHT_AND_APPROVAL_REQUIRED",
+    "partitioned_storage_terminal_partial_retirement_fix_pr": 143
   }
 }

@@ -288,3 +288,14 @@ Migration from a populated legacy table is never implicit recorder startup behav
 
 This decision changes no V2 timing/freshness/model/calibration/edge policy, no selected-book freshness rule, no execution policy, no geographic rule, and no live-trading authorization. Gate B and Phase 15 remain blocked and `automatic_promotion=false`.
 
+
+
+## D-035 — Stopped-recorder recovery may retire a proven terminal partial raw partition at the last retained raw timestamp
+**Date:** 7 Sep 2026  
+**Status:** Active
+
+D-034 remains the normal production retention contract: an hourly raw partition is archived and verified exactly, compact state must advance beyond the interval, the raw child is dropped, and only then are matching dedupe-ledger rows removed.
+
+A controlled Phase 14 stopped-recorder recovery may use a narrower cutoff only for the terminal partially populated raw partition. This exception is allowed only when the recovery path is explicitly opted in, no raw row exists at or after that partition's nominal end, the partition contains retained raw rows, and every required compact feed has a latest `last_event_at` strictly greater than the last retained raw `received_at` in that partition. The exact cutoff and use of the terminal-partial rule must be recorded in maintenance evidence.
+
+Normal steady-state maintenance does not enable this exception and continues to require compact advancement beyond the full nominal hourly end. Any partition with later raw evidence remains ineligible for the exception. The archive/manifest verification, raw row parity, partition drop ordering, dedupe cleanup ordering, disk-health thresholds, recorder-stopped recovery boundary, research/zero-money settings, Gate B block, and live-trading block are unchanged.
