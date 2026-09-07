@@ -2544,6 +2544,7 @@
       "final_raw_received_at": "2026-09-03T22:31:22.922427Z",
       "all_required_compact_feeds_beyond_final_raw": true
     },
-    "partitioned_storage_terminal_partial_retirement_fix_status": "IN_REVIEW_FRESH_PREFLIGHT_AND_APPROVAL_REQUIRED_AFTER_MERGE"
+    "partitioned_storage_terminal_partial_retirement_fix_status": "MERGED_MAIN_FRESH_PREFLIGHT_AND_APPROVAL_REQUIRED",
+    "partitioned_storage_terminal_partial_retirement_fix_pr": 143
   }
 }
