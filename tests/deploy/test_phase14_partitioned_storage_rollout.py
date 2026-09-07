@@ -920,3 +920,20 @@ def test_partitioned_storage_verification_refreshes_current_future_partitions() 
     parity = content.index('legacy = _raw_stats(engine, "raw_market_events_legacy")', verify)
     partition_check = content.index("partitions = list_raw_partitions(engine)", verify)
     assert verify < refresh < parity < partition_check
+
+
+def test_rollout_uses_recovery_only_terminal_partial_compact_cutoff() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for marker in (
+        "--allow-terminal-partial-compact-cutoff",
+        'item.get("compact_cutoff_at")',
+        'item.get("terminal_partial_compact_cutoff")',
+        "partition_compact_cutoff_missing",
+        "partition_terminal_partial_marker_invalid",
+    ):
+        assert marker in content
+
+    invocation = content.index("--allow-terminal-partial-compact-cutoff")
+    maintenance_validation = content.index("partition_compact_cutoff_missing", invocation)
+    assert invocation < maintenance_validation
