@@ -545,6 +545,61 @@ def test_partition_retirement_requires_compact_state_advance(engine, tmp_path) -
     assert any(item.start_at == start_at for item in list_raw_partitions(engine))
 
 
+def test_terminal_partial_partition_retirement_requires_explicit_recovery_opt_in(
+    engine,
+    tmp_path,
+) -> None:
+    start_at = datetime(2026, 9, 4, 18, tzinfo=UTC)
+    events = _seed_partitioned_hour(engine, start_at)
+    end_at = start_at + timedelta(hours=1)
+    last_raw_at = max(event.received_at for event in events)
+    archive_dir = tmp_path / "archive"
+    manifest = archive_interval(engine, archive_dir, start_at, end_at)
+    archive_path, manifest_path = _archive_paths(archive_dir, manifest)
+    _advance_required_compact_feeds(engine, last_raw_at + timedelta(seconds=1))
+
+    with pytest.raises(RuntimeError, match="compact state"):
+        retire_verified_partition(engine, archive_path, manifest_path)
+
+    result = retire_verified_partition(
+        engine,
+        archive_path,
+        manifest_path,
+        batch_size=1,
+        allow_terminal_partial_compact_cutoff=True,
+    )
+
+    assert result.archived_rows == len(events)
+    assert result.dedupe_rows_removed == len(events)
+    assert result.compact_cutoff_at == last_raw_at
+    assert result.terminal_partial_compact_cutoff is True
+
+
+def test_terminal_partial_recovery_cutoff_rejects_partition_when_later_raw_exists(
+    engine,
+    tmp_path,
+) -> None:
+    start_at = datetime(2026, 9, 4, 19, tzinfo=UTC)
+    events = _seed_partitioned_hour(engine, start_at)
+    _seed_partitioned_hour(engine, start_at + timedelta(hours=1), count=1)
+    end_at = start_at + timedelta(hours=1)
+    last_raw_at = max(event.received_at for event in events)
+    archive_dir = tmp_path / "archive"
+    manifest = archive_interval(engine, archive_dir, start_at, end_at)
+    archive_path, manifest_path = _archive_paths(archive_dir, manifest)
+    _advance_required_compact_feeds(engine, last_raw_at + timedelta(seconds=1))
+
+    with pytest.raises(RuntimeError, match="compact state"):
+        retire_verified_partition(
+            engine,
+            archive_path,
+            manifest_path,
+            allow_terminal_partial_compact_cutoff=True,
+        )
+
+    assert any(item.start_at == start_at for item in list_raw_partitions(engine))
+
+
 def test_verified_partition_retirement_drops_relation_then_dedupe(engine, tmp_path) -> None:
     start_at = datetime(2026, 9, 4, 18, tzinfo=UTC)
     events = _seed_partitioned_hour(engine, start_at)
@@ -572,6 +627,8 @@ def test_verified_partition_retirement_drops_relation_then_dedupe(engine, tmp_pa
     assert result.partition_name == partition_name
     assert result.archived_rows == len(events)
     assert result.dedupe_rows_removed == len(events)
+    assert result.compact_cutoff_at == end_at
+    assert result.terminal_partial_compact_cutoff is False
     with engine.connect() as connection:
         relation = connection.execute(
             text("SELECT to_regclass(:name)"),
