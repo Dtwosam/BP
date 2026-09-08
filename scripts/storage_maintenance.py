@@ -374,6 +374,11 @@ def _run_command(args: argparse.Namespace) -> int:
             critical_free_gib=settings.storage_critical_free_gib,
         )
 
+        final_health_at: datetime | None = None
+        if storage_mode is RawStorageMode.PARTITIONED:
+            final_health_at = datetime.now(UTC)
+            ensure_partitioned_raw_storage(engine, now=final_health_at)
+
         _record_maintenance_finish(
             engine,
             run_id=run_id,
@@ -390,6 +395,7 @@ def _run_command(args: argparse.Namespace) -> int:
                 engine,
                 health_path,
                 settings,
+                now=final_health_at,
             )
             if final_health["status"] == "critical":
                 _record_maintenance_finish(
@@ -406,6 +412,7 @@ def _run_command(args: argparse.Namespace) -> int:
                     engine,
                     health_path,
                     settings,
+                    now=final_health_at,
                 )
         else:
             final_health = final_disk

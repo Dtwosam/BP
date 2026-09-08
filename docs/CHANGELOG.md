@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.99 — 8 September 2026
+
+The explicitly authorized Phase 14 partitioned-storage rollout for candidate `a7f8418306ae4262d41769ee0392c6c7fb6ed1c2` again completed the exact migration and second full dedupe verification over all `24,482,850` retained rows, then entered the recovery maintenance cycle. The terminal-partial recovery rule worked in production: maintenance retired all 23 retained hourly raw partitions, removed exactly `24,482,850` matching dedupe rows, and retired the final `raw_market_events_20260903_22` partition using the proven compact cutoff `2026-09-03T22:31:22.922427Z` with `terminal_partial_compact_cutoff=true`.
+
+Maintenance nevertheless returned critical at 2026-09-08T11:08:27Z because final composite storage health reported `current_partition_present=false`. The failure is another wall-clock provisioning drift, not an archive, partition-retirement, dedupe, or terminal-partial defect: `storage_maintenance.py` captured `now` and provisioned current + two future raw partitions only once at cycle start, then spent roughly 3.5 hours archiving/dropping partitions and cleaning the dedupe ledger. Final composite health used the later actual wall clock, whose current partition had never been provisioned.
+
+Rollback remained armed and completed at 11:14:43Z, restoring exactly `24,482,850` rows to legacy `raw_market_events`, returning the deployed checkout to `c29fe227f959305f67031e922ca659869a826c4f`, leaving the recorder non-running, and restoring both storage timers inactive.
+
+The fix preserves the writable-partition safety invariant. After retention/state pruning and immediately before final composite health, partitioned maintenance captures a fresh UTC verification timestamp, idempotently provisions exactly that current hour plus two future hours, and passes the same timestamp into composite health. No default partition is added, retention is not widened, disk thresholds are unchanged, and the recovery-only terminal-partial rule is unchanged. Because this changes the candidate SHA, the prior `a7f8418...` approval and verified-preflight digest `503d07ab917c9275da5e41309cbf7f56eeb70e123069f7b73bfdc8864ff401b3` are not reusable; after merge/post-merge CI, freeze the new exact `main`, rerun read-only production preflight, and require fresh explicit migration approval.
+
 ## 0.14.98 — 7 September 2026
 
 The explicitly authorized Phase 14 partitioned-storage rollout for candidate `f5609891bea3170015147e9be94fb7b0cb655976` completed both full exact raw/dedupe verification passes over `24,482,850` retained rows and progressed into the archive-to-partition-drop maintenance cycle. Maintenance then failed at 2026-09-07T10:39:21Z with `RuntimeError: compact state has not advanced beyond archived partition` and `REASON=partitioned_storage_maintenance_cycle_failed`. Rollback remained armed and completed at 10:45:53Z, restoring exactly `24,482,850` rows to legacy `raw_market_events`, returning the deployed checkout to `c29fe227f959305f67031e922ca659869a826c4f`, leaving the recorder non-running, and restoring both storage timers inactive.
