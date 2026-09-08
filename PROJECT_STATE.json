@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.98",
-  "updated_at": "2026-09-07T10:45:53Z",
+  "source_of_truth_version": "0.14.99",
+  "updated_at": "2026-09-08T11:14:43Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -2502,10 +2502,10 @@
     "read_only_preflight_rerun_required_before_migration": true,
     "read_only_preflight_freeze_main_after_next_pass": true,
     "read_only_preflight_defer_pass_record_merge_until_migration_or_abort": true,
-    "partitioned_storage_authorized_launch_attempt_status": "FAILED_VM_MUTATED_ROLLED_BACK_TERMINAL_COMPACT_BOUNDARY",
-    "partitioned_storage_authorized_launch_attempt_error": "compact state has not advanced beyond archived partition",
-    "partitioned_storage_authorized_launch_attempt_candidate_head": "f5609891bea3170015147e9be94fb7b0cb655976",
-    "partitioned_storage_authorized_launch_attempt_preflight_sha256": "3042b01c92a0abe6495776c96b87673c3ccfa801c05024748ad61b70d048e801",
+    "partitioned_storage_authorized_launch_attempt_status": "FAILED_VM_MUTATED_ROLLED_BACK_MAINTENANCE_PARTITION_WINDOW_DRIFT",
+    "partitioned_storage_authorized_launch_attempt_error": "final composite storage health reported current_partition_present=false after long maintenance cycle",
+    "partitioned_storage_authorized_launch_attempt_candidate_head": "a7f8418306ae4262d41769ee0392c6c7fb6ed1c2",
+    "partitioned_storage_authorized_launch_attempt_preflight_sha256": "503d07ab917c9275da5e41309cbf7f56eeb70e123069f7b73bfdc8864ff401b3",
     "partitioned_storage_authorized_launch_attempt_vm_contacted": true,
     "partitioned_storage_authorized_launch_attempt_production_mutation": true,
     "partitioned_storage_rollout_launcher_runtime_expansion_fix_pr": 140,
@@ -2514,7 +2514,7 @@
     "partitioned_storage_rollout_launcher_runtime_expansion_fix_post_merge_ci_run_id": 33986786740,
     "partitioned_storage_rollout_launcher_runtime_expansion_fix_post_merge_ci_passed": true,
     "partitioned_storage_authorized_launch_attempt_rollback_armed": true,
-    "partitioned_storage_authorized_launch_attempt_failure_time": "2026-09-07T10:39:21Z",
+    "partitioned_storage_authorized_launch_attempt_failure_time": "2026-09-08T11:08:27Z",
     "partitioned_storage_rollout_scope_preflight_support_fix_status": "MERGED_MAIN_FRESH_PREFLIGHT_AND_APPROVAL_REQUIRED",
     "partitioned_storage_rollout_scope_preflight_support_paths": [
       "scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh",
@@ -2523,7 +2523,7 @@
     ],
     "partitioned_storage_rollout_scope_preflight_support_fix_pr": 141,
     "partitioned_storage_authorized_launch_attempt_rollback_complete": true,
-    "partitioned_storage_authorized_launch_attempt_rollback_completed_at": "2026-09-07T10:45:53Z",
+    "partitioned_storage_authorized_launch_attempt_rollback_completed_at": "2026-09-08T11:14:43Z",
     "partitioned_storage_authorized_launch_attempt_restored_rows": 24482850,
     "partitioned_storage_authorized_launch_attempt_restored_storage_mode": "legacy",
     "partitioned_storage_authorized_launch_attempt_deployed_head_after_rollback": "c29fe227f959305f67031e922ca659869a826c4f",
@@ -2545,6 +2545,13 @@
       "all_required_compact_feeds_beyond_final_raw": true
     },
     "partitioned_storage_terminal_partial_retirement_fix_status": "MERGED_MAIN_FRESH_PREFLIGHT_AND_APPROVAL_REQUIRED",
-    "partitioned_storage_terminal_partial_retirement_fix_pr": 143
+    "partitioned_storage_terminal_partial_retirement_fix_pr": 143,
+    "partitioned_storage_authorized_launch_attempt_partitions_retired": 23,
+    "partitioned_storage_authorized_launch_attempt_dedupe_rows_removed": 24482850,
+    "partitioned_storage_authorized_launch_attempt_terminal_partial_partition": "raw_market_events_20260903_22",
+    "partitioned_storage_authorized_launch_attempt_terminal_partial_compact_cutoff_at": "2026-09-03T22:31:22.922427Z",
+    "partitioned_storage_authorized_launch_attempt_terminal_partial_fix_production_verified": true,
+    "partitioned_storage_maintenance_partition_window_drift_root_cause": "Maintenance provisioned current + two future partitions only at cycle start. The archive/drop/dedupe cycle ran for about 3.5 hours, so final composite health evaluated a later wall-clock current hour that had never been provisioned and failed with current_partition_present=false.",
+    "partitioned_storage_maintenance_partition_window_drift_fix_status": "IN_REVIEW_FRESH_PREFLIGHT_AND_APPROVAL_REQUIRED_AFTER_MERGE"
   }
 }
