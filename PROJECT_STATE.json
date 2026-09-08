@@ -2552,6 +2552,7 @@
     "partitioned_storage_authorized_launch_attempt_terminal_partial_compact_cutoff_at": "2026-09-03T22:31:22.922427Z",
     "partitioned_storage_authorized_launch_attempt_terminal_partial_fix_production_verified": true,
     "partitioned_storage_maintenance_partition_window_drift_root_cause": "Maintenance provisioned current + two future partitions only at cycle start. The archive/drop/dedupe cycle ran for about 3.5 hours, so final composite health evaluated a later wall-clock current hour that had never been provisioned and failed with current_partition_present=false.",
-    "partitioned_storage_maintenance_partition_window_drift_fix_status": "IN_REVIEW_FRESH_PREFLIGHT_AND_APPROVAL_REQUIRED_AFTER_MERGE"
+    "partitioned_storage_maintenance_partition_window_drift_fix_status": "MERGED_MAIN_FRESH_PREFLIGHT_AND_APPROVAL_REQUIRED",
+    "partitioned_storage_maintenance_partition_window_drift_fix_pr": 144
   }
 }
