@@ -6,6 +6,7 @@ INDEX_INSTALLER = Path("scripts/deploy/ensure_storage_indexes.py")
 PHASE12_INDEX_INSTALLER = Path("scripts/deploy/ensure_phase12_replay_indexes.py")
 RECORDER_SERVICE = Path("src/bp_engine/recorder/service.py")
 RECORDER_UNIT = Path("deploy/systemd/bp-recorder.service")
+STORAGE_MAINTENANCE = Path("scripts/storage_maintenance.py")
 
 
 def read(path: Path) -> str:
@@ -69,3 +70,23 @@ def test_recorder_unit_runs_composite_health_before_recorder_process() -> None:
     assert condition in unit
     assert start in unit
     assert unit.index(condition) < unit.index(start)
+
+
+
+def test_storage_maintenance_refreshes_partition_window_before_final_health() -> None:
+    source = read(STORAGE_MAINTENANCE)
+
+    first = source.index("ensure_partitioned_raw_storage(engine, now=now)")
+    refresh = source.index(
+        "ensure_partitioned_raw_storage(engine, now=final_health_at)",
+        first + 1,
+    )
+    final_health = source.index(
+        "final_health = build_composite_storage_health(",
+        refresh,
+    )
+
+    assert refresh > source.index("prune_expired_state(", first)
+    assert refresh < final_health
+    health_block = source[final_health : final_health + 500]
+    assert "now=final_health_at" in health_block
