@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.100 — 9 September 2026
+
+The explicitly authorized Phase 14 partitioned-storage rollout for candidate `895c6bd2f9409f16bf5d544b26b30e20ecbfe43a`, bound to verified-preflight SHA-256 `fb880c6c234a81d2fcc9a7c11bb81a2d3945fc22b4fbd8a2a358b95afc2adddc`, completed successfully at 2026-09-09T07:02:19Z with `PHASE14_PARTITIONED_STORAGE_ROLLOUT=PASS`. The accepted evidence artifact is `/mnt/bp-data/evidence/phase14-partitioned-storage-rollout-20260909T070219Z.json` with SHA-256 `f33a28f5306e46c509b0000a176d226c079aa2d160d595095ca228118542ce19`.
+
+The rollout physically released `34,332,024,832` bytes from attached raw partitions, retained rollback material, and intentionally left `RECORDER_RESTARTED=false`. Post-rollout production baseline is deployed head `895c6bd2f9409f16bf5d544b26b30e20ecbfe43a`, recorder non-running (`failed`), storage-maintenance timer active, and disk-health timer active. This accepts the Phase 14 partitioned-storage migration and storage-health gate; it does not authorize recorder restart, Gate B, V2 promotion/policy/model changes, Phase 15, geographic bypass, or live trading.
+
+The successful rollout production-verifies the earlier long-running-window fixes and the stopped-recorder terminal-partial recovery rule. The next operational step remains the separate recorder-reliability restart gate using the already-merged `RECORDER_WRITER_WORKERS=4` repair, followed by all-four-feed and natural-load no-drop/backpressure acceptance.
+
 ## 0.14.99 — 8 September 2026
 
 The explicitly authorized Phase 14 partitioned-storage rollout for candidate `a7f8418306ae4262d41769ee0392c6c7fb6ed1c2` again completed the exact migration and second full dedupe verification over all `24,482,850` retained rows, then entered the recovery maintenance cycle. The terminal-partial recovery rule worked in production: maintenance retired all 23 retained hourly raw partitions, removed exactly `24,482,850` matching dedupe rows, and retired the final `raw_market_events_20260903_22` partition using the proven compact cutoff `2026-09-03T22:31:22.922427Z` with `terminal_partial_compact_cutoff=true`.
