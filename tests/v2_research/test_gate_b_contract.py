@@ -121,11 +121,15 @@ def _label(condition_index: int) -> dict[str, object]:
 
 def _plan_config() -> GateBPlanConfig:
     return GateBPlanConfig(
-        min_initial_train_markets=4,
-        validation_markets=2,
-        test_markets=2,
-        final_holdout_markets=2,
+        train_duration=timedelta(minutes=20),
+        validation_duration=timedelta(minutes=10),
+        test_duration=timedelta(minutes=10),
+        step_duration=timedelta(minutes=10),
+        final_holdout_duration=timedelta(minutes=10),
         embargo_markets=1,
+        min_train_markets=2,
+        min_validation_markets=1,
+        min_test_markets=2,
     )
 
 
@@ -137,6 +141,34 @@ def _research_config() -> GateBResearchConfig:
         min_validation_trades=1,
         min_train_eligible_markets=2,
         min_validation_eligible_markets=1,
+    )
+
+
+def test_gate_b_defaults_reuse_accepted_phase8_phase9_search_geometry() -> None:
+    plan = GateBPlanConfig()
+    research = GateBResearchConfig()
+
+    assert plan.train_duration == timedelta(hours=8)
+    assert plan.validation_duration == timedelta(hours=2)
+    assert plan.test_duration == timedelta(hours=2)
+    assert plan.step_duration == timedelta(hours=2)
+    assert plan.final_holdout_duration == timedelta(hours=2)
+    assert plan.embargo_markets == 1
+    assert plan.min_train_markets == 24
+    assert plan.min_validation_markets == 6
+    assert plan.min_test_markets == 6
+
+    assert research.fee_rate == 0.07
+    assert research.slippage_buffer == 0.01
+    assert research.min_edge_grid == (
+        0.0,
+        0.01,
+        0.02,
+        0.03,
+        0.05,
+        0.075,
+        0.10,
+        0.15,
     )
 
 
@@ -170,7 +202,7 @@ def test_gate_b_plan_is_feature_only_deterministic_and_holds_out_latest_markets(
     assert first == second
     assert first["feature_version"] == "core-v2-last-trade"
     assert first["market_count"] == 16
-    assert len(first["folds"]) == 3
+    assert len(first["folds"]) == 4
     assert first["final"]["holdout_condition_ids"] == [
         "condition-014",
         "condition-015",
