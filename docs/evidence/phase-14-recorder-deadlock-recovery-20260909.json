@@ -1,0 +1,96 @@
+{
+  "verdict": "PASS",
+  "recovery_gate": "PHASE14_RECORDER_DEADLOCK_RECOVERY_GATE",
+  "started_at": "2026-09-09T18:54:20Z",
+  "finished_at": "2026-09-09T18:55:51Z",
+  "recorded_at": "2026-09-09T18:55:51.308815+00:00",
+  "helper_head": "d217e20befd98d935138673ba1da17a62e895d44",
+  "from_head": "895c6bd2f9409f16bf5d544b26b30e20ecbfe43a",
+  "deployed_head": "e9c7afc1536880e4612cb6e3d1a7282fa37c69f5",
+  "candidate_branch": "ops/phase14-storage-deadlock-recovery-candidate",
+  "candidate_scope": {
+    "runtime_path": "src/bp_engine/storage/partitioned_raw.py",
+    "runtime_blob": "952a43396d2130ab7c709f20be370c4ba347398e",
+    "test_path": "tests/storage/test_partitioned_raw_postgres.py",
+    "test_blob": "8e4cae9c78387df8bc27bbeb38a2a8dfa8451f3e",
+    "runtime_files_changed": 1
+  },
+  "accepted_storage_evidence": {
+    "path": "/mnt/bp-data/evidence/phase14-partitioned-storage-rollout-20260909T070219Z.json",
+    "sha256": "f33a28f5306e46c509b0000a176d226c079aa2d160d595095ca228118542ce19"
+  },
+  "host_evidence_path": "/var/lib/bp/evidence/phase14-recorder-deadlock-recovery-20260909T185551Z.json",
+  "cloud_shell_transcript": {
+    "filename": "bp-recorder-recovery-20260909T185420Z.txt",
+    "sha256": "f8929882c2502fbab6f0de6d37acf5abe31ded82bab7fb5373174e25855bf4b5"
+  },
+  "recorder": {
+    "active": true,
+    "config_workers": 4,
+    "main_pid": 3300693,
+    "restarts_before_active_maintenance": 0,
+    "restarts_after_active_maintenance": 0
+  },
+  "maintenance": {
+    "prestart_cycle_result": "success",
+    "active_recorder_cycle_result": "success",
+    "active_recorder_last_success_at": "2026-09-09T18:55:41.678355Z"
+  },
+  "soak": {
+    "passed": true,
+    "duration_seconds": 36,
+    "minimum_duration_seconds": 28,
+    "failures": [],
+    "incidents": {},
+    "feeds": {
+      "polymarket/market": {
+        "event_count": 10660
+      },
+      "bybit/spot": {
+        "event_count": 1056
+      },
+      "bybit/linear": {
+        "event_count": 1963
+      },
+      "coinbase/spot": {
+        "event_count": 274
+      }
+    }
+  },
+  "storage_after_active_maintenance": {
+    "status": "ok",
+    "storage_mode": "partitioned",
+    "free_bytes": 59993808896,
+    "free_percent": 57.088429398830506,
+    "warning_free_bytes": 26843545600,
+    "critical_free_bytes": 16106127360,
+    "guards": {
+      "current_partition_present": true,
+      "maintenance_fresh": true,
+      "retention_current": true
+    },
+    "raw_partitions": {
+      "count": 20,
+      "newest_end_at": "2026-09-09T21:00:00Z",
+      "oldest_start_at": "2026-09-08T22:00:00Z",
+      "retention_lag_hours": 0
+    }
+  },
+  "timers": {
+    "storage_disk_health_active": true,
+    "storage_maintenance_active": true,
+    "v2_forward_coverage_active": true
+  },
+  "safety": {
+    "mode": "research",
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "automatic_promotion": false
+  },
+  "gate_b": {
+    "actions_performed": false,
+    "artifacts_fingerprint": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "holdout_touched": false
+  }
+}
