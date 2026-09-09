@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections.abc import Callable
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -105,8 +106,6 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
     engine = create_engine(settings.database_url)
 
     if args.command == "plan":
-        from datetime import timedelta
-
         config = GateBPlanConfig(
             train_duration=timedelta(hours=args.train_hours),
             validation_duration=timedelta(hours=args.validation_hours),
