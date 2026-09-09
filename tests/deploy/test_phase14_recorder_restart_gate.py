@@ -70,7 +70,7 @@ def test_recorder_restart_gate_verifies_worker_config_without_proc_environ() -> 
         "recorder_environment_file_mismatch",
         "Settings(_env_file=sys.argv[1]).recorder_writer_workers",
         "recorder_config_worker_count_not_4",
-        "RECORDER_CONFIG_WORKERS=4",
+        "RECORDER_CONFIG_WORKERS=$CONFIG_WORKERS",
     ):
         assert required in content
 
