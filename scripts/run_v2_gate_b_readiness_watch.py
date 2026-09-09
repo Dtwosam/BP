@@ -15,6 +15,7 @@ from bp_engine.config import Settings, TradingMode
 from bp_engine.v2_research.config import (
     FROZEN_COVERAGE_INPUT_SHA256,
     FROZEN_FRESHNESS_CANDIDATES_SECONDS,
+    FROZEN_INCLUDE_NO_TRADE,
 )
 from bp_engine.v2_research.models import GateBPlanConfig, GateBResearchConfig
 from bp_engine.v2_research.plan import assess_gate_b_readiness
@@ -103,6 +104,31 @@ def _require_no_gate_b_artifacts(evidence_dir: Path) -> None:
         raise RuntimeError(f"gate_b_artifact_present:{artifacts[0]}")
 
 
+def _require_source_truth_boundary() -> None:
+    state_path = Path(__file__).resolve().parents[1] / "PROJECT_STATE.json"
+    payload = json.loads(state_path.read_text(encoding="utf-8"))
+    automatic_promotion: list[object] = []
+    gate_b_authorized: list[object] = []
+
+    def walk(value: object) -> None:
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if key == "automatic_promotion":
+                    automatic_promotion.append(item)
+                elif key == "gate_b_authorized":
+                    gate_b_authorized.append(item)
+                walk(item)
+        elif isinstance(value, list):
+            for item in value:
+                walk(item)
+
+    walk(payload)
+    if not automatic_promotion or any(value is not False for value in automatic_promotion):
+        raise RuntimeError("automatic_promotion_boundary_changed")
+    if not gate_b_authorized or any(value is not False for value in gate_b_authorized):
+        raise RuntimeError("gate_b_authorization_boundary_changed")
+
+
 def _validate_payload(payload: dict[str, Any]) -> None:
     if payload.get("labels_read") is not False:
         raise RuntimeError("readiness_read_labels")
@@ -125,6 +151,8 @@ def _validate_payload(payload: dict[str, Any]) -> None:
         FROZEN_FRESHNESS_CANDIDATES_SECONDS
     ):
         raise RuntimeError("freshness_candidate_grid_changed")
+    if payload.get("include_no_trade") is not FROZEN_INCLUDE_NO_TRADE:
+        raise RuntimeError("include_no_trade_boundary_changed")
 
 
 def _compact_status(payload: dict[str, Any]) -> dict[str, Any]:
@@ -187,6 +215,7 @@ def run(
     status_file: Path | None,
 ) -> dict[str, Any]:
     _require_no_gate_b_artifacts(evidence_dir)
+    _require_source_truth_boundary()
 
     settings = Settings(_env_file=env_file)
     _require_research_zero_money(settings, env_file, safety_env_file)
