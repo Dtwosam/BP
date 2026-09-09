@@ -69,6 +69,15 @@ min_test_markets          = 6
 
 The plan is constructed from feature metadata only. It requires at least three eligible ordinary folds, forbids ordinary-test reuse, and reserves the latest two-hour segment as the final holdout.
 
+If the earliest historical V2 prefix is too sparse to satisfy those unchanged Phase 8 minimums, the planner must not lower the minimums or skip an individual fold. Instead, before any label query, it advances the candidate analysis start by the existing two-hour step and chooses the **earliest** start for which the entire remaining contiguous schedule (all ordinary folds plus final train/validation/holdout) satisfies the frozen minimum-count contract. The plan records and hashes:
+
+- `analysis_start_at`;
+- `analysis_start_attempt_count`;
+- every rejected candidate start and its feature-only rejection reason;
+- `excluded_prefix_condition_ids`.
+
+This epoch selection is coverage/feature metadata only. Labels, outcomes, calibration, P&L, and test/holdout results cannot influence it.
+
 The plan also freezes these research assumptions before labels:
 
 ```text
