@@ -207,6 +207,24 @@ def test_prepare_gate_b_does_not_require_final_holdout_labels() -> None:
     assert report["coverage_input_sha256"] == FROZEN_COVERAGE_INPUT_SHA256
     assert report["freshness_candidates_seconds"] == [1, 2, 5, 10]
 
+    with engine.begin() as connection:
+        with pytest.raises(
+            GateBResearchIntegrityError,
+            match="cannot change the feature-only research config",
+        ):
+            prepare_gate_b(
+                connection,
+                plan=plan,
+                config=GateBResearchConfig(
+                    fee_rate=0.01,
+                    slippage_buffer=0.0,
+                    min_edge_grid=(0.0,),
+                    min_validation_trades=1,
+                    min_train_eligible_markets=2,
+                    min_validation_eligible_markets=1,
+                ),
+            )
+
 
 def test_v2_policy_stale_or_missing_last_trade_is_explicit_no_trade() -> None:
     row = SupervisedRow(
