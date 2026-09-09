@@ -1,0 +1,35 @@
+[Unit]
+Description=BP Phase 14 feature-only Gate B readiness watch
+Requires=bp-postgres.service
+After=bp-postgres.service
+ConditionPathIsDirectory=/opt/bp-v2-gate-b-readiness-watch/current
+
+[Service]
+Type=oneshot
+User=bp
+Group=bp
+WorkingDirectory=/opt/bp-v2-gate-b-readiness-watch/current
+EnvironmentFile=/etc/bp/bp.env
+EnvironmentFile=/etc/bp/bp-prospective-runtime-safety.env
+Environment=MODE=research
+Environment=LIVE_TRADING_ENABLED=false
+Environment=MAX_TRADE_SIZE_USD=0
+Environment=MAX_DAILY_LOSS_USD=0
+Environment=PYTHONPATH=/opt/bp-v2-gate-b-readiness-watch/current/src
+ExecStart=/opt/bp/.venv/bin/python /opt/bp-v2-gate-b-readiness-watch/current/scripts/run_v2_gate_b_readiness_watch.py --env-file /etc/bp/bp.env --safety-env-file /etc/bp/bp-prospective-runtime-safety.env --evidence-dir /var/lib/bp/evidence --status-file /var/lib/bp/status/v2-gate-b-readiness.json
+UMask=0077
+TimeoutStartSec=2min
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=full
+ReadOnlyPaths=/opt/bp-v2-gate-b-readiness-watch
+ReadOnlyPaths=/var/lib/bp/evidence
+ReadWritePaths=/var/lib/bp/status
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-v2-gate-b-readiness-watch
