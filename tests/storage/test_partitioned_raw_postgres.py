@@ -397,7 +397,6 @@ def test_partitioned_writer_concurrent_duplicate_race_persists_one_row(engine) -
     assert ledger_count == 1
 
 
-
 def test_partitioned_runtime_ensure_does_not_wait_on_active_dedupe_writer(engine) -> None:
     now = datetime(2026, 9, 4, 14, 5, tzinfo=UTC)
     ensure_partitioned_raw_storage(engine, now=now)
