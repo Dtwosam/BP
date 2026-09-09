@@ -134,6 +134,40 @@ Fail when:
 
 Do not fail merely because the selected result is `no_trade`, eligible coverage is low, calibration remains identity, or holdout economics are negative.
 
+## Exact-main production evidence runner
+
+After this package is merged, use a clean local `main` checkout whose HEAD equals the merged helper SHA. The Cloud Shell wrapper refuses to run when local HEAD, remote `main`, or the configured helper SHA differ.
+
+```bash
+export PHASE14_V2_GATE_B_PROJECT='project-4397f2c0-7098-4c1c-abb'
+export PHASE14_V2_GATE_B_ZONE='us-east1-c'
+export PHASE14_V2_GATE_B_VM='bp-recorder'
+
+export PHASE14_V2_GATE_B_HELPER_HEAD="$(git rev-parse HEAD)"
+export PHASE14_V2_GATE_B_DEPLOYED_HEAD='895c6bd2f9409f16bf5d544b26b30e20ecbfe43a'
+
+export PHASE14_V2_GATE_B_ENV_FILE='/etc/bp/bp.env'
+export PHASE14_V2_GATE_B_STORAGE_EVIDENCE='/mnt/bp-data/evidence/phase14-partitioned-storage-rollout-20260909T070219Z.json'
+export PHASE14_V2_GATE_B_STORAGE_EVIDENCE_SHA256='f33a28f5306e46c509b0000a176d226c079aa2d160d595095ca228118542ce19'
+
+bash scripts/deploy/phase14_v2_gate_b_research_cloudshell.sh
+```
+
+The wrapper:
+
+- verifies local HEAD, clean working tree, and remote `main` all equal `PHASE14_V2_GATE_B_HELPER_HEAD`;
+- verifies the accepted production checkout and storage evidence without changing either;
+- requires recorder/core services, V2 forward timer, storage timers, four recorder workers, and research/zero-money safety;
+- creates an exact `git archive` of the merged helper and binds its SHA-256;
+- copies only that archive to a temporary VM path and extracts it under `/var/tmp`;
+- runs `plan`, `prepare`, and `evaluate-holdout` as the `bp` user using the production virtualenv plus candidate `PYTHONPATH`;
+- relies on the CLI's `SET TRANSACTION READ ONLY` boundary for every database stage;
+- writes no-clobber evidence under `/var/lib/bp/evidence/phase14-v2-gate-b-<timestamp>/`;
+- removes the temporary candidate code/archive on exit;
+- never changes `/opt/bp`, systemd state, installed packages, live/money settings, or production research registries.
+
+A PASS from this runner is Gate B **evidence**, not Gate B authorization. The resulting summary/frozen selection/holdout evidence must still be reviewed and committed before Gate B can be accepted.
+
 ## Non-goals
 
 This package does not:
