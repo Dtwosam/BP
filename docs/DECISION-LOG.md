@@ -299,3 +299,14 @@ D-034 remains the normal production retention contract: an hourly raw partition 
 A controlled Phase 14 stopped-recorder recovery may use a narrower cutoff only for the terminal partially populated raw partition. This exception is allowed only when the recovery path is explicitly opted in, no raw row exists at or after that partition's nominal end, the partition contains retained raw rows, and every required compact feed has a latest `last_event_at` strictly greater than the last retained raw `received_at` in that partition. The exact cutoff and use of the terminal-partial rule must be recorded in maintenance evidence.
 
 Normal steady-state maintenance does not enable this exception and continues to require compact advancement beyond the full nominal hourly end. Any partition with later raw evidence remains ineligible for the exception. The archive/manifest verification, raw row parity, partition drop ordering, dedupe cleanup ordering, disk-health thresholds, recorder-stopped recovery boundary, research/zero-money settings, Gate B block, and live-trading block are unchanged.
+
+## D-036 — Already-partitioned runtime ensure is validation-only
+**Date:** 9 Sep 2026  
+**Status:** Active
+
+Once the partitioned raw-storage migration has been accepted, steady-state runtime maintenance must not re-run parent-table, parent-index, dedupe-parent, or sequence bootstrap DDL as an idempotent repair mechanism. Production diagnostics on 9 September 2026 showed the 15:00 and 16:00 UTC maintenance cycles deadlocking on `CREATE INDEX IF NOT EXISTS ix_raw_event_dedupe_received_at` while the recorder was active. The recorder claims `raw_event_dedupe` before inserting `raw_market_events`; the old already-partitioned ensure path revisited raw-parent/index DDL before dedupe-parent/index DDL, creating the opposite lock order.
+
+For an already-partitioned runtime, `ensure_partitioned_raw_storage` therefore validates the accepted parent schema read-only and fails closed on drift, then provisions only the current plus two future hourly raw partitions. The read-only contract requires the raw ID sequence, the partitioned dedupe parent, the required raw/dedupe parent indexes, and the exact 16 dedupe hash children. Bootstrap and explicit migration keep their existing DDL creation behavior.
+
+This decision does not weaken partition availability, retention, maintenance-freshness, disk thresholds, archive verification, dedupe semantics, the fail-closed recorder stop, or research/zero-money controls. A recorder restart after a fail-closed production stop remains a separate production mutation requiring explicit authorization.
+
