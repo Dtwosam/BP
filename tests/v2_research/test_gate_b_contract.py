@@ -129,6 +129,17 @@ def _plan_config() -> GateBPlanConfig:
     )
 
 
+def _research_config() -> GateBResearchConfig:
+    return GateBResearchConfig(
+        fee_rate=0.0,
+        slippage_buffer=0.0,
+        min_edge_grid=(0.0,),
+        min_validation_trades=1,
+        min_train_eligible_markets=2,
+        min_validation_eligible_markets=1,
+    )
+
+
 def test_preregistration_constants_match_immutable_evidence() -> None:
     path = (
         Path(__file__).resolve().parents[2]
@@ -153,8 +164,8 @@ def test_gate_b_plan_is_feature_only_deterministic_and_holds_out_latest_markets(
     rows = [_feature(index, offset) for index in range(16) for offset in OFFSETS]
     with engine.begin() as connection:
         connection.execute(insert(schema.market_features), rows)
-        first = build_gate_b_plan(connection, _plan_config())
-        second = build_gate_b_plan(connection, _plan_config())
+        first = build_gate_b_plan(connection, _plan_config(), _research_config())
+        second = build_gate_b_plan(connection, _plan_config(), _research_config())
 
     assert first == second
     assert first["feature_version"] == "core-v2-last-trade"
@@ -179,18 +190,11 @@ def test_prepare_gate_b_does_not_require_final_holdout_labels() -> None:
         connection.execute(
             insert(schema.market_labels), [_label(index) for index in range(14)]
         )
-        plan = build_gate_b_plan(connection, _plan_config())
+        plan = build_gate_b_plan(connection, _plan_config(), _research_config())
         report = prepare_gate_b(
             connection,
             plan=plan,
-            config=GateBResearchConfig(
-                fee_rate=0.0,
-                slippage_buffer=0.0,
-                min_edge_grid=(0.0,),
-                min_validation_trades=1,
-                min_train_eligible_markets=2,
-                min_validation_eligible_markets=1,
-            ),
+            config=_research_config(),
         )
 
     assert report["dataset_version"] == V2_DATASET_VERSION
@@ -267,18 +271,11 @@ def test_holdout_evaluation_is_separate_and_bound_to_frozen_selection() -> None:
     with engine.begin() as connection:
         connection.execute(insert(schema.market_features), rows)
         connection.execute(insert(schema.market_labels), [_label(index) for index in range(14)])
-        plan = build_gate_b_plan(connection, _plan_config())
+        plan = build_gate_b_plan(connection, _plan_config(), _research_config())
         selection = prepare_gate_b(
             connection,
             plan=plan,
-            config=GateBResearchConfig(
-                fee_rate=0.0,
-                slippage_buffer=0.0,
-                min_edge_grid=(0.0,),
-                min_validation_trades=1,
-                min_train_eligible_markets=2,
-                min_validation_eligible_markets=1,
-            ),
+            config=_research_config(),
         )
         connection.execute(insert(schema.market_labels), [_label(14), _label(15)])
         holdout = evaluate_gate_b_holdout(
