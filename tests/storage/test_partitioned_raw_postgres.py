@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from datetime import UTC, datetime, timedelta
 from threading import Barrier
 
@@ -396,6 +396,63 @@ def test_partitioned_writer_concurrent_duplicate_race_persists_one_row(engine) -
     assert raw_count == 1
     assert ledger_count == 1
 
+
+
+def test_partitioned_runtime_ensure_does_not_wait_on_active_dedupe_writer(engine) -> None:
+    now = datetime(2026, 9, 4, 14, 5, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now)
+
+    blocker = engine.connect()
+    transaction = blocker.begin()
+    blocker.execute(
+        text(
+            """
+            INSERT INTO raw_event_dedupe (dedupe_key, received_at)
+            VALUES (:dedupe_key, :received_at)
+            """
+        ),
+        {
+            "dedupe_key": "runtime-ensure-active-dedupe-writer",
+            "received_at": now,
+        },
+    )
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(
+            ensure_partitioned_raw_storage,
+            engine,
+            now=now + timedelta(hours=1),
+        )
+        try:
+            result = future.result(timeout=2.0)
+        except TimeoutError:
+            raise AssertionError(
+                "partitioned runtime ensure waited on an active dedupe writer"
+            ) from None
+        finally:
+            transaction.rollback()
+            blocker.close()
+
+    assert result.mode is RawStorageMode.PARTITIONED
+    assert result.migrated_rows == 0
+    assert result.rollback_table is None
+
+
+def test_partitioned_runtime_ensure_fails_closed_on_missing_dedupe_index(engine) -> None:
+    now = datetime(2026, 9, 4, 14, 5, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now)
+
+    with engine.begin() as connection:
+        connection.execute(text("DROP INDEX ix_raw_event_dedupe_received_at"))
+
+    with pytest.raises(
+        RuntimeError,
+        match="partitioned dedupe parent indexes are missing",
+    ):
+        ensure_partitioned_raw_storage(
+            engine,
+            now=now + timedelta(hours=1),
+        )
 
 def test_partitioned_writer_missing_hour_rolls_back_dedupe_claim(engine) -> None:
     now = datetime(2026, 9, 4, 14, 5, tzinfo=UTC)
