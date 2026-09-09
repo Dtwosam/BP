@@ -63,7 +63,7 @@ Before mutation the helper requires:
 - `MODE=research`, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0` in both runtime and prospective safety files;
 - every `automatic_promotion` field in deployed `PROJECT_STATE.json` equal to false;
 - current composite storage health `ok`, storage mode `partitioned`, and all three guards true;
-- a fingerprint of all existing Gate B plan/selection/holdout/summary artifacts before mutation.
+- absence of any Gate B holdout artifact without reading holdout contents, plus a fingerprint of existing non-holdout Gate B plan/selection/summary artifacts before mutation.
 
 ## Authorized mutation sequence
 
@@ -83,7 +83,7 @@ This section documents what the helper will do **only after separate explicit pr
 12. Verify dashboard safety remains RESEARCH/live-disabled/real-execution-unavailable.
 13. Re-run composite storage health and require `ok` plus all three guards.
 14. Restore the storage-maintenance and V2 forward-coverage timers and require all three timers active+enabled.
-15. Recompute the Gate B artifact fingerprint and require it to be byte-for-byte unchanged.
+15. Reconfirm no Gate B holdout artifact exists without opening one, then recompute the non-holdout Gate B artifact fingerprint and require it to be byte-for-byte unchanged.
 16. Write a host acceptance artifact under `/var/lib/bp/evidence/phase14-recorder-deadlock-recovery-<timestamp>.json`.
 
 The helper performs no environment-file edit, no schema migration, no policy/model/calibration/edge selection, no Gate B command, no holdout evaluation, no automatic promotion, and no live/money change.
