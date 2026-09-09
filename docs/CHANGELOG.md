@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.118 — 9 September 2026
+
+PR #162 merged the dedicated fail-closed recorder deadlock recovery gate to `main` as `63a0eb8b52f736db4b3e329adcdec06ae2ae02f9`. Final PR head `8416ac4242382284f1d7312b445df64465a26135` passed CI `34388036133` with **1,028 tests** plus Ruff, deployment validation, research-mode health, and dashboard checks; Historical Backfill Smoke `34388035993`, Live Recorder Smoke `34388035795`, and Recorder Short Soak `34388035889` also passed. Post-merge main CI `34388363196` then passed **1,028 tests** with the same repository safety/validation checks.
+
+The merged helper remains bound to accepted production head `895c6bd2f9409f16bf5d544b26b30e20ecbfe43a` and exact minimal recovery candidate `e9c7afc1536880e4612cb6e3d1a7282fa37c69f5`. Verification-only PR #161 was closed without merge after its 998-test production-shaped CI passed. The recovery helper requires the existing accepted four-worker setting, does not edit the environment file, keeps the final holdout unread by failing on any holdout artifact presence without opening it, and rolls back to the accepted checkout with the recorder stopped on failure.
+
+This closes the **engineering** recovery package only. No production checkout change, maintenance recovery run, or recorder start has occurred from this work. Production recovery remains separately unauthorized. Gate B, policy selection, automatic promotion, Phase 15, geographic bypass, live trading, and nonzero money limits remain blocked.
+
 ## 0.14.117 — 9 September 2026
 
 A dedicated post-acceptance recorder deadlock recovery package now avoids deploying the 153 commits between the accepted production checkout and current main merely to obtain the steady-state storage fix. The minimal production-shaped candidate `e9c7afc1536880e4612cb6e3d1a7282fa37c69f5` is a descendant of accepted production head `895c6bd2f9409f16bf5d544b26b30e20ecbfe43a` and changes only `src/bp_engine/storage/partitioned_raw.py` plus `tests/storage/test_partitioned_raw_postgres.py`. Both files are byte-identical to the corresponding exact-main files. Candidate push CI `34386571542` and verification-only PR #161 CI `34387138993` passed **998 tests**, including both active-writer deadlock regressions, plus Ruff, deployment validation, research-mode health, and dashboard checks.

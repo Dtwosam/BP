@@ -1,6 +1,6 @@
 # Phase 14 recorder deadlock recovery
 
-**Status:** engineering-only recovery package  
+**Status:** merged engineering package; production execution not authorized  
 **Production execution:** not authorized  
 **Trading boundary:** RESEARCH only; live trading disabled; trade-size and daily-loss limits remain zero  
 **Gate B:** unauthorized; final holdout must remain untouched
@@ -45,6 +45,8 @@ Verification-only PR #161 uses a frozen base branch at the accepted production h
 The exact-main helper is:
 
 `scripts/deploy/phase14_recorder_deadlock_recovery_gate_cloudshell.sh`
+
+PR #162 merged the helper to `main` as `63a0eb8b52f736db4b3e329adcdec06ae2ae02f9`. Final PR head `8416ac4242382284f1d7312b445df64465a26135` passed CI `34388036133` with 1,028 tests, Historical Backfill Smoke `34388035993`, Live Recorder Smoke `34388035795`, and Recorder Short Soak `34388035889`; post-merge CI `34388363196` also passed 1,028 tests. These are engineering gates only and do not authorize the production sequence below.
 
 It is deliberately different from the earlier `phase14_recorder_restart_gate_cloudshell.sh`. The old restart gate was a one-time 1→4 worker-setting transition and fails closed when the environment already contains `RECORDER_WRITER_WORKERS=4`. The deadlock-recovery gate requires the accepted four-worker configuration to already exist and never edits the production environment file.
 
