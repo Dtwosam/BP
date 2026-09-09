@@ -83,6 +83,31 @@ read_env() {
   awk -F= -v key="$key" '$1 == key {sub(/^[^=]*=/, ""); print; exit}' "$ENV_FILE"
 }
 
+validate_recorder_unit_contract() {
+  local fragment_path dropin_paths environment_files
+  fragment_path=$(systemctl show -p FragmentPath --value "$RECORDER_UNIT")
+  [[ -r "$fragment_path" ]] || fail "recorder_unit_fragment_missing"
+  cmp -s "$fragment_path" "$REPO/deploy/systemd/bp-recorder.service" || fail "recorder_unit_fragment_mismatch"
+
+  dropin_paths=$(systemctl show -p DropInPaths --value "$RECORDER_UNIT")
+  [[ -z "$dropin_paths" ]] || fail "recorder_unit_dropins_present"
+
+  environment_files=$(systemctl show -p EnvironmentFiles --value "$RECORDER_UNIT")
+  [[ "$environment_files" == "$ENV_FILE (ignore_errors=no)" ]] || fail "recorder_environment_file_mismatch"
+}
+
+read_recorder_config_workers() {
+  env -u RECORDER_WRITER_WORKERS "$REPO/.venv/bin/python" - "$ENV_FILE" <<'PY'
+from __future__ import annotations
+
+import sys
+
+from bp_engine.config import Settings
+
+print(Settings(_env_file=sys.argv[1]).recorder_writer_workers)
+PY
+}
+
 validate_deployed_checkout() {
   local entry code path
   while IFS= read -r entry; do
@@ -231,6 +256,7 @@ for service in "${REQUIRED_ACTIVE_SERVICES[@]}"; do
   systemctl is-active --quiet "$service" || fail "required_service_not_active:$service"
 done
 require_research_zero_money
+validate_recorder_unit_contract
 
 CURRENT_WORKERS=$(read_env RECORDER_WRITER_WORKERS)
 if [[ -n "$CURRENT_WORKERS" && "$CURRENT_WORKERS" != "1" ]]; then
@@ -269,6 +295,8 @@ ENV_MODE=$(stat -c '%a' "$ENV_FILE")
 install -o "$ENV_UID" -g "$ENV_GID" -m "$ENV_MODE" "$ENV_STAGE" "$ENV_FILE"
 sync "$ENV_FILE"
 [[ "$(read_env RECORDER_WRITER_WORKERS)" == "4" ]] || fail "writer_worker_setting_not_applied"
+CONFIG_WORKERS=$(read_recorder_config_workers)
+[[ "$CONFIG_WORKERS" == "4" ]] || fail "recorder_config_worker_count_not_4"
 ROLLBACK_ARMED=1
 
 systemctl reset-failed "$RECORDER_UNIT" >/dev/null 2>&1 || true
@@ -281,7 +309,6 @@ systemctl is-active --quiet "$RECORDER_UNIT" || fail "recorder_not_active_after_
 
 MAIN_PID=$(systemctl show -p MainPID --value "$RECORDER_UNIT")
 [[ "$MAIN_PID" =~ ^[1-9][0-9]*$ ]] || fail "recorder_main_pid_invalid"
-tr '\0' '\n' < "/proc/$MAIN_PID/environ" | grep -qx 'RECORDER_WRITER_WORKERS=4' || fail "recorder_effective_worker_count_not_4"
 
 sleep 45
 for service in "${REQUIRED_ACTIVE_SERVICES[@]}"; do
@@ -307,6 +334,7 @@ EVIDENCE_FILE="/var/lib/bp/evidence/phase14-recorder-restart-gate-$STAMP.txt"
   echo "STORAGE_EVIDENCE=$STORAGE_EVIDENCE"
   echo "STORAGE_EVIDENCE_SHA256=$STORAGE_EVIDENCE_SHA256"
   echo "RECORDER_WRITER_WORKERS=4"
+  echo "RECORDER_CONFIG_WORKERS=$CONFIG_WORKERS"
   echo "RECORDER_ACTIVE=$(systemctl is-active "$RECORDER_UNIT")"
   echo "MAINTENANCE_TIMER_ACTIVE=$(systemctl is-active "$MAINTENANCE_TIMER")"
   echo "DISK_HEALTH_TIMER_ACTIVE=$(systemctl is-active "$DISK_HEALTH_TIMER")"
