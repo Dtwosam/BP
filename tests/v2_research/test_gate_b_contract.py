@@ -15,7 +15,11 @@ from bp_engine.v2_research.config import (
 from bp_engine.v2_research.models import GateBPlanConfig, GateBResearchConfig
 from bp_engine.v2_research.plan import build_gate_b_plan
 from bp_engine.v2_research.policy import edge_decision_v2
-from bp_engine.v2_research.service import prepare_gate_b
+from bp_engine.v2_research.service import (
+    GateBResearchIntegrityError,
+    evaluate_gate_b_holdout,
+    prepare_gate_b,
+)
 
 ROOT_START = datetime(2026, 9, 2, 12, 20, tzinfo=UTC)
 OFFSETS = (60, 120, 180, 240)
@@ -248,3 +252,77 @@ def test_v2_policy_stale_or_missing_last_trade_is_explicit_no_trade() -> None:
     assert decision.trade is False
     assert decision.executable is False
     assert decision.reason == "last_trade_missing"
+
+
+def test_holdout_evaluation_is_separate_and_bound_to_frozen_selection() -> None:
+    import pytest
+
+    engine = _engine()
+    rows = [_feature(index, offset) for index in range(16) for offset in OFFSETS]
+    with engine.begin() as connection:
+        connection.execute(insert(schema.market_features), rows)
+        connection.execute(insert(schema.market_labels), [_label(index) for index in range(14)])
+        plan = build_gate_b_plan(connection, _plan_config())
+        selection = prepare_gate_b(
+            connection,
+            plan=plan,
+            config=GateBResearchConfig(
+                fee_rate=0.0,
+                slippage_buffer=0.0,
+                min_edge_grid=(0.0,),
+                min_validation_trades=1,
+                min_train_eligible_markets=2,
+                min_validation_eligible_markets=1,
+            ),
+        )
+        connection.execute(insert(schema.market_labels), [_label(14), _label(15)])
+        holdout = evaluate_gate_b_holdout(
+            connection,
+            plan=plan,
+            selection=selection,
+        )
+
+    assert selection["holdout_labels_read"] is False
+    assert selection["holdout_evaluated"] is False
+    assert holdout["holdout_labels_read"] is True
+    assert holdout["holdout_evaluated_once"] is True
+    assert holdout["holdout_condition_ids"] == ["condition-014", "condition-015"]
+    assert holdout["gate_b_authorized"] is False
+    assert holdout["automatic_promotion"] is False
+
+    changed = dict(selection)
+    changed["final"] = {**selection["final"], "holdout_condition_ids": ["condition-999"]}
+    with engine.begin() as connection:
+        with pytest.raises(GateBResearchIntegrityError, match="selection_sha256 mismatch"):
+            evaluate_gate_b_holdout(
+                connection,
+                plan=plan,
+                selection=changed,
+            )
+
+
+def test_gate_b_package_has_no_v1_probability_fallback_or_database_write_path() -> None:
+    import inspect
+
+    from bp_engine.v2_research import cli, policy, service
+
+    source = "\n".join(
+        (
+            inspect.getsource(policy),
+            inspect.getsource(service),
+            inspect.getsource(cli),
+        )
+    ).lower()
+    for forbidden in (
+        '"pm_up_price"',
+        "marketpricebaseline",
+        "priorbaseline",
+        "modeltrainingrunrepository",
+        "backtestrunrepository",
+        "calibrationedgerunrepository",
+        "metadata.create_all",
+        ".store(",
+        "live_trading_enabled=true",
+        "automatic_promotion=true",
+    ):
+        assert forbidden not in source
