@@ -29,20 +29,21 @@ def _utc(value: datetime) -> datetime:
     return value.astimezone(UTC)
 
 
-def _partition(name: str, records: list[dict[str, Any]]) -> dict[str, Any]:
+def _partition(
+    name: str,
+    start: datetime,
+    end: datetime,
+    records: tuple[dict[str, Any], ...],
+) -> dict[str, Any]:
     return {
         "name": name,
+        "start": _utc(start).isoformat(),
+        "end": _utc(end).isoformat(),
         "condition_ids": [record["condition_id"] for record in records],
-        "market_start_at": (
-            _utc(records[0]["market_start_at"]).isoformat() if records else None
-        ),
-        "market_end_at": (
-            _utc(records[-1]["market_end_at"]).isoformat() if records else None
-        ),
     }
 
 
-def _feature_timeline(connection: Connection) -> list[dict[str, Any]]:
+def _feature_timeline(connection: Connection) -> tuple[dict[str, Any], ...]:
     records = connection.execute(
         select(
             market_features.c.condition_id,
@@ -94,17 +95,83 @@ def _feature_timeline(connection: Connection) -> list[dict[str, Any]]:
                 raise GateBPlanIntegrityError(
                     f"static market metadata mismatch for {condition_id}"
                 )
+        market_start = _utc(first["market_start_at"])
+        market_end = _utc(first["market_end_at"])
+        if market_end <= market_start:
+            raise GateBPlanIntegrityError(
+                f"market_end_at must follow market_start_at for {condition_id}"
+            )
         timeline.append(
             {
                 "condition_id": condition_id,
                 "slug": str(first["slug"]),
                 "horizon_seconds": int(first["horizon_seconds"]),
-                "market_start_at": _utc(first["market_start_at"]),
-                "market_end_at": _utc(first["market_end_at"]),
+                "market_start_at": market_start,
+                "market_end_at": market_end,
             }
         )
-    timeline.sort(key=lambda item: (item["market_start_at"], item["condition_id"]))
-    return timeline
+    return tuple(
+        sorted(timeline, key=lambda item: (item["market_start_at"], item["condition_id"]))
+    )
+
+
+def _contained(
+    timeline: tuple[dict[str, Any], ...],
+    start: datetime,
+    end: datetime,
+) -> tuple[dict[str, Any], ...]:
+    return tuple(
+        market
+        for market in timeline
+        if market["market_start_at"] >= start and market["market_end_at"] <= end
+    )
+
+
+def _crosses_boundary(market: dict[str, Any], boundary: datetime) -> bool:
+    return market["market_start_at"] < boundary < market["market_end_at"]
+
+
+def _purged_at_boundaries(
+    timeline: tuple[dict[str, Any], ...],
+    boundaries: tuple[datetime, ...],
+) -> tuple[str, ...]:
+    return tuple(
+        market["condition_id"]
+        for market in timeline
+        if any(_crosses_boundary(market, boundary) for boundary in boundaries)
+    )
+
+
+def _embargo_earlier_partition(
+    records: tuple[dict[str, Any], ...], count: int
+) -> tuple[tuple[dict[str, Any], ...], tuple[str, ...]]:
+    if count == 0:
+        return records, ()
+    if len(records) <= count:
+        return (), tuple(record["condition_id"] for record in records)
+    removed = records[-count:]
+    return records[:-count], tuple(record["condition_id"] for record in removed)
+
+
+def _require_count(name: str, records: tuple[dict[str, Any], ...], minimum: int) -> None:
+    if len(records) < minimum:
+        raise GateBPlanIntegrityError(
+            f"{name} requires at least {minimum} markets; found {len(records)}"
+        )
+
+
+def _config_payload(config: GateBPlanConfig) -> dict[str, float | int]:
+    return {
+        "train_duration_seconds": config.train_duration.total_seconds(),
+        "validation_duration_seconds": config.validation_duration.total_seconds(),
+        "test_duration_seconds": config.test_duration.total_seconds(),
+        "step_duration_seconds": config.step_duration.total_seconds(),
+        "final_holdout_duration_seconds": config.final_holdout_duration.total_seconds(),
+        "embargo_markets": config.embargo_markets,
+        "min_train_markets": config.min_train_markets,
+        "min_validation_markets": config.min_validation_markets,
+        "min_test_markets": config.min_test_markets,
+    }
 
 
 def build_gate_b_plan(
@@ -115,96 +182,150 @@ def build_gate_b_plan(
     config = config or GateBPlanConfig()
     research_config = research_config or GateBResearchConfig()
     timeline = _feature_timeline(connection)
-    total = len(timeline)
-    e = config.embargo_markets
-    holdout_start = total - config.final_holdout_markets
-    if holdout_start <= 0:
-        raise GateBPlanIntegrityError("final holdout consumes all markets")
-
-    final_validation_end = holdout_start - e
-    final_validation_start = final_validation_end - config.validation_markets
-    final_train_end = final_validation_start - e
-    if final_train_end < config.min_initial_train_markets:
-        raise GateBPlanIntegrityError("not enough markets for final train/validation/holdout")
+    dataset_start = timeline[0]["market_start_at"]
+    dataset_end = timeline[-1]["market_end_at"]
+    holdout_start = dataset_end - config.final_holdout_duration
+    if holdout_start <= dataset_start:
+        raise GateBPlanIntegrityError("final holdout leaves no Gate B history")
 
     folds: list[dict[str, Any]] = []
-    test_start = (
-        config.min_initial_train_markets
-        + e
-        + config.validation_markets
-        + e
-    )
-    index = 0
     seen_test: set[str] = set()
-    while test_start + config.test_markets <= holdout_start:
-        validation_end = test_start - e
-        validation_start = validation_end - config.validation_markets
-        train_end = validation_start - e
-        train_records = timeline[:train_end]
-        validation_records = timeline[validation_start:validation_end]
-        test_records = timeline[test_start : test_start + config.test_markets]
-        if len(train_records) < config.min_initial_train_markets:
-            raise GateBPlanIntegrityError("fold train partition below minimum")
-        test_ids = {record["condition_id"] for record in test_records}
-        if seen_test.intersection(test_ids):
-            raise GateBPlanIntegrityError("ordinary test market reused")
-        seen_test.update(test_ids)
-        embargo_records = (
-            timeline[train_end : train_end + e]
-            + timeline[validation_end : validation_end + e]
+    fold_start = dataset_start
+    index = 0
+    while True:
+        train_start = fold_start
+        train_end = train_start + config.train_duration
+        validation_start = train_end
+        validation_end = validation_start + config.validation_duration
+        test_start = validation_end
+        test_end = test_start + config.test_duration
+        if test_end > holdout_start:
+            break
+
+        train_records = _contained(timeline, train_start, train_end)
+        validation_records = _contained(timeline, validation_start, validation_end)
+        test_records = _contained(timeline, test_start, test_end)
+        purged = _purged_at_boundaries(
+            timeline,
+            (train_start, train_end, validation_end, test_end),
         )
+        train_records, train_embargo = _embargo_earlier_partition(
+            train_records, config.embargo_markets
+        )
+        validation_records, validation_embargo = _embargo_earlier_partition(
+            validation_records, config.embargo_markets
+        )
+        _require_count("train", train_records, config.min_train_markets)
+        _require_count(
+            "validation", validation_records, config.min_validation_markets
+        )
+        _require_count("test", test_records, config.min_test_markets)
+
+        test_ids = {record["condition_id"] for record in test_records}
+        overlap = seen_test.intersection(test_ids)
+        if overlap:
+            raise GateBPlanIntegrityError(
+                f"ordinary test market reused: {sorted(overlap)[0]}"
+            )
+        seen_test.update(test_ids)
         membership = {
             "index": index,
-            "train": _partition("train", train_records),
-            "validation": _partition("validation", validation_records),
-            "test": _partition("test", test_records),
-            "embargo_condition_ids": [
-                record["condition_id"] for record in embargo_records
-            ],
+            "train": _partition("train", train_start, train_end, train_records),
+            "validation": _partition(
+                "validation",
+                validation_start,
+                validation_end,
+                validation_records,
+            ),
+            "test": _partition("test", test_start, test_end, test_records),
+            "purged_condition_ids": list(purged),
+            "embargo_condition_ids": list(train_embargo + validation_embargo),
         }
         membership["membership_sha256"] = canonical_hash(membership)
         folds.append(membership)
         index += 1
-        test_start += config.test_markets
+        fold_start = fold_start + config.step_duration
 
     if len(folds) < 3:
         raise GateBPlanIntegrityError(
-            f"Gate B plan requires at least 3 ordinary folds; found {len(folds)}"
+            f"Gate B plan requires at least 3 eligible folds; found {len(folds)}"
         )
 
-    final_train_records = timeline[:final_train_end]
-    final_validation_records = timeline[final_validation_start:final_validation_end]
-    final_holdout_records = timeline[holdout_start:]
-    final_embargo = (
-        timeline[final_train_end : final_train_end + e]
-        + timeline[final_validation_end : final_validation_end + e]
+    final_holdout_start = holdout_start
+    final_validation_end = final_holdout_start
+    final_validation_start = final_validation_end - config.validation_duration
+    final_train_end = final_validation_start
+    final_train_start = final_train_end - config.train_duration
+    if final_train_start < dataset_start:
+        raise GateBPlanIntegrityError("final train window begins before dataset start")
+
+    final_train_records = _contained(timeline, final_train_start, final_train_end)
+    final_validation_records = _contained(
+        timeline, final_validation_start, final_validation_end
     )
+    final_holdout_records = _contained(timeline, final_holdout_start, dataset_end)
+    final_purged = _purged_at_boundaries(
+        timeline,
+        (
+            final_train_start,
+            final_train_end,
+            final_validation_end,
+            dataset_end,
+        ),
+    )
+    final_train_records, final_train_embargo = _embargo_earlier_partition(
+        final_train_records, config.embargo_markets
+    )
+    final_validation_records, final_validation_embargo = _embargo_earlier_partition(
+        final_validation_records, config.embargo_markets
+    )
+    _require_count("final train", final_train_records, config.min_train_markets)
+    _require_count(
+        "final validation",
+        final_validation_records,
+        config.min_validation_markets,
+    )
+    _require_count("final holdout", final_holdout_records, config.min_test_markets)
+
     holdout_ids = {record["condition_id"] for record in final_holdout_records}
-    if seen_test.intersection(holdout_ids):
-        raise GateBPlanIntegrityError("final holdout overlaps ordinary test markets")
+    overlap = seen_test.intersection(holdout_ids)
+    if overlap:
+        raise GateBPlanIntegrityError(
+            f"final holdout overlaps ordinary test markets: {sorted(overlap)[0]}"
+        )
 
     final = {
-        "train": _partition("final_train", final_train_records),
-        "validation": _partition("final_validation", final_validation_records),
-        "holdout": _partition("final_holdout", final_holdout_records),
-        "train_condition_ids": [record["condition_id"] for record in final_train_records],
+        "train": _partition(
+            "final_train", final_train_start, final_train_end, final_train_records
+        ),
+        "validation": _partition(
+            "final_validation",
+            final_validation_start,
+            final_validation_end,
+            final_validation_records,
+        ),
+        "holdout": _partition(
+            "final_holdout",
+            final_holdout_start,
+            dataset_end,
+            final_holdout_records,
+        ),
+        "train_condition_ids": [
+            record["condition_id"] for record in final_train_records
+        ],
         "validation_condition_ids": [
             record["condition_id"] for record in final_validation_records
         ],
         "holdout_condition_ids": [
             record["condition_id"] for record in final_holdout_records
         ],
-        "embargo_condition_ids": [record["condition_id"] for record in final_embargo],
+        "purged_condition_ids": list(final_purged),
+        "embargo_condition_ids": list(
+            final_train_embargo + final_validation_embargo
+        ),
     }
     final["membership_sha256"] = canonical_hash(final)
 
-    config_payload = {
-        "min_initial_train_markets": config.min_initial_train_markets,
-        "validation_markets": config.validation_markets,
-        "test_markets": config.test_markets,
-        "final_holdout_markets": config.final_holdout_markets,
-        "embargo_markets": config.embargo_markets,
-    }
     research_payload = {
         "fee_rate": research_config.fee_rate,
         "slippage_buffer": research_config.slippage_buffer,
@@ -219,14 +340,14 @@ def build_gate_b_plan(
         "gate_b_version": V2_GATE_B_VERSION,
         "feature_version": V2_FEATURE_VERSION,
         "horizon_seconds": 300,
-        "market_count": total,
-        "market_start_at": _utc(timeline[0]["market_start_at"]).isoformat(),
-        "market_end_at": _utc(timeline[-1]["market_end_at"]).isoformat(),
+        "market_count": len(timeline),
+        "market_start_at": dataset_start.isoformat(),
+        "market_end_at": dataset_end.isoformat(),
         "coverage_input_sha256": FROZEN_COVERAGE_INPUT_SHA256,
         "freshness_candidates_seconds": list(FROZEN_FRESHNESS_CANDIDATES_SECONDS),
         "include_no_trade": FROZEN_INCLUDE_NO_TRADE,
         "labels_read": False,
-        "config": config_payload,
+        "config": _config_payload(config),
         "research_config": research_payload,
         "research_config_sha256": canonical_hash(research_payload),
         "folds": folds,
