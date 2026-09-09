@@ -11,7 +11,7 @@ from bp_engine.calibration.models import CalibrationFit
 from bp_engine.features.hashing import canonical_hash
 from bp_engine.modeling.dataset import load_dataset
 from bp_engine.modeling.metrics import evaluate_probabilities
-from bp_engine.modeling.models import DatasetSnapshot, MetricSummary, SupervisedRow
+from bp_engine.modeling.models import DatasetSnapshot, SupervisedRow
 from bp_engine.modeling.split import equal_market_weights
 from bp_engine.v2_research.config import (
     EXPECTED_OFFSETS_SECONDS,
