@@ -66,6 +66,11 @@ def _verify_plan(plan: dict[str, Any]) -> None:
         raise GateBResearchIntegrityError("no_trade must remain included")
     if plan.get("labels_read") is not False:
         raise GateBResearchIntegrityError("plan must remain feature-only")
+    research_config = plan.get("research_config")
+    if not isinstance(research_config, dict):
+        raise GateBResearchIntegrityError("plan research_config must be a mapping")
+    if canonical_hash(research_config) != plan.get("research_config_sha256"):
+        raise GateBResearchIntegrityError("plan research_config_sha256 mismatch")
 
 
 def _condition_ids(partition: dict[str, Any]) -> tuple[str, ...]:
@@ -461,6 +466,20 @@ def _partition_classes(
     _require_both_classes(tuple(one_per_market.values()), name)
 
 
+def _research_config_from_plan(plan: dict[str, Any]) -> GateBResearchConfig:
+    payload = plan["research_config"]
+    return GateBResearchConfig(
+        fee_rate=float(payload["fee_rate"]),
+        slippage_buffer=float(payload["slippage_buffer"]),
+        min_edge_grid=tuple(float(value) for value in payload["min_edge_grid"]),
+        min_validation_trades=int(payload["min_validation_trades"]),
+        min_train_eligible_markets=int(payload["min_train_eligible_markets"]),
+        min_validation_eligible_markets=int(
+            payload["min_validation_eligible_markets"]
+        ),
+    )
+
+
 def prepare_gate_b(
     connection: Connection,
     *,
@@ -468,7 +487,12 @@ def prepare_gate_b(
     config: GateBResearchConfig | None = None,
 ) -> dict[str, Any]:
     _verify_plan(plan)
-    config = config or GateBResearchConfig()
+    frozen_config = _research_config_from_plan(plan)
+    if config is not None and config != frozen_config:
+        raise GateBResearchIntegrityError(
+            "labeled preparation cannot change the feature-only research config"
+        )
+    config = frozen_config
     holdout_ids = _final_ids(plan, "holdout_condition_ids")
     non_holdout_ids = _non_holdout_ids(plan)
     dataset = _load_scoped_dataset(
@@ -521,14 +545,9 @@ def prepare_gate_b(
         final_train_rows, final_validation_rows, config
     )
 
-    config_payload = {
-        "fee_rate": config.fee_rate,
-        "slippage_buffer": config.slippage_buffer,
-        "min_edge_grid": list(config.min_edge_grid),
-        "min_validation_trades": config.min_validation_trades,
-        "min_train_eligible_markets": config.min_train_eligible_markets,
-        "min_validation_eligible_markets": config.min_validation_eligible_markets,
-    }
+    config_payload = dict(plan["research_config"])
+    if canonical_hash(config_payload) != plan["research_config_sha256"]:
+        raise GateBResearchIntegrityError("frozen research config changed")
     payload: dict[str, Any] = {
         "gate_b_version": V2_GATE_B_VERSION,
         "stage": "prepared_validation_frozen",
@@ -543,7 +562,7 @@ def prepare_gate_b(
         "plan_sha256": plan["plan_sha256"],
         "dataset_sha256_non_holdout": dataset.dataset_sha256,
         "config": config_payload,
-        "config_sha256": canonical_hash(config_payload),
+        "config_sha256": plan["research_config_sha256"],
         "folds": fold_reports,
         "final": {
             "membership_sha256": plan["final"]["membership_sha256"],
