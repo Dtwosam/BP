@@ -86,6 +86,16 @@ def test_readiness_watch_installer_is_exact_main_guarded_and_sidecar_only() -> N
     content = HELPER.read_text(encoding="utf-8")
     required = (
         "PHASE14_V2_GATE_B_READINESS_WATCH_HEAD",
+        "PHASE14_V2_GATE_B_READINESS_WATCH_APPROVED_HEAD",
+        "PHASE14_V2_GATE_B_READINESS_WATCH_APPROVED_DEPLOYED_HEAD",
+        "watch_install_approval_missing_or_invalid",
+        "watch_install_approval_head_mismatch",
+        "watch_install_approval_deployed_head_mismatch",
+        "watch_install_remote_approval_head_mismatch",
+        "watch_install_remote_approval_deployed_head_mismatch",
+        '"approval": {',
+        '"approved_helper_head": approved_head',
+        '"approved_deployed_head": approved_deployed_head',
         "local_helper_head_mismatch",
         "remote_main_changed",
         "unexpected_deployed_head",
@@ -115,6 +125,14 @@ def test_readiness_watch_installer_is_exact_main_guarded_and_sidecar_only() -> N
     assert 'systemctl enable --now "$TIMER_UNIT"' in content
     assert 'systemctl start "$SERVICE_UNIT"' in content
     assert 'ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"' in content
+
+    approval = content.index("watch_install_approval_missing_or_invalid")
+    local_repo = content.index("ROOT=$(git rev-parse --show-toplevel")
+    gcloud_binary = content.index("command -v gcloud")
+    gcloud_auth = content.index("gcloud auth list")
+    gcloud_project = content.index('gcloud config set project "$PROJECT"')
+    gcloud_scp = content.index('gcloud compute scp "$ARCHIVE"')
+    assert approval < local_repo < gcloud_binary < gcloud_auth < gcloud_project < gcloud_scp
 
     forbidden_patterns = (
         r'git\s+-C\s+"\$REPO"\s+checkout',
