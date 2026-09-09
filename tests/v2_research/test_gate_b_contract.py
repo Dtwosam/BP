@@ -346,3 +346,16 @@ def test_gate_b_package_has_no_v1_probability_fallback_or_database_write_path() 
         "automatic_promotion=true",
     ):
         assert forbidden not in source
+
+
+def test_gate_b_artifact_paths_are_no_clobber(tmp_path: Path) -> None:
+    from bp_engine.v2_research.cli import _write_exclusive
+
+    destination = tmp_path / "holdout.json"
+    _write_exclusive(str(destination), {"first": True})
+    assert json.loads(destination.read_text(encoding="utf-8")) == {"first": True}
+
+    with pytest.raises(FileExistsError):
+        _write_exclusive(str(destination), {"first": False})
+
+    assert json.loads(destination.read_text(encoding="utf-8")) == {"first": True}
