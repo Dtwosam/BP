@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.116 — 9 September 2026
+
+Read-only production diagnostics identified a steady-state partitioned-storage concurrency defect after the accepted four-writer recorder runtime had been restored. The 15:00 and 16:00 UTC `bp-storage-maintenance.service` cycles both failed with PostgreSQL deadlocks on `CREATE INDEX IF NOT EXISTS ix_raw_event_dedupe_received_at` while the recorder was active. With the last successful maintenance heartbeat still at 14:01:34Z, the 16:05 disk-health cycle correctly reported `maintenance_fresh=false`, transitioned composite storage health to `critical`, and triggered the existing fail-closed `bp-storage-critical-stop.service`, which stopped only `bp-recorder.service`. Disk capacity was not the cause. After the recorder was stopped, the 17:00 maintenance cycle succeeded at 17:03:27Z, retired two hourly partitions, and returned all storage guards and composite health to `ok`.
+
+The lock inversion is now fixed on PR #160. Partitioned recorder writes claim `raw_event_dedupe` before inserting `raw_market_events`, while the old already-partitioned runtime ensure path re-ran raw parent/index DDL before dedupe parent/index DDL. The new runtime path performs read-only schema-contract validation and then provisions only current + two future raw-hour partitions; bootstrap and explicit migration DDL are unchanged. Schema drift fails closed instead of attempting concurrent parent repair.
+
+Implementation head `1dbb53ff951c3dc9fd22efc9e30f37d5c08a1bf3` passed PR CI `34382350008` with **1,023 tests**, including `test_partitioned_runtime_ensure_does_not_wait_on_active_dedupe_writer` and `test_partitioned_runtime_ensure_fails_closed_on_missing_dedupe_index`, plus Ruff, deployment validation, research-mode health, and dashboard checks. This is engineering evidence only: the fix has not been deployed to production, the recorder remains intentionally inactive after the fail-closed stop, and no recorder recovery is authorized by this PR. Gate B and the final holdout remain untouched and unauthorized; live trading and all money limits remain disabled/zero.
+
 ## 0.14.115 — 9 September 2026
 
 PR #158 merged the repeatable feature-only Gate B readiness checker to `main` as `bcaee9343c6ec616d0a7d50479429344ec294c41`. Final branch head `30e0ebebd339b1086ab8a31c83c5f16138a47435` passed push CI `34370645827`, PR CI `34371006599`, Historical Backfill Smoke `34371006602`, Live Recorder Smoke `34371006588`, and Recorder Short Soak `34371006586`. Post-merge main CI `34371290608` then passed **1,021 tests** plus Ruff, deployment validation, research-mode health, and dashboard checks.

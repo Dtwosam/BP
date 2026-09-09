@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.115",
-  "updated_at": "2026-09-09T15:37:30Z",
+  "source_of_truth_version": "0.14.116",
+  "updated_at": "2026-09-09T17:22:12Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -631,14 +631,15 @@
     "Phase 14 V2 Gate B feature-only readiness checker is engineering-ready: repeatable readiness returns READY true/false under the exact frozen planner contract, writes no plan/selection/holdout artifact, reads no labels, never touches the holdout, and reports the 18-hour minimum epoch plus all rejected candidate starts/reasons; CI 34370064802 passed 1,020 tests"
   ],
   "not_completed": [
+    "Production deployment of the steady-state partitioned-maintenance deadlock fix and separately authorized recovery of the accepted four-worker recorder runtime",
     "V2 Gate B production-evidence research execution, untouched final-holdout evaluation, and acceptance of any V2 policy/model/calibration/edge/min-edge selection",
     "Phase 15 controlled live launch",
     "Live trading"
   ],
   "next_actions": [
-    "Keep the production recorder running under the accepted RECORDER_WRITER_WORKERS=4 configuration and keep bp-v2-forward-coverage.timer active under normal partitioned-storage maintenance/disk-health monitoring; do not lower storage thresholds or bypass the recorder storage-health ExecCondition.",
+    "Keep bp-recorder.service stopped until PR #160 is merged, the fix is deliberately deployed, and recorder recovery is separately authorized and revalidated; preserve RECORDER_WRITER_WORKERS=4, keep the research/zero-money boundary intact, and do not lower storage thresholds or bypass the recorder storage-health ExecCondition.",
     "Treat docs/evidence/phase-14-v2-freshness-preregistration-20260909.json as immutable research configuration: max_last_trade_age_seconds candidates are exactly [1, 2, 5, 10] plus explicit no_trade and are bound to coverage_input_sha256 aab75574aa7faf18e65358353403e5ec1a2b89dd42424eb7b0e3329bf683b099. Do not alter this grid after labels/outcomes are joined.",
-    "Review and merge the feature-only Gate B readiness checker, then use only its repeatable exact-main helper while contiguous V2 evidence accumulates. READY=false means keep collecting and do not run Gate B. READY=true is necessary before one future Gate B evidence run but does not itself authorize Gate B. Never lower Phase 8 minimums, skip folds, alter the frozen research configuration, or use labels/outcomes to decide readiness.",
+    "Do not run the Gate B readiness helper while the recorder is intentionally inactive. After an authorized recorder recovery and fresh service/storage validation, use only the repeatable exact-main readiness helper while contiguous V2 evidence accumulates. READY=false means keep collecting and do not run Gate B. READY=true is necessary before one future Gate B evidence run but does not itself authorize Gate B. Never lower Phase 8 minimums, skip folds, alter the frozen research configuration, use labels/outcomes to decide readiness, or touch the final holdout.",
     "Continue money-disabled prospective evidence collection and evaluation under RESEARCH/live-disabled/zero-money safety, preserving immutable V1/V2 evidence and the frozen 10-second selected-book freshness rule.",
     "Do not treat implementation or validation work as Gate B acceptance. V2 prospective shadow/paper activation, Phase 15, geographic bypass, automatic promotion, and live trading remain separately blocked."
   ],
@@ -2848,6 +2849,29 @@
     "recorder_restart_gate_production_storage_mode": "partitioned",
     "recorder_restart_gate_production_maintenance_timer_active": true,
     "recorder_restart_gate_production_disk_health_timer_active": true,
-    "recorder_restart_gate_pr": 146
+    "recorder_restart_gate_pr": 146,
+    "partitioned_runtime_maintenance_deadlock_observed": true,
+    "partitioned_runtime_maintenance_deadlock_failed_cycles_utc": [
+      "2026-09-09T15:00:06Z",
+      "2026-09-09T16:00:09Z"
+    ],
+    "partitioned_runtime_maintenance_deadlock_sql": "CREATE INDEX IF NOT EXISTS ix_raw_event_dedupe_received_at ON raw_event_dedupe (received_at)",
+    "partitioned_runtime_maintenance_deadlock_root_cause": "Accepted partitioned recorder writes lock dedupe then raw, while the old already-partitioned ensure path revisited raw parent/index DDL then dedupe parent/index DDL inside one transaction, creating a lock-order inversion under load.",
+    "partitioned_runtime_fail_closed_recorder_stop_at": "2026-09-09T16:05:43Z",
+    "partitioned_runtime_fail_closed_recorder_current_state": "inactive",
+    "partitioned_runtime_fail_closed_stop_reason": "maintenance_fresh=false after two consecutive maintenance deadlocks; disk capacity remained healthy",
+    "partitioned_runtime_post_stop_maintenance_success_at": "2026-09-09T17:03:27.187577Z",
+    "partitioned_runtime_current_storage_status": "ok",
+    "partitioned_runtime_current_storage_mode": "partitioned",
+    "partitioned_runtime_current_storage_guards_all_true": true,
+    "partitioned_runtime_deadlock_fix_branch": "fix/phase14-storage-maintenance-deadlock",
+    "partitioned_runtime_deadlock_fix_pr": 160,
+    "partitioned_runtime_deadlock_fix_green_head": "1dbb53ff951c3dc9fd22efc9e30f37d5c08a1bf3",
+    "partitioned_runtime_deadlock_fix_green_ci_run_id": 34382350008,
+    "partitioned_runtime_deadlock_fix_green_test_count": 1023,
+    "partitioned_runtime_deadlock_fix_green_ci_passed": true,
+    "partitioned_runtime_deadlock_fix_production_deployed": false,
+    "partitioned_runtime_recorder_recovery_authorized": false,
+    "partitioned_runtime_gate_b_holdout_touched": false
   }
 }

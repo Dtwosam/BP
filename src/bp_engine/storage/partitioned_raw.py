@@ -12,6 +12,19 @@ _RAW_PARTITION_RE = re.compile(r"^raw_market_events_(\d{8})_(\d{2})$")
 _LEGACY_INDEX_RE = re.compile(r"^legacy_\d{2}_(.+)$")
 _SEQUENCE_NAME = "raw_market_events_id_seq_v2"
 _ROLLBACK_TABLE = "raw_market_events_legacy"
+_RAW_PARENT_INDEX_NAMES = {
+    "ix_raw_market_events_received_at_id",
+    "ix_raw_market_events_received_at_brin",
+    "ix_raw_market_events_source_received",
+    "ix_raw_market_events_market_received",
+    "ix_raw_market_events_dedupe_key",
+    "ix_raw_market_events_pm_book_replay_anchor",
+    "ix_raw_market_events_pm_price_change_replay",
+}
+_DEDUPE_PARENT_INDEX_NAMES = {
+    "raw_event_dedupe_pkey",
+    "ix_raw_event_dedupe_received_at",
+}
 
 _RAW_COLUMNS = (
     "id",
@@ -133,6 +146,98 @@ def _relation_exists(connection: Connection, name: str) -> bool:
             {"name": name},
         ).scalar_one()
     )
+
+
+def _partitioned_relation_exists(connection: Connection, name: str) -> bool:
+    return bool(
+        connection.execute(
+            text(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM pg_partitioned_table AS partitioned
+                    JOIN pg_class AS relation ON relation.oid = partitioned.partrelid
+                    JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+                    WHERE namespace.nspname = current_schema()
+                      AND relation.relname = :name
+                )
+                """
+            ),
+            {"name": name},
+        ).scalar_one()
+    )
+
+
+def _index_names(connection: Connection, table_name: str) -> set[str]:
+    return {
+        str(name)
+        for name in connection.execute(
+            text(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = current_schema()
+                  AND tablename = :table_name
+                """
+            ),
+            {"table_name": table_name},
+        ).scalars()
+    }
+
+
+def _partition_children(connection: Connection, parent_name: str) -> tuple[str, ...]:
+    return tuple(
+        str(name)
+        for name in connection.execute(
+            text(
+                """
+                SELECT child.relname
+                FROM pg_inherits
+                JOIN pg_class AS parent ON parent.oid = pg_inherits.inhparent
+                JOIN pg_namespace AS parent_ns ON parent_ns.oid = parent.relnamespace
+                JOIN pg_class AS child ON child.oid = pg_inherits.inhrelid
+                WHERE parent_ns.nspname = current_schema()
+                  AND parent.relname = :parent_name
+                ORDER BY child.relname
+                """
+            ),
+            {"parent_name": parent_name},
+        ).scalars()
+    )
+
+
+def _validate_partitioned_runtime_objects(connection: Connection) -> None:
+    if not _relation_exists(connection, _SEQUENCE_NAME):
+        raise RuntimeError(f"partitioned raw sequence {_SEQUENCE_NAME!r} is missing")
+    if not _partitioned_relation_exists(connection, "raw_event_dedupe"):
+        raise RuntimeError("raw_event_dedupe is not partitioned")
+
+    missing_raw_indexes = sorted(
+        _RAW_PARENT_INDEX_NAMES - _index_names(connection, "raw_market_events")
+    )
+    if missing_raw_indexes:
+        raise RuntimeError(
+            f"partitioned raw parent indexes are missing: {missing_raw_indexes}"
+        )
+
+    missing_dedupe_indexes = sorted(
+        _DEDUPE_PARENT_INDEX_NAMES - _index_names(connection, "raw_event_dedupe")
+    )
+    if missing_dedupe_indexes:
+        raise RuntimeError(
+            f"partitioned dedupe parent indexes are missing: {missing_dedupe_indexes}"
+        )
+
+    expected_children = tuple(
+        f"raw_event_dedupe_h{remainder:02d}"
+        for remainder in range(_DEDUPE_PARTITIONS)
+    )
+    actual_children = _partition_children(connection, "raw_event_dedupe")
+    if actual_children != expected_children:
+        raise RuntimeError(
+            "partitioned dedupe child set drifted: "
+            f"expected {list(expected_children)!r}, found {list(actual_children)!r}"
+        )
 
 
 def _ensure_sequence(connection: Connection, *, minimum_id: int | None = None) -> None:
@@ -414,11 +519,7 @@ def ensure_partitioned_raw_storage(
     with engine.begin() as connection:
         mode = raw_storage_mode(connection)
         if mode is RawStorageMode.PARTITIONED:
-            max_id = connection.execute(text("SELECT max(id) FROM raw_market_events")).scalar_one()
-            _create_partitioned_objects(
-                connection,
-                minimum_id=int(max_id) if max_id is not None else None,
-            )
+            _validate_partitioned_runtime_objects(connection)
             ensure_hour_partitions(
                 connection,
                 start_at=current_hour,
