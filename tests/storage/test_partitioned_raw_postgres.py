@@ -454,6 +454,7 @@ def test_partitioned_runtime_ensure_fails_closed_on_missing_dedupe_index(engine)
             now=now + timedelta(hours=1),
         )
 
+
 def test_partitioned_writer_missing_hour_rolls_back_dedupe_claim(engine) -> None:
     now = datetime(2026, 9, 4, 14, 5, tzinfo=UTC)
     ensure_partitioned_raw_storage(engine, now=now)
