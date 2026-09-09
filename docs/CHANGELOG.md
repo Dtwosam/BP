@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.112 — 9 September 2026
+
+PR #156 merged the Gate B sparse-prefix recovery to `main` as `184b725724d46d7ed757dd715a88dafddbdd45e1`. Final branch head `393effa09fbb7a686cce9db2031822d3c3c40a1b` passed push CI `34365535879`, PR CI `34365830664`, Historical Backfill Smoke `34365831831`, Live Recorder Smoke `34365830681`, and Recorder Short Soak `34365830682`. Post-merge main CI `34366077039` then passed **1,015 tests** plus Ruff, deployment validation, research-mode health, and dashboard checks.
+
+The exact-main Gate B evidence retry is now safe because the prior attempt failed before `plan.json`, `selection.json`, or `holdout.json` existed and therefore did not read the final holdout. The merged planner preserves every Phase 8 duration/count minimum and does not skip individual folds; it selects only the earliest **feature-only** analysis start whose complete remaining contiguous schedule is eligible. Any retry failure now reports artifact presence and `HOLDOUT_TOUCHED`; a failure with `HOLDOUT_TOUCHED=true` must never be rerun. Gate B remains unauthorized and `automatic_promotion=false`.
+
 ## 0.14.111 — 9 September 2026
 
 The first exact-main Phase 14 V2 Gate B production-evidence attempt stopped safely in the unlabeled `plan` stage on helper head `a395a069c1a95f5b3968ea913c08b5a2bb1385a6`. The earliest two-hour test window contained only 4 complete V2 markets versus the unchanged Phase 8 minimum of 6, so the runner emitted `PHASE14_V2_GATE_B_RESEARCH=FAIL`, `REASON=gate_b_plan_failed`, and partial directory `/var/lib/bp/evidence/phase14-v2-gate-b-20260909T142914Z`. Because planning failed before artifact write, `plan.json`, `selection.json`, and `holdout.json` were not created; no labels were queried by Gate B and the one-shot final holdout remains unread.
