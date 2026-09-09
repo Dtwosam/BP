@@ -74,6 +74,8 @@ def load_dataset(
     horizon_seconds: int,
     feature_version: str,
     label_version: str,
+    condition_ids: tuple[str, ...] | None = None,
+    dataset_version: str = DATASET_VERSION,
 ) -> DatasetSnapshot:
     start_utc = _utc_input(start, "start")
     end_utc = _utc_input(end, "end")
@@ -81,6 +83,15 @@ def load_dataset(
         raise ValueError("start must be before end")
     if horizon_seconds <= 0:
         raise ValueError("horizon_seconds must be positive")
+    if not dataset_version:
+        raise ValueError("dataset_version must not be empty")
+    if condition_ids is not None:
+        if not condition_ids:
+            raise ValueError("condition_ids must not be empty when provided")
+        if any(not condition_id for condition_id in condition_ids):
+            raise ValueError("condition_ids must not contain empty values")
+        if len(condition_ids) != len(set(condition_ids)):
+            raise ValueError("condition_ids must be unique")
 
     query = (
         select(
@@ -123,6 +134,9 @@ def load_dataset(
             market_features.c.feature_at,
         )
     )
+    if condition_ids is not None:
+        query = query.where(market_features.c.condition_id.in_(condition_ids))
+
     records = connection.execute(query).mappings().all()
 
     rows: list[SupervisedRow] = []
@@ -209,7 +223,7 @@ def load_dataset(
     ]
     dataset_sha256 = canonical_hash(
         {
-            "dataset_version": DATASET_VERSION,
+            "dataset_version": dataset_version,
             "feature_version": feature_version,
             "label_version": label_version,
             "horizon_seconds": horizon_seconds,
@@ -220,7 +234,7 @@ def load_dataset(
         }
     )
     return DatasetSnapshot(
-        dataset_version=DATASET_VERSION,
+        dataset_version=dataset_version,
         feature_version=feature_version,
         label_version=label_version,
         horizon_seconds=horizon_seconds,
