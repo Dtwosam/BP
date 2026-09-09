@@ -26,7 +26,6 @@ def test_recorder_restart_gate_is_storage_bound_restart_only_and_rollback_capabl
         "bp-storage-disk-health.timer",
         "recorder_already_active",
         "RECORDER_WRITER_WORKERS=4",
-        "recorder_effective_worker_count_not_4",
         "sleep 45",
         "scripts/soak_report.py",
         "required feeds missing post-restart events",
@@ -61,6 +60,22 @@ def test_recorder_restart_gate_is_storage_bound_restart_only_and_rollback_capabl
         assert f'systemctl restart "{service}"' not in content
         assert f"systemctl stop {service}" not in content
         assert f'systemctl stop "{service}"' not in content
+
+
+def test_recorder_restart_gate_verifies_worker_config_without_proc_environ() -> None:
+    content = HELPER.read_text(encoding="utf-8")
+
+    for required in (
+        'systemctl show -p EnvironmentFiles --value "$RECORDER_UNIT"',
+        "recorder_environment_file_mismatch",
+        "Settings(_env_file=sys.argv[1]).recorder_writer_workers",
+        "recorder_config_worker_count_not_4",
+        "RECORDER_CONFIG_WORKERS=4",
+    ):
+        assert required in content
+
+    assert '/proc/$MAIN_PID/environ' not in content
+    assert "recorder_effective_worker_count_not_4" not in content
 
 
 def test_ci_syntax_checks_recorder_restart_gate() -> None:
