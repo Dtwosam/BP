@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.115 — 9 September 2026
+
+PR #158 merged the repeatable feature-only Gate B readiness checker to `main` as `bcaee9343c6ec616d0a7d50479429344ec294c41`. Final branch head `30e0ebebd339b1086ab8a31c83c5f16138a47435` passed push CI `34370645827`, PR CI `34371006599`, Historical Backfill Smoke `34371006602`, Live Recorder Smoke `34371006588`, and Recorder Short Soak `34371006586`. Post-merge main CI `34371290608` then passed **1,021 tests** plus Ruff, deployment validation, research-mode health, and dashboard checks.
+
+The merged readiness helper is `scripts/deploy/phase14_v2_gate_b_readiness_cloudshell.sh`. It is safe to run repeatedly from exact `main`: it uses only immutable V2 feature metadata under the frozen Gate B planner contract, writes no plan/selection/holdout artifact, never invokes labeled preparation or holdout evaluation, and preserves `HOLDOUT_TOUCHED=false`. `READY=false` means continue collecting contiguous V2 evidence and do not run Gate B; `READY=true` is necessary for one future Gate B evidence attempt but does not authorize Gate B, automatic promotion, V2 paper/live activation, Phase 15, or money changes.
+
 ## 0.14.114 — 9 September 2026
 
 A separate **feature-only Gate B readiness checker** now prevents repeated one-shot Gate B evidence attempts while contiguous V2 evidence is still insufficient. `assess_gate_b_readiness` evaluates the exact existing planner geometry and returns a normal `READY=true/false` report instead of raising for insufficient chronology. It reads only immutable `core-v2-last-trade` feature metadata, writes no plan/selection/holdout artifact, never touches labels or the holdout, and reports the derived 18-hour minimum contiguous epoch, all candidate-start rejections, the earliest viable analysis start when one exists, eligible fold count, final-holdout market count, and would-be plan SHA.
