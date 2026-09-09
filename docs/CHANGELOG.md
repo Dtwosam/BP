@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.109 — 9 September 2026
+
+The Phase 14 V2 Gate B research package is engineering-ready on branch `phase14-v2-gate-b-research`. It introduces a new supervised identity `supervised-core-v2-last-trade-v1` and a read-only three-stage operator path over immutable `core-v2-last-trade` evidence. The feature-only `plan` stage freezes chronological whole-market partitions, embargoes, the latest final holdout, and the V2 research search configuration before labels are queried. The labeled `prepare` stage is restricted to non-holdout condition IDs and selects timing, the already-preregistered freshness candidate, a newly fitted identity/Platt V2 calibration choice, and a new V2 minimum-edge/no-trade policy from validation only before ordinary-test evaluation. The separate `evaluate-holdout` stage is hash-bound to the exact frozen plan/selection and writes a no-clobber final-holdout evidence artifact.
+
+The first source baseline is strictly `pm_up_last_trade_price`; V1 `pm_up_price`, `MarketPriceBaseline`, and training-prior fallback are absent from the Gate B package. Missing, malformed, or policy-stale dedicated last-trade provenance is explicit no-trade, while executable price remains the observed selected-side best ask under the unchanged 10-second book freshness contract. The coverage-only freshness grid remains exactly `[1, 2, 5, 10]` plus explicit `no_trade`, bound to `aab75574aa7faf18e65358353403e5ec1a2b89dd42424eb7b0e3329bf683b099`.
+
+Green engineering head `d20f87bac7aa3e5e5f7e17a69bec9fc0a489eaa7` passed CI `34353011520` with **1,010 tests** plus Ruff, deployment validation, research-mode health, and dashboard checks. This checkpoint has not run Gate B against production evidence, has not read the final production holdout, and has not accepted any V2 policy. It performs no production database mutation, deployment, paper/live activation, promotion, or money change. Gate B remains unauthorized, `automatic_promotion=false`, and Phase 15/live trading remain blocked.
+
 ## 0.14.108 — 9 September 2026
 
 PR #152 merged the Phase 14 coverage-only V2 freshness preregistration to `main` as `d70fdde902baaf63e0e748d090ac5f29a1d74fe0`. Final branch head `fde5a118c2035f139d5c0f175b40f5670caa875b` passed push CI `34349232112`, PR CI `34349236006`, Historical Backfill Smoke `34349236089`, Live Recorder Smoke `34349236064`, and Recorder Short Soak `34349236013`. Post-merge main CI `34349429003` then passed **1,003 tests** plus Ruff, deployment validation, research-mode health, and dashboard checks.
