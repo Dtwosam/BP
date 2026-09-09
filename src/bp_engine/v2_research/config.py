@@ -1,0 +1,14 @@
+from __future__ import annotations
+
+V2_DATASET_VERSION = "supervised-core-v2-last-trade-v1"
+V2_FEATURE_VERSION = "core-v2-last-trade"
+V2_LABEL_VERSION = "official-outcome-v1"
+V2_GATE_B_VERSION = "phase14-v2-gate-b-research-v1"
+
+FROZEN_COVERAGE_INPUT_SHA256 = (
+    "aab75574aa7faf18e65358353403e5ec1a2b89dd42424eb7b0e3329bf683b099"
+)
+FROZEN_FRESHNESS_CANDIDATES_SECONDS = (1, 2, 5, 10)
+FROZEN_INCLUDE_NO_TRADE = True
+FROZEN_SELECTED_BOOK_MAX_AGE_SECONDS = 10
+EXPECTED_OFFSETS_SECONDS = (60, 120, 180, 240)
