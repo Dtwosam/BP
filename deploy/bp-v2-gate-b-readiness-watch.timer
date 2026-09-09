@@ -1,0 +1,11 @@
+[Unit]
+Description=Schedule BP Phase 14 feature-only Gate B readiness watch
+
+[Timer]
+OnCalendar=*-*-* 00,02,04,06,08,10,12,14,16,18,20,22:30:00 UTC
+AccuracySec=1min
+Persistent=true
+Unit=bp-v2-gate-b-readiness-watch.service
+
+[Install]
+WantedBy=timers.target
