@@ -76,9 +76,26 @@ def test_readiness_watch_compacts_feature_only_payload_without_candidate_dump() 
         "include_no_trade": True,
     }
 
-    status = module._compact_status(payload)
+    status = module._compact_status(
+        payload,
+        expected_helper_head="a" * 40,
+        runtime={
+            "deployed_head": "b" * 40,
+            "recorder_writer_workers": 4,
+            "storage_status": "ok",
+            "storage_mode": "partitioned",
+            "storage_guards": {
+                "maintenance_fresh": True,
+                "current_partition_present": True,
+                "retention_current": True,
+            },
+            "storage_free_bytes": 1,
+        },
+    )
 
     assert status["ready"] is False
+    assert status["helper_head"] == "a" * 40
+    assert status["deployed_head"] == "b" * 40
     assert status["candidate_rejection_count"] == 1
     assert status["last_candidate_rejection"] == payload["candidate_rejections"][0]
     assert "candidate_rejections" not in status
@@ -95,6 +112,11 @@ def test_readiness_watch_source_is_read_only_and_has_no_gate_b_execution_path() 
     for required in (
         "SET TRANSACTION READ ONLY",
         "assess_gate_b_readiness",
+        "runtime_unit_not_active",
+        "unexpected_deployed_head",
+        "recorder_config_worker_count_not_4",
+        "storage_health_not_ok",
+        "storage_guard_not_satisfied",
         "automatic_promotion_boundary_changed",
         "gate_b_authorization_boundary_changed",
         "include_no_trade_boundary_changed",
