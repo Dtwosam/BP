@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.106 — 9 September 2026
+
+The Phase 14 V2 forward-coverage restore-only gate has now passed in production. Helper head `2f6e4e385bf70681f2d79d906d380dfbe88406bb` ran against the already accepted production checkout `895c6bd2f9409f16bf5d544b26b30e20ecbfe43a` and completed with `PHASE14_V2_FORWARD_RESTORE_GATE=PASS`; no production checkout change, unit reinstall, storage-index installation, recorder/core-service restart, migration, policy selection, or live/money change occurred.
+
+The accepted runtime keeps `RECORDER_CONFIG_WORKERS=4`, the V2 oneshot completed with `SERVICE_RESULT=success`, and `bp-v2-forward-coverage.timer` is now enabled and active. The acceptance cycle at `2026-09-09T11:24:31.622062+00:00` reported **420 markets / 1,680 immutable V2 rows**, zero future-cutoff violations, zero newly eligible targets at that instant, `policy_selected=false`, and `automatic_promotion=false`. Host evidence is `/var/lib/bp/evidence/phase14-v2-forward-coverage-restore-20260909T112436Z.json`.
+
+This closes the V2 runtime-restoration checkpoint but does **not** authorize Gate B. The next approved research step is the existing read-only V2 coverage report over the restored immutable `core-v2-last-trade` rows, capturing missingness, source/availability-age distributions, book diagnostics, future-cutoff count, and canonical `coverage_input_sha256` without joining labels/outcomes. Only after that coverage-only evidence is reviewed may a finite `max_last_trade_age_seconds` candidate set, bounded by the frozen 10-second selected-book freshness ceiling, be pre-registered before any label-based timing/model/calibration/edge selection. Phase 15 and live trading remain blocked.
+
 ## 0.14.105 — 9 September 2026
 
 PR #149 merged the dedicated Phase 14 V2 forward-coverage restore-only gate to `main` as `a671083b04187a8bc986ab3743d4eb3a9508d8c3`. Final branch head `3af232e0e2d804fcf781a5a5947749d6e065601d` passed push CI `34343658073`, PR CI `34343663950`, Historical Backfill Smoke `34343663935`, Live Recorder Smoke `34343663992`, and Recorder Short Soak `34343663996`. Post-merge main CI `34343845092` then passed **1001 tests** plus Ruff, deployment validation, research-mode health, and dashboard checks.
