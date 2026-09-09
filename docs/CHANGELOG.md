@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.101 — 9 September 2026
+
+The post-storage Phase 14 recorder restart is now packaged as a dedicated restart-only production gate instead of reusing the older recorder-reliability rollout helper. The older helper assumed the recorder was already active and that the reliability code still needed to be deployed as a new diff; neither is true after the accepted partitioned-storage migration. Production already contains the PR #49 bounded-writer/backpressure repair on deployed head `895c6bd2f9409f16bf5d544b26b30e20ecbfe43a`, while the recorder remains intentionally non-running.
+
+The new `scripts/deploy/phase14_recorder_restart_gate_cloudshell.sh` performs no production checkout change. Before mutation it requires the exact accepted production head, the exact accepted storage-evidence SHA-256, composite partitioned-storage health `ok` with maintenance/current-partition/retention guards true, both storage timers active, the recorder non-running, the established non-recorder research services active, and the research/zero-money boundary intact. It accepts only an absent/default-one existing writer setting, then atomically selects exactly `RECORDER_WRITER_WORKERS=4` and restarts only `bp-recorder.service`.
+
+Acceptance proves the recorder process actually received worker count 4, waits for natural load, requires all four recorder feeds to emit events, rejects any soak-window backpressure, rechecks dashboard research safety and composite storage health, and writes host evidence. If any post-mutation gate fails, the helper restores the exact prior environment file and stops the recorder again. The already accepted partitioned-storage migration is not rerun or rolled back by this gate. Gate B, Phase 15, geographic bypass, automatic promotion, selected-book freshness, and live-trading restrictions remain unchanged.
+
 ## 0.14.100 — 9 September 2026
 
 The explicitly authorized Phase 14 partitioned-storage rollout for candidate `895c6bd2f9409f16bf5d544b26b30e20ecbfe43a`, bound to verified-preflight SHA-256 `fb880c6c234a81d2fcc9a7c11bb81a2d3945fc22b4fbd8a2a358b95afc2adddc`, completed successfully at 2026-09-09T07:02:19Z with `PHASE14_PARTITIONED_STORAGE_ROLLOUT=PASS`. The accepted evidence artifact is `/mnt/bp-data/evidence/phase14-partitioned-storage-rollout-20260909T070219Z.json` with SHA-256 `f33a28f5306e46c509b0000a176d226c079aa2d160d595095ca228118542ce19`.
