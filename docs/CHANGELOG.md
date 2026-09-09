@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.113 — 9 September 2026
+
+The post-PR-#156 exact-main Gate B production retry on helper head `184b725724d46d7ed757dd715a88dafddbdd45e1` failed safely in feature-only planning with `no contiguous Gate B epoch satisfies the frozen walk-forward minimums; last rejection: train requires at least 24 markets; found 0`. The helper created only `/var/lib/bp/evidence/phase14-v2-gate-b-20260909T150136Z` and explicitly reported `PLAN_PRESENT=false`, `SELECTION_PRESENT=false`, `HOLDOUT_PRESENT=false`, `SUMMARY_PRESENT=false`, and `HOLDOUT_TOUCHED=false`. No Gate B labels or final-holdout evidence were consumed by this attempt.
+
+This establishes **insufficient contiguous feature evidence**, not another planning defect. The accepted Phase 8-derived Gate B geometry is unchanged: 8h train, 2h validation, 2h test, 2h step, 2h final holdout, with the same minimum market counts. Three ordinary folds plus the final holdout require at least **18 hours** from a viable feature-only analysis epoch, subject to those unchanged count checks. Further Gate B production retries are blocked until the research-only V2 forward collector has accumulated enough contiguous immutable evidence. No fold skipping, minimum relaxation, label-based readiness decision, policy acceptance, promotion, paper/live activation, Phase 15, or money change is authorized.
+
 ## 0.14.112 — 9 September 2026
 
 PR #156 merged the Gate B sparse-prefix recovery to `main` as `184b725724d46d7ed757dd715a88dafddbdd45e1`. Final branch head `393effa09fbb7a686cce9db2031822d3c3c40a1b` passed push CI `34365535879`, PR CI `34365830664`, Historical Backfill Smoke `34365831831`, Live Recorder Smoke `34365830681`, and Recorder Short Soak `34365830682`. Post-merge main CI `34366077039` then passed **1,015 tests** plus Ruff, deployment validation, research-mode health, and dashboard checks.
