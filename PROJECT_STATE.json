@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.120",
-  "updated_at": "2026-09-09T18:55:51Z",
+  "source_of_truth_version": "0.14.121",
+  "updated_at": "2026-09-09T20:13:53Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -632,7 +632,8 @@
     "Phase 14 steady-state partitioned-storage deadlock fix merged to main as a903cf4bb1cb2e2a24e80a8b00f0eecb68b3e15a; minimal production-shaped recovery candidate e9c7afc1536880e4612cb6e3d1a7282fa37c69f5 changes only the exact-main partitioned_raw.py fix plus its PostgreSQL regression test and passed verification-only PR #161 CI with 998 tests",
     "Phase 14 post-acceptance recorder deadlock recovery gate merged to main as 63a0eb8b52f736db4b3e329adcdec06ae2ae02f9 after exact-head CI, Historical Backfill Smoke, Live Recorder Smoke, and Recorder Short Soak all passed; post-merge CI 34388363196 passed 1,028 tests plus deployment validation, research-mode health, and dashboard checks; production recovery remains unauthorized",
     "Explicit production authorization granted on 9 September 2026 for the Phase 14 recorder deadlock recovery only: deploy exact minimal candidate e9c7afc1536880e4612cb6e3d1a7282fa37c69f5 from accepted production head 895c6bd2f9409f16bf5d544b26b30e20ecbfe43a using exact-main recovery helper; Gate B, final holdout, live trading, automatic promotion, Phase 15, and nonzero money remain unauthorized",
-    "Phase 14 recorder deadlock recovery passed in production at 2026-09-09T18:55:51Z: deployed exact minimal candidate e9c7afc1536880e4612cb6e3d1a7282fa37c69f5, recorder active with RECORDER_WRITER_WORKERS=4 and MainPID 3300693, zero restarts across the active-recorder maintenance cycle, all four required feeds flowing with zero soak failures/backpressure, storage status ok with all guards true, all three timers active, research/zero-money safety preserved, and Gate B/holdout untouched"
+    "Phase 14 recorder deadlock recovery passed in production at 2026-09-09T18:55:51Z: deployed exact minimal candidate e9c7afc1536880e4612cb6e3d1a7282fa37c69f5, recorder active with RECORDER_WRITER_WORKERS=4 and MainPID 3300693, zero restarts across the active-recorder maintenance cycle, all four required feeds flowing with zero soak failures/backpressure, storage status ok with all guards true, all three timers active, research/zero-money safety preserved, and Gate B/holdout untouched",
+    "Feature-only Phase 14 V2 Gate B readiness check passed safely at 2026-09-09T20:13:53Z on helper head 223bd255c8001149eba51d3f5dfb767cb4c2461b against deployed head e9c7afc1536880e4612cb6e3d1a7282fa37c69f5 with READY=false, 496 markets, 81 rejected candidate starts, no labels read, no Gate B artifacts written, and HOLDOUT_TOUCHED=false"
   ],
   "not_completed": [
     "V2 Gate B production-evidence research execution, untouched final-holdout evaluation, and acceptance of any V2 policy/model/calibration/edge/min-edge selection",
@@ -640,9 +641,9 @@
     "Live trading"
   ],
   "next_actions": [
-    "Recorder deadlock recovery is production-accepted on deployed head e9c7afc1536880e4612cb6e3d1a7282fa37c69f5. Keep the four-worker recorder and all storage/V2 timers under normal research-only monitoring; do not lower storage thresholds or bypass fail-closed interlocks. Resume only the repeatable feature-only Gate B readiness helper from exact current main. READY=false means continue collecting immutable V2 evidence; READY=true is necessary but does not authorize Gate B, labels/outcomes access, or final-holdout evaluation.",
+    "Keep the recovered four-worker recorder and storage/V2 timers running under normal research-only monitoring. The latest feature-only Gate B readiness check passed safely with READY=false because no contiguous epoch satisfies the frozen minimums; the last evaluated candidate start 2026-09-09T04:20:00Z had only 19 of the required 24 train markets. Continue immutable V2 collection and rerun only the feature-only readiness helper; do not run Gate B. Candidate starts move in fixed 2-hour steps, so reruns more often than every 2 hours cannot expose a new candidate epoch.",
     "Treat docs/evidence/phase-14-v2-freshness-preregistration-20260909.json as immutable research configuration: max_last_trade_age_seconds candidates are exactly [1, 2, 5, 10] plus explicit no_trade and are bound to coverage_input_sha256 aab75574aa7faf18e65358353403e5ec1a2b89dd42424eb7b0e3329bf683b099. Do not alter this grid after labels/outcomes are joined.",
-    "The recorder is active again after a production PASS. Use only the repeatable exact-main feature-only Gate B readiness helper while contiguous V2 evidence accumulates. READY=false means keep collecting and do not run Gate B. READY=true is necessary before one future Gate B evidence run but does not itself authorize Gate B. Never lower Phase 8 minimums, skip folds, alter the frozen research configuration, use labels/outcomes to decide readiness, or touch the final holdout.",
+    "Gate B remains blocked on feature-only readiness. The first candidate start strictly after the 2026-09-09T18:55:51Z recorder recovery is 2026-09-09T20:20:00Z; a completely post-recovery 18-hour epoch cannot be fully evaluable before 2026-09-10T14:20:00Z. That is only a conservative lower bound, not a READY prediction: all unchanged train/validation/test/final-holdout market-count minimums must still pass. READY=true remains necessary but not Gate B authorization.",
     "Continue money-disabled prospective evidence collection and evaluation under RESEARCH/live-disabled/zero-money safety, preserving immutable V1/V2 evidence and the frozen 10-second selected-book freshness rule.",
     "Do not treat implementation or validation work as Gate B acceptance. V2 prospective shadow/paper activation, Phase 15, geographic bypass, automatic promotion, and live trading remain separately blocked."
   ],
@@ -1246,7 +1247,7 @@
     "v2_gate_b_research_minimum_contiguous_epoch_hours": 18,
     "v2_gate_b_research_retry_blocked_until_feature_only_readiness": true,
     "v2_gate_b_readiness_branch": "phase14-v2-gate-b-readiness",
-    "v2_gate_b_readiness_status": "MERGED_MAIN_REPEATABLE_NOT_RUN",
+    "v2_gate_b_readiness_status": "PRODUCTION_PASS_READY_FALSE",
     "v2_gate_b_readiness_pr": 158,
     "v2_gate_b_readiness_final_branch_head": "30e0ebebd339b1086ab8a31c83c5f16138a47435",
     "v2_gate_b_readiness_push_ci_run_id": 34370645827,
@@ -1272,7 +1273,7 @@
     "v2_gate_b_readiness_repeatable": true,
     "v2_gate_b_readiness_required_ordinary_folds": 3,
     "v2_gate_b_readiness_minimum_contiguous_epoch_hours": 18,
-    "v2_gate_b_readiness_production_check_performed": false,
+    "v2_gate_b_readiness_production_check_performed": true,
     "v2_gate_b_sparse_prefix_recovery_red_head": "275009017a4ce8522156f1cac905a0f24bdc8f1b",
     "v2_gate_b_sparse_prefix_recovery_red_ci_run_id": 34364344481,
     "v2_gate_b_sparse_prefix_recovery_red_existing_test_count": 1014,
@@ -1350,7 +1351,35 @@
     "forward_coverage_source_truth_reconciliation_merge_commit": "c4c78de63b1ca2fbd5d21d87be5a98e7f8950e42",
     "forward_coverage_source_truth_reconciliation_post_merge_ci_run_id": 33978128868,
     "forward_coverage_source_truth_reconciliation_post_merge_ci_passed": true,
-    "forward_coverage_source_truth_reconciliation_post_merge_test_count": 984
+    "forward_coverage_source_truth_reconciliation_post_merge_test_count": 984,
+    "v2_gate_b_readiness_last_checked_at": "2026-09-09T20:13:53Z",
+    "v2_gate_b_readiness_last_helper_head": "223bd255c8001149eba51d3f5dfb767cb4c2461b",
+    "v2_gate_b_readiness_last_deployed_head": "e9c7afc1536880e4612cb6e3d1a7282fa37c69f5",
+    "v2_gate_b_readiness_last_result": false,
+    "v2_gate_b_readiness_last_market_count": 496,
+    "v2_gate_b_readiness_last_market_start_at": "2026-09-02T12:20:00+00:00",
+    "v2_gate_b_readiness_last_market_end_at": "2026-09-09T20:10:00+00:00",
+    "v2_gate_b_readiness_last_available_span_hours": 175.833333,
+    "v2_gate_b_readiness_last_analysis_start_attempt_count": 81,
+    "v2_gate_b_readiness_last_candidate_rejection_count": 81,
+    "v2_gate_b_readiness_last_candidate_rejection_stage_counts": {
+      "test": 13,
+      "validation": 4,
+      "train": 64
+    },
+    "v2_gate_b_readiness_last_blocking_reason": "no contiguous Gate B epoch satisfies the frozen walk-forward minimums; last rejection: train requires at least 24 markets; found 19",
+    "v2_gate_b_readiness_last_candidate_start": "2026-09-09T04:20:00+00:00",
+    "v2_gate_b_readiness_last_candidate_train_market_count": 19,
+    "v2_gate_b_readiness_last_labels_read": false,
+    "v2_gate_b_readiness_last_plan_artifact_written": false,
+    "v2_gate_b_readiness_last_selection_artifact_written": false,
+    "v2_gate_b_readiness_last_would_plan_sha256": null,
+    "v2_gate_b_readiness_last_transcript_sha256": "7b94230188478791c61e8841141e755e2181b5316d663d25edb7551c1807ac64",
+    "v2_gate_b_readiness_last_sanitized_evidence": "docs/evidence/phase-14-v2-gate-b-readiness-20260909T201353Z.json",
+    "v2_gate_b_readiness_first_post_recovery_candidate_start": "2026-09-09T20:20:00Z",
+    "v2_gate_b_readiness_earliest_wholly_post_recovery_epoch_fully_evaluable_at": "2026-09-10T14:20:00Z",
+    "v2_gate_b_readiness_earliest_wholly_post_recovery_epoch_is_lower_bound": true,
+    "v2_gate_b_readiness_minimum_useful_rerun_cadence_hours": 2
   },
   "phase_14_storage_reliability_followup": {
     "incident_date": "2026-09-04",
@@ -2979,7 +3008,7 @@
     "partitioned_runtime_recorder_recovery_storage_mode": "partitioned",
     "partitioned_runtime_recorder_recovery_storage_guards_all_true": true,
     "partitioned_runtime_recorder_recovery_storage_free_bytes": 59993808896,
-    "partitioned_runtime_recorder_recovery_storage_retention_lag_hours": 0.0,
+    "partitioned_runtime_recorder_recovery_storage_retention_lag_hours": 0,
     "partitioned_runtime_recorder_recovery_storage_maintenance_last_success_at": "2026-09-09T18:55:41.678355Z",
     "partitioned_runtime_recorder_recovery_storage_maintenance_timer_active": true,
     "partitioned_runtime_recorder_recovery_storage_disk_health_timer_active": true,
@@ -2991,7 +3020,6 @@
     "partitioned_runtime_recorder_recovery_automatic_promotion": false,
     "partitioned_runtime_recorder_recovery_gate_b_actions_performed": false,
     "partitioned_runtime_recorder_recovery_gate_b_artifacts_fingerprint": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "partitioned_runtime_recorder_recovery_final_holdout_unread": true,
-    "partitioned_runtime_gate_b_holdout_touched": false
+    "partitioned_runtime_recorder_recovery_final_holdout_unread": true
   }
 }
