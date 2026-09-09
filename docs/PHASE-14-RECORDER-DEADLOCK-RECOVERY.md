@@ -1,7 +1,7 @@
 # Phase 14 recorder deadlock recovery
 
-**Status:** merged engineering package; narrow production recovery authorized  
-**Production execution:** authorized for this recovery helper only  
+**Status:** production recovery PASS accepted  
+**Production execution:** completed successfully on 9 September 2026  
 **Trading boundary:** RESEARCH only; live trading disabled; trade-size and daily-loss limits remain zero  
 **Gate B:** unauthorized; final holdout must remain untouched
 
@@ -127,15 +127,21 @@ PHASE14_RECORDER_DEADLOCK_RECOVERY_GATE=PASS
 EVIDENCE_FILE=/var/lib/bp/evidence/phase14-recorder-deadlock-recovery-<timestamp>.json
 ```
 
-## After a production PASS
+## Production PASS
 
-A production PASS would authorize only recording the recovered research runtime state. It still would not authorize Gate B.
+The authorized recovery completed successfully at `2026-09-09T18:55:51Z`.
 
-After the PASS:
+- helper head: `d217e20befd98d935138673ba1da17a62e895d44`
+- deployed minimal candidate: `e9c7afc1536880e4612cb6e3d1a7282fa37c69f5`
+- host evidence: `/var/lib/bp/evidence/phase14-recorder-deadlock-recovery-20260909T185551Z.json`
+- sanitized evidence: `docs/evidence/phase-14-recorder-deadlock-recovery-20260909.json`
+- Cloud Shell transcript SHA-256: `f8929882c2502fbab6f0de6d37acf5abe31ded82bab7fb5373174e25855bf4b5`
+- recorder active with four configured workers, MainPID `3300693`, and zero restarts across active-recorder maintenance;
+- stopped-recorder prestart maintenance and active-recorder maintenance both succeeded;
+- all four required feeds emitted during the acceptance soak with zero failures/backpressure;
+- storage remained `ok`, partitioned, retention-current, maintenance-fresh, and current-partition-present;
+- storage-maintenance, disk-health, and V2 forward-coverage timers were restored active;
+- RESEARCH/live-disabled/zero-money safety and `automatic_promotion=false` remained intact;
+- Gate B actions were not performed and the final holdout remained unread/untouched.
 
-1. record the exact deployed candidate head and host evidence SHA/path in the source-of-truth files;
-2. verify the recorder remains four-worker, all four feeds remain fresh, all three timers remain active, and storage remains healthy;
-3. only then resume the repeatable **feature-only** Gate B readiness helper;
-4. `READY=false` means continue collecting evidence;
-5. `READY=true` remains a prerequisite only and is not Gate B authorization;
-6. the final holdout remains untouched until a separately authorized Gate B attempt.
+This PASS closes the recorder deadlock recovery incident. It authorizes only the recovered research runtime state. The repeatable **feature-only** Gate B readiness helper may resume. `READY=false` means continue collecting evidence; `READY=true` remains a prerequisite only and is not Gate B authorization. The final holdout remains untouched until a separately authorized Gate B attempt.
