@@ -213,6 +213,32 @@ def test_gate_b_plan_is_feature_only_deterministic_and_holds_out_latest_markets(
     assert first["labels_read"] is False
 
 
+def test_gate_b_plan_moves_past_sparse_feature_only_prefix_without_skipping_folds() -> None:
+    engine = _engine()
+    rows = [
+        _feature(index, offset)
+        for index in range(20)
+        if index != 6
+        for offset in OFFSETS
+    ]
+    with engine.begin() as connection:
+        connection.execute(insert(schema.market_features), rows)
+        plan = build_gate_b_plan(connection, _plan_config(), _research_config())
+
+    assert plan["analysis_start_at"] == (
+        ROOT_START + timedelta(minutes=10)
+    ).isoformat()
+    assert plan["excluded_prefix_condition_ids"] == [
+        "condition-000",
+        "condition-001",
+    ]
+    assert plan["analysis_start_attempt_count"] == 2
+    assert len(plan["folds"]) == 5
+    for current, following in zip(plan["folds"], plan["folds"][1:], strict=False):
+        assert current["test"]["end"] == following["validation"]["end"]
+        assert following["test"]["start"] == current["test"]["end"]
+
+
 def test_prepare_gate_b_does_not_require_final_holdout_labels() -> None:
     engine = _engine()
     rows = [_feature(index, offset) for index in range(16) for offset in OFFSETS]
@@ -439,3 +465,32 @@ def test_project_state_locks_gate_b_engineering_boundary() -> None:
     assert checkpoint["v2_gate_b_research_database_mutations"] is False
     assert checkpoint["v2_gate_b_research_gate_b_authorized"] is False
     assert checkpoint["v2_gate_b_research_automatic_promotion"] is False
+    assert checkpoint["v2_gate_b_research_production_run_attempted"] is True
+    assert checkpoint["v2_gate_b_research_first_production_attempt_result"] == (
+        "FAIL_PRE_LABEL_PLAN"
+    )
+    assert checkpoint["v2_gate_b_research_first_production_attempt_reason"] == (
+        "test requires at least 6 markets; found 4"
+    )
+    assert checkpoint["v2_gate_b_research_first_production_attempt_plan_written"] is False
+    assert (
+        checkpoint["v2_gate_b_research_first_production_attempt_selection_written"]
+        is False
+    )
+    assert (
+        checkpoint["v2_gate_b_research_first_production_attempt_holdout_written"]
+        is False
+    )
+    assert (
+        checkpoint["v2_gate_b_research_first_production_attempt_holdout_touched"]
+        is False
+    )
+    assert checkpoint["v2_gate_b_sparse_prefix_recovery_status"] == (
+        "GREEN_UNMERGED_RETRY_NOT_RUN"
+    )
+    assert checkpoint["v2_gate_b_sparse_prefix_recovery_preserves_phase8_minimums"] is True
+    assert checkpoint["v2_gate_b_sparse_prefix_recovery_skips_individual_folds"] is False
+    assert (
+        checkpoint["v2_gate_b_sparse_prefix_recovery_reads_labels_for_epoch_selection"]
+        is False
+    )

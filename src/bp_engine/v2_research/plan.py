@@ -174,23 +174,17 @@ def _config_payload(config: GateBPlanConfig) -> dict[str, float | int]:
     }
 
 
-def build_gate_b_plan(
-    connection: Connection,
-    config: GateBPlanConfig | None = None,
-    research_config: GateBResearchConfig | None = None,
-) -> dict[str, Any]:
-    config = config or GateBPlanConfig()
-    research_config = research_config or GateBResearchConfig()
-    timeline = _feature_timeline(connection)
-    dataset_start = timeline[0]["market_start_at"]
-    dataset_end = timeline[-1]["market_end_at"]
-    holdout_start = dataset_end - config.final_holdout_duration
-    if holdout_start <= dataset_start:
-        raise GateBPlanIntegrityError("final holdout leaves no Gate B history")
-
+def _build_gate_b_plan_from_start(
+    timeline: tuple[dict[str, Any], ...],
+    *,
+    analysis_start: datetime,
+    dataset_end: datetime,
+    holdout_start: datetime,
+    config: GateBPlanConfig,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     folds: list[dict[str, Any]] = []
     seen_test: set[str] = set()
-    fold_start = dataset_start
+    fold_start = analysis_start
     index = 0
     while True:
         train_start = fold_start
@@ -256,8 +250,10 @@ def build_gate_b_plan(
     final_validation_start = final_validation_end - config.validation_duration
     final_train_end = final_validation_start
     final_train_start = final_train_end - config.train_duration
-    if final_train_start < dataset_start:
-        raise GateBPlanIntegrityError("final train window begins before dataset start")
+    if final_train_start < analysis_start:
+        raise GateBPlanIntegrityError(
+            "final train window begins before candidate analysis start"
+        )
 
     final_train_records = _contained(timeline, final_train_start, final_train_end)
     final_validation_records = _contained(
@@ -325,6 +321,70 @@ def build_gate_b_plan(
         ),
     }
     final["membership_sha256"] = canonical_hash(final)
+    return folds, final
+
+
+def build_gate_b_plan(
+    connection: Connection,
+    config: GateBPlanConfig | None = None,
+    research_config: GateBResearchConfig | None = None,
+) -> dict[str, Any]:
+    config = config or GateBPlanConfig()
+    research_config = research_config or GateBResearchConfig()
+    timeline = _feature_timeline(connection)
+    dataset_start = timeline[0]["market_start_at"]
+    dataset_end = timeline[-1]["market_end_at"]
+    holdout_start = dataset_end - config.final_holdout_duration
+    if holdout_start <= dataset_start:
+        raise GateBPlanIntegrityError("final holdout leaves no Gate B history")
+
+    minimum_span = (
+        config.train_duration
+        + config.validation_duration
+        + config.test_duration
+    )
+    candidate_start = dataset_start
+    attempt_count = 0
+    rejected_starts: list[dict[str, str]] = []
+    folds: list[dict[str, Any]] | None = None
+    final: dict[str, Any] | None = None
+
+    while candidate_start + minimum_span <= holdout_start:
+        attempt_count += 1
+        try:
+            folds, final = _build_gate_b_plan_from_start(
+                timeline,
+                analysis_start=candidate_start,
+                dataset_end=dataset_end,
+                holdout_start=holdout_start,
+                config=config,
+            )
+            break
+        except GateBPlanIntegrityError as exc:
+            rejected_starts.append(
+                {
+                    "analysis_start_at": candidate_start.isoformat(),
+                    "reason": str(exc),
+                }
+            )
+            candidate_start = candidate_start + config.step_duration
+
+    if folds is None or final is None:
+        last_reason = (
+            rejected_starts[-1]["reason"]
+            if rejected_starts
+            else "no candidate analysis start was evaluable"
+        )
+        raise GateBPlanIntegrityError(
+            "no contiguous Gate B epoch satisfies the frozen walk-forward "
+            f"minimums; last rejection: {last_reason}"
+        )
+
+    excluded_prefix = [
+        record["condition_id"]
+        for record in timeline
+        if record["market_start_at"] < candidate_start
+    ]
 
     research_payload = {
         "fee_rate": research_config.fee_rate,
@@ -343,6 +403,10 @@ def build_gate_b_plan(
         "market_count": len(timeline),
         "market_start_at": dataset_start.isoformat(),
         "market_end_at": dataset_end.isoformat(),
+        "analysis_start_at": candidate_start.isoformat(),
+        "analysis_start_attempt_count": attempt_count,
+        "excluded_prefix_condition_ids": excluded_prefix,
+        "analysis_start_rejections": rejected_starts,
         "coverage_input_sha256": FROZEN_COVERAGE_INPUT_SHA256,
         "freshness_candidates_seconds": list(FROZEN_FRESHNESS_CANDIDATES_SECONDS),
         "include_no_trade": FROZEN_INCLUDE_NO_TRADE,
