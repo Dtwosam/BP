@@ -465,3 +465,32 @@ def test_project_state_locks_gate_b_engineering_boundary() -> None:
     assert checkpoint["v2_gate_b_research_database_mutations"] is False
     assert checkpoint["v2_gate_b_research_gate_b_authorized"] is False
     assert checkpoint["v2_gate_b_research_automatic_promotion"] is False
+    assert checkpoint["v2_gate_b_research_production_run_attempted"] is True
+    assert checkpoint["v2_gate_b_research_first_production_attempt_result"] == (
+        "FAIL_PRE_LABEL_PLAN"
+    )
+    assert checkpoint["v2_gate_b_research_first_production_attempt_reason"] == (
+        "test requires at least 6 markets; found 4"
+    )
+    assert checkpoint["v2_gate_b_research_first_production_attempt_plan_written"] is False
+    assert (
+        checkpoint["v2_gate_b_research_first_production_attempt_selection_written"]
+        is False
+    )
+    assert (
+        checkpoint["v2_gate_b_research_first_production_attempt_holdout_written"]
+        is False
+    )
+    assert (
+        checkpoint["v2_gate_b_research_first_production_attempt_holdout_touched"]
+        is False
+    )
+    assert checkpoint["v2_gate_b_sparse_prefix_recovery_status"] == (
+        "GREEN_UNMERGED_RETRY_NOT_RUN"
+    )
+    assert checkpoint["v2_gate_b_sparse_prefix_recovery_preserves_phase8_minimums"] is True
+    assert checkpoint["v2_gate_b_sparse_prefix_recovery_skips_individual_folds"] is False
+    assert (
+        checkpoint["v2_gate_b_sparse_prefix_recovery_reads_labels_for_epoch_selection"]
+        is False
+    )
