@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.105 — 9 September 2026
+
+PR #149 merged the dedicated Phase 14 V2 forward-coverage restore-only gate to `main` as `a671083b04187a8bc986ab3743d4eb3a9508d8c3`. Final branch head `3af232e0e2d804fcf781a5a5947749d6e065601d` passed push CI `34343658073`, PR CI `34343663950`, Historical Backfill Smoke `34343663935`, Live Recorder Smoke `34343663992`, and Recorder Short Soak `34343663996`. Post-merge main CI `34343845092` then passed **1001 tests** plus Ruff, deployment validation, research-mode health, and dashboard checks.
+
+The restore helper is therefore merged and ready for a separately controlled production run against the already accepted production checkout `895c6bd2f9409f16bf5d544b26b30e20ecbfe43a`. This merge performs no production mutation and does not itself activate `bp-v2-forward-coverage.timer`. The production run remains a separate operational step; Gate B, policy selection, automatic promotion, Phase 15, geographic bypass, and live trading remain blocked.
+
 ## 0.14.104 — 9 September 2026
 
 A dedicated Phase 14 **restore-only** V2 forward-coverage gate is now engineering-complete for the post-storage production baseline. The original forward-coverage rollout helper is intentionally not reused: that helper performs a candidate checkout, unit installation, and storage-index installation, while production already contains the accepted V2 collector package on deployed head `895c6bd2f9409f16bf5d544b26b30e20ecbfe43a`. Targeted blob verification confirmed the V2 service unit, timer unit, wrapper script, collector implementation, and CLI are byte-identical between the original production collector rollout head `c29fe227f959305f67031e922ca659869a826c4f` and the accepted post-migration production head.
