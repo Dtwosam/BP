@@ -143,6 +143,50 @@ Fail when:
 
 Do not fail merely because the selected result is `no_trade`, eligible coverage is low, calibration remains identity, or holdout economics are negative.
 
+## Repeatable feature-only readiness check
+
+Before any further production Gate B evidence attempt, run the separate readiness command/helper. Readiness is deliberately **not** the `plan` stage and writes no Gate B artifact.
+
+The CLI command is:
+
+```bash
+python scripts/run_v2_gate_b_research.py --env-file /etc/bp/bp.env readiness
+```
+
+The exact-main Cloud Shell wrapper is:
+
+```bash
+bash scripts/deploy/phase14_v2_gate_b_readiness_cloudshell.sh
+```
+
+It uses the same immutable V2 feature rows and the same frozen Gate B defaults. It returns:
+
+- `READY=true|false`;
+- total market count and observed feature span;
+- the derived minimum contiguous epoch (18 hours under the accepted defaults);
+- required ordinary fold count (3);
+- earliest viable `analysis_start_at` when ready;
+- eligible ordinary fold count;
+- final-holdout market count;
+- every rejected candidate analysis start/reason;
+- the would-be plan SHA when ready.
+
+It always asserts:
+
+```text
+labels_read=false
+plan_artifact_written=false
+selection_artifact_written=false
+holdout_touched=false
+```
+
+The helper creates no `/var/lib/bp/evidence/phase14-v2-gate-b-*` run directory and never invokes `prepare` or `evaluate-holdout`. It is safe to run repeatedly.
+
+Operational rule:
+
+- `READY=false`: keep the V2 forward collector running and **do not** run Gate B.
+- `READY=true`: one exact-main Gate B evidence run becomes eligible to attempt, but Gate B remains unauthorized until that evidence is separately reviewed and accepted.
+
 ## Exact-main production evidence runner
 
 After this package is merged, use a clean local `main` checkout whose HEAD equals the merged helper SHA. The Cloud Shell wrapper refuses to run when local HEAD, remote `main`, or the configured helper SHA differ.

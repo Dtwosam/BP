@@ -23,6 +23,19 @@ class GateBPlanIntegrityError(RuntimeError):
     """Raised when unlabeled V2 feature evidence cannot form a safe Gate B plan."""
 
 
+REQUIRED_ORDINARY_FOLDS = 3
+
+
+def _minimum_contiguous_epoch_seconds(config: GateBPlanConfig) -> float:
+    return (
+        config.train_duration
+        + config.validation_duration
+        + config.test_duration
+        + ((REQUIRED_ORDINARY_FOLDS - 1) * config.step_duration)
+        + config.final_holdout_duration
+    ).total_seconds()
+
+
 def _utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         return value.replace(tzinfo=UTC)
@@ -240,9 +253,10 @@ def _build_gate_b_plan_from_start(
         index += 1
         fold_start = fold_start + config.step_duration
 
-    if len(folds) < 3:
+    if len(folds) < REQUIRED_ORDINARY_FOLDS:
         raise GateBPlanIntegrityError(
-            f"Gate B plan requires at least 3 eligible folds; found {len(folds)}"
+            "Gate B plan requires at least "
+            f"{REQUIRED_ORDINARY_FOLDS} eligible folds; found {len(folds)}"
         )
 
     final_holdout_start = holdout_start
@@ -322,6 +336,125 @@ def _build_gate_b_plan_from_start(
     }
     final["membership_sha256"] = canonical_hash(final)
     return folds, final
+
+
+def assess_gate_b_readiness(
+    connection: Connection,
+    config: GateBPlanConfig | None = None,
+    research_config: GateBResearchConfig | None = None,
+) -> dict[str, Any]:
+    """Return feature-only readiness without writing or freezing Gate B artifacts."""
+    config = config or GateBPlanConfig()
+    research_config = research_config or GateBResearchConfig()
+    timeline = _feature_timeline(connection)
+    dataset_start = timeline[0]["market_start_at"]
+    dataset_end = timeline[-1]["market_end_at"]
+    holdout_start = dataset_end - config.final_holdout_duration
+    minimum_seconds = _minimum_contiguous_epoch_seconds(config)
+
+    base: dict[str, Any] = {
+        "feature_version": V2_FEATURE_VERSION,
+        "horizon_seconds": 300,
+        "market_count": len(timeline),
+        "market_start_at": dataset_start.isoformat(),
+        "market_end_at": dataset_end.isoformat(),
+        "available_span_seconds": (dataset_end - dataset_start).total_seconds(),
+        "minimum_contiguous_epoch_seconds": minimum_seconds,
+        "required_ordinary_folds": REQUIRED_ORDINARY_FOLDS,
+        "labels_read": False,
+        "plan_artifact_written": False,
+        "selection_artifact_written": False,
+        "holdout_touched": False,
+        "coverage_input_sha256": FROZEN_COVERAGE_INPUT_SHA256,
+        "freshness_candidates_seconds": list(FROZEN_FRESHNESS_CANDIDATES_SECONDS),
+        "include_no_trade": FROZEN_INCLUDE_NO_TRADE,
+        "config": _config_payload(config),
+        "research_config": {
+            "fee_rate": research_config.fee_rate,
+            "slippage_buffer": research_config.slippage_buffer,
+            "min_edge_grid": list(research_config.min_edge_grid),
+            "min_validation_trades": research_config.min_validation_trades,
+            "min_train_eligible_markets": research_config.min_train_eligible_markets,
+            "min_validation_eligible_markets": (
+                research_config.min_validation_eligible_markets
+            ),
+        },
+    }
+
+    if holdout_start <= dataset_start:
+        return {
+            **base,
+            "ready": False,
+            "analysis_start_at": None,
+            "eligible_fold_count": 0,
+            "final_holdout_market_count": 0,
+            "analysis_start_attempt_count": 0,
+            "candidate_rejections": [],
+            "blocking_reason": "final holdout leaves no Gate B history",
+            "would_plan_sha256": None,
+        }
+
+    minimum_span = (
+        config.train_duration
+        + config.validation_duration
+        + config.test_duration
+    )
+    candidate_start = dataset_start
+    attempt_count = 0
+    rejections: list[dict[str, str]] = []
+
+    while candidate_start + minimum_span <= holdout_start:
+        attempt_count += 1
+        try:
+            folds, final = _build_gate_b_plan_from_start(
+                timeline,
+                analysis_start=candidate_start,
+                dataset_end=dataset_end,
+                holdout_start=holdout_start,
+                config=config,
+            )
+        except GateBPlanIntegrityError as exc:
+            rejections.append(
+                {
+                    "analysis_start_at": candidate_start.isoformat(),
+                    "reason": str(exc),
+                }
+            )
+            candidate_start = candidate_start + config.step_duration
+            continue
+
+        plan = build_gate_b_plan(connection, config, research_config)
+        return {
+            **base,
+            "ready": True,
+            "analysis_start_at": candidate_start.isoformat(),
+            "eligible_fold_count": len(folds),
+            "final_holdout_market_count": len(final["holdout_condition_ids"]),
+            "analysis_start_attempt_count": attempt_count,
+            "candidate_rejections": rejections,
+            "blocking_reason": None,
+            "would_plan_sha256": plan["plan_sha256"],
+        }
+
+    last_reason = (
+        rejections[-1]["reason"]
+        if rejections
+        else "no candidate analysis start was evaluable"
+    )
+    return {
+        **base,
+        "ready": False,
+        "analysis_start_at": None,
+        "eligible_fold_count": 0,
+        "final_holdout_market_count": 0,
+        "analysis_start_attempt_count": attempt_count,
+        "candidate_rejections": rejections,
+        "blocking_reason": (
+            "no contiguous Gate B epoch satisfies the frozen walk-forward "
+            f"minimums; last rejection: {last_reason}"
+        ),
+        "would_plan_sha256": None,
+    }
 
 
 def build_gate_b_plan(

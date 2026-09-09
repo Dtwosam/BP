@@ -17,7 +17,7 @@ from bp_engine.v2_research.config import (
     V2_DATASET_VERSION,
 )
 from bp_engine.v2_research.models import GateBPlanConfig, GateBResearchConfig
-from bp_engine.v2_research.plan import build_gate_b_plan
+from bp_engine.v2_research.plan import assess_gate_b_readiness, build_gate_b_plan
 from bp_engine.v2_research.policy import edge_decision_v2
 from bp_engine.v2_research.service import (
     GateBResearchIntegrityError,
@@ -189,6 +189,65 @@ def test_preregistration_constants_match_immutable_evidence() -> None:
     assert FROZEN_INCLUDE_NO_TRADE is prereg["include_no_trade"]
     assert max(FROZEN_FRESHNESS_CANDIDATES_SECONDS) <= 10
     assert V2_DATASET_VERSION == "supervised-core-v2-last-trade-v1"
+
+
+def test_gate_b_readiness_is_feature_only_repeatable_and_reports_geometry() -> None:
+    engine = _engine()
+    rows = [_feature(index, offset) for index in range(10) for offset in OFFSETS]
+    with engine.begin() as connection:
+        connection.execute(insert(schema.market_features), rows)
+        first = assess_gate_b_readiness(
+            connection, _plan_config(), _research_config()
+        )
+        second = assess_gate_b_readiness(
+            connection, _plan_config(), _research_config()
+        )
+
+    assert first == second
+    assert first["ready"] is False
+    assert first["labels_read"] is False
+    assert first["plan_artifact_written"] is False
+    assert first["selection_artifact_written"] is False
+    assert first["holdout_touched"] is False
+    assert first["minimum_contiguous_epoch_seconds"] == 70 * 60
+    assert first["required_ordinary_folds"] == 3
+    assert first["market_count"] == 10
+    assert first["blocking_reason"]
+    assert first["analysis_start_at"] is None
+
+
+def test_gate_b_readiness_reports_earliest_viable_epoch_without_freezing_plan() -> None:
+    engine = _engine()
+    rows = [_feature(index, offset) for index in range(16) for offset in OFFSETS]
+    with engine.begin() as connection:
+        connection.execute(insert(schema.market_features), rows)
+        report = assess_gate_b_readiness(
+            connection, _plan_config(), _research_config()
+        )
+
+    assert report["ready"] is True
+    assert report["labels_read"] is False
+    assert report["analysis_start_at"] == ROOT_START.isoformat()
+    assert report["eligible_fold_count"] == 4
+    assert report["final_holdout_market_count"] == 2
+    assert report["plan_artifact_written"] is False
+    assert report["selection_artifact_written"] is False
+    assert report["holdout_touched"] is False
+    assert report["would_plan_sha256"]
+    assert report["blocking_reason"] is None
+
+
+def test_default_gate_b_readiness_geometry_requires_eighteen_hours() -> None:
+    plan = GateBPlanConfig()
+    required_seconds = (
+        plan.train_duration
+        + plan.validation_duration
+        + plan.test_duration
+        + (2 * plan.step_duration)
+        + plan.final_holdout_duration
+    ).total_seconds()
+
+    assert required_seconds == 18 * 60 * 60
 
 
 def test_gate_b_plan_is_feature_only_deterministic_and_holds_out_latest_markets() -> None:
@@ -406,6 +465,28 @@ def test_gate_b_package_has_no_v1_probability_fallback_or_database_write_path() 
         assert forbidden not in source
 
 
+def test_gate_b_readiness_cli_has_no_artifact_or_research_override_arguments() -> None:
+    from bp_engine.v2_research.cli import build_parser
+
+    args = build_parser().parse_args(["readiness"])
+
+    assert args.command == "readiness"
+    for forbidden in (
+        "output",
+        "plan",
+        "selection",
+        "fee_rate",
+        "slippage_buffer",
+        "min_edge",
+        "train_hours",
+        "validation_hours",
+        "test_hours",
+        "step_hours",
+        "final_holdout_hours",
+    ):
+        assert not hasattr(args, forbidden)
+
+
 def test_gate_b_artifact_paths_are_no_clobber(tmp_path: Path) -> None:
     from bp_engine.v2_research.cli import _write_exclusive
 
@@ -514,6 +595,24 @@ def test_project_state_locks_gate_b_engineering_boundary() -> None:
         checkpoint["v2_gate_b_research_retry_blocked_until_feature_only_readiness"]
         is True
     )
+    assert checkpoint["v2_gate_b_readiness_status"] == (
+        "ENGINEERING_READY_GREEN_UNMERGED_NOT_RUN"
+    )
+    assert checkpoint["v2_gate_b_readiness_green_head"] == (
+        "762d71f7f525ad28f1a162a01b6f35b5da46a25a"
+    )
+    assert checkpoint["v2_gate_b_readiness_green_ci_run_id"] == 34370064802
+    assert checkpoint["v2_gate_b_readiness_green_test_count"] == 1020
+    assert checkpoint["v2_gate_b_readiness_green_ci_passed"] is True
+    assert checkpoint["v2_gate_b_readiness_feature_only"] is True
+    assert checkpoint["v2_gate_b_readiness_labels_read"] is False
+    assert checkpoint["v2_gate_b_readiness_writes_plan_artifact"] is False
+    assert checkpoint["v2_gate_b_readiness_writes_selection_artifact"] is False
+    assert checkpoint["v2_gate_b_readiness_holdout_touched"] is False
+    assert checkpoint["v2_gate_b_readiness_repeatable"] is True
+    assert checkpoint["v2_gate_b_readiness_required_ordinary_folds"] == 3
+    assert checkpoint["v2_gate_b_readiness_minimum_contiguous_epoch_hours"] == 18
+    assert checkpoint["v2_gate_b_readiness_production_check_performed"] is False
     assert checkpoint["v2_gate_b_sparse_prefix_recovery_preserves_phase8_minimums"] is True
     assert checkpoint["v2_gate_b_sparse_prefix_recovery_skips_individual_folds"] is False
     assert (
