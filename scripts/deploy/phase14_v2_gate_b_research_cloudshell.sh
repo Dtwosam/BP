@@ -91,9 +91,26 @@ DISK_BEFORE=""
 DISK_AFTER=""
 
 fail() {
+  local artifact path upper
   echo "PHASE14_V2_GATE_B_RESEARCH=FAIL" >&2
   echo "REASON=$1" >&2
-  [[ -n "$RUN_DIR" ]] && echo "PARTIAL_EVIDENCE_DIR=$RUN_DIR" >&2
+  if [[ -n "$RUN_DIR" ]]; then
+    echo "PARTIAL_EVIDENCE_DIR=$RUN_DIR" >&2
+    for artifact in plan selection holdout summary; do
+      path="$RUN_DIR/$artifact.json"
+      upper=${artifact^^}
+      if [[ -f "$path" ]]; then
+        echo "${upper}_PRESENT=true" >&2
+      else
+        echo "${upper}_PRESENT=false" >&2
+      fi
+    done
+    if [[ -f "$RUN_DIR/holdout.json" ]]; then
+      echo "HOLDOUT_TOUCHED=true" >&2
+    else
+      echo "HOLDOUT_TOUCHED=false" >&2
+    fi
+  fi
   exit 1
 }
 
