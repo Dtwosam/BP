@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.102",
-  "updated_at": "2026-09-09T10:36:10Z",
+  "source_of_truth_version": "0.14.103",
+  "updated_at": "2026-09-09T10:46:31Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -623,21 +623,19 @@
     "Phase 14 timestamp-coherent market-price V2 research architecture approved under D-033 with V1 evidence preserved and no live/money change",
     "Phase 14 Gate A timestamp-coherent market-price V2 production rollout passed on exact deployed head d077e45f24704e6038c947169c84527e954de975 with a forward epoch of 2026-09-02T12:18:02Z, one completed post-epoch market, four immutable core-v2-last-trade rows, zero future-cutoff violations, and no V2 policy selection",
     "Phase 14 V2 forward coverage collector was subsequently deployed research-only/outcome-blind on production head c29fe227f959305f67031e922ca659869a826c4f before the 4 September storage incident; its runtime state is not asserted while storage recovery is in progress and Gate B remains unauthorized",
-    "Phase 14 partitioned raw-storage migration and host acceptance completed in production"
+    "Phase 14 partitioned raw-storage migration and host acceptance completed in production",
+    "Phase 14 post-storage recorder restart gate passed in production with RECORDER_WRITER_WORKERS=4, all four required feeds flowing, zero soak-window incidents/backpressure, and partitioned storage health still ok"
   ],
   "not_completed": [
-    "Production recorder reliability rollout with RECORDER_WRITER_WORKERS=4 and natural-load acceptance",
     "V2 Gate B and any V2 policy/model/calibration/edge/min-edge selection",
     "Phase 15 controlled live launch",
     "Live trading"
   ],
   "next_actions": [
-    "Keep bp-recorder.service stopped while storage recovery is incomplete; do not lower disk thresholds, manually delete unarchived raw rows, or bypass the recorder storage-health ExecCondition.",
-    "Run the merged read-only Phase 14 storage preflight from docs/PHASE-14-STORAGE-RECOVERY.md against the exact deployed-from SHA and exact verified main candidate when production access is available; capture the Cloud Shell transcript and pass it through scripts/deploy/verify_phase14_storage_preflight.py. A verified PASS is prerequisite evidence only and performs no production mutation.",
-    "Treat the partitioned PostgreSQL production migration as a separate explicit authorization step. The rollout must reverify /mnt/bp-data filesystem identity, dynamic migration headroom preserving the 15GiB critical reserve, exact 24–48h archive evidence, research/zero-money safety, retained rollback material, unmigrated legacy storage shape, and recorder-stopped state before mutation.",
-    "After any separately authorized storage migration passes parity and one verified archive-to-partition-drop cycle proves physical relation-size release, enable maintenance/disk-health timers and keep recorder stopped until the recorder restart gate.",
-    "Only after storage health is accepted, deploy the already-merged recorder reliability repair with RECORDER_WRITER_WORKERS=4, restart the recorder in a controlled step, verify all four feeds and natural-load no-drop/backpressure behavior, and preserve V2 Gate A invariants.",
-    "Do not authorize Gate B, V2 policy/model/calibration/edge/min-edge selection, V2 paper execution, Phase 15, geographic bypass, or live trading; keep selected-book freshness exactly 10 seconds and automatic_promotion=false."
+    "Keep the production recorder running under the accepted RECORDER_WRITER_WORKERS=4 configuration and continue normal partitioned-storage maintenance/disk-health monitoring; do not lower storage thresholds or bypass the recorder storage-health ExecCondition.",
+    "Re-establish or verify the research-only V2 forward-coverage runtime only through its existing separately authorized rollout/activation boundary; the recorder restart acceptance does not itself activate bp-v2-forward-coverage.timer.",
+    "Continue money-disabled prospective evidence collection and evaluation under RESEARCH/live-disabled/zero-money safety, preserving immutable V1/V2 evidence and the frozen 10-second selected-book freshness rule.",
+    "Do not authorize Gate B, V2 policy/model/calibration/edge/min-edge selection, V2 paper execution, Phase 15, geographic bypass, or live trading; keep automatic_promotion=false."
   ],
   "open_questions": [
     "Current/recurring availability of a 10m BTC Up/Down Polymarket market",
@@ -1057,7 +1055,7 @@
     "gate_a_live_prediction_tree_byte_identical_to_main": true,
     "gate_a_calibration_tree_byte_identical_to_main": true,
     "gate_a_migration_added": false,
-    "gate_a_next_step": "complete recorder/storage recovery before any further V2 runtime work; Gate B remains unauthorized",
+    "gate_a_next_step": "recorder/storage recovery is accepted; any V2 forward-coverage runtime restoration remains a separate research-only activation step, and Gate B remains unauthorized",
     "forward_coverage_collector_branch": "phase14-v2-gate-a-rollout-evidence",
     "forward_coverage_collector_implementation_checkpoint": "af8b2e4f741851df1b055b57c3fc44e39c7b6b06",
     "forward_coverage_collector_implementation_status": "DEPLOYED_PRODUCTION_RESEARCH_ONLY_OUTCOME_BLIND",
@@ -2566,9 +2564,9 @@
     "partitioned_storage_rollout_disk_health_timer_state": "active",
     "partitioned_storage_migration_completed": true,
     "partitioned_storage_health_accepted": true,
-    "partitioned_storage_recorder_restart_required": true,
+    "partitioned_storage_recorder_restart_required": false,
     "recorder_restart_gate_helper": "scripts/deploy/phase14_recorder_restart_gate_cloudshell.sh",
-    "recorder_restart_gate_status": "PRODUCTION_ATTEMPT_FAILED_ENV_VERIFICATION_FIX_GREEN_UNMERGED",
+    "recorder_restart_gate_status": "PRODUCTION_PASS",
     "recorder_restart_gate_expected_deployed_head": "895c6bd2f9409f16bf5d544b26b30e20ecbfe43a",
     "recorder_restart_gate_storage_evidence_path": "/mnt/bp-data/evidence/phase14-partitioned-storage-rollout-20260909T070219Z.json",
     "recorder_restart_gate_storage_evidence_sha256": "f33a28f5306e46c509b0000a176d226c079aa2d160d595095ca228118542ce19",
@@ -2592,8 +2590,30 @@
     "recorder_restart_gate_env_verification_green_ci_run_id": 34340971963,
     "recorder_restart_gate_env_verification_green_test_count": 999,
     "recorder_restart_gate_env_verification_green_ci_passed": true,
-    "recorder_restart_gate_env_verification_fix_status": "PR_OPEN_GREEN_UNMERGED",
+    "recorder_restart_gate_env_verification_fix_status": "MERGED_MAIN_PRODUCTION_VERIFIED",
     "recorder_restart_gate_env_verification_fix_pr": 147,
+    "recorder_restart_gate_env_verification_fix_merge_commit": "a65f2a87d2575aa31e071b2df6d0670abe362bdb",
+    "recorder_restart_gate_production_passed": true,
+    "recorder_restart_gate_production_passed_at": "2026-09-09T10:46:31Z",
+    "recorder_restart_gate_production_helper_head": "a65f2a87d2575aa31e071b2df6d0670abe362bdb",
+    "recorder_restart_gate_production_deployed_head": "895c6bd2f9409f16bf5d544b26b30e20ecbfe43a",
+    "recorder_restart_gate_production_evidence_path": "/var/lib/bp/evidence/phase14-recorder-restart-gate-20260909T104631Z.txt",
+    "recorder_restart_gate_production_recorder_active": true,
+    "recorder_restart_gate_production_config_workers": 4,
+    "recorder_restart_gate_production_soak_passed": true,
+    "recorder_restart_gate_production_soak_duration_seconds": 36,
+    "recorder_restart_gate_production_soak_minimum_duration_seconds": 28,
+    "recorder_restart_gate_production_soak_incidents": 0,
+    "recorder_restart_gate_production_feed_events": {
+      "polymarket/market": 13027,
+      "bybit/spot": 693,
+      "bybit/linear": 1397,
+      "coinbase/spot": 220
+    },
+    "recorder_restart_gate_production_storage_status": "ok",
+    "recorder_restart_gate_production_storage_mode": "partitioned",
+    "recorder_restart_gate_production_maintenance_timer_active": true,
+    "recorder_restart_gate_production_disk_health_timer_active": true,
     "recorder_restart_gate_pr": 146
   }
 }
