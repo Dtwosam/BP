@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.114 — 9 September 2026
+
+A separate **feature-only Gate B readiness checker** now prevents repeated one-shot Gate B evidence attempts while contiguous V2 evidence is still insufficient. `assess_gate_b_readiness` evaluates the exact existing planner geometry and returns a normal `READY=true/false` report instead of raising for insufficient chronology. It reads only immutable `core-v2-last-trade` feature metadata, writes no plan/selection/holdout artifact, never touches labels or the holdout, and reports the derived 18-hour minimum contiguous epoch, all candidate-start rejections, the earliest viable analysis start when one exists, eligible fold count, final-holdout market count, and would-be plan SHA.
+
+The `readiness` CLI command exposes no research-grid overrides and writes no output file. The non-deploying exact-main wrapper `scripts/deploy/phase14_v2_gate_b_readiness_cloudshell.sh` verifies the accepted production checkout, storage evidence, recorder/core/V2/storage services, four recorder workers, and research/zero-money safety; runs only `readiness` from a temporary exact-SHA archive in a PostgreSQL read-only transaction; and removes all temporary code afterward. It never invokes `prepare` or `evaluate-holdout`, creates no Gate B evidence directory, and always preserves `HOLDOUT_TOUCHED=false`.
+
+TDD RED head `581f007aa0f93c5af905ab6d1f0c8947810368b5` failed because the readiness API did not yet exist. GREEN head `762d71f7f525ad28f1a162a01b6f35b5da46a25a` passed CI `34370064802` with **1,020 tests** plus Ruff, deployment validation, research-mode health, and dashboard checks. Operationally, `READY=false` means continue evidence collection and do not run Gate B; `READY=true` is necessary for one future Gate B evidence attempt but does not authorize Gate B, promotion, paper/live execution, Phase 15, or money changes.
+
 ## 0.14.113 — 9 September 2026
 
 The post-PR-#156 exact-main Gate B production retry on helper head `184b725724d46d7ed757dd715a88dafddbdd45e1` failed safely in feature-only planning with `no contiguous Gate B epoch satisfies the frozen walk-forward minimums; last rejection: train requires at least 24 markets; found 0`. The helper created only `/var/lib/bp/evidence/phase14-v2-gate-b-20260909T150136Z` and explicitly reported `PLAN_PRESENT=false`, `SELECTION_PRESENT=false`, `HOLDOUT_PRESENT=false`, `SUMMARY_PRESENT=false`, and `HOLDOUT_TOUCHED=false`. No Gate B labels or final-holdout evidence were consumed by this attempt.
