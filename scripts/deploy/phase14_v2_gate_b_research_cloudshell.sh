@@ -205,6 +205,7 @@ require_services() {
 [[ -r "$STORAGE_EVIDENCE" ]] || fail "storage_evidence_missing"
 [[ -r "$ARCHIVE" ]] || fail "candidate_archive_missing"
 [[ "$(sha256sum "$ARCHIVE" | awk '{print $1}')" == "$ARCHIVE_SHA256" ]] || fail "candidate_archive_sha256_mismatch"
+chmod 0644 "$ARCHIVE"
 [[ "$(sha256sum "$STORAGE_EVIDENCE" | awk '{print $1}')" == "$STORAGE_EVIDENCE_SHA256" ]] || fail "storage_evidence_sha256_mismatch"
 [[ "$(git -c safe.directory="$REPO" -C "$REPO" rev-parse HEAD)" == "$DEPLOYED_HEAD" ]] || fail "unexpected_deployed_head"
 
