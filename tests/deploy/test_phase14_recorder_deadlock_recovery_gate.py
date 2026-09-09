@@ -79,6 +79,8 @@ def test_deadlock_recovery_gate_proves_fix_under_active_recorder_load() -> None:
         "required feed recorded backpressure",
         "dashboard left RESEARCH mode",
         "gate_b_fingerprint",
+        "unexpected Gate B holdout artifact present; refusing to read it",
+        'names = {"plan.json", "selection.json", "summary.json"}',
         "gate_b_artifacts_changed",
         '"holdout_touched": False',
         '"actions_performed": False',
@@ -91,6 +93,8 @@ def test_deadlock_recovery_gate_proves_fix_under_active_recorder_load() -> None:
 
     assert 'systemctl restart "$RECORDER_UNIT"' not in content
     assert "evaluate-holdout" not in content
+    assert 'read_bytes()).digest()' in content
+    assert 'names = {"plan.json", "selection.json", "holdout.json", "summary.json"}' not in content
     assert "run_v2_gate_b_research.py" not in content
     assert "LIVE_TRADING_ENABLED=true" not in content
     assert "MAX_TRADE_SIZE_USD=1" not in content
