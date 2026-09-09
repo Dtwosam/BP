@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.111 — 9 September 2026
+
+The first exact-main Phase 14 V2 Gate B production-evidence attempt stopped safely in the unlabeled `plan` stage on helper head `a395a069c1a95f5b3968ea913c08b5a2bb1385a6`. The earliest two-hour test window contained only 4 complete V2 markets versus the unchanged Phase 8 minimum of 6, so the runner emitted `PHASE14_V2_GATE_B_RESEARCH=FAIL`, `REASON=gate_b_plan_failed`, and partial directory `/var/lib/bp/evidence/phase14-v2-gate-b-20260909T142914Z`. Because planning failed before artifact write, `plan.json`, `selection.json`, and `holdout.json` were not created; no labels were queried by Gate B and the one-shot final holdout remains unread.
+
+The recovery does **not** lower the Phase 8 minimums or skip a sparse fold. The feature-only planner now advances candidate analysis starts by the existing two-hour step and deterministically chooses the earliest start whose **entire remaining contiguous walk-forward schedule** satisfies every frozen Phase 8 minimum. The hashed plan records `analysis_start_at`, attempt count, every rejected candidate start/reason, and all excluded-prefix condition IDs. Epoch selection remains outcome-blind: labels, calibration, P&L, ordinary-test results, and final-holdout results cannot influence it.
+
+TDD RED head `275009017a4ce8522156f1cac905a0f24bdc8f1b` reproduced the exact sparse-prefix failure while **1,014 existing tests passed** in CI `34364344481`. GREEN head `7b433a4435cc80e14f74bbce0f83ce973754e2d2` then passed CI `34364553297` with **1,015 tests** while preserving the existing split/count/search rules. The Cloud Shell helper is also hardened so any partial failure prints `PLAN_PRESENT`, `SELECTION_PRESENT`, `HOLDOUT_PRESENT`, `SUMMARY_PRESENT`, and `HOLDOUT_TOUCHED`, making retry safety explicit. Gate B remains unauthorized and `automatic_promotion=false`; no production database mutation, V2 prospective activation, paper/live execution, Phase 15, or money change occurred.
+
 ## 0.14.110 — 9 September 2026
 
 PR #154 merged the read-only Phase 14 V2 Gate B research package to `main` as `09cc6a10ae5ae675a3e2dd55ad12ab3108504551`. Final reviewed branch head `777d3dd1cc4bcf9b18cf6bfb929ffb16d83cc56e` passed push CI `34357611785`, PR CI `34357908804`, Historical Backfill Smoke `34357908958`, Live Recorder Smoke `34357908806`, and Recorder Short Soak `34357908892`. Post-merge main CI `34361755746` then passed **1,014 tests** plus Ruff, deployment validation, research-mode health, and dashboard checks.
