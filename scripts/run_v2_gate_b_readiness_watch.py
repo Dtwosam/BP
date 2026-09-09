@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
@@ -38,6 +39,9 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--safety-env-file", required=True)
     parser.add_argument("--evidence-dir", default="/var/lib/bp/evidence")
     parser.add_argument("--status-file", default=None)
+    parser.add_argument("--deployed-root", default="/opt/bp")
+    parser.add_argument("--expected-helper-head", required=True)
+    parser.add_argument("--expected-deployed-head", required=True)
     return parser
 
 
@@ -129,6 +133,129 @@ def _require_source_truth_boundary() -> None:
         raise RuntimeError("gate_b_authorization_boundary_changed")
 
 
+REQUIRED_ACTIVE_UNITS = (
+    "bp-recorder.service",
+    "bp-postgres.service",
+    "bp-dashboard-api.service",
+    "bp-dashboard-web.service",
+    "bp-paper-execution.service",
+    "bp-live-predictor.service",
+    "bp-prospective-outcomes.service",
+    "bp-storage-maintenance.timer",
+    "bp-storage-disk-health.timer",
+    "bp-v2-forward-coverage.timer",
+)
+
+
+def _command(args: list[str], *, env: dict[str, str] | None = None) -> str:
+    result = subprocess.run(
+        args,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or str(result.returncode)
+        raise RuntimeError(f"runtime_command_failed:{args[0]}:{detail}")
+    return result.stdout.strip()
+
+
+def _require_runtime_preconditions(
+    *,
+    settings: Settings,
+    env_file: Path,
+    deployed_root: Path,
+    expected_deployed_head: str,
+) -> dict[str, Any]:
+    if len(expected_deployed_head) != 40:
+        raise RuntimeError("expected_deployed_head_invalid")
+
+    observed_head = _command(
+        [
+            "git",
+            "-c",
+            f"safe.directory={deployed_root}",
+            "-C",
+            str(deployed_root),
+            "rev-parse",
+            "HEAD",
+        ]
+    )
+    if observed_head != expected_deployed_head:
+        raise RuntimeError(
+            f"unexpected_deployed_head:{observed_head}:{expected_deployed_head}"
+        )
+
+    for unit in REQUIRED_ACTIVE_UNITS:
+        result = subprocess.run(
+            ["systemctl", "is-active", "--quiet", unit],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"runtime_unit_not_active:{unit}")
+    enabled = subprocess.run(
+        ["systemctl", "is-enabled", "--quiet", "bp-v2-forward-coverage.timer"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if enabled.returncode != 0:
+        raise RuntimeError("v2_forward_coverage_timer_not_enabled")
+
+    if int(settings.recorder_writer_workers) != 4:
+        raise RuntimeError(
+            f"recorder_config_worker_count_not_4:{settings.recorder_writer_workers}"
+        )
+
+    child_env = os.environ.copy()
+    child_env.pop("PYTHONPATH", None)
+    storage_output = _command(
+        [
+            str(deployed_root / ".venv" / "bin" / "python"),
+            str(deployed_root / "scripts" / "storage_maintenance.py"),
+            "disk-health",
+            "--env-file",
+            str(env_file),
+        ],
+        env=child_env,
+    )
+    storage = json.loads(storage_output)
+    if storage.get("status") != "ok":
+        raise RuntimeError(f"storage_health_not_ok:{storage.get('status')}")
+    if storage.get("storage_mode") != "partitioned":
+        raise RuntimeError(f"storage_mode_not_partitioned:{storage.get('storage_mode')}")
+    guards = storage.get("guards") or {}
+    for name in ("maintenance_fresh", "current_partition_present", "retention_current"):
+        if guards.get(name) is not True:
+            raise RuntimeError(f"storage_guard_not_satisfied:{name}")
+
+    return {
+        "deployed_head": observed_head,
+        "recorder_writer_workers": int(settings.recorder_writer_workers),
+        "storage_status": storage["status"],
+        "storage_mode": storage["storage_mode"],
+        "storage_guards": {
+            "maintenance_fresh": True,
+            "current_partition_present": True,
+            "retention_current": True,
+        },
+        "storage_free_bytes": int(storage.get("free_bytes", 0)),
+    }
+
+
+def _require_helper_head(expected_helper_head: str) -> None:
+    if len(expected_helper_head) != 40:
+        raise RuntimeError("expected_helper_head_invalid")
+    release_name = Path(__file__).resolve().parents[1].name
+    if release_name != expected_helper_head:
+        raise RuntimeError(
+            f"unexpected_helper_release:{release_name}:{expected_helper_head}"
+        )
+
+
 def _validate_payload(payload: dict[str, Any]) -> None:
     if payload.get("labels_read") is not False:
         raise RuntimeError("readiness_read_labels")
@@ -155,11 +282,18 @@ def _validate_payload(payload: dict[str, Any]) -> None:
         raise RuntimeError("include_no_trade_boundary_changed")
 
 
-def _compact_status(payload: dict[str, Any]) -> dict[str, Any]:
+def _compact_status(
+    payload: dict[str, Any],
+    *,
+    expected_helper_head: str,
+    runtime: dict[str, Any],
+) -> dict[str, Any]:
     rejections = payload.get("candidate_rejections") or []
     last_rejection = rejections[-1] if rejections else None
     return {
         "checked_at": datetime.now(UTC).isoformat(),
+        "helper_head": expected_helper_head,
+        **runtime,
         "ready": bool(payload["ready"]),
         "market_count": int(payload["market_count"]),
         "market_start_at": payload["market_start_at"],
@@ -213,12 +347,22 @@ def run(
     safety_env_file: Path,
     evidence_dir: Path,
     status_file: Path | None,
+    deployed_root: Path,
+    expected_helper_head: str,
+    expected_deployed_head: str,
 ) -> dict[str, Any]:
+    _require_helper_head(expected_helper_head)
     _require_no_gate_b_artifacts(evidence_dir)
     _require_source_truth_boundary()
 
     settings = Settings(_env_file=env_file)
     _require_research_zero_money(settings, env_file, safety_env_file)
+    _require_runtime_preconditions(
+        settings=settings,
+        env_file=env_file,
+        deployed_root=deployed_root,
+        expected_deployed_head=expected_deployed_head,
+    )
 
     engine = create_engine(settings.database_url)
     try:
@@ -236,8 +380,18 @@ def run(
 
     _validate_payload(payload)
     _require_no_gate_b_artifacts(evidence_dir)
+    runtime = _require_runtime_preconditions(
+        settings=settings,
+        env_file=env_file,
+        deployed_root=deployed_root,
+        expected_deployed_head=expected_deployed_head,
+    )
 
-    status = _compact_status(payload)
+    status = _compact_status(
+        payload,
+        expected_helper_head=expected_helper_head,
+        runtime=runtime,
+    )
     if status_file is not None:
         _write_status(status_file, status)
     return status
@@ -251,6 +405,9 @@ def main(argv: list[str] | None = None) -> int:
             safety_env_file=Path(args.safety_env_file),
             evidence_dir=Path(args.evidence_dir),
             status_file=Path(args.status_file) if args.status_file else None,
+            deployed_root=Path(args.deployed_root),
+            expected_helper_head=args.expected_helper_head,
+            expected_deployed_head=args.expected_deployed_head,
         )
     except (OSError, RuntimeError, ValueError) as exc:
         raise SystemExit(str(exc)) from exc
