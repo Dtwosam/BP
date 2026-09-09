@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import inspect
 import json
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
+import pytest
 from sqlalchemy import create_engine, insert
 
+from bp_engine.modeling.models import SupervisedRow
 from bp_engine.storage import schema
 from bp_engine.v2_research.config import (
     FROZEN_COVERAGE_INPUT_SHA256,
@@ -127,7 +131,7 @@ def _plan_config() -> GateBPlanConfig:
 
 def test_preregistration_constants_match_immutable_evidence() -> None:
     path = (
-        __import__("pathlib").Path(__file__).resolve().parents[2]
+        Path(__file__).resolve().parents[2]
         / "docs"
         / "evidence"
         / "phase-14-v2-freshness-preregistration-20260909.json"
@@ -172,7 +176,9 @@ def test_prepare_gate_b_does_not_require_final_holdout_labels() -> None:
     with engine.begin() as connection:
         connection.execute(insert(schema.market_features), rows)
         # Intentionally omit labels for the two final-holdout markets.
-        connection.execute(insert(schema.market_labels), [_label(index) for index in range(14)])
+        connection.execute(
+            insert(schema.market_labels), [_label(index) for index in range(14)]
+        )
         plan = build_gate_b_plan(connection, _plan_config())
         report = prepare_gate_b(
             connection,
@@ -199,7 +205,7 @@ def test_prepare_gate_b_does_not_require_final_holdout_labels() -> None:
 
 
 def test_v2_policy_stale_or_missing_last_trade_is_explicit_no_trade() -> None:
-    row = __import__("bp_engine.modeling.models", fromlist=["SupervisedRow"]).SupervisedRow(
+    row = SupervisedRow(
         condition_id="condition-x",
         slug="btc-updown-5m-x",
         horizon_seconds=300,
@@ -210,6 +216,7 @@ def test_v2_policy_stale_or_missing_last_trade_is_explicit_no_trade() -> None:
         predictors={
             "pm_up_last_trade_price": 0.70,
             "pm_up_last_trade_availability_age_s": 5.1,
+            "pm_up_last_trade_source_age_s": 6.0,
             "missing__pm_up_last_trade_missing": 0.0,
             "pm_up_best_bid": 0.64,
             "pm_up_best_ask": 0.66,
@@ -255,8 +262,6 @@ def test_v2_policy_stale_or_missing_last_trade_is_explicit_no_trade() -> None:
 
 
 def test_holdout_evaluation_is_separate_and_bound_to_frozen_selection() -> None:
-    import pytest
-
     engine = _engine()
     rows = [_feature(index, offset) for index in range(16) for offset in OFFSETS]
     with engine.begin() as connection:
@@ -293,7 +298,9 @@ def test_holdout_evaluation_is_separate_and_bound_to_frozen_selection() -> None:
     changed = dict(selection)
     changed["final"] = {**selection["final"], "holdout_condition_ids": ["condition-999"]}
     with engine.begin() as connection:
-        with pytest.raises(GateBResearchIntegrityError, match="selection_sha256 mismatch"):
+        with pytest.raises(
+            GateBResearchIntegrityError, match="selection_sha256 mismatch"
+        ):
             evaluate_gate_b_holdout(
                 connection,
                 plan=plan,
@@ -302,8 +309,6 @@ def test_holdout_evaluation_is_separate_and_bound_to_frozen_selection() -> None:
 
 
 def test_gate_b_package_has_no_v1_probability_fallback_or_database_write_path() -> None:
-    import inspect
-
     from bp_engine.v2_research import cli, policy, service
 
     source = "\n".join(
