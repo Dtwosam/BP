@@ -391,3 +391,40 @@ def test_gate_b_artifact_paths_are_no_clobber(tmp_path: Path) -> None:
         _write_exclusive(str(destination), {"first": False})
 
     assert json.loads(destination.read_text(encoding="utf-8")) == {"first": True}
+
+
+def test_project_state_locks_gate_b_engineering_boundary() -> None:
+    state_path = Path(__file__).resolve().parents[2] / "PROJECT_STATE.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    checkpoint = state["phase_14_checkpoint"]
+
+    assert checkpoint["v2_gate_b_research_engineering_status"] == (
+        "ENGINEERING_READY_GREEN_UNMERGED_NOT_RUN"
+    )
+    assert checkpoint["v2_gate_b_research_coverage_input_sha256"] == (
+        FROZEN_COVERAGE_INPUT_SHA256
+    )
+    assert checkpoint["v2_gate_b_research_freshness_candidates_seconds"] == [
+        1,
+        2,
+        5,
+        10,
+    ]
+    assert checkpoint["v2_gate_b_research_default_train_duration_hours"] == 8
+    assert checkpoint["v2_gate_b_research_default_validation_duration_hours"] == 2
+    assert checkpoint["v2_gate_b_research_default_test_duration_hours"] == 2
+    assert checkpoint["v2_gate_b_research_default_step_duration_hours"] == 2
+    assert checkpoint["v2_gate_b_research_default_final_holdout_duration_hours"] == 2
+    assert checkpoint["v2_gate_b_research_default_min_edge_grid"] == [
+        0.0,
+        0.01,
+        0.02,
+        0.03,
+        0.05,
+        0.075,
+        0.1,
+        0.15,
+    ]
+    assert checkpoint["v2_gate_b_research_database_mutations"] is False
+    assert checkpoint["v2_gate_b_research_gate_b_authorized"] is False
+    assert checkpoint["v2_gate_b_research_automatic_promotion"] is False
