@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.108 — 9 September 2026
+
+PR #152 merged the Phase 14 coverage-only V2 freshness preregistration to `main` as `d70fdde902baaf63e0e748d090ac5f29a1d74fe0`. Final branch head `fde5a118c2035f139d5c0f175b40f5670caa875b` passed push CI `34349232112`, PR CI `34349236006`, Historical Backfill Smoke `34349236089`, Live Recorder Smoke `34349236064`, and Recorder Short Soak `34349236013`. Post-merge main CI `34349429003` then passed **1,003 tests** plus Ruff, deployment validation, research-mode health, and dashboard checks.
+
+The immutable research boundary is now merged: coverage hash `aab75574aa7faf18e65358353403e5ec1a2b89dd42424eb7b0e3329bf683b099`, `max_last_trade_age_seconds` candidates exactly `[1, 2, 5, 10]` plus explicit `no_trade`, selected-book freshness ceiling unchanged at 10 seconds, and no label/outcome/P&L/calibration input used to choose the grid. No production mutation occurred. No winning V2 policy is selected; Gate B, V2 prospective shadow/paper activation, Phase 15, automatic promotion, geographic bypass, and live trading remain blocked.
+
 ## 0.14.107 — 9 September 2026
 
 The restored Phase 14 V2 forward collector has now produced a coverage-only evidence set broad enough to freeze the independent last-trade freshness candidate grid required by D-033 before any labels/outcomes are joined. The read-only report contained **426 markets / 1,704 immutable `core-v2-last-trade` rows**, exactly 426 rows at each 60/120/180/240-second offset, zero future-cutoff violations, zero invalid non-finite values, and canonical `coverage_input_sha256=aab75574aa7faf18e65358353403e5ec1a2b89dd42424eb7b0e3329bf683b099`.
