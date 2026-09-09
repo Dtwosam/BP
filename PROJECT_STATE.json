@@ -1,7 +1,7 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.100",
+  "source_of_truth_version": "0.14.101",
   "updated_at": "2026-09-09T07:02:19Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
@@ -622,11 +622,10 @@
     "Phase 14 read-only 27-trade timing probe established 33–51 second V1 /prices-history probability age versus approximately 0–1 second selected-book age",
     "Phase 14 timestamp-coherent market-price V2 research architecture approved under D-033 with V1 evidence preserved and no live/money change",
     "Phase 14 Gate A timestamp-coherent market-price V2 production rollout passed on exact deployed head d077e45f24704e6038c947169c84527e954de975 with a forward epoch of 2026-09-02T12:18:02Z, one completed post-epoch market, four immutable core-v2-last-trade rows, zero future-cutoff violations, and no V2 policy selection",
-    "Phase 14 V2 forward coverage collector was subsequently deployed research-only/outcome-blind on production head c29fe227f959305f67031e922ca659869a826c4f before the 4 September storage incident; its runtime state is not asserted while storage recovery is in progress and Gate B remains unauthorized"
+    "Phase 14 V2 forward coverage collector was subsequently deployed research-only/outcome-blind on production head c29fe227f959305f67031e922ca659869a826c4f before the 4 September storage incident; its runtime state is not asserted while storage recovery is in progress and Gate B remains unauthorized",
+    "Phase 14 partitioned raw-storage migration and host acceptance completed in production"
   ],
   "not_completed": [
-    "Read-only production storage preflight host run",
-    "Production partitioned raw-storage migration and host acceptance",
     "Production recorder reliability rollout with RECORDER_WRITER_WORKERS=4 and natural-load acceptance",
     "V2 Gate B and any V2 policy/model/calibration/edge/min-edge selection",
     "Phase 15 controlled live launch",
@@ -1120,7 +1119,7 @@
     "recorder_reliability_merge_commit": "5da8934bbb0700feb096b2143c53b9ce2d7aa5f9",
     "recorder_reliability_production_rollout_authorized": true,
     "recorder_reliability_production_rollout_performed": false,
-    "recorder_reliability_rollout_block_reason": "storage health was warning/near critical, so the rollout precheck exited before mutation",
+    "recorder_reliability_rollout_block_reason": null,
     "partitioned_storage_pr": 50,
     "partitioned_storage_branch": "design/phase14-partitioned-raw-retention",
     "partitioned_storage_implementation_green_commit": "44ba80fc9e6fdafb6e29c40b0d634d22c86d12e4",
@@ -2567,6 +2566,18 @@
     "partitioned_storage_rollout_disk_health_timer_state": "active",
     "partitioned_storage_migration_completed": true,
     "partitioned_storage_health_accepted": true,
-    "partitioned_storage_recorder_restart_required": true
+    "partitioned_storage_recorder_restart_required": true,
+    "recorder_restart_gate_helper": "scripts/deploy/phase14_recorder_restart_gate_cloudshell.sh",
+    "recorder_restart_gate_status": "MERGED_MAIN_PRODUCTION_AUTHORIZED_NOT_RUN",
+    "recorder_restart_gate_expected_deployed_head": "895c6bd2f9409f16bf5d544b26b30e20ecbfe43a",
+    "recorder_restart_gate_storage_evidence_path": "/mnt/bp-data/evidence/phase14-partitioned-storage-rollout-20260909T070219Z.json",
+    "recorder_restart_gate_storage_evidence_sha256": "f33a28f5306e46c509b0000a176d226c079aa2d160d595095ca228118542ce19",
+    "recorder_restart_gate_writer_workers": 4,
+    "recorder_restart_gate_requires_partitioned_storage_health_ok": true,
+    "recorder_restart_gate_requires_active_storage_timers": true,
+    "recorder_restart_gate_requires_recorder_stopped_before_mutation": true,
+    "recorder_restart_gate_requires_four_feed_no_backpressure_soak": true,
+    "recorder_restart_gate_rollback_restores_env_and_stops_recorder": true,
+    "recorder_restart_gate_pr": 146
   }
 }
