@@ -93,6 +93,7 @@ jobs:
           bash -n scripts/deploy/phase14_prospective_runtime_cloudshell.sh
           bash -n scripts/deploy/phase14_recorder_reliability_rollout_cloudshell.sh
           bash -n scripts/deploy/phase14_recorder_restart_gate_cloudshell.sh
+          bash -n scripts/deploy/phase14_recorder_deadlock_recovery_gate_cloudshell.sh
           bash -n scripts/deploy/phase14_partitioned_storage_rollout_cloudshell.sh
           bash -n scripts/deploy/phase14_partitioned_storage_preflight_cloudshell.sh
           bash -n scripts/deploy/phase14_storage_preflight_evidence_cloudshell.sh
