@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.119 — 9 September 2026
+
+Explicit production authorization was granted for the narrow Phase 14 recorder deadlock recovery. Authorization was recorded against main reference head `e18962145e3a1b01c4eb8ace693e520c664c6d7f`, but execution intentionally uses exact current `origin/main` because recording authorization itself advances documentation state; the helper must reject remote-main movement and prove the candidate runtime/test blobs are still byte-identical. The production transition remains fixed to accepted production head `895c6bd2f9409f16bf5d544b26b30e20ecbfe43a`, and exact minimal candidate `e9c7afc1536880e4612cb6e3d1a7282fa37c69f5`. The authorized actions are limited to the helper-defined production checkout mutation, controlled timer handling, recorder start, prestart and active-recorder maintenance acceptance cycles, natural-load soak, research/storage verification, host evidence write, and fail-closed rollback.
+
+This authorization does not extend to Gate B, the final holdout, policy/model/calibration/edge selection, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero money limits. Until a helper PASS is observed and recorded, production execution status remains authorized-but-not-yet-observed rather than accepted.
+
 ## 0.14.118 — 9 September 2026
 
 PR #162 merged the dedicated fail-closed recorder deadlock recovery gate to `main` as `63a0eb8b52f736db4b3e329adcdec06ae2ae02f9`. Final PR head `8416ac4242382284f1d7312b445df64465a26135` passed CI `34388036133` with **1,028 tests** plus Ruff, deployment validation, research-mode health, and dashboard checks; Historical Backfill Smoke `34388035993`, Live Recorder Smoke `34388035795`, and Recorder Short Soak `34388035889` also passed. Post-merge main CI `34388363196` then passed **1,028 tests** with the same repository safety/validation checks.
