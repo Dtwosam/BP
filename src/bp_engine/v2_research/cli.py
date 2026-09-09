@@ -11,7 +11,7 @@ from sqlalchemy import Connection, Engine, create_engine
 
 from bp_engine.config import Settings
 from bp_engine.v2_research.models import GateBPlanConfig, GateBResearchConfig
-from bp_engine.v2_research.plan import build_gate_b_plan
+from bp_engine.v2_research.plan import assess_gate_b_readiness, build_gate_b_plan
 from bp_engine.v2_research.service import (
     evaluate_gate_b_holdout,
     prepare_gate_b,
@@ -55,6 +55,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--env-file", default=None)
     parser.add_argument("--database-url", default=None)
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    subparsers.add_parser(
+        "readiness",
+        help="report feature-only Gate B readiness without writing artifacts",
+    )
 
     plan = subparsers.add_parser(
         "plan",
@@ -105,7 +110,16 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
     settings = _settings(args)
     engine = create_engine(settings.database_url)
 
-    if args.command == "plan":
+    if args.command == "readiness":
+        payload = _read_only(
+            engine,
+            lambda connection: assess_gate_b_readiness(
+                connection,
+                GateBPlanConfig(),
+                GateBResearchConfig(),
+            ),
+        )
+    elif args.command == "plan":
         config = GateBPlanConfig(
             train_duration=timedelta(hours=args.train_hours),
             validation_duration=timedelta(hours=args.validation_hours),
@@ -160,7 +174,8 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
     else:
         raise ValueError(f"unsupported command: {args.command}")
 
-    _write_exclusive(args.output, payload)
+    if args.command != "readiness":
+        _write_exclusive(args.output, payload)
     return payload
 
 
