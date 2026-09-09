@@ -596,8 +596,18 @@ def test_project_state_locks_gate_b_engineering_boundary() -> None:
         is True
     )
     assert checkpoint["v2_gate_b_readiness_status"] == (
-        "ENGINEERING_READY_GREEN_UNMERGED_NOT_RUN"
+        "MERGED_MAIN_REPEATABLE_NOT_RUN"
     )
+    assert checkpoint["v2_gate_b_readiness_pr"] == 158
+    assert checkpoint["v2_gate_b_readiness_final_branch_head"] == (
+        "30e0ebebd339b1086ab8a31c83c5f16138a47435"
+    )
+    assert checkpoint["v2_gate_b_readiness_merge_commit"] == (
+        "bcaee9343c6ec616d0a7d50479429344ec294c41"
+    )
+    assert checkpoint["v2_gate_b_readiness_post_merge_ci_run_id"] == 34371290608
+    assert checkpoint["v2_gate_b_readiness_post_merge_ci_passed"] is True
+    assert checkpoint["v2_gate_b_readiness_post_merge_test_count"] == 1021
     assert checkpoint["v2_gate_b_readiness_green_head"] == (
         "762d71f7f525ad28f1a162a01b6f35b5da46a25a"
     )
