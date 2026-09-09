@@ -357,13 +357,19 @@ install -d -o bp -g bp -m 0750 "$STATUS_DIR"
 install -d -o root -g root -m 0755 "$RELEASE_DIR"
 tar -xzf "$ARCHIVE" -C "$RELEASE_DIR"
 RELEASE_CREATED=1
+cat > "$RELEASE_DIR/REVISION.env" <<EOF
+BP_V2_GATE_B_READINESS_WATCH_HEAD=$HELPER_HEAD
+BP_V2_GATE_B_READINESS_WATCH_DEPLOYED_HEAD=$DEPLOYED_HEAD
+EOF
+chown root:root "$RELEASE_DIR/REVISION.env"
+chmod 0644 "$RELEASE_DIR/REVISION.env"
 
 for path in   scripts/run_v2_gate_b_readiness_watch.py   src/bp_engine/v2_research/plan.py   deploy/bp-v2-gate-b-readiness-watch.service   deploy/bp-v2-gate-b-readiness-watch.timer; do
   [[ -f "$RELEASE_DIR/$path" ]] || fail "release_required_path_missing:$path"
 done
 
 DIRECT_OUTPUT=$(mktemp /var/tmp/bp-v2-readiness-watch-direct.XXXXXX.txt)
-if ! sudo -u bp env     MODE=research     LIVE_TRADING_ENABLED=false     MAX_TRADE_SIZE_USD=0     MAX_DAILY_LOSS_USD=0     PYTHONPATH="$RELEASE_DIR/src"     "$REPO/.venv/bin/python" "$RELEASE_DIR/scripts/run_v2_gate_b_readiness_watch.py"     --env-file "$ENV_FILE"     --safety-env-file "$SAFETY_FILE"     --evidence-dir "$EVIDENCE_DIR" > "$DIRECT_OUTPUT"; then
+if ! sudo -u bp env     MODE=research     LIVE_TRADING_ENABLED=false     MAX_TRADE_SIZE_USD=0     MAX_DAILY_LOSS_USD=0     PYTHONPATH="$RELEASE_DIR/src"     "$REPO/.venv/bin/python" "$RELEASE_DIR/scripts/run_v2_gate_b_readiness_watch.py"     --env-file "$ENV_FILE"     --safety-env-file "$SAFETY_FILE"     --evidence-dir "$EVIDENCE_DIR"     --deployed-root "$REPO"     --expected-helper-head "$HELPER_HEAD"     --expected-deployed-head "$DEPLOYED_HEAD" > "$DIRECT_OUTPUT"; then
   cat "$DIRECT_OUTPUT" >&2 || true
   fail "direct_readiness_watch_failed"
 fi
