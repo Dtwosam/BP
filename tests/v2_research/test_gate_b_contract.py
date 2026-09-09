@@ -399,8 +399,19 @@ def test_project_state_locks_gate_b_engineering_boundary() -> None:
     checkpoint = state["phase_14_market_price_v2_followup"]
 
     assert checkpoint["v2_gate_b_research_engineering_status"] == (
-        "ENGINEERING_READY_GREEN_UNMERGED_NOT_RUN"
+        "MERGED_MAIN_ENGINEERING_READY_NOT_RUN"
     )
+    assert checkpoint["v2_gate_b_research_pr"] == 154
+    assert checkpoint["v2_gate_b_research_final_branch_head"] == (
+        "777d3dd1cc4bcf9b18cf6bfb929ffb16d83cc56e"
+    )
+    assert checkpoint["v2_gate_b_research_merge_commit"] == (
+        "09cc6a10ae5ae675a3e2dd55ad12ab3108504551"
+    )
+    assert checkpoint["v2_gate_b_research_post_merge_ci_run_id"] == 34361755746
+    assert checkpoint["v2_gate_b_research_post_merge_ci_passed"] is True
+    assert checkpoint["v2_gate_b_research_post_merge_test_count"] == 1014
+    assert checkpoint["v2_gate_b_research_production_run_performed"] is False
     assert checkpoint["v2_gate_b_research_coverage_input_sha256"] == (
         FROZEN_COVERAGE_INPUT_SHA256
     )

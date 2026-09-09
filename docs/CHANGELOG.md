@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.110 — 9 September 2026
+
+PR #154 merged the read-only Phase 14 V2 Gate B research package to `main` as `09cc6a10ae5ae675a3e2dd55ad12ab3108504551`. Final reviewed branch head `777d3dd1cc4bcf9b18cf6bfb929ffb16d83cc56e` passed push CI `34357611785`, PR CI `34357908804`, Historical Backfill Smoke `34357908958`, Live Recorder Smoke `34357908806`, and Recorder Short Soak `34357908892`. Post-merge main CI `34361755746` then passed **1,014 tests** plus Ruff, deployment validation, research-mode health, and dashboard checks.
+
+The exact-main production evidence runner is therefore engineering-ready but has **not** been executed. The production final holdout remains unread by Gate B, no V2 policy is accepted, and `gate_b_authorized=false` / `automatic_promotion=false` remain mandatory. The next operation is the non-deploying, read-only `scripts/deploy/phase14_v2_gate_b_research_cloudshell.sh` evidence run from a clean local `main` checkout whose HEAD exactly equals the current merged helper SHA.
+
 ## 0.14.109 — 9 September 2026
 
 The Phase 14 V2 Gate B research package is engineering-ready on branch `phase14-v2-gate-b-research`. It introduces a new supervised identity `supervised-core-v2-last-trade-v1` and a read-only three-stage operator path over immutable `core-v2-last-trade` evidence. The feature-only `plan` stage freezes chronological whole-market partitions, embargoes, the latest final holdout, and the V2 research search configuration before labels are queried. The labeled `prepare` stage is restricted to non-holdout condition IDs and selects timing, the already-preregistered freshness candidate, a newly fitted identity/Platt V2 calibration choice, and a new V2 minimum-edge/no-trade policy from validation only before ordinary-test evaluation. The separate `evaluate-holdout` stage is hash-bound to the exact frozen plan/selection and writes a no-clobber final-holdout evidence artifact.
