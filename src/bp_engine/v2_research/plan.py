@@ -16,7 +16,7 @@ from bp_engine.v2_research.config import (
     V2_FEATURE_VERSION,
     V2_GATE_B_VERSION,
 )
-from bp_engine.v2_research.models import GateBPlanConfig
+from bp_engine.v2_research.models import GateBPlanConfig, GateBResearchConfig
 
 
 class GateBPlanIntegrityError(RuntimeError):
@@ -108,9 +108,12 @@ def _feature_timeline(connection: Connection) -> list[dict[str, Any]]:
 
 
 def build_gate_b_plan(
-    connection: Connection, config: GateBPlanConfig | None = None
+    connection: Connection,
+    config: GateBPlanConfig | None = None,
+    research_config: GateBResearchConfig | None = None,
 ) -> dict[str, Any]:
     config = config or GateBPlanConfig()
+    research_config = research_config or GateBResearchConfig()
     timeline = _feature_timeline(connection)
     total = len(timeline)
     e = config.embargo_markets
@@ -202,6 +205,16 @@ def build_gate_b_plan(
         "final_holdout_markets": config.final_holdout_markets,
         "embargo_markets": config.embargo_markets,
     }
+    research_payload = {
+        "fee_rate": research_config.fee_rate,
+        "slippage_buffer": research_config.slippage_buffer,
+        "min_edge_grid": list(research_config.min_edge_grid),
+        "min_validation_trades": research_config.min_validation_trades,
+        "min_train_eligible_markets": research_config.min_train_eligible_markets,
+        "min_validation_eligible_markets": (
+            research_config.min_validation_eligible_markets
+        ),
+    }
     payload: dict[str, Any] = {
         "gate_b_version": V2_GATE_B_VERSION,
         "feature_version": V2_FEATURE_VERSION,
@@ -214,6 +227,8 @@ def build_gate_b_plan(
         "include_no_trade": FROZEN_INCLUDE_NO_TRADE,
         "labels_read": False,
         "config": config_payload,
+        "research_config": research_payload,
+        "research_config_sha256": canonical_hash(research_payload),
         "folds": folds,
         "final": final,
     }
