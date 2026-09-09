@@ -144,6 +144,15 @@ The installer performs a production mutation because it creates the sidecar rele
 
 That installation has **not** been authorized and has **not** been performed.
 
+The installer machine-enforces that separate boundary before any GCP interaction. A future authorized execution must provide both:
+
+- `PHASE14_V2_GATE_B_READINESS_WATCH_APPROVED_HEAD` — the exact approved watcher/helper `main` SHA;
+- `PHASE14_V2_GATE_B_READINESS_WATCH_APPROVED_DEPLOYED_HEAD` — the exact approved production application SHA.
+
+Both must be 40-character SHAs and must exactly equal the installer's expected helper/deployed transition. Missing, malformed, or mismatched approval inputs fail locally before repository inspection, `gcloud auth`, project selection, archive upload, or VM contact. The detached worker rechecks the same tuple, and any eventual PASS evidence records it in an `approval` block.
+
+A readiness PASS, a green CI run, or `READY=true` must never be used to infer these approval values.
+
 Until a separate explicit production-install authorization exists, use only the existing exact-main manual feature-only readiness helper:
 
 `scripts/deploy/phase14_v2_gate_b_readiness_cloudshell.sh`
