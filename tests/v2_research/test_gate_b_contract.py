@@ -213,6 +213,32 @@ def test_gate_b_plan_is_feature_only_deterministic_and_holds_out_latest_markets(
     assert first["labels_read"] is False
 
 
+def test_gate_b_plan_moves_past_sparse_feature_only_prefix_without_skipping_folds() -> None:
+    engine = _engine()
+    rows = [
+        _feature(index, offset)
+        for index in range(20)
+        if index != 6
+        for offset in OFFSETS
+    ]
+    with engine.begin() as connection:
+        connection.execute(insert(schema.market_features), rows)
+        plan = build_gate_b_plan(connection, _plan_config(), _research_config())
+
+    assert plan["analysis_start_at"] == (
+        ROOT_START + timedelta(minutes=10)
+    ).isoformat()
+    assert plan["excluded_prefix_condition_ids"] == [
+        "condition-000",
+        "condition-001",
+    ]
+    assert plan["analysis_start_attempt_count"] == 2
+    assert len(plan["folds"]) == 5
+    for current, following in zip(plan["folds"], plan["folds"][1:], strict=False):
+        assert current["test"]["end"] == following["validation"]["end"]
+        assert following["test"]["start"] == current["test"]["end"]
+
+
 def test_prepare_gate_b_does_not_require_final_holdout_labels() -> None:
     engine = _engine()
     rows = [_feature(index, offset) for index in range(16) for offset in OFFSETS]
