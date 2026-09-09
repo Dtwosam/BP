@@ -486,7 +486,33 @@ def test_project_state_locks_gate_b_engineering_boundary() -> None:
         is False
     )
     assert checkpoint["v2_gate_b_sparse_prefix_recovery_status"] == (
-        "GREEN_UNMERGED_RETRY_NOT_RUN"
+        "MERGED_MAIN_PROVEN_INSUFFICIENT_CONTIGUOUS_EVIDENCE"
+    )
+    assert checkpoint["v2_gate_b_sparse_prefix_recovery_pr"] == 156
+    assert checkpoint["v2_gate_b_sparse_prefix_recovery_final_branch_head"] == (
+        "393effa09fbb7a686cce9db2031822d3c3c40a1b"
+    )
+    assert checkpoint["v2_gate_b_sparse_prefix_recovery_merge_commit"] == (
+        "184b725724d46d7ed757dd715a88dafddbdd45e1"
+    )
+    assert checkpoint["v2_gate_b_sparse_prefix_recovery_post_merge_ci_run_id"] == (
+        34366077039
+    )
+    assert checkpoint["v2_gate_b_sparse_prefix_recovery_post_merge_ci_passed"] is True
+    assert checkpoint["v2_gate_b_sparse_prefix_recovery_post_merge_test_count"] == 1015
+    assert checkpoint["v2_gate_b_sparse_prefix_recovery_retry_safe"] is False
+    assert checkpoint["v2_gate_b_research_second_production_attempt_result"] == (
+        "FAIL_PRE_LABEL_INSUFFICIENT_CONTIGUOUS_EVIDENCE"
+    )
+    assert checkpoint["v2_gate_b_research_second_production_attempt_plan_present"] is False
+    assert checkpoint["v2_gate_b_research_second_production_attempt_selection_present"] is False
+    assert checkpoint["v2_gate_b_research_second_production_attempt_holdout_present"] is False
+    assert checkpoint["v2_gate_b_research_second_production_attempt_summary_present"] is False
+    assert checkpoint["v2_gate_b_research_second_production_attempt_holdout_touched"] is False
+    assert checkpoint["v2_gate_b_research_minimum_contiguous_epoch_hours"] == 18
+    assert (
+        checkpoint["v2_gate_b_research_retry_blocked_until_feature_only_readiness"]
+        is True
     )
     assert checkpoint["v2_gate_b_sparse_prefix_recovery_preserves_phase8_minimums"] is True
     assert checkpoint["v2_gate_b_sparse_prefix_recovery_skips_individual_folds"] is False
