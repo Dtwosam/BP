@@ -6,6 +6,8 @@ ZONE="${PHASE14_V2_GATE_B_READINESS_WATCH_ZONE:-us-east1-c}"
 VM="${PHASE14_V2_GATE_B_READINESS_WATCH_VM:-bp-recorder}"
 HELPER_HEAD="${PHASE14_V2_GATE_B_READINESS_WATCH_HEAD:-}"
 DEPLOYED_HEAD="${PHASE14_V2_GATE_B_READINESS_WATCH_DEPLOYED_HEAD:-e9c7afc1536880e4612cb6e3d1a7282fa37c69f5}"
+APPROVED_HEAD="${PHASE14_V2_GATE_B_READINESS_WATCH_APPROVED_HEAD:-}"
+APPROVED_DEPLOYED_HEAD="${PHASE14_V2_GATE_B_READINESS_WATCH_APPROVED_DEPLOYED_HEAD:-}"
 ENV_FILE="${PHASE14_V2_GATE_B_READINESS_WATCH_ENV_FILE:-/etc/bp/bp.env}"
 STORAGE_EVIDENCE="${PHASE14_V2_GATE_B_READINESS_WATCH_STORAGE_EVIDENCE:-/mnt/bp-data/evidence/phase14-partitioned-storage-rollout-20260909T070219Z.json}"
 STORAGE_EVIDENCE_SHA256="${PHASE14_V2_GATE_B_READINESS_WATCH_STORAGE_EVIDENCE_SHA256:-f33a28f5306e46c509b0000a176d226c079aa2d160d595095ca228118542ce19}"
@@ -18,6 +20,9 @@ fail_local() {
 
 [[ "$HELPER_HEAD" =~ ^[0-9a-f]{40}$ ]] || fail_local "helper_head_invalid"
 [[ "$DEPLOYED_HEAD" =~ ^[0-9a-f]{40}$ ]] || fail_local "deployed_head_invalid"
+[[ "$APPROVED_HEAD" =~ ^[0-9a-f]{40}$ && "$APPROVED_DEPLOYED_HEAD" =~ ^[0-9a-f]{40}$ ]] || fail_local "watch_install_approval_missing_or_invalid"
+[[ "$APPROVED_HEAD" == "$HELPER_HEAD" ]] || fail_local "watch_install_approval_head_mismatch"
+[[ "$APPROVED_DEPLOYED_HEAD" == "$DEPLOYED_HEAD" ]] || fail_local "watch_install_approval_deployed_head_mismatch"
 [[ "$ENV_FILE" == /* ]] || fail_local "env_file_must_be_absolute"
 [[ "$STORAGE_EVIDENCE" == /* ]] || fail_local "storage_evidence_path_must_be_absolute"
 [[ "$STORAGE_EVIDENCE_SHA256" =~ ^[0-9a-f]{64}$ ]] || fail_local "storage_evidence_sha256_invalid"
@@ -53,6 +58,8 @@ gcloud compute scp "$ARCHIVE" "$VM:$REMOTE_ARCHIVE"   --project="$PROJECT"   --z
 
 printf -v HELPER_HEAD_Q '%q' "$HELPER_HEAD"
 printf -v DEPLOYED_HEAD_Q '%q' "$DEPLOYED_HEAD"
+printf -v APPROVED_HEAD_Q '%q' "$APPROVED_HEAD"
+printf -v APPROVED_DEPLOYED_HEAD_Q '%q' "$APPROVED_DEPLOYED_HEAD"
 printf -v ENV_FILE_Q '%q' "$ENV_FILE"
 printf -v STORAGE_EVIDENCE_Q '%q' "$STORAGE_EVIDENCE"
 printf -v STORAGE_EVIDENCE_SHA256_Q '%q' "$STORAGE_EVIDENCE_SHA256"
@@ -64,11 +71,16 @@ set -Eeuo pipefail
 
 HELPER_HEAD="${PHASE14_V2_GATE_B_READINESS_WATCH_HEAD:?}"
 DEPLOYED_HEAD="${PHASE14_V2_GATE_B_READINESS_WATCH_DEPLOYED_HEAD:?}"
+APPROVED_HEAD="${PHASE14_V2_GATE_B_READINESS_WATCH_APPROVED_HEAD:?}"
+APPROVED_DEPLOYED_HEAD="${PHASE14_V2_GATE_B_READINESS_WATCH_APPROVED_DEPLOYED_HEAD:?}"
 ENV_FILE="${PHASE14_V2_GATE_B_READINESS_WATCH_ENV_FILE:?}"
 STORAGE_EVIDENCE="${PHASE14_V2_GATE_B_READINESS_WATCH_STORAGE_EVIDENCE:?}"
 STORAGE_EVIDENCE_SHA256="${PHASE14_V2_GATE_B_READINESS_WATCH_STORAGE_EVIDENCE_SHA256:?}"
 ARCHIVE="${PHASE14_V2_GATE_B_READINESS_WATCH_ARCHIVE:?}"
 ARCHIVE_SHA256="${PHASE14_V2_GATE_B_READINESS_WATCH_ARCHIVE_SHA256:?}"
+
+[[ "$APPROVED_HEAD" == "$HELPER_HEAD" ]] || { echo "watch_install_remote_approval_head_mismatch" >&2; exit 2; }
+[[ "$APPROVED_DEPLOYED_HEAD" == "$DEPLOYED_HEAD" ]] || { echo "watch_install_remote_approval_deployed_head_mismatch" >&2; exit 2; }
 
 REPO=/opt/bp
 SAFETY_FILE=/etc/bp/bp-prospective-runtime-safety.env
@@ -452,7 +464,7 @@ run_storage_health "$DISK_AFTER"
 
 install -d -o bp -g bp -m 0750 "$EVIDENCE_DIR"
 EVIDENCE_TMP=$(mktemp /var/tmp/bp-v2-readiness-watch-install-evidence.XXXXXX.json)
-"$REPO/.venv/bin/python" -   "$DIRECT_OUTPUT" "$STATUS_FILE" "$DISK_BEFORE" "$DISK_AFTER" "$EVIDENCE_TMP"   "$HELPER_HEAD" "$DEPLOYED_HEAD" "$ARCHIVE_SHA256" "$STORAGE_EVIDENCE"   "$STORAGE_EVIDENCE_SHA256" <<'PY'
+"$REPO/.venv/bin/python" -   "$DIRECT_OUTPUT" "$STATUS_FILE" "$DISK_BEFORE" "$DISK_AFTER" "$EVIDENCE_TMP"   "$HELPER_HEAD" "$DEPLOYED_HEAD" "$APPROVED_HEAD" "$APPROVED_DEPLOYED_HEAD" "$ARCHIVE_SHA256" "$STORAGE_EVIDENCE"   "$STORAGE_EVIDENCE_SHA256" <<'PY'
 from __future__ import annotations
 
 import json
@@ -468,6 +480,8 @@ from pathlib import Path
     output,
     helper_head,
     deployed_head,
+    approved_head,
+    approved_deployed_head,
     archive_sha256,
     storage_evidence,
     storage_evidence_sha256,
@@ -481,6 +495,10 @@ payload = {
     "recorded_at": datetime.now(UTC).isoformat(),
     "helper_head": helper_head,
     "deployed_head_unchanged": deployed_head,
+    "approval": {
+        "approved_helper_head": approved_head,
+        "approved_deployed_head": approved_deployed_head,
+    },
     "archive_sha256": archive_sha256,
     "storage_evidence": storage_evidence,
     "storage_evidence_sha256": storage_evidence_sha256,
@@ -533,6 +551,8 @@ echo "VM=$VM"
 echo "ZONE=$ZONE"
 echo "HELPER_HEAD=$HELPER_HEAD"
 echo "DEPLOYED_HEAD=$DEPLOYED_HEAD"
+echo "APPROVED_HEAD=$APPROVED_HEAD"
+echo "APPROVED_DEPLOYED_HEAD=$APPROVED_DEPLOYED_HEAD"
 echo "STORAGE_EVIDENCE=$STORAGE_EVIDENCE"
 echo "STORAGE_EVIDENCE_SHA256=$STORAGE_EVIDENCE_SHA256"
 echo "ARCHIVE_SHA256=$ARCHIVE_SHA256"
@@ -540,4 +560,4 @@ echo "This helper installs a read-only two-hour readiness sidecar and systemd ti
 echo "It does not change /opt/bp, restart the recorder, run Gate B, or read the final holdout."
 echo "Production installation requires separate explicit authorization."
 
-gcloud compute ssh "$VM"   --project="$PROJECT"   --zone="$ZONE"   --command="printf '%s' '$REMOTE_B64' | base64 -d | sudo env PHASE14_V2_GATE_B_READINESS_WATCH_HEAD=$HELPER_HEAD_Q PHASE14_V2_GATE_B_READINESS_WATCH_DEPLOYED_HEAD=$DEPLOYED_HEAD_Q PHASE14_V2_GATE_B_READINESS_WATCH_ENV_FILE=$ENV_FILE_Q PHASE14_V2_GATE_B_READINESS_WATCH_STORAGE_EVIDENCE=$STORAGE_EVIDENCE_Q PHASE14_V2_GATE_B_READINESS_WATCH_STORAGE_EVIDENCE_SHA256=$STORAGE_EVIDENCE_SHA256_Q PHASE14_V2_GATE_B_READINESS_WATCH_ARCHIVE=$REMOTE_ARCHIVE_Q PHASE14_V2_GATE_B_READINESS_WATCH_ARCHIVE_SHA256=$ARCHIVE_SHA256_Q bash"
+gcloud compute ssh "$VM"   --project="$PROJECT"   --zone="$ZONE"   --command="printf '%s' '$REMOTE_B64' | base64 -d | sudo env PHASE14_V2_GATE_B_READINESS_WATCH_HEAD=$HELPER_HEAD_Q PHASE14_V2_GATE_B_READINESS_WATCH_DEPLOYED_HEAD=$DEPLOYED_HEAD_Q PHASE14_V2_GATE_B_READINESS_WATCH_APPROVED_HEAD=$APPROVED_HEAD_Q PHASE14_V2_GATE_B_READINESS_WATCH_APPROVED_DEPLOYED_HEAD=$APPROVED_DEPLOYED_HEAD_Q PHASE14_V2_GATE_B_READINESS_WATCH_ENV_FILE=$ENV_FILE_Q PHASE14_V2_GATE_B_READINESS_WATCH_STORAGE_EVIDENCE=$STORAGE_EVIDENCE_Q PHASE14_V2_GATE_B_READINESS_WATCH_STORAGE_EVIDENCE_SHA256=$STORAGE_EVIDENCE_SHA256_Q PHASE14_V2_GATE_B_READINESS_WATCH_ARCHIVE=$REMOTE_ARCHIVE_Q PHASE14_V2_GATE_B_READINESS_WATCH_ARCHIVE_SHA256=$ARCHIVE_SHA256_Q bash"
