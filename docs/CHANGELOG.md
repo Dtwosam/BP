@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.121 — 9 September 2026
+
+The repeatable feature-only Phase 14 V2 Gate B readiness helper was rerun after the recorder deadlock recovery and passed its safety contract with `READY=false`. Helper head `223bd255c8001149eba51d3f5dfb767cb4c2461b` checked deployed production head `e9c7afc1536880e4612cb6e3d1a7282fa37c69f5` at `2026-09-09T20:13:53Z`. The report observed 496 immutable `core-v2-last-trade` markets spanning 175.833333 hours, attempted 81 candidate analysis starts, and rejected all of them under the unchanged frozen geometry. Rejection stages were 13 test-count failures, 4 validation-count failures, and 64 train-count failures; the last candidate at `2026-09-09T04:20:00Z` had 19 train markets versus the required 24.
+
+The readiness run remained feature-only: `labels_read=false`, `plan_artifact_written=false`, `selection_artifact_written=false`, `HOLDOUT_TOUCHED=false`, and no Gate B action occurred. The Cloud Shell transcript SHA-256 is `7b94230188478791c61e8841141e755e2181b5316d663d25edb7551c1807ac64`; sanitized evidence is `docs/evidence/phase-14-v2-gate-b-readiness-20260909T201353Z.json`.
+
+Because candidate analysis starts advance only by the frozen two-hour step, rerunning more frequently than every two hours cannot expose a new candidate start. The first candidate grid start strictly after the recorder recovery at `2026-09-09T18:55:51Z` is `2026-09-09T20:20:00Z`. Under the fixed 18-hour minimum contiguous geometry, a completely post-recovery candidate cannot be fully evaluable before `2026-09-10T14:20:00Z`. This is only a conservative lower bound; every unchanged train/validation/test/final-holdout count minimum still must pass. Gate B remains unauthorized and the final holdout remains unread/untouched.
+
 ## 0.14.120 — 9 September 2026
 
 The explicitly authorized Phase 14 recorder deadlock recovery passed in production. Exact-main helper head `d217e20befd98d935138673ba1da17a62e895d44` deployed only minimal candidate `e9c7afc1536880e4612cb6e3d1a7282fa37c69f5` from accepted production head `895c6bd2f9409f16bf5d544b26b30e20ecbfe43a`. The helper verified the exact accepted partitioned-storage evidence SHA-256 `f33a28f5306e46c509b0000a176d226c079aa2d160d595095ca228118542ce19`, exact runtime/test blobs, research/zero-money safety, existing four-worker configuration, healthy storage, and the absent unread Gate B holdout boundary before mutation.
