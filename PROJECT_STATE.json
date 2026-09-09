@@ -2568,7 +2568,7 @@
     "partitioned_storage_health_accepted": true,
     "partitioned_storage_recorder_restart_required": true,
     "recorder_restart_gate_helper": "scripts/deploy/phase14_recorder_restart_gate_cloudshell.sh",
-    "recorder_restart_gate_status": "IN_REVIEW_PRODUCTION_AUTHORIZED_NOT_RUN",
+    "recorder_restart_gate_status": "MERGED_MAIN_PRODUCTION_AUTHORIZED_NOT_RUN",
     "recorder_restart_gate_expected_deployed_head": "895c6bd2f9409f16bf5d544b26b30e20ecbfe43a",
     "recorder_restart_gate_storage_evidence_path": "/mnt/bp-data/evidence/phase14-partitioned-storage-rollout-20260909T070219Z.json",
     "recorder_restart_gate_storage_evidence_sha256": "f33a28f5306e46c509b0000a176d226c079aa2d160d595095ca228118542ce19",
@@ -2577,6 +2577,7 @@
     "recorder_restart_gate_requires_active_storage_timers": true,
     "recorder_restart_gate_requires_recorder_stopped_before_mutation": true,
     "recorder_restart_gate_requires_four_feed_no_backpressure_soak": true,
-    "recorder_restart_gate_rollback_restores_env_and_stops_recorder": true
+    "recorder_restart_gate_rollback_restores_env_and_stops_recorder": true,
+    "recorder_restart_gate_pr": 146
   }
 }
