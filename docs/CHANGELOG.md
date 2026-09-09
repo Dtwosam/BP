@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.103 — 9 September 2026
+
+The post-storage Phase 14 recorder restart gate is now production-accepted. The corrected merged helper at `a65f2a87d2575aa31e071b2df6d0670abe362bdb` ran against the already accepted production application/storage head `895c6bd2f9409f16bf5d544b26b30e20ecbfe43a` and completed with `PHASE14_RECORDER_RESTART_GATE=PASS`; the partition migration was not rerun and the production checkout was not changed.
+
+The accepted runtime has `RECORDER_WRITER_WORKERS=4` and `RECORDER_CONFIG_WORKERS=4`, with `bp-recorder.service`, `bp-storage-maintenance.timer`, and `bp-storage-disk-health.timer` active. The 36-second natural-load acceptance window exceeded the 28-second minimum and observed fresh events on all four required feeds: 13,027 Polymarket market events, 693 Bybit spot events, 1,397 Bybit linear events, and 220 Coinbase spot events. The soak report recorded no incidents, no failures, and `passed=true`.
+
+Partitioned-storage health remained `ok` before and after restart with current-partition, maintenance-freshness, and retention guards all true. The host-local acceptance artifact is `/var/lib/bp/evidence/phase14-recorder-restart-gate-20260909T104631Z.txt`. This closes the recorder/storage recovery checkpoint. It does not activate the V2 forward-coverage timer, authorize Gate B, select a V2 policy/model/calibration/edge threshold, change the frozen 10-second selected-book freshness rule, enable automatic promotion, bypass geography, begin Phase 15, or enable live trading.
+
 ## 0.14.102 — 9 September 2026
 
 The first production run of the post-storage recorder restart gate failed closed after successfully restoring the established research-service baseline and staging `RECORDER_WRITER_WORKERS=4`. The recorder unit started, but the helper's direct `/proc/<MainPID>/environ` assertion returned `REASON=recorder_effective_worker_count_not_4`; rollback immediately stopped the recorder and restored the prior environment file. Follow-up read-only diagnostics proved the installed recorder unit matches the deployed repository unit, has no systemd drop-ins, binds only `/etc/bp/bp.env`, and left every required non-recorder research service plus both storage timers active after rollback.
