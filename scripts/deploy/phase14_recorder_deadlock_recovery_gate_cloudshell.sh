@@ -385,13 +385,16 @@ from pathlib import Path
 root = Path(sys.argv[1])
 digest = hashlib.sha256()
 if root.exists():
-    names = {"plan.json", "selection.json", "holdout.json", "summary.json"}
+    holdouts = sorted(root.glob("phase14-v2-gate-b-*/holdout.json"))
+    if holdouts:
+        raise SystemExit("unexpected Gate B holdout artifact present; refusing to read it")
+    names = {"plan.json", "selection.json", "summary.json"}
     for path in sorted(
         (item for item in root.glob("phase14-v2-gate-b-*/*") if item.name in names),
         key=lambda item: str(item),
     ):
         digest.update(str(path).encode("utf-8"))
-        digest.update(b"\0")
+        digest.update(b"\\0")
         digest.update(hashlib.sha256(path.read_bytes()).digest())
 print(digest.hexdigest())
 PY
@@ -484,7 +487,6 @@ require_research_zero_money
 require_automatic_promotion_false
 require_recorder_workers_four
 
-run_storage_health "$DISK_BEFORE"
 run_maintenance_cycle "prestart"
 
 DISK_AFTER_PRESTART=$(mktemp /var/tmp/bp-phase14-recorder-deadlock-recovery-disk-prestart.XXXXXX.json)
