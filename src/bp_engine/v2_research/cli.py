@@ -60,11 +60,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="build the unlabeled chronological Gate B partition plan",
     )
     plan.add_argument("--output", required=True)
-    plan.add_argument("--min-initial-train-markets", type=int, default=128)
-    plan.add_argument("--validation-markets", type=int, default=64)
-    plan.add_argument("--test-markets", type=int, default=48)
-    plan.add_argument("--final-holdout-markets", type=int, default=64)
+    plan.add_argument("--train-hours", type=float, default=8)
+    plan.add_argument("--validation-hours", type=float, default=2)
+    plan.add_argument("--test-hours", type=float, default=2)
+    plan.add_argument("--step-hours", type=float, default=2)
+    plan.add_argument("--final-holdout-hours", type=float, default=2)
     plan.add_argument("--embargo-markets", type=int, default=1)
+    plan.add_argument("--min-train-markets", type=int, default=24)
+    plan.add_argument("--min-validation-markets", type=int, default=6)
+    plan.add_argument("--min-test-markets", type=int, default=6)
     plan.add_argument("--fee-rate", type=float, default=0.07)
     plan.add_argument("--slippage-buffer", type=float, default=0.01)
     plan.add_argument(
@@ -101,12 +105,18 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
     engine = create_engine(settings.database_url)
 
     if args.command == "plan":
+        from datetime import timedelta
+
         config = GateBPlanConfig(
-            min_initial_train_markets=args.min_initial_train_markets,
-            validation_markets=args.validation_markets,
-            test_markets=args.test_markets,
-            final_holdout_markets=args.final_holdout_markets,
+            train_duration=timedelta(hours=args.train_hours),
+            validation_duration=timedelta(hours=args.validation_hours),
+            test_duration=timedelta(hours=args.test_hours),
+            step_duration=timedelta(hours=args.step_hours),
+            final_holdout_duration=timedelta(hours=args.final_holdout_hours),
             embargo_markets=args.embargo_markets,
+            min_train_markets=args.min_train_markets,
+            min_validation_markets=args.min_validation_markets,
+            min_test_markets=args.min_test_markets,
         )
         research_config = GateBResearchConfig(
             fee_rate=args.fee_rate,
