@@ -413,7 +413,7 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(str(exc)) from exc
 
     print(json.dumps(status, sort_keys=True, separators=(",", ":")))
-    print(f"PHASE14_V2_GATE_B_READINESS_WATCH=PASS")
+    print("PHASE14_V2_GATE_B_READINESS_WATCH=PASS")
     print(f"READY={str(status['ready']).lower()}")
     print("HOLDOUT_TOUCHED=false")
     return 0
