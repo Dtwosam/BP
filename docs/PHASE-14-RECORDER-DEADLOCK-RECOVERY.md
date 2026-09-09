@@ -1,7 +1,7 @@
 # Phase 14 recorder deadlock recovery
 
-**Status:** merged engineering package; production execution not authorized  
-**Production execution:** not authorized  
+**Status:** merged engineering package; narrow production recovery authorized  
+**Production execution:** authorized for this recovery helper only  
 **Trading boundary:** RESEARCH only; live trading disabled; trade-size and daily-loss limits remain zero  
 **Gate B:** unauthorized; final holdout must remain untouched
 
@@ -69,7 +69,7 @@ Before mutation the helper requires:
 
 ## Authorized mutation sequence
 
-This section documents what the helper will do **only after separate explicit production authorization**.
+Explicit production authorization was granted on 9 September 2026 for this helper-defined recovery scope only. The sequence below is now authorized; all exclusions listed at the top and below remain blocked.
 
 1. Stop only the storage-maintenance, disk-health, and V2 forward-coverage timers. Core research services remain running and the recorder is already inactive.
 2. Fetch and re-verify the exact minimal candidate.
@@ -103,7 +103,7 @@ Any failure after mutation is armed causes the helper to:
 
 The helper does not attempt to restore or rewrite database rows because its only checkout change is the already-tested steady-state runtime deadlock fix. Any maintenance retirement performed before a later acceptance failure remains governed by the existing verified partition-retirement contract.
 
-## Operator command — do not run without authorization
+## Operator command — authorized for this recovery
 
 From a clean Cloud Shell checkout at the exact current main head:
 
