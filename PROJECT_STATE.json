@@ -2,7 +2,7 @@
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
   "source_of_truth_version": "0.14.118",
-  "updated_at": "2026-09-09T18:22:00Z",
+  "updated_at": "2026-09-09T18:22:09Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -629,7 +629,8 @@
     "Phase 14 V2 Gate B research package merged to main and passed all engineering/review gates; its first production evidence attempt on helper head a395a069c1a95f5b3968ea913c08b5a2bb1385a6 stopped in feature-only planning before labels or holdout because the earliest two-hour test window had only 4 markets versus the unchanged Phase 8 minimum of 6",
     "Phase 14 V2 Gate B sparse-prefix recovery merged to main as 184b725724d46d7ed757dd715a88dafddbdd45e1 after all PR gates passed; post-merge CI 34366077039 passed 1,015 tests. The exact-main retry then failed safely again in feature-only planning because no contiguous epoch yet satisfies the unchanged Phase 8 walk-forward minimums; all Gate B artifacts remained absent and the final holdout remains unread",
     "Phase 14 V2 Gate B feature-only readiness checker is engineering-ready: repeatable readiness returns READY true/false under the exact frozen planner contract, writes no plan/selection/holdout artifact, reads no labels, never touches the holdout, and reports the 18-hour minimum epoch plus all rejected candidate starts/reasons; CI 34370064802 passed 1,020 tests",
-    "Phase 14 steady-state partitioned-storage deadlock fix merged to main as a903cf4bb1cb2e2a24e80a8b00f0eecb68b3e15a; minimal production-shaped recovery candidate e9c7afc1536880e4612cb6e3d1a7282fa37c69f5 changes only the exact-main partitioned_raw.py fix plus its PostgreSQL regression test and passed verification-only PR #161 CI with 998 tests"
+    "Phase 14 steady-state partitioned-storage deadlock fix merged to main as a903cf4bb1cb2e2a24e80a8b00f0eecb68b3e15a; minimal production-shaped recovery candidate e9c7afc1536880e4612cb6e3d1a7282fa37c69f5 changes only the exact-main partitioned_raw.py fix plus its PostgreSQL regression test and passed verification-only PR #161 CI with 998 tests",
+    "Phase 14 post-acceptance recorder deadlock recovery gate merged to main as 63a0eb8b52f736db4b3e329adcdec06ae2ae02f9 after exact-head CI, Historical Backfill Smoke, Live Recorder Smoke, and Recorder Short Soak all passed; post-merge CI 34388363196 passed 1,028 tests plus deployment validation, research-mode health, and dashboard checks; production recovery remains unauthorized"
   ],
   "not_completed": [
     "Production deployment of the steady-state partitioned-maintenance deadlock fix and separately authorized recovery of the accepted four-worker recorder runtime",
@@ -638,7 +639,7 @@
     "Live trading"
   ],
   "next_actions": [
-    "Keep bp-recorder.service stopped. The fail-closed post-acceptance recorder deadlock recovery gate is merged to main as 63a0eb8b52f736db4b3e329adcdec06ae2ae02f9 and is engineering-ready, but production checkout mutation and recorder start remain separately unauthorized until explicit approval. Any future authorized run must use exact minimal candidate e9c7afc1536880e4612cb6e3d1a7282fa37c69f5, preserve RECORDER_WRITER_WORKERS=4, keep the final holdout unread, and never lower storage thresholds or bypass the recorder storage-health ExecCondition.",
+    "Keep bp-recorder.service stopped. The fail-closed recorder deadlock recovery gate is merged to main as 63a0eb8b52f736db4b3e329adcdec06ae2ae02f9 and the exact minimal production candidate remains e9c7afc1536880e4612cb6e3d1a7282fa37c69f5. Production checkout mutation and recorder start remain separately unauthorized until explicit approval; preserve RECORDER_WRITER_WORKERS=4, the research/zero-money boundary, all storage thresholds/interlocks, and the unread Gate B holdout boundary.",
     "Treat docs/evidence/phase-14-v2-freshness-preregistration-20260909.json as immutable research configuration: max_last_trade_age_seconds candidates are exactly [1, 2, 5, 10] plus explicit no_trade and are bound to coverage_input_sha256 aab75574aa7faf18e65358353403e5ec1a2b89dd42424eb7b0e3329bf683b099. Do not alter this grid after labels/outcomes are joined.",
     "Do not run the Gate B readiness helper while the recorder is intentionally inactive. After an authorized recorder recovery and fresh service/storage validation, use only the repeatable exact-main readiness helper while contiguous V2 evidence accumulates. READY=false means keep collecting and do not run Gate B. READY=true is necessary before one future Gate B evidence run but does not itself authorize Gate B. Never lower Phase 8 minimums, skip folds, alter the frozen research configuration, use labels/outcomes to decide readiness, or touch the final holdout.",
     "Continue money-disabled prospective evidence collection and evaluation under RESEARCH/live-disabled/zero-money safety, preserving immutable V1/V2 evidence and the frozen 10-second selected-book freshness rule.",
@@ -1286,9 +1287,19 @@
     "v2_gate_b_research_feature_version": "core-v2-last-trade",
     "v2_gate_b_research_label_version": "official-outcome-v1",
     "v2_gate_b_research_coverage_input_sha256": "aab75574aa7faf18e65358353403e5ec1a2b89dd42424eb7b0e3329bf683b099",
-    "v2_gate_b_research_freshness_candidates_seconds": [1, 2, 5, 10],
+    "v2_gate_b_research_freshness_candidates_seconds": [
+      1,
+      2,
+      5,
+      10
+    ],
     "v2_gate_b_research_include_no_trade": true,
-    "v2_gate_b_research_default_offsets_seconds": [60, 120, 180, 240],
+    "v2_gate_b_research_default_offsets_seconds": [
+      60,
+      120,
+      180,
+      240
+    ],
     "v2_gate_b_research_default_train_duration_hours": 8,
     "v2_gate_b_research_default_validation_duration_hours": 2,
     "v2_gate_b_research_default_test_duration_hours": 2,
@@ -1300,7 +1311,16 @@
     "v2_gate_b_research_default_min_test_markets": 6,
     "v2_gate_b_research_default_fee_rate": 0.07,
     "v2_gate_b_research_default_slippage_buffer": 0.01,
-    "v2_gate_b_research_default_min_edge_grid": [0.0, 0.01, 0.02, 0.03, 0.05, 0.075, 0.1, 0.15],
+    "v2_gate_b_research_default_min_edge_grid": [
+      0,
+      0.01,
+      0.02,
+      0.03,
+      0.05,
+      0.075,
+      0.1,
+      0.15
+    ],
     "v2_gate_b_research_default_min_validation_trades": 8,
     "v2_gate_b_research_default_min_train_eligible_markets": 24,
     "v2_gate_b_research_default_min_validation_eligible_markets": 8,
@@ -2913,6 +2933,7 @@
     "partitioned_runtime_recovery_proves_active_recorder_maintenance_cycle": true,
     "partitioned_runtime_recovery_rolls_back_to_accepted_head_on_failure": true,
     "partitioned_runtime_recorder_recovery_authorized": false,
-    "partitioned_runtime_gate_b_holdout_touched": false
+    "partitioned_runtime_gate_b_holdout_touched": false,
+    "partitioned_runtime_recovery_helper_final_test_count": 1028
   }
 }
