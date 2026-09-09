@@ -63,7 +63,8 @@ def test_v2_forward_restore_gate_is_existing_runtime_only_and_rollback_capable()
         "PHASE14_V2_FORWARD_RESTORE_ROLLBACK=START",
         "PHASE14_V2_FORWARD_RESTORE_ROLLBACK=COMPLETE",
         "PHASE14_V2_FORWARD_RESTORE_GATE=PASS",
-        "/var/lib/bp/evidence/phase14-v2-forward-coverage-restore-",
+        "EVIDENCE_DIR=/var/lib/bp/evidence",
+        "phase14-v2-forward-coverage-restore-$STAMP.json",
     )
     for marker in required:
         assert marker in content
