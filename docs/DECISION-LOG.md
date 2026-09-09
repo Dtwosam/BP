@@ -310,3 +310,13 @@ For an already-partitioned runtime, `ensure_partitioned_raw_storage` therefore v
 
 This decision does not weaken partition availability, retention, maintenance-freshness, disk thresholds, archive verification, dedupe semantics, the fail-closed recorder stop, or research/zero-money controls. A recorder restart after a fail-closed production stop remains a separate production mutation requiring explicit authorization.
 
+## D-037 — Production deadlock recovery uses a minimal backport candidate
+**Date:** 9 Sep 2026  
+**Status:** Active
+
+The accepted production checkout remains `895c6bd2f9409f16bf5d544b26b30e20ecbfe43a`, while current main contains 153 later commits. Recovering the recorder from the 9 September steady-state storage deadlock must not use that broad checkout transition merely to obtain the one runtime fix.
+
+The production recovery candidate is therefore a clean descendant of the accepted checkout whose deployed-from diff is restricted to the exact-main `src/bp_engine/storage/partitioned_raw.py` deadlock fix plus its PostgreSQL regression test. The exact candidate is `e9c7afc1536880e4612cb6e3d1a7282fa37c69f5` on `ops/phase14-storage-deadlock-recovery-candidate`. The runtime and test Git blobs must remain byte-identical to the exact current-main helper head, and any branch movement, extra path, or blob mismatch fails closed before production checkout mutation.
+
+The recovery gate requires the already accepted `RECORDER_WRITER_WORKERS=4` setting and does not edit the environment file. It validates healthy partitioned storage before mutation, runs one maintenance cycle with the recorder stopped, then proves the fixed lock path under real recorder load by forcing a second maintenance cycle while the recorder is active and requiring the recorder MainPID/restart count to remain unchanged. Any post-checkout failure stops the recorder and returns the checkout to the accepted head. Production execution remains a separate explicit authorization; Gate B, final-holdout access, automatic promotion, Phase 15, and live/money settings remain blocked.
+
