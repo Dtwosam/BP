@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.116",
-  "updated_at": "2026-09-09T17:22:12Z",
+  "source_of_truth_version": "0.14.117",
+  "updated_at": "2026-09-09T18:14:16Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -628,7 +628,8 @@
     "Phase 14 V2 coverage-only freshness preregistration froze max_last_trade_age_seconds candidates [1, 2, 5, 10] plus no_trade against canonical coverage hash aab75574aa7faf18e65358353403e5ec1a2b89dd42424eb7b0e3329bf683b099 before any label/outcome join",
     "Phase 14 V2 Gate B research package merged to main and passed all engineering/review gates; its first production evidence attempt on helper head a395a069c1a95f5b3968ea913c08b5a2bb1385a6 stopped in feature-only planning before labels or holdout because the earliest two-hour test window had only 4 markets versus the unchanged Phase 8 minimum of 6",
     "Phase 14 V2 Gate B sparse-prefix recovery merged to main as 184b725724d46d7ed757dd715a88dafddbdd45e1 after all PR gates passed; post-merge CI 34366077039 passed 1,015 tests. The exact-main retry then failed safely again in feature-only planning because no contiguous epoch yet satisfies the unchanged Phase 8 walk-forward minimums; all Gate B artifacts remained absent and the final holdout remains unread",
-    "Phase 14 V2 Gate B feature-only readiness checker is engineering-ready: repeatable readiness returns READY true/false under the exact frozen planner contract, writes no plan/selection/holdout artifact, reads no labels, never touches the holdout, and reports the 18-hour minimum epoch plus all rejected candidate starts/reasons; CI 34370064802 passed 1,020 tests"
+    "Phase 14 V2 Gate B feature-only readiness checker is engineering-ready: repeatable readiness returns READY true/false under the exact frozen planner contract, writes no plan/selection/holdout artifact, reads no labels, never touches the holdout, and reports the 18-hour minimum epoch plus all rejected candidate starts/reasons; CI 34370064802 passed 1,020 tests",
+    "Phase 14 steady-state partitioned-storage deadlock fix merged to main as a903cf4bb1cb2e2a24e80a8b00f0eecb68b3e15a; minimal production-shaped recovery candidate e9c7afc1536880e4612cb6e3d1a7282fa37c69f5 changes only the exact-main partitioned_raw.py fix plus its PostgreSQL regression test and passed verification-only PR #161 CI with 998 tests"
   ],
   "not_completed": [
     "Production deployment of the steady-state partitioned-maintenance deadlock fix and separately authorized recovery of the accepted four-worker recorder runtime",
@@ -637,7 +638,7 @@
     "Live trading"
   ],
   "next_actions": [
-    "Keep bp-recorder.service stopped until PR #160 is merged, the fix is deliberately deployed, and recorder recovery is separately authorized and revalidated; preserve RECORDER_WRITER_WORKERS=4, keep the research/zero-money boundary intact, and do not lower storage thresholds or bypass the recorder storage-health ExecCondition.",
+    "Keep bp-recorder.service stopped. Review and merge PR #162, the fail-closed post-acceptance recorder deadlock recovery gate, while preserving exact minimal candidate e9c7afc1536880e4612cb6e3d1a7282fa37c69f5. Even after engineering merge, production checkout mutation and recorder start remain separately unauthorized until explicit approval; preserve RECORDER_WRITER_WORKERS=4 and never lower storage thresholds or bypass the recorder storage-health ExecCondition.",
     "Treat docs/evidence/phase-14-v2-freshness-preregistration-20260909.json as immutable research configuration: max_last_trade_age_seconds candidates are exactly [1, 2, 5, 10] plus explicit no_trade and are bound to coverage_input_sha256 aab75574aa7faf18e65358353403e5ec1a2b89dd42424eb7b0e3329bf683b099. Do not alter this grid after labels/outcomes are joined.",
     "Do not run the Gate B readiness helper while the recorder is intentionally inactive. After an authorized recorder recovery and fresh service/storage validation, use only the repeatable exact-main readiness helper while contiguous V2 evidence accumulates. READY=false means keep collecting and do not run Gate B. READY=true is necessary before one future Gate B evidence run but does not itself authorize Gate B. Never lower Phase 8 minimums, skip folds, alter the frozen research configuration, use labels/outcomes to decide readiness, or touch the final holdout.",
     "Continue money-disabled prospective evidence collection and evaluation under RESEARCH/live-disabled/zero-money safety, preserving immutable V1/V2 evidence and the frozen 10-second selected-book freshness rule.",
@@ -2871,6 +2872,32 @@
     "partitioned_runtime_deadlock_fix_green_test_count": 1023,
     "partitioned_runtime_deadlock_fix_green_ci_passed": true,
     "partitioned_runtime_deadlock_fix_production_deployed": false,
+    "partitioned_runtime_recovery_candidate_base_head": "895c6bd2f9409f16bf5d544b26b30e20ecbfe43a",
+    "partitioned_runtime_recovery_candidate_branch": "ops/phase14-storage-deadlock-recovery-candidate",
+    "partitioned_runtime_recovery_candidate_head": "e9c7afc1536880e4612cb6e3d1a7282fa37c69f5",
+    "partitioned_runtime_recovery_candidate_changed_paths": [
+      "src/bp_engine/storage/partitioned_raw.py",
+      "tests/storage/test_partitioned_raw_postgres.py"
+    ],
+    "partitioned_runtime_recovery_candidate_runtime_blob": "952a43396d2130ab7c709f20be370c4ba347398e",
+    "partitioned_runtime_recovery_candidate_test_blob": "8e4cae9c78387df8bc27bbeb38a2a8dfa8451f3e",
+    "partitioned_runtime_recovery_candidate_push_ci_run_id": 34386571542,
+    "partitioned_runtime_recovery_candidate_verification_pr": 161,
+    "partitioned_runtime_recovery_candidate_pr_ci_run_id": 34387138993,
+    "partitioned_runtime_recovery_candidate_test_count": 998,
+    "partitioned_runtime_recovery_candidate_ci_passed": true,
+    "partitioned_runtime_recovery_helper_branch": "phase14-recorder-deadlock-recovery-gate",
+    "partitioned_runtime_recovery_helper_path": "scripts/deploy/phase14_recorder_deadlock_recovery_gate_cloudshell.sh",
+    "partitioned_runtime_recovery_runbook": "docs/PHASE-14-RECORDER-DEADLOCK-RECOVERY.md",
+    "partitioned_runtime_recovery_helper_pr": 162,
+    "partitioned_runtime_recovery_helper_engineering_checkpoint_head": "e7b1ee99bfde7a5d5c8f6e55c96598534c91d7f8",
+    "partitioned_runtime_recovery_helper_engineering_ci_run_id": 34387198652,
+    "partitioned_runtime_recovery_helper_engineering_ci_passed": true,
+    "partitioned_runtime_recovery_helper_status": "PR_OPEN_NOT_PRODUCTION_RUN",
+    "partitioned_runtime_recovery_requires_existing_writer_workers": 4,
+    "partitioned_runtime_recovery_edits_environment_file": false,
+    "partitioned_runtime_recovery_proves_active_recorder_maintenance_cycle": true,
+    "partitioned_runtime_recovery_rolls_back_to_accepted_head_on_failure": true,
     "partitioned_runtime_recorder_recovery_authorized": false,
     "partitioned_runtime_gate_b_holdout_touched": false
   }
