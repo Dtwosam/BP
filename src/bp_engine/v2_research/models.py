@@ -2,34 +2,58 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from datetime import timedelta
 
 
 @dataclass(frozen=True)
 class GateBPlanConfig:
-    min_initial_train_markets: int = 128
-    validation_markets: int = 64
-    test_markets: int = 48
-    final_holdout_markets: int = 64
+    train_duration: timedelta = timedelta(hours=8)
+    validation_duration: timedelta = timedelta(hours=2)
+    test_duration: timedelta = timedelta(hours=2)
+    step_duration: timedelta = timedelta(hours=2)
+    final_holdout_duration: timedelta = timedelta(hours=2)
     embargo_markets: int = 1
+    min_train_markets: int = 24
+    min_validation_markets: int = 6
+    min_test_markets: int = 6
 
     def __post_init__(self) -> None:
         for name in (
-            "min_initial_train_markets",
-            "validation_markets",
-            "test_markets",
-            "final_holdout_markets",
+            "train_duration",
+            "validation_duration",
+            "test_duration",
+            "step_duration",
+            "final_holdout_duration",
+        ):
+            if getattr(self, name) <= timedelta(0):
+                raise ValueError(f"{name} must be positive")
+        if self.step_duration < self.test_duration:
+            raise ValueError("step_duration must be at least test_duration")
+        if self.embargo_markets < 0:
+            raise ValueError("embargo_markets must be non-negative")
+        for name in (
+            "min_train_markets",
+            "min_validation_markets",
+            "min_test_markets",
         ):
             if getattr(self, name) <= 0:
                 raise ValueError(f"{name} must be positive")
-        if self.embargo_markets < 0:
-            raise ValueError("embargo_markets must be non-negative")
 
 
 @dataclass(frozen=True)
 class GateBResearchConfig:
     fee_rate: float = 0.07
     slippage_buffer: float = 0.01
-    min_edge_grid: tuple[float, ...] = (0.0, 0.015, 0.03, 0.05, 0.075, 0.10, 0.15)
+    min_edge_grid: tuple[float, ...] = (
+        0.0,
+        0.01,
+        0.02,
+        0.03,
+        0.05,
+        0.075,
+        0.10,
+        0.15,
+    )
     min_validation_trades: int = 8
     min_train_eligible_markets: int = 24
     min_validation_eligible_markets: int = 8
