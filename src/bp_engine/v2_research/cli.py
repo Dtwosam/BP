@@ -65,6 +65,18 @@ def build_parser() -> argparse.ArgumentParser:
     plan.add_argument("--test-markets", type=int, default=48)
     plan.add_argument("--final-holdout-markets", type=int, default=64)
     plan.add_argument("--embargo-markets", type=int, default=1)
+    plan.add_argument("--fee-rate", type=float, default=0.07)
+    plan.add_argument("--slippage-buffer", type=float, default=0.01)
+    plan.add_argument(
+        "--min-edge",
+        action="append",
+        type=float,
+        default=None,
+        help="repeat to replace the pre-labeled V2 Gate B min-edge candidate grid",
+    )
+    plan.add_argument("--min-validation-trades", type=int, default=8)
+    plan.add_argument("--min-train-eligible-markets", type=int, default=24)
+    plan.add_argument("--min-validation-eligible-markets", type=int, default=8)
 
     prepare = subparsers.add_parser(
         "prepare",
@@ -72,18 +84,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     prepare.add_argument("--plan", required=True)
     prepare.add_argument("--output", required=True)
-    prepare.add_argument("--fee-rate", type=float, default=0.07)
-    prepare.add_argument("--slippage-buffer", type=float, default=0.01)
-    prepare.add_argument(
-        "--min-edge",
-        action="append",
-        type=float,
-        default=None,
-        help="repeat to replace the V2 Gate B min-edge candidate grid",
-    )
-    prepare.add_argument("--min-validation-trades", type=int, default=8)
-    prepare.add_argument("--min-train-eligible-markets", type=int, default=24)
-    prepare.add_argument("--min-validation-eligible-markets", type=int, default=8)
 
     holdout = subparsers.add_parser(
         "evaluate-holdout",
@@ -108,12 +108,7 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
             final_holdout_markets=args.final_holdout_markets,
             embargo_markets=args.embargo_markets,
         )
-        payload = _read_only(
-            engine, lambda connection: build_gate_b_plan(connection, config)
-        )
-    elif args.command == "prepare":
-        plan = _load_json(args.plan)
-        config = GateBResearchConfig(
+        research_config = GateBResearchConfig(
             fee_rate=args.fee_rate,
             slippage_buffer=args.slippage_buffer,
             min_edge_grid=(
@@ -127,10 +122,19 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
         )
         payload = _read_only(
             engine,
+            lambda connection: build_gate_b_plan(
+                connection,
+                config,
+                research_config,
+            ),
+        )
+    elif args.command == "prepare":
+        plan = _load_json(args.plan)
+        payload = _read_only(
+            engine,
             lambda connection: prepare_gate_b(
                 connection,
                 plan=plan,
-                config=config,
             ),
         )
     elif args.command == "evaluate-holdout":
