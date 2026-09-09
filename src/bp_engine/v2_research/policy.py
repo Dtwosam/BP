@@ -20,17 +20,21 @@ def _probability_observation(
     if not _flag_clear(row, "missing__pm_up_last_trade_missing"):
         return False, None, "last_trade_missing"
     value = row.predictors.get("pm_up_last_trade_price")
-    age = row.predictors.get("pm_up_last_trade_availability_age_s")
-    if value is None or age is None:
+    availability_age = row.predictors.get("pm_up_last_trade_availability_age_s")
+    source_age = row.predictors.get("pm_up_last_trade_source_age_s")
+    if value is None or availability_age is None or source_age is None:
         return False, None, "last_trade_missing"
     probability = float(value)
-    age_seconds = float(age)
+    age_seconds = float(availability_age)
+    source_age_seconds = float(source_age)
     if (
         not math.isfinite(probability)
         or probability < 0.0
         or probability > 1.0
         or not math.isfinite(age_seconds)
         or age_seconds < 0.0
+        or not math.isfinite(source_age_seconds)
+        or source_age_seconds < 0.0
     ):
         return False, None, "last_trade_invalid"
     if age_seconds > max_last_trade_age_seconds:
