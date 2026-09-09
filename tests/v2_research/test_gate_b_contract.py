@@ -596,7 +596,7 @@ def test_project_state_locks_gate_b_engineering_boundary() -> None:
         is True
     )
     assert checkpoint["v2_gate_b_readiness_status"] == (
-        "MERGED_MAIN_REPEATABLE_NOT_RUN"
+        "PRODUCTION_PASS_READY_FALSE"
     )
     assert checkpoint["v2_gate_b_readiness_pr"] == 158
     assert checkpoint["v2_gate_b_readiness_final_branch_head"] == (
@@ -622,7 +622,42 @@ def test_project_state_locks_gate_b_engineering_boundary() -> None:
     assert checkpoint["v2_gate_b_readiness_repeatable"] is True
     assert checkpoint["v2_gate_b_readiness_required_ordinary_folds"] == 3
     assert checkpoint["v2_gate_b_readiness_minimum_contiguous_epoch_hours"] == 18
-    assert checkpoint["v2_gate_b_readiness_production_check_performed"] is False
+    assert checkpoint["v2_gate_b_readiness_production_check_performed"] is True
+    assert checkpoint["v2_gate_b_readiness_last_result"] is False
+    assert checkpoint["v2_gate_b_readiness_last_market_count"] == 496
+    assert checkpoint["v2_gate_b_readiness_last_analysis_start_attempt_count"] == 81
+    assert checkpoint["v2_gate_b_readiness_last_candidate_rejection_count"] == 81
+    assert checkpoint["v2_gate_b_readiness_last_candidate_rejection_stage_counts"] == {
+        "test": 13,
+        "validation": 4,
+        "train": 64,
+    }
+    assert checkpoint["v2_gate_b_readiness_last_blocking_reason"] == (
+        "no contiguous Gate B epoch satisfies the frozen walk-forward minimums; "
+        "last rejection: train requires at least 24 markets; found 19"
+    )
+    assert checkpoint["v2_gate_b_readiness_last_candidate_start"] == (
+        "2026-09-09T04:20:00+00:00"
+    )
+    assert checkpoint["v2_gate_b_readiness_last_candidate_train_market_count"] == 19
+    assert checkpoint["v2_gate_b_readiness_last_labels_read"] is False
+    assert checkpoint["v2_gate_b_readiness_last_plan_artifact_written"] is False
+    assert checkpoint["v2_gate_b_readiness_last_selection_artifact_written"] is False
+    assert checkpoint["v2_gate_b_readiness_holdout_touched"] is False
+    assert checkpoint["v2_gate_b_readiness_last_would_plan_sha256"] is None
+    assert checkpoint["v2_gate_b_readiness_minimum_useful_rerun_cadence_hours"] == 2
+    assert checkpoint["v2_gate_b_readiness_first_post_recovery_candidate_start"] == (
+        "2026-09-09T20:20:00Z"
+    )
+    assert checkpoint[
+        "v2_gate_b_readiness_earliest_wholly_post_recovery_epoch_fully_evaluable_at"
+    ] == "2026-09-10T14:20:00Z"
+    assert (
+        checkpoint[
+            "v2_gate_b_readiness_earliest_wholly_post_recovery_epoch_is_lower_bound"
+        ]
+        is True
+    )
     assert checkpoint["v2_gate_b_sparse_prefix_recovery_preserves_phase8_minimums"] is True
     assert checkpoint["v2_gate_b_sparse_prefix_recovery_skips_individual_folds"] is False
     assert (
