@@ -53,30 +53,34 @@ It:
 - freezes the research cost/search configuration before labels are read;
 - writes an exclusive/no-clobber plan artifact.
 
-Default unlabeled partition configuration:
+Default unlabeled partition configuration reuses the accepted Phase 8 walk-forward geometry:
 
 ```text
-min_initial_train_markets = 128
-validation_markets        = 64
-test_markets              = 48
-final_holdout_markets     = 64
+train_duration            = 8 hours
+validation_duration       = 2 hours
+test_duration             = 2 hours
+step_duration             = 2 hours
+final_holdout_duration    = 2 hours
 embargo_markets           = 1
+min_train_markets         = 24
+min_validation_markets    = 6
+min_test_markets          = 6
 ```
 
-For the 426-market coverage checkpoint this yields three ordinary test folds and a latest-64-market final holdout.
+The plan is constructed from feature metadata only. It requires at least three eligible ordinary folds, forbids ordinary-test reuse, and reserves the latest two-hour segment as the final holdout.
 
 The plan also freezes these research assumptions before labels:
 
 ```text
 fee_rate                  = 0.07
 slippage_buffer           = 0.01
-min_edge_grid             = [0.0, 0.015, 0.03, 0.05, 0.075, 0.10, 0.15]
+min_edge_grid             = [0.0, 0.01, 0.02, 0.03, 0.05, 0.075, 0.10, 0.15]
 min_validation_trades     = 8
 min_train_eligible        = 24
 min_validation_eligible   = 8
 ```
 
-The edge grid is a new V2 search grid. It does not inherit the selected V1 `min_edge`.
+The edge candidate geometry reuses the pre-existing Phase 9 research grid for comparability; Gate B does **not** inherit any V1-selected `min_edge`. A V2 threshold is selected afresh from validation only.
 
 ### 2. `prepare` — train/validation + ordinary test only
 
