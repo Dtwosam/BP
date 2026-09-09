@@ -93,3 +93,10 @@ Only after those checks and the separate explicit authorization may the helper p
 - Phase 15 blocked.
 
 After host migration acceptance and a verified archive-to-partition-drop cycle demonstrates physical relation-size release, recorder restart remains a separate operational step using the already-merged recorder reliability repair and `RECORDER_WRITER_WORKERS=4`.
+## Accepted partitioned-storage migration — 9 September 2026
+
+The explicitly authorized rollout for candidate `895c6bd2f9409f16bf5d544b26b30e20ecbfe43a`, bound to verified-preflight SHA-256 `fb880c6c234a81d2fcc9a7c11bb81a2d3945fc22b4fbd8a2a358b95afc2adddc`, completed with `PHASE14_PARTITIONED_STORAGE_ROLLOUT=PASS` at 2026-09-09T07:02:19Z. Accepted evidence is `/mnt/bp-data/evidence/phase14-partitioned-storage-rollout-20260909T070219Z.json` with SHA-256 `f33a28f5306e46c509b0000a176d226c079aa2d160d595095ca228118542ce19`.
+
+The rollout reported `PARTITION_BYTES_RELEASED=34332024832`, `ROLLBACK_MATERIAL_RETAINED=true`, and `RECORDER_RESTARTED=false`. Post-rollout production is on head `895c6bd2f9409f16bf5d544b26b30e20ecbfe43a`; storage-maintenance and disk-health timers are active; the recorder remains non-running pending the separate recorder reliability gate. Storage migration/health acceptance therefore no longer requires another partition-migration preflight or approval unless this accepted storage state is intentionally changed or invalidated.
+
+The next operational step is the separately controlled recorder restart using the already-merged `RECORDER_WRITER_WORKERS=4` repair, followed by four-feed natural-load no-drop/backpressure acceptance. This storage PASS does not authorize Gate B, Phase 15, geographic bypass, or live trading.
