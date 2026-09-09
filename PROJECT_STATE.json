@@ -2592,7 +2592,8 @@
     "recorder_restart_gate_env_verification_green_ci_run_id": 34340971963,
     "recorder_restart_gate_env_verification_green_test_count": 999,
     "recorder_restart_gate_env_verification_green_ci_passed": true,
-    "recorder_restart_gate_env_verification_fix_status": "GREEN_UNMERGED",
+    "recorder_restart_gate_env_verification_fix_status": "PR_OPEN_GREEN_UNMERGED",
+    "recorder_restart_gate_env_verification_fix_pr": 147,
     "recorder_restart_gate_pr": 146
   }
 }
