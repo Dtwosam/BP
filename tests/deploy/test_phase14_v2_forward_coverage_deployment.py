@@ -178,7 +178,28 @@ def test_v2_forward_current_source_of_truth_matches_recorded_rollout_state() -> 
     )
     assert (
         followup["forward_coverage_collector_runtime_state_after_storage_incident"]
-        == "not_asserted_while_storage_recovery_is_in_progress"
+        == "RESTORED_ACTIVE_ENABLED_PRODUCTION_ACCEPTED"
+    )
+    assert followup["forward_coverage_restore_gate_status"] == "PRODUCTION_PASS"
+    assert followup["forward_coverage_restore_gate_production_run_performed"] is True
+    assert followup["forward_coverage_restore_gate_production_passed"] is True
+    assert followup["forward_coverage_restore_gate_production_timer_enabled"] is True
+    assert followup["forward_coverage_restore_gate_production_timer_active"] is True
+    assert (
+        followup["forward_coverage_restore_gate_production_coverage_market_count"]
+        == 420
+    )
+    assert (
+        followup["forward_coverage_restore_gate_production_coverage_row_count"]
+        == 1680
+    )
+    assert (
+        followup["forward_coverage_restore_gate_production_future_cutoff_violation_count"]
+        == 0
+    )
+    assert followup["forward_coverage_restore_gate_production_policy_selected"] is False
+    assert (
+        followup["forward_coverage_restore_gate_production_automatic_promotion"] is False
     )
 
     stale_state = (
