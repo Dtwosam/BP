@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -7,8 +8,6 @@ HELPER = (
     / "deploy"
     / "phase14_v2_forward_coverage_restore_gate_cloudshell.sh"
 )
-CI = ROOT / ".github" / "workflows" / "ci.yml"
-
 
 def test_v2_forward_restore_gate_is_existing_runtime_only_and_rollback_capable() -> None:
     assert HELPER.is_file(), HELPER
@@ -100,9 +99,13 @@ def test_v2_forward_restore_gate_is_existing_runtime_only_and_rollback_capable()
         assert f'systemctl stop "{unit}"' not in content
 
 
-def test_v2_forward_restore_gate_has_ci_syntax_validation() -> None:
-    ci = CI.read_text(encoding="utf-8")
-    assert (
-        "bash -n scripts/deploy/"
-        "phase14_v2_forward_coverage_restore_gate_cloudshell.sh"
-    ) in ci
+def test_v2_forward_restore_gate_has_clean_bash_syntax() -> None:
+    result = subprocess.run(
+        ["bash", "-n", str(HELPER)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stderr == "", result.stderr
