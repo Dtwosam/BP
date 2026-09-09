@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.122 — 9 September 2026
+
+PR #167 merged the Phase 14 feature-only Gate B readiness watcher to `main` as `80bf77da54fd1a2c89b4d43910457184bd06fead`. Final head `0513770c824baf91f82de74e2af6b4789ccaa7d9` passed CI `34410923330` with **1,039 tests**, Historical Backfill Smoke `34410923248`, Live Recorder Smoke `34410923329`, and Recorder Short Soak `34410923305`. Post-merge CI `34411184671` then passed **1,039 tests** plus deployment validation, research-mode health, and dashboard checks.
+
+The watcher is a versioned sidecar rather than a production-checkout change. Its oneshot service runs only `scripts/run_v2_gate_b_readiness_watch.py` under an exact helper/deployed-head binding, requires the four-worker recorder plus core services/storage/V2 timers healthy, requires composite partitioned-storage health `ok`, requires RESEARCH/live-disabled/zero-money safety, and rechecks those invariants before and after the readiness database read. The readiness query runs inside PostgreSQL `SET TRANSACTION READ ONLY`, locks the frozen coverage hash/freshness grid/`no_trade` contract, and refuses to run if any Gate B plan/selection/holdout/summary artifact exists by pathname without opening those artifact contents. It publishes only a compact sanitized latest-status file.
+
+The persistent timer is deliberately aligned to the frozen candidate cadence at `00,02,04,06,08,10,12,14,16,18,20,22:30 UTC`. Watcher failure is diagnostic only and has no `OnFailure` coupling to the recorder/storage critical-stop path. The guarded installer rolls back only watcher sidecar/unit/timer/status state and never checks out or resets `/opt/bp` or starts/stops/restarts recorder/core services.
+
+This merge is engineering-only. The watcher has **not** been installed in production and production installation is **not authorized**. The latest accepted manual readiness result remains `READY=false`; Gate B, label/outcome access for Gate B, final-holdout evaluation, automatic promotion, Phase 15, live trading, and nonzero money remain blocked. Runbook: `docs/PHASE-14-V2-GATE-B-READINESS-WATCH.md`.
+
 ## 0.14.121 — 9 September 2026
 
 The repeatable feature-only Phase 14 V2 Gate B readiness helper was rerun after the recorder deadlock recovery and passed its safety contract with `READY=false`. Helper head `223bd255c8001149eba51d3f5dfb767cb4c2461b` checked deployed production head `e9c7afc1536880e4612cb6e3d1a7282fa37c69f5` at `2026-09-09T20:13:53Z`. The report observed 496 immutable `core-v2-last-trade` markets spanning 175.833333 hours, attempted 81 candidate analysis starts, and rejected all of them under the unchanged frozen geometry. Rejection stages were 13 test-count failures, 4 validation-count failures, and 64 train-count failures; the last candidate at `2026-09-09T04:20:00Z` had 19 train markets versus the required 24.
