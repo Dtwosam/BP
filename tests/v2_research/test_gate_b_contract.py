@@ -126,7 +126,7 @@ def _plan_config() -> GateBPlanConfig:
         test_duration=timedelta(minutes=10),
         step_duration=timedelta(minutes=10),
         final_holdout_duration=timedelta(minutes=10),
-        embargo_markets=1,
+        embargo_markets=0,
         min_train_markets=2,
         min_validation_markets=1,
         min_test_markets=2,
@@ -396,7 +396,7 @@ def test_gate_b_artifact_paths_are_no_clobber(tmp_path: Path) -> None:
 def test_project_state_locks_gate_b_engineering_boundary() -> None:
     state_path = Path(__file__).resolve().parents[2] / "PROJECT_STATE.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
-    checkpoint = state["phase_14_checkpoint"]
+    checkpoint = state["phase_14_market_price_v2_followup"]
 
     assert checkpoint["v2_gate_b_research_engineering_status"] == (
         "ENGINEERING_READY_GREEN_UNMERGED_NOT_RUN"
