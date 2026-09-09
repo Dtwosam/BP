@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.107 — 9 September 2026
+
+The restored Phase 14 V2 forward collector has now produced a coverage-only evidence set broad enough to freeze the independent last-trade freshness candidate grid required by D-033 before any labels/outcomes are joined. The read-only report contained **426 markets / 1,704 immutable `core-v2-last-trade` rows**, exactly 426 rows at each 60/120/180/240-second offset, zero future-cutoff violations, zero invalid non-finite values, and canonical `coverage_input_sha256=aab75574aa7faf18e65358353403e5ec1a2b89dd42424eb7b0e3329bf683b099`.
+
+Last-trade evidence was available on 1,421 / 1,704 rows per side. Source-age medians were 10.875s Up and 10.976s Down, with p90 30.037s and 30.73s; selected-book p90 age was 2.0s on both sides. Under the already-frozen 10-second selected-book ceiling, `docs/evidence/phase-14-v2-freshness-preregistration-20260909.json` freezes `max_last_trade_age_seconds` candidates as exactly **[1, 2, 5, 10] plus explicit `no_trade`**. The grid is coverage-only: 1s is the strict low-latency candidate, 2s is anchored to observed selected-book p90, 5s is an intermediate candidate, and 10s is the hard maximum permitted by the execution-book freshness contract.
+
+This preregistration does not choose a winning freshness threshold, timing, model, calibration, edge/min-edge policy, or promotion. `policy_selected=false`, `automatic_promotion=false`, Gate B remains unauthorized, and the grid may not be rewritten by test/final-holdout/prospective evidence. Tests bind the exact candidate set and coverage hash into `PROJECT_STATE.json` and the Master Source of Truth. RED head `67c13b0e2e77ed6d63be763d5288ef9127921c57` failed only the expected missing source-of-truth binding while **1,002 existing tests passed** in CI `34348538823`. GREEN head `dc7fc1692731f09b35191f1e0fb1ee3417c63826` passed CI `34348956600` with **1,003 tests** plus Ruff, deployment validation, research-mode health, and dashboard checks. PR #152 carries the immutable preregistration for review. The next build is the separate Gate B V2 research package using legitimate chronological partitions and validation-only selection; Phase 15 and live trading remain blocked.
+
 ## 0.14.106 — 9 September 2026
 
 The Phase 14 V2 forward-coverage restore-only gate has now passed in production. Helper head `2f6e4e385bf70681f2d79d906d380dfbe88406bb` ran against the already accepted production checkout `895c6bd2f9409f16bf5d544b26b30e20ecbfe43a` and completed with `PHASE14_V2_FORWARD_RESTORE_GATE=PASS`; no production checkout change, unit reinstall, storage-index installation, recorder/core-service restart, migration, policy selection, or live/money change occurred.

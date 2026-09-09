@@ -1,0 +1,133 @@
+{
+  "phase": 14,
+  "evidence_type": "v2_freshness_coverage_only_preregistration",
+  "date": "2026-09-09",
+  "verdict": "PREREGISTERED_NOT_GATE_B",
+  "production_deployed_head": "895c6bd2f9409f16bf5d544b26b30e20ecbfe43a",
+  "production_main_head_at_review": "1f58efddf9ea278322ac0691982ca3b32f90afee",
+  "feature_version": "core-v2-last-trade",
+  "selection_basis": "coverage_only_no_labels_no_outcomes",
+  "coverage_input_sha256": "aab75574aa7faf18e65358353403e5ec1a2b89dd42424eb7b0e3329bf683b099",
+  "coverage": {
+    "market_count": 426,
+    "row_count": 1704,
+    "offsets": [
+      60,
+      120,
+      180,
+      240
+    ],
+    "by_offset": {
+      "60": {
+        "market_count": 426,
+        "row_count": 426
+      },
+      "120": {
+        "market_count": 426,
+        "row_count": 426
+      },
+      "180": {
+        "market_count": 426,
+        "row_count": 426
+      },
+      "240": {
+        "market_count": 426,
+        "row_count": 426
+      }
+    },
+    "future_cutoff_violation_count": 0,
+    "invalid_nonfinite_value_count": 0
+  },
+  "last_trade": {
+    "up": {
+      "available_count": 1421,
+      "missing_count": 283,
+      "source_age_s": {
+        "count": 1421,
+        "min": 0.355,
+        "median": 10.875,
+        "p90": 30.037,
+        "max": 517.148
+      },
+      "availability_age_s": {
+        "count": 1421,
+        "min": 0.023998,
+        "median": 1.685922,
+        "p90": 8.264975,
+        "max": 513.017132
+      }
+    },
+    "down": {
+      "available_count": 1421,
+      "missing_count": 283,
+      "source_age_s": {
+        "count": 1421,
+        "min": 0.27,
+        "median": 10.976,
+        "p90": 30.73,
+        "max": 457.076
+      },
+      "availability_age_s": {
+        "count": 1421,
+        "min": 0.006026,
+        "median": 1.703449,
+        "p90": 9.503945,
+        "max": 456.833828
+      }
+    }
+  },
+  "book": {
+    "up": {
+      "available_count": 1430,
+      "missing_count": 274,
+      "stale_count": 178,
+      "age_s": {
+        "count": 1612,
+        "min": 0,
+        "median": 0.564848,
+        "p90": 2,
+        "max": 529
+      }
+    },
+    "down": {
+      "available_count": 1431,
+      "missing_count": 273,
+      "stale_count": 178,
+      "age_s": {
+        "count": 1612,
+        "min": 0,
+        "median": 0.561225,
+        "p90": 2,
+        "max": 529
+      }
+    }
+  },
+  "freshness_preregistration": {
+    "max_selected_book_age_seconds": 10,
+    "max_last_trade_age_seconds_candidates": [
+      1,
+      2,
+      5,
+      10
+    ],
+    "include_no_trade": true,
+    "derivation": [
+      "1 second is the strict low-latency candidate, chosen from coverage-only timing context and below the observed 2 second selected-book p90.",
+      "2 seconds is anchored to the observed selected-book p90 on both sides.",
+      "5 seconds is a predeclared intermediate freshness candidate between 2 seconds and the hard 10 second ceiling.",
+      "10 seconds is the maximum candidate permitted by the already-frozen selected-book freshness ceiling."
+    ],
+    "validation_selection_required": true,
+    "final_holdout_may_not_rewrite_candidates": true
+  },
+  "safety": {
+    "policy_selected": false,
+    "automatic_promotion": false,
+    "gate_b_authorized": false,
+    "phase15_permitted": false,
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0
+  },
+  "interpretation": "Coverage-only pre-registration under D-033. This freezes the finite last-trade freshness candidate grid before any labels/outcomes are joined. It does not choose a winning freshness threshold, timing, model, calibration, edge/min-edge policy, or authorize Gate B."
+}
