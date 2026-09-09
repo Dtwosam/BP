@@ -1,0 +1,77 @@
+{
+  "verdict": "PASS",
+  "readiness": false,
+  "recorded_at": "2026-09-09T20:13:53Z",
+  "helper_head": "223bd255c8001149eba51d3f5dfb767cb4c2461b",
+  "deployed_head": "e9c7afc1536880e4612cb6e3d1a7282fa37c69f5",
+  "storage_evidence": {
+    "path": "/mnt/bp-data/evidence/phase14-partitioned-storage-rollout-20260909T070219Z.json",
+    "sha256": "f33a28f5306e46c509b0000a176d226c079aa2d160d595095ca228118542ce19"
+  },
+  "candidate_archive_sha256": "c0a40b2809761b9d8640cad413fb35f4c08afda8ddebfcb9b6fa97483fd1d8b9",
+  "holdout_touched": false,
+  "labels_read": false,
+  "plan_artifact_written": false,
+  "selection_artifact_written": false,
+  "market_count": 496,
+  "market_start_at": "2026-09-02T12:20:00+00:00",
+  "market_end_at": "2026-09-09T20:10:00+00:00",
+  "available_span_hours": 175.833333,
+  "minimum_contiguous_epoch_hours": 18,
+  "required_ordinary_folds": 3,
+  "analysis_start_at": null,
+  "eligible_fold_count": 0,
+  "final_holdout_market_count": 0,
+  "analysis_start_attempt_count": 81,
+  "candidate_rejection_count": 81,
+  "candidate_rejection_stage_counts": {
+    "test": 13,
+    "validation": 4,
+    "train": 64
+  },
+  "blocking_reason": "no contiguous Gate B epoch satisfies the frozen walk-forward minimums; last rejection: train requires at least 24 markets; found 19",
+  "last_candidate_rejection": {
+    "analysis_start_at": "2026-09-09T04:20:00+00:00",
+    "reason": "train requires at least 24 markets; found 19"
+  },
+  "would_plan_sha256": null,
+  "coverage_input_sha256": "aab75574aa7faf18e65358353403e5ec1a2b89dd42424eb7b0e3329bf683b099",
+  "freshness_candidates_seconds": [
+    1,
+    2,
+    5,
+    10
+  ],
+  "include_no_trade": true,
+  "frozen_geometry": {
+    "train_duration_hours": 8,
+    "validation_duration_hours": 2,
+    "test_duration_hours": 2,
+    "step_duration_hours": 2,
+    "final_holdout_duration_hours": 2,
+    "min_train_markets": 24,
+    "min_validation_markets": 6,
+    "min_test_markets": 6,
+    "embargo_markets": 1
+  },
+  "recovery_context": {
+    "recorder_recovery_passed_at": "2026-09-09T18:55:51Z",
+    "first_candidate_grid_start_strictly_after_recovery": "2026-09-09T20:20:00Z",
+    "earliest_wholly_post_recovery_epoch_fully_evaluable_at": "2026-09-10T14:20:00Z",
+    "interpretation": "This timestamp is a conservative lower bound for evaluating a completely post-recovery 18-hour candidate epoch, not a prediction that READY will be true. Count minimums still must pass."
+  },
+  "retry_policy": {
+    "minimum_useful_cadence_hours": 2,
+    "reason": "Candidate analysis starts advance only by the frozen two-hour step; more frequent reruns cannot expose a new candidate start."
+  },
+  "cloud_shell_transcript": {
+    "path": "/home/dtwoflicks/bp-v2-readiness-20260909T201307Z.txt",
+    "sha256": "7b94230188478791c61e8841141e755e2181b5316d663d25edb7551c1807ac64"
+  },
+  "gate_b": {
+    "authorized": false,
+    "actions_performed": false,
+    "holdout_touched": false,
+    "final_holdout_unread": true
+  }
+}
