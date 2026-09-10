@@ -1,0 +1,41 @@
+{
+  "attempt_started_at": "2026-09-10T10:27:33Z",
+  "candidate_archive_sha256": "a3bc68cc85d379998ef19ee851619cd3e6195c8ef49aa836dafc5aff9658c89c",
+  "deployed_head": "e9c7afc1536880e4612cb6e3d1a7282fa37c69f5",
+  "failure": {
+    "missing_condition_id": "0x15a96b013fa3009dc15f83df516116b583cce49325e313d578e51b8b5d9b70e8",
+    "reason": "gate_b_prepare_failed",
+    "reported_error": "missing canonical labels/features for 0x15a96b013fa3009dc15f83df516116b583cce49325e313d578e51b8b5d9b70e8",
+    "root_cause_classification": "frozen_non_holdout_canonical_label_gap"
+  },
+  "gate_b_authorization": {
+    "one_shot_authorization_consumed": true,
+    "scope": "ONE_SHOT_RESEARCH_PLAN_PREPARE_FINAL_HOLDOUT_EVALUATION_ONLY"
+  },
+  "helper_head": "0941684676ea35949ac938a3bca33012b6ea0e19",
+  "holdout_touched": false,
+  "partial_evidence": {
+    "directory": "/var/lib/bp/evidence/phase14-v2-gate-b-20260910T102812Z",
+    "holdout_present": false,
+    "plan_present": true,
+    "selection_present": false,
+    "summary_present": false
+  },
+  "production_database_mutation_performed_by_gate_b": false,
+  "recovery_policy": {
+    "final_holdout_must_remain_unread_until_separately_authorized_resume": true,
+    "frozen_plan_must_be_reused": true,
+    "new_plan_forbidden": true,
+    "non_holdout_label_repair_may_use_only_canonical_post_resolution_gamma_evidence": true,
+    "repair_and_resume_require_fresh_sha_bound_authorization": true
+  },
+  "storage_evidence": {
+    "path": "/mnt/bp-data/evidence/phase14-partitioned-storage-rollout-20260909T070219Z.json",
+    "sha256": "f33a28f5306e46c509b0000a176d226c079aa2d160d595095ca228118542ce19"
+  },
+  "transcript": {
+    "filename": "bp-v2-gate-b-20260910T102733Z.txt",
+    "sha256": "88d9db1d071794c1e0fc96d94c010b335e0529f426d71423411db262c8b76546"
+  },
+  "verdict": "FAIL_PRE_HOLDOUT_NON_HOLDOUT_LABEL_GAP"
+}
