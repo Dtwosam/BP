@@ -26,7 +26,9 @@ def test_parser_exposes_audit_and_recover_for_existing_frozen_plan_only() -> Non
     assert "frozen" in parser.description.lower()
 
 
-def test_safety_is_checked_before_engine_or_network_construction(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_safety_is_checked_before_engine_or_network_construction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     cli = importlib.import_module("bp_engine.v2_research.label_recovery_cli")
     events: list[str] = []
 
