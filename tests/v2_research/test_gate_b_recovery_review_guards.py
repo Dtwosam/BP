@@ -30,5 +30,6 @@ def test_recovery_captures_gamma_receipt_time_after_each_response() -> None:
     assert request < receipt < snapshot
     assert request < receipt < label
     assert "clock: Callable[[], datetime] = _utc_now" in source
-    recovery_signature = source[source.index("async def recover_gate_b_non_holdout_labels(") : request]
+    recovery_start = source.index("async def recover_gate_b_non_holdout_labels(")
+    recovery_signature = source[recovery_start:request]
     assert "observed_at: datetime" not in recovery_signature
