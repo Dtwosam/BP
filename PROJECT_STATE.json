@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.123",
-  "updated_at": "2026-09-10T09:07:50Z",
+  "source_of_truth_version": "0.14.124",
+  "updated_at": "2026-09-10T10:05:28Z",
   "current_phase": 14,
   "current_phase_name": "live readiness \u2014 engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -635,7 +635,9 @@
     "Phase 14 recorder deadlock recovery passed in production at 2026-09-09T18:55:51Z: deployed exact minimal candidate e9c7afc1536880e4612cb6e3d1a7282fa37c69f5, recorder active with RECORDER_WRITER_WORKERS=4 and MainPID 3300693, zero restarts across the active-recorder maintenance cycle, all four required feeds flowing with zero soak failures/backpressure, storage status ok with all guards true, all three timers active, research/zero-money safety preserved, and Gate B/holdout untouched",
     "Feature-only Phase 14 V2 Gate B readiness check passed safely at 2026-09-09T20:13:53Z on helper head 223bd255c8001149eba51d3f5dfb767cb4c2461b against deployed head e9c7afc1536880e4612cb6e3d1a7282fa37c69f5 with READY=false, 496 markets, 81 rejected candidate starts, no labels read, no Gate B artifacts written, and HOLDOUT_TOUCHED=false",
     "Phase 14 V2 feature-only readiness watcher merged to main as 80bf77da54fd1a2c89b4d43910457184bd06fead after exact-head CI 34410923330 with 1,039 tests, Historical Backfill Smoke 34410923248, Live Recorder Smoke 34410923329, and Recorder Short Soak 34410923305 all passed; post-merge CI 34411184671 also passed 1,039 tests plus deployment validation, research-mode health, and dashboard checks; watcher production installation remains unauthorized and unperformed",
-    "Fresh feature-only Phase 14 V2 Gate B readiness passed at 2026-09-10T09:07:50Z on exact helper/main head 26e91498672618b5cafb7f2d901994103c5554b8 against deployed head e9c7afc1536880e4612cb6e3d1a7282fa37c69f5: READY=true, 651 markets, analysis start 2026-09-09T10:20:00Z, 5 eligible folds, 24 feature-only final-holdout markets, no labels read, no Gate B artifacts written, and HOLDOUT_TOUCHED=false"
+    "Fresh feature-only Phase 14 V2 Gate B readiness passed at 2026-09-10T09:07:50Z on exact helper/main head 26e91498672618b5cafb7f2d901994103c5554b8 against deployed head e9c7afc1536880e4612cb6e3d1a7282fa37c69f5: READY=true, 651 markets, analysis start 2026-09-09T10:20:00Z, 5 eligible folds, 24 feature-only final-holdout markets, no labels read, no Gate B artifacts written, and HOLDOUT_TOUCHED=false",
+    "Phase 14 V2 READY=true readiness evidence merged by PR #170 at 09bc0356f68e7237fc95a5dc375b9fd9a0685d3c; exact PR head 24291c53c199690e755c422b0d0b4f01d3a05719 passed all four exact-head gates and post-merge main CI 34463958011 passed",
+    "Explicit Phase 14 V2 Gate B research execution authorization granted at 2026-09-10T10:05:28Z: one exact-main research-only plan -> prepare -> evaluate-holdout run is authorized; automatic promotion, Phase 15, live trading, geographic bypass, and nonzero money remain unauthorized"
   ],
   "not_completed": [
     "V2 Gate B production-evidence research execution, untouched final-holdout evaluation, and acceptance of any V2 policy/model/calibration/edge/min-edge selection",
@@ -643,11 +645,10 @@
     "Live trading"
   ],
   "next_actions": [
-    "Feature-only V2 Gate B readiness prerequisite is now satisfied: the accepted 2026-09-10T09:07:50Z exact-main check returned READY=true with 651 markets, analysis start 2026-09-09T10:20:00Z, 5 eligible folds, and 24 feature-only final-holdout markets. Stop readiness retries. Gate B itself is the next explicit authorization boundary and must not run without separate authorization; the final holdout remains unread/untouched.",
-    "Keep docs/evidence/phase-14-v2-freshness-preregistration-20260909.json immutable: max_last_trade_age_seconds candidates remain exactly [1, 2, 5, 10] plus explicit no_trade and coverage_input_sha256 aab75574aa7faf18e65358353403e5ec1a2b89dd42424eb7b0e3329bf683b099. Do not alter the grid, frozen geometry, fee/slippage assumptions, eligible-market minimums, or min-edge grid after readiness acceptance.",
-    "Do not treat READY=true as Gate B authorization. Until separate Gate B authorization exists, do not read Gate B labels/outcomes, write/freeze a Gate B plan or selection artifact, evaluate the final holdout, accept a V2 policy/model/calibration/edge/min-edge selection, or activate automatic promotion.",
-    "Continue normal money-disabled prospective evidence collection under RESEARCH/live-disabled/zero-money safety. The optional two-hour readiness watcher remains merged engineering but is not production-installed and no longer needs installation for the current Gate B path.",
-    "Phase 15, geographic bypass, live trading, and nonzero money remain separately blocked regardless of Gate B readiness."
+    "Execute exactly one Phase 14 V2 Gate B research run from the clean current main using scripts/deploy/phase14_v2_gate_b_research_cloudshell.sh, bound to deployed head e9c7afc1536880e4612cb6e3d1a7282fa37c69f5 and the accepted partitioned-storage evidence. Authorized scope: plan -> prepare -> evaluate-holdout -> summary only; do not alter frozen research geometry or candidate grids.",
+    "Planning must remain label-free. Prepare may read only non-holdout labels and must freeze the validation-selected policy before final-holdout labels are read. evaluate-holdout may read the hash-bound final holdout exactly once. If a holdout artifact is produced, do not rerun or select a different holdout from its result.",
+    "After execution, record exact artifact hashes, selected policy/calibration/edge parameters, final-holdout metrics, and safety checks before any downstream decision. Gate B execution authorization is not automatic V2 policy acceptance.",
+    "Keep MODE=research, LIVE_TRADING_ENABLED=false, MAX_TRADE_SIZE_USD=0, MAX_DAILY_LOSS_USD=0, and automatic_promotion=false. Phase 15, geographic bypass, live trading, and nonzero money remain separately blocked."
   ],
   "open_questions": [
     "Current/recurring availability of a 10m BTC Up/Down Polymarket market",
@@ -1249,7 +1250,7 @@
     "v2_gate_b_research_minimum_contiguous_epoch_hours": 18,
     "v2_gate_b_research_retry_blocked_until_feature_only_readiness": false,
     "v2_gate_b_readiness_branch": "phase14-v2-gate-b-readiness",
-    "v2_gate_b_readiness_status": "PRODUCTION_PASS_READY_TRUE_GATE_B_UNAUTHORIZED",
+    "v2_gate_b_readiness_status": "PRODUCTION_PASS_READY_TRUE_GATE_B_AUTHORIZED_NOT_RUN",
     "v2_gate_b_readiness_pr": 158,
     "v2_gate_b_readiness_final_branch_head": "30e0ebebd339b1086ab8a31c83c5f16138a47435",
     "v2_gate_b_readiness_push_ci_run_id": 34370645827,
@@ -1332,7 +1333,7 @@
     "v2_gate_b_research_holdout_evaluation_separate": true,
     "v2_gate_b_research_artifacts_no_clobber": true,
     "v2_gate_b_research_database_mutations": false,
-    "v2_gate_b_research_gate_b_authorized": false,
+    "v2_gate_b_research_gate_b_authorized": true,
     "v2_gate_b_research_automatic_promotion": false,
     "forward_coverage_source_truth_reconciliation_branch": "phase14-v2-forward-collector-source-truth-reconciliation-clean",
     "forward_coverage_source_truth_reconciliation_red_head": "4fc713d78f22357d47fc98ccf975c193085e1afa",
@@ -1432,7 +1433,17 @@
     "v2_gate_b_readiness_last_final_holdout_market_count": 24,
     "v2_gate_b_readiness_last_candidate_archive_sha256": "25cc1410a227a633cb653fb47af38fae74f305f6d973a39aa6d3030a6726744e",
     "v2_gate_b_readiness_feature_only_prerequisite_satisfied": true,
-    "v2_gate_b_readiness_retry_required": false
+    "v2_gate_b_readiness_retry_required": false,
+    "v2_gate_b_readiness_acceptance_pr": 170,
+    "v2_gate_b_readiness_acceptance_final_head": "24291c53c199690e755c422b0d0b4f01d3a05719",
+    "v2_gate_b_readiness_acceptance_merge_commit": "09bc0356f68e7237fc95a5dc375b9fd9a0685d3c",
+    "v2_gate_b_readiness_acceptance_post_merge_ci_run_id": 34463958011,
+    "v2_gate_b_readiness_acceptance_post_merge_ci_passed": true,
+    "v2_gate_b_research_gate_b_authorized_at": "2026-09-10T10:05:28Z",
+    "v2_gate_b_research_gate_b_authorization_scope": "ONE_SHOT_RESEARCH_PLAN_PREPARE_FINAL_HOLDOUT_EVALUATION_ONLY",
+    "v2_gate_b_research_gate_b_authorization_source": "explicit_user_authorization",
+    "v2_gate_b_research_gate_b_authorized_from_main_head": "09bc0356f68e7237fc95a5dc375b9fd9a0685d3c",
+    "v2_gate_b_research_gate_b_execution_status": "AUTHORIZED_NOT_RUN"
   },
   "phase_14_storage_reliability_followup": {
     "incident_date": "2026-09-04",

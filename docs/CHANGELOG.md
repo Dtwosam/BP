@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.124 — 10 September 2026
+
+PR #170 final head `24291c53c199690e755c422b0d0b4f01d3a05719` passed all four exact-head gates, merged as `09bc0356f68e7237fc95a5dc375b9fd9a0685d3c`, and post-merge main CI `34463958011` passed, making the accepted `READY=true` readiness milestone canonical.
+
+At `2026-09-10T10:05:28Z`, explicit authorization was granted for one Phase 14 V2 Gate B research execution using the existing frozen `plan` -> `prepare` -> `evaluate-holdout` sequence. Planning remains label-free; preparation must freeze the validation-selected policy before final-holdout labels are read; the hash-bound final holdout may then be evaluated exactly once. This authorization is not automatic policy acceptance and does not authorize prospective V2 activation, automatic promotion, Phase 15, geographic bypass, live trading, or nonzero money.
+
 ## 0.14.123 — 10 September 2026
 
 The fresh production feature-only Phase 14 V2 Gate B readiness check passed at `2026-09-10T09:07:50Z` and crossed the readiness prerequisite: `READY=true`. Exact helper/main head `26e91498672618b5cafb7f2d901994103c5554b8` checked accepted deployed head `e9c7afc1536880e4612cb6e3d1a7282fa37c69f5` using the accepted partitioned-storage evidence. The report observed 651 immutable `core-v2-last-trade` markets through `2026-09-10T09:05:00Z`, accepted analysis start `2026-09-09T10:20:00Z`, produced 5 eligible folds against the required 3, and found 24 feature-only markets in the final-holdout window. The first 83 candidate starts remained rejected (64 train-count, 14 test-count, 5 validation-count failures); the 84th candidate satisfied the frozen planning geometry. The hypothetical plan SHA-256 is `a1c2dff984a1dc6a2720961781af83f0d1999fbb632e33d9932c5582e688d5e2`.

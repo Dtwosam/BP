@@ -544,7 +544,7 @@ def test_project_state_locks_gate_b_engineering_boundary() -> None:
         0.15,
     ]
     assert checkpoint["v2_gate_b_research_database_mutations"] is False
-    assert checkpoint["v2_gate_b_research_gate_b_authorized"] is False
+    assert checkpoint["v2_gate_b_research_gate_b_authorized"] is True
     assert checkpoint["v2_gate_b_research_automatic_promotion"] is False
     assert checkpoint["v2_gate_b_research_production_run_attempted"] is True
     assert checkpoint["v2_gate_b_research_first_production_attempt_result"] == (
@@ -596,8 +596,12 @@ def test_project_state_locks_gate_b_engineering_boundary() -> None:
         is False
     )
     assert checkpoint["v2_gate_b_readiness_status"] == (
-        "PRODUCTION_PASS_READY_TRUE_GATE_B_UNAUTHORIZED"
+        "PRODUCTION_PASS_READY_TRUE_GATE_B_AUTHORIZED_NOT_RUN"
     )
+    assert checkpoint["v2_gate_b_research_gate_b_authorization_scope"] == (
+        "ONE_SHOT_RESEARCH_PLAN_PREPARE_FINAL_HOLDOUT_EVALUATION_ONLY"
+    )
+    assert checkpoint["v2_gate_b_research_gate_b_execution_status"] == "AUTHORIZED_NOT_RUN"
     assert checkpoint["v2_gate_b_readiness_pr"] == 158
     assert checkpoint["v2_gate_b_readiness_final_branch_head"] == (
         "30e0ebebd339b1086ab8a31c83c5f16138a47435"
