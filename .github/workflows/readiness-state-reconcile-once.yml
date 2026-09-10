@@ -76,6 +76,8 @@ jobs:
           git rm scripts/dev/reconcile_phase14_v2_readiness_true.py
           git rm .github/workflows/readiness-state-reconcile-once.yml
           git add PROJECT_STATE.json docs/BUILD-ORDER.md docs/CHANGELOG.md docs/MASTER-SOURCE-OF-TRUTH.md docs/DECISION-LOG.md
+          sed -i 's/^\(\*\*Date:\*\* 10 Sep 2026\)  $/\1/' docs/DECISION-LOG.md
+          git add docs/DECISION-LOG.md
           git diff --cached --check
           git diff --cached --quiet && { echo 'expected reconciliation changes missing' >&2; exit 1; }
           git commit -m 'Record V2 Gate B readiness prerequisite satisfied'
