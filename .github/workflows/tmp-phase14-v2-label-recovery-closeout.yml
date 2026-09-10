@@ -39,3 +39,5 @@ jobs:
           git add -A
           git commit -m "record Phase 14 V2 recovery merge closeout"
           git push origin HEAD:phase14-v2-gate-b-label-recovery-merge-closeout
+
+# Retriggered after correcting the PROJECT_STATE parent-object assertion.
