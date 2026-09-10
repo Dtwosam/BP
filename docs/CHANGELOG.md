@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.123 — 10 September 2026
+
+The fresh production feature-only Phase 14 V2 Gate B readiness check passed at `2026-09-10T09:07:50Z` and crossed the readiness prerequisite: `READY=true`. Exact helper/main head `26e91498672618b5cafb7f2d901994103c5554b8` checked accepted deployed head `e9c7afc1536880e4612cb6e3d1a7282fa37c69f5` using the accepted partitioned-storage evidence. The report observed 651 immutable `core-v2-last-trade` markets through `2026-09-10T09:05:00Z`, accepted analysis start `2026-09-09T10:20:00Z`, produced 5 eligible folds against the required 3, and found 24 feature-only markets in the final-holdout window. The first 83 candidate starts remained rejected (64 train-count, 14 test-count, 5 validation-count failures); the 84th candidate satisfied the frozen planning geometry. The hypothetical plan SHA-256 is `a1c2dff984a1dc6a2720961781af83f0d1999fbb632e33d9932c5582e688d5e2`.
+
+This was readiness only. `labels_read=false`, `plan_artifact_written=false`, `selection_artifact_written=false`, and `HOLDOUT_TOUCHED=false`; Gate B actions were not performed and the final holdout remains unread. The transcript SHA-256 is `6e56d007833c75c989350ce05f86ed81fb4225093a5de29700b71d2d6672192f`; sanitized evidence is `docs/evidence/phase-14-v2-gate-b-readiness-20260910T090750Z.json`.
+
+`READY=true` satisfies only the feature-chronology prerequisite. Gate B is now the next separate explicit authorization boundary. No Gate B label/outcome join, plan freeze, policy selection, final-holdout evaluation, V2 acceptance, automatic promotion, Phase 15 transition, live trading, or nonzero money change is authorized by this result. The optional readiness watcher remains not production-installed; recurring readiness checks are no longer required for the current Gate B path.
+
 ## 0.14.122 — 9 September 2026
 
 PR #167 merged the Phase 14 feature-only Gate B readiness watcher to `main` as `80bf77da54fd1a2c89b4d43910457184bd06fead`. Final head `0513770c824baf91f82de74e2af6b4789ccaa7d9` passed CI `34410923330` with **1,039 tests**, Historical Backfill Smoke `34410923248`, Live Recorder Smoke `34410923329`, and Recorder Short Soak `34410923305`. Post-merge CI `34411184671` then passed **1,039 tests** plus deployment validation, research-mode health, and dashboard checks.
