@@ -1,0 +1,1 @@
+Temporary exact-head gate retrigger marker; deleted in the next commit.
