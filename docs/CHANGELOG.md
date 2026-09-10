@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.127 — 10 September 2026
+
+A read-only Phase 14 V2 frozen-plan label-recovery audit reached production from helper/main head `4c3c8be828a0a5cfdab04abad36bca32bb2df7db`, bound to existing plan SHA-256 `8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea`, and failed closed before label inspection because composite partitioned-storage health was not `ok`. The audit read no Gate B labels or final holdout, created no selection/holdout/summary artifact, and performed no production database mutation.
+
+Read-only diagnostics traced the storage failure to dedupe cleanup rather than exhausted critical disk reserve. The 13:00 UTC maintenance cycle timed out at 55 minutes, the 14:00 cycle again ran long, and the two-hour maintenance-freshness guard expired. PostgreSQL planned every bounded 50,000-row global `raw_event_dedupe` cleanup batch as a hash join against approximately 24.4 million rows across all 16 hash children. A partition-local `ctid` delete instead planned as an indexed child scan plus TID delete.
+
+PR #174 implemented that partition-local cleanup and preserved the existing safety order in which the verified raw partition is retired before dedupe rows are removed. Exact head `1e650786b3f8320d8406a84fb8e232bd7548a2ba` passed CI `34499860031`, Historical Backfill Smoke `34499860145`, Live Recorder Smoke `34499860123`, and Recorder Short Soak `34499860179`; it merged as `ad71eb4d72948a023e57eca51c99ebce700df0a6`. Post-merge CI `34500104025` passed **1,060 tests**, Ruff, deployment validation, research-mode health, and dashboard checks.
+
+This is engineering integration only. Production still runs the previously accepted deployed candidate until a separate exact-SHA storage deployment/recovery is authorized and accepted. Another Gate B audit is blocked until fresh composite storage health is `ok`; non-holdout label recovery and same-plan final-holdout resume remain separate authorization boundaries. `MODE=research`, `LIVE_TRADING_ENABLED=false`, both money limits remain zero, and `automatic_promotion=false`.
+
 ## 0.14.126 — 10 September 2026
 
 PR #172 merged the hardened Phase 14 V2 frozen-plan label-gap recovery package to `main` as `3e00939f7f70453f9aa054e46c31c72600cdb83d` from final head `1f6709632b3a5546bdd158552d8670ca7603bd1b`. Final exact-head CI `34479665673` passed **1,059 tests** plus Ruff, dashboard, deployment validation, and research-mode health; Historical Backfill Smoke `34479665575`, Live Recorder Smoke `34479665644`, and Recorder Short Soak `34479665747` also passed. Post-merge main CI `34480403106` then completed successfully with **1,059 tests**.
