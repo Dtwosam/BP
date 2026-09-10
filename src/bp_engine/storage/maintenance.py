@@ -377,46 +377,68 @@ def retire_verified_partition(
             raise ArchiveVerificationError(
                 "verified archive row count does not match live partition"
             )
-        partition_name = drop_raw_partition(
+        raw_partition_name = drop_raw_partition(
             connection,
             start_at=manifest.start_at,
             end_at=manifest.end_at,
         )
-        if partition_name is None:
+        if raw_partition_name is None:
             raise RuntimeError("raw partition is missing")
 
-    dedupe_rows_removed = 0
-    while True:
-        with engine.begin() as connection:
-            result = connection.execute(
+    with engine.connect() as connection:
+        dedupe_partitions = tuple(
+            str(name)
+            for name in connection.execute(
                 text(
                     """
-                    WITH doomed AS (
-                        SELECT dedupe_key
-                        FROM raw_event_dedupe
-                        WHERE received_at >= :start_at
-                          AND received_at < :end_at
-                        ORDER BY received_at, dedupe_key
-                        LIMIT :batch_size
-                    )
-                    DELETE FROM raw_event_dedupe AS target
-                    USING doomed
-                    WHERE target.dedupe_key = doomed.dedupe_key
+                    SELECT child.relname
+                    FROM pg_inherits AS inheritance
+                    JOIN pg_class AS parent ON parent.oid = inheritance.inhparent
+                    JOIN pg_class AS child ON child.oid = inheritance.inhrelid
+                    WHERE parent.relname = 'raw_event_dedupe'
+                    ORDER BY child.relname
                     """
-                ),
-                {
-                    "start_at": manifest.start_at,
-                    "end_at": manifest.end_at,
-                    "batch_size": batch_size,
-                },
-            )
-        deleted = int(result.rowcount or 0)
-        dedupe_rows_removed += deleted
-        if deleted < batch_size:
-            break
+                )
+            ).scalars()
+        )
+    if not dedupe_partitions:
+        raise RuntimeError("raw_event_dedupe has no child partitions")
+
+    per_partition_batch = max(1, batch_size // len(dedupe_partitions))
+    dedupe_rows_removed = 0
+    for dedupe_partition_name in dedupe_partitions:
+        quoted_partition = engine.dialect.identifier_preparer.quote(dedupe_partition_name)
+        while True:
+            with engine.begin() as connection:
+                result = connection.execute(
+                    text(
+                        f"""
+                        WITH doomed AS (
+                            SELECT ctid
+                            FROM {quoted_partition}
+                            WHERE received_at >= :start_at
+                              AND received_at < :end_at
+                            ORDER BY received_at
+                            LIMIT :batch_size
+                        )
+                        DELETE FROM {quoted_partition} AS target
+                        USING doomed
+                        WHERE target.ctid = doomed.ctid
+                        """
+                    ),
+                    {
+                        "start_at": manifest.start_at,
+                        "end_at": manifest.end_at,
+                        "batch_size": per_partition_batch,
+                    },
+                )
+            deleted = int(result.rowcount or 0)
+            dedupe_rows_removed += deleted
+            if deleted < per_partition_batch:
+                break
 
     return PartitionRetirementResult(
-        partition_name=partition_name,
+        partition_name=raw_partition_name,
         archived_rows=manifest.row_count,
         dedupe_rows_removed=dedupe_rows_removed,
         compact_cutoff_at=compact_cutoff_at,
