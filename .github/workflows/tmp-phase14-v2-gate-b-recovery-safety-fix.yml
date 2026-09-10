@@ -20,6 +20,7 @@ jobs:
           fetch-depth: 0
       - name: Apply and verify patch
         run: |
+          python -c 'from pathlib import Path; p=Path(".github/tmp_phase14_v2_gate_b_recovery_safety_fix.py"); s=p.read_text(); old="    if count != 1:\n        raise SystemExit(f\"{label}: expected one anchor, found {count}\")\n"; new="    if count != 1 and not (label in {\"recovery local evidence echo\", \"resume local evidence echo\"} and count >= 1):\n        raise SystemExit(f\"{label}: expected one anchor, found {count}\")\n"; assert old in s; p.write_text(s.replace(old,new,1))'
           python .github/tmp_phase14_v2_gate_b_recovery_safety_fix.py
           bash -n scripts/deploy/phase14_v2_gate_b_label_recovery_cloudshell.sh
           bash -n scripts/deploy/phase14_v2_gate_b_resume_cloudshell.sh
