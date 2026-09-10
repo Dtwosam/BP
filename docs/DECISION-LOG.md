@@ -330,3 +330,11 @@ This result closes only the feature-chronology readiness blocker. It does not au
 
 Because the readiness prerequisite is now satisfied, repeated readiness polling is no longer required for the current Gate B path. The optional readiness watcher remains uninstalled; no production installation should be inferred or performed from `READY=true`.
 
+## D-039 — Gate B research execution is authorized once without downstream promotion
+**Date:** 10 Sep 2026
+**Status:** Active
+
+The accepted `READY=true` prerequisite is merged to `main`. Explicit authorization is granted for one Phase 14 V2 Gate B research execution under the frozen contract: label-free `plan`, labeled non-holdout `prepare`, then one-time `evaluate-holdout` against the hash-bound final holdout. Validation selection must be frozen before final-holdout labels are read, and a produced holdout artifact makes the final evaluation one-shot; its result must not be used to select another holdout or alter preregistered search geometry.
+
+This authorization covers research evaluation only. It does not itself accept any V2 policy/model/calibration/edge/min-edge selection and does not authorize prospective V2 activation, automatic promotion, Phase 15, geographic bypass, live trading, or nonzero money. `MODE=research`, `LIVE_TRADING_ENABLED=false`, zero money limits, and `automatic_promotion=false` remain mandatory.
+
