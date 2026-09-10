@@ -33,6 +33,24 @@ def test_gate_b_label_recovery_requires_sha_bound_approval_only_for_mutation() -
     assert '"holdout_touched"' in source
 
 
+def test_gate_b_label_recovery_binds_storage_and_runtime_health() -> None:
+    source = RECOVERY.read_text(encoding="utf-8")
+    assert "PHASE14_V2_GATE_B_LABEL_RECOVERY_STORAGE_EVIDENCE" in source
+    assert "PHASE14_V2_GATE_B_LABEL_RECOVERY_STORAGE_EVIDENCE_SHA256" in source
+    assert 'sha256sum "$STORAGE_EVIDENCE"' in source
+    assert "SAFETY_FILE=/etc/bp/bp-prospective-runtime-safety.env" in source
+    assert "require_research_zero_money" in source
+    assert "require_services" in source
+    assert "read_recorder_config_workers" in source
+    assert '== "4"' in source
+    assert "run_storage_health" in source
+    assert "DISK_BEFORE" in source
+    assert "DISK_AFTER" in source
+    assert "maintenance_fresh" in source
+    assert "current_partition_present" in source
+    assert "retention_current" in source
+
+
 def test_gate_b_resume_reuses_existing_plan_and_has_separate_holdout_authorization() -> None:
     source = RESUME.read_text(encoding="utf-8")
     assert "PHASE14_V2_GATE_B_RESUME_PARTIAL_DIR" in source
@@ -49,6 +67,24 @@ def test_gate_b_resume_reuses_existing_plan_and_has_separate_holdout_authorizati
     assert " evaluate-holdout " in source
     assert "run_v2_gate_b_research.py plan" not in source
     assert "recover_gate_b_non_holdout_labels" not in source
+
+
+def test_gate_b_resume_binds_storage_and_runtime_health() -> None:
+    source = RESUME.read_text(encoding="utf-8")
+    assert "PHASE14_V2_GATE_B_RESUME_STORAGE_EVIDENCE" in source
+    assert "PHASE14_V2_GATE_B_RESUME_STORAGE_EVIDENCE_SHA256" in source
+    assert 'sha256sum "$STORAGE_EVIDENCE"' in source
+    assert "SAFETY_FILE=/etc/bp/bp-prospective-runtime-safety.env" in source
+    assert "require_research_zero_money" in source
+    assert "require_services" in source
+    assert "read_recorder_config_workers" in source
+    assert '== "4"' in source
+    assert "run_storage_health" in source
+    assert "DISK_BEFORE" in source
+    assert "DISK_AFTER" in source
+    assert "maintenance_fresh" in source
+    assert "current_partition_present" in source
+    assert "retention_current" in source
 
 
 def test_gate_b_recovery_and_resume_helpers_have_clean_bash_syntax() -> None:
