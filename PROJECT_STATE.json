@@ -1247,7 +1247,7 @@
     "v2_gate_b_research_second_production_attempt_summary_present": false,
     "v2_gate_b_research_second_production_attempt_holdout_touched": false,
     "v2_gate_b_research_minimum_contiguous_epoch_hours": 18,
-    "v2_gate_b_research_retry_blocked_until_feature_only_readiness": true,
+    "v2_gate_b_research_retry_blocked_until_feature_only_readiness": false,
     "v2_gate_b_readiness_branch": "phase14-v2-gate-b-readiness",
     "v2_gate_b_readiness_status": "PRODUCTION_PASS_READY_TRUE_GATE_B_UNAUTHORIZED",
     "v2_gate_b_readiness_pr": 158,
