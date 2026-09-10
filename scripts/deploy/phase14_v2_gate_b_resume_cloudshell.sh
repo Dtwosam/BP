@@ -6,6 +6,8 @@ VM="${PHASE14_V2_GATE_B_RESUME_VM:-bp-recorder}"
 ZONE="${PHASE14_V2_GATE_B_RESUME_ZONE:-us-east1-c}"
 DEPLOYED_HEAD="${PHASE14_V2_GATE_B_RESUME_DEPLOYED_HEAD:-e9c7afc1536880e4612cb6e3d1a7282fa37c69f5}"
 ENV_FILE="${PHASE14_V2_GATE_B_RESUME_ENV_FILE:-/etc/bp/bp.env}"
+STORAGE_EVIDENCE="${PHASE14_V2_GATE_B_RESUME_STORAGE_EVIDENCE:-}"
+STORAGE_EVIDENCE_SHA256="${PHASE14_V2_GATE_B_RESUME_STORAGE_EVIDENCE_SHA256:-}"
 PARTIAL_DIR="${PHASE14_V2_GATE_B_RESUME_PARTIAL_DIR:?set exact failed Gate B evidence directory}"
 PLAN_SHA256="${PHASE14_V2_GATE_B_RESUME_PLAN_SHA256:?set exact frozen plan.json SHA-256}"
 APPROVAL="${PHASE14_V2_GATE_B_RESUME_APPROVAL:?set explicit SHA-bound resume approval}"
@@ -22,6 +24,8 @@ if [[ ! "$PLAN_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
   echo "invalid frozen plan SHA-256" >&2
   exit 2
 fi
+[[ "$STORAGE_EVIDENCE" == /* ]] || { echo "storage evidence path must be absolute" >&2; exit 2; }
+[[ "$STORAGE_EVIDENCE_SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo "invalid storage evidence SHA-256" >&2; exit 2; }
 case "$PARTIAL_DIR" in
   /var/lib/bp/evidence/phase14-v2-gate-b-*) ;;
   *) echo "partial directory is outside the canonical Gate B evidence root" >&2; exit 2 ;;
@@ -46,6 +50,8 @@ gcloud compute scp "$ARCHIVE" "$VM:$REMOTE_ARCHIVE" \
 printf -v HELPER_HEAD_Q '%q' "$LOCAL_HEAD"
 printf -v DEPLOYED_HEAD_Q '%q' "$DEPLOYED_HEAD"
 printf -v ENV_FILE_Q '%q' "$ENV_FILE"
+printf -v STORAGE_EVIDENCE_Q '%q' "$STORAGE_EVIDENCE"
+printf -v STORAGE_EVIDENCE_SHA256_Q '%q' "$STORAGE_EVIDENCE_SHA256"
 printf -v PARTIAL_DIR_Q '%q' "$PARTIAL_DIR"
 printf -v PLAN_SHA256_Q '%q' "$PLAN_SHA256"
 printf -v ARCHIVE_Q '%q' "$REMOTE_ARCHIVE"
@@ -57,6 +63,8 @@ set -Eeuo pipefail
 HELPER_HEAD=${PHASE14_V2_GATE_B_RESUME_HELPER_HEAD:?}
 DEPLOYED_HEAD=${PHASE14_V2_GATE_B_RESUME_DEPLOYED_HEAD:?}
 ENV_FILE=${PHASE14_V2_GATE_B_RESUME_ENV_FILE:?}
+STORAGE_EVIDENCE=${PHASE14_V2_GATE_B_RESUME_STORAGE_EVIDENCE:?}
+STORAGE_EVIDENCE_SHA256=${PHASE14_V2_GATE_B_RESUME_STORAGE_EVIDENCE_SHA256:?}
 PARTIAL_DIR=${PHASE14_V2_GATE_B_RESUME_PARTIAL_DIR:?}
 PLAN_SHA256=${PHASE14_V2_GATE_B_RESUME_PLAN_SHA256:?}
 ARCHIVE=${PHASE14_V2_GATE_B_RESUME_ARCHIVE:?}
@@ -72,6 +80,8 @@ CORE_SERVICES=(
   bp-live-predictor.service
   bp-prospective-outcomes.service
 )
+DISK_BEFORE=""
+DISK_AFTER=""
 
 fail() {
   echo "PHASE14_V2_GATE_B_RESUME=FAIL" >&2
@@ -90,8 +100,10 @@ case "$PARTIAL_DIR" in
 esac
 [[ -r "$ENV_FILE" ]] || fail "environment_file_missing"
 [[ -r "$SAFETY_FILE" ]] || fail "runtime_safety_file_missing"
+[[ -r "$STORAGE_EVIDENCE" ]] || fail "storage_evidence_missing"
 [[ -r "$ARCHIVE" ]] || fail "candidate_archive_missing"
 [[ "$(sha256sum "$ARCHIVE" | awk '{print $1}')" == "$ARCHIVE_SHA256" ]] || fail "candidate_archive_sha256_mismatch"
+[[ "$(sha256sum "$STORAGE_EVIDENCE" | awk '{print $1}')" == "$STORAGE_EVIDENCE_SHA256" ]] || fail "storage_evidence_sha256_mismatch"
 [[ "$(git -c safe.directory="$REPO" -C "$REPO" rev-parse HEAD)" == "$DEPLOYED_HEAD" ]] || fail "unexpected_deployed_head"
 [[ -d "$PARTIAL_DIR" ]] || fail "partial_dir_missing"
 test -f "$PARTIAL_DIR/plan.json" || fail "frozen_plan_missing"
@@ -125,7 +137,62 @@ require_services() {
   systemctl is-active --quiet bp-storage-maintenance.timer || fail "maintenance_timer_not_active"
   systemctl is-active --quiet bp-storage-disk-health.timer || fail "disk_health_timer_not_active"
   systemctl is-active --quiet bp-v2-forward-coverage.timer || fail "v2_timer_not_active"
+  systemctl is-enabled --quiet bp-v2-forward-coverage.timer || fail "v2_timer_not_enabled"
 }
+
+validate_deployed_checkout() {
+  local entry code path
+  while IFS= read -r entry; do
+    [[ -n "$entry" ]] || continue
+    code=${entry:0:2}
+    path=${entry:3}
+    if [[ "$code" == "??" ]]; then
+      case "$path" in
+        .node/*|apps/dashboard/.next/*|apps/dashboard/node_modules/*|apps/dashboard/tsconfig.tsbuildinfo) ;;
+        *) fail "unexpected_deployed_checkout_change:$path" ;;
+      esac
+    else
+      case "$path" in
+        apps/dashboard/next-env.d.ts|apps/dashboard/tsconfig.json) ;;
+        *) fail "unexpected_deployed_checkout_change:$path" ;;
+      esac
+    fi
+  done < <(git -c safe.directory="$REPO" -C "$REPO" status --porcelain --untracked-files=all)
+}
+
+read_recorder_config_workers() {
+  sudo -u bp env -u RECORDER_WRITER_WORKERS "$REPO/.venv/bin/python" - "$ENV_FILE" <<'PYWORKERS'
+from __future__ import annotations
+import sys
+from bp_engine.config import Settings
+print(Settings(_env_file=sys.argv[1]).recorder_writer_workers)
+PYWORKERS
+}
+
+run_storage_health() {
+  local destination=$1
+  if ! sudo -u bp "$REPO/.venv/bin/python" "$REPO/scripts/storage_maintenance.py" \
+      disk-health --env-file "$ENV_FILE" > "$destination"; then
+    cat "$destination" >&2 || true
+    fail "storage_health_command_failed"
+  fi
+  "$REPO/.venv/bin/python" - "$destination" <<'PYHEALTH'
+from __future__ import annotations
+import json
+import sys
+from pathlib import Path
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+if payload.get("status") != "ok":
+    raise SystemExit("storage health status is not ok")
+if payload.get("storage_mode") != "partitioned":
+    raise SystemExit("storage mode is not partitioned")
+guards = payload.get("guards") or {}
+for name in ("maintenance_fresh", "current_partition_present", "retention_current"):
+    if guards.get(name) is not True:
+        raise SystemExit(f"storage guard not satisfied: {name}")
+PYHEALTH
+}
+
 require_research_zero_money
 require_services
 
@@ -133,8 +200,14 @@ RUNTIME_ROOT=$(mktemp -d /var/tmp/bp-v2-gate-b-resume.XXXXXX)
 AUDIT=$(mktemp /var/tmp/bp-v2-gate-b-resume-audit.XXXXXX.json)
 cleanup() {
   rm -rf "$RUNTIME_ROOT" "$AUDIT" "$ARCHIVE"
+  [[ -z "$DISK_BEFORE" ]] || rm -f "$DISK_BEFORE"
+  [[ -z "$DISK_AFTER" ]] || rm -f "$DISK_AFTER"
 }
 trap cleanup EXIT
+validate_deployed_checkout
+[[ "$(read_recorder_config_workers)" == "4" ]] || fail "recorder_config_worker_count_not_4"
+DISK_BEFORE=$(mktemp /var/tmp/bp-v2-gate-b-resume-disk-before.XXXXXX.json)
+run_storage_health "$DISK_BEFORE"
 chmod 0755 "$RUNTIME_ROOT"
 tar -xzf "$ARCHIVE" -C "$RUNTIME_ROOT"
 [[ -f "$RUNTIME_ROOT/scripts/run_v2_gate_b_label_recovery.py" ]] || fail "candidate_label_audit_runner_missing"
@@ -203,7 +276,11 @@ PY
 
 require_research_zero_money
 require_services
+[[ "$(read_recorder_config_workers)" == "4" ]] || fail "recorder_config_worker_count_changed"
+validate_deployed_checkout
 [[ "$(git -c safe.directory="$REPO" -C "$REPO" rev-parse HEAD)" == "$DEPLOYED_HEAD" ]] || fail "deployed_head_changed"
+DISK_AFTER=$(mktemp /var/tmp/bp-v2-gate-b-resume-disk-after.XXXXXX.json)
+run_storage_health "$DISK_AFTER"
 
 "$REPO/.venv/bin/python" - "$PLAN" "$SELECTION" "$HOLDOUT" "$SUMMARY" "$HELPER_HEAD" "$DEPLOYED_HEAD" "$PLAN_SHA256" <<'PY'
 import hashlib
@@ -274,6 +351,8 @@ chmod 0640 "$SUMMARY"
 echo "PHASE14_V2_GATE_B_RESUME=PASS"
 echo "HELPER_HEAD=$HELPER_HEAD"
 echo "DEPLOYED_HEAD=$DEPLOYED_HEAD"
+echo "STORAGE_EVIDENCE=$STORAGE_EVIDENCE"
+echo "STORAGE_EVIDENCE_SHA256=$STORAGE_EVIDENCE_SHA256"
 echo "PARTIAL_EVIDENCE_DIR=$PARTIAL_DIR"
 echo "PLAN_FILE=$PLAN"
 echo "PLAN_SHA256=$PLAN_SHA256"
@@ -299,4 +378,4 @@ echo "CANDIDATE_ARCHIVE_SHA256=$ARCHIVE_SHA256"
 gcloud compute ssh "$VM" \
   --project="$PROJECT" \
   --zone="$ZONE" \
-  --command="printf '%s' '$REMOTE_B64' | base64 -d | sudo env PHASE14_V2_GATE_B_RESUME_HELPER_HEAD=$HELPER_HEAD_Q PHASE14_V2_GATE_B_RESUME_DEPLOYED_HEAD=$DEPLOYED_HEAD_Q PHASE14_V2_GATE_B_RESUME_ENV_FILE=$ENV_FILE_Q PHASE14_V2_GATE_B_RESUME_PARTIAL_DIR=$PARTIAL_DIR_Q PHASE14_V2_GATE_B_RESUME_PLAN_SHA256=$PLAN_SHA256_Q PHASE14_V2_GATE_B_RESUME_ARCHIVE=$ARCHIVE_Q PHASE14_V2_GATE_B_RESUME_ARCHIVE_SHA256=$ARCHIVE_SHA256_Q bash"
+  --command="printf '%s' '$REMOTE_B64' | base64 -d | sudo env PHASE14_V2_GATE_B_RESUME_HELPER_HEAD=$HELPER_HEAD_Q PHASE14_V2_GATE_B_RESUME_DEPLOYED_HEAD=$DEPLOYED_HEAD_Q PHASE14_V2_GATE_B_RESUME_ENV_FILE=$ENV_FILE_Q PHASE14_V2_GATE_B_RESUME_STORAGE_EVIDENCE=$STORAGE_EVIDENCE_Q PHASE14_V2_GATE_B_RESUME_STORAGE_EVIDENCE_SHA256=$STORAGE_EVIDENCE_SHA256_Q PHASE14_V2_GATE_B_RESUME_PARTIAL_DIR=$PARTIAL_DIR_Q PHASE14_V2_GATE_B_RESUME_PLAN_SHA256=$PLAN_SHA256_Q PHASE14_V2_GATE_B_RESUME_ARCHIVE=$ARCHIVE_Q PHASE14_V2_GATE_B_RESUME_ARCHIVE_SHA256=$ARCHIVE_SHA256_Q bash"
