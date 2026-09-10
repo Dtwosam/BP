@@ -21,9 +21,9 @@ def test_parser_exposes_audit_and_recover_for_existing_frozen_plan_only() -> Non
     assert recover.command == "recover"
     assert recover.plan == "/tmp/plan.json"
 
-    help_text = parser.format_help()
-    assert "plan" not in parser._subparsers._group_actions[0].choices or True
-    assert "frozen" in help_text.lower()
+    choices = parser._subparsers._group_actions[0].choices
+    assert set(choices) == {"audit", "recover"}
+    assert "frozen" in parser.description.lower()
 
 
 def test_safety_is_checked_before_engine_or_network_construction(monkeypatch: pytest.MonkeyPatch) -> None:
