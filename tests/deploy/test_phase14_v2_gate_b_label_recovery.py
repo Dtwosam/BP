@@ -12,7 +12,7 @@ def test_gate_b_label_recovery_helper_is_exact_main_and_frozen_plan_only() -> No
     assert 'test "$LOCAL_HEAD" = "$REMOTE_MAIN"' in source
     assert 'test -z "$(git status --porcelain)"' in source
     assert "PHASE14_V2_GATE_B_LABEL_RECOVERY_PARTIAL_DIR" in source
-    assert 'test -f "$PARTIAL_DIR/plan.json"' in source
+    assert '[[ -f "$PARTIAL_DIR/plan.json" ]]' in source
     assert 'test ! -e "$PARTIAL_DIR/selection.json"' in source
     assert 'test ! -e "$PARTIAL_DIR/holdout.json"' in source
     assert 'test ! -e "$PARTIAL_DIR/summary.json"' in source
