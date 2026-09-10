@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from threading import Barrier
 
 import pytest
-from sqlalchemy import create_engine, insert, text
+from sqlalchemy import create_engine, event, insert, text
 from sqlalchemy.exc import DBAPIError
 
 from bp_engine.config import Settings
@@ -704,6 +704,37 @@ def test_verified_partition_retirement_drops_relation_then_dedupe(engine, tmp_pa
     assert relation is None
     assert ledger_count == 0
 
+
+def test_partition_retirement_uses_partition_local_ctid_dedupe_batches(engine, tmp_path) -> None:
+    start_at = datetime(2026, 9, 4, 20, tzinfo=UTC)
+    events = _seed_partitioned_hour(engine, start_at, count=32)
+    end_at = start_at + timedelta(hours=1)
+    archive_dir = tmp_path / "archive"
+    manifest = archive_interval(engine, archive_dir, start_at, end_at)
+    archive_path, manifest_path = _archive_paths(archive_dir, manifest)
+    _advance_required_compact_feeds(engine, end_at + timedelta(seconds=1))
+    statements: list[str] = []
+
+    def capture_statement(conn, cursor, statement, parameters, context, executemany):
+        if "DELETE FROM raw_event_dedupe" in statement:
+            statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", capture_statement)
+    try:
+        result = retire_verified_partition(
+            engine, archive_path, manifest_path, batch_size=16
+        )
+    finally:
+        event.remove(engine, "before_cursor_execute", capture_statement)
+
+    assert result.dedupe_rows_removed == len(events)
+    assert statements
+    assert all("DELETE FROM raw_event_dedupe_h" in statement for statement in statements)
+    assert all("ctid" in statement for statement in statements)
+    assert all(
+        "DELETE FROM raw_event_dedupe AS target" not in statement
+        for statement in statements
+    )
 
 
 def _storage_settings(tmp_path, *, hot_raw_hours: int = 24) -> Settings:
