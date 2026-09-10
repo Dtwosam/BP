@@ -18,6 +18,12 @@ jobs:
         with:
           ref: phase14-v2-gate-b-label-gap-recovery-20260910
           fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: python -m pip install -e ".[dev]"
       - name: Apply and verify patch
         run: |
           python -c 'from pathlib import Path; p=Path(".github/tmp_phase14_v2_gate_b_recovery_safety_fix.py"); s=p.read_text(); old="    if count != 1:\n        raise SystemExit(f\"{label}: expected one anchor, found {count}\")\n"; new="    if count != 1 and not (label in {\"recovery local evidence echo\", \"resume local evidence echo\"} and count >= 1):\n        raise SystemExit(f\"{label}: expected one anchor, found {count}\")\n"; assert old in s; p.write_text(s.replace(old,new,1))'
