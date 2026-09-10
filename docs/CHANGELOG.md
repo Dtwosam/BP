@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.125 — 10 September 2026
+
+The explicitly authorized Phase 14 V2 Gate B research execution began at `2026-09-10T10:27:33Z` from helper/main head `0941684676ea35949ac938a3bca33012b6ea0e19` against deployed head `e9c7afc1536880e4612cb6e3d1a7282fa37c69f5`. Planning succeeded and wrote a frozen `plan.json`, but `prepare` failed before selection or final-holdout evaluation because non-holdout condition `0x15a96b013fa3009dc15f83df516116b583cce49325e313d578e51b8b5d9b70e8` lacked its canonical `official-outcome-v1` label. `selection.json`, `holdout.json`, and `summary.json` remained absent; `HOLDOUT_TOUCHED=false`; the Gate B path itself performed no production database mutation. The original one-shot authorization is consumed and must not be reused. Sanitized failure evidence is `docs/evidence/phase-14-v2-gate-b-attempt-20260910T102733Z.json`; transcript SHA-256 `88d9db1d071794c1e0fc96d94c010b335e0529f426d71423411db262c8b76546`.
+
+Recovery engineering is now green on `phase14-v2-gate-b-label-gap-recovery-20260910`. Implementation head `dd659527f70837ab80ac75e5158f9ab063fd78ef` passed CI `34472169586` with **1,055 tests**. The new label-recovery path is holdout-blind and frozen-plan-only: audit is read-only; recover may append only canonical post-resolution Gamma-derived labels for non-holdout condition IDs already named by the frozen plan, and requires fresh SHA-bound production authorization. A separate resume helper requires the exact same frozen `plan.json` SHA and zero remaining non-holdout label gaps; it cannot repair or replan and requires its own fresh authorization before `prepare -> evaluate-holdout`. No production repair or resume has been authorized/performed, and no final-holdout label has been read.
+
+D-040 records this boundary. V2 acceptance, automatic promotion, Phase 15, geographic bypass, live trading, and nonzero money remain unauthorized.
+
 ## 0.14.124 — 10 September 2026
 
 PR #170 final head `24291c53c199690e755c422b0d0b4f01d3a05719` passed all four exact-head gates, merged as `09bc0356f68e7237fc95a5dc375b9fd9a0685d3c`, and post-merge main CI `34463958011` passed, making the accepted `READY=true` readiness milestone canonical.

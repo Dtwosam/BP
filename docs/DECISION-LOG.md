@@ -338,3 +338,18 @@ The accepted `READY=true` prerequisite is merged to `main`. Explicit authorizati
 
 This authorization covers research evaluation only. It does not itself accept any V2 policy/model/calibration/edge/min-edge selection and does not authorize prospective V2 activation, automatic promotion, Phase 15, geographic bypass, live trading, or nonzero money. `MODE=research`, `LIVE_TRADING_ENABLED=false`, zero money limits, and `automatic_promotion=false` remain mandatory.
 
+
+
+## D-040 — A failed Gate B prepare freezes its plan; label repair and holdout resume require separate SHA-bound authorization
+**Date:** 10 Sep 2026
+**Status:** Active
+
+**Decision:** The Gate B attempt started at `2026-09-10T10:27:33Z` consumed D-039's one-shot execution authorization when it successfully wrote `plan.json` and entered `prepare`. Its subsequent missing non-holdout canonical-label failure does not authorize a clean rerun or a new plan. The existing `plan.json` is frozen and must be reused byte-for-byte.
+
+Non-holdout label recovery is a distinct production mutation boundary. Before any repair, a holdout-blind audit must bind the exact failed evidence directory and frozen plan SHA-256. Repair, if separately authorized, may append only canonical post-resolution Gamma-derived `official-outcome-v1` evidence for non-holdout condition IDs already in that frozen plan. It must not read final-holdout labels, write selection/holdout/summary artifacts, change the plan, or select policy.
+
+Gate B resume is a second distinct boundary. It requires a fresh audit with zero missing non-holdout labels plus a separate explicit approval bound to the exact current main head and the exact frozen `plan.json` SHA-256. Resume cannot perform label repair or replan; it may only execute the existing `prepare -> evaluate-holdout` sequence, with the final holdout evaluated once.
+
+**Reason:** This preserves the originally authorized chronology and validation geometry while allowing a narrowly scoped canonical-data repair. It prevents a failed prepare from becoming an implicit authorization to redraw the sample, peek at the holdout, or silently expand production mutation scope.
+
+**Safety:** At the time of this decision `selection.json`, `holdout.json`, and `summary.json` are absent and `HOLDOUT_TOUCHED=false`. No repair/resume production action is authorized by this decision. Research-only zero-money interlocks remain unchanged; V2 acceptance, automatic promotion, Phase 15, geographic bypass, live trading, and nonzero money remain blocked.

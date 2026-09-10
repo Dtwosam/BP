@@ -47,6 +47,7 @@ def generate_labels(
     end: datetime,
     generated_at: datetime,
     repository: MarketLabelRepository | None = None,
+    condition_ids: tuple[str, ...] | None = None,
 ) -> LabelGenerationStats:
     start = _require_aware(start, "start")
     end = _require_aware(end, "end")
@@ -54,8 +55,20 @@ def generate_labels(
     if start >= end:
         raise ValueError("start must be before end")
 
+    statement = select(polymarket_market_snapshots)
+    if condition_ids is not None:
+        if not condition_ids or any(
+            not isinstance(condition_id, str) or not condition_id.strip()
+            for condition_id in condition_ids
+        ):
+            raise ValueError("condition_ids must be non-empty condition identifiers")
+        scoped_condition_ids = tuple(sorted(set(condition_ids)))
+        statement = statement.where(
+            polymarket_market_snapshots.c.condition_id.in_(scoped_condition_ids)
+        )
+
     rows = connection.execute(
-        select(polymarket_market_snapshots).order_by(
+        statement.order_by(
             polymarket_market_snapshots.c.condition_id,
             polymarket_market_snapshots.c.downloaded_at,
             polymarket_market_snapshots.c.id,
