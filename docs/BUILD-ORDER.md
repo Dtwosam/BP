@@ -574,3 +574,13 @@ PR #98 merged the rollout/preflight configured-floor binding to `main` as `7ccc4
 Partitioned-storage migration/health acceptance, the recorder restart/reliability gate, and the research-only V2 forward-coverage runtime restoration are complete in production. Keep the recorder at `RECORDER_WRITER_WORKERS=4`, keep `bp-v2-forward-coverage.timer` active, and preserve normal storage maintenance/disk-health guards.
 
 The coverage-only V2 preregistration is now the immutable boundary before label-based research: coverage report = 426 markets / 1,704 rows, four complete offsets per market, zero future-cutoff violations, canonical hash `aab75574aa7faf18e65358353403e5ec1a2b89dd42424eb7b0e3329bf683b099`, candidates `[1, 2, 5, 10]` plus `no_trade`. Existing V1 evidence remains a separate immutable epoch. Selected-book freshness remains exactly 10 seconds. `MODE=research`, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, `MAX_DAILY_LOSS_USD=0`, and `automatic_promotion=false` remain mandatory. Gate B remains unauthorized until the separate V2 chronological validation/untouched-holdout acceptance criteria pass; Phase 15, geographic bypass, and live trading remain blocked.
+
+---
+
+## Phase 14 V2 Gate B frozen-plan label-gap recovery — 10 September 2026
+
+The authorized Gate B attempt from `0941684676ea35949ac938a3bca33012b6ea0e19` wrote `plan.json` and then failed in `prepare` on a missing canonical non-holdout label. Because the plan now exists, it is frozen: do not create another plan and do not reuse the consumed one-shot authorization. `selection.json`, `holdout.json`, and `summary.json` remain absent and the final holdout remains unread.
+
+Immediate order: (1) run `scripts/deploy/phase14_v2_gate_b_label_recovery_cloudshell.sh` in `audit` mode only; (2) if canonical non-holdout labels are missing, obtain fresh SHA-bound repair authorization before `recover`; (3) audit again until missing count is zero; (4) obtain a separate fresh SHA-bound resume authorization before `scripts/deploy/phase14_v2_gate_b_resume_cloudshell.sh`; (5) resume only the same frozen plan through `prepare -> evaluate-holdout`. No new plan, holdout cherry-pick, automatic promotion, Phase 15, live trading, or money change is permitted.
+
+Engineering implementation `dd659527f70837ab80ac75e5158f9ab063fd78ef` passed CI `34472169586` with 1,055 tests. No production recovery/resume mutation has been performed.
