@@ -40,3 +40,5 @@ jobs:
           git add -A
           git commit -m "fix Gate B one-shot and label provenance review blockers"
           git push origin HEAD:phase14-v2-gate-b-label-gap-recovery-20260910
+
+# Retriggered after lint-only review guard formatting correction.
