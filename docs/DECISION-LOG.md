@@ -320,3 +320,13 @@ The production recovery candidate is therefore a clean descendant of the accepte
 
 The recovery gate requires the already accepted `RECORDER_WRITER_WORKERS=4` setting and does not edit the environment file. It validates healthy partitioned storage before mutation, runs one maintenance cycle with the recorder stopped, then proves the fixed lock path under real recorder load by forcing a second maintenance cycle while the recorder is active and requiring the recorder MainPID/restart count to remain unchanged. Any post-checkout failure stops the recorder and returns the checkout to the accepted head. Production execution remains a separate explicit authorization; Gate B, final-holdout access, automatic promotion, Phase 15, and live/money settings remain blocked.
 
+## D-038 — READY=true ends the feature-chronology blocker but does not authorize Gate B
+**Date:** 10 Sep 2026
+**Status:** Active
+
+The accepted Phase 14 V2 feature-only readiness run at `2026-09-10T09:07:50Z` returned `READY=true` under the frozen Gate B planning contract. The exact-main helper observed 651 immutable V2 markets, accepted analysis start `2026-09-09T10:20:00Z`, produced five eligible ordinary folds, and identified 24 feature-only markets in the final-holdout time window. The readiness run read no labels, wrote no plan or selection artifact, did not evaluate final-holdout outcomes, and preserved `HOLDOUT_TOUCHED=false`.
+
+This result closes only the feature-chronology readiness blocker. It does not authorize Gate B execution or permit labels/outcomes to be joined, a Gate B plan or selection to be frozen, the final holdout to be evaluated, or any V2 policy/model/calibration/edge/min-edge choice to be accepted. Those actions remain behind a separate explicit Gate B authorization. Automatic promotion remains false, Phase 15 remains blocked, live trading remains disabled, and real-money limits remain zero.
+
+Because the readiness prerequisite is now satisfied, repeated readiness polling is no longer required for the current Gate B path. The optional readiness watcher remains uninstalled; no production installation should be inferred or performed from `READY=true`.
+
