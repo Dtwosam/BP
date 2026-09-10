@@ -28,9 +28,21 @@ class GateBLabelRecoveryIntegrityError(RuntimeError):
     """Raised when frozen Gate B non-holdout label recovery cannot stay leakage-safe."""
 
 
-def _utc(value: datetime) -> datetime:
+def _require_aware_utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise GateBLabelRecoveryIntegrityError("timestamps must be timezone-aware")
+    return value.astimezone(UTC)
+
+
+def _stored_utc(value: datetime) -> datetime:
+    """Normalize timestamps returned by supported database drivers.
+
+    PostgreSQL preserves TIMESTAMPTZ awareness. SQLite strips tzinfo from the same
+    SQLAlchemy timezone-aware columns, so stored values are interpreted as UTC just
+    like the rest of the repository's database-normalization helpers.
+    """
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
 
 
@@ -78,8 +90,8 @@ def _static_feature_identity(
         "condition_id": condition_id,
         "slug": str(first["slug"]),
         "horizon_seconds": int(first["horizon_seconds"]),
-        "market_start_at": _utc(first["market_start_at"]),
-        "market_end_at": _utc(first["market_end_at"]),
+        "market_start_at": _stored_utc(first["market_start_at"]),
+        "market_end_at": _stored_utc(first["market_end_at"]),
     }
     if identity["horizon_seconds"] != 300:
         raise GateBLabelRecoveryIntegrityError(
@@ -100,8 +112,8 @@ def _static_feature_identity(
         observed = (
             str(row["slug"]),
             int(row["horizon_seconds"]),
-            _utc(row["market_start_at"]),
-            _utc(row["market_end_at"]),
+            _stored_utc(row["market_start_at"]),
+            _stored_utc(row["market_end_at"]),
         )
         if observed != expected:
             raise GateBLabelRecoveryIntegrityError(
@@ -178,8 +190,8 @@ def _validate_gamma_identity(expected: dict[str, Any], payload: Mapping[str, Any
         expected["condition_id"],
         expected["slug"],
         int(expected["horizon_seconds"]),
-        datetime.fromisoformat(expected["market_start_at"]),
-        datetime.fromisoformat(expected["market_end_at"]),
+        _require_aware_utc(datetime.fromisoformat(expected["market_start_at"])),
+        _require_aware_utc(datetime.fromisoformat(expected["market_end_at"])),
     )
     if actual != required:
         raise GateBLabelRecoveryIntegrityError(
@@ -196,7 +208,7 @@ async def recover_gate_b_non_holdout_labels(
     observed_at: datetime,
 ) -> dict[str, Any]:
     """Append missing canonical labels for frozen non-holdout IDs only."""
-    observed_at = _utc(observed_at)
+    observed_at = _require_aware_utc(observed_at)
     repository = HistoricalRepository()
 
     with engine.begin() as connection:
