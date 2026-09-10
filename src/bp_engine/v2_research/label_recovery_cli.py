@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -78,7 +77,6 @@ async def _recover(engine: Engine, *, plan: dict[str, Any]) -> dict[str, Any]:
         engine,
         GammaClient(),
         plan=plan,
-        observed_at=datetime.now(UTC),
     )
 
 

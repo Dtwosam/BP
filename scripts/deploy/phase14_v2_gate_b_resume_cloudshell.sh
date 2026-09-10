@@ -67,6 +67,7 @@ STORAGE_EVIDENCE=${PHASE14_V2_GATE_B_RESUME_STORAGE_EVIDENCE:?}
 STORAGE_EVIDENCE_SHA256=${PHASE14_V2_GATE_B_RESUME_STORAGE_EVIDENCE_SHA256:?}
 PARTIAL_DIR=${PHASE14_V2_GATE_B_RESUME_PARTIAL_DIR:?}
 PLAN_SHA256=${PHASE14_V2_GATE_B_RESUME_PLAN_SHA256:?}
+HOLDOUT_ATTEMPT="$PARTIAL_DIR/holdout-attempt.json"
 ARCHIVE=${PHASE14_V2_GATE_B_RESUME_ARCHIVE:?}
 ARCHIVE_SHA256=${PHASE14_V2_GATE_B_RESUME_ARCHIVE_SHA256:?}
 REPO=/opt/bp
@@ -86,8 +87,9 @@ DISK_AFTER=""
 fail() {
   echo "PHASE14_V2_GATE_B_RESUME=FAIL" >&2
   echo "REASON=$1" >&2
-  if [[ -f "$PARTIAL_DIR/holdout.json" ]]; then
+  if [[ -f "$HOLDOUT_ATTEMPT" || -f "$PARTIAL_DIR/holdout.json" ]]; then
     echo "HOLDOUT_TOUCHED=true" >&2
+    [[ ! -f "$HOLDOUT_ATTEMPT" ]] || echo "HOLDOUT_ATTEMPT_FILE=$HOLDOUT_ATTEMPT" >&2
   else
     echo "HOLDOUT_TOUCHED=false" >&2
   fi
@@ -110,6 +112,7 @@ test -f "$PARTIAL_DIR/plan.json" || fail "frozen_plan_missing"
 test ! -e "$PARTIAL_DIR/selection.json" || fail "selection_already_present"
 test ! -e "$PARTIAL_DIR/holdout.json" || fail "holdout_already_present"
 test ! -e "$PARTIAL_DIR/summary.json" || fail "summary_already_present"
+test ! -e "$HOLDOUT_ATTEMPT" || fail "holdout_attempt_already_present"
 [[ "$(sha256sum "$PARTIAL_DIR/plan.json" | awk '{print $1}')" == "$PLAN_SHA256" ]] || fail "frozen_plan_sha256_mismatch"
 
 read_env() {
@@ -228,6 +231,38 @@ run_research() {
     --env-file "$ENV_FILE" "$@"
 }
 
+write_holdout_attempt_marker() {
+  sudo -u bp "$REPO/.venv/bin/python" - "$HOLDOUT_ATTEMPT" "$HELPER_HEAD" "$PLAN_SHA256" <<'PYMARKER'
+from __future__ import annotations
+
+import json
+import os
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
+
+path = Path(sys.argv[1])
+payload = {
+    "stage": "final_holdout_evaluation_attempted",
+    "recorded_at": datetime.now(UTC).isoformat(),
+    "helper_head": sys.argv[2],
+    "frozen_plan_file_sha256": sys.argv[3],
+    "holdout_touched": True,
+    "evaluation_result_known": False,
+}
+with path.open("x", encoding="utf-8") as handle:
+    handle.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    handle.flush()
+    os.fsync(handle.fileno())
+dir_fd = os.open(path.parent, os.O_RDONLY)
+try:
+    os.fsync(dir_fd)
+finally:
+    os.close(dir_fd)
+PYMARKER
+  chmod 0640 "$HOLDOUT_ATTEMPT"
+}
+
 run_label_audit audit > "$AUDIT" 2>/dev/null || run_label_audit > "$AUDIT" || fail "non_holdout_label_audit_failed"
 "$REPO/.venv/bin/python" - "$AUDIT" <<'PY' || fail "non_holdout_labels_not_ready"
 import json
@@ -260,6 +295,7 @@ if payload.get("gate_b_authorized") is not False or payload.get("automatic_promo
 PY
 
 test ! -e "$HOLDOUT" || fail "holdout_preexists_before_evaluation"
+write_holdout_attempt_marker || fail "holdout_attempt_marker_write_failed"
 run_research evaluate-holdout --plan "$PLAN" --selection "$SELECTION" --output "$HOLDOUT" >/dev/null || fail "gate_b_holdout_failed"
 "$REPO/.venv/bin/python" - "$HOLDOUT" <<'PY' || fail "gate_b_holdout_verification_failed"
 import json
@@ -282,13 +318,13 @@ validate_deployed_checkout
 DISK_AFTER=$(mktemp /var/tmp/bp-v2-gate-b-resume-disk-after.XXXXXX.json)
 run_storage_health "$DISK_AFTER"
 
-"$REPO/.venv/bin/python" - "$PLAN" "$SELECTION" "$HOLDOUT" "$SUMMARY" "$HELPER_HEAD" "$DEPLOYED_HEAD" "$PLAN_SHA256" <<'PY'
+"$REPO/.venv/bin/python" - "$PLAN" "$SELECTION" "$HOLDOUT" "$HOLDOUT_ATTEMPT" "$SUMMARY" "$HELPER_HEAD" "$DEPLOYED_HEAD" "$PLAN_SHA256" <<'PY'
 import hashlib
 import json
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-plan_path, selection_path, holdout_path, output_path, helper_head, deployed_head, frozen_plan_file_sha = sys.argv[1:]
+plan_path, selection_path, holdout_path, holdout_attempt_path, output_path, helper_head, deployed_head, frozen_plan_file_sha = sys.argv[1:]
 def load(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 def sha(path):
@@ -307,6 +343,11 @@ payload = {
     "database_access": "read_only_gate_b_stages",
     "production_checkout_mutated": False,
     "production_database_mutated_by_resume": False,
+    "holdout_attempt": {
+        "artifact": holdout_attempt_path,
+        "sha256": sha(holdout_attempt_path),
+        "holdout_touched": True,
+    },
     "plan": {
         "artifact": plan_path,
         "sha256": sha(plan_path),
@@ -357,6 +398,7 @@ echo "PARTIAL_EVIDENCE_DIR=$PARTIAL_DIR"
 echo "PLAN_FILE=$PLAN"
 echo "PLAN_SHA256=$PLAN_SHA256"
 echo "SELECTION_FILE=$SELECTION"
+echo "HOLDOUT_ATTEMPT_FILE=$HOLDOUT_ATTEMPT"
 echo "HOLDOUT_FILE=$HOLDOUT"
 echo "SUMMARY_FILE=$SUMMARY"
 echo "HOLDOUT_TOUCHED=true"

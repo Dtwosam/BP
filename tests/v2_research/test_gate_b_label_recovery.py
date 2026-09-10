@@ -231,11 +231,15 @@ async def test_recovery_fetches_only_missing_non_holdout_and_creates_canonical_l
     client = FakeGammaClient({missing_slug: _resolved_payload("test")})
     observed_at = STARTS["holdout"] + timedelta(hours=1)
 
+    def clock() -> datetime:
+        assert client.calls == [missing_slug]
+        return observed_at
+
     report = await recover_gate_b_non_holdout_labels(
         engine,
         client,
         plan=_plan(),
-        observed_at=observed_at,
+        clock=clock,
     )
 
     with engine.begin() as connection:
@@ -273,7 +277,7 @@ async def test_recovery_skips_existing_labels_without_gamma_requests() -> None:
         engine,
         client,
         plan=_plan(),
-        observed_at=STARTS["holdout"] + timedelta(hours=1),
+        clock=lambda: STARTS["holdout"] + timedelta(hours=1),
     )
 
     assert client.calls == []
@@ -303,7 +307,7 @@ async def test_unresolved_non_holdout_remains_pending_without_label() -> None:
         engine,
         client,
         plan=_plan(),
-        observed_at=STARTS["holdout"] + timedelta(hours=1),
+        clock=lambda: STARTS["holdout"] + timedelta(hours=1),
     )
 
     assert client.calls == [missing_slug]
@@ -337,7 +341,7 @@ async def test_recovery_identity_mismatch_fails_closed_before_write() -> None:
             engine,
             client,
             plan=_plan(),
-            observed_at=STARTS["holdout"] + timedelta(hours=1),
+            clock=lambda: STARTS["holdout"] + timedelta(hours=1),
         )
 
     with engine.begin() as connection:
@@ -369,13 +373,13 @@ async def test_recovery_rerun_is_idempotent() -> None:
         engine,
         client,
         plan=_plan(),
-        observed_at=observed_at,
+        clock=lambda: observed_at,
     )
     second = await recover_gate_b_non_holdout_labels(
         engine,
         client,
         plan=_plan(),
-        observed_at=observed_at + timedelta(minutes=1),
+        clock=lambda: observed_at + timedelta(minutes=1),
     )
 
     assert first["created_labels"] == 1

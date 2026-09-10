@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
@@ -26,6 +26,10 @@ class GammaMarketClient(Protocol):
 
 class GateBLabelRecoveryIntegrityError(RuntimeError):
     """Raised when frozen Gate B non-holdout label recovery cannot stay leakage-safe."""
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
 
 
 def _require_aware_utc(value: datetime) -> datetime:
@@ -205,10 +209,9 @@ async def recover_gate_b_non_holdout_labels(
     client: GammaMarketClient,
     *,
     plan: dict[str, Any],
-    observed_at: datetime,
+    clock: Callable[[], datetime] = _utc_now,
 ) -> dict[str, Any]:
     """Append missing canonical labels for frozen non-holdout IDs only."""
-    observed_at = _require_aware_utc(observed_at)
     repository = HistoricalRepository()
 
     with engine.begin() as connection:
@@ -224,6 +227,7 @@ async def recover_gate_b_non_holdout_labels(
     for condition_id in missing_before:
         identity = _identity_from_audit(before, condition_id)
         payload = await client.get_market_by_slug(identity["slug"])
+        response_observed_at = _require_aware_utc(clock())
         if payload is None:
             pending.append(condition_id)
             continue
@@ -238,7 +242,7 @@ async def recover_gate_b_non_holdout_labels(
             condition_id=market.condition_id,
             gamma_market_id=market.gamma_market_id,
             slug=market.slug,
-            downloaded_at=observed_at,
+            downloaded_at=response_observed_at,
             payload_sha256=canonical_json_sha256(payload_dict),
             payload=payload_dict,
         )
@@ -251,7 +255,7 @@ async def recover_gate_b_non_holdout_labels(
                 connection,
                 start=market.window_start_at,
                 end=market.window_start_at + timedelta(microseconds=1),
-                generated_at=observed_at,
+                generated_at=response_observed_at,
                 condition_ids=(condition_id,),
             )
 
