@@ -63,13 +63,14 @@ state_insert = state_anchor + (
 )
 state = replace_once(state, state_anchor, state_insert, label="state recovery fields")
 parsed = json.loads(state)
+v2 = parsed["phase_14_market_price_v2_followup"]
 assert parsed["source_of_truth_version"] == "0.14.126"
-assert parsed["phase_14_checkpoint"]["v2_gate_b_label_gap_recovery_merge_commit"] == MAIN
-assert parsed["phase_14_checkpoint"]["v2_gate_b_label_gap_recovery_post_merge_ci_passed"] is True
-assert parsed["phase_14_checkpoint"]["v2_gate_b_label_gap_recovery_production_mutation_authorized"] is False
-assert parsed["phase_14_checkpoint"]["v2_gate_b_label_gap_recovery_production_mutation_performed"] is False
-assert parsed["phase_14_checkpoint"]["v2_gate_b_resume_authorized"] is False
-assert parsed["phase_14_checkpoint"]["v2_gate_b_resume_performed"] is False
+assert v2["v2_gate_b_label_gap_recovery_merge_commit"] == MAIN
+assert v2["v2_gate_b_label_gap_recovery_post_merge_ci_passed"] is True
+assert v2["v2_gate_b_label_gap_recovery_production_mutation_authorized"] is False
+assert v2["v2_gate_b_label_gap_recovery_production_mutation_performed"] is False
+assert v2["v2_gate_b_resume_authorized"] is False
+assert v2["v2_gate_b_resume_performed"] is False
 STATE.write_text(state, encoding="utf-8")
 
 master = MASTER.read_text(encoding="utf-8")
