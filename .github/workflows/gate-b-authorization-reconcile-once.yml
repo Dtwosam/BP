@@ -12,7 +12,6 @@ permissions:
 
 jobs:
   reconcile:
-    if: github.ref == 'refs/heads/phase14-v2-gate-b-authorization-20260910'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout authorization branch
@@ -21,138 +20,9 @@ jobs:
           ref: phase14-v2-gate-b-authorization-20260910
           fetch-depth: 0
           persist-credentials: true
-
-      - name: Record Gate B authorization boundary
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          AUTH_AT = '2026-09-10T10:05:28Z'
-          BASE_MAIN = '09bc0356f68e7237fc95a5dc375b9fd9a0685d3c'
-          READY_HEAD = '24291c53c199690e755c422b0d0b4f01d3a05719'
-          READY_MERGE = '09bc0356f68e7237fc95a5dc375b9fd9a0685d3c'
-          READY_CI = 34463958011
-
-          state_path = Path('PROJECT_STATE.json')
-          state = json.loads(state_path.read_text())
-          assert state['source_of_truth_version'] == '0.14.123'
-          assert state['trading_mode'] == 'RESEARCH'
-          assert state['live_trading_enabled'] is False
-
-          checkpoint = None
-          def walk(value):
-              global checkpoint
-              if isinstance(value, dict):
-                  if 'v2_gate_b_readiness_status' in value:
-                      checkpoint = value
-                      return
-                  for item in value.values():
-                      walk(item)
-                      if checkpoint is not None:
-                          return
-              elif isinstance(value, list):
-                  for item in value:
-                      walk(item)
-                      if checkpoint is not None:
-                          return
-          walk(state)
-          assert checkpoint is not None
-          assert checkpoint['v2_gate_b_readiness_last_result'] is True
-          assert checkpoint['v2_gate_b_readiness_feature_only_prerequisite_satisfied'] is True
-          assert checkpoint['v2_gate_b_readiness_holdout_touched'] is False
-          assert checkpoint['v2_gate_b_research_gate_b_authorized'] is False
-          assert checkpoint['v2_gate_b_research_automatic_promotion'] is False
-          assert checkpoint['v2_gate_b_research_production_run_performed'] is False
-
-          state['source_of_truth_version'] = '0.14.124'
-          state['updated_at'] = AUTH_AT
-          for item in [
-              f'Phase 14 V2 READY=true readiness evidence merged by PR #170 at {READY_MERGE}; exact PR head {READY_HEAD} passed all four exact-head gates and post-merge main CI {READY_CI} passed',
-              f'Explicit Phase 14 V2 Gate B research execution authorization granted at {AUTH_AT}: one exact-main research-only plan -> prepare -> evaluate-holdout run is authorized; automatic promotion, Phase 15, live trading, geographic bypass, and nonzero money remain unauthorized',
-          ]:
-              if item not in state['completed']:
-                  state['completed'].append(item)
-          state['next_actions'] = [
-              'Execute exactly one Phase 14 V2 Gate B research run from the clean current main using scripts/deploy/phase14_v2_gate_b_research_cloudshell.sh, bound to deployed head e9c7afc1536880e4612cb6e3d1a7282fa37c69f5 and the accepted partitioned-storage evidence. Authorized scope: plan -> prepare -> evaluate-holdout -> summary only; do not alter frozen research geometry or candidate grids.',
-              'Planning must remain label-free. Prepare may read only non-holdout labels and must freeze the validation-selected policy before final-holdout labels are read. evaluate-holdout may read the hash-bound final holdout exactly once. If a holdout artifact is produced, do not rerun or select a different holdout from its result.',
-              'After execution, record exact artifact hashes, selected policy/calibration/edge parameters, final-holdout metrics, and safety checks before any downstream decision. Gate B execution authorization is not automatic V2 policy acceptance.',
-              'Keep MODE=research, LIVE_TRADING_ENABLED=false, MAX_TRADE_SIZE_USD=0, MAX_DAILY_LOSS_USD=0, and automatic_promotion=false. Phase 15, geographic bypass, live trading, and nonzero money remain separately blocked.',
-          ]
-          checkpoint.update({
-              'v2_gate_b_readiness_status': 'PRODUCTION_PASS_READY_TRUE_GATE_B_AUTHORIZED_NOT_RUN',
-              'v2_gate_b_readiness_acceptance_pr': 170,
-              'v2_gate_b_readiness_acceptance_final_head': READY_HEAD,
-              'v2_gate_b_readiness_acceptance_merge_commit': READY_MERGE,
-              'v2_gate_b_readiness_acceptance_post_merge_ci_run_id': READY_CI,
-              'v2_gate_b_readiness_acceptance_post_merge_ci_passed': True,
-              'v2_gate_b_research_gate_b_authorized': True,
-              'v2_gate_b_research_gate_b_authorized_at': AUTH_AT,
-              'v2_gate_b_research_gate_b_authorization_scope': 'ONE_SHOT_RESEARCH_PLAN_PREPARE_FINAL_HOLDOUT_EVALUATION_ONLY',
-              'v2_gate_b_research_gate_b_authorization_source': 'explicit_user_authorization',
-              'v2_gate_b_research_gate_b_authorized_from_main_head': BASE_MAIN,
-              'v2_gate_b_research_gate_b_execution_status': 'AUTHORIZED_NOT_RUN',
-              'v2_gate_b_research_automatic_promotion': False,
-              'v2_gate_b_readiness_holdout_touched': False,
-          })
-          state_path.write_text(json.dumps(state, indent=2) + '\n')
-
-          build = Path('docs/BUILD-ORDER.md')
-          text = build.read_text()
-          start = text.index('## Immediate next action')
-          end = text.index('\n\nProduction preflight evidence', start)
-          block = '''## Immediate next action
-
-**The Phase 14 V2 feature-only readiness prerequisite is satisfied and Gate B research execution is explicitly authorized for one exact-main run. Execute `scripts/deploy/phase14_v2_gate_b_research_cloudshell.sh` from the clean current `main`, bound to accepted deployed head `e9c7afc1536880e4612cb6e3d1a7282fa37c69f5` and the accepted partitioned-storage evidence. The authorized sequence is `plan` -> `prepare` -> `evaluate-holdout` -> summary exactly once. Planning stays label-free; `prepare` keeps final-holdout labels unread and freezes the validation-selected policy; only `evaluate-holdout` may read the frozen holdout labels. If a holdout artifact is created, do not rerun or select another holdout. This authorization does not enable automatic promotion, prospective V2 activation, Phase 15, geographic bypass, live trading, or nonzero money. Research/live-disabled/zero-money controls remain mandatory.**'''
-          build.write_text(text[:start] + block + text[end:])
-
-          changelog = Path('docs/CHANGELOG.md')
-          text = changelog.read_text()
-          marker = '# Changelog\n\n'
-          assert text.startswith(marker)
-          entry = '''## 0.14.124 — 10 September 2026
-
-PR #170 final head `24291c53c199690e755c422b0d0b4f01d3a05719` passed all four exact-head gates, merged as `09bc0356f68e7237fc95a5dc375b9fd9a0685d3c`, and post-merge main CI `34463958011` passed, making the accepted `READY=true` readiness milestone canonical.
-
-At `2026-09-10T10:05:28Z`, explicit authorization was granted for one Phase 14 V2 Gate B research execution using the existing frozen `plan` -> `prepare` -> `evaluate-holdout` sequence. Planning remains label-free; preparation must freeze the validation-selected policy before final-holdout labels are read; the hash-bound final holdout may then be evaluated exactly once. This authorization is not automatic policy acceptance and does not authorize prospective V2 activation, automatic promotion, Phase 15, geographic bypass, live trading, or nonzero money.
-
-'''
-          changelog.write_text(marker + entry + text[len(marker):])
-
-          master = Path('docs/MASTER-SOURCE-OF-TRUTH.md')
-          text = master.read_text()
-          old = 'Gate B remains unauthorized; no policy acceptance, prospective V2 activation, paper execution, promotion, Phase 15, or live/money change has occurred, and `automatic_promotion=false` remains mandatory.'
-          new = 'Gate B one-shot research execution is now explicitly authorized for the existing exact-main `plan` -> `prepare` -> `evaluate-holdout` sequence only. This permits the frozen final holdout to be read and evaluated exactly once after validation selection is frozen; it does not itself accept a V2 policy or authorize prospective V2 activation, automatic promotion, Phase 15, geographic bypass, live trading, or nonzero money. `automatic_promotion=false` and all research/zero-money controls remain mandatory.'
-          assert old in text
-          master.write_text(text.replace(old, new, 1))
-
-          decisions = Path('docs/DECISION-LOG.md')
-          text = decisions.read_text().rstrip()
-          if '## D-039 — Gate B research execution is authorized once without downstream promotion' not in text:
-              text += '''
-
-## D-039 — Gate B research execution is authorized once without downstream promotion
-**Date:** 10 Sep 2026
-**Status:** Active
-
-The accepted `READY=true` prerequisite is merged to `main`. Explicit authorization is granted for one Phase 14 V2 Gate B research execution under the frozen contract: label-free `plan`, labeled non-holdout `prepare`, then one-time `evaluate-holdout` against the hash-bound final holdout. Validation selection must be frozen before final-holdout labels are read, and a produced holdout artifact makes the final evaluation one-shot; its result must not be used to select another holdout or alter preregistered search geometry.
-
-This authorization covers research evaluation only. It does not itself accept any V2 policy/model/calibration/edge/min-edge selection and does not authorize prospective V2 activation, automatic promotion, Phase 15, geographic bypass, live trading, or nonzero money. `MODE=research`, `LIVE_TRADING_ENABLED=false`, zero money limits, and `automatic_promotion=false` remain mandatory.
-'''
-          decisions.write_text(text + '\n')
-
-          contract = Path('tests/v2_research/test_gate_b_contract.py')
-          text = contract.read_text()
-          old = '    assert checkpoint["v2_gate_b_research_gate_b_authorized"] is False\n'
-          assert old in text
-          text = text.replace(old, '    assert checkpoint["v2_gate_b_research_gate_b_authorized"] is True\n', 1)
-          old = '''    assert checkpoint["v2_gate_b_readiness_status"] == (\n        "PRODUCTION_PASS_READY_TRUE_GATE_B_UNAUTHORIZED"\n    )\n'''
-          new = '''    assert checkpoint["v2_gate_b_readiness_status"] == (\n        "PRODUCTION_PASS_READY_TRUE_GATE_B_AUTHORIZED_NOT_RUN"\n    )\n    assert checkpoint["v2_gate_b_research_gate_b_authorization_scope"] == (\n        "ONE_SHOT_RESEARCH_PLAN_PREPARE_FINAL_HOLDOUT_EVALUATION_ONLY"\n    )\n    assert checkpoint["v2_gate_b_research_gate_b_execution_status"] == "AUTHORIZED_NOT_RUN"\n'''
-          assert old in text
-          contract.write_text(text.replace(old, new, 1))
-          PY
-
-      - name: Verify and commit
+      - name: Reconcile canonical authorization state
+        run: python scripts/dev/record_phase14_v2_gate_b_authorization.py
+      - name: Verify boundaries and commit
         run: |
           python - <<'PY'
           import json
@@ -171,6 +41,7 @@ This authorization covers research evaluation only. It does not itself accept an
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git rm .github/workflows/gate-b-authorization-reconcile-once.yml
+          git rm scripts/dev/record_phase14_v2_gate_b_authorization.py
           git add PROJECT_STATE.json docs/BUILD-ORDER.md docs/CHANGELOG.md docs/MASTER-SOURCE-OF-TRUTH.md docs/DECISION-LOG.md tests/v2_research/test_gate_b_contract.py
           git diff --cached --check
           git diff --cached --quiet && { echo 'expected authorization changes missing' >&2; exit 1; }
