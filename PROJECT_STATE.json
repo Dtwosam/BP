@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.127",
-  "updated_at": "2026-09-10T16:14:08Z",
+  "source_of_truth_version": "0.14.128",
+  "updated_at": "2026-09-10T16:56:00Z",
   "current_phase": 14,
   "current_phase_name": "live readiness \u2014 engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -640,16 +640,17 @@
     "Explicit Phase 14 V2 Gate B research execution authorization granted at 2026-09-10T10:05:28Z: one exact-main research-only plan -> prepare -> evaluate-holdout run is authorized; automatic promotion, Phase 15, live trading, geographic bypass, and nonzero money remain unauthorized",
     "The explicitly authorized Phase 14 V2 Gate B run started from exact main 0941684676ea35949ac938a3bca33012b6ea0e19, wrote a frozen plan, and failed during prepare before selection/final-holdout evaluation because a frozen non-holdout condition lacked its canonical official-outcome-v1 label; the final holdout remained unread/untouched and the one-shot authorization was consumed",
     "Phase 14 V2 frozen-plan label-gap recovery engineering now provides a holdout-blind audit/recovery path plus a separate same-plan resume path, each fail-closed and SHA-bound; implementation head dd659527f70837ab80ac75e5158f9ab063fd78ef passed CI 34472169586 with 1,055 tests, and no production recovery/resume action has been authorized or performed",
-    "Phase 14 read-only frozen-plan label-recovery audit reached production but failed closed before label inspection because composite partitioned-storage health was not ok; diagnostics traced the stale maintenance heartbeat to global dedupe-ledger cleanup scanning/hash-building across approximately 24.4 million rows per 50k batch, and PR #174 merged the partition-local indexed ctid cleanup fix as ad71eb4d72948a023e57eca51c99ebce700df0a6 after all exact-head gates and post-merge CI passed 1,060 tests"
+    "Phase 14 read-only frozen-plan label-recovery audit reached production but failed closed before label inspection because composite partitioned-storage health was not ok; diagnostics traced the stale maintenance heartbeat to global dedupe-ledger cleanup scanning/hash-building across approximately 24.4 million rows per 50k batch, and PR #174 merged the partition-local indexed ctid cleanup fix as ad71eb4d72948a023e57eca51c99ebce700df0a6 after all exact-head gates and post-merge CI passed 1,060 tests",
+    "Phase 14 dedupe cleanup production-recovery engineering now has immutable candidate 71b33d3beaba4a11ef93e7c5bde1c517323f3440 based on deployed e9c7afc1536880e4612cb6e3d1a7282fa37c69f5, verification-only PR #176 CI passed and was closed unmerged, and exact-SHA recovery helper PR #177 merged as a09837c0304325d783a7cc94f552b35665435640; post-merge CI 34504827764 passed 1,065 tests and production remains unchanged pending fresh exact authorization"
   ],
   "not_completed": [
-    "Production deployment and acceptance of the PR #174 partition-local dedupe cleanup fix, restoring fresh composite storage health before another Gate B label audit",
+    "Production execution and acceptance of the exact-SHA PR #174 dedupe-cleanup recovery candidate 71b33d3beaba4a11ef93e7c5bde1c517323f3440 before another Gate B label audit",
     "V2 Gate B non-holdout canonical-label recovery, separately authorized same-frozen-plan resume, untouched final-holdout evaluation, and acceptance of any V2 policy/model/calibration/edge/min-edge selection",
     "Phase 15 controlled live launch",
     "Live trading"
   ],
   "next_actions": [
-    "Restore production partitioned-storage maintenance health before any further Gate B label audit. PR #174 is merged engineering only; production still requires a separate exact-SHA deployment/recovery authorization and acceptance path. Do not lower storage thresholds, bypass maintenance freshness, or stop safety guards.",
+    "Execute scripts/deploy/phase14_dedupe_cleanup_recovery_gate_cloudshell.sh only after a fresh exact authorization binding final helper/main head, deployed head e9c7afc1536880e4612cb6e3d1a7282fa37c69f5, immutable candidate 71b33d3beaba4a11ef93e7c5bde1c517323f3440, and storage evidence SHA-256 f33a28f5306e46c509b0000a176d226c079aa2d160d595095ca228118542ce19. Do not lower storage thresholds, bypass maintenance freshness, or alter research/zero-money safety.",
     "After production storage health is freshly verified ok, rerun only the label-recovery helper in audit mode against /var/lib/bp/evidence/phase14-v2-gate-b-20260910T102812Z with frozen plan SHA-256 8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea. The audit must remain holdout-blind/read-only and leave selection.json, holdout.json, and summary.json absent.",
     "If that audit reports missing non-holdout labels, production label recovery requires a fresh explicit SHA-bound authorization. Recovery may append only canonical post-resolution Gamma -> official-outcome-v1 evidence for frozen non-holdout condition IDs; it may not replan, read the final holdout, select policy, or evaluate holdout.",
     "After a fresh audit reports zero missing non-holdout labels, Gate B same-plan resume requires a separate fresh SHA-bound authorization. Resume must reuse the exact frozen plan.json bytes and may perform prepare -> one-shot evaluate-holdout only under research-only zero-money safety.",
@@ -3162,6 +3163,21 @@
     "partitioned_runtime_dedupe_cleanup_fix_recorder_short_soak_run_id": 34499860179,
     "partitioned_runtime_dedupe_cleanup_fix_postmerge_ci_run_id": 34500104025,
     "partitioned_runtime_dedupe_cleanup_fix_test_count": 1060,
-    "partitioned_runtime_dedupe_cleanup_fix_production_deployed": false
+    "partitioned_runtime_dedupe_cleanup_fix_production_deployed": false,
+    "partitioned_runtime_dedupe_cleanup_recovery_candidate_base": "e9c7afc1536880e4612cb6e3d1a7282fa37c69f5",
+    "partitioned_runtime_dedupe_cleanup_recovery_candidate_head": "71b33d3beaba4a11ef93e7c5bde1c517323f3440",
+    "partitioned_runtime_dedupe_cleanup_recovery_candidate_verification_pr": 176,
+    "partitioned_runtime_dedupe_cleanup_recovery_candidate_verification_ci_run_id": 34504013943,
+    "partitioned_runtime_dedupe_cleanup_recovery_candidate_verification_merged": false,
+    "partitioned_runtime_dedupe_cleanup_recovery_gate_pr": 177,
+    "partitioned_runtime_dedupe_cleanup_recovery_gate_head": "75584201921a7b0b72a287ded310f4f3959d6647",
+    "partitioned_runtime_dedupe_cleanup_recovery_gate_merge_commit": "a09837c0304325d783a7cc94f552b35665435640",
+    "partitioned_runtime_dedupe_cleanup_recovery_gate_ci_run_id": 34504578757,
+    "partitioned_runtime_dedupe_cleanup_recovery_gate_historical_backfill_smoke_run_id": 34504578825,
+    "partitioned_runtime_dedupe_cleanup_recovery_gate_live_recorder_smoke_run_id": 34504578698,
+    "partitioned_runtime_dedupe_cleanup_recovery_gate_recorder_short_soak_run_id": 34504578864,
+    "partitioned_runtime_dedupe_cleanup_recovery_gate_postmerge_ci_run_id": 34504827764,
+    "partitioned_runtime_dedupe_cleanup_recovery_gate_test_count": 1065,
+    "partitioned_runtime_dedupe_cleanup_recovery_performed": false
   }
 }
