@@ -1,0 +1,42 @@
+name: Phase 14 V2 Gate B recovery contract fix
+
+on:
+  push:
+    branches:
+      - phase14-v2-gate-b-label-gap-recovery-20260910
+    paths:
+      - .github/workflows/phase14-v2-gate-b-recovery-contract-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix-contract-test:
+    if: github.event.head_commit.message == 'stage recovery state contract test fix'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Update consumed authorization state contract
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('tests/v2_research/test_gate_b_contract.py')
+          text = path.read_text(encoding='utf-8')
+          old = '    assert checkpoint["v2_gate_b_research_gate_b_authorized"] is True\n'
+          new = '''    assert checkpoint["v2_gate_b_research_gate_b_authorized"] is False\n    assert checkpoint["v2_gate_b_research_gate_b_one_shot_authorization_consumed"] is True\n    assert checkpoint["v2_gate_b_research_gate_b_original_authorization_reusable"] is False\n    assert checkpoint["v2_gate_b_research_gate_b_attempt_plan_present"] is True\n    assert checkpoint["v2_gate_b_research_gate_b_attempt_holdout_touched"] is False\n    assert checkpoint["v2_gate_b_label_gap_recovery_production_mutation_authorized"] is False\n    assert checkpoint["v2_gate_b_resume_authorized"] is False\n'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one stale authorization assertion, found {text.count(old)}')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+          rm -f .github/workflows/phase14-v2-gate-b-recovery-contract-fix.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add tests/v2_research/test_gate_b_contract.py .github/workflows/phase14-v2-gate-b-recovery-contract-fix.yml
+          git diff --cached --check
+          git commit -m "lock consumed Gate B authorization state"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
