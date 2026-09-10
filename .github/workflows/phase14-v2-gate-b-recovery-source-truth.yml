@@ -1,0 +1,148 @@
+name: Phase 14 V2 Gate B recovery source truth
+
+on:
+  push:
+    branches:
+      - phase14-v2-gate-b-label-gap-recovery-20260910
+    paths:
+      - .github/workflows/phase14-v2-gate-b-recovery-source-truth.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update-source-truth:
+    if: github.event.head_commit.message == 'stage one-shot source truth updater'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Update canonical state and docs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python - <<'PY'
+          import json
+          from datetime import UTC, datetime
+          from pathlib import Path
+
+          EXPECTED_VERSION = "0.14.124"
+          NEW_VERSION = "0.14.125"
+          BRANCH = "phase14-v2-gate-b-label-gap-recovery-20260910"
+          IMPLEMENTATION_HEAD = "dd659527f70837ab80ac75e5158f9ab063fd78ef"
+          IMPLEMENTATION_CI = 34472169586
+          TEST_COUNT = 1055
+          ATTEMPT_AT = "2026-09-10T10:27:33Z"
+          HELPER_HEAD = "0941684676ea35949ac938a3bca33012b6ea0e19"
+          DEPLOYED_HEAD = "e9c7afc1536880e4612cb6e3d1a7282fa37c69f5"
+          PARTIAL_DIR = "/var/lib/bp/evidence/phase14-v2-gate-b-20260910T102812Z"
+          MISSING_ID = "0x15a96b013fa3009dc15f83df516116b583cce49325e313d578e51b8b5d9b70e8"
+          EVIDENCE = "docs/evidence/phase-14-v2-gate-b-attempt-20260910T102733Z.json"
+          TRANSCRIPT_SHA = "88d9db1d071794c1e0fc96d94c010b335e0529f426d71423411db262c8b76546"
+
+          state_path = Path("PROJECT_STATE.json")
+          state = json.loads(state_path.read_text(encoding="utf-8"))
+          assert state["source_of_truth_version"] == EXPECTED_VERSION, state["source_of_truth_version"]
+          v2 = state["phase_14_market_price_v2_followup"]
+          assert v2["v2_gate_b_research_gate_b_execution_status"] == "AUTHORIZED_NOT_RUN"
+          assert v2["v2_gate_b_research_gate_b_authorized"] is True
+
+          state["source_of_truth_version"] = NEW_VERSION
+          state["updated_at"] = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+          v2.update({
+              "v2_gate_b_research_gate_b_authorized": False,
+              "v2_gate_b_research_gate_b_execution_status": "FAILED_PRE_HOLDOUT_NON_HOLDOUT_LABEL_GAP_RECOVERY_ENGINEERING_READY",
+              "v2_gate_b_research_gate_b_attempt_started_at": ATTEMPT_AT,
+              "v2_gate_b_research_gate_b_attempt_helper_head": HELPER_HEAD,
+              "v2_gate_b_research_gate_b_attempt_deployed_head": DEPLOYED_HEAD,
+              "v2_gate_b_research_gate_b_attempt_result": "FAIL_PRE_HOLDOUT_NON_HOLDOUT_LABEL_GAP",
+              "v2_gate_b_research_gate_b_attempt_partial_evidence_dir": PARTIAL_DIR,
+              "v2_gate_b_research_gate_b_attempt_plan_present": True,
+              "v2_gate_b_research_gate_b_attempt_selection_present": False,
+              "v2_gate_b_research_gate_b_attempt_holdout_present": False,
+              "v2_gate_b_research_gate_b_attempt_summary_present": False,
+              "v2_gate_b_research_gate_b_attempt_holdout_touched": False,
+              "v2_gate_b_research_gate_b_attempt_database_mutated": False,
+              "v2_gate_b_research_gate_b_attempt_missing_condition_id": MISSING_ID,
+              "v2_gate_b_research_gate_b_attempt_transcript_sha256": TRANSCRIPT_SHA,
+              "v2_gate_b_research_gate_b_attempt_sanitized_evidence": EVIDENCE,
+              "v2_gate_b_research_gate_b_one_shot_authorization_consumed": True,
+              "v2_gate_b_research_gate_b_original_authorization_reusable": False,
+              "v2_gate_b_label_gap_recovery_branch": BRANCH,
+              "v2_gate_b_label_gap_recovery_implementation_green_head": IMPLEMENTATION_HEAD,
+              "v2_gate_b_label_gap_recovery_implementation_ci_run_id": IMPLEMENTATION_CI,
+              "v2_gate_b_label_gap_recovery_implementation_ci_passed": True,
+              "v2_gate_b_label_gap_recovery_implementation_test_count": TEST_COUNT,
+              "v2_gate_b_label_gap_recovery_runner": "scripts/run_v2_gate_b_label_recovery.py",
+              "v2_gate_b_label_gap_recovery_helper": "scripts/deploy/phase14_v2_gate_b_label_recovery_cloudshell.sh",
+              "v2_gate_b_resume_helper": "scripts/deploy/phase14_v2_gate_b_resume_cloudshell.sh",
+              "v2_gate_b_label_gap_recovery_requires_same_frozen_plan": True,
+              "v2_gate_b_label_gap_recovery_new_plan_forbidden": True,
+              "v2_gate_b_label_gap_recovery_holdout_labels_read": False,
+              "v2_gate_b_label_gap_recovery_production_mutation_authorized": False,
+              "v2_gate_b_label_gap_recovery_production_mutation_performed": False,
+              "v2_gate_b_resume_requires_same_frozen_plan": True,
+              "v2_gate_b_resume_requires_zero_missing_non_holdout_labels": True,
+              "v2_gate_b_resume_authorized": False,
+              "v2_gate_b_resume_performed": False,
+              "v2_gate_b_resume_holdout_touched": False,
+          })
+
+          completed = state["completed"]
+          completed.append(
+              "The explicitly authorized Phase 14 V2 Gate B run started from exact main 0941684676ea35949ac938a3bca33012b6ea0e19, wrote a frozen plan, and failed during prepare before selection/final-holdout evaluation because a frozen non-holdout condition lacked its canonical official-outcome-v1 label; the final holdout remained unread/untouched and the one-shot authorization was consumed"
+          )
+          completed.append(
+              "Phase 14 V2 frozen-plan label-gap recovery engineering now provides a holdout-blind audit/recovery path plus a separate same-plan resume path, each fail-closed and SHA-bound; implementation head dd659527f70837ab80ac75e5158f9ab063fd78ef passed CI 34472169586 with 1,055 tests, and no production recovery/resume action has been authorized or performed"
+          )
+
+          state["not_completed"] = [
+              "V2 Gate B non-holdout canonical-label recovery, separately authorized same-frozen-plan resume, untouched final-holdout evaluation, and acceptance of any V2 policy/model/calibration/edge/min-edge selection",
+              "Phase 15 controlled live launch",
+              "Live trading",
+          ]
+          state["next_actions"] = [
+              "Do not rerun the original one-shot Gate B helper or reuse its authorization. The attempt wrote plan.json before failing in prepare, so that authorization is consumed and the existing plan is frozen.",
+              "Run only the label-recovery helper in audit mode first against the exact failed evidence directory. Audit must remain holdout-blind/read-only, reuse the existing plan, report the exact plan.json SHA-256 plus all missing non-holdout canonical labels, and leave selection.json/holdout.json/summary.json absent.",
+              "If audit confirms missing non-holdout labels, production label recovery requires a fresh explicit SHA-bound authorization. Recovery may append only canonical post-resolution Gamma -> official-outcome-v1 evidence for condition IDs already in the frozen non-holdout plan scope; it may not create a new plan, read final-holdout labels, select policy, or evaluate holdout.",
+              "After a fresh audit reports zero missing non-holdout labels, Gate B resume requires a separate fresh SHA-bound authorization. Resume must reuse the exact frozen plan.json bytes, must not repair labels or replan, and may perform prepare -> one-shot evaluate-holdout only under the existing research-only zero-money boundary.",
+              "Keep MODE=research, LIVE_TRADING_ENABLED=false, MAX_TRADE_SIZE_USD=0, MAX_DAILY_LOSS_USD=0, and automatic_promotion=false. V2 policy acceptance, prospective activation, Phase 15, geographic bypass, live trading, and nonzero money remain separately blocked.",
+          ]
+          state_path.write_text(json.dumps(state, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+          changelog = Path("docs/CHANGELOG.md")
+          ch = changelog.read_text(encoding="utf-8")
+          assert ch.startswith("# Changelog\n\n## 0.14.124")
+          entry = f'''# Changelog\n\n## {NEW_VERSION} — 10 September 2026\n\nThe explicitly authorized Phase 14 V2 Gate B research execution began at `{ATTEMPT_AT}` from helper/main head `{HELPER_HEAD}` against deployed head `{DEPLOYED_HEAD}`. Planning succeeded and wrote a frozen `plan.json`, but `prepare` failed before selection or final-holdout evaluation because non-holdout condition `{MISSING_ID}` lacked its canonical `official-outcome-v1` label. `selection.json`, `holdout.json`, and `summary.json` remained absent; `HOLDOUT_TOUCHED=false`; the Gate B path itself performed no production database mutation. The original one-shot authorization is consumed and must not be reused. Sanitized failure evidence is `{EVIDENCE}`; transcript SHA-256 `{TRANSCRIPT_SHA}`.\n\nRecovery engineering is now green on `{BRANCH}`. Implementation head `{IMPLEMENTATION_HEAD}` passed CI `{IMPLEMENTATION_CI}` with **{TEST_COUNT:,} tests**. The new label-recovery path is holdout-blind and frozen-plan-only: audit is read-only; recover may append only canonical post-resolution Gamma-derived labels for non-holdout condition IDs already named by the frozen plan, and requires fresh SHA-bound production authorization. A separate resume helper requires the exact same frozen `plan.json` SHA and zero remaining non-holdout label gaps; it cannot repair or replan and requires its own fresh authorization before `prepare -> evaluate-holdout`. No production repair or resume has been authorized/performed, and no final-holdout label has been read.\n\nD-040 records this boundary. V2 acceptance, automatic promotion, Phase 15, geographic bypass, live trading, and nonzero money remain unauthorized.\n\n'''
+          changelog.write_text(entry + ch[len("# Changelog\n\n"):], encoding="utf-8")
+
+          build = Path("docs/BUILD-ORDER.md")
+          b = build.read_text(encoding="utf-8")
+          marker = "## Phase 14 V2 Gate B frozen-plan label-gap recovery — 10 September 2026"
+          assert marker not in b
+          b += f'''\n\n---\n\n{marker}\n\nThe authorized Gate B attempt from `{HELPER_HEAD}` wrote `plan.json` and then failed in `prepare` on a missing canonical non-holdout label. Because the plan now exists, it is frozen: do not create another plan and do not reuse the consumed one-shot authorization. `selection.json`, `holdout.json`, and `summary.json` remain absent and the final holdout remains unread.\n\nImmediate order: (1) run `scripts/deploy/phase14_v2_gate_b_label_recovery_cloudshell.sh` in `audit` mode only; (2) if canonical non-holdout labels are missing, obtain fresh SHA-bound repair authorization before `recover`; (3) audit again until missing count is zero; (4) obtain a separate fresh SHA-bound resume authorization before `scripts/deploy/phase14_v2_gate_b_resume_cloudshell.sh`; (5) resume only the same frozen plan through `prepare -> evaluate-holdout`. No new plan, holdout cherry-pick, automatic promotion, Phase 15, live trading, or money change is permitted.\n\nEngineering implementation `{IMPLEMENTATION_HEAD}` passed CI `{IMPLEMENTATION_CI}` with {TEST_COUNT:,} tests. No production recovery/resume mutation has been performed.\n'''
+          build.write_text(b, encoding="utf-8")
+
+          master = Path("docs/MASTER-SOURCE-OF-TRUTH.md")
+          m = master.read_text(encoding="utf-8")
+          master_marker = "### Phase 14 V2 Gate B interrupted attempt and frozen-plan recovery boundary — 10 September 2026"
+          assert master_marker not in m
+          m += f'''\n\n{master_marker}\n\nThe one-shot Gate B research authorization recorded under D-039 was exercised at `{ATTEMPT_AT}` from exact helper/main head `{HELPER_HEAD}` against deployed production head `{DEPLOYED_HEAD}`. Feature-only planning completed and wrote `plan.json` under `{PARTIAL_DIR}`. `prepare` then failed on missing canonical non-holdout condition `{MISSING_ID}` before any selection or final-holdout evaluation. `selection.json`, `holdout.json`, and `summary.json` remained absent, `HOLDOUT_TOUCHED=false`, and Gate B performed no production database mutation. The original one-shot authorization is therefore consumed; it is not reusable.\n\nThe plan created by that attempt is now the only admissible Gate B plan for this attempt. Recovery must not replan, alter frozen walk-forward geometry/candidate grids, use final-holdout labels, or choose a different holdout. Engineering head `{IMPLEMENTATION_HEAD}` adds a separate holdout-blind label audit/recovery path and a separate same-plan resume path. Audit is read-only. Label repair may append only canonical post-resolution Gamma -> `official-outcome-v1` evidence for frozen non-holdout condition IDs and requires fresh SHA-bound production authorization. Resume requires zero missing non-holdout labels, the exact same `plan.json` SHA-256, and its own fresh SHA-bound authorization; it cannot repair or replan and only then may run `prepare -> evaluate-holdout` once.\n\nNo repair or resume production action is currently authorized or performed. The final holdout remains unread/untouched. `MODE=research`, `LIVE_TRADING_ENABLED=false`, both money limits remain zero, and `automatic_promotion=false`. Gate B result acceptance, prospective V2 activation, Phase 15, geographic bypass, live trading, and nonzero money are still separate blocked decisions. Canonical sanitized attempt evidence: `{EVIDENCE}`.\n'''
+          master.write_text(m, encoding="utf-8")
+
+          decision = Path("docs/DECISION-LOG.md")
+          d = decision.read_text(encoding="utf-8")
+          assert "## D-040 —" not in d
+          d += f'''\n\n## D-040 — A failed Gate B prepare freezes its plan; label repair and holdout resume require separate SHA-bound authorization\n**Date:** 10 Sep 2026  \n**Status:** Active\n\n**Decision:** The Gate B attempt started at `{ATTEMPT_AT}` consumed D-039's one-shot execution authorization when it successfully wrote `plan.json` and entered `prepare`. Its subsequent missing non-holdout canonical-label failure does not authorize a clean rerun or a new plan. The existing `plan.json` is frozen and must be reused byte-for-byte.\n\nNon-holdout label recovery is a distinct production mutation boundary. Before any repair, a holdout-blind audit must bind the exact failed evidence directory and frozen plan SHA-256. Repair, if separately authorized, may append only canonical post-resolution Gamma-derived `official-outcome-v1` evidence for non-holdout condition IDs already in that frozen plan. It must not read final-holdout labels, write selection/holdout/summary artifacts, change the plan, or select policy.\n\nGate B resume is a second distinct boundary. It requires a fresh audit with zero missing non-holdout labels plus a separate explicit approval bound to the exact current main head and the exact frozen `plan.json` SHA-256. Resume cannot perform label repair or replan; it may only execute the existing `prepare -> evaluate-holdout` sequence, with the final holdout evaluated once.\n\n**Reason:** This preserves the originally authorized chronology and validation geometry while allowing a narrowly scoped canonical-data repair. It prevents a failed prepare from becoming an implicit authorization to redraw the sample, peek at the holdout, or silently expand production mutation scope.\n\n**Safety:** At the time of this decision `selection.json`, `holdout.json`, and `summary.json` are absent and `HOLDOUT_TOUCHED=false`. No repair/resume production action is authorized by this decision. Research-only zero-money interlocks remain unchanged; V2 acceptance, automatic promotion, Phase 15, geographic bypass, live trading, and nonzero money remain blocked.\n'''
+          decision.write_text(d, encoding="utf-8")
+          PY
+
+          rm -f .github/workflows/phase14-v2-gate-b-recovery-source-truth.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add PROJECT_STATE.json docs/MASTER-SOURCE-OF-TRUTH.md docs/BUILD-ORDER.md docs/DECISION-LOG.md docs/CHANGELOG.md .github/workflows/phase14-v2-gate-b-recovery-source-truth.yml
+          git diff --cached --check
+          python -m json.tool PROJECT_STATE.json >/dev/null
+          git commit -m "record Gate B label-gap recovery boundary"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
