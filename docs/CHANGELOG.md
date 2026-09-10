@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.126 — 10 September 2026
+
+PR #172 merged the hardened Phase 14 V2 frozen-plan label-gap recovery package to `main` as `3e00939f7f70453f9aa054e46c31c72600cdb83d` from final head `1f6709632b3a5546bdd158552d8670ca7603bd1b`. Final exact-head CI `34479665673` passed **1,059 tests** plus Ruff, dashboard, deployment validation, and research-mode health; Historical Backfill Smoke `34479665575`, Live Recorder Smoke `34479665644`, and Recorder Short Soak `34479665747` also passed. Post-merge main CI `34480403106` then completed successfully with **1,059 tests**.
+
+Pre-merge review found two additional fail-closed requirements and both are now merged with RED→GREEN regression coverage. The same-plan resume helper exclusively creates and fsyncs `holdout-attempt.json` before `evaluate-holdout`, reports `HOLDOUT_TOUCHED=true` if that durable marker or `holdout.json` exists, and rejects any rerun with a preexisting marker. Non-holdout Gamma label recovery now captures provenance immediately after each successful awaited response and uses that receipt time for the preserved snapshot and derived canonical label.
+
+This closeout records engineering integration only. Production label repair remains unauthorized and unperformed; same-plan Gate B resume remains separately unauthorized and unperformed. The original one-shot Gate B authorization remains consumed and non-reusable. No final-holdout label was read by this engineering work. `MODE=research`, `LIVE_TRADING_ENABLED=false`, both money limits remain zero, and `automatic_promotion=false`; V2 acceptance, prospective V2 activation, Phase 15, geographic bypass, live trading, and nonzero money remain blocked.
+
 ## 0.14.125 — 10 September 2026
 
 The explicitly authorized Phase 14 V2 Gate B research execution began at `2026-09-10T10:27:33Z` from helper/main head `0941684676ea35949ac938a3bca33012b6ea0e19` against deployed head `e9c7afc1536880e4612cb6e3d1a7282fa37c69f5`. Planning succeeded and wrote a frozen `plan.json`, but `prepare` failed before selection or final-holdout evaluation because non-holdout condition `0x15a96b013fa3009dc15f83df516116b583cce49325e313d578e51b8b5d9b70e8` lacked its canonical `official-outcome-v1` label. `selection.json`, `holdout.json`, and `summary.json` remained absent; `HOLDOUT_TOUCHED=false`; the Gate B path itself performed no production database mutation. The original one-shot authorization is consumed and must not be reused. Sanitized failure evidence is `docs/evidence/phase-14-v2-gate-b-attempt-20260910T102733Z.json`; transcript SHA-256 `88d9db1d071794c1e0fc96d94c010b335e0529f426d71423411db262c8b76546`.
