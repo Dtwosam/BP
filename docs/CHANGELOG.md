@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.128 — 10 September 2026
+
+A production-shaped backport of the PR #174 dedupe cleanup fix is frozen at `71b33d3beaba4a11ef93e7c5bde1c517323f3440`, directly descended from deployed `e9c7afc1536880e4612cb6e3d1a7282fa37c69f5` and limited to the maintenance runtime plus its PostgreSQL regression test. Verification-only PR #176 passed CI `34504013943` and was closed unmerged.
+
+PR #177 added a fail-closed exact-SHA production recovery helper. Final head `75584201921a7b0b72a287ded310f4f3959d6647` passed CI `34504578757`, Historical Backfill Smoke `34504578825`, Live Recorder Smoke `34504578698`, and Recorder Short Soak `34504578864`; it merged as `a09837c0304325d783a7cc94f552b35665435640`. Post-merge CI `34504827764` passed **1,065 tests**, Ruff, deployment validation, research-mode health, and dashboard checks.
+
+The helper requires fresh authorization binding helper/main SHA, deployed SHA, immutable candidate SHA, and the accepted storage-evidence SHA before any GCP contact. No production recovery has been executed. Gate B holdout remains untouched; research/live-disabled/zero-money safety is unchanged.
+
 ## 0.14.127 — 10 September 2026
 
 A read-only Phase 14 V2 frozen-plan label-recovery audit reached production from helper/main head `4c3c8be828a0a5cfdab04abad36bca32bb2df7db`, bound to existing plan SHA-256 `8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea`, and failed closed before label inspection because composite partitioned-storage health was not `ok`. The audit read no Gate B labels or final holdout, created no selection/holdout/summary artifact, and performed no production database mutation.
