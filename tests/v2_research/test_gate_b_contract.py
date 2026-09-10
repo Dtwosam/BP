@@ -544,7 +544,13 @@ def test_project_state_locks_gate_b_engineering_boundary() -> None:
         0.15,
     ]
     assert checkpoint["v2_gate_b_research_database_mutations"] is False
-    assert checkpoint["v2_gate_b_research_gate_b_authorized"] is True
+    assert checkpoint["v2_gate_b_research_gate_b_authorized"] is False
+    assert checkpoint["v2_gate_b_research_gate_b_one_shot_authorization_consumed"] is True
+    assert checkpoint["v2_gate_b_research_gate_b_original_authorization_reusable"] is False
+    assert checkpoint["v2_gate_b_research_gate_b_attempt_plan_present"] is True
+    assert checkpoint["v2_gate_b_research_gate_b_attempt_holdout_touched"] is False
+    assert checkpoint["v2_gate_b_label_gap_recovery_production_mutation_authorized"] is False
+    assert checkpoint["v2_gate_b_resume_authorized"] is False
     assert checkpoint["v2_gate_b_research_automatic_promotion"] is False
     assert checkpoint["v2_gate_b_research_production_run_attempted"] is True
     assert checkpoint["v2_gate_b_research_first_production_attempt_result"] == (
