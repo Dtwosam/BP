@@ -1,0 +1,82 @@
+name: One-shot Phase 14 readiness state reconciliation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - scripts/dev/reconcile_phase14_v2_readiness_true.py
+      - .github/workflows/readiness-state-reconcile-once.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  reconcile:
+    if: github.event.pull_request.head.ref == 'phase14-v2-readiness-true-20260910' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Reconcile canonical readiness state
+        run: python scripts/dev/reconcile_phase14_v2_readiness_true.py
+
+      - name: Verify readiness boundaries before commit
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          state = json.loads(Path('PROJECT_STATE.json').read_text())
+          assert state['source_of_truth_version'] == '0.14.123'
+          assert state['trading_mode'] == 'RESEARCH'
+          assert state['live_trading_enabled'] is False
+
+          found = None
+          def walk(value):
+              global found
+              if isinstance(value, dict):
+                  if 'v2_gate_b_readiness_status' in value:
+                      found = value
+                      return
+                  for item in value.values():
+                      walk(item)
+              elif isinstance(value, list):
+                  for item in value:
+                      walk(item)
+          walk(state)
+          assert found is not None
+          assert found['v2_gate_b_readiness_status'] == 'PRODUCTION_PASS_READY_TRUE_GATE_B_UNAUTHORIZED'
+          assert found['v2_gate_b_readiness_last_result'] is True
+          assert found['v2_gate_b_readiness_last_eligible_fold_count'] == 5
+          assert found['v2_gate_b_readiness_last_final_holdout_market_count'] == 24
+          assert found['v2_gate_b_readiness_last_labels_read'] is False
+          assert found['v2_gate_b_readiness_last_plan_artifact_written'] is False
+          assert found['v2_gate_b_readiness_last_selection_artifact_written'] is False
+          assert found['v2_gate_b_readiness_holdout_touched'] is False
+          assert found['v2_gate_b_research_gate_b_authorized'] is False
+          assert found['v2_gate_b_research_automatic_promotion'] is False
+          assert found['v2_gate_b_readiness_watch_production_install_authorized'] is False
+          assert found['v2_gate_b_readiness_watch_production_install_performed'] is False
+          PY
+
+      - name: Commit reconciliation and remove one-shot machinery
+        env:
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm scripts/dev/reconcile_phase14_v2_readiness_true.py
+          git rm .github/workflows/readiness-state-reconcile-once.yml
+          git add PROJECT_STATE.json docs/BUILD-ORDER.md docs/CHANGELOG.md docs/MASTER-SOURCE-OF-TRUTH.md docs/DECISION-LOG.md
+          git diff --cached --check
+          git diff --cached --quiet && { echo 'expected reconciliation changes missing' >&2; exit 1; }
+          git commit -m 'Record V2 Gate B readiness prerequisite satisfied'
+          git push origin HEAD:"$BRANCH"
