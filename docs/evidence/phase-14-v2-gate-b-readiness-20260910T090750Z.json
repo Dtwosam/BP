@@ -1,0 +1,79 @@
+{
+  "verdict": "PASS",
+  "readiness": true,
+  "recorded_at": "2026-09-10T09:07:50Z",
+  "helper_head": "26e91498672618b5cafb7f2d901994103c5554b8",
+  "deployed_head": "e9c7afc1536880e4612cb6e3d1a7282fa37c69f5",
+  "storage_evidence": {
+    "path": "/mnt/bp-data/evidence/phase14-partitioned-storage-rollout-20260909T070219Z.json",
+    "sha256": "f33a28f5306e46c509b0000a176d226c079aa2d160d595095ca228118542ce19"
+  },
+  "candidate_archive_sha256": "25cc1410a227a633cb653fb47af38fae74f305f6d973a39aa6d3030a6726744e",
+  "market_count": 651,
+  "market_start_at": "2026-09-02T12:20:00+00:00",
+  "market_end_at": "2026-09-10T09:05:00+00:00",
+  "available_span_hours": 188.75,
+  "minimum_contiguous_epoch_hours": 18,
+  "required_ordinary_folds": 3,
+  "analysis_start_at": "2026-09-09T10:20:00+00:00",
+  "eligible_fold_count": 5,
+  "final_holdout_market_count": 24,
+  "analysis_start_attempt_count": 84,
+  "candidate_rejection_count": 83,
+  "blocking_reason": null,
+  "would_plan_sha256": "a1c2dff984a1dc6a2720961781af83f0d1999fbb632e33d9932c5582e688d5e2",
+  "labels_read": false,
+  "plan_artifact_written": false,
+  "selection_artifact_written": false,
+  "holdout_touched": false,
+  "coverage_input_sha256": "aab75574aa7faf18e65358353403e5ec1a2b89dd42424eb7b0e3329bf683b099",
+  "freshness_candidates_seconds": [
+    1,
+    2,
+    5,
+    10
+  ],
+  "include_no_trade": true,
+  "frozen_geometry": {
+    "train_duration_hours": 8,
+    "validation_duration_hours": 2,
+    "test_duration_hours": 2,
+    "step_duration_hours": 2,
+    "final_holdout_duration_hours": 2,
+    "embargo_markets": 1,
+    "min_train_markets": 24,
+    "min_validation_markets": 6,
+    "min_test_markets": 6
+  },
+  "research_config": {
+    "fee_rate": 0.07,
+    "slippage_buffer": 0.01,
+    "min_edge_grid": [
+      0.0,
+      0.01,
+      0.02,
+      0.03,
+      0.05,
+      0.075,
+      0.1,
+      0.15
+    ],
+    "min_validation_trades": 8,
+    "min_train_eligible_markets": 24,
+    "min_validation_eligible_markets": 8
+  },
+  "transcript": {
+    "basename": "bp-v2-readiness-20260910T090704Z.txt",
+    "sha256": "6e56d007833c75c989350ce05f86ed81fb4225093a5de29700b71d2d6672192f"
+  },
+  "gate_b": {
+    "authorized": false,
+    "actions_performed": false,
+    "labels_read": false,
+    "plan_artifact_written": false,
+    "selection_artifact_written": false,
+    "final_holdout_unread": true,
+    "holdout_touched": false
+  },
+  "interpretation": "Feature-only chronology now satisfies the frozen Gate B planning prerequisite. READY=true does not authorize Gate B, label/outcome access, plan or selection artifact creation, final-holdout evaluation, policy acceptance, automatic promotion, Phase 15, live trading, or nonzero money limits."
+}
