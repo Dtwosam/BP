@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.126",
-  "updated_at": "2026-09-10T13:10:48Z",
+  "source_of_truth_version": "0.14.127",
+  "updated_at": "2026-09-10T16:14:08Z",
   "current_phase": 14,
   "current_phase_name": "live readiness \u2014 engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -639,19 +639,21 @@
     "Phase 14 V2 READY=true readiness evidence merged by PR #170 at 09bc0356f68e7237fc95a5dc375b9fd9a0685d3c; exact PR head 24291c53c199690e755c422b0d0b4f01d3a05719 passed all four exact-head gates and post-merge main CI 34463958011 passed",
     "Explicit Phase 14 V2 Gate B research execution authorization granted at 2026-09-10T10:05:28Z: one exact-main research-only plan -> prepare -> evaluate-holdout run is authorized; automatic promotion, Phase 15, live trading, geographic bypass, and nonzero money remain unauthorized",
     "The explicitly authorized Phase 14 V2 Gate B run started from exact main 0941684676ea35949ac938a3bca33012b6ea0e19, wrote a frozen plan, and failed during prepare before selection/final-holdout evaluation because a frozen non-holdout condition lacked its canonical official-outcome-v1 label; the final holdout remained unread/untouched and the one-shot authorization was consumed",
-    "Phase 14 V2 frozen-plan label-gap recovery engineering now provides a holdout-blind audit/recovery path plus a separate same-plan resume path, each fail-closed and SHA-bound; implementation head dd659527f70837ab80ac75e5158f9ab063fd78ef passed CI 34472169586 with 1,055 tests, and no production recovery/resume action has been authorized or performed"
+    "Phase 14 V2 frozen-plan label-gap recovery engineering now provides a holdout-blind audit/recovery path plus a separate same-plan resume path, each fail-closed and SHA-bound; implementation head dd659527f70837ab80ac75e5158f9ab063fd78ef passed CI 34472169586 with 1,055 tests, and no production recovery/resume action has been authorized or performed",
+    "Phase 14 read-only frozen-plan label-recovery audit reached production but failed closed before label inspection because composite partitioned-storage health was not ok; diagnostics traced the stale maintenance heartbeat to global dedupe-ledger cleanup scanning/hash-building across approximately 24.4 million rows per 50k batch, and PR #174 merged the partition-local indexed ctid cleanup fix as ad71eb4d72948a023e57eca51c99ebce700df0a6 after all exact-head gates and post-merge CI passed 1,060 tests"
   ],
   "not_completed": [
+    "Production deployment and acceptance of the PR #174 partition-local dedupe cleanup fix, restoring fresh composite storage health before another Gate B label audit",
     "V2 Gate B non-holdout canonical-label recovery, separately authorized same-frozen-plan resume, untouched final-holdout evaluation, and acceptance of any V2 policy/model/calibration/edge/min-edge selection",
     "Phase 15 controlled live launch",
     "Live trading"
   ],
   "next_actions": [
-    "Do not rerun the original one-shot Gate B helper or reuse its authorization. The attempt wrote plan.json before failing in prepare, so that authorization is consumed and the existing plan is frozen.",
-    "Run only the label-recovery helper in audit mode first against the exact failed evidence directory. Audit must remain holdout-blind/read-only, reuse the existing plan, report the exact plan.json SHA-256 plus all missing non-holdout canonical labels, and leave selection.json/holdout.json/summary.json absent.",
-    "If audit confirms missing non-holdout labels, production label recovery requires a fresh explicit SHA-bound authorization. Recovery may append only canonical post-resolution Gamma -> official-outcome-v1 evidence for condition IDs already in the frozen non-holdout plan scope; it may not create a new plan, read final-holdout labels, select policy, or evaluate holdout.",
-    "After a fresh audit reports zero missing non-holdout labels, Gate B resume requires a separate fresh SHA-bound authorization. Resume must reuse the exact frozen plan.json bytes, must not repair labels or replan, and may perform prepare -> one-shot evaluate-holdout only under the existing research-only zero-money boundary.",
-    "Keep MODE=research, LIVE_TRADING_ENABLED=false, MAX_TRADE_SIZE_USD=0, MAX_DAILY_LOSS_USD=0, and automatic_promotion=false. V2 policy acceptance, prospective activation, Phase 15, geographic bypass, live trading, and nonzero money remain separately blocked."
+    "Restore production partitioned-storage maintenance health before any further Gate B label audit. PR #174 is merged engineering only; production still requires a separate exact-SHA deployment/recovery authorization and acceptance path. Do not lower storage thresholds, bypass maintenance freshness, or stop safety guards.",
+    "After production storage health is freshly verified ok, rerun only the label-recovery helper in audit mode against /var/lib/bp/evidence/phase14-v2-gate-b-20260910T102812Z with frozen plan SHA-256 8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea. The audit must remain holdout-blind/read-only and leave selection.json, holdout.json, and summary.json absent.",
+    "If that audit reports missing non-holdout labels, production label recovery requires a fresh explicit SHA-bound authorization. Recovery may append only canonical post-resolution Gamma -> official-outcome-v1 evidence for frozen non-holdout condition IDs; it may not replan, read the final holdout, select policy, or evaluate holdout.",
+    "After a fresh audit reports zero missing non-holdout labels, Gate B same-plan resume requires a separate fresh SHA-bound authorization. Resume must reuse the exact frozen plan.json bytes and may perform prepare -> one-shot evaluate-holdout only under research-only zero-money safety.",
+    "Keep MODE=research, LIVE_TRADING_ENABLED=false, MAX_TRADE_SIZE_USD=0, MAX_DAILY_LOSS_USD=0, and automatic_promotion=false. V2 acceptance/activation, Phase 15, geographic bypass, live trading, and nonzero money remain separately blocked."
   ],
   "open_questions": [
     "Current/recurring availability of a 10m BTC Up/Down Polymarket market",
@@ -3139,6 +3141,27 @@
     "partitioned_runtime_recorder_recovery_automatic_promotion": false,
     "partitioned_runtime_recorder_recovery_gate_b_actions_performed": false,
     "partitioned_runtime_recorder_recovery_gate_b_artifacts_fingerprint": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "partitioned_runtime_recorder_recovery_final_holdout_unread": true
+    "partitioned_runtime_recorder_recovery_final_holdout_unread": true,
+    "v2_gate_b_label_recovery_audit_attempted": true,
+    "v2_gate_b_label_recovery_audit_helper_head": "4c3c8be828a0a5cfdab04abad36bca32bb2df7db",
+    "v2_gate_b_label_recovery_audit_plan_sha256": "8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea",
+    "v2_gate_b_label_recovery_audit_result": "BLOCKED_PRE_LABEL_INSPECTION_STORAGE_HEALTH",
+    "v2_gate_b_label_recovery_audit_labels_inspected": false,
+    "v2_gate_b_label_recovery_audit_holdout_touched": false,
+    "v2_gate_b_label_recovery_audit_production_mutation": false,
+    "partitioned_runtime_dedupe_cleanup_timeout_observed": true,
+    "partitioned_runtime_dedupe_cleanup_root_cause": "The global raw_event_dedupe parent-table cleanup planned a hash join over approximately 24.4 million ledger rows for each bounded 50,000-row batch across all 16 hash children, causing hourly maintenance to exceed its 55-minute service timeout under active recorder load.",
+    "partitioned_runtime_dedupe_cleanup_last_success_before_incident_at": "2026-09-10T12:49:27.680042Z",
+    "partitioned_runtime_dedupe_cleanup_critical_reserve_bytes": 16106127360,
+    "partitioned_runtime_dedupe_cleanup_fix_pr": 174,
+    "partitioned_runtime_dedupe_cleanup_fix_head": "1e650786b3f8320d8406a84fb8e232bd7548a2ba",
+    "partitioned_runtime_dedupe_cleanup_fix_merge_commit": "ad71eb4d72948a023e57eca51c99ebce700df0a6",
+    "partitioned_runtime_dedupe_cleanup_fix_ci_run_id": 34499860031,
+    "partitioned_runtime_dedupe_cleanup_fix_historical_backfill_smoke_run_id": 34499860145,
+    "partitioned_runtime_dedupe_cleanup_fix_live_recorder_smoke_run_id": 34499860123,
+    "partitioned_runtime_dedupe_cleanup_fix_recorder_short_soak_run_id": 34499860179,
+    "partitioned_runtime_dedupe_cleanup_fix_postmerge_ci_run_id": 34500104025,
+    "partitioned_runtime_dedupe_cleanup_fix_test_count": 1060,
+    "partitioned_runtime_dedupe_cleanup_fix_production_deployed": false
   }
 }
