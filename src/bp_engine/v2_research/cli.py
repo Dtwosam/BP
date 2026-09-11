@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections.abc import Callable
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +16,20 @@ from bp_engine.v2_research.service import (
     evaluate_gate_b_holdout,
     prepare_gate_b,
 )
+
+
+def _parse_datetime(value: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "planning epoch start must be ISO-8601"
+        ) from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise argparse.ArgumentTypeError(
+            "planning epoch start must be timezone-aware"
+        )
+    return parsed.astimezone(UTC)
 
 
 def _settings(args: argparse.Namespace) -> Settings:
@@ -40,7 +54,9 @@ def _write_exclusive(path: str, payload: dict[str, Any]) -> None:
         handle.write("\n")
 
 
-def _read_only(engine: Engine, operation: Callable[[Connection], dict[str, Any]]) -> dict[str, Any]:
+def _read_only(
+    engine: Engine, operation: Callable[[Connection], dict[str, Any]]
+) -> dict[str, Any]:
     with engine.connect() as connection:
         with connection.begin():
             if connection.dialect.name == "postgresql":
@@ -56,9 +72,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--database-url", default=None)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    subparsers.add_parser(
+    readiness = subparsers.add_parser(
         "readiness",
         help="report feature-only Gate B readiness without writing artifacts",
+    )
+    readiness.add_argument(
+        "--planning-epoch-start",
+        type=_parse_datetime,
+        default=None,
+        help="exclude markets starting before this timezone-aware feature-only epoch",
     )
 
     plan = subparsers.add_parser(
@@ -66,6 +88,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="build the unlabeled chronological Gate B partition plan",
     )
     plan.add_argument("--output", required=True)
+    plan.add_argument(
+        "--planning-epoch-start",
+        type=_parse_datetime,
+        default=None,
+        help="exclude markets starting before this timezone-aware feature-only epoch",
+    )
     plan.add_argument("--train-hours", type=float, default=8)
     plan.add_argument("--validation-hours", type=float, default=2)
     plan.add_argument("--test-hours", type=float, default=2)
@@ -117,6 +145,7 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
                 connection,
                 GateBPlanConfig(),
                 GateBResearchConfig(),
+                planning_epoch_start=args.planning_epoch_start,
             ),
         )
     elif args.command == "plan":
@@ -149,6 +178,7 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
                 connection,
                 config,
                 research_config,
+                planning_epoch_start=args.planning_epoch_start,
             ),
         )
     elif args.command == "prepare":
