@@ -178,9 +178,8 @@ class ProspectiveOutcomeSyncService:
             )
         ).mappings()
 
-        candidates: dict[str, _Candidate] = {}
-        for row in prediction_rows:
-            candidate = _Candidate(
+        prediction_candidates = [
+            _Candidate(
                 prediction_id=str(row["prediction_id"]),
                 condition_id=str(row["condition_id"]),
                 slug=str(row["slug"]),
@@ -190,7 +189,11 @@ class ProspectiveOutcomeSyncService:
                 up_token_id=str(row["up_token_id"]),
                 down_token_id=str(row["down_token_id"]),
             )
-            candidates[candidate.condition_id] = candidate
+            for row in prediction_rows
+        ]
+        prediction_condition_ids = {
+            candidate.condition_id for candidate in prediction_candidates
+        }
 
         feature_exists = exists(
             select(1)
@@ -230,29 +233,28 @@ class ProspectiveOutcomeSyncService:
             )
         ).mappings()
 
+        feature_candidates: list[_Candidate] = []
         for row in feature_market_rows:
             condition_id = str(row["condition_id"])
-            if condition_id in candidates:
+            if condition_id in prediction_condition_ids:
                 continue
-            candidates[condition_id] = _Candidate(
-                prediction_id=None,
-                condition_id=condition_id,
-                slug=str(row["slug"]),
-                horizon_seconds=int(row["horizon_seconds"]),
-                market_start_at=_stored_utc(row["start_at"]),
-                market_end_at=_stored_utc(row["end_at"]),
-                up_token_id=str(row["up_token_id"]),
-                down_token_id=str(row["down_token_id"]),
+            feature_candidates.append(
+                _Candidate(
+                    prediction_id=None,
+                    condition_id=condition_id,
+                    slug=str(row["slug"]),
+                    horizon_seconds=int(row["horizon_seconds"]),
+                    market_start_at=_stored_utc(row["start_at"]),
+                    market_end_at=_stored_utc(row["end_at"]),
+                    up_token_id=str(row["up_token_id"]),
+                    down_token_id=str(row["down_token_id"]),
+                )
             )
 
-        return sorted(
-            candidates.values(),
-            key=lambda candidate: (
-                candidate.market_end_at,
-                candidate.condition_id,
-                candidate.prediction_id or "",
-            ),
-        )
+        # Preserve the existing live-prediction evaluation order and semantics. Feature-
+        # only V2 markets are a fallback label-completeness path and must not collapse,
+        # reorder ahead of, or duplicate prediction-backed candidates.
+        return prediction_candidates + feature_candidates
 
     @staticmethod
     def _validate_identity(candidate: _Candidate, market: PolymarketMarket) -> None:
