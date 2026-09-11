@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import create_engine, func, select
 
+from bp_engine.features.v2_models import V2_FEATURE_VERSION
 from bp_engine.live_prediction.models import LivePrediction
 from bp_engine.live_prediction.repository import LivePredictionRepository
 from bp_engine.storage import schema
@@ -123,6 +125,53 @@ def _engine_with_prediction() -> tuple[object, LivePrediction]:
     return engine, prediction
 
 
+def _insert_v2_feature_market(engine: object, prediction: LivePrediction) -> None:
+    with engine.begin() as connection:
+        connection.execute(
+            schema.polymarket_markets.insert().values(
+                gamma_market_id="gamma-prospective-outcome-sync",
+                event_id="event-prospective-outcome-sync",
+                condition_id=prediction.condition_id,
+                slug=prediction.slug,
+                question="Bitcoin Up or Down?",
+                horizon_seconds=prediction.horizon_seconds,
+                start_at=prediction.market_start_at,
+                end_at=prediction.market_end_at,
+                up_token_id=prediction.up_token_id,
+                down_token_id=prediction.down_token_id,
+                resolution_source="https://data.chain.link/streams/btc-usd",
+                rules_text="Resolves from the official BTC reference.",
+                rules_hash="a" * 64,
+                active=False,
+                closed=True,
+                accepting_orders=False,
+                resolved_outcome=None,
+                discovered_at=prediction.market_start_at,
+                updated_at=prediction.market_end_at,
+            )
+        )
+        for offset in (60, 120, 180, 240):
+            feature_at = prediction.market_start_at + timedelta(seconds=offset)
+            connection.execute(
+                schema.market_features.insert().values(
+                    condition_id=prediction.condition_id,
+                    slug=prediction.slug,
+                    horizon_seconds=prediction.horizon_seconds,
+                    market_start_at=prediction.market_start_at,
+                    market_end_at=prediction.market_end_at,
+                    feature_at=feature_at,
+                    feature_offset_seconds=offset,
+                    feature_version=V2_FEATURE_VERSION,
+                    features={"market_price": 0.5},
+                    missing_flags={},
+                    source_cutoffs={},
+                    input_fingerprint=f"{offset:064x}",
+                    feature_hash=f"{offset + 1:064x}",
+                    generated_at=feature_at,
+                )
+            )
+
+
 @pytest.mark.asyncio
 async def test_sync_resolved_prediction_creates_snapshot_label_and_evaluation() -> None:
     from bp_engine.prospective_outcomes.service import ProspectiveOutcomeSyncService
@@ -156,6 +205,70 @@ async def test_sync_resolved_prediction_creates_snapshot_label_and_evaluation() 
     assert evaluation["official_outcome"] == "Up"
     assert evaluation["label_source_snapshot_sha256"]
     assert len(evaluation["label_source_snapshot_sha256"]) == 64
+
+
+@pytest.mark.asyncio
+async def test_multiple_prediction_versions_for_same_market_are_not_collapsed() -> None:
+    from bp_engine.prospective_outcomes.service import ProspectiveOutcomeSyncService
+
+    engine, prediction = _engine_with_prediction()
+    second = replace(
+        prediction,
+        prediction_id="f" * 64,
+        semantic_sha256="a" * 64,
+        prediction_version="live-prediction-v2",
+    )
+    with engine.begin() as connection:
+        LivePredictionRepository().store(connection, second)
+    client = FakeGammaClient(_resolved_gamma_payload(prediction))
+
+    report = await ProspectiveOutcomeSyncService(engine=engine, client=client).run_once(
+        now=prediction.market_end_at + timedelta(minutes=1)
+    )
+
+    with engine.begin() as connection:
+        evaluation_count = connection.scalar(
+            select(func.count()).select_from(schema.live_prediction_evaluations)
+        )
+
+    assert report.candidates == 2
+    assert client.calls == [prediction.slug, prediction.slug]
+    assert report.created_evaluations == 2
+    assert evaluation_count == 2
+
+
+@pytest.mark.asyncio
+async def test_sync_resolved_v2_feature_market_without_prediction_creates_label() -> None:
+    from bp_engine.prospective_outcomes.service import ProspectiveOutcomeSyncService
+
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    schema.metadata.create_all(engine)
+    prediction = _prediction()
+    _insert_v2_feature_market(engine, prediction)
+    client = FakeGammaClient(_resolved_gamma_payload(prediction))
+
+    report = await ProspectiveOutcomeSyncService(engine=engine, client=client).run_once(
+        now=prediction.market_end_at + timedelta(minutes=1)
+    )
+
+    with engine.begin() as connection:
+        snapshot_count = connection.scalar(
+            select(func.count()).select_from(schema.polymarket_market_snapshots)
+        )
+        label_count = connection.scalar(select(func.count()).select_from(schema.market_labels))
+        evaluation_count = connection.scalar(
+            select(func.count()).select_from(schema.live_prediction_evaluations)
+        )
+
+    assert client.calls == [prediction.slug]
+    assert report.candidates == 1
+    assert report.resolved_markets == 1
+    assert report.created_snapshots == 1
+    assert report.created_labels == 1
+    assert report.created_evaluations == 0
+    assert snapshot_count == 1
+    assert label_count == 1
+    assert evaluation_count == 0
 
 
 @pytest.mark.asyncio
