@@ -23,6 +23,12 @@ jobs:
 
       - name: Commit closeout and remove one-shot automation
         run: |
+          python - <<'PY'
+          from pathlib import Path
+          for name in ("docs/MASTER-SOURCE-OF-TRUTH.md", "docs/BUILD-ORDER.md"):
+              path = Path(name)
+              path.write_text(path.read_text(encoding="utf-8").rstrip() + "\n", encoding="utf-8")
+          PY
           git rm .github/workflows/closeout-phase14-v2-outcome-label-rollout-preflight.yml
           git rm scripts/closeout_phase14_v2_outcome_label_rollout_preflight.py
           git config user.name "github-actions[bot]"
