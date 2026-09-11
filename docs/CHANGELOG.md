@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.129 — 11 September 2026
+
+Production storage recovery is now closed out. The exact dedupe-cleanup recovery candidate `71b33d3beaba4a11ef93e7c5bde1c517323f3440` passed its guarded production recovery: both maintenance cycles succeeded, the recorder stayed active on four writers with zero restarts, the natural-load soak passed, partitioned-storage health returned `ok`, and research/live-disabled/zero-money safety was preserved. The production data disk was subsequently snapshotted as `bp-recorder-pre-resize-20260911-0831`, expanded from 100 GB to 200 GB, and its ext4 filesystem was grown online; post-resize storage health was `ok` with 131,308,032,000 free bytes and all guards true.
+
+A read-only audit of frozen Gate B plan SHA-256 `8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea` then passed and found 230 non-holdout conditions, 215 existing canonical labels, and 15 missing labels while leaving the final holdout untouched. After the separately authorized non-holdout recovery and same-plan resume, the resume durably wrote `holdout-attempt.json` before final-holdout evaluation and then failed closed during final-holdout dataset loading because condition `0x2a760ccdb973c19ce13b6af86d752cf377790d5149a46b8498462904ece86efd` lacked canonical supervised input. That final holdout is now consumed. The frozen plan/final holdout must not be rerun or reused, and Gate B did not pass.
+
+PR #179 fixes the underlying future label-coverage class without changing Gate B statistics: prospective outcome sync now preserves every existing unevaluated prediction candidate and additionally covers unlabeled completed canonical 5m markets that already have V2 features, while avoiding duplicate feature-only candidates for conditions already covered by predictions. RED→GREEN review also proved multiple prediction versions are not collapsed. Exact head `65739199ceeb77f591814241125060067d9b26d0` passed **1,067 tests**, Ruff, deployment validation, research health, dashboard checks, Historical Backfill Smoke `34585700619`, Live Recorder Smoke `34585700573`, and Recorder Short Soak `34585700562`; it merged as `13dee896a46ce38625159d5e587b68c08493a525`, and post-merge main CI `34586051419` passed.
+
+PR #179 is source-integrated only; it has not been deployed to production. Any production rollout is a separate production-mutation boundary. A future Gate B attempt must use a fresh statistically clean planning epoch and new final holdout. `MODE=research`, `LIVE_TRADING_ENABLED=false`, both money limits remain zero, `automatic_promotion=false`, Gate B remains unaccepted, and V2 activation, Phase 15, geographic bypass, and live trading remain blocked.
+
 ## 0.14.128 — 10 September 2026
 
 A production-shaped backport of the PR #174 dedupe cleanup fix is frozen at `71b33d3beaba4a11ef93e7c5bde1c517323f3440`, directly descended from deployed `e9c7afc1536880e4612cb6e3d1a7282fa37c69f5` and limited to the maintenance runtime plus its PostgreSQL regression test. Verification-only PR #176 passed CI `34504013943` and was closed unmerged.
