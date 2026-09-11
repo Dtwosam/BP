@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.130 — 11 September 2026
+
+- Froze and verified production-shaped PR #179 rollout candidate `7c3af78da1922a0e5187c24b799951130cc98887` from deployed head `71b33d3beaba4a11ef93e7c5bde1c517323f3440` with exactly the prospective-outcome runtime fix and its regression test; full CI, historical-source smoke, live-recorder smoke, and 45-second short soak passed.
+- Merged PR #182's fail-closed read-only production preflight as `f3ef5717390d0dd8d577bdc73143baabd12ff5ce`; post-merge CI `34594260516` passed. The helper binds exact main/candidate/deployed/storage/safety/service identities but performs no checkout, service restart, Gate B action, holdout access, approval consumption, or other production mutation.
+- The read-only production preflight has not been executed from an authenticated production operator environment. The PR #179 fix remains undeployed, production remains on `71b33d3beaba4a11ef93e7c5bde1c517323f3440`, the consumed Gate B holdout remains non-reusable, and any future Gate B requires a fresh planning epoch/new final holdout after a separately authorized and accepted rollout.
+- RESEARCH mode, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, `MAX_DAILY_LOSS_USD=0`, `automatic_promotion=false`, Phase 15 blocked, and live trading disabled remain unchanged.
+
 ## 0.14.129 — 11 September 2026
 
 Production storage recovery is now closed out. The exact dedupe-cleanup recovery candidate `71b33d3beaba4a11ef93e7c5bde1c517323f3440` passed its guarded production recovery: both maintenance cycles succeeded, the recorder stayed active on four writers with zero restarts, the natural-load soak passed, partitioned-storage health returned `ok`, and research/live-disabled/zero-money safety was preserved. The production data disk was subsequently snapshotted as `bp-recorder-pre-resize-20260911-0831`, expanded from 100 GB to 200 GB, and its ext4 filesystem was grown online; post-resize storage health was `ok` with 131,308,032,000 free bytes and all guards true.
