@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.130",
-  "updated_at": "2026-09-11T11:43:03Z",
+  "source_of_truth_version": "0.14.131",
+  "updated_at": "2026-09-11T12:05:00Z",
   "current_phase": 14,
   "current_phase_name": "live readiness \u2014 engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -658,7 +658,7 @@
   ],
   "next_actions": [
     "Do not reuse frozen Gate B plan SHA-256 8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea or its consumed final holdout. Preserve the frozen evidence and holdout-attempt marker as immutable failure evidence.",
-    "Run scripts/deploy/phase14_v2_outcome_label_coverage_rollout_preflight_cloudshell.sh from a clean checkout at exact merged main f3ef5717390d0dd8d577bdc73143baabd12ff5ce to verify immutable candidate 7c3af78da1922a0e5187c24b799951130cc98887 against deployed head 71b33d3beaba4a11ef93e7c5bde1c517323f3440. This is a read-only production preflight and does not authorize or perform the production rollout.",
+    "Run scripts/deploy/phase14_v2_outcome_label_coverage_rollout_preflight_cloudshell.sh from a clean checkout of the then-current `main`, set PHASE14_V2_OUTCOME_LABEL_ROLLOUT_HELPER_HEAD to that exact current main SHA, and require fetched origin/main to match it. PR #182 merge f3ef5717390d0dd8d577bdc73143baabd12ff5ce is historical provenance, not a pinned checkout target. Verify immutable candidate 7c3af78da1922a0e5187c24b799951130cc98887 against deployed head 71b33d3beaba4a11ef93e7c5bde1c517323f3440. This is a read-only production preflight and does not authorize or perform the production rollout.",
     "Only after that read-only preflight passes may the PR #179 production rollout be considered under its separate exact authorization boundary. Any rollout must preserve MODE=research, LIVE_TRADING_ENABLED=false, MAX_TRADE_SIZE_USD=0, MAX_DAILY_LOSS_USD=0, and automatic_promotion=false.",
     "Build future Gate B evidence from a fresh feature-only planning epoch and a new final holdout. Planning/readiness must remain label-blind; final-holdout access remains a separate one-shot explicit authorization boundary.",
     "Keep Gate B unaccepted and do not activate a V2 policy/model/calibration/edge configuration, Phase 15, geographic bypass, live trading, automatic promotion, or nonzero money limits unless a new statistically clean Gate B run and all other live gates pass under their separate authorization boundaries."
