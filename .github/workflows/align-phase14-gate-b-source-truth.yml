@@ -1,0 +1,207 @@
+name: Phase 14 Gate B Source Truth Aligner
+
+on:
+  push:
+    branches:
+      - closeout/phase14-gate-b-consumed-holdout
+
+permissions:
+  contents: write
+
+jobs:
+  align-source-truth:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+      - name: Align canonical phase-gate documents
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          plan_sha = "8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea"
+          missing_holdout = "0x2a760ccdb973c19ce13b6af86d752cf377790d5149a46b8498462904ece86efd"
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file_path = Path(path)
+              text = file_path.read_text(encoding="utf-8")
+              assert text.count(old) == 1, (path, text.count(old), old)
+              file_path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          master_path = Path("docs/MASTER-SOURCE-OF-TRUTH.md")
+          master = master_path.read_text(encoding="utf-8")
+          old_master_boundary = (
+              "No repair or resume production action is currently authorized or performed. "
+              "The final holdout remains unread/untouched. `MODE=research`, "
+              "`LIVE_TRADING_ENABLED=false`, both money limits remain zero, and "
+              "`automatic_promotion=false`. Gate B result acceptance, prospective V2 "
+              "activation, Phase 15, geographic bypass, live trading, and nonzero money are "
+              "still separate blocked decisions. Canonical sanitized attempt evidence: "
+              "`docs/evidence/phase-14-v2-gate-b-attempt-20260910T102733Z.json`."
+          )
+          new_master_boundary = (
+              "Historical boundary note: the no-repair/no-resume state described above applied "
+              "before the separately authorized recovery and resume and is superseded by the "
+              "11 September 2026 consumed-final-holdout closeout below. The later label recovery "
+              "and same-plan resume were performed under their separate SHA-bound approvals; "
+              "`holdout-attempt.json` was durably created before final-holdout evaluation, so the "
+              "final holdout is consumed and the frozen plan must not be reused. Gate B did not "
+              "pass. `MODE=research`, `LIVE_TRADING_ENABLED=false`, both money limits remain zero, "
+              "and `automatic_promotion=false`. Canonical sanitized pre-resume attempt evidence "
+              "remains `docs/evidence/phase-14-v2-gate-b-attempt-20260910T102733Z.json`."
+          )
+          assert master.count(old_master_boundary) == 1
+          master = master.replace(old_master_boundary, new_master_boundary, 1)
+          heading = "### Phase 14 V2 Gate B consumed final-holdout closeout — 11 September 2026"
+          assert heading not in master
+          closeout = "\n\n".join([
+              heading,
+              (
+                  "After production storage recovery and the 100 GB -> 200 GB data-disk expansion, "
+                  "a holdout-blind audit of frozen plan SHA-256 `" + plan_sha + "` found 230 "
+                  "non-holdout conditions, 215 canonical labels present, and 15 missing while the "
+                  "final holdout remained untouched. The separately authorized non-holdout repair "
+                  "completed without reading final-holdout labels, and a fresh audit reached zero "
+                  "missing non-holdout labels."
+              ),
+              (
+                  "The separately authorized same-plan resume then durably created and fsynced "
+                  "`holdout-attempt.json` before final-holdout evaluation. Final-holdout dataset "
+                  "loading failed closed because condition `" + missing_holdout + "` lacked "
+                  "canonical supervised input. From that marker onward `HOLDOUT_TOUCHED=true`: "
+                  "the final holdout and frozen plan are consumed, the frozen plan must not be "
+                  "reused, and Gate B was not accepted. No same-plan retry, holdout cherry-pick, "
+                  "or post-hoc replanning is admissible."
+              ),
+              (
+                  "PR #179 merged the future feature-only outcome-label coverage fix as "
+                  "`13dee896a46ce38625159d5e587b68c08493a525`, but that fix is source-integrated "
+                  "only and has not been deployed to production. Any rollout remains a separate "
+                  "production-mutation boundary. A future Gate B attempt requires a fresh "
+                  "statistically clean feature-only planning epoch and a new final holdout, with "
+                  "final-holdout access again protected by a new one-shot explicit authorization. "
+                  "V2 activation, automatic promotion, Phase 15, geographic bypass, live trading, "
+                  "and nonzero money remain blocked."
+              ),
+          ])
+          master_path.write_text(master.rstrip() + "\n\n" + closeout + "\n", encoding="utf-8")
+
+          old_build_first = (
+              "The authorized Gate B attempt from `0941684676ea35949ac938a3bca33012b6ea0e19` "
+              "wrote `plan.json` and then failed in `prepare` on a missing canonical non-holdout "
+              "label. Because the plan now exists, it is frozen: do not create another plan and do "
+              "not reuse the consumed one-shot authorization. `selection.json`, `holdout.json`, and "
+              "`summary.json` remain absent and the final holdout remains unread."
+          )
+          new_build_first = (
+              "The authorized Gate B attempt from `0941684676ea35949ac938a3bca33012b6ea0e19` "
+              "wrote `plan.json` and then failed in `prepare` on a missing canonical non-holdout "
+              "label. That plan was frozen for the narrowly authorized recovery/resume sequence. "
+              "The sequence is now complete: the later resume durably wrote `holdout-attempt.json`, "
+              "touched the final holdout, and failed closed on missing canonical supervised input. "
+              "The frozen plan and its final holdout are consumed and must not be reused."
+          )
+          replace_once("docs/BUILD-ORDER.md", old_build_first, new_build_first)
+
+          old_build_order = (
+              "Immediate order: (1) run `scripts/deploy/phase14_v2_gate_b_label_recovery_cloudshell.sh` "
+              "in `audit` mode only; (2) if canonical non-holdout labels are missing, obtain fresh "
+              "SHA-bound repair authorization before `recover`; (3) audit again until missing count "
+              "is zero; (4) obtain a separate fresh SHA-bound resume authorization before "
+              "`scripts/deploy/phase14_v2_gate_b_resume_cloudshell.sh`; (5) resume only the same "
+              "frozen plan through `prepare -> evaluate-holdout`. No new plan, holdout cherry-pick, "
+              "automatic promotion, Phase 15, live trading, or money change is permitted."
+          )
+          new_build_order = (
+              "Superseded order: do not rerun audit/recover/resume for frozen plan SHA-256 `" +
+              plan_sha + "`; preserve that evidence and its `holdout-attempt.json` marker as "
+              "immutable failure evidence. Next order: (1) treat PR #179 production rollout as a "
+              "separate production-mutation boundary; (2) after any accepted rollout, build a fresh "
+              "statistically clean V2 Gate B plan from feature-only readiness with a new final "
+              "holdout; (3) require a new one-shot explicit authorization before any final-holdout "
+              "access. No holdout cherry-pick, automatic promotion, Phase 15, live trading, or money "
+              "change is permitted."
+          )
+          replace_once("docs/BUILD-ORDER.md", old_build_order, new_build_order)
+
+          old_build_tail = "No production recovery/resume mutation has been authorized or performed."
+          new_build_tail = (
+              "The later production label recovery and same-plan resume were separately authorized "
+              "and performed; the resume consumed the final holdout, so the frozen plan is no longer "
+              "reusable."
+          )
+          replace_once("docs/BUILD-ORDER.md", old_build_tail, new_build_tail)
+
+          decision_path = Path("docs/DECISION-LOG.md")
+          decisions = decision_path.read_text(encoding="utf-8")
+          old_status = (
+              "## D-040 — A failed Gate B prepare freezes its plan; label repair and holdout resume "
+              "require separate SHA-bound authorization\n**Date:** 10 Sep 2026\n**Status:** Active"
+          )
+          new_status = (
+              "## D-040 — A failed Gate B prepare freezes its plan; label repair and holdout resume "
+              "require separate SHA-bound authorization\n**Date:** 10 Sep 2026\n"
+              "**Status:** Superseded by D-041"
+          )
+          assert decisions.count(old_status) == 1
+          decisions = decisions.replace(old_status, new_status, 1)
+          assert "## D-041" not in decisions
+          d041 = "\n\n".join([
+              "## D-041 — A touched final holdout consumes the frozen Gate B plan; future Gate B requires a fresh plan and holdout\n**Date:** 11 Sep 2026\n**Status:** Active",
+              (
+                  "**Decision:** The separately authorized recovery/resume sequence for frozen plan "
+                  "SHA-256 `" + plan_sha + "` is closed. The resume durably created and fsynced "
+                  "`holdout-attempt.json` before final-holdout evaluation, then failed closed while "
+                  "loading final-holdout supervised input because condition `" + missing_holdout +
+                  "` lacked canonical supervised input. The marker makes `HOLDOUT_TOUCHED=true`; "
+                  "that final holdout and frozen plan are consumed and must not be reused. Gate B "
+                  "was not accepted."
+              ),
+              (
+                  "PR #179 fixes the future feature-only outcome-label coverage class in source, but "
+                  "its production rollout is a separate production-mutation boundary. After any "
+                  "accepted rollout, the next Gate B attempt must begin from fresh feature-only "
+                  "readiness, create a fresh statistically clean plan, and reserve a new final "
+                  "holdout. Final-holdout access remains a new one-shot explicit authorization "
+                  "boundary; the consumed holdout may not be cherry-picked or inspected again to "
+                  "shape the replacement plan."
+              ),
+              (
+                  "**Reason:** Once final-holdout access has begun under the durable attempt marker, "
+                  "reusing that holdout or plan after an input failure would allow post-hoc adaptation "
+                  "to a touched holdout. Requiring a fresh planning epoch and new holdout preserves "
+                  "the statistical meaning of the one-shot Gate B contract."
+              ),
+              (
+                  "**Safety:** `MODE=research`, `LIVE_TRADING_ENABLED=false`, "
+                  "`MAX_TRADE_SIZE_USD=0`, `MAX_DAILY_LOSS_USD=0`, and "
+                  "`automatic_promotion=false` remain mandatory. Gate B remains unaccepted; V2 "
+                  "activation, Phase 15, geographic bypass, live trading, and nonzero money remain "
+                  "separately blocked."
+              ),
+          ])
+          decision_path.write_text(decisions.rstrip() + "\n\n" + d041 + "\n", encoding="utf-8")
+          PY
+          ruff check tests/v2_research/test_gate_b_closeout_source_truth.py
+          pytest -q tests/v2_research/test_gate_b_closeout_source_truth.py
+          git diff --check
+      - name: Commit canonical source-truth fix
+        shell: bash
+        run: |
+          if git diff --quiet -- docs/MASTER-SOURCE-OF-TRUTH.md docs/BUILD-ORDER.md docs/DECISION-LOG.md; then
+            echo "No source-truth changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/MASTER-SOURCE-OF-TRUTH.md docs/BUILD-ORDER.md docs/DECISION-LOG.md
+          git commit -m "Supersede consumed Gate B resume instructions"
+          git push origin HEAD:closeout/phase14-gate-b-consumed-holdout
