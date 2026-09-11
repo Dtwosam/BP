@@ -342,7 +342,7 @@ This authorization covers research evaluation only. It does not itself accept an
 
 ## D-040 — A failed Gate B prepare freezes its plan; label repair and holdout resume require separate SHA-bound authorization
 **Date:** 10 Sep 2026
-**Status:** Active
+**Status:** Superseded by D-041
 
 **Decision:** The Gate B attempt started at `2026-09-10T10:27:33Z` consumed D-039's one-shot execution authorization when it successfully wrote `plan.json` and entered `prepare`. Its subsequent missing non-holdout canonical-label failure does not authorize a clean rerun or a new plan. The existing `plan.json` is frozen and must be reused byte-for-byte.
 
@@ -353,3 +353,15 @@ Gate B resume is a second distinct boundary. It requires a fresh audit with zero
 **Reason:** This preserves the originally authorized chronology and validation geometry while allowing a narrowly scoped canonical-data repair. It prevents a failed prepare from becoming an implicit authorization to redraw the sample, peek at the holdout, or silently expand production mutation scope.
 
 **Safety:** At the time of this decision `selection.json`, `holdout.json`, and `summary.json` are absent and `HOLDOUT_TOUCHED=false`. No repair/resume production action is authorized by this decision. Research-only zero-money interlocks remain unchanged; V2 acceptance, automatic promotion, Phase 15, geographic bypass, live trading, and nonzero money remain blocked.
+
+## D-041 — A touched final holdout consumes the frozen Gate B plan; future Gate B requires a fresh plan and holdout
+**Date:** 11 Sep 2026
+**Status:** Active
+
+**Decision:** The separately authorized recovery/resume sequence for frozen plan SHA-256 `8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea` is closed. The resume durably created and fsynced `holdout-attempt.json` before final-holdout evaluation, then failed closed while loading final-holdout supervised input because condition `0x2a760ccdb973c19ce13b6af86d752cf377790d5149a46b8498462904ece86efd` lacked canonical supervised input. The marker makes `HOLDOUT_TOUCHED=true`; that final holdout and frozen plan are consumed and must not be reused. Gate B was not accepted.
+
+PR #179 fixes the future feature-only outcome-label coverage class in source, but its production rollout is a separate production-mutation boundary. After any accepted rollout, the next Gate B attempt must begin from fresh feature-only readiness, create a fresh statistically clean plan, and reserve a new final holdout. Final-holdout access remains a new one-shot explicit authorization boundary; the consumed holdout may not be cherry-picked or inspected again to shape the replacement plan.
+
+**Reason:** Once final-holdout access has begun under the durable attempt marker, reusing that holdout or plan after an input failure would allow post-hoc adaptation to a touched holdout. Requiring a fresh planning epoch and new holdout preserves the statistical meaning of the one-shot Gate B contract.
+
+**Safety:** `MODE=research`, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, `MAX_DAILY_LOSS_USD=0`, and `automatic_promotion=false` remain mandatory. Gate B remains unaccepted; V2 activation, Phase 15, geographic bypass, live trading, and nonzero money remain separately blocked.
