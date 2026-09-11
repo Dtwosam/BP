@@ -8,7 +8,8 @@ from typing import Any, Protocol
 from sqlalchemy import Engine, exists, select
 
 from bp_engine.backfill.provenance import canonical_json_sha256
-from bp_engine.labels.service import generate_labels
+from bp_engine.features.v2_models import V2_FEATURE_VERSION
+from bp_engine.labels.service import LABEL_VERSION, generate_labels
 from bp_engine.live_prediction.evaluation import append_available_evaluations
 from bp_engine.polymarket.models import PolymarketMarket
 from bp_engine.polymarket.parsing import parse_gamma_market
@@ -16,7 +17,13 @@ from bp_engine.storage.historical import (
     HistoricalRepository,
     PolymarketMarketSnapshot,
 )
-from bp_engine.storage.schema import live_prediction_evaluations, live_predictions
+from bp_engine.storage.schema import (
+    live_prediction_evaluations,
+    live_predictions,
+    market_features,
+    market_labels,
+    polymarket_markets,
+)
 
 
 class GammaMarketClient(Protocol):
@@ -24,7 +31,7 @@ class GammaMarketClient(Protocol):
 
 
 class ProspectiveOutcomeIntegrityError(ValueError):
-    """Raised when official outcome evidence does not match the prediction identity."""
+    """Raised when official outcome evidence does not match the stored market identity."""
 
 
 @dataclass(frozen=True)
@@ -42,7 +49,7 @@ class ProspectiveOutcomeSyncReport:
 
 @dataclass(frozen=True)
 class _Candidate:
-    prediction_id: str
+    prediction_id: str | None
     condition_id: str
     slug: str
     horizon_seconds: int
@@ -53,7 +60,7 @@ class _Candidate:
 
 
 class ProspectiveOutcomeSyncService:
-    """Append official post-resolution evidence for ended prospective predictions."""
+    """Append official outcomes for ended predictions and V2 feature markets."""
 
     def __init__(self, *, engine: Engine, client: GammaMarketClient) -> None:
         self.engine = engine
@@ -149,7 +156,7 @@ class ProspectiveOutcomeSyncService:
                 == live_predictions.c.prediction_id
             )
         )
-        rows = connection.execute(
+        prediction_rows = connection.execute(
             select(
                 live_predictions.c.prediction_id,
                 live_predictions.c.condition_id,
@@ -170,7 +177,8 @@ class ProspectiveOutcomeSyncService:
                 live_predictions.c.prediction_id,
             )
         ).mappings()
-        return [
+
+        prediction_candidates = [
             _Candidate(
                 prediction_id=str(row["prediction_id"]),
                 condition_id=str(row["condition_id"]),
@@ -181,8 +189,72 @@ class ProspectiveOutcomeSyncService:
                 up_token_id=str(row["up_token_id"]),
                 down_token_id=str(row["down_token_id"]),
             )
-            for row in rows
+            for row in prediction_rows
         ]
+        prediction_condition_ids = {
+            candidate.condition_id for candidate in prediction_candidates
+        }
+
+        feature_exists = exists(
+            select(1)
+            .select_from(market_features)
+            .where(
+                market_features.c.condition_id == polymarket_markets.c.condition_id,
+                market_features.c.feature_version == V2_FEATURE_VERSION,
+            )
+        )
+        label_exists = exists(
+            select(1)
+            .select_from(market_labels)
+            .where(
+                market_labels.c.condition_id == polymarket_markets.c.condition_id,
+                market_labels.c.label_version == LABEL_VERSION,
+            )
+        )
+        feature_market_rows = connection.execute(
+            select(
+                polymarket_markets.c.condition_id,
+                polymarket_markets.c.slug,
+                polymarket_markets.c.horizon_seconds,
+                polymarket_markets.c.start_at,
+                polymarket_markets.c.end_at,
+                polymarket_markets.c.up_token_id,
+                polymarket_markets.c.down_token_id,
+            )
+            .where(
+                polymarket_markets.c.horizon_seconds == 300,
+                polymarket_markets.c.end_at <= now,
+                feature_exists,
+                ~label_exists,
+            )
+            .order_by(
+                polymarket_markets.c.end_at,
+                polymarket_markets.c.condition_id,
+            )
+        ).mappings()
+
+        feature_candidates: list[_Candidate] = []
+        for row in feature_market_rows:
+            condition_id = str(row["condition_id"])
+            if condition_id in prediction_condition_ids:
+                continue
+            feature_candidates.append(
+                _Candidate(
+                    prediction_id=None,
+                    condition_id=condition_id,
+                    slug=str(row["slug"]),
+                    horizon_seconds=int(row["horizon_seconds"]),
+                    market_start_at=_stored_utc(row["start_at"]),
+                    market_end_at=_stored_utc(row["end_at"]),
+                    up_token_id=str(row["up_token_id"]),
+                    down_token_id=str(row["down_token_id"]),
+                )
+            )
+
+        # Preserve the existing live-prediction evaluation order and semantics. Feature-
+        # only V2 markets are a fallback label-completeness path and must not collapse,
+        # reorder ahead of, or duplicate prediction-backed candidates.
+        return prediction_candidates + feature_candidates
 
     @staticmethod
     def _validate_identity(candidate: _Candidate, market: PolymarketMarket) -> None:
@@ -205,9 +277,14 @@ class ProspectiveOutcomeSyncService:
             market.down_token_id,
         )
         if actual != expected:
-            raise ProspectiveOutcomeIntegrityError(
-                "official Gamma market identity does not match stored prediction "
+            identity = (
                 f"prediction_id={candidate.prediction_id}"
+                if candidate.prediction_id is not None
+                else f"condition_id={candidate.condition_id}"
+            )
+            raise ProspectiveOutcomeIntegrityError(
+                "official Gamma market identity does not match stored market "
+                f"{identity}"
             )
 
 
