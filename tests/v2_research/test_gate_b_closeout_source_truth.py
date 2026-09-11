@@ -55,6 +55,7 @@ def test_outcome_label_rollout_preflight_is_source_of_truth_but_not_deployment()
     assert "then-current `main`" in build_order
     assert "PHASE14_V2_OUTCOME_LABEL_ROLLOUT_HELPER_HEAD" in build_order
     assert "historical provenance" in build_order
+    assert "not a pinned checkout target" in build_order
     assert "then-current `main`" in master
     assert "historical provenance" in master
     assert "then-current `main`" in project_state
@@ -70,6 +71,9 @@ def test_outcome_label_rollout_preflight_is_source_of_truth_but_not_deployment()
     ).exists()
     assert not (
         ROOT / ".github/workflows/fix-phase14-closeout-changelog-heading.yml"
+    ).exists()
+    assert not (
+        ROOT / ".github/workflows/fix-phase14-rollout-preflight-current-main-contract.yml"
     ).exists()
     assert not (
         ROOT / "scripts/closeout_phase14_v2_outcome_label_rollout_preflight.py"
