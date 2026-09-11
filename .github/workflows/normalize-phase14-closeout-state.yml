@@ -1,0 +1,50 @@
+name: Phase 14 Closeout State Normalizer
+
+on:
+  push:
+    branches:
+      - closeout/phase14-gate-b-consumed-holdout
+
+permissions:
+  contents: write
+
+jobs:
+  normalize-state:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Normalize and align closeout state
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("PROJECT_STATE.json")
+          state = json.loads(path.read_text(encoding="utf-8"))
+          assert state["source_of_truth_version"] == "0.14.129"
+          v2 = state["phase_14_market_price_v2_followup"]
+          assert v2["v2_gate_b_consumed_holdout_closeout"]["holdout_touched"] is True
+          v2["v2_gate_b_label_gap_recovery_production_mutation_authorized"] = True
+          v2["v2_gate_b_label_gap_recovery_production_mutation_performed"] = True
+          v2["v2_gate_b_resume_authorized"] = True
+          v2["v2_gate_b_resume_performed"] = True
+          v2["v2_gate_b_resume_holdout_touched"] = True
+          path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+          PY
+          python -m json.tool PROJECT_STATE.json >/dev/null
+          git diff --check
+      - name: Commit normalized state
+        shell: bash
+        run: |
+          if git diff --quiet -- PROJECT_STATE.json; then
+            echo "No normalization changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PROJECT_STATE.json
+          git commit -m "Normalize Phase 14 closeout state"
+          git push origin HEAD:closeout/phase14-gate-b-consumed-holdout
