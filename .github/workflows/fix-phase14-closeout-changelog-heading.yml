@@ -1,0 +1,39 @@
+name: Fix Phase14 closeout changelog heading
+
+on:
+  push:
+    branches:
+      - closeout/phase14-v2-outcome-label-rollout-preflight
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: closeout/phase14-v2-outcome-label-rollout-preflight
+          fetch-depth: 1
+
+      - name: Move version entry below changelog title
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("docs/CHANGELOG.md")
+          text = path.read_text(encoding="utf-8")
+          marker = "# Changelog\n\n"
+          prefix, rest = text.split(marker, 1)
+          assert prefix.startswith("## 0.14.130 — 11 September 2026")
+          assert rest.startswith("## 0.14.129 — 11 September 2026")
+          path.write_text(marker + prefix.rstrip() + "\n\n" + rest, encoding="utf-8")
+          PY
+          git rm .github/workflows/fix-phase14-closeout-changelog-heading.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/CHANGELOG.md
+          git diff --cached --check
+          git commit -m "Keep changelog title before 0.14.130 entry"
+          git push origin HEAD:closeout/phase14-v2-outcome-label-rollout-preflight
