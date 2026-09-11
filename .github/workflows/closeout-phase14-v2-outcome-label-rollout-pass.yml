@@ -23,7 +23,22 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install -e ".[dev]"
       - name: Apply source-truth closeout
-        run: python scripts/closeout_phase14_v2_outcome_label_rollout_pass.py
+        run: |
+          python scripts/closeout_phase14_v2_outcome_label_rollout_pass.py
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("tests/v2_research/test_gate_b_contract.py")
+          content = path.read_text(encoding="utf-8")
+          old = '    assert closeout["outcome_label_coverage_fix_deployed_head"] == "7c3af78da1922a0e5187c24b799951130cc98887"\n'
+          new = '''    assert closeout["outcome_label_coverage_fix_deployed_head"] == (
+              "7c3af78da1922a0e5187c24b799951130cc98887"
+          )
+          '''
+          if old not in content:
+              raise SystemExit("expected generated deployed-head assertion not found")
+          path.write_text(content.replace(old, new, 1), encoding="utf-8")
+          PY
       - name: Verify focused contracts
         run: |
           ruff check tests/v2_research/test_gate_b_closeout_source_truth.py tests/v2_research/test_gate_b_contract.py
