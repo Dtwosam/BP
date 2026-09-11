@@ -26,78 +26,77 @@ jobs:
           state = json.loads(state_path.read_text(encoding="utf-8"))
           checkpoint = state["phase_14_market_price_v2_followup"]
           assert checkpoint["v2_gate_b_consumed_holdout_closeout"]["holdout_touched"] is True
-          checkpoint["v2_gate_b_readiness_status"] = (
-              "PRODUCTION_PASS_READY_TRUE_GATE_B_ATTEMPT_CONSUMED"
-          )
-          checkpoint["v2_gate_b_research_gate_b_execution_status"] = (
-              "FAILED_FINAL_HOLDOUT_INPUT_GAP_ONE_SHOT_CONSUMED"
-          )
-          checkpoint["v2_gate_b_label_gap_recovery_status"] = (
-              "PRODUCTION_RECOVERY_COMPLETED_RESUME_CONSUMED_HOLDOUT"
-          )
+          checkpoint["v2_gate_b_readiness_status"] = "PRODUCTION_PASS_READY_TRUE_GATE_B_ATTEMPT_CONSUMED"
+          checkpoint["v2_gate_b_research_gate_b_execution_status"] = "FAILED_FINAL_HOLDOUT_INPUT_GAP_ONE_SHOT_CONSUMED"
+          checkpoint["v2_gate_b_label_gap_recovery_status"] = "PRODUCTION_RECOVERY_COMPLETED_RESUME_CONSUMED_HOLDOUT"
           state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
 
           test_path = Path("tests/v2_research/test_gate_b_contract.py")
           text = test_path.read_text(encoding="utf-8")
-          old = '''    assert checkpoint["v2_gate_b_label_gap_recovery_production_mutation_authorized"] is False
-    assert checkpoint["v2_gate_b_resume_authorized"] is False
-'''
-          new = '''    assert checkpoint["v2_gate_b_label_gap_recovery_production_mutation_authorized"] is True
-    assert checkpoint["v2_gate_b_label_gap_recovery_production_mutation_performed"] is True
-    assert checkpoint["v2_gate_b_label_gap_recovery_holdout_labels_read"] is False
-    assert checkpoint["v2_gate_b_resume_authorized"] is True
-    assert checkpoint["v2_gate_b_resume_performed"] is True
-    assert checkpoint["v2_gate_b_resume_holdout_touched"] is True
-    closeout = checkpoint["v2_gate_b_consumed_holdout_closeout"]
-    assert closeout["status"] == "FAILED_FINAL_HOLDOUT_INPUT_GAP_ONE_SHOT_CONSUMED"
-    assert closeout["frozen_plan_sha256"] == (
-        "8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea"
-    )
-    assert closeout["same_frozen_plan_reusable"] is False
-    assert closeout["holdout_attempt_marker"] == "holdout-attempt.json"
-    assert closeout["holdout_touched"] is True
-    assert closeout["gate_b_accepted"] is False
-    assert closeout["missing_holdout_condition_id"] == (
-        "0x2a760ccdb973c19ce13b6af86d752cf377790d5149a46b8498462904ece86efd"
-    )
-    assert closeout["new_statistically_clean_gate_b_plan_required"] is True
-    assert closeout["outcome_label_coverage_fix_merge_commit"] == (
-        "13dee896a46ce38625159d5e587b68c08493a525"
-    )
-    assert closeout["outcome_label_coverage_fix_production_deployed"] is False
-    assert closeout["automatic_promotion"] is False
-    assert closeout["phase15_permitted"] is False
-    assert closeout["live_trading_enabled"] is False
-    assert closeout["max_trade_size_usd"] == 0
-    assert closeout["max_daily_loss_usd"] == 0
-'''
-          assert old in text
-          text = text.replace(old, new, 1)
-          text = text.replace(
-              '''    assert checkpoint["v2_gate_b_readiness_status"] == (
-        "PRODUCTION_PASS_READY_TRUE_GATE_B_AUTHORIZED_NOT_RUN"
-    )
-''',
-              '''    assert checkpoint["v2_gate_b_readiness_status"] == (
-        "PRODUCTION_PASS_READY_TRUE_GATE_B_ATTEMPT_CONSUMED"
-    )
-''',
-              1,
-          )
-          text = text.replace(
-              '''    assert checkpoint["v2_gate_b_research_gate_b_execution_status"] == (
-        "FAILED_PRE_HOLDOUT_NON_HOLDOUT_LABEL_GAP_RECOVERY_ENGINEERING_READY"
-    )
-''',
-              '''    assert checkpoint["v2_gate_b_research_gate_b_execution_status"] == (
-        "FAILED_FINAL_HOLDOUT_INPUT_GAP_ONE_SHOT_CONSUMED"
-    )
-    assert checkpoint["v2_gate_b_label_gap_recovery_status"] == (
-        "PRODUCTION_RECOVERY_COMPLETED_RESUME_CONSUMED_HOLDOUT"
-    )
-''',
-              1,
-          )
+
+          stale_recovery = '    assert checkpoint["v2_gate_b_label_gap_recovery_production_mutation_authorized"] is False\n'
+          recovery_lines = "\n".join([
+              '    assert checkpoint["v2_gate_b_label_gap_recovery_production_mutation_authorized"] is True',
+              '    assert checkpoint["v2_gate_b_label_gap_recovery_production_mutation_performed"] is True',
+              '    assert checkpoint["v2_gate_b_label_gap_recovery_holdout_labels_read"] is False',
+          ]) + "\n"
+          assert stale_recovery in text
+          text = text.replace(stale_recovery, recovery_lines, 1)
+
+          stale_resume = '    assert checkpoint["v2_gate_b_resume_authorized"] is False\n'
+          closeout_lines = "\n".join([
+              '    assert checkpoint["v2_gate_b_resume_authorized"] is True',
+              '    assert checkpoint["v2_gate_b_resume_performed"] is True',
+              '    assert checkpoint["v2_gate_b_resume_holdout_touched"] is True',
+              '    closeout = checkpoint["v2_gate_b_consumed_holdout_closeout"]',
+              '    assert closeout["status"] == "FAILED_FINAL_HOLDOUT_INPUT_GAP_ONE_SHOT_CONSUMED"',
+              '    assert closeout["frozen_plan_sha256"] == (',
+              '        "8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea"',
+              '    )',
+              '    assert closeout["same_frozen_plan_reusable"] is False',
+              '    assert closeout["holdout_attempt_marker"] == "holdout-attempt.json"',
+              '    assert closeout["holdout_touched"] is True',
+              '    assert closeout["gate_b_accepted"] is False',
+              '    assert closeout["missing_holdout_condition_id"] == (',
+              '        "0x2a760ccdb973c19ce13b6af86d752cf377790d5149a46b8498462904ece86efd"',
+              '    )',
+              '    assert closeout["new_statistically_clean_gate_b_plan_required"] is True',
+              '    assert closeout["outcome_label_coverage_fix_merge_commit"] == (',
+              '        "13dee896a46ce38625159d5e587b68c08493a525"',
+              '    )',
+              '    assert closeout["outcome_label_coverage_fix_production_deployed"] is False',
+              '    assert closeout["automatic_promotion"] is False',
+              '    assert closeout["phase15_permitted"] is False',
+              '    assert closeout["live_trading_enabled"] is False',
+              '    assert closeout["max_trade_size_usd"] == 0',
+              '    assert closeout["max_daily_loss_usd"] == 0',
+          ]) + "\n"
+          assert stale_resume in text
+          text = text.replace(stale_resume, closeout_lines, 1)
+
+          old_readiness = '        "PRODUCTION_PASS_READY_TRUE_GATE_B_AUTHORIZED_NOT_RUN"\n'
+          new_readiness = '        "PRODUCTION_PASS_READY_TRUE_GATE_B_ATTEMPT_CONSUMED"\n'
+          assert old_readiness in text
+          text = text.replace(old_readiness, new_readiness, 1)
+
+          old_execution = '        "FAILED_PRE_HOLDOUT_NON_HOLDOUT_LABEL_GAP_RECOVERY_ENGINEERING_READY"\n'
+          new_execution = '        "FAILED_FINAL_HOLDOUT_INPUT_GAP_ONE_SHOT_CONSUMED"\n'
+          assert old_execution in text
+          text = text.replace(old_execution, new_execution, 1)
+
+          execution_block = "\n".join([
+              '    assert checkpoint["v2_gate_b_research_gate_b_execution_status"] == (',
+              '        "FAILED_FINAL_HOLDOUT_INPUT_GAP_ONE_SHOT_CONSUMED"',
+              '    )',
+          ]) + "\n"
+          status_block = execution_block + "\n".join([
+              '    assert checkpoint["v2_gate_b_label_gap_recovery_status"] == (',
+              '        "PRODUCTION_RECOVERY_COMPLETED_RESUME_CONSUMED_HOLDOUT"',
+              '    )',
+          ]) + "\n"
+          assert execution_block in text
+          text = text.replace(execution_block, status_block, 1)
+
           test_path.write_text(text, encoding="utf-8")
           PY
           python -m json.tool PROJECT_STATE.json >/dev/null
