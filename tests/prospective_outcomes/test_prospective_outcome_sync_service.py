@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -204,6 +205,36 @@ async def test_sync_resolved_prediction_creates_snapshot_label_and_evaluation() 
     assert evaluation["official_outcome"] == "Up"
     assert evaluation["label_source_snapshot_sha256"]
     assert len(evaluation["label_source_snapshot_sha256"]) == 64
+
+
+@pytest.mark.asyncio
+async def test_multiple_prediction_versions_for_same_market_are_not_collapsed() -> None:
+    from bp_engine.prospective_outcomes.service import ProspectiveOutcomeSyncService
+
+    engine, prediction = _engine_with_prediction()
+    second = replace(
+        prediction,
+        prediction_id="f" * 64,
+        semantic_sha256="a" * 64,
+        prediction_version="live-prediction-v2",
+    )
+    with engine.begin() as connection:
+        LivePredictionRepository().store(connection, second)
+    client = FakeGammaClient(_resolved_gamma_payload(prediction))
+
+    report = await ProspectiveOutcomeSyncService(engine=engine, client=client).run_once(
+        now=prediction.market_end_at + timedelta(minutes=1)
+    )
+
+    with engine.begin() as connection:
+        evaluation_count = connection.scalar(
+            select(func.count()).select_from(schema.live_prediction_evaluations)
+        )
+
+    assert report.candidates == 2
+    assert client.calls == [prediction.slug, prediction.slug]
+    assert report.created_evaluations == 2
+    assert evaluation_count == 2
 
 
 @pytest.mark.asyncio
