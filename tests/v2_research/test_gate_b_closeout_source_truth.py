@@ -64,6 +64,11 @@ def test_outcome_label_rollout_pass_is_source_of_truth() -> None:
     assert '"source_of_truth_version": "0.14.132"' in project_state
 
     assert "outcome-label coverage rollout passed" in master.lower()
+    consumed_closeout = master.split(
+        "### Phase 14 V2 Gate B consumed final-holdout closeout", 1
+    )[1].split("### Phase 14 V2 outcome-label coverage rollout PASS closeout", 1)[0]
+    assert "has not been deployed to production" not in consumed_closeout
+    assert "Any rollout remains a separate production-mutation boundary" not in consumed_closeout
     assert "outcome-label coverage rollout passed" in build_order.lower()
     assert "fresh statistically clean V2 Gate B plan" in build_order
     assert "Phase 15" in build_order
