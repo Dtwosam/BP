@@ -128,6 +128,33 @@ def _feature_timeline(connection: Connection) -> tuple[dict[str, Any], ...]:
     )
 
 
+def _planning_timeline(
+    connection: Connection,
+    planning_epoch_start: datetime | None,
+) -> tuple[tuple[dict[str, Any], ...], datetime | None]:
+    boundary: datetime | None = None
+    if planning_epoch_start is not None:
+        if (
+            planning_epoch_start.tzinfo is None
+            or planning_epoch_start.utcoffset() is None
+        ):
+            raise ValueError("planning_epoch_start must be timezone-aware")
+        boundary = planning_epoch_start.astimezone(UTC)
+
+    timeline = _feature_timeline(connection)
+    if boundary is None:
+        return timeline, None
+
+    filtered = tuple(
+        market for market in timeline if market["market_start_at"] >= boundary
+    )
+    if not filtered:
+        raise GateBPlanIntegrityError(
+            "no V2 feature rows available at or after planning_epoch_start"
+        )
+    return filtered, boundary
+
+
 def _contained(
     timeline: tuple[dict[str, Any], ...],
     start: datetime,
@@ -342,11 +369,13 @@ def assess_gate_b_readiness(
     connection: Connection,
     config: GateBPlanConfig | None = None,
     research_config: GateBResearchConfig | None = None,
+    *,
+    planning_epoch_start: datetime | None = None,
 ) -> dict[str, Any]:
     """Return feature-only readiness without writing or freezing Gate B artifacts."""
     config = config or GateBPlanConfig()
     research_config = research_config or GateBResearchConfig()
-    timeline = _feature_timeline(connection)
+    timeline, planning_boundary = _planning_timeline(connection, planning_epoch_start)
     dataset_start = timeline[0]["market_start_at"]
     dataset_end = timeline[-1]["market_end_at"]
     holdout_start = dataset_end - config.final_holdout_duration
@@ -358,6 +387,9 @@ def assess_gate_b_readiness(
         "market_count": len(timeline),
         "market_start_at": dataset_start.isoformat(),
         "market_end_at": dataset_end.isoformat(),
+        "planning_epoch_start_at": (
+            planning_boundary.isoformat() if planning_boundary is not None else None
+        ),
         "available_span_seconds": (dataset_end - dataset_start).total_seconds(),
         "minimum_contiguous_epoch_seconds": minimum_seconds,
         "required_ordinary_folds": REQUIRED_ORDINARY_FOLDS,
@@ -423,7 +455,12 @@ def assess_gate_b_readiness(
             candidate_start = candidate_start + config.step_duration
             continue
 
-        plan = build_gate_b_plan(connection, config, research_config)
+        plan = build_gate_b_plan(
+            connection,
+            config,
+            research_config,
+            planning_epoch_start=planning_boundary,
+        )
         return {
             **base,
             "ready": True,
@@ -461,10 +498,12 @@ def build_gate_b_plan(
     connection: Connection,
     config: GateBPlanConfig | None = None,
     research_config: GateBResearchConfig | None = None,
+    *,
+    planning_epoch_start: datetime | None = None,
 ) -> dict[str, Any]:
     config = config or GateBPlanConfig()
     research_config = research_config or GateBResearchConfig()
-    timeline = _feature_timeline(connection)
+    timeline, planning_boundary = _planning_timeline(connection, planning_epoch_start)
     dataset_start = timeline[0]["market_start_at"]
     dataset_end = timeline[-1]["market_end_at"]
     holdout_start = dataset_end - config.final_holdout_duration
@@ -536,6 +575,9 @@ def build_gate_b_plan(
         "market_count": len(timeline),
         "market_start_at": dataset_start.isoformat(),
         "market_end_at": dataset_end.isoformat(),
+        "planning_epoch_start_at": (
+            planning_boundary.isoformat() if planning_boundary is not None else None
+        ),
         "analysis_start_at": candidate_start.isoformat(),
         "analysis_start_attempt_count": attempt_count,
         "excluded_prefix_condition_ids": excluded_prefix,
