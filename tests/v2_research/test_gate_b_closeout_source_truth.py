@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from pathlib import Path
 
 
@@ -21,7 +19,10 @@ def test_consumed_gate_b_holdout_supersedes_same_plan_resume_instructions() -> N
     assert "must not be reused" in master
 
     assert "fresh statistically clean V2 Gate B plan" in build_order
-    assert "resume only the same frozen plan through `prepare -> evaluate-holdout`" not in build_order
+    stale_resume_instruction = (
+        "resume only the same frozen plan through `prepare -> evaluate-holdout`"
+    )
+    assert stale_resume_instruction not in build_order
 
     d040 = decisions.split("## D-040", 1)[1].split("## D-041", 1)[0]
     assert "**Status:** Superseded by D-041" in d040
