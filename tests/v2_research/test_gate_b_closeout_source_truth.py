@@ -51,8 +51,14 @@ def test_outcome_label_rollout_pass_is_source_of_truth() -> None:
     assert '"outcome_label_coverage_fix_rollout_preflight_performed": true' in project_state
     assert '"outcome_label_coverage_fix_rollout_preflight_passed": true' in project_state
     assert '"outcome_label_coverage_fix_production_deployed": true' in project_state
-    assert f'"outcome_label_coverage_fix_deployed_head": "{ROLLOUT_CANDIDATE_HEAD}"' in project_state
-    assert f'"outcome_label_coverage_fix_rollout_evidence": "{ROLLOUT_EVIDENCE}"' in project_state
+    deployed_head = (
+        f'"outcome_label_coverage_fix_deployed_head": "{ROLLOUT_CANDIDATE_HEAD}"'
+    )
+    assert deployed_head in project_state
+    rollout_evidence = (
+        f'"outcome_label_coverage_fix_rollout_evidence": "{ROLLOUT_EVIDENCE}"'
+    )
+    assert rollout_evidence in project_state
     assert '"outcome_label_coverage_fix_rollout_holdout_access_performed": false' in project_state
     assert '"outcome_label_coverage_fix_rollout_gate_b_actions_performed": false' in project_state
     assert '"source_of_truth_version": "0.14.132"' in project_state
