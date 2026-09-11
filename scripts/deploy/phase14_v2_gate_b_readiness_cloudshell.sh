@@ -9,6 +9,7 @@ DEPLOYED_HEAD="${PHASE14_V2_GATE_B_READINESS_DEPLOYED_HEAD:-}"
 ENV_FILE="${PHASE14_V2_GATE_B_READINESS_ENV_FILE:-/etc/bp/bp.env}"
 STORAGE_EVIDENCE="${PHASE14_V2_GATE_B_READINESS_STORAGE_EVIDENCE:-}"
 STORAGE_EVIDENCE_SHA256="${PHASE14_V2_GATE_B_READINESS_STORAGE_EVIDENCE_SHA256:-}"
+PLANNING_EPOCH_START="${PHASE14_V2_GATE_B_READINESS_PLANNING_EPOCH_START:-}"
 
 fail_local() {
   echo "PHASE14_V2_GATE_B_READINESS=FAIL" >&2
@@ -21,6 +22,23 @@ fail_local() {
 [[ "$ENV_FILE" == /* ]] || fail_local "env_file_must_be_absolute"
 [[ "$STORAGE_EVIDENCE" == /* ]] || fail_local "storage_evidence_path_must_be_absolute"
 [[ "$STORAGE_EVIDENCE_SHA256" =~ ^[0-9a-f]{64}$ ]] || fail_local "storage_evidence_sha256_invalid"
+if ! PLANNING_EPOCH_START_CANONICAL=$(python3 - "$PLANNING_EPOCH_START" <<'PY'
+from __future__ import annotations
+
+import sys
+from datetime import UTC, datetime
+
+try:
+    value = datetime.fromisoformat(sys.argv[1].replace("Z", "+00:00"))
+except ValueError:
+    raise SystemExit(1)
+if value.tzinfo is None or value.utcoffset() is None:
+    raise SystemExit(1)
+print(value.astimezone(UTC).isoformat())
+PY
+); then
+  fail_local "planning_epoch_start_invalid"
+fi
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
 [[ -n "$ROOT" ]] || fail_local "local_repository_missing"
@@ -55,6 +73,7 @@ printf -v DEPLOYED_HEAD_Q '%q' "$DEPLOYED_HEAD"
 printf -v ENV_FILE_Q '%q' "$ENV_FILE"
 printf -v STORAGE_EVIDENCE_Q '%q' "$STORAGE_EVIDENCE"
 printf -v STORAGE_EVIDENCE_SHA256_Q '%q' "$STORAGE_EVIDENCE_SHA256"
+printf -v PLANNING_EPOCH_START_Q '%q' "$PLANNING_EPOCH_START"
 printf -v REMOTE_ARCHIVE_Q '%q' "$REMOTE_ARCHIVE"
 printf -v ARCHIVE_SHA256_Q '%q' "$ARCHIVE_SHA256"
 
@@ -66,6 +85,7 @@ DEPLOYED_HEAD="${PHASE14_V2_GATE_B_READINESS_DEPLOYED_HEAD:?}"
 ENV_FILE="${PHASE14_V2_GATE_B_READINESS_ENV_FILE:?}"
 STORAGE_EVIDENCE="${PHASE14_V2_GATE_B_READINESS_STORAGE_EVIDENCE:?}"
 STORAGE_EVIDENCE_SHA256="${PHASE14_V2_GATE_B_READINESS_STORAGE_EVIDENCE_SHA256:?}"
+PLANNING_EPOCH_START="${PHASE14_V2_GATE_B_READINESS_PLANNING_EPOCH_START:?}"
 ARCHIVE="${PHASE14_V2_GATE_B_READINESS_ARCHIVE:?}"
 ARCHIVE_SHA256="${PHASE14_V2_GATE_B_READINESS_ARCHIVE_SHA256:?}"
 
@@ -231,18 +251,23 @@ if ! sudo -u bp env \
     MAX_DAILY_LOSS_USD=0 \
     PYTHONPATH="$RUNTIME_ROOT/src" \
     "$REPO/.venv/bin/python" "$RUNTIME_ROOT/scripts/run_v2_gate_b_research.py" \
-    --env-file "$ENV_FILE" readiness > "$REPORT_FILE"; then
+    --env-file "$ENV_FILE" readiness \
+    --planning-epoch-start "$PLANNING_EPOCH_START" > "$REPORT_FILE"; then
   fail "readiness_command_failed"
 fi
 
-"$REPO/.venv/bin/python" - "$REPORT_FILE" <<'PY' || fail "readiness_contract_failed"
+"$REPO/.venv/bin/python" - "$REPORT_FILE" "$PLANNING_EPOCH_START" <<'PY' || fail "readiness_contract_failed"
 from __future__ import annotations
 
 import json
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+expected_epoch = datetime.fromisoformat(sys.argv[2].replace("Z", "+00:00")).astimezone(UTC).isoformat()
+if payload.get("planning_epoch_start_at") != expected_epoch:
+    raise SystemExit("planning epoch mismatch")
 if payload.get("labels_read") is not False:
     raise SystemExit("readiness read labels")
 if payload.get("plan_artifact_written") is not False:
@@ -272,6 +297,7 @@ run_storage_health "$DISK_AFTER"
 echo "PHASE14_V2_GATE_B_READINESS=PASS"
 echo "HELPER_HEAD=$HELPER_HEAD"
 echo "DEPLOYED_HEAD=$DEPLOYED_HEAD"
+echo "PLANNING_EPOCH_START=$PLANNING_EPOCH_START"
 echo "HOLDOUT_TOUCHED=false"
 "$REPO/.venv/bin/python" - "$REPORT_FILE" <<'PY'
 from __future__ import annotations
@@ -315,10 +341,11 @@ echo "HELPER_HEAD=$HELPER_HEAD"
 echo "DEPLOYED_HEAD=$DEPLOYED_HEAD"
 echo "STORAGE_EVIDENCE=$STORAGE_EVIDENCE"
 echo "STORAGE_EVIDENCE_SHA256=$STORAGE_EVIDENCE_SHA256"
+echo "PLANNING_EPOCH_START=$PLANNING_EPOCH_START_CANONICAL"
 echo "CANDIDATE_ARCHIVE_SHA256=$ARCHIVE_SHA256"
 echo "Running feature-only Phase 14 V2 Gate B readiness check."
 
 gcloud compute ssh "$VM" \
   --project="$PROJECT" \
   --zone="$ZONE" \
-  --command="printf '%s' '$REMOTE_B64' | base64 -d | sudo env PHASE14_V2_GATE_B_READINESS_HELPER_HEAD=$HELPER_HEAD_Q PHASE14_V2_GATE_B_READINESS_DEPLOYED_HEAD=$DEPLOYED_HEAD_Q PHASE14_V2_GATE_B_READINESS_ENV_FILE=$ENV_FILE_Q PHASE14_V2_GATE_B_READINESS_STORAGE_EVIDENCE=$STORAGE_EVIDENCE_Q PHASE14_V2_GATE_B_READINESS_STORAGE_EVIDENCE_SHA256=$STORAGE_EVIDENCE_SHA256_Q PHASE14_V2_GATE_B_READINESS_ARCHIVE=$REMOTE_ARCHIVE_Q PHASE14_V2_GATE_B_READINESS_ARCHIVE_SHA256=$ARCHIVE_SHA256_Q bash"
+  --command="printf '%s' '$REMOTE_B64' | base64 -d | sudo env PHASE14_V2_GATE_B_READINESS_HELPER_HEAD=$HELPER_HEAD_Q PHASE14_V2_GATE_B_READINESS_DEPLOYED_HEAD=$DEPLOYED_HEAD_Q PHASE14_V2_GATE_B_READINESS_ENV_FILE=$ENV_FILE_Q PHASE14_V2_GATE_B_READINESS_STORAGE_EVIDENCE=$STORAGE_EVIDENCE_Q PHASE14_V2_GATE_B_READINESS_STORAGE_EVIDENCE_SHA256=$STORAGE_EVIDENCE_SHA256_Q PHASE14_V2_GATE_B_READINESS_PLANNING_EPOCH_START=$PLANNING_EPOCH_START_Q PHASE14_V2_GATE_B_READINESS_ARCHIVE=$REMOTE_ARCHIVE_Q PHASE14_V2_GATE_B_READINESS_ARCHIVE_SHA256=$ARCHIVE_SHA256_Q bash"
