@@ -82,3 +82,9 @@ def test_outcome_label_rollout_pass_is_source_of_truth() -> None:
     assert not (
         ROOT / "scripts/closeout_phase14_v2_outcome_label_rollout_preflight.py"
     ).exists()
+    assert not (
+        ROOT / ".github/workflows/closeout-phase14-v2-outcome-label-rollout-pass.yml"
+    ).exists()
+    assert not (
+        ROOT / "scripts/closeout_phase14_v2_outcome_label_rollout_pass.py"
+    ).exists()
