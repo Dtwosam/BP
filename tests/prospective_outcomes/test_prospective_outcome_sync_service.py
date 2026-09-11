@@ -126,6 +126,29 @@ def _engine_with_prediction() -> tuple[object, LivePrediction]:
 
 def _insert_v2_feature_market(engine: object, prediction: LivePrediction) -> None:
     with engine.begin() as connection:
+        connection.execute(
+            schema.polymarket_markets.insert().values(
+                gamma_market_id="gamma-prospective-outcome-sync",
+                event_id="event-prospective-outcome-sync",
+                condition_id=prediction.condition_id,
+                slug=prediction.slug,
+                question="Bitcoin Up or Down?",
+                horizon_seconds=prediction.horizon_seconds,
+                start_at=prediction.market_start_at,
+                end_at=prediction.market_end_at,
+                up_token_id=prediction.up_token_id,
+                down_token_id=prediction.down_token_id,
+                resolution_source="https://data.chain.link/streams/btc-usd",
+                rules_text="Resolves from the official BTC reference.",
+                rules_hash="a" * 64,
+                active=False,
+                closed=True,
+                accepting_orders=False,
+                resolved_outcome=None,
+                discovered_at=prediction.market_start_at,
+                updated_at=prediction.market_end_at,
+            )
+        )
         for offset in (60, 120, 180, 240):
             feature_at = prediction.market_start_at + timedelta(seconds=offset)
             connection.execute(
