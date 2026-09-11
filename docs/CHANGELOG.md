@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.132 — 11 September 2026
+
+- Recorded the passing production rollout of the Phase 14 V2 outcome-label coverage fix: exact helper/main `17833c64ba7b3836ad4f047167d7d2d861fd2bc0` moved production from `71b33d3beaba4a11ef93e7c5bde1c517323f3440` to immutable candidate `7c3af78da1922a0e5187c24b799951130cc98887` after the PR #182 read-only preflight (`f3ef5717390d0dd8d577bdc73143baabd12ff5ce` provenance) passed.
+- Only `bp-prospective-outcomes.service` restarted (PID `3889510` -> `3985114`); unrelated long-running service PIDs were unchanged, storage remained `ok`, and research/live-disabled/zero-money/automatic-promotion-false safety remained intact.
+- The rollout performed no holdout access and no Gate B action. Durable evidence is `/var/lib/bp/evidence/phase14-v2-outcome-label-rollout-20260911T124801Z.json`. Gate B remains unaccepted; the consumed frozen plan/final holdout must not be reused, and any new final holdout remains a separate one-shot authorization boundary.
+
 ## 0.14.131 — 11 September 2026
 
 - Corrected the Phase 14 V2 outcome-label rollout preflight operator contract so `PHASE14_V2_OUTCOME_LABEL_ROLLOUT_HELPER_HEAD` binds to the exact then-current `main` SHA and fetched `origin/main` must match it.

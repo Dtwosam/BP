@@ -571,7 +571,17 @@ def test_project_state_locks_gate_b_engineering_boundary() -> None:
     assert closeout["outcome_label_coverage_fix_merge_commit"] == (
         "13dee896a46ce38625159d5e587b68c08493a525"
     )
-    assert closeout["outcome_label_coverage_fix_production_deployed"] is False
+    assert closeout["outcome_label_coverage_fix_production_deployed"] is True
+    assert closeout["outcome_label_coverage_fix_deployed_head"] == (
+    "7c3af78da1922a0e5187c24b799951130cc98887"
+)
+    assert closeout["outcome_label_coverage_fix_rollout_evidence"] == (
+        "/var/lib/bp/evidence/phase14-v2-outcome-label-rollout-20260911T124801Z.json"
+    )
+    assert closeout["outcome_label_coverage_fix_rollout_preflight_performed"] is True
+    assert closeout["outcome_label_coverage_fix_rollout_preflight_passed"] is True
+    assert closeout["outcome_label_coverage_fix_rollout_holdout_access_performed"] is False
+    assert closeout["outcome_label_coverage_fix_rollout_gate_b_actions_performed"] is False
     assert closeout["automatic_promotion"] is False
     assert closeout["phase15_permitted"] is False
     assert closeout["live_trading_enabled"] is False

@@ -4,6 +4,8 @@ ROOT = Path(__file__).resolve().parents[2]
 FROZEN_PLAN_SHA256 = "8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea"
 ROLLOUT_CANDIDATE_HEAD = "7c3af78da1922a0e5187c24b799951130cc98887"
 ROLLOUT_PREFLIGHT_MERGE = "f3ef5717390d0dd8d577bdc73143baabd12ff5ce"
+ROLLOUT_HELPER_HEAD = "17833c64ba7b3836ad4f047167d7d2d861fd2bc0"
+ROLLOUT_EVIDENCE = "/var/lib/bp/evidence/phase14-v2-outcome-label-rollout-20260911T124801Z.json"
 
 
 def _read(relative_path: str) -> str:
@@ -33,7 +35,7 @@ def test_consumed_gate_b_holdout_supersedes_same_plan_resume_instructions() -> N
     assert "must not be reused" in d041
 
 
-def test_outcome_label_rollout_preflight_is_source_of_truth_but_not_deployment() -> None:
+def test_outcome_label_rollout_pass_is_source_of_truth() -> None:
     project_state = _read("PROJECT_STATE.json")
     master = _read("docs/MASTER-SOURCE-OF-TRUTH.md")
     build_order = _read("docs/BUILD-ORDER.md")
@@ -42,30 +44,37 @@ def test_outcome_label_rollout_preflight_is_source_of_truth_but_not_deployment()
     for content in (project_state, master, build_order, changelog):
         assert ROLLOUT_CANDIDATE_HEAD in content
         assert ROLLOUT_PREFLIGHT_MERGE in content
-
-    assert "phase14_v2_outcome_label_coverage_rollout_preflight_cloudshell.sh" in build_order
-    assert "read-only production preflight" in build_order
-    assert "does not authorize or perform the production rollout" in build_order
+        assert ROLLOUT_HELPER_HEAD in content
+        assert ROLLOUT_EVIDENCE in content
 
     assert '"outcome_label_coverage_fix_rollout_preflight_read_only": true' in project_state
-    assert '"outcome_label_coverage_fix_rollout_preflight_performed": false' in project_state
-    assert '"outcome_label_coverage_fix_production_deployed": false' in project_state
-    assert '"source_of_truth_version": "0.14.131"' in project_state
+    assert '"outcome_label_coverage_fix_rollout_preflight_performed": true' in project_state
+    assert '"outcome_label_coverage_fix_rollout_preflight_passed": true' in project_state
+    assert '"outcome_label_coverage_fix_production_deployed": true' in project_state
+    deployed_head = (
+        f'"outcome_label_coverage_fix_deployed_head": "{ROLLOUT_CANDIDATE_HEAD}"'
+    )
+    assert deployed_head in project_state
+    rollout_evidence = (
+        f'"outcome_label_coverage_fix_rollout_evidence": "{ROLLOUT_EVIDENCE}"'
+    )
+    assert rollout_evidence in project_state
+    assert '"outcome_label_coverage_fix_rollout_holdout_access_performed": false' in project_state
+    assert '"outcome_label_coverage_fix_rollout_gate_b_actions_performed": false' in project_state
+    assert '"source_of_truth_version": "0.14.132"' in project_state
 
-    assert "then-current `main`" in build_order
-    assert "PHASE14_V2_OUTCOME_LABEL_ROLLOUT_HELPER_HEAD" in build_order
-    assert "historical provenance" in build_order
-    assert "not a pinned checkout target" in build_order
-    assert "then-current `main`" in master
-    assert "historical provenance" in master
-    assert "then-current `main`" in project_state
-    assert "PHASE14_V2_OUTCOME_LABEL_ROLLOUT_HELPER_HEAD" in project_state
-    stale_checkout = f"clean checkout at `{ROLLOUT_PREFLIGHT_MERGE}`"
-    stale_merged_main_checkout = f"clean checkout at exact merged main {ROLLOUT_PREFLIGHT_MERGE}"
-    assert stale_checkout not in build_order
-    assert stale_merged_main_checkout not in project_state
+    assert "outcome-label coverage rollout passed" in master.lower()
+    consumed_closeout = master.split(
+        "### Phase 14 V2 Gate B consumed final-holdout closeout", 1
+    )[1].split("### Phase 14 V2 outcome-label coverage rollout PASS closeout", 1)[0]
+    assert "has not been deployed to production" not in consumed_closeout
+    assert "Any rollout remains a separate production-mutation boundary" not in consumed_closeout
+    assert "outcome-label coverage rollout passed" in build_order.lower()
+    assert "fresh statistically clean V2 Gate B plan" in build_order
+    assert "Phase 15" in build_order
+    assert "live trading" in build_order
 
-    assert changelog.startswith("# Changelog\n\n## 0.14.131 — 11 September 2026")
+    assert changelog.startswith("# Changelog\n\n## 0.14.132 — 11 September 2026")
     assert not (
         ROOT / ".github/workflows/closeout-phase14-v2-outcome-label-rollout-preflight.yml"
     ).exists()
@@ -77,4 +86,10 @@ def test_outcome_label_rollout_preflight_is_source_of_truth_but_not_deployment()
     ).exists()
     assert not (
         ROOT / "scripts/closeout_phase14_v2_outcome_label_rollout_preflight.py"
+    ).exists()
+    assert not (
+        ROOT / ".github/workflows/closeout-phase14-v2-outcome-label-rollout-pass.yml"
+    ).exists()
+    assert not (
+        ROOT / "scripts/closeout_phase14_v2_outcome_label_rollout_pass.py"
     ).exists()
