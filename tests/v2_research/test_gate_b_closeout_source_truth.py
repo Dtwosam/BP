@@ -50,14 +50,30 @@ def test_outcome_label_rollout_preflight_is_source_of_truth_but_not_deployment()
     assert '"outcome_label_coverage_fix_rollout_preflight_read_only": true' in project_state
     assert '"outcome_label_coverage_fix_rollout_preflight_performed": false' in project_state
     assert '"outcome_label_coverage_fix_production_deployed": false' in project_state
-    assert '"source_of_truth_version": "0.14.130"' in project_state
+    assert '"source_of_truth_version": "0.14.131"' in project_state
 
-    assert changelog.startswith("# Changelog\n\n## 0.14.130 — 11 September 2026")
+    assert "then-current `main`" in build_order
+    assert "PHASE14_V2_OUTCOME_LABEL_ROLLOUT_HELPER_HEAD" in build_order
+    assert "historical provenance" in build_order
+    assert "not a pinned checkout target" in build_order
+    assert "then-current `main`" in master
+    assert "historical provenance" in master
+    assert "then-current `main`" in project_state
+    assert "PHASE14_V2_OUTCOME_LABEL_ROLLOUT_HELPER_HEAD" in project_state
+    stale_checkout = f"clean checkout at `{ROLLOUT_PREFLIGHT_MERGE}`"
+    stale_merged_main_checkout = f"clean checkout at exact merged main {ROLLOUT_PREFLIGHT_MERGE}"
+    assert stale_checkout not in build_order
+    assert stale_merged_main_checkout not in project_state
+
+    assert changelog.startswith("# Changelog\n\n## 0.14.131 — 11 September 2026")
     assert not (
         ROOT / ".github/workflows/closeout-phase14-v2-outcome-label-rollout-preflight.yml"
     ).exists()
     assert not (
         ROOT / ".github/workflows/fix-phase14-closeout-changelog-heading.yml"
+    ).exists()
+    assert not (
+        ROOT / ".github/workflows/fix-phase14-rollout-preflight-current-main-contract.yml"
     ).exists()
     assert not (
         ROOT / "scripts/closeout_phase14_v2_outcome_label_rollout_preflight.py"

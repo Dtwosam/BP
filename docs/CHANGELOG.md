@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.131 — 11 September 2026
+
+- Corrected the Phase 14 V2 outcome-label rollout preflight operator contract so `PHASE14_V2_OUTCOME_LABEL_ROLLOUT_HELPER_HEAD` binds to the exact then-current `main` SHA and fetched `origin/main` must match it.
+- PR #182 merge `f3ef5717390d0dd8d577bdc73143baabd12ff5ce` remains historical provenance for the helper implementation, not a pinned checkout target after `main` advances; immutable rollout candidate `7c3af78da1922a0e5187c24b799951130cc98887` and deployed production head `71b33d3beaba4a11ef93e7c5bde1c517323f3440` are unchanged.
+- The read-only production preflight remains unperformed from an authenticated production operator environment, the rollout remains undeployed, and no production mutation or authorization boundary changed.
+- RESEARCH mode, live trading disabled, zero money limits, automatic promotion false, consumed Gate B holdout non-reusable, and Phase 15 blocked remain unchanged.
+
 ## 0.14.130 — 11 September 2026
 
 - Froze and verified production-shaped PR #179 rollout candidate `7c3af78da1922a0e5187c24b799951130cc98887` from deployed head `71b33d3beaba4a11ef93e7c5bde1c517323f3440` with exactly the prospective-outcome runtime fix and its regression test; full CI, historical-source smoke, live-recorder smoke, and 45-second short soak passed.
