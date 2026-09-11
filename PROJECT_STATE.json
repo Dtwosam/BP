@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.129",
-  "updated_at": "2026-09-11T10:00:15Z",
+  "source_of_truth_version": "0.14.130",
+  "updated_at": "2026-09-11T11:43:03Z",
   "current_phase": 14,
   "current_phase_name": "live readiness \u2014 engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -646,17 +646,20 @@
     "Phase 14 production data disk was expanded from 100 GB to 200 GB after snapshot bp-recorder-pre-resize-20260911-0831 reached READY; ext4 on /dev/sdb was grown online and composite storage health returned ok with 131308032000 free bytes and all guards true.",
     "A read-only frozen-plan Gate B label audit passed after storage recovery and found 230 non-holdout conditions, 215 existing canonical labels, and 15 missing canonical labels while HOLDOUT_TOUCHED remained false.",
     "The separately authorized same-plan Gate B resume later wrote its durable holdout-attempt marker before final-holdout evaluation and then failed closed while loading the final holdout because condition 0x2a760ccdb973c19ce13b6af86d752cf377790d5149a46b8498462904ece86efd lacked canonical supervised input. The frozen plan/final holdout is therefore consumed and must not be rerun; Gate B was not accepted.",
-    "PR #179 fixed the future V2 outcome-label coverage class by adding unlabeled completed 5m markets with V2 features to prospective outcome sync without collapsing live-prediction versions. Exact head 65739199ceeb77f591814241125060067d9b26d0 passed 1,067 tests plus all smoke gates and merged as 13dee896a46ce38625159d5e587b68c08493a525; post-merge main CI 34586051419 passed. The fix is not yet deployed to production."
+    "PR #179 fixed the future V2 outcome-label coverage class by adding unlabeled completed 5m markets with V2 features to prospective outcome sync without collapsing live-prediction versions. Exact head 65739199ceeb77f591814241125060067d9b26d0 passed 1,067 tests plus all smoke gates and merged as 13dee896a46ce38625159d5e587b68c08493a525; post-merge main CI 34586051419 passed. The fix is not yet deployed to production.",
+    "PR #182 merged a read-only production preflight for immutable PR #179 rollout candidate 7c3af78da1922a0e5187c24b799951130cc98887, rooted at deployed production head 71b33d3beaba4a11ef93e7c5bde1c517323f3440, as f3ef5717390d0dd8d577bdc73143baabd12ff5ce; post-merge CI 34594260516 passed. The preflight performs no production mutation and has not been executed from an authenticated production operator environment; the outcome-label coverage fix remains undeployed."
   ],
   "not_completed": [
-    "Production rollout and acceptance of PR #179's feature-only outcome-label coverage fix before relying on it for future Gate B evidence",
+    "Execution and acceptance of PR #182's merged read-only production preflight for the exact PR #179 rollout candidate",
+    "Separately authorized production rollout and acceptance of PR #179's feature-only outcome-label coverage fix after a passing read-only preflight",
     "A new statistically clean V2 Gate B plan with a new final holdout, one-shot evaluation, and explicit acceptance; the consumed frozen plan/final holdout must not be reused",
     "Phase 15 controlled live launch",
     "Live trading"
   ],
   "next_actions": [
     "Do not reuse frozen Gate B plan SHA-256 8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea or its consumed final holdout. Preserve the frozen evidence and holdout-attempt marker as immutable failure evidence.",
-    "Before another Gate B attempt, production rollout/acceptance of the PR #179 outcome-label coverage fix is a separate production-mutation boundary. Any rollout must preserve MODE=research, LIVE_TRADING_ENABLED=false, MAX_TRADE_SIZE_USD=0, MAX_DAILY_LOSS_USD=0, and automatic_promotion=false.",
+    "Run scripts/deploy/phase14_v2_outcome_label_coverage_rollout_preflight_cloudshell.sh from a clean checkout at exact merged main f3ef5717390d0dd8d577bdc73143baabd12ff5ce to verify immutable candidate 7c3af78da1922a0e5187c24b799951130cc98887 against deployed head 71b33d3beaba4a11ef93e7c5bde1c517323f3440. This is a read-only production preflight and does not authorize or perform the production rollout.",
+    "Only after that read-only preflight passes may the PR #179 production rollout be considered under its separate exact authorization boundary. Any rollout must preserve MODE=research, LIVE_TRADING_ENABLED=false, MAX_TRADE_SIZE_USD=0, MAX_DAILY_LOSS_USD=0, and automatic_promotion=false.",
     "Build future Gate B evidence from a fresh feature-only planning epoch and a new final holdout. Planning/readiness must remain label-blind; final-holdout access remains a separate one-shot explicit authorization boundary.",
     "Keep Gate B unaccepted and do not activate a V2 policy/model/calibration/edge configuration, Phase 15, geographic bypass, live trading, automatic promotion, or nonzero money limits unless a new statistically clean Gate B run and all other live gates pass under their separate authorization boundaries."
   ],
@@ -1540,7 +1543,20 @@
       "phase15_permitted": false,
       "live_trading_enabled": false,
       "max_trade_size_usd": 0,
-      "max_daily_loss_usd": 0
+      "max_daily_loss_usd": 0,
+      "outcome_label_coverage_fix_rollout_candidate_from_head": "71b33d3beaba4a11ef93e7c5bde1c517323f3440",
+      "outcome_label_coverage_fix_rollout_candidate_head": "7c3af78da1922a0e5187c24b799951130cc98887",
+      "outcome_label_coverage_fix_rollout_candidate_verified": true,
+      "outcome_label_coverage_fix_rollout_candidate_scope_files": [
+        "src/bp_engine/prospective_outcomes/service.py",
+        "tests/prospective_outcomes/test_prospective_outcome_sync_service.py"
+      ],
+      "outcome_label_coverage_fix_rollout_preflight_pr": 182,
+      "outcome_label_coverage_fix_rollout_preflight_merge_commit": "f3ef5717390d0dd8d577bdc73143baabd12ff5ce",
+      "outcome_label_coverage_fix_rollout_preflight_post_merge_ci_run_id": 34594260516,
+      "outcome_label_coverage_fix_rollout_preflight_helper": "scripts/deploy/phase14_v2_outcome_label_coverage_rollout_preflight_cloudshell.sh",
+      "outcome_label_coverage_fix_rollout_preflight_read_only": true,
+      "outcome_label_coverage_fix_rollout_preflight_performed": false
     }
   },
   "phase_14_storage_reliability_followup": {
