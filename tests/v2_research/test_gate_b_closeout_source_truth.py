@@ -52,8 +52,12 @@ def test_outcome_label_rollout_preflight_is_source_of_truth_but_not_deployment()
     assert '"outcome_label_coverage_fix_production_deployed": false' in project_state
     assert '"source_of_truth_version": "0.14.130"' in project_state
 
+    assert changelog.startswith("# Changelog\n\n## 0.14.130 — 11 September 2026")
     assert not (
         ROOT / ".github/workflows/closeout-phase14-v2-outcome-label-rollout-preflight.yml"
+    ).exists()
+    assert not (
+        ROOT / ".github/workflows/fix-phase14-closeout-changelog-heading.yml"
     ).exists()
     assert not (
         ROOT / "scripts/closeout_phase14_v2_outcome_label_rollout_preflight.py"
