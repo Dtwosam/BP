@@ -1,0 +1,196 @@
+name: Phase 14 Gate B Closeout State Updater
+
+on:
+  push:
+    branches:
+      - closeout/phase14-gate-b-consumed-holdout
+
+permissions:
+  contents: write
+
+jobs:
+  update-state:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Update canonical closeout state
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          state_path = Path("PROJECT_STATE.json")
+          changelog_path = Path("docs/CHANGELOG.md")
+          state = json.loads(state_path.read_text(encoding="utf-8"))
+
+          if state.get("source_of_truth_version") == "0.14.129":
+              print("closeout state already applied")
+              raise SystemExit(0)
+
+          assert state["source_of_truth_version"] == "0.14.128"
+          assert state["live_trading_enabled"] is False
+          assert state["trading_mode"] == "RESEARCH"
+
+          state["source_of_truth_version"] = "0.14.129"
+          state["updated_at"] = "2026-09-11T10:00:15Z"
+
+          completed = state["completed"]
+          additions = [
+              "Phase 14 dedupe-cleanup production recovery passed using exact minimal candidate 71b33d3beaba4a11ef93e7c5bde1c517323f3440: prestart and active-recorder maintenance succeeded, the recorder stayed on four workers with zero restarts, the natural-load soak passed, partitioned-storage health returned ok, research/zero-money safety was preserved, and Gate B remained untouched.",
+              "Phase 14 production data disk was expanded from 100 GB to 200 GB after snapshot bp-recorder-pre-resize-20260911-0831 reached READY; ext4 on /dev/sdb was grown online and composite storage health returned ok with 131308032000 free bytes and all guards true.",
+              "A read-only frozen-plan Gate B label audit passed after storage recovery and found 230 non-holdout conditions, 215 existing canonical labels, and 15 missing canonical labels while HOLDOUT_TOUCHED remained false.",
+              "The separately authorized same-plan Gate B resume later wrote its durable holdout-attempt marker before final-holdout evaluation and then failed closed while loading the final holdout because condition 0x2a760ccdb973c19ce13b6af86d752cf377790d5149a46b8498462904ece86efd lacked canonical supervised input. The frozen plan/final holdout is therefore consumed and must not be rerun; Gate B was not accepted.",
+              "PR #179 fixed the future V2 outcome-label coverage class by adding unlabeled completed 5m markets with V2 features to prospective outcome sync without collapsing live-prediction versions. Exact head 65739199ceeb77f591814241125060067d9b26d0 passed 1,067 tests plus all smoke gates and merged as 13dee896a46ce38625159d5e587b68c08493a525; post-merge main CI 34586051419 passed. The fix is not yet deployed to production.",
+          ]
+          for item in additions:
+              if item not in completed:
+                  completed.append(item)
+
+          state["not_completed"] = [
+              "Production rollout and acceptance of PR #179's feature-only outcome-label coverage fix before relying on it for future Gate B evidence",
+              "A new statistically clean V2 Gate B plan with a new final holdout, one-shot evaluation, and explicit acceptance; the consumed frozen plan/final holdout must not be reused",
+              "Phase 15 controlled live launch",
+              "Live trading",
+          ]
+          state["next_actions"] = [
+              "Do not reuse frozen Gate B plan SHA-256 8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea or its consumed final holdout. Preserve the frozen evidence and holdout-attempt marker as immutable failure evidence.",
+              "Before another Gate B attempt, production rollout/acceptance of the PR #179 outcome-label coverage fix is a separate production-mutation boundary. Any rollout must preserve MODE=research, LIVE_TRADING_ENABLED=false, MAX_TRADE_SIZE_USD=0, MAX_DAILY_LOSS_USD=0, and automatic_promotion=false.",
+              "Build future Gate B evidence from a fresh feature-only planning epoch and a new final holdout. Planning/readiness must remain label-blind; final-holdout access remains a separate one-shot explicit authorization boundary.",
+              "Keep Gate B unaccepted and do not activate a V2 policy/model/calibration/edge configuration, Phase 15, geographic bypass, live trading, automatic promotion, or nonzero money limits unless a new statistically clean Gate B run and all other live gates pass under their separate authorization boundaries.",
+          ]
+
+          v2 = state["phase_14_market_price_v2_followup"]
+          v2["v2_gate_b_consumed_holdout_closeout"] = {
+              "status": "FAILED_FINAL_HOLDOUT_INPUT_GAP_ONE_SHOT_CONSUMED",
+              "frozen_plan_sha256": "8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea",
+              "same_frozen_plan_reusable": False,
+              "holdout_attempt_marker": "holdout-attempt.json",
+              "holdout_touched": True,
+              "gate_b_accepted": False,
+              "missing_holdout_condition_id": "0x2a760ccdb973c19ce13b6af86d752cf377790d5149a46b8498462904ece86efd",
+              "new_statistically_clean_gate_b_plan_required": True,
+              "prior_label_recovery_audit": {
+                  "helper_head": "c0b73fe611ef84a4964c8beaa0a149f047d5bc81",
+                  "deployed_head": "71b33d3beaba4a11ef93e7c5bde1c517323f3440",
+                  "plan_sha256": "8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea",
+                  "candidate_archive_sha256": "df1cffd15ac7bae208642745fa89b7dcc145c7f6b4748a9d97b00b792b38b3d7",
+                  "non_holdout_condition_count": 230,
+                  "label_present_count": 215,
+                  "missing_label_count": 15,
+                  "holdout_touched": False,
+              },
+              "outcome_label_coverage_fix_pr": 179,
+              "outcome_label_coverage_fix_head": "65739199ceeb77f591814241125060067d9b26d0",
+              "outcome_label_coverage_fix_merge_commit": "13dee896a46ce38625159d5e587b68c08493a525",
+              "outcome_label_coverage_fix_ci_run_id": 34585700613,
+              "outcome_label_coverage_fix_post_merge_ci_run_id": 34586051419,
+              "outcome_label_coverage_fix_test_count": 1067,
+              "outcome_label_coverage_fix_historical_backfill_smoke_run_id": 34585700619,
+              "outcome_label_coverage_fix_live_recorder_smoke_run_id": 34585700573,
+              "outcome_label_coverage_fix_recorder_short_soak_run_id": 34585700562,
+              "outcome_label_coverage_fix_production_deployed": False,
+              "root_cause_class": "V2 forward feature coverage can include canonical completed markets without live_predictions, while prospective outcome sync previously selected only ended live_predictions; such markets could therefore miss canonical official-outcome-v1 labels.",
+              "automatic_promotion": False,
+              "phase15_permitted": False,
+              "live_trading_enabled": False,
+              "max_trade_size_usd": 0,
+              "max_daily_loss_usd": 0,
+          }
+
+          storage = state["phase_14_storage_reliability_followup"]
+          storage["partitioned_runtime_dedupe_cleanup_recovery_performed"] = True
+          storage["partitioned_runtime_dedupe_cleanup_recovery_closeout"] = {
+              "status": "PASS",
+              "evidence_path": "/var/lib/bp/evidence/phase14-dedupe-cleanup-recovery-20260910T183352Z.json",
+              "helper_head": "c0b73fe611ef84a4964c8beaa0a149f047d5bc81",
+              "from_head": "e9c7afc1536880e4612cb6e3d1a7282fa37c69f5",
+              "deployed_head": "71b33d3beaba4a11ef93e7c5bde1c517323f3440",
+              "prestart_maintenance_success": True,
+              "active_recorder_maintenance_success": True,
+              "recorder_active": True,
+              "recorder_workers": 4,
+              "recorder_main_pid": 3688643,
+              "restarts_before_active_maintenance": 0,
+              "restarts_after_active_maintenance": 0,
+              "soak_duration_seconds": 36,
+              "soak_minimum_duration_seconds": 28,
+              "soak_passed": True,
+              "storage_status": "ok",
+              "storage_mode": "partitioned",
+              "storage_free_bytes": 27722960896,
+              "storage_free_percent": 26.38039365997575,
+              "storage_guards_all_true": True,
+              "storage_retention_lag_hours": 0,
+              "storage_maintenance_timer_active": True,
+              "storage_disk_health_timer_active": True,
+              "v2_forward_coverage_timer_active": True,
+              "safety_mode": "research",
+              "live_trading_enabled": False,
+              "max_trade_size_usd": 0,
+              "max_daily_loss_usd": 0,
+              "automatic_promotion": False,
+              "gate_b_actions_performed": False,
+              "holdout_touched": False,
+          }
+          storage["production_data_disk_resize_closeout"] = {
+              "performed": True,
+              "snapshot": "bp-recorder-pre-resize-20260911-0831",
+              "snapshot_status": "READY",
+              "disk": "bp-recorder",
+              "zone": "us-east1-c",
+              "size_gib_before": 100,
+              "size_gib_after": 200,
+              "device": "/dev/sdb",
+              "filesystem": "ext4",
+              "filesystem_resize_online": True,
+              "post_resize_total_bytes": 210779168768,
+              "post_resize_free_bytes": 131308032000,
+              "post_resize_free_percent": 62.296493893344774,
+              "post_resize_storage_status": "ok",
+              "post_resize_guards_all_true": True,
+              "post_resize_retention_lag_hours": 0,
+              "repeat_required": False,
+          }
+
+          state_path.write_text(
+              json.dumps(state, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+
+          changelog = changelog_path.read_text(encoding="utf-8")
+          header = "# Changelog\n\n"
+          assert changelog.startswith(header)
+          assert "## 0.14.129 — 11 September 2026" not in changelog
+          entry = """## 0.14.129 — 11 September 2026
+
+Production storage recovery is now closed out. The exact dedupe-cleanup recovery candidate `71b33d3beaba4a11ef93e7c5bde1c517323f3440` passed its guarded production recovery: both maintenance cycles succeeded, the recorder stayed active on four writers with zero restarts, the natural-load soak passed, partitioned-storage health returned `ok`, and research/live-disabled/zero-money safety was preserved. The production data disk was subsequently snapshotted as `bp-recorder-pre-resize-20260911-0831`, expanded from 100 GB to 200 GB, and its ext4 filesystem was grown online; post-resize storage health was `ok` with 131,308,032,000 free bytes and all guards true.
+
+A read-only audit of frozen Gate B plan SHA-256 `8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea` then passed and found 230 non-holdout conditions, 215 existing canonical labels, and 15 missing labels while leaving the final holdout untouched. After the separately authorized non-holdout recovery and same-plan resume, the resume durably wrote `holdout-attempt.json` before final-holdout evaluation and then failed closed during final-holdout dataset loading because condition `0x2a760ccdb973c19ce13b6af86d752cf377790d5149a46b8498462904ece86efd` lacked canonical supervised input. That final holdout is now consumed. The frozen plan/final holdout must not be rerun or reused, and Gate B did not pass.
+
+PR #179 fixes the underlying future label-coverage class without changing Gate B statistics: prospective outcome sync now preserves every existing unevaluated prediction candidate and additionally covers unlabeled completed canonical 5m markets that already have V2 features, while avoiding duplicate feature-only candidates for conditions already covered by predictions. RED→GREEN review also proved multiple prediction versions are not collapsed. Exact head `65739199ceeb77f591814241125060067d9b26d0` passed **1,067 tests**, Ruff, deployment validation, research health, dashboard checks, Historical Backfill Smoke `34585700619`, Live Recorder Smoke `34585700573`, and Recorder Short Soak `34585700562`; it merged as `13dee896a46ce38625159d5e587b68c08493a525`, and post-merge main CI `34586051419` passed.
+
+PR #179 is source-integrated only; it has not been deployed to production. Any production rollout is a separate production-mutation boundary. A future Gate B attempt must use a fresh statistically clean planning epoch and new final holdout. `MODE=research`, `LIVE_TRADING_ENABLED=false`, both money limits remain zero, `automatic_promotion=false`, Gate B remains unaccepted, and V2 activation, Phase 15, geographic bypass, and live trading remain blocked.
+
+"""
+          changelog_path.write_text(header + entry + changelog[len(header):], encoding="utf-8")
+          PY
+
+          python -m json.tool PROJECT_STATE.json >/dev/null
+          git diff --check
+          git diff -- PROJECT_STATE.json docs/CHANGELOG.md
+
+      - name: Commit closeout records
+        shell: bash
+        run: |
+          if git diff --quiet -- PROJECT_STATE.json docs/CHANGELOG.md; then
+            echo "No closeout changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PROJECT_STATE.json docs/CHANGELOG.md
+          git commit -m "Close out consumed Phase 14 Gate B holdout"
+          git push origin HEAD:closeout/phase14-gate-b-consumed-holdout
