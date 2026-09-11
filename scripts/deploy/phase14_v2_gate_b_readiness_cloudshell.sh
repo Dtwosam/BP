@@ -251,8 +251,8 @@ if ! sudo -u bp env \
     MAX_DAILY_LOSS_USD=0 \
     PYTHONPATH="$RUNTIME_ROOT/src" \
     "$REPO/.venv/bin/python" "$RUNTIME_ROOT/scripts/run_v2_gate_b_research.py" \
-    --env-file "$ENV_FILE" readiness \
-    --planning-epoch-start "$PLANNING_EPOCH_START" > "$REPORT_FILE"; then
+    --env-file "$ENV_FILE" readiness > "$REPORT_FILE" \
+    --planning-epoch-start "$PLANNING_EPOCH_START"; then
   fail "readiness_command_failed"
 fi
 
