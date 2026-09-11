@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy import create_engine, func, select
 
+from bp_engine.features.v2_models import V2_FEATURE_VERSION
 from bp_engine.live_prediction.models import LivePrediction
 from bp_engine.live_prediction.repository import LivePredictionRepository
 from bp_engine.storage import schema
@@ -123,6 +124,30 @@ def _engine_with_prediction() -> tuple[object, LivePrediction]:
     return engine, prediction
 
 
+def _insert_v2_feature_market(engine: object, prediction: LivePrediction) -> None:
+    with engine.begin() as connection:
+        for offset in (60, 120, 180, 240):
+            feature_at = prediction.market_start_at + timedelta(seconds=offset)
+            connection.execute(
+                schema.market_features.insert().values(
+                    condition_id=prediction.condition_id,
+                    slug=prediction.slug,
+                    horizon_seconds=prediction.horizon_seconds,
+                    market_start_at=prediction.market_start_at,
+                    market_end_at=prediction.market_end_at,
+                    feature_at=feature_at,
+                    feature_offset_seconds=offset,
+                    feature_version=V2_FEATURE_VERSION,
+                    features={"market_price": 0.5},
+                    missing_flags={},
+                    source_cutoffs={},
+                    input_fingerprint=f"{offset:064x}",
+                    feature_hash=f"{offset + 1:064x}",
+                    generated_at=feature_at,
+                )
+            )
+
+
 @pytest.mark.asyncio
 async def test_sync_resolved_prediction_creates_snapshot_label_and_evaluation() -> None:
     from bp_engine.prospective_outcomes.service import ProspectiveOutcomeSyncService
@@ -156,6 +181,40 @@ async def test_sync_resolved_prediction_creates_snapshot_label_and_evaluation() 
     assert evaluation["official_outcome"] == "Up"
     assert evaluation["label_source_snapshot_sha256"]
     assert len(evaluation["label_source_snapshot_sha256"]) == 64
+
+
+@pytest.mark.asyncio
+async def test_sync_resolved_v2_feature_market_without_prediction_creates_label() -> None:
+    from bp_engine.prospective_outcomes.service import ProspectiveOutcomeSyncService
+
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    schema.metadata.create_all(engine)
+    prediction = _prediction()
+    _insert_v2_feature_market(engine, prediction)
+    client = FakeGammaClient(_resolved_gamma_payload(prediction))
+
+    report = await ProspectiveOutcomeSyncService(engine=engine, client=client).run_once(
+        now=prediction.market_end_at + timedelta(minutes=1)
+    )
+
+    with engine.begin() as connection:
+        snapshot_count = connection.scalar(
+            select(func.count()).select_from(schema.polymarket_market_snapshots)
+        )
+        label_count = connection.scalar(select(func.count()).select_from(schema.market_labels))
+        evaluation_count = connection.scalar(
+            select(func.count()).select_from(schema.live_prediction_evaluations)
+        )
+
+    assert client.calls == [prediction.slug]
+    assert report.candidates == 1
+    assert report.resolved_markets == 1
+    assert report.created_snapshots == 1
+    assert report.created_labels == 1
+    assert report.created_evaluations == 0
+    assert snapshot_count == 1
+    assert label_count == 1
+    assert evaluation_count == 0
 
 
 @pytest.mark.asyncio
