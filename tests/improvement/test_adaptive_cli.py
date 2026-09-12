@@ -29,6 +29,12 @@ def _modules():
 
 def _patch_database(monkeypatch, cli):
     engine = _FakeEngine()
+
+    class Inspector:
+        def has_table(self, table_name: str) -> bool:
+            assert table_name == "adaptive_learning_cycles"
+            return True
+
     monkeypatch.setattr(
         cli,
         "get_settings",
@@ -39,6 +45,7 @@ def _patch_database(monkeypatch, cli):
         "create_engine",
         lambda *_args, **_kwargs: engine,
     )
+    monkeypatch.setattr(cli, "inspect", lambda connection: Inspector())
     return engine
 
 
