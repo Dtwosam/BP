@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.133 — 12 September 2026
+
+- Added the research-only adaptive supervised-learning milestone: readiness is based on **50 newly resolved eligible markets** for an exact horizon/feature/label stream, and executed trades are not required for a market to become a learning example.
+- Added append-only adaptive cycle evidence plus `adaptive-readiness` and `adaptive-train` CLI paths that reuse the existing deterministic modeling/champion-challenger stack. The subsystem keeps automatic promotion off, does not access a final holdout, and does not activate paper or live models.
+- Recorded the fresh 12 September V2 Gate B conclusion as complete evidence but not accepted: final policy `no_trade`, selection reason `no_validation_edge_candidate_profitable`, zero holdout trades, and the one-shot final holdout permanently consumed/non-reusable.
+- Preserved Phase 14 safety unchanged: RESEARCH mode, live trading disabled, zero money limits, Phase 15 blocked, and no automatic promotion.
+
 ## 0.14.132 — 11 September 2026
 
 - Recorded the passing production rollout of the Phase 14 V2 outcome-label coverage fix: exact helper/main `17833c64ba7b3836ad4f047167d7d2d861fd2bc0` moved production from `71b33d3beaba4a11ef93e7c5bde1c517323f3440` to immutable candidate `7c3af78da1922a0e5187c24b799951130cc98887` after the PR #182 read-only preflight (`f3ef5717390d0dd8d577bdc73143baabd12ff5ce` provenance) passed.

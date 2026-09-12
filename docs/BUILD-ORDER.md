@@ -483,9 +483,15 @@ PR #136 merged read-only preflight observability and worker-stdin hardening to `
 
 ---
 
+## Phase 14 adaptive learning research milestone — 12 September 2026
+
+Repository-only adaptive learning infrastructure is implemented on the Phase 14 research branch. Readiness counts newly resolved eligible markets for an exact horizon/feature/label stream; the first cycle threshold is **50 newly resolved eligible markets**, and executed trades are not required. Eligible cycles retrain the existing deterministic modeling ladder and append immutable cycle evidence, while `automatic_promotion=false`, final-holdout access remains forbidden, and paper/live activation remains disabled.
+
+The 12 September V2 Gate B evidence is complete but not accepted: final policy `no_trade`, selection reason `no_validation_edge_candidate_profitable`, final holdout permanently consumed and non-reusable. This milestone does not reopen that holdout and does not authorize V2 paper activation.
+
 ## Immediate next action
 
-**The Phase 14 V2 feature-only readiness prerequisite is satisfied and Gate B research execution is explicitly authorized for one exact-main run. Execute `scripts/deploy/phase14_v2_gate_b_research_cloudshell.sh` from the clean current `main`, bound to accepted deployed head `e9c7afc1536880e4612cb6e3d1a7282fa37c69f5` and the accepted partitioned-storage evidence. The authorized sequence is `plan` -> `prepare` -> `evaluate-holdout` -> summary exactly once. Planning stays label-free; `prepare` keeps final-holdout labels unread and freezes the validation-selected policy; only `evaluate-holdout` may read the frozen holdout labels. If a holdout artifact is created, do not rerun or select another holdout. This authorization does not enable automatic promotion, prospective V2 activation, Phase 15, geographic bypass, live trading, or nonzero money. Research/live-disabled/zero-money controls remain mandatory.**
+**Keep Phase 14 in research mode and run only the adaptive-learning readiness path against immutable evidence. Use `adaptive-readiness` for the exact horizon/feature/label stream and wait until at least 50 newly resolved eligible markets have accumulated since the prior adaptive-cycle cutoff (or the explicit bootstrap boundary for the first cycle). When readiness passes, `adaptive-train` may create a research challenger and immutable cycle record; it must not automatically promote or activate that challenger. Continue existing money-disabled prospective evidence collection. No final-holdout access, V2 paper-model activation, Phase 15 progression, geographic bypass, live trading, or nonzero money is authorized.**
 
 Production preflight evidence captured at 2026-09-05T18:31:49Z was verified PASS at capture time but is superseded for migration use because origin/main advanced afterward: recorder stopped, mutations false, research/zero-money boundary intact, canonical archive `phase14-storage-recovery-24-48h-20260904T015955Z.json` bound by SHA-256 `76d3b4cfa4d2a6d976795eeadeb7ea11de46747ef88c3f5486292295e764bd5c`, raw storage still legacy/unmigrated, dedicated-data free bytes `62289272832`, raw relation bytes `29804167168`, and verified-preflight digest `df97c53b627b37cf00e57263ab092ec6f33290d027c3138ee4a1bcfbf98a0687`. Migration approval remains false/unset; this evidence must not be interpreted as authorization.
 

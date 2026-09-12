@@ -2,6 +2,7 @@
 
 from bp_engine.storage import schema as schema
 from bp_engine.storage.improvement_schema import (
+    adaptive_learning_cycles,
     improvement_evaluations,
     improvement_experiments,
     improvement_promotion_decisions,
@@ -27,6 +28,7 @@ schema.paper_settlements = paper_settlements
 schema.improvement_experiments = improvement_experiments
 schema.improvement_evaluations = improvement_evaluations
 schema.improvement_promotion_decisions = improvement_promotion_decisions
+schema.adaptive_learning_cycles = adaptive_learning_cycles
 schema.live_readiness_checks = live_readiness_checks
 schema.live_risk_decisions = live_risk_decisions
 schema.live_order_intents = live_order_intents

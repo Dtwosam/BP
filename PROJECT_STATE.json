@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.132",
-  "updated_at": "2026-09-11T12:56:00Z",
+  "source_of_truth_version": "0.14.133",
+  "updated_at": "2026-09-12T13:15:00Z",
   "current_phase": 14,
   "current_phase_name": "live readiness \u2014 engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -1570,7 +1570,12 @@
       "outcome_label_coverage_fix_rollout_production_mutations_performed": true,
       "outcome_label_coverage_fix_rollout_holdout_access_performed": false,
       "outcome_label_coverage_fix_rollout_gate_b_actions_performed": false
-    }
+    },
+    "gate_b_latest_evidence_status": "COMPLETE_NOT_ACCEPTED",
+    "gate_b_latest_final_policy": "no_trade",
+    "gate_b_latest_final_selection_reason": "no_validation_edge_candidate_profitable",
+    "gate_b_latest_holdout_reusable": false,
+    "gate_b_latest_v2_paper_activation_authorized": false
   },
   "phase_14_storage_reliability_followup": {
     "incident_date": "2026-09-04",
@@ -3300,5 +3305,23 @@
       "post_resize_retention_lag_hours": 0,
       "repeat_required": false
     }
+  },
+  "phase_14_adaptive_learning": {
+    "implementation_status": "REPOSITORY_RESEARCH_ONLY",
+    "trigger_basis": "newly_resolved_eligible_markets",
+    "initial_trigger_count": 50,
+    "executed_trade_required": false,
+    "automatic_promotion": false,
+    "final_holdout_access_allowed": false,
+    "paper_model_activation_allowed": false,
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "readiness_command": "python -m bp_engine.improvement.cli adaptive-readiness",
+    "training_command": "python -m bp_engine.improvement.cli adaptive-train",
+    "learning_cycle_ledger": "adaptive_learning_cycles",
+    "source_design": "docs/superpowers/specs/2026-09-12-adaptive-bitcoin-learning-design.md",
+    "source_plan": "docs/superpowers/plans/2026-09-12-adaptive-bitcoin-learning.md",
+    "gate_b_evidence": "docs/evidence/phase-14-v2-gate-b-20260912.json"
   }
 }

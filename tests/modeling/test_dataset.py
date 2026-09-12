@@ -161,3 +161,34 @@ def test_load_dataset_rejects_forbidden_label_key_inside_feature_payload() -> No
                 feature_version="core-v1",
                 label_version="official-outcome-v1",
             )
+
+
+def test_load_dataset_can_freeze_label_availability_at_cutoff() -> None:
+    start = datetime(2026, 8, 24, tzinfo=UTC)
+    engine = _engine()
+    with engine.begin() as connection:
+        connection.execute(insert(market_labels).values(**_label(start)))
+        connection.execute(insert(market_features).values(**_feature(start, 1)))
+
+        before_label = load_dataset(
+            connection,
+            start=start,
+            end=start + timedelta(days=1),
+            horizon_seconds=300,
+            feature_version="core-v1",
+            label_version="official-outcome-v1",
+            label_generated_at_lte=start + timedelta(seconds=419),
+        )
+        after_label = load_dataset(
+            connection,
+            start=start,
+            end=start + timedelta(days=1),
+            horizon_seconds=300,
+            feature_version="core-v1",
+            label_version="official-outcome-v1",
+            label_generated_at_lte=start + timedelta(seconds=420),
+        )
+
+    assert before_label.rows == ()
+    assert len(after_label.rows) == 1
+    assert before_label.dataset_sha256 != after_label.dataset_sha256

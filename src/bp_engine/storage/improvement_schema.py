@@ -135,3 +135,57 @@ Index(
     improvement_promotion_decisions.c.experiment_id,
     improvement_promotion_decisions.c.created_at,
 )
+
+adaptive_learning_cycles = Table(
+    "adaptive_learning_cycles",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("cycle_id", String(128), nullable=False, unique=True),
+    Column("cycle_version", String(64), nullable=False),
+    Column("horizon_seconds", Integer, nullable=False),
+    Column("feature_version", String(128), nullable=False),
+    Column("label_version", String(128), nullable=False),
+    Column("trigger_count", Integer, nullable=False),
+    Column("since_at", DateTime(timezone=True), nullable=False),
+    Column("cutoff_at", DateTime(timezone=True), nullable=False),
+    Column("eligible_resolved_market_count", Integer, nullable=False),
+    Column("readiness_semantic_sha256", String(64), nullable=False),
+    Column("training_start_at", DateTime(timezone=True), nullable=False),
+    Column("training_run_id", String(128), nullable=False),
+    Column("training_semantic_sha256", String(64), nullable=False),
+    Column("summary", JSON, nullable=False),
+    Column("semantic_sha256", String(64), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    CheckConstraint(
+        "horizon_seconds > 0",
+        name="ck_adaptive_learning_cycles_positive_horizon",
+    ),
+    CheckConstraint(
+        "trigger_count > 0",
+        name="ck_adaptive_learning_cycles_positive_trigger",
+    ),
+    CheckConstraint(
+        "eligible_resolved_market_count >= trigger_count",
+        name="ck_adaptive_learning_cycles_trigger_satisfied",
+    ),
+    CheckConstraint(
+        "length(readiness_semantic_sha256) = 64",
+        name="ck_adaptive_learning_cycles_readiness_sha256",
+    ),
+    CheckConstraint(
+        "length(training_semantic_sha256) = 64",
+        name="ck_adaptive_learning_cycles_training_sha256",
+    ),
+    CheckConstraint(
+        "length(semantic_sha256) = 64",
+        name="ck_adaptive_learning_cycles_semantic_sha256",
+    ),
+)
+
+Index(
+    "ix_adaptive_learning_cycles_stream_cutoff",
+    adaptive_learning_cycles.c.horizon_seconds,
+    adaptive_learning_cycles.c.feature_version,
+    adaptive_learning_cycles.c.label_version,
+    adaptive_learning_cycles.c.cutoff_at,
+)

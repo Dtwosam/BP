@@ -61,7 +61,7 @@ def test_outcome_label_rollout_pass_is_source_of_truth() -> None:
     assert rollout_evidence in project_state
     assert '"outcome_label_coverage_fix_rollout_holdout_access_performed": false' in project_state
     assert '"outcome_label_coverage_fix_rollout_gate_b_actions_performed": false' in project_state
-    assert '"source_of_truth_version": "0.14.132"' in project_state
+    assert '"source_of_truth_version": "0.14.133"' in project_state
 
     assert "outcome-label coverage rollout passed" in master.lower()
     consumed_closeout = master.split(
@@ -74,7 +74,8 @@ def test_outcome_label_rollout_pass_is_source_of_truth() -> None:
     assert "Phase 15" in build_order
     assert "live trading" in build_order
 
-    assert changelog.startswith("# Changelog\n\n## 0.14.132 — 11 September 2026")
+    assert changelog.startswith("# Changelog\n\n## 0.14.133 — 12 September 2026")
+    assert "## 0.14.132 — 11 September 2026" in changelog
     assert not (
         ROOT / ".github/workflows/closeout-phase14-v2-outcome-label-rollout-preflight.yml"
     ).exists()
