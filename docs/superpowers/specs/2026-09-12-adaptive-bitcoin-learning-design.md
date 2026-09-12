@@ -1,6 +1,6 @@
 # Adaptive Bitcoin Learning Loop Design
 
-**Date:** 12 September 2026  
+**Date:** 12 September 2026
 **Status:** Implemented research-only milestone; no production mutation and no model activation
 
 ## Purpose
