@@ -1,0 +1,85 @@
+{
+  "recorded_at": "2026-09-12T09:32:55.305444+00:00",
+  "status": "GATE_B_EVIDENCE_COMPLETE_NOT_ACCEPTED",
+  "mode": "RESEARCH",
+  "live_trading_enabled": false,
+  "max_trade_size_usd": 0,
+  "max_daily_loss_usd": 0,
+  "automatic_promotion": false,
+  "gate_b_authorized": false,
+  "helper_head": "a4760a6aea8eb30f81d40f23758fe2637fbd5628",
+  "deployed_head": "7c3af78da1922a0e5187c24b799951130cc98887",
+  "evidence_dir": "/var/lib/bp/evidence/phase14-v2-gate-b-20260912T092505Z",
+  "plan": {
+    "market_count": 246,
+    "fold_count": 4,
+    "final_holdout_market_count": 24,
+    "semantic_plan_sha256": "a61792bf475e1dd8847936536dac2d3728eb3a57766539f2b8a911d7202d7700",
+    "file_sha256": "7021b470a985bd61f3074b57ab3d934f862f01acc29921a2edd7aee8d9fe1524",
+    "labels_read_during_plan": false
+  },
+  "ordinary_folds": [
+    {
+      "index": 0,
+      "selection_policy": "no_trade",
+      "test_policy": "no_trade",
+      "test_trade_count": 0,
+      "test_after_cost_pnl": null
+    },
+    {
+      "index": 1,
+      "selection_policy": "trade_threshold",
+      "offset_seconds": 120,
+      "max_last_trade_age_seconds": 5,
+      "min_edge": 0.05,
+      "validation_trade_count": 10,
+      "validation_traded_accuracy": 0.9,
+      "validation_after_cost_pnl": 1.7397759999999998,
+      "test_trade_count": 4,
+      "test_traded_accuracy": 1.0,
+      "test_after_cost_pnl": 1.198694
+    },
+    {
+      "index": 2,
+      "selection_policy": "no_trade",
+      "test_policy": "no_trade",
+      "test_trade_count": 0,
+      "test_after_cost_pnl": null
+    },
+    {
+      "index": 3,
+      "selection_policy": "trade_threshold",
+      "offset_seconds": 240,
+      "max_last_trade_age_seconds": 10,
+      "min_edge": 0.0,
+      "validation_trade_count": 9,
+      "validation_traded_accuracy": 0.8888888888888888,
+      "validation_after_cost_pnl": 0.12114799999999994,
+      "test_trade_count": 8,
+      "test_traded_accuracy": 0.75,
+      "test_after_cost_pnl": -0.43260699999999996
+    }
+  ],
+  "final_selection": {
+    "policy": "no_trade",
+    "reason": "no_validation_edge_candidate_profitable",
+    "selection_sha256": "c242911531ca8490fa5ea78788ad5079e2e31e0a4824980873f257a24a1436fe"
+  },
+  "final_holdout": {
+    "holdout_touched": true,
+    "market_count": 24,
+    "policy": "no_trade",
+    "prediction_markets": 96,
+    "trade_count": 0,
+    "trade_coverage": 0.0,
+    "holdout_evidence_sha256": "01412205851b64a8a6b02a8f61f4e19090399fab5d4879c028a29224047e2c30",
+    "artifact_sha256": "17da945617afe588a380a7b3f1145660dcb5cc3965de6959ab562bcc1ea48be4",
+    "attempt_sha256": "70a174dde016285cbc114d5f97b82408f602f1a4f24cdbc3fd447e0185b719af"
+  },
+  "conclusion": {
+    "gate_b_accepted": false,
+    "v2_paper_activation_authorized": false,
+    "holdout_reusable": false,
+    "reason": "The timestamp-coherent V2 last-trade baseline did not establish stable positive after-cost economics. Ordinary folds were mixed and the final validation-selected policy was no_trade. The consumed holdout must never be reused for model, feature, threshold, timing, freshness, or policy selection."
+  }
+}
