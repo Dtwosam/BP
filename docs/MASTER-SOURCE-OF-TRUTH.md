@@ -1415,6 +1415,8 @@ This rollout closes only the future outcome-label coverage gap. Gate B remains u
 
 ### Phase 14 adaptive learning research contract — 12 September 2026
 
+The first adaptive-learning cycle has an immutable bootstrap boundary of `2026-09-12T17:21:13Z`. This is the exact merge timestamp at which the adaptive subsystem became canonical on `main`; the first readiness count must not include resolved eligible markets whose learning availability predates this boundary. After the first completed adaptive cycle, subsequent `since_at` values come only from the prior cycle cutoff and this bootstrap boundary must not be reset.
+
 The fresh timestamp-coherent V2 Gate B evidence package from 12 September 2026 is complete but **not accepted as a tradable V2 policy**. The frozen final selection is `no_trade` with validation reason `no_validation_edge_candidate_profitable`; the one-shot final holdout was touched and is permanently consumed. The runner's `PASS` verdict confirms evidence integrity and execution of the frozen procedure only; it does not establish economic edge, authorize Gate B acceptance, or permit V2 paper activation. The consumed final holdout must never be reused, retuned against, or used to select a replacement policy.
 
 The project therefore continues its original supervised-learning objective through a research-only adaptive cycle. A learning cycle becomes ready after **50 newly resolved eligible markets** for the exact horizon, feature version, and official label version. Eligibility requires an immutable official resolved outcome plus matching frozen pre-resolution features. Executed trades are not required: `NO_TRADE` markets remain supervised learning examples because their resolved outcome can still teach the probability model.

@@ -94,6 +94,7 @@ def test_changelog_and_design_mark_research_only_implementation() -> None:
 
 def test_first_adaptive_cycle_bootstrap_boundary_is_frozen() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
+    master = _text("docs/MASTER-SOURCE-OF-TRUTH.md")
     build_order = _text("docs/BUILD-ORDER.md")
     decisions = _text("docs/DECISION-LOG.md")
     changelog = _text("docs/CHANGELOG.md")
@@ -101,6 +102,7 @@ def test_first_adaptive_cycle_bootstrap_boundary_is_frozen() -> None:
     adaptive = state["phase_14_adaptive_learning"]
     assert adaptive["first_cycle_bootstrap_since_at"] == "2026-09-12T17:21:13Z"
     assert state["source_of_truth_version"] == "0.14.134"
+    assert "2026-09-12T17:21:13Z" in master
     assert "2026-09-12T17:21:13Z" in build_order
     assert "## D-043 — Freeze first adaptive-cycle bootstrap boundary" in decisions
     assert "2026-09-12T17:21:13Z" in decisions.split("## D-043", 1)[1]

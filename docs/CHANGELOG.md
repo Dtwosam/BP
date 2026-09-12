@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.134 — 12 September 2026
+
+- Froze the first adaptive-learning bootstrap boundary at `2026-09-12T17:21:13Z`, the exact merge timestamp when the adaptive subsystem became canonical on `main`.
+- First-cycle `adaptive-readiness` must count from that immutable boundary; after the first completed cycle, each next boundary derives only from the previous cycle cutoff and the bootstrap timestamp cannot be reset.
+- This is a research-only source-of-truth checkpoint. No model training, promotion, activation, final-holdout access, live trading, production mutation, or money-limit change is authorized.
+
 ## 0.14.133 — 12 September 2026
 
 - Added the research-only adaptive supervised-learning milestone: readiness is based on **50 newly resolved eligible markets** for an exact horizon/feature/label stream, and executed trades are not required for a market to become a learning example.
