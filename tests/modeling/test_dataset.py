@@ -162,6 +162,7 @@ def test_load_dataset_rejects_forbidden_label_key_inside_feature_payload() -> No
                 label_version="official-outcome-v1",
             )
 
+
 def test_load_dataset_can_freeze_label_availability_at_cutoff() -> None:
     start = datetime(2026, 8, 24, tzinfo=UTC)
     engine = _engine()
