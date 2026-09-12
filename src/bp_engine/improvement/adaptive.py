@@ -2,16 +2,27 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import Connection, exists, select
 
 from bp_engine.improvement.hashing import canonical_payload, derive_id, semantic_sha256
+from bp_engine.modeling.models import TrainingRunReport
+from bp_engine.modeling.service import train_horizon
 from bp_engine.storage.schema import market_features, market_labels
 
 DEFAULT_ADAPTIVE_TRIGGER_COUNT = 50
 ADAPTIVE_READINESS_VERSION = "adaptive-readiness-v1"
 ADAPTIVE_CYCLE_VERSION = "adaptive-learning-cycle-v1"
+
+
+class AdaptiveLearningError(RuntimeError):
+    pass
+
+
+class AdaptiveLearningNotReadyError(AdaptiveLearningError):
+    pass
 
 
 @dataclass(frozen=True)
@@ -247,3 +258,115 @@ def build_adaptive_readiness_report(
         ready=ready,
         semantic_sha256=semantic_sha256(semantics),
     )
+
+
+def _training_summary(report: TrainingRunReport) -> dict[str, Any]:
+    return {
+        "dataset_sha256": report.dataset_sha256,
+        "split_sha256": report.split_sha256,
+        "validation_champion": report.validation_champion,
+        "best_test_result": report.best_test_result,
+        "boosted_promotion_eligible": report.boosted_promotion_eligible,
+        "evaluations": canonical_payload(report.evaluations),
+        "artifacts": canonical_payload(report.artifacts),
+        "gross_execution_diagnostic": canonical_payload(
+            report.gross_execution_diagnostic
+        ),
+        "automatic_promotion": False,
+        "final_holdout_accessed": False,
+        "paper_model_activated": False,
+        "live_trading_enabled": False,
+    }
+
+
+def run_adaptive_training_cycle(
+    connection: Connection,
+    *,
+    horizon_seconds: int,
+    feature_version: str,
+    label_version: str,
+    bootstrap_since_at: datetime | None,
+    cutoff_at: datetime,
+    training_start_at: datetime,
+    output_dir: Path,
+    min_markets: int,
+    trigger_count: int = DEFAULT_ADAPTIVE_TRIGGER_COUNT,
+    created_at: datetime,
+) -> tuple[AdaptiveReadinessReport, TrainingRunReport, AdaptiveLearningCycle]:
+    feature = _nonblank(feature_version, "feature_version")
+    label = _nonblank(label_version, "label_version")
+    cutoff = _utc(cutoff_at, "cutoff_at")
+    created = _utc(created_at, "created_at")
+
+    repository = AdaptiveLearningCycleRepository()
+    latest = repository.latest_completed(
+        connection,
+        horizon_seconds=horizon_seconds,
+        feature_version=feature,
+        label_version=label,
+    )
+    if latest is None:
+        if bootstrap_since_at is None:
+            raise AdaptiveLearningError(
+                "bootstrap_since_at is required for the first adaptive learning cycle"
+            )
+        since = _utc(bootstrap_since_at, "bootstrap_since_at")
+    else:
+        if bootstrap_since_at is not None:
+            raise AdaptiveLearningError(
+                "bootstrap_since_at must be omitted after an adaptive learning cycle exists"
+            )
+        since = _stored_utc(latest["cutoff_at"])
+
+    readiness = build_adaptive_readiness_report(
+        connection,
+        horizon_seconds=horizon_seconds,
+        feature_version=feature,
+        label_version=label,
+        since_at=since,
+        cutoff_at=cutoff,
+        trigger_count=trigger_count,
+    )
+    if not readiness.ready:
+        raise AdaptiveLearningNotReadyError(
+            "adaptive learning is not ready: "
+            f"{readiness.eligible_resolved_market_count} eligible resolved markets; "
+            f"requires {readiness.trigger_count}"
+        )
+
+    training_start = _utc(training_start_at, "training_start_at")
+    if training_start >= cutoff:
+        raise ValueError("training_start_at must be before cutoff_at")
+
+    training_report = train_horizon(
+        connection,
+        start=training_start,
+        end=cutoff,
+        horizon_seconds=horizon_seconds,
+        feature_version=feature,
+        label_version=label,
+        output_dir=output_dir,
+        min_markets=min_markets,
+    )
+    cycle = AdaptiveLearningCycle.build(
+        horizon_seconds=horizon_seconds,
+        feature_version=feature,
+        label_version=label,
+        trigger_count=trigger_count,
+        since_at=since,
+        cutoff_at=cutoff,
+        eligible_resolved_market_count=readiness.eligible_resolved_market_count,
+        readiness_semantic_sha256=readiness.semantic_sha256,
+        training_start_at=training_start,
+        training_run_id=training_report.run_id,
+        training_semantic_sha256=training_report.semantic_sha256,
+        summary=_training_summary(training_report),
+        created_at=created,
+    )
+    repository.store(connection, cycle)
+    return readiness, training_report, cycle
+
+
+from bp_engine.improvement.adaptive_repository import (  # noqa: E402
+    AdaptiveLearningCycleRepository,
+)
