@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine
@@ -172,3 +173,17 @@ def test_adaptive_cycle_table_is_exposed_through_storage_schema() -> None:
     table = schema.adaptive_learning_cycles
     assert table.name == "adaptive_learning_cycles"
     assert table.c.cycle_id.unique is True
+
+def test_adaptive_cycle_migration_declares_additive_postgres_table() -> None:
+    migration = (
+        Path(__file__).resolve().parents[2]
+        / "migrations"
+        / "0015_adaptive_learning_cycles.sql"
+    )
+    sql = migration.read_text(encoding="utf-8").lower()
+
+    assert "create table if not exists adaptive_learning_cycles" in sql
+    assert "summary jsonb not null" in sql
+    assert "eligible_resolved_market_count >= trigger_count" in sql
+    assert "unique (cycle_id)" in sql
+    assert "create index if not exists ix_adaptive_learning_cycles_stream_cutoff" in sql
