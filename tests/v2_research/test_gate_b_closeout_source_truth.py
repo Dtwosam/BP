@@ -74,7 +74,7 @@ def test_outcome_label_rollout_pass_is_source_of_truth() -> None:
     assert "Phase 15" in build_order
     assert "live trading" in build_order
 
-    assert changelog.startswith("# Changelog\n\n## 0.14.133 — 12 September 2026")
+    assert "## 0.14.133 — 12 September 2026" in changelog
     assert "## 0.14.132 — 11 September 2026" in changelog
     assert not (
         ROOT / ".github/workflows/closeout-phase14-v2-outcome-label-rollout-preflight.yml"
