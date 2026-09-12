@@ -33,8 +33,6 @@ def test_gate_b_cloudshell_helper_is_non_deploying_and_fail_closed() -> None:
         "research_zero_money",
         "recorder_config_worker_count_not_4",
         "gate_b_plan_failed",
-        "gate_b_prepare_failed",
-        "gate_b_holdout_failed",
         "GATE_B_AUTHORIZED=false",
         "AUTOMATIC_PROMOTION=false",
         'PYTHONPATH="$RUNTIME_ROOT/src"',
@@ -55,6 +53,31 @@ def test_gate_b_cloudshell_helper_is_non_deploying_and_fail_closed() -> None:
         r"LIVE_TRADING_ENABLED=true",
         r"MAX_TRADE_SIZE_USD=[1-9]",
         r"MAX_DAILY_LOSS_USD=[1-9]",
+        r"run_candidate\s+prepare\b",
+        r"run_candidate\s+evaluate-holdout\b",
     )
     for pattern in forbidden_patterns:
         assert re.search(pattern, source) is None
+
+
+def test_gate_b_cloudshell_helper_freezes_fresh_plan_before_holdout() -> None:
+    source = HELPER.read_text(encoding="utf-8")
+
+    required = (
+        "PHASE14_V2_GATE_B_PLANNING_EPOCH_START",
+        "PHASE14_V2_GATE_B_EXPECTED_PLAN_SHA256",
+        "PHASE14_V2_GATE_B_STOP_AFTER_PLAN",
+        "planning_epoch_start_invalid",
+        "expected_plan_sha256_invalid",
+        "stop_after_plan_required",
+        '--planning-epoch-start "$PLANNING_EPOCH_START"',
+        'payload.get("planning_epoch_start_at")',
+        'payload.get("plan_sha256")',
+        "expected plan SHA-256 mismatch",
+        "PHASE14_V2_GATE_B_RESEARCH=PLAN_FROZEN",
+        "HOLDOUT_TOUCHED=false",
+        "SELECTION_PRESENT=false",
+        "HOLDOUT_PRESENT=false",
+    )
+    for token in required:
+        assert token in source

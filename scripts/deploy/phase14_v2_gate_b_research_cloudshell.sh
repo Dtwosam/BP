@@ -9,6 +9,9 @@ DEPLOYED_HEAD="${PHASE14_V2_GATE_B_DEPLOYED_HEAD:-}"
 ENV_FILE="${PHASE14_V2_GATE_B_ENV_FILE:-/etc/bp/bp.env}"
 STORAGE_EVIDENCE="${PHASE14_V2_GATE_B_STORAGE_EVIDENCE:-}"
 STORAGE_EVIDENCE_SHA256="${PHASE14_V2_GATE_B_STORAGE_EVIDENCE_SHA256:-}"
+PLANNING_EPOCH_START_RAW="${PHASE14_V2_GATE_B_PLANNING_EPOCH_START:-}"
+EXPECTED_PLAN_SHA256="${PHASE14_V2_GATE_B_EXPECTED_PLAN_SHA256:-}"
+STOP_AFTER_PLAN="${PHASE14_V2_GATE_B_STOP_AFTER_PLAN:-}"
 
 fail_local() {
   echo "PHASE14_V2_GATE_B_RESEARCH=FAIL" >&2
@@ -21,6 +24,23 @@ fail_local() {
 [[ "$ENV_FILE" == /* ]] || fail_local "env_file_must_be_absolute"
 [[ "$STORAGE_EVIDENCE" == /* ]] || fail_local "storage_evidence_path_must_be_absolute"
 [[ "$STORAGE_EVIDENCE_SHA256" =~ ^[0-9a-f]{64}$ ]] || fail_local "storage_evidence_sha256_invalid"
+[[ "$EXPECTED_PLAN_SHA256" =~ ^[0-9a-f]{64}$ ]] || fail_local "expected_plan_sha256_invalid"
+[[ "$STOP_AFTER_PLAN" == "true" ]] || fail_local "stop_after_plan_required"
+
+if ! PLANNING_EPOCH_START=$(python3 - "$PLANNING_EPOCH_START_RAW" <<'PY'
+from __future__ import annotations
+
+import sys
+from datetime import UTC, datetime
+
+value = datetime.fromisoformat(sys.argv[1].replace("Z", "+00:00"))
+if value.tzinfo is None or value.utcoffset() is None:
+    raise SystemExit(1)
+print(value.astimezone(UTC).isoformat())
+PY
+); then
+  fail_local "planning_epoch_start_invalid"
+fi
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
 [[ -n "$ROOT" ]] || fail_local "local_repository_missing"
@@ -55,6 +75,9 @@ printf -v DEPLOYED_HEAD_Q '%q' "$DEPLOYED_HEAD"
 printf -v ENV_FILE_Q '%q' "$ENV_FILE"
 printf -v STORAGE_EVIDENCE_Q '%q' "$STORAGE_EVIDENCE"
 printf -v STORAGE_EVIDENCE_SHA256_Q '%q' "$STORAGE_EVIDENCE_SHA256"
+printf -v PLANNING_EPOCH_START_Q '%q' "$PLANNING_EPOCH_START"
+printf -v EXPECTED_PLAN_SHA256_Q '%q' "$EXPECTED_PLAN_SHA256"
+printf -v STOP_AFTER_PLAN_Q '%q' "$STOP_AFTER_PLAN"
 printf -v REMOTE_ARCHIVE_Q '%q' "$REMOTE_ARCHIVE"
 printf -v ARCHIVE_SHA256_Q '%q' "$ARCHIVE_SHA256"
 
@@ -66,13 +89,15 @@ DEPLOYED_HEAD="${PHASE14_V2_GATE_B_DEPLOYED_HEAD:?}"
 ENV_FILE="${PHASE14_V2_GATE_B_ENV_FILE:?}"
 STORAGE_EVIDENCE="${PHASE14_V2_GATE_B_STORAGE_EVIDENCE:?}"
 STORAGE_EVIDENCE_SHA256="${PHASE14_V2_GATE_B_STORAGE_EVIDENCE_SHA256:?}"
+PLANNING_EPOCH_START="${PHASE14_V2_GATE_B_PLANNING_EPOCH_START:?}"
+EXPECTED_PLAN_SHA256="${PHASE14_V2_GATE_B_EXPECTED_PLAN_SHA256:?}"
+STOP_AFTER_PLAN="${PHASE14_V2_GATE_B_STOP_AFTER_PLAN:?}"
 ARCHIVE="${PHASE14_V2_GATE_B_ARCHIVE:?}"
 ARCHIVE_SHA256="${PHASE14_V2_GATE_B_ARCHIVE_SHA256:?}"
 
 REPO=/opt/bp
 SAFETY_FILE=/etc/bp/bp-prospective-runtime-safety.env
 EVIDENCE_DIR=/var/lib/bp/evidence
-RECORDER_UNIT=bp-recorder.service
 V2_TIMER=bp-v2-forward-coverage.timer
 MAINTENANCE_TIMER=bp-storage-maintenance.timer
 DISK_HEALTH_TIMER=bp-storage-disk-health.timer
@@ -105,11 +130,7 @@ fail() {
         echo "${upper}_PRESENT=false" >&2
       fi
     done
-    if [[ -f "$RUN_DIR/holdout.json" ]]; then
-      echo "HOLDOUT_TOUCHED=true" >&2
-    else
-      echo "HOLDOUT_TOUCHED=false" >&2
-    fi
+    echo "HOLDOUT_TOUCHED=false" >&2
   fi
   exit 1
 }
@@ -122,6 +143,9 @@ cleanup() {
   rm -f "$ARCHIVE"
   [[ -n "$DISK_BEFORE" ]] && rm -f "$DISK_BEFORE"
   [[ -n "$DISK_AFTER" ]] && rm -f "$DISK_AFTER"
+  if [[ -n "$RUN_DIR" && -d "$RUN_DIR" ]]; then
+    rmdir "$RUN_DIR" 2>/dev/null || true
+  fi
   set -e
   exit "$rc"
 }
@@ -173,7 +197,6 @@ read_recorder_config_workers() {
 from __future__ import annotations
 
 import sys
-
 from bp_engine.config import Settings
 
 print(Settings(_env_file=sys.argv[1]).recorder_writer_workers)
@@ -217,6 +240,8 @@ require_services() {
   systemctl is-enabled --quiet "$V2_TIMER" || fail "v2_timer_not_enabled"
 }
 
+[[ "$STOP_AFTER_PLAN" == "true" ]] || fail "stop_after_plan_required"
+[[ "$EXPECTED_PLAN_SHA256" =~ ^[0-9a-f]{64}$ ]] || fail "expected_plan_sha256_invalid"
 [[ -d "$REPO/.git" ]] || fail "deployed_repo_missing"
 [[ -x "$REPO/.venv/bin/python" ]] || fail "production_python_missing"
 [[ -r "$STORAGE_EVIDENCE" ]] || fail "storage_evidence_missing"
@@ -225,6 +250,17 @@ require_services() {
 chmod 0644 "$ARCHIVE"
 [[ "$(sha256sum "$STORAGE_EVIDENCE" | awk '{print $1}')" == "$STORAGE_EVIDENCE_SHA256" ]] || fail "storage_evidence_sha256_mismatch"
 [[ "$(git -c safe.directory="$REPO" -C "$REPO" rev-parse HEAD)" == "$DEPLOYED_HEAD" ]] || fail "unexpected_deployed_head"
+
+"$REPO/.venv/bin/python" - "$PLANNING_EPOCH_START" <<'PY' || fail "planning_epoch_start_invalid"
+from __future__ import annotations
+
+import sys
+from datetime import datetime
+
+value = datetime.fromisoformat(sys.argv[1].replace("Z", "+00:00"))
+if value.tzinfo is None or value.utcoffset() is None:
+    raise SystemExit(1)
+PY
 
 validate_deployed_checkout
 require_research_zero_money
@@ -244,12 +280,10 @@ install -d -o bp -g bp -m 0750 "$RUNTIME_ROOT"
 sudo -u bp tar -xzf "$ARCHIVE" -C "$RUNTIME_ROOT"
 
 [[ -f "$RUNTIME_ROOT/scripts/run_v2_gate_b_research.py" ]] || fail "candidate_gate_b_runner_missing"
-[[ -f "$RUNTIME_ROOT/src/bp_engine/v2_research/service.py" ]] || fail "candidate_gate_b_service_missing"
+[[ -f "$RUNTIME_ROOT/src/bp_engine/v2_research/plan.py" ]] || fail "candidate_gate_b_plan_missing"
 
+PLAN_TMP="$RUNTIME_ROOT/plan.json"
 PLAN="$RUN_DIR/plan.json"
-SELECTION="$RUN_DIR/selection.json"
-HOLDOUT="$RUN_DIR/holdout.json"
-SUMMARY="$RUN_DIR/summary.json"
 
 run_candidate() {
   sudo -u bp env \
@@ -262,15 +296,33 @@ run_candidate() {
     --env-file "$ENV_FILE" "$@"
 }
 
-run_candidate plan --output "$PLAN" >/dev/null || fail "gate_b_plan_failed"
-"$REPO/.venv/bin/python" - "$PLAN" <<'PY' || fail "gate_b_plan_verification_failed"
+run_candidate plan \
+  --planning-epoch-start "$PLANNING_EPOCH_START" \
+  --output "$PLAN_TMP" >/dev/null || fail "gate_b_plan_failed"
+
+"$REPO/.venv/bin/python" - \
+  "$PLAN_TMP" "$PLANNING_EPOCH_START" "$EXPECTED_PLAN_SHA256" <<'PY' \
+  || fail "gate_b_plan_verification_failed"
 from __future__ import annotations
 
 import json
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
-payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+plan_path, expected_epoch_raw, expected_plan_sha256 = sys.argv[1:]
+payload = json.loads(Path(plan_path).read_text(encoding="utf-8"))
+expected_epoch = datetime.fromisoformat(expected_epoch_raw.replace("Z", "+00:00")).astimezone(UTC)
+actual_epoch_raw = payload.get("planning_epoch_start_at")
+if not isinstance(actual_epoch_raw, str):
+    raise SystemExit("planning epoch missing")
+actual_epoch = datetime.fromisoformat(actual_epoch_raw.replace("Z", "+00:00"))
+if actual_epoch.tzinfo is None or actual_epoch.utcoffset() is None:
+    raise SystemExit("planning epoch is naive")
+if actual_epoch.astimezone(UTC) != expected_epoch:
+    raise SystemExit("planning epoch mismatch")
+if payload.get("plan_sha256") != expected_plan_sha256:
+    raise SystemExit("expected plan SHA-256 mismatch")
 if payload.get("labels_read") is not False:
     raise SystemExit("plan read labels")
 if payload.get("coverage_input_sha256") != "aab75574aa7faf18e65358353403e5ec1a2b89dd42424eb7b0e3329bf683b099":
@@ -283,50 +335,8 @@ if not (payload.get("final") or {}).get("holdout_condition_ids"):
     raise SystemExit("final holdout is empty")
 PY
 
-run_candidate prepare --plan "$PLAN" --output "$SELECTION" >/dev/null || fail "gate_b_prepare_failed"
-"$REPO/.venv/bin/python" - "$SELECTION" <<'PY' || fail "gate_b_prepare_verification_failed"
-from __future__ import annotations
-
-import json
-import sys
-from pathlib import Path
-
-payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if payload.get("stage") != "prepared_validation_frozen":
-    raise SystemExit("selection stage is not frozen")
-if payload.get("holdout_labels_read") is not False:
-    raise SystemExit("prepare read final-holdout labels")
-if payload.get("holdout_evaluated") is not False:
-    raise SystemExit("prepare evaluated final holdout")
-if payload.get("gate_b_authorized") is not False:
-    raise SystemExit("prepare authorized Gate B")
-if payload.get("automatic_promotion") is not False:
-    raise SystemExit("prepare enabled automatic promotion")
-PY
-
-run_candidate evaluate-holdout \
-  --plan "$PLAN" \
-  --selection "$SELECTION" \
-  --output "$HOLDOUT" >/dev/null || fail "gate_b_holdout_failed"
-"$REPO/.venv/bin/python" - "$HOLDOUT" <<'PY' || fail "gate_b_holdout_verification_failed"
-from __future__ import annotations
-
-import json
-import sys
-from pathlib import Path
-
-payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if payload.get("stage") != "final_holdout_evaluated":
-    raise SystemExit("holdout stage is not final")
-if payload.get("holdout_labels_read") is not True:
-    raise SystemExit("holdout labels were not read")
-if payload.get("holdout_evaluated_once") is not True:
-    raise SystemExit("holdout one-shot marker missing")
-if payload.get("gate_b_authorized") is not False:
-    raise SystemExit("holdout artifact authorized Gate B")
-if payload.get("automatic_promotion") is not False:
-    raise SystemExit("holdout artifact enabled automatic promotion")
-PY
+install -o bp -g bp -m 0640 "$PLAN_TMP" "$PLAN"
+PLAN_FILE_SHA256=$(sha256sum "$PLAN" | awk '{print $1}')
 
 require_research_zero_money
 require_services
@@ -336,145 +346,29 @@ require_services
 DISK_AFTER=$(mktemp /var/tmp/bp-v2-gate-b-disk-after.XXXXXX.json)
 run_storage_health "$DISK_AFTER"
 
-"$REPO/.venv/bin/python" - \
-  "$PLAN" "$SELECTION" "$HOLDOUT" "$DISK_BEFORE" "$DISK_AFTER" "$SUMMARY" \
-  "$HELPER_HEAD" "$DEPLOYED_HEAD" "$STORAGE_EVIDENCE" "$STORAGE_EVIDENCE_SHA256" \
-  "$ARCHIVE_SHA256" <<'PY'
-from __future__ import annotations
+[[ ! -e "$RUN_DIR/selection.json" ]] || fail "selection_unexpectedly_present"
+[[ ! -e "$RUN_DIR/holdout.json" ]] || fail "holdout_unexpectedly_present"
+[[ ! -e "$RUN_DIR/summary.json" ]] || fail "summary_unexpectedly_present"
 
-import hashlib
-import json
-import sys
-from datetime import UTC, datetime
-from pathlib import Path
-
-(
-    plan_path,
-    selection_path,
-    holdout_path,
-    before_path,
-    after_path,
-    output_path,
-    helper_head,
-    deployed_head,
-    storage_evidence,
-    storage_evidence_sha256,
-    archive_sha256,
-) = sys.argv[1:]
-
-def load(path: str):
-    return json.loads(Path(path).read_text(encoding="utf-8"))
-
-def sha(path: str) -> str:
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
-
-plan = load(plan_path)
-selection = load(selection_path)
-holdout = load(holdout_path)
-final_selection = selection["final"]["selection"]
-holdout_eval = holdout["holdout_evaluation"]
-
-selected = final_selection.get("selected") if final_selection.get("policy") == "trade_threshold" else None
-selection_summary = {
-    "policy": final_selection.get("policy"),
-    "reason": final_selection.get("reason"),
-    "offset_seconds": selected.get("offset_seconds") if selected else None,
-    "max_last_trade_age_seconds": (
-        selected.get("max_last_trade_age_seconds") if selected else None
-    ),
-    "calibration_method": (
-        (selected.get("calibration") or {}).get("method") if selected else None
-    ),
-    "min_edge": (
-        (selected.get("edge") or {}).get("min_edge") if selected else None
-    ),
-}
-
-payload = {
-    "verdict": "PASS",
-    "recorded_at": datetime.now(UTC).isoformat(),
-    "helper_head": helper_head,
-    "deployed_head": deployed_head,
-    "candidate_archive_sha256": archive_sha256,
-    "storage_evidence": storage_evidence,
-    "storage_evidence_sha256": storage_evidence_sha256,
-    "database_access": "read_only_transaction_each_stage",
-    "production_checkout_mutated": False,
-    "production_database_mutated_by_gate_b": False,
-    "plan": {
-        "artifact": plan_path,
-        "sha256": sha(plan_path),
-        "plan_sha256": plan["plan_sha256"],
-        "market_count": plan["market_count"],
-        "fold_count": len(plan["folds"]),
-        "final_holdout_market_count": len(plan["final"]["holdout_condition_ids"]),
-        "labels_read": False,
-    },
-    "selection": {
-        "artifact": selection_path,
-        "sha256": sha(selection_path),
-        "selection_sha256": selection["selection_sha256"],
-        "holdout_labels_read": False,
-        "summary": selection_summary,
-    },
-    "holdout": {
-        "artifact": holdout_path,
-        "sha256": sha(holdout_path),
-        "holdout_evidence_sha256": holdout["holdout_evidence_sha256"],
-        "market_count": len(holdout["holdout_condition_ids"]),
-        "evaluation": holdout_eval,
-    },
-    "safety": {
-        "mode": "research",
-        "live_trading_enabled": False,
-        "max_trade_size_usd": 0,
-        "max_daily_loss_usd": 0,
-        "gate_b_authorized": False,
-        "automatic_promotion": False,
-    },
-    "storage_before": load(before_path),
-    "storage_after": load(after_path),
-}
-Path(output_path).write_text(
-    json.dumps(payload, indent=2, sort_keys=True) + "\n",
-    encoding="utf-8",
-)
-PY
-chown bp:bp "$SUMMARY"
-chmod 0640 "$SUMMARY"
-
-echo "PHASE14_V2_GATE_B_RESEARCH=PASS"
+echo "PHASE14_V2_GATE_B_RESEARCH=PLAN_FROZEN"
 echo "HELPER_HEAD=$HELPER_HEAD"
 echo "DEPLOYED_HEAD=$DEPLOYED_HEAD"
+echo "PLANNING_EPOCH_START=$PLANNING_EPOCH_START"
+echo "EXPECTED_PLAN_SHA256=$EXPECTED_PLAN_SHA256"
+echo "PARTIAL_EVIDENCE_DIR=$RUN_DIR"
 echo "PLAN_FILE=$PLAN"
-echo "SELECTION_FILE=$SELECTION"
-echo "HOLDOUT_FILE=$HOLDOUT"
-echo "SUMMARY_FILE=$SUMMARY"
-"$REPO/.venv/bin/python" - "$SUMMARY" <<'PY'
-from __future__ import annotations
-
-import json
-import sys
-from pathlib import Path
-
-payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-plan = payload["plan"]
-selection = payload["selection"]["summary"]
-holdout = payload["holdout"]["evaluation"]
-edge = holdout.get("edge_metrics") or {}
-print(f"MARKETS={plan['market_count']}")
-print(f"ORDINARY_FOLDS={plan['fold_count']}")
-print(f"FINAL_HOLDOUT_MARKETS={plan['final_holdout_market_count']}")
-print(f"FINAL_POLICY={selection['policy']}")
-print(f"SELECTED_OFFSET_SECONDS={selection['offset_seconds']}")
-print(f"SELECTED_MAX_LAST_TRADE_AGE_SECONDS={selection['max_last_trade_age_seconds']}")
-print(f"SELECTED_CALIBRATION={selection['calibration_method']}")
-print(f"SELECTED_MIN_EDGE={selection['min_edge']}")
-print(f"HOLDOUT_TRADE_COUNT={edge.get('trade_count', 0)}")
-print(f"HOLDOUT_AFTER_COST_PNL={edge.get('realized_pnl_after_assumed_costs', 0.0)}")
-print("GATE_B_AUTHORIZED=false")
-print("AUTOMATIC_PROMOTION=false")
-PY
+echo "PLAN_FILE_SHA256=$PLAN_FILE_SHA256"
+echo "PLAN_SHA256=$EXPECTED_PLAN_SHA256"
+echo "PLAN_PRESENT=true"
+echo "SELECTION_PRESENT=false"
+echo "HOLDOUT_PRESENT=false"
+echo "SUMMARY_PRESENT=false"
+echo "HOLDOUT_TOUCHED=false"
+echo "labels_read=false"
+echo "database_access=read_only_transaction_each_stage"
+echo "production_database_mutated_by_gate_b=false"
+echo "GATE_B_AUTHORIZED=false"
+echo "AUTOMATIC_PROMOTION=false"
 REMOTE
 )
 
@@ -487,10 +381,13 @@ echo "HELPER_HEAD=$HELPER_HEAD"
 echo "DEPLOYED_HEAD=$DEPLOYED_HEAD"
 echo "STORAGE_EVIDENCE=$STORAGE_EVIDENCE"
 echo "STORAGE_EVIDENCE_SHA256=$STORAGE_EVIDENCE_SHA256"
+echo "PLANNING_EPOCH_START=$PLANNING_EPOCH_START"
+echo "EXPECTED_PLAN_SHA256=$EXPECTED_PLAN_SHA256"
+echo "STOP_AFTER_PLAN=$STOP_AFTER_PLAN"
 echo "CANDIDATE_ARCHIVE_SHA256=$ARCHIVE_SHA256"
-echo "Running read-only Phase 14 V2 Gate B research package."
+echo "Freezing fresh feature-only Phase 14 V2 Gate B plan; holdout access is disabled."
 
 gcloud compute ssh "$VM" \
   --project="$PROJECT" \
   --zone="$ZONE" \
-  --command="printf '%s' '$REMOTE_B64' | base64 -d | sudo env PHASE14_V2_GATE_B_HELPER_HEAD=$HELPER_HEAD_Q PHASE14_V2_GATE_B_DEPLOYED_HEAD=$DEPLOYED_HEAD_Q PHASE14_V2_GATE_B_ENV_FILE=$ENV_FILE_Q PHASE14_V2_GATE_B_STORAGE_EVIDENCE=$STORAGE_EVIDENCE_Q PHASE14_V2_GATE_B_STORAGE_EVIDENCE_SHA256=$STORAGE_EVIDENCE_SHA256_Q PHASE14_V2_GATE_B_ARCHIVE=$REMOTE_ARCHIVE_Q PHASE14_V2_GATE_B_ARCHIVE_SHA256=$ARCHIVE_SHA256_Q bash"
+  --command="printf '%s' '$REMOTE_B64' | base64 -d | sudo env PHASE14_V2_GATE_B_HELPER_HEAD=$HELPER_HEAD_Q PHASE14_V2_GATE_B_DEPLOYED_HEAD=$DEPLOYED_HEAD_Q PHASE14_V2_GATE_B_ENV_FILE=$ENV_FILE_Q PHASE14_V2_GATE_B_STORAGE_EVIDENCE=$STORAGE_EVIDENCE_Q PHASE14_V2_GATE_B_STORAGE_EVIDENCE_SHA256=$STORAGE_EVIDENCE_SHA256_Q PHASE14_V2_GATE_B_PLANNING_EPOCH_START=$PLANNING_EPOCH_START_Q PHASE14_V2_GATE_B_EXPECTED_PLAN_SHA256=$EXPECTED_PLAN_SHA256_Q PHASE14_V2_GATE_B_STOP_AFTER_PLAN=$STOP_AFTER_PLAN_Q PHASE14_V2_GATE_B_ARCHIVE=$REMOTE_ARCHIVE_Q PHASE14_V2_GATE_B_ARCHIVE_SHA256=$ARCHIVE_SHA256_Q bash"
