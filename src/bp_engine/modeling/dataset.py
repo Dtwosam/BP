@@ -75,10 +75,16 @@ def load_dataset(
     feature_version: str,
     label_version: str,
     condition_ids: tuple[str, ...] | None = None,
+    label_generated_at_lte: datetime | None = None,
     dataset_version: str = DATASET_VERSION,
 ) -> DatasetSnapshot:
     start_utc = _utc_input(start, "start")
     end_utc = _utc_input(end, "end")
+    label_cutoff_utc = (
+        _utc_input(label_generated_at_lte, "label_generated_at_lte")
+        if label_generated_at_lte is not None
+        else None
+    )
     if end_utc <= start_utc:
         raise ValueError("start must be before end")
     if horizon_seconds <= 0:
@@ -136,6 +142,8 @@ def load_dataset(
     )
     if condition_ids is not None:
         query = query.where(market_features.c.condition_id.in_(condition_ids))
+    if label_cutoff_utc is not None:
+        query = query.where(market_labels.c.generated_at <= label_cutoff_utc)
 
     records = connection.execute(query).mappings().all()
 
@@ -221,18 +229,19 @@ def load_dataset(
         }
         for row in rows
     ]
-    dataset_sha256 = canonical_hash(
-        {
-            "dataset_version": dataset_version,
-            "feature_version": feature_version,
-            "label_version": label_version,
-            "horizon_seconds": horizon_seconds,
-            "start": start_utc,
-            "end": end_utc,
-            "predictor_names": predictor_names,
-            "rows": descriptors,
-        }
-    )
+    semantic_payload = {
+        "dataset_version": dataset_version,
+        "feature_version": feature_version,
+        "label_version": label_version,
+        "horizon_seconds": horizon_seconds,
+        "start": start_utc,
+        "end": end_utc,
+        "predictor_names": predictor_names,
+        "rows": descriptors,
+    }
+    if label_cutoff_utc is not None:
+        semantic_payload["label_generated_at_lte"] = label_cutoff_utc
+    dataset_sha256 = canonical_hash(semantic_payload)
     return DatasetSnapshot(
         dataset_version=dataset_version,
         feature_version=feature_version,

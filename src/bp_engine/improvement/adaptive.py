@@ -345,6 +345,7 @@ def run_adaptive_training_cycle(
         horizon_seconds=horizon_seconds,
         feature_version=feature,
         label_version=label,
+        label_generated_at_lte=cutoff,
         output_dir=output_dir,
         min_markets=min_markets,
     )

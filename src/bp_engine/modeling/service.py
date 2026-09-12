@@ -162,6 +162,7 @@ def train_horizon(
     label_version: str,
     output_dir: Path,
     min_markets: int,
+    label_generated_at_lte: datetime | None = None,
 ) -> TrainingRunReport:
     dataset = load_dataset(
         connection,
@@ -170,6 +171,7 @@ def train_horizon(
         horizon_seconds=horizon_seconds,
         feature_version=feature_version,
         label_version=label_version,
+        label_generated_at_lte=label_generated_at_lte,
     )
     split = chronological_market_split(dataset, min_markets=min_markets)
     prepared = prepare_matrices(split)
@@ -282,6 +284,8 @@ def train_horizon(
         "gross_execution_diagnostic": gross_diagnostic,
         "artifacts": artifacts,
     }
+    if label_generated_at_lte is not None:
+        semantic_payload["label_generated_at_lte"] = label_generated_at_lte
     semantic_sha256 = canonical_hash(semantic_payload)
     report = TrainingRunReport(
         run_id=f"phase7-{horizon_seconds}-{semantic_sha256[:32]}",
