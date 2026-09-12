@@ -1,10 +1,10 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.133",
-  "updated_at": "2026-09-12T13:15:00Z",
+  "source_of_truth_version": "0.14.134",
+  "updated_at": "2026-09-12T17:42:34Z",
   "current_phase": 14,
-  "current_phase_name": "live readiness \u2014 engineering complete, live gate blocked",
+  "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
   "trading_mode": "RESEARCH",
   "live_trading_enabled": false,
@@ -612,14 +612,14 @@
     "Phase 14 prospective-evidence tri-state gates and deterministic bootstrap uncertainty implemented without automatic promotion",
     "Phase 14 prospective-evidence exact-head Cloud Shell reporter implemented with money-disabled and no-production-mutation checks",
     "Phase 14 prospective-evidence production-host report passed read-only safety/integrity checks with deployed checkout unchanged, reconciliation OK, and real-money interlocks still zero/disabled",
-    "Phase 14 prospective outcome sync implemented over the canonical Gamma snapshot \u2192 official-outcome-v1 label \u2192 immutable evaluation chain",
+    "Phase 14 prospective outcome sync implemented over the canonical Gamma snapshot → official-outcome-v1 label → immutable evaluation chain",
     "Phase 14 snapshot-provenance hash compatibility fixed by normalizing only the established optional sha256: prefix without weakening digest validation",
     "Phase 14 prospective outcome exact-head non-deploying host acceptance helper and hardened research-only service unit implemented",
     "Phase 14 outcome-sync first production acceptance failed closed on an invalid predictor-active precondition, then the non-deploying acceptance contract was corrected test-first to preserve rather than require predictor service state",
     "Phase 14 prospective outcome corrected exact-head production-host acceptance passed with 54/54 official Gamma resolutions, 54 snapshots, 54 canonical labels, 54 immutable evaluations, unchanged deployed checkout, unchanged inactive predictor state, active paper worker, and real-money interlocks still zero/disabled",
     "Phase 14 post-outcome-sync prospective-evidence reporter rerun passed read-only host safety checks with 54 evaluations, two settled trades, negative after-cost P&L and entirely negative mean-P&L bootstrap interval, calibration/sample sufficiency still insufficient, reconciliation OK, and live gate unchanged",
     "Phase 14 permanent research runtime installation passed on exact candidate d2b2d515a4b982c691360fa1c6c46a461a665ff9 with both prospective daemons active+enabled, all five core services active, and RESEARCH/live-disabled/zero-money safety unchanged",
-    "Phase 14 read-only 27-trade timing probe established 33\u201351 second V1 /prices-history probability age versus approximately 0\u20131 second selected-book age",
+    "Phase 14 read-only 27-trade timing probe established 33–51 second V1 /prices-history probability age versus approximately 0–1 second selected-book age",
     "Phase 14 timestamp-coherent market-price V2 research architecture approved under D-033 with V1 evidence preserved and no live/money change",
     "Phase 14 Gate A timestamp-coherent market-price V2 production rollout passed on exact deployed head d077e45f24704e6038c947169c84527e954de975 with a forward epoch of 2026-09-02T12:18:02Z, one completed post-epoch market, four immutable core-v2-last-trade rows, zero future-cutoff violations, and no V2 policy selection",
     "Phase 14 V2 forward coverage collector was deployed research-only/outcome-blind before the 4 September storage incident and restored successfully after storage/recorder recovery; the timer is active+enabled with 420 markets / 1,680 immutable V2 rows, zero future-cutoff violations, no policy selection, and Gate B still unauthorized",
@@ -3322,6 +3322,8 @@
     "learning_cycle_ledger": "adaptive_learning_cycles",
     "source_design": "docs/superpowers/specs/2026-09-12-adaptive-bitcoin-learning-design.md",
     "source_plan": "docs/superpowers/plans/2026-09-12-adaptive-bitcoin-learning.md",
-    "gate_b_evidence": "docs/evidence/phase-14-v2-gate-b-20260912.json"
+    "gate_b_evidence": "docs/evidence/phase-14-v2-gate-b-20260912.json",
+    "first_cycle_bootstrap_since_at": "2026-09-12T17:21:13Z",
+    "first_cycle_bootstrap_boundary_basis": "adaptive_subsystem_main_merge_at"
   }
 }

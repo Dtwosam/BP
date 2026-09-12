@@ -379,3 +379,11 @@ The 12 September V2 Gate B evidence is complete but not accepted: the final poli
 **Reason:** The model's statistical learning target is the official resolved market outcome. Restricting learning to executed trades would create policy-dependent sample selection and would prevent a cautious or `NO_TRADE` policy from learning from the larger set of markets it observed. Economic trade outcomes remain required evidence for deployment decisions, but they are not the sole supervised-learning examples or retraining trigger.
 
 **Safety:** Phase 14 remains live-gate blocked. `MODE=research`, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, `MAX_DAILY_LOSS_USD=0`, and `automatic_promotion=false` remain mandatory. Paper activation, any new final-holdout access, Phase 15, geographic bypass, live trading, and nonzero money remain separately blocked.
+
+## D-043 — Freeze first adaptive-cycle bootstrap boundary
+**Date:** 12 Sep 2026
+**Status:** Active
+
+The first adaptive supervised-learning cycle uses immutable `bootstrap_since_at=2026-09-12T17:21:13Z`. This timestamp is the exact merge time at which the adaptive subsystem became canonical on `main`, so first-cycle readiness counts only newly resolved eligible markets whose learning availability occurs after that boundary.
+
+After a completed adaptive cycle exists, the next cycle derives `since_at` only from the previous cycle's frozen cutoff. The first-cycle bootstrap boundary cannot be reset or moved forward to manufacture a newer evidence window. This decision changes no model, promotion, paper activation, live-trading, holdout, or money authorization boundary.

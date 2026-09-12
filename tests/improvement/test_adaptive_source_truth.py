@@ -28,7 +28,7 @@ def test_master_records_adaptive_learning_and_consumed_gate_b() -> None:
 def test_project_state_keeps_live_gate_blocked_and_records_research_cycle() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
 
-    assert state["source_of_truth_version"] == "0.14.133"
+    assert state["source_of_truth_version"] == "0.14.134"
     assert state["current_phase"] == 14
     assert state["status"] == "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED"
     assert state["trading_mode"] == "RESEARCH"
@@ -91,3 +91,19 @@ def test_changelog_and_design_mark_research_only_implementation() -> None:
         "**Status:** Implemented research-only milestone; no production mutation "
         "and no model activation"
     ) in design
+
+def test_first_adaptive_cycle_bootstrap_boundary_is_frozen() -> None:
+    state = json.loads(_text("PROJECT_STATE.json"))
+    master = _text("docs/MASTER-SOURCE-OF-TRUTH.md")
+    build_order = _text("docs/BUILD-ORDER.md")
+    decisions = _text("docs/DECISION-LOG.md")
+    changelog = _text("docs/CHANGELOG.md")
+
+    adaptive = state["phase_14_adaptive_learning"]
+    assert adaptive["first_cycle_bootstrap_since_at"] == "2026-09-12T17:21:13Z"
+    assert state["source_of_truth_version"] == "0.14.134"
+    assert "2026-09-12T17:21:13Z" in master
+    assert "2026-09-12T17:21:13Z" in build_order
+    assert "## D-043 — Freeze first adaptive-cycle bootstrap boundary" in decisions
+    assert "2026-09-12T17:21:13Z" in decisions.split("## D-043", 1)[1]
+    assert "## 0.14.134 — 12 September 2026" in changelog
