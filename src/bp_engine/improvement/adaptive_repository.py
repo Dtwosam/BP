@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Connection, insert, select
 
-from bp_engine.improvement.adaptive import AdaptiveLearningCycle
 from bp_engine.improvement.hashing import canonical_payload
 from bp_engine.improvement.repository import ImprovementStoreResult
 from bp_engine.storage.improvement_schema import adaptive_learning_cycles
+
+if TYPE_CHECKING:
+    from bp_engine.improvement.adaptive import AdaptiveLearningCycle
 
 
 class AdaptiveLearningCycleConflict(ValueError):
@@ -60,6 +62,8 @@ class AdaptiveLearningCycleRepository:
         connection: Connection,
         cycle: AdaptiveLearningCycle,
     ) -> ImprovementStoreResult:
+        from bp_engine.improvement.adaptive import AdaptiveLearningCycle
+
         rebuilt = AdaptiveLearningCycle.build(
             horizon_seconds=cycle.horizon_seconds,
             feature_version=cycle.feature_version,
