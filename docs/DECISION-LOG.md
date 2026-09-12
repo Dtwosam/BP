@@ -387,3 +387,11 @@ The 12 September V2 Gate B evidence is complete but not accepted: the final poli
 The first adaptive supervised-learning cycle uses immutable `bootstrap_since_at=2026-09-12T17:21:13Z`. This timestamp is the exact merge time at which the adaptive subsystem became canonical on `main`, so first-cycle readiness counts only newly resolved eligible markets whose learning availability occurs after that boundary.
 
 After a completed adaptive cycle exists, the next cycle derives `since_at` only from the previous cycle's frozen cutoff. The first-cycle bootstrap boundary cannot be reset or moved forward to manufacture a newer evidence window. This decision changes no model, promotion, paper activation, live-trading, holdout, or money authorization boundary.
+
+## D-044 — Allow read-only first-cycle readiness before ledger migration
+**Date:** 12 Sep 2026
+**Status:** Active
+
+Before migration 0015 creates `adaptive_learning_cycles`, first-cycle `adaptive-readiness` may inspect immutable labels/features using the explicit frozen bootstrap boundary `2026-09-12T17:21:13Z`. This fallback is read-only: it must not create the ledger table, write cycle evidence, train a challenger, or infer a prior-cycle cutoff. If the table is absent and no explicit bootstrap is supplied, readiness fails closed.
+
+Once `adaptive_learning_cycles` exists, the normal ledger lookup is authoritative. `adaptive-train` still requires the ledger and remains blocked until migration 0015 is separately authorized and applied. This decision changes no paper activation, automatic promotion, final-holdout, live-trading, or money authorization.

@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.134",
-  "updated_at": "2026-09-12T17:42:34Z",
+  "source_of_truth_version": "0.14.135",
+  "updated_at": "2026-09-12T18:08:56Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -3324,6 +3324,9 @@
     "source_plan": "docs/superpowers/plans/2026-09-12-adaptive-bitcoin-learning.md",
     "gate_b_evidence": "docs/evidence/phase-14-v2-gate-b-20260912.json",
     "first_cycle_bootstrap_since_at": "2026-09-12T17:21:13Z",
-    "first_cycle_bootstrap_boundary_basis": "adaptive_subsystem_main_merge_at"
+    "first_cycle_bootstrap_boundary_basis": "adaptive_subsystem_main_merge_at",
+    "unmigrated_first_cycle_readiness_allowed": true,
+    "unmigrated_readiness_schema_mutation_allowed": false,
+    "training_requires_cycle_ledger_migration": true
   }
 }
