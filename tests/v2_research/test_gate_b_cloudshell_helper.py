@@ -58,3 +58,25 @@ def test_gate_b_cloudshell_helper_is_non_deploying_and_fail_closed() -> None:
     )
     for pattern in forbidden_patterns:
         assert re.search(pattern, source) is None
+
+
+def test_gate_b_cloudshell_helper_freezes_fresh_plan_before_holdout() -> None:
+    source = HELPER.read_text(encoding="utf-8")
+
+    required = (
+        "PHASE14_V2_GATE_B_PLANNING_EPOCH_START",
+        "PHASE14_V2_GATE_B_EXPECTED_PLAN_SHA256",
+        "PHASE14_V2_GATE_B_STOP_AFTER_PLAN",
+        "planning_epoch_start_invalid",
+        "expected_plan_sha256_invalid",
+        '--planning-epoch-start "$PLANNING_EPOCH_START"',
+        'payload.get("planning_epoch_start_at")',
+        'payload.get("plan_sha256")',
+        "expected plan SHA-256 mismatch",
+        "PHASE14_V2_GATE_B_RESEARCH=PLAN_FROZEN",
+        "HOLDOUT_TOUCHED=false",
+        "SELECTION_PRESENT=false",
+        "HOLDOUT_PRESENT=false",
+    )
+    for token in required:
+        assert token in source
