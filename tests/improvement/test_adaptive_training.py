@@ -213,6 +213,7 @@ def test_ready_cycle_trains_accumulated_window_and_records_safety(monkeypatch) -
             "horizon_seconds": 300,
             "feature_version": "core-v1",
             "label_version": "official-outcome-v1",
+            "label_generated_at_lte": cutoff,
             "output_dir": Path("/tmp/adaptive-models"),
             "min_markets": 24,
         }
