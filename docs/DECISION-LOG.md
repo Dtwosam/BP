@@ -365,3 +365,17 @@ PR #179 fixes the future feature-only outcome-label coverage class in source, bu
 **Reason:** Once final-holdout access has begun under the durable attempt marker, reusing that holdout or plan after an input failure would allow post-hoc adaptation to a touched holdout. Requiring a fresh planning epoch and new holdout preserves the statistical meaning of the one-shot Gate B contract.
 
 **Safety:** `MODE=research`, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, `MAX_DAILY_LOSS_USD=0`, and `automatic_promotion=false` remain mandatory. Gate B remains unaccepted; V2 activation, Phase 15, geographic bypass, live trading, and nonzero money remain separately blocked.
+
+## D-042 — Resolved markets drive adaptive supervised learning
+**Date:** 12 Sep 2026
+**Status:** Active
+
+**Decision:** Adaptive supervised retraining is triggered by resolved eligible markets, not by executed trades alone. The initial readiness threshold is **50 newly resolved eligible markets** for the exact horizon, feature version, and official label version. A market with an official resolved label and matching frozen pre-resolution features is learnable even when the current policy chose `NO_TRADE`.
+
+The adaptive cycle reuses the existing deterministic modeling and Phase 13 champion/challenger infrastructure, records append-only readiness/training/cycle identities, and keeps `automatic_promotion=false`. It may not access a final holdout, activate a paper model, enable live trading, change money limits, or advance Phase 15.
+
+The 12 September V2 Gate B evidence is complete but not accepted: the final policy is `no_trade`, with selection reason `no_validation_edge_candidate_profitable`; the one-shot final holdout was touched and is permanently consumed. That evidence may inform diagnosis but may not be reused for retuning or replacement-policy selection.
+
+**Reason:** The model's statistical learning target is the official resolved market outcome. Restricting learning to executed trades would create policy-dependent sample selection and would prevent a cautious or `NO_TRADE` policy from learning from the larger set of markets it observed. Economic trade outcomes remain required evidence for deployment decisions, but they are not the sole supervised-learning examples or retraining trigger.
+
+**Safety:** Phase 14 remains live-gate blocked. `MODE=research`, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, `MAX_DAILY_LOSS_USD=0`, and `automatic_promotion=false` remain mandatory. Paper activation, any new final-holdout access, Phase 15, geographic bypass, live trading, and nonzero money remain separately blocked.
