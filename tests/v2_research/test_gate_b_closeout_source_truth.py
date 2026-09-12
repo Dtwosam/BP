@@ -61,7 +61,7 @@ def test_outcome_label_rollout_pass_is_source_of_truth() -> None:
     assert rollout_evidence in project_state
     assert '"outcome_label_coverage_fix_rollout_holdout_access_performed": false' in project_state
     assert '"outcome_label_coverage_fix_rollout_gate_b_actions_performed": false' in project_state
-    assert '"source_of_truth_version": "0.14.133"' in project_state
+    assert '"source_of_truth_version": "0.14.134"' in project_state
 
     assert "outcome-label coverage rollout passed" in master.lower()
     consumed_closeout = master.split(

@@ -28,7 +28,7 @@ def test_master_records_adaptive_learning_and_consumed_gate_b() -> None:
 def test_project_state_keeps_live_gate_blocked_and_records_research_cycle() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
 
-    assert state["source_of_truth_version"] == "0.14.133"
+    assert state["source_of_truth_version"] == "0.14.134"
     assert state["current_phase"] == 14
     assert state["status"] == "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED"
     assert state["trading_mode"] == "RESEARCH"
