@@ -13,7 +13,7 @@ from typing import Any
 from sqlalchemy import create_engine
 
 from bp_engine.config import get_settings
-from bp_engine.improvement import service
+from bp_engine.improvement import adaptive, service
 from bp_engine.improvement.models import (
     ChampionRef,
     ChangeFamily,
@@ -32,7 +32,13 @@ def _parse_datetime(value: object, *, name: str) -> datetime:
     parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise ValueError(f"{name} must be timezone-aware")
-    return parsed
+    return parsed.astimezone(UTC)
+
+
+def _stored_utc(value: datetime, *, name: str) -> datetime:
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _json_value(value: Any) -> Any:
@@ -100,6 +106,19 @@ def _load_experiment_spec(path: Path) -> ImprovementExperimentSpec:
     )
 
 
+def _add_adaptive_stream_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--horizon-seconds", type=int, required=True)
+    parser.add_argument("--feature-version", required=True)
+    parser.add_argument("--label-version", required=True)
+    parser.add_argument("--cutoff-at", required=True)
+    parser.add_argument("--bootstrap-since-at")
+    parser.add_argument(
+        "--trigger-count",
+        type=int,
+        default=adaptive.DEFAULT_ADAPTIVE_TRIGGER_COUNT,
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
@@ -138,7 +157,43 @@ def build_parser() -> argparse.ArgumentParser:
         help="evaluate a registered research challenger and store the immutable result",
     )
     evaluate.add_argument("--experiment-id", required=True)
+
+    readiness = subparsers.add_parser(
+        "adaptive-readiness",
+        help="read adaptive-learning readiness without training or activation",
+    )
+    _add_adaptive_stream_arguments(readiness)
+
+    train = subparsers.add_parser(
+        "adaptive-train",
+        help="run one research-only adaptive training cycle when readiness passes",
+    )
+    _add_adaptive_stream_arguments(train)
+    train.add_argument("--training-start-at", required=True)
+    train.add_argument("--output-dir", type=Path, required=True)
+    train.add_argument("--min-markets", type=int, required=True)
     return parser
+
+
+def _adaptive_since_at(connection, args: argparse.Namespace) -> datetime:
+    repository = adaptive.AdaptiveLearningCycleRepository()
+    latest = repository.latest_completed(
+        connection,
+        horizon_seconds=args.horizon_seconds,
+        feature_version=args.feature_version,
+        label_version=args.label_version,
+    )
+    if latest is None:
+        if args.bootstrap_since_at is None:
+            raise adaptive.AdaptiveLearningError(
+                "bootstrap_since_at is required for the first adaptive learning cycle"
+            )
+        return _parse_datetime(args.bootstrap_since_at, name="bootstrap_since_at")
+    if args.bootstrap_since_at is not None:
+        raise adaptive.AdaptiveLearningError(
+            "bootstrap_since_at must be omitted after an adaptive learning cycle exists"
+        )
+    return _stored_utc(latest["cutoff_at"], name="cutoff_at")
 
 
 def _run_database_command(args: argparse.Namespace) -> dict[str, Any]:
@@ -175,6 +230,59 @@ def _run_database_command(args: argparse.Namespace) -> dict[str, Any]:
                     created_at=_utc_now(),
                 )
                 return {"ok": True, "command": "evaluate", "evaluation": report}
+            if args.command == "adaptive-readiness":
+                since_at = _adaptive_since_at(connection, args)
+                readiness = adaptive.build_adaptive_readiness_report(
+                    connection,
+                    horizon_seconds=args.horizon_seconds,
+                    feature_version=args.feature_version,
+                    label_version=args.label_version,
+                    since_at=since_at,
+                    cutoff_at=_parse_datetime(args.cutoff_at, name="cutoff_at"),
+                    trigger_count=args.trigger_count,
+                )
+                return {
+                    "ok": True,
+                    "command": "adaptive-readiness",
+                    "readiness": readiness,
+                }
+            if args.command == "adaptive-train":
+                readiness, training, cycle = adaptive.run_adaptive_training_cycle(
+                    connection,
+                    horizon_seconds=args.horizon_seconds,
+                    feature_version=args.feature_version,
+                    label_version=args.label_version,
+                    bootstrap_since_at=(
+                        _parse_datetime(
+                            args.bootstrap_since_at,
+                            name="bootstrap_since_at",
+                        )
+                        if args.bootstrap_since_at is not None
+                        else None
+                    ),
+                    cutoff_at=_parse_datetime(args.cutoff_at, name="cutoff_at"),
+                    training_start_at=_parse_datetime(
+                        args.training_start_at,
+                        name="training_start_at",
+                    ),
+                    output_dir=args.output_dir,
+                    min_markets=args.min_markets,
+                    trigger_count=args.trigger_count,
+                    created_at=_utc_now(),
+                )
+                return {
+                    "ok": True,
+                    "command": "adaptive-train",
+                    "readiness": readiness,
+                    "training": {
+                        "run_id": training.run_id,
+                        "semantic_sha256": training.semantic_sha256,
+                    },
+                    "cycle": {
+                        "cycle_id": cycle.cycle_id,
+                        "semantic_sha256": cycle.semantic_sha256,
+                    },
+                }
     finally:
         engine.dispose()
     raise RuntimeError(f"unsupported database command: {args.command}")
