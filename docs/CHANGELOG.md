@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.135 — 12 September 2026
+
+- Allowed first-cycle `adaptive-readiness` to operate read-only before migration 0015 when `adaptive_learning_cycles` is absent and the explicit frozen bootstrap boundary is supplied.
+- Missing bootstrap still fails closed; readiness does not create schema, write cycle evidence, or train. Once the ledger exists, prior-cycle lookup remains authoritative.
+- `adaptive-train` still requires migration 0015 and remains blocked until that production database mutation is separately authorized and applied.
+- Research/live-disabled/zero-money/no-holdout/no-automatic-promotion safety remains unchanged.
+
 ## 0.14.134 — 12 September 2026
 
 - Froze the first adaptive-learning bootstrap boundary at `2026-09-12T17:21:13Z`, the exact merge timestamp when the adaptive subsystem became canonical on `main`.

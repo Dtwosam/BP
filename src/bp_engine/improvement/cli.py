@@ -10,7 +10,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 
 from bp_engine.config import get_settings
 from bp_engine.improvement import adaptive, service
@@ -176,6 +176,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _adaptive_since_at(connection, args: argparse.Namespace) -> datetime:
+    if not inspect(connection).has_table("adaptive_learning_cycles"):
+        if args.bootstrap_since_at is None:
+            raise adaptive.AdaptiveLearningError(
+                "bootstrap_since_at is required for the first adaptive learning cycle"
+            )
+        return _parse_datetime(args.bootstrap_since_at, name="bootstrap_since_at")
+
     repository = adaptive.AdaptiveLearningCycleRepository()
     latest = repository.latest_completed(
         connection,
