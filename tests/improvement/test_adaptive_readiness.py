@@ -101,7 +101,11 @@ def test_readiness_counts_distinct_resolved_markets_with_matching_features() -> 
             insert(market_labels),
             [
                 _label("a1", start=base, generated_at=base + timedelta(hours=1)),
-                _label("b2", start=base + timedelta(minutes=5), generated_at=base + timedelta(hours=2)),
+                _label(
+                    "b2",
+                    start=base + timedelta(minutes=5),
+                    generated_at=base + timedelta(hours=2),
+                ),
             ],
         )
         connection.execute(
@@ -144,7 +148,9 @@ def test_readiness_excludes_labels_outside_cycle_window() -> None:
                     **_label(condition_id, start=start, generated_at=generated_at)
                 )
             )
-            connection.execute(insert(market_features).values(**_feature(condition_id, start=start)))
+            connection.execute(
+                insert(market_features).values(**_feature(condition_id, start=start))
+            )
 
         report = _report(
             connection,
