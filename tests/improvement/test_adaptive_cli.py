@@ -240,3 +240,42 @@ def test_adaptive_train_emits_immutable_identities(monkeypatch, capsys) -> None:
     assert captured["output_dir"] == Path("adaptive-models")
     assert captured["trigger_count"] == 50
     assert captured["created_at"] == now
+
+
+def test_adaptive_since_at_allows_bootstrap_when_cycle_table_is_absent() -> None:
+    from sqlalchemy import create_engine, inspect
+
+    cli, _ = _modules()
+    bootstrap = datetime(2026, 9, 12, 17, 21, 13, tzinfo=UTC)
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    args = SimpleNamespace(
+        horizon_seconds=300,
+        feature_version="core-v2-last-trade",
+        label_version="official-outcome-v1",
+        bootstrap_since_at=bootstrap.isoformat(),
+    )
+
+    with engine.begin() as connection:
+        assert inspect(connection).has_table("adaptive_learning_cycles") is False
+        assert cli._adaptive_since_at(connection, args) == bootstrap
+        assert inspect(connection).has_table("adaptive_learning_cycles") is False
+
+
+def test_adaptive_since_at_without_cycle_table_still_requires_bootstrap() -> None:
+    import pytest
+    from sqlalchemy import create_engine, inspect
+
+    cli, adaptive = _modules()
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    args = SimpleNamespace(
+        horizon_seconds=300,
+        feature_version="core-v2-last-trade",
+        label_version="official-outcome-v1",
+        bootstrap_since_at=None,
+    )
+
+    with engine.begin() as connection:
+        assert inspect(connection).has_table("adaptive_learning_cycles") is False
+        with pytest.raises(adaptive.AdaptiveLearningError, match="bootstrap_since_at"):
+            cli._adaptive_since_at(connection, args)
+        assert inspect(connection).has_table("adaptive_learning_cycles") is False
