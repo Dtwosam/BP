@@ -14,7 +14,11 @@ from bp_engine.features.v3_coverage import (
     build_v3_coverage_report,
 )
 from bp_engine.storage.schema import market_features
-from bp_engine.v3_research.config import FROZEN_V3_GATE_B_CONFIG, V3GateBConfig
+from bp_engine.v3_research.config import (
+    FROZEN_V3_GATE_B_CONFIG,
+    V3GateBConfig,
+    v3_gate_b_config_payload,
+)
 from bp_engine.v3_research.exclusions import (
     ExclusionManifest,
     ExclusionManifestError,
@@ -54,6 +58,30 @@ def _validated_manifest(
             f"{expected_kind} exclusion manifest does not match its hash-bound payload"
         )
     return manifest
+
+
+def _reject_epoch_exclusions(
+    connection: Connection,
+    *,
+    config: V3GateBConfig,
+    excluded_condition_ids: tuple[str, ...],
+) -> None:
+    if not excluded_condition_ids:
+        return
+    query = (
+        select(market_features.c.condition_id)
+        .where(market_features.c.feature_version == config.feature_version)
+        .where(market_features.c.market_start_at >= config.epoch_start)
+        .where(market_features.c.market_start_at < config.epoch_end)
+        .where(market_features.c.condition_id.in_(excluded_condition_ids))
+        .distinct()
+        .order_by(market_features.c.condition_id)
+    )
+    matches = tuple(str(value) for value in connection.execute(query).scalars())
+    if matches:
+        raise ExclusionManifestError(
+            "exclusion manifests contain condition IDs from the frozen V3 epoch"
+        )
 
 
 def _eligible_rows(
@@ -133,30 +161,6 @@ def _has_complete_offsets(
     return bool(observed) and all(offsets == expected for offsets in observed.values())
 
 
-def _config_hash_payload(config: V3GateBConfig) -> dict[str, object]:
-    return {
-        "research_plan_version": config.research_plan_version,
-        "dataset_version": config.dataset_version,
-        "feature_version": config.feature_version,
-        "label_version": config.label_version,
-        "horizon_seconds": config.horizon_seconds,
-        "feature_offsets_seconds": config.feature_offsets_seconds,
-        "epoch_start": config.epoch_start,
-        "epoch_end": config.epoch_end,
-        "train_duration_seconds": config.train_duration.total_seconds(),
-        "validation_duration_seconds": config.validation_duration.total_seconds(),
-        "test_duration_seconds": config.test_duration.total_seconds(),
-        "step_duration_seconds": config.step_duration.total_seconds(),
-        "final_holdout_duration_seconds": config.final_holdout_duration.total_seconds(),
-        "embargo_markets": config.embargo_markets,
-        "min_train_markets": config.min_train_markets,
-        "min_validation_markets": config.min_validation_markets,
-        "min_test_markets": config.min_test_markets,
-        "min_final_holdout_markets": config.min_final_holdout_markets,
-        "ordinary_fold_count": config.ordinary_fold_count,
-    }
-
-
 def assess_v3_gate_b_readiness(
     connection: Connection,
     *,
@@ -176,6 +180,11 @@ def assess_v3_gate_b_readiness(
     )
     excluded_condition_ids = tuple(
         sorted(set(diagnosis.condition_ids) | set(consumed.condition_ids))
+    )
+    _reject_epoch_exclusions(
+        connection,
+        config=config,
+        excluded_condition_ids=excluded_condition_ids,
     )
 
     coverage = build_v3_coverage_report(
@@ -217,7 +226,7 @@ def assess_v3_gate_b_readiness(
     blocking_reasons = tuple(sorted(blockers))
     readiness_input_sha256 = canonical_hash(
         {
-            "config": _config_hash_payload(config),
+            "config": v3_gate_b_config_payload(config),
             "as_of": checked_at,
             "coverage_input_sha256": coverage["coverage_input_sha256"],
             "diagnosis_exclusion_sha256": diagnosis.sha256,
