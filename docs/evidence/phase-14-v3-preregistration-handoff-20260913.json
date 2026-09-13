@@ -1,0 +1,48 @@
+{
+  "status": "GATE_A_PASS_V3_GATE_B_PREREGISTRATION_FROZEN",
+  "feature_version": "core-v3-btc-native",
+  "label_version": "official-outcome-v1",
+  "gate_a": {
+    "implementation_head": "e09e9834260996553fa3cff7c18bf5269e48f4f0",
+    "implementation_ci_run_id": 34757241403,
+    "merged_main_head": "8b2d983ec75692de7ed39043c4a0e19dcf691942",
+    "production_coverage_verdict": "PASS",
+    "production_evidence": "docs/evidence/phase-14-v3-gate-a-production-20260913.json",
+    "coverage_input_sha256": "32c283a7769681ebe5b2e0d1fe255ad6c38aa5b0301303f8fe86f4e7b2278ffb",
+    "market_count": 17,
+    "row_count": 68
+  },
+  "preregistration": {
+    "design_commit": "c9e179c91ea990ca4a25a13f69fc5932811fb32a",
+    "issue": 193,
+    "implementation_head": "4efa403f0fcfcc9a7d4717c48d6da721fb3a1f38",
+    "implementation_ci_run_id": 34773596855,
+    "implementation_ci_passed": true,
+    "research_plan_version": "v3-gate-b-preregister-v1",
+    "epoch_start": "2026-09-13T13:45:00Z",
+    "epoch_end": "2026-09-16T13:45:00Z",
+    "ordinary_fold_count": 5,
+    "final_holdout_hours": 12,
+    "exclusion_kinds": [
+      "diagnosis",
+      "consumed_v2_final_holdout"
+    ],
+    "readiness_outcome_blind": true,
+    "planning_feature_only": true,
+    "readiness_artifact_free": true,
+    "planning_database_writes": false,
+    "final_holdout_separate_authorization_required": true
+  },
+  "safety": {
+    "v2_adaptive_training_paused": true,
+    "training_performed": false,
+    "final_holdout_access_performed": false,
+    "model_activation_performed": false,
+    "paper_activation_performed": false,
+    "automatic_promotion": false,
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0
+  },
+  "next_action": "Continue prospective core-v3-btc-native collection through 2026-09-16T13:45:00Z. After the frozen epoch completes, run outcome-blind readiness with both frozen exclusion manifests. Only if readiness passes, freeze the feature-only five-fold plan and hashes. Do not train a model, read final-holdout labels, or evaluate the final holdout."
+}
