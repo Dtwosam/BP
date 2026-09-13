@@ -24,6 +24,39 @@ except ModuleNotFoundError:
     load_exclusion_manifest = None
 
 
+FROZEN_PREDICTORS = (
+    "coinbase_return_from_market_start",
+    "coinbase_return_30s",
+    "coinbase_return_60s",
+    "coinbase_return_120s",
+    "bybit_spot_return_from_market_start",
+    "bybit_spot_return_30s",
+    "bybit_spot_return_60s",
+    "bybit_spot_return_120s",
+    "bybit_linear_return_from_market_start",
+    "bybit_linear_return_30s",
+    "bybit_linear_return_60s",
+    "bybit_linear_return_120s",
+    "coinbase_bybit_spot_return_spread",
+    "coinbase_bybit_spot_direction_agree",
+    "spot_linear_direction_agree",
+    "bybit_linear_vs_spot_basis",
+    "bybit_linear_funding_rate",
+    "bybit_linear_open_interest",
+    "seconds_elapsed",
+    "seconds_remaining",
+    "fraction_elapsed",
+)
+
+FROZEN_FORECAST_CANDIDATES = (
+    "training_prior",
+    "coinbase_momentum_sign_diagnostic",
+    "single_feature_btc_logistic",
+    "full_v3_logistic",
+    "full_v3_xgboost",
+)
+
+
 def test_frozen_v3_gate_b_config_matches_preregistered_contract() -> None:
     assert FROZEN_V3_GATE_B_CONFIG is not None
     config = FROZEN_V3_GATE_B_CONFIG
@@ -49,6 +82,36 @@ def test_frozen_v3_gate_b_config_matches_preregistered_contract() -> None:
     assert config.min_test_markets == 60
     assert config.min_final_holdout_markets == 120
     assert config.ordinary_fold_count == 5
+
+
+def test_frozen_v3_gate_b_config_includes_complete_future_search_contract() -> None:
+    assert FROZEN_V3_GATE_B_CONFIG is not None
+    config = FROZEN_V3_GATE_B_CONFIG
+
+    assert config.predictor_names == FROZEN_PREDICTORS
+    assert config.forecast_candidates == FROZEN_FORECAST_CANDIDATES
+    assert config.primary_validation_metric == "log_loss"
+    assert config.validation_tie_breakers == (
+        "brier_score",
+        "calibration_quality",
+        "simpler_model",
+    )
+    assert config.xgboost_replacement_rule == (
+        "strictly_better_validation_log_loss_and_brier_than_full_v3_logistic"
+    )
+    assert config.calibration_candidates == ("identity", "platt")
+    assert config.platt_eligibility_rule == (
+        "improve_validation_log_loss_and_brier_without_negative_coefficient"
+    )
+    assert config.offset_candidates_seconds == (60, 120, 180, 240)
+    assert config.fee_rate == 0.07
+    assert config.slippage_buffer == 0.01
+    assert config.min_edge_grid == (0.0, 0.01, 0.02, 0.03, 0.05, 0.075, 0.1, 0.15)
+    assert config.no_trade_candidate is True
+    assert config.max_selected_book_age_seconds == 10
+    assert config.min_validation_trades_per_fold == 8
+    assert config.required_non_negative_validation_folds == 4
+    assert config.require_positive_aggregate_validation_pnl is True
 
 
 def test_reserved_window_minimum_remains_v3_local() -> None:
