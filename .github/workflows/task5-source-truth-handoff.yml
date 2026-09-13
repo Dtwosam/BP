@@ -90,7 +90,9 @@ jobs:
           d045 = '## D-045 — BTC-first V3 Gate A'
           if d045 not in decisions:
               addition = f'''\n\n{d045}\n**Date:** 13 Sep 2026\n**Status:** Active\n\nRepository implementation for the separately versioned `core-v3-btc-native` Gate A challenger is complete on PR #192 at audited implementation head `{IMPLEMENTATION_HEAD}`; CI run `{IMPLEMENTATION_CI_RUN}` passed before the source-of-truth handoff. The forecast contract is BTC-native only (Coinbase spot, Bybit spot, Bybit linear) at fixed 60/120/180/240-second offsets for 5-minute markets. Polymarket price/book inputs are excluded from the V3 forecast payload and remain an execution/evaluation concern. Outcome-blind coverage reporting and future-data perturbation regression coverage are part of Gate A.\n\nV2 adaptive training remains paused despite prior readiness evidence. Existing V1/V2 features, adaptive-readiness evidence, Gate B evidence, and consumed holdout history remain immutable and truthful; they are not reset or rewritten by V3. The 84-trade diagnosis cohort is not a validation/test/final-holdout set for policy selection.\n\nThis decision records repository implementation only, not Gate A acceptance or production rollout. No training, production migration, model activation, paper activation, final-holdout access, automatic promotion, Phase 15 progression, geographic bypass, live trading, or nonzero money is authorized. The next step is outcome-blind V3 coverage collection followed by a separate Gate A acceptance decision.\n'''
-              decisions_path.write_text(decisions.rstrip() + addition + '\n', encoding='utf-8')
+              decisions_path.write_text(
+                  decisions.rstrip() + addition.rstrip() + '\n', encoding='utf-8'
+              )
 
           # MASTER: append an audited V3 Gate A repository checkpoint.
           master_path = ROOT / 'docs/MASTER-SOURCE-OF-TRUTH.md'
@@ -98,7 +100,9 @@ jobs:
           master_heading = '### Phase 14 BTC-first V3 Gate A repository checkpoint — 13 September 2026'
           if master_heading not in master:
               addition = f'''\n\n{master_heading}\n\nThe separate immutable V3 feature family is `core-v3-btc-native`, with `official-outcome-v1` as the eventual supervised label, 5-minute horizon only, and fixed feature offsets 60, 120, 180, and 240 seconds after market start. Forecast predictors are BTC-native Coinbase spot, Bybit spot, and Bybit linear state only. Polymarket price/book fields are not V3 forecast predictors; they remain downstream executable benchmark/evaluation inputs. Missing or stale BTC evidence remains explicit, and future rows must not change historical features.\n\nRepository Gate A implementation is present on PR #192. The audited pre-handoff implementation checkpoint is `{IMPLEMENTATION_HEAD}` and GitHub Actions CI run `{IMPLEMENTATION_CI_RUN}` passed. Gate A includes deterministic as-of BTC state reads, BTC return/cross-venue calculators, immutable V3 feature materialization, a future-data perturbation regression, and outcome-blind coverage reporting that selects no policy and performs no training. Existing V1/V2 semantics and evidence remain immutable.\n\nThis is **repository implementation evidence, not Gate A acceptance**. No production rollout was performed, no production migration/restart occurred, no V2 or V3 training was run, no model or paper activation occurred, no final holdout was accessed, and automatic promotion remains false. The current V2 adaptive training path remains paused even though its historical readiness evidence remains valid. Phase 14 stays in RESEARCH mode with live trading disabled and both money limits at zero.\n\nThe immediate research action is to collect and inspect outcome-blind `core-v3-btc-native` coverage and then make a separate Gate A acceptance decision. Training or activation requires a later explicitly authorized plan after Gate A acceptance.\n'''
-              master_path.write_text(master.rstrip() + addition + '\n', encoding='utf-8')
+              master_path.write_text(
+                  master.rstrip() + addition.rstrip() + '\n', encoding='utf-8'
+              )
 
           # BUILD-ORDER: preserve the prior immediate-action tail as historical context,
           # then make the new immediate section unambiguously V3 coverage/Gate A only.
