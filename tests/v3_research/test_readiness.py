@@ -3,13 +3,17 @@ from __future__ import annotations
 import inspect
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from sqlalchemy import create_engine, insert
 
 from bp_engine.features import v3_coverage
 from bp_engine.features.v3_models import V3_FEATURE_VERSION
 from bp_engine.storage import schema
 from bp_engine.v3_research.config import FROZEN_V3_GATE_B_CONFIG
-from bp_engine.v3_research.exclusions import build_exclusion_manifest
+from bp_engine.v3_research.exclusions import (
+    ExclusionManifestError,
+    build_exclusion_manifest,
+)
 
 try:
     from bp_engine.v3_research import readiness as readiness_module
@@ -132,7 +136,7 @@ def test_v3_gate_b_readiness_passes_only_outcome_blind_coverage() -> None:
         *_market_rows("eligible", config.epoch_start),
         *_market_rows(
             "diagnosis-market",
-            config.epoch_start + timedelta(minutes=5),
+            config.epoch_start - timedelta(minutes=5),
             future_cutoff=True,
             polymarket_key=True,
         ),
@@ -175,6 +179,29 @@ def test_v3_gate_b_readiness_passes_only_outcome_blind_coverage() -> None:
         assert first["non_structural_return_availability"][field] == 1.0
     assert len(first["readiness_input_sha256"]) == 64
     int(first["readiness_input_sha256"], 16)
+
+
+def test_v3_gate_b_readiness_rejects_current_epoch_exclusion_ids() -> None:
+    assert readiness_module is not None
+    config = FROZEN_V3_GATE_B_CONFIG
+    rows = _market_rows("prospective-market", config.epoch_start)
+    diagnosis = build_exclusion_manifest(
+        kind="diagnosis",
+        condition_ids=("prospective-market",),
+    )
+    consumed = build_exclusion_manifest(
+        kind="consumed_v2_final_holdout",
+        condition_ids=(),
+    )
+
+    with _connection(rows) as connection:
+        with pytest.raises(ExclusionManifestError, match="frozen V3 epoch"):
+            readiness_module.assess_v3_gate_b_readiness(
+                connection,
+                as_of=config.epoch_end,
+                diagnosis_exclusions=diagnosis,
+                consumed_v2_final_holdout_exclusions=consumed,
+            )
 
 
 def test_v3_gate_b_readiness_returns_sorted_blocking_reasons() -> None:
