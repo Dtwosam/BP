@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from bp_engine.v3_research.exclusions import load_exclusion_manifest
 
 
