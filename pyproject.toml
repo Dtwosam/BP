@@ -20,6 +20,9 @@ dependencies = [
   "joblib>=1.4,<2",
 ]
 
+[project.scripts]
+bp-v3-gate-b = "bp_engine.v3_research.cli:main"
+
 [project.optional-dependencies]
 dev = [
   "pytest>=8.3,<9",
