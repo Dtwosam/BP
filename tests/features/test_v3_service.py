@@ -1,13 +1,13 @@
-from datetime import UTC, datetime, timedelta
 import inspect
+from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import create_engine, insert, select
 from bp_engine.features.v3_service import (
     build_v3_feature,
     generate_v3_features,
     plan_v3_feature_times,
 )
+from sqlalchemy import create_engine, insert, select
 
 from bp_engine.features.v3_models import V3_FEATURE_VERSION, V3FeatureTarget
 from bp_engine.storage import schema
@@ -153,11 +153,14 @@ def test_build_v3_feature_is_btc_only_timestamp_coherent_and_fingerprinted() -> 
     assert feature.features["bybit_linear_open_interest"] == pytest.approx(12345.5)
     assert all(value is False for value in feature.missing_flags.values())
     assert len(feature.source_cutoffs) == 15
-    assert all(value <= FEATURE_AT.isoformat().replace("+00:00", "Z") for value in feature.source_cutoffs.values())
+    feature_at_z = FEATURE_AT.isoformat().replace("+00:00", "Z")
+    assert all(value <= feature_at_z for value in feature.source_cutoffs.values())
     assert len(feature.input_fingerprint) == 64
     assert len(feature.feature_hash) == 64
 
-    payload_keys = set(feature.features) | set(feature.missing_flags) | set(feature.source_cutoffs)
+    payload_keys = (
+        set(feature.features) | set(feature.missing_flags) | set(feature.source_cutoffs)
+    )
     assert not any(key.startswith("pm_") for key in payload_keys)
     assert not any("polymarket" in key.lower() for key in payload_keys)
 
