@@ -489,7 +489,7 @@ Repository-only adaptive learning infrastructure is implemented on the Phase 14 
 
 The 12 September V2 Gate B evidence is complete but not accepted: final policy `no_trade`, selection reason `no_validation_edge_candidate_profitable`, final holdout permanently consumed and non-reusable. This milestone does not reopen that holdout and does not authorize V2 paper activation.
 
-## Immediate next action
+## Historical handoff context superseded on 13 September 2026
 
 **Keep Phase 14 in research mode and run only the adaptive-learning readiness path against immutable evidence. Before migration 0015 creates `adaptive_learning_cycles`, first-cycle `adaptive-readiness` may use the frozen bootstrap boundary `2026-09-12T17:21:13Z` strictly read-only; it must not create schema, write cycle evidence, or train. Wait until at least 50 newly resolved eligible markets have accumulated. `adaptive-train` remains blocked until migration 0015 is separately authorized and applied; after the ledger exists, stored prior-cycle cutoffs become authoritative. Any later research challenger must still not automatically promote or activate. Continue existing money-disabled prospective evidence collection. No final-holdout access, V2 paper-model activation, Phase 15 progression, geographic bypass, live trading, or nonzero money is authorized.**
 
@@ -615,3 +615,9 @@ Production is unchanged. The recovery helper requires a fresh explicit approval 
 The Phase 14 V2 outcome-label coverage rollout passed in production at `2026-09-11T12:48:01Z`. The immutable production-shaped candidate `7c3af78da1922a0e5187c24b799951130cc98887` was rooted at `71b33d3beaba4a11ef93e7c5bde1c517323f3440` and remained scoped to the prospective-outcome runtime fix plus its regression test. PR #182 merge `f3ef5717390d0dd8d577bdc73143baabd12ff5ce` is historical preflight-helper provenance; the passing read-only preflight and authorized rollout were bound to exact helper/main `17833c64ba7b3836ad4f047167d7d2d861fd2bc0`. Durable rollout evidence is `/var/lib/bp/evidence/phase14-v2-outcome-label-rollout-20260911T124801Z.json`.
 
 Current order: (1) do not rerun this rollout and preserve its evidence; (2) build a fresh statistically clean V2 Gate B plan from a new feature-only, label-blind planning epoch and reserve a new final holdout; (3) require a separate one-shot explicit authorization before any access to that new final holdout; (4) keep Gate B unaccepted and preserve `MODE=research`, `LIVE_TRADING_ENABLED=false`, zero money limits, `automatic_promotion=false`, Phase 15 blocked, and live trading blocked until a new clean Gate B run and every other live gate pass. The consumed frozen Gate B plan/final holdout must never be reused.
+
+## Immediate next action
+
+**Collect outcome-blind `core-v3-btc-native` coverage and perform the separate V3 Gate A acceptance review.**
+
+Keep this step feature/coverage only. Verify the fixed 60/120/180/240-second BTC-native feature contract, zero Polymarket predictor keys, explicit missing/stale behavior, and future-data safety using the repository coverage/reporting path. Do not run model training, activate a paper model, mutate production, access a final holdout, or change any live/money safety setting. Preserve all V1/V2 and adaptive-learning evidence unchanged.

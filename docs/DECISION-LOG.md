@@ -395,3 +395,13 @@ After a completed adaptive cycle exists, the next cycle derives `since_at` only 
 Before migration 0015 creates `adaptive_learning_cycles`, first-cycle `adaptive-readiness` may inspect immutable labels/features using the explicit frozen bootstrap boundary `2026-09-12T17:21:13Z`. This fallback is read-only: it must not create the ledger table, write cycle evidence, train a challenger, or infer a prior-cycle cutoff. If the table is absent and no explicit bootstrap is supplied, readiness fails closed.
 
 Once `adaptive_learning_cycles` exists, the normal ledger lookup is authoritative. `adaptive-train` still requires the ledger and remains blocked until migration 0015 is separately authorized and applied. This decision changes no paper activation, automatic promotion, final-holdout, live-trading, or money authorization.
+
+## D-045 — BTC-first V3 Gate A
+**Date:** 13 Sep 2026
+**Status:** Active
+
+Repository implementation for the separately versioned `core-v3-btc-native` Gate A challenger is complete on PR #192 at audited implementation head `e09e9834260996553fa3cff7c18bf5269e48f4f0`; CI run `34757241403` passed before the source-of-truth handoff. The forecast contract is BTC-native only (Coinbase spot, Bybit spot, Bybit linear) at fixed 60/120/180/240-second offsets for 5-minute markets. Polymarket price/book inputs are excluded from the V3 forecast payload and remain an execution/evaluation concern. Outcome-blind coverage reporting and future-data perturbation regression coverage are part of Gate A.
+
+V2 adaptive training remains paused despite prior readiness evidence. Existing V1/V2 features, adaptive-readiness evidence, Gate B evidence, and consumed holdout history remain immutable and truthful; they are not reset or rewritten by V3. The 84-trade diagnosis cohort is not a validation/test/final-holdout set for policy selection.
+
+This decision records repository implementation only, not Gate A acceptance or production rollout. No training, production migration, model activation, paper activation, final-holdout access, automatic promotion, Phase 15 progression, geographic bypass, live trading, or nonzero money is authorized. The next step is outcome-blind V3 coverage collection followed by a separate Gate A acceptance decision.
