@@ -37,7 +37,10 @@ class V3GateBConfig:
             raise ValueError("feature_offsets_seconds must be non-empty")
         if tuple(sorted(set(self.feature_offsets_seconds))) != self.feature_offsets_seconds:
             raise ValueError("feature_offsets_seconds must be sorted and unique")
-        if any(offset <= 0 or offset >= self.horizon_seconds for offset in self.feature_offsets_seconds):
+        if any(
+            offset <= 0 or offset >= self.horizon_seconds
+            for offset in self.feature_offsets_seconds
+        ):
             raise ValueError("feature offsets must be within the market horizon")
         for name in (
             "train_duration",
