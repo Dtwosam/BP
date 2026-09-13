@@ -116,20 +116,20 @@ def _partition_ids(plan: dict[str, object]) -> set[str]:
     return values
 
 
-def test_v3_feature_plan_is_fixed_five_fold_deterministic_and_feature_only() -> None:
+def test_v3_gate_b_plan_is_fixed_five_fold_deterministic_and_feature_only() -> None:
     assert plan_module is not None
     config = FROZEN_V3_GATE_B_CONFIG
     diagnosis, consumed = _empty_exclusions()
     engine = _engine_with_features()
 
     with engine.connect() as connection:
-        first = plan_module.build_v3_feature_plan(
+        first = plan_module.build_v3_gate_b_plan(
             connection,
             as_of=config.epoch_end,
             diagnosis_exclusions=diagnosis,
             consumed_v2_final_holdout_exclusions=consumed,
         )
-        second = plan_module.build_v3_feature_plan(
+        second = plan_module.build_v3_gate_b_plan(
             connection,
             as_of=config.epoch_end,
             diagnosis_exclusions=diagnosis,
@@ -170,7 +170,7 @@ def test_v3_feature_plan_is_fixed_five_fold_deterministic_and_feature_only() -> 
         int(first[field], 16)
 
 
-def test_v3_feature_plan_applies_both_exclusion_sets_before_partitioning() -> None:
+def test_v3_gate_b_plan_applies_both_exclusion_sets_before_partitioning() -> None:
     assert plan_module is not None
     config = FROZEN_V3_GATE_B_CONFIG
     diagnosis = build_exclusion_manifest(
@@ -184,7 +184,7 @@ def test_v3_feature_plan_applies_both_exclusion_sets_before_partitioning() -> No
     engine = _engine_with_features()
 
     with engine.connect() as connection:
-        plan = plan_module.build_v3_feature_plan(
+        plan = plan_module.build_v3_gate_b_plan(
             connection,
             as_of=config.epoch_end,
             diagnosis_exclusions=diagnosis,
@@ -199,14 +199,14 @@ def test_v3_feature_plan_applies_both_exclusion_sets_before_partitioning() -> No
     assert len(plan["final"]["holdout_condition_ids"]) == 143
 
 
-def test_v3_feature_plan_fails_closed_before_planning_when_readiness_is_not_met() -> None:
+def test_v3_gate_b_plan_fails_closed_before_planning_when_readiness_is_not_met() -> None:
     assert plan_module is not None
     diagnosis, consumed = _empty_exclusions()
     engine = _engine_with_features(market_count=100)
 
     with engine.connect() as connection:
         with pytest.raises(plan_module.V3PlanIntegrityError, match="readiness"):
-            plan_module.build_v3_feature_plan(
+            plan_module.build_v3_gate_b_plan(
                 connection,
                 as_of=FROZEN_V3_GATE_B_CONFIG.epoch_end,
                 diagnosis_exclusions=diagnosis,
@@ -214,7 +214,7 @@ def test_v3_feature_plan_fails_closed_before_planning_when_readiness_is_not_met(
             )
 
 
-def test_v3_feature_plan_enforces_v3_local_final_holdout_minimum() -> None:
+def test_v3_gate_b_plan_enforces_v3_local_final_holdout_minimum() -> None:
     assert plan_module is not None
     config = FROZEN_V3_GATE_B_CONFIG
     diagnosis = build_exclusion_manifest(kind="diagnosis", condition_ids=())
@@ -230,7 +230,7 @@ def test_v3_feature_plan_enforces_v3_local_final_holdout_minimum() -> None:
             plan_module.V3PlanIntegrityError,
             match="final holdout requires at least 120 markets; found 119",
         ):
-            plan_module.build_v3_feature_plan(
+            plan_module.build_v3_gate_b_plan(
                 connection,
                 as_of=config.epoch_end,
                 diagnosis_exclusions=diagnosis,
@@ -238,7 +238,7 @@ def test_v3_feature_plan_enforces_v3_local_final_holdout_minimum() -> None:
             )
 
 
-def test_v3_feature_plan_source_is_outcome_and_training_isolated() -> None:
+def test_v3_gate_b_plan_source_is_outcome_and_training_isolated() -> None:
     assert plan_module is not None
     source = inspect.getsource(plan_module).lower()
     for forbidden in (
