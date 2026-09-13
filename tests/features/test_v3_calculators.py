@@ -2,12 +2,12 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
+
 from bp_engine.features.v3_calculators import (
     BTCAnchorSet,
     btc_cross_venue_group,
     btc_return_group,
 )
-
 from bp_engine.features.v3_models import BTCStateObservation
 
 NOW = datetime(2026, 9, 13, 12, 4, tzinfo=UTC)
