@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.136 — 13 September 2026
+
+- Recorded repository-only BTC-first V3 Gate A implementation for `core-v3-btc-native` on PR #192. The audited implementation checkpoint is `e09e9834260996553fa3cff7c18bf5269e48f4f0` and CI run `34757241403` passed before this handoff.
+- Gate A uses 5-minute horizon offsets `60, 120, 180, 240`, BTC-native Coinbase/Bybit forecast inputs only, explicit missing/stale semantics, future-data perturbation protection, and an outcome-blind coverage report with zero Polymarket predictor keys.
+- V2 adaptive training remains paused. This checkpoint performs no training, no production rollout or migration, no model/paper activation, no final-holdout access, no automatic promotion, no live trading, and no money-limit change.
+- Next action is outcome-blind V3 coverage collection followed by a separate Gate A acceptance decision.
+
 ## 0.14.135 — 12 September 2026
 
 - Allowed first-cycle `adaptive-readiness` to operate read-only before migration 0015 when `adaptive_learning_cycles` is absent and the explicit frozen bootstrap boundary is supplied.
