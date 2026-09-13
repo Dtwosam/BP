@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import create_engine, insert
 from bp_engine.features.v3_service import build_v3_feature
+from sqlalchemy import create_engine, insert
 
 from bp_engine.features.v3_models import V3FeatureTarget
 from bp_engine.storage import schema
