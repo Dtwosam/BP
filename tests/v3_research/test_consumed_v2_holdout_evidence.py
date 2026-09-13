@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from bp_engine.v3_research.exclusions import load_exclusion_manifest
 
 
-EVIDENCE_PATH = Path(
+EVIDENCE_PATH = (
     "docs/evidence/phase-14-v3-consumed-v2-final-holdout-exclusions-20260913.json"
 )
 EXPECTED_MANIFEST_SHA256 = (
