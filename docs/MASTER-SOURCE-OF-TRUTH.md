@@ -1436,3 +1436,16 @@ Repository Gate A implementation is present on PR #192. The audited pre-handoff 
 This is **repository implementation evidence, not Gate A acceptance**. No production rollout was performed, no production migration/restart occurred, no V2 or V3 training was run, no model or paper activation occurred, no final holdout was accessed, and automatic promotion remains false. The current V2 adaptive training path remains paused even though its historical readiness evidence remains valid. Phase 14 stays in RESEARCH mode with live trading disabled and both money limits at zero.
 
 The immediate research action is to collect and inspect outcome-blind `core-v3-btc-native` coverage and then make a separate Gate A acceptance decision. Training or activation requires a later explicitly authorized plan after Gate A acceptance.
+
+
+## Phase 14 BTC-first V3 Gate A production acceptance + Gate B preregistration — 13 September 2026
+
+This section supersedes the earlier Phase 14 V3 wording that left Gate A awaiting production coverage acceptance. The repository implementation remains `core-v3-btc-native` with `official-outcome-v1`, a 300-second horizon, and feature offsets 60/120/180/240 seconds.
+
+**Gate A production coverage: PASS.** The accepted evidence is `docs/evidence/phase-14-v3-gate-a-production-20260913.json`: 17 markets / 68 feature rows from `2026-09-13T13:45:00Z` through `2026-09-13T15:10:00Z`, coverage input SHA-256 `32c283a7769681ebe5b2e0d1fe255ad6c38aa5b0301303f8fe86f4e7b2278ffb`, zero future-cutoff violations, zero Polymarket predictor keys, and complete current-state availability for Coinbase spot, Bybit spot, and Bybit linear. The accepted step performed no model training, model activation, paper activation, final-holdout access, automatic promotion, or live-trading change.
+
+**Gate B preregistration is frozen.** The approved design is commit `c9e179c91ea990ca4a25a13f69fc5932811fb32a` and implementation follow-up is Issue #193. The audited implementation checkpoint is `39a887e138398215ac97dc45f8099e3515a90fe2`; CI run `34775202056` passed the full Python suite, lint, deployment-asset validation, health check, dashboard test/typecheck/build, and the PR smoke workflows. The future search contract is frozen and hash-bound, including the predictor family, forecast candidates, validation selection/tie-break rules, calibration candidates, offset candidates, fee/slippage assumptions, edge grid/no-trade candidate, freshness limit, and validation trade/PnL gates.
+
+The two historical contamination sets remain required as hash-bound `diagnosis` and `consumed_v2_final_holdout` exclusion manifests before any labeled research work. The readiness implementation rejects any supplied exclusion condition ID that occurs inside the frozen prospective V3 epoch, preventing post-hoc removal of prospective markets. No historical cohort IDs are invented by this handoff.
+
+The prospective epoch is fixed at `2026-09-13T13:45:00Z` through `2026-09-16T13:45:00Z`. After the epoch completes, the only authorized next sequence is **outcome-blind readiness → fixed five-fold feature-only plan**. No labeled modeling, model fitting, final-holdout label access/evaluation, model activation, automatic promotion, production migration, paper activation, or live-trading change is authorized by this handoff.

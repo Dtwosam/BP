@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.138 — 13 September 2026
+
+- Froze the V3 Gate B preregistration from approved design `c9e179c91ea990ca4a25a13f69fc5932811fb32a` through implementation checkpoint `39a887e138398215ac97dc45f8099e3515a90fe2` / CI `34775202056`. The full future search contract is now frozen and hash-bound, prospective-epoch exclusions are rejected, and the next sequence after `2026-09-16T13:45:00Z` is outcome-blind readiness followed only by a fixed five-fold feature-only plan. **No training** or final-holdout access is authorized. Gate A coverage remains bound to `32c283a7769681ebe5b2e0d1fe255ad6c38aa5b0301303f8fe86f4e7b2278ffb`.
+
+## 0.14.137 — 13 September 2026
+
+- Accepted `core-v3-btc-native` Gate A production coverage as PASS from `docs/evidence/phase-14-v3-gate-a-production-20260913.json`: 17 markets / 68 rows, coverage input SHA-256 `32c283a7769681ebe5b2e0d1fe255ad6c38aa5b0301303f8fe86f4e7b2278ffb`, zero future-cutoff violations, zero Polymarket predictor keys, and no training/model activation/final-holdout access. The frozen prospective epoch ends at `2026-09-16T13:45:00Z`.
+
 ## 0.14.136 — 13 September 2026
 
 - Recorded repository-only BTC-first V3 Gate A implementation for `core-v3-btc-native` on PR #192. The audited implementation checkpoint is `e09e9834260996553fa3cff7c18bf5269e48f4f0` and CI run `34757241403` passed before this handoff.

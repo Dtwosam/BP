@@ -156,21 +156,45 @@ def _polymarket_predictor_keys(rows: Iterable[Mapping[str, Any]]) -> set[str]:
     return keys
 
 
-def build_v3_coverage_report(connection: Connection) -> dict[str, Any]:
+def _canonical_exclusions(condition_ids: Iterable[str]) -> tuple[str, ...]:
+    values = tuple(condition_ids)
+    if any(not isinstance(condition_id, str) or not condition_id for condition_id in values):
+        raise ValueError("excluded_condition_ids must contain non-empty strings")
+    return tuple(sorted(set(values)))
+
+
+def build_v3_coverage_report(
+    connection: Connection,
+    *,
+    epoch_start: datetime | None = None,
+    epoch_end: datetime | None = None,
+    excluded_condition_ids: Iterable[str] = (),
+) -> dict[str, Any]:
+    if epoch_start is not None and epoch_end is not None:
+        if _utc(epoch_end) <= _utc(epoch_start):
+            raise ValueError("epoch_end must be after epoch_start")
+
+    query = select(
+        market_features.c.condition_id,
+        market_features.c.feature_at,
+        market_features.c.feature_offset_seconds,
+        market_features.c.features,
+        market_features.c.missing_flags,
+        market_features.c.source_cutoffs,
+        market_features.c.input_fingerprint,
+        market_features.c.feature_hash,
+    ).where(market_features.c.feature_version == V3_FEATURE_VERSION)
+    if epoch_start is not None:
+        query = query.where(market_features.c.market_start_at >= _utc(epoch_start))
+    if epoch_end is not None:
+        query = query.where(market_features.c.market_start_at < _utc(epoch_end))
+    exclusions = _canonical_exclusions(excluded_condition_ids)
+    if exclusions:
+        query = query.where(market_features.c.condition_id.not_in(exclusions))
+
     rows = list(
         connection.execute(
-            select(
-                market_features.c.condition_id,
-                market_features.c.feature_at,
-                market_features.c.feature_offset_seconds,
-                market_features.c.features,
-                market_features.c.missing_flags,
-                market_features.c.source_cutoffs,
-                market_features.c.input_fingerprint,
-                market_features.c.feature_hash,
-            )
-            .where(market_features.c.feature_version == V3_FEATURE_VERSION)
-            .order_by(
+            query.order_by(
                 market_features.c.condition_id,
                 market_features.c.feature_at,
                 market_features.c.id,

@@ -405,3 +405,16 @@ Repository implementation for the separately versioned `core-v3-btc-native` Gate
 V2 adaptive training remains paused despite prior readiness evidence. Existing V1/V2 features, adaptive-readiness evidence, Gate B evidence, and consumed holdout history remain immutable and truthful; they are not reset or rewritten by V3. The 84-trade diagnosis cohort is not a validation/test/final-holdout set for policy selection.
 
 This decision records repository implementation only, not Gate A acceptance or production rollout. No training, production migration, model activation, paper activation, final-holdout access, automatic promotion, Phase 15 progression, geographic bypass, live trading, or nonzero money is authorized. The next step is outcome-blind V3 coverage collection followed by a separate Gate A acceptance decision.
+
+
+## D-046 — BTC-first V3 Gate A production coverage accepted
+
+**Status:** Active
+
+Production materialization/coverage for `core-v3-btc-native` is accepted PASS from `docs/evidence/phase-14-v3-gate-a-production-20260913.json`: 17 markets / 68 rows, coverage input SHA-256 `32c283a7769681ebe5b2e0d1fe255ad6c38aa5b0301303f8fe86f4e7b2278ffb`, zero future-cutoff violations, zero Polymarket predictor keys, and complete current-state availability across the three BTC sources. This acceptance did not perform model training, model activation, final-holdout access, automatic promotion, or live-trading change.
+
+## D-047 — V3 Gate B preregistration frozen
+
+**Status:** Active
+
+Freeze the approved V3 Gate B preregistration design at `c9e179c91ea990ca4a25a13f69fc5932811fb32a` and implementation checkpoint `39a887e138398215ac97dc45f8099e3515a90fe2` (Issue #193, CI `34775202056`). The prospective epoch is `2026-09-13T13:45:00Z` through `2026-09-16T13:45:00Z`, with exactly five ordinary folds and a separate 12-hour final reserved window. The complete future search contract is frozen and hash-bound. Historical `diagnosis` and `consumed_v2_final_holdout` exclusion manifests remain mandatory, and supplied exclusions may not intersect the prospective V3 epoch. After epoch completion, proceed only through outcome-blind readiness and then, if ready, a fixed feature-only plan. No labeled modeling or final-holdout access is authorized here.

@@ -618,6 +618,8 @@ Current order: (1) do not rerun this rollout and preserve its evidence; (2) buil
 
 ## Immediate next action
 
-**Collect outcome-blind `core-v3-btc-native` coverage and perform the separate V3 Gate A acceptance review.**
+Gate A production coverage for `core-v3-btc-native` is accepted PASS under coverage input SHA-256 `32c283a7769681ebe5b2e0d1fe255ad6c38aa5b0301303f8fe86f4e7b2278ffb`. The Gate B preregistration design is frozen at `c9e179c91ea990ca4a25a13f69fc5932811fb32a` and the prospective epoch ends at `2026-09-16T13:45:00Z`.
 
-Keep this step feature/coverage only. Verify the fixed 60/120/180/240-second BTC-native feature contract, zero Polymarket predictor keys, explicit missing/stale behavior, and future-data safety using the repository coverage/reporting path. Do not run model training, activate a paper model, mutate production, access a final holdout, or change any live/money safety setting. Preserve all V1/V2 and adaptive-learning evidence unchanged.
+After `2026-09-16T13:45:00Z`, run the read-only **outcome-blind readiness** command using the two frozen historical exclusion manifests (`diagnosis` and `consumed_v2_final_holdout`). If and only if readiness passes, write the fixed five-fold **feature-only plan**. No labeled modeling, no final-holdout access, no model activation, and no production mutation is part of this next action.
+
+Preserve the paused V2 adaptive path and all V1/V2 evidence unchanged.
