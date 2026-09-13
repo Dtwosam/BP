@@ -37,7 +37,11 @@ def _iso(value: datetime) -> str:
     return value.astimezone(UTC).isoformat()
 
 
-def _feature_rows(market_count: int = 864) -> list[dict[str, object]]:
+def _feature_rows(
+    market_count: int = 864,
+    *,
+    future_cutoff: bool = False,
+) -> list[dict[str, object]]:
     start = FROZEN_V3_GATE_B_CONFIG.epoch_start
     rows: list[dict[str, object]] = []
     for market_index in range(market_count):
@@ -58,6 +62,10 @@ def _feature_rows(market_count: int = 864) -> list[dict[str, object]]:
                 f"{prefix}_current_state": _z(feature_at - timedelta(seconds=1))
                 for prefix in PREFIXES
             }
+            if future_cutoff:
+                source_cutoffs["diagnostic_future"] = _z(
+                    feature_at + timedelta(seconds=1)
+                )
             missing_flags = {
                 key: value
                 for prefix in PREFIXES
@@ -88,11 +96,18 @@ def _feature_rows(market_count: int = 864) -> list[dict[str, object]]:
     return rows
 
 
-def _engine_with_features(market_count: int = 864):
+def _engine_with_features(
+    market_count: int = 864,
+    *,
+    future_cutoff: bool = False,
+):
     engine = create_engine("sqlite://")
     schema.metadata.create_all(engine)
     with engine.begin() as connection:
-        connection.execute(insert(schema.market_features), _feature_rows(market_count))
+        connection.execute(
+            insert(schema.market_features),
+            _feature_rows(market_count, future_cutoff=future_cutoff),
+        )
     return engine
 
 
@@ -111,7 +126,11 @@ def _partition_ids(plan: dict[str, object]) -> set[str]:
     for fold in plan["folds"]:
         for name in ("train", "validation", "test"):
             values.update(fold[name]["condition_ids"])
-    for name in ("train_condition_ids", "validation_condition_ids", "holdout_condition_ids"):
+    for name in (
+        "train_condition_ids",
+        "validation_condition_ids",
+        "holdout_condition_ids",
+    ):
         values.update(plan["final"][name])
     return values
 
@@ -202,7 +221,7 @@ def test_v3_gate_b_plan_applies_both_exclusion_sets_before_partitioning() -> Non
 def test_v3_gate_b_plan_fails_closed_before_planning_when_readiness_is_not_met() -> None:
     assert plan_module is not None
     diagnosis, consumed = _empty_exclusions()
-    engine = _engine_with_features(market_count=100)
+    engine = _engine_with_features(future_cutoff=True)
 
     with engine.connect() as connection:
         with pytest.raises(plan_module.V3PlanIntegrityError, match="readiness"):
