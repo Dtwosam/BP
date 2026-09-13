@@ -167,18 +167,16 @@ def test_coinbase_bybit_spot_and_linear_identities_are_isolated() -> None:
     ]
 
 
-def test_same_bucket_uses_latest_row_id_deterministically() -> None:
+def test_latest_eligible_bucket_is_selected_deterministically() -> None:
     engine = _engine()
-    bucket = NOW - timedelta(seconds=1)
-    event_at = NOW - timedelta(milliseconds=100)
     with engine.begin() as connection:
         _insert_state(
             connection,
             source="coinbase",
             stream="spot",
             instrument="BTC-USD",
-            bucket_at=bucket,
-            last_event_at=event_at,
+            bucket_at=NOW - timedelta(seconds=2),
+            last_event_at=NOW - timedelta(seconds=2),
             price="100000",
         )
         newest_id = _insert_state(
@@ -186,8 +184,8 @@ def test_same_bucket_uses_latest_row_id_deterministically() -> None:
             source="coinbase",
             stream="spot",
             instrument="BTC-USD",
-            bucket_at=bucket,
-            last_event_at=event_at,
+            bucket_at=NOW - timedelta(seconds=1),
+            last_event_at=NOW - timedelta(milliseconds=100),
             price="100100",
         )
         observation = V3FeatureSourceReader().latest_btc_state(
