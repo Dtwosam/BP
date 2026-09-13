@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -189,16 +190,16 @@ def test_v3_gate_b_plan_is_fixed_five_fold_deterministic_and_feature_only() -> N
         int(first[field], 16)
 
 
-def test_v3_gate_b_plan_applies_both_exclusion_sets_before_partitioning() -> None:
+def test_v3_gate_b_plan_binds_historical_exclusion_manifests_without_epoch_cherry_pick() -> None:
     assert plan_module is not None
     config = FROZEN_V3_GATE_B_CONFIG
     diagnosis = build_exclusion_manifest(
         kind="diagnosis",
-        condition_ids=("condition-500",),
+        condition_ids=("historical-diagnosis",),
     )
     consumed = build_exclusion_manifest(
         kind="consumed_v2_final_holdout",
-        condition_ids=("condition-800",),
+        condition_ids=("historical-v2-holdout",),
     )
     engine = _engine_with_features()
 
@@ -210,12 +211,42 @@ def test_v3_gate_b_plan_applies_both_exclusion_sets_before_partitioning() -> Non
             consumed_v2_final_holdout_exclusions=consumed,
         )
 
-    assert plan["excluded_condition_ids"] == ["condition-500", "condition-800"]
-    assert plan["market_count"] == 862
-    assert not {"condition-500", "condition-800"}.intersection(_partition_ids(plan))
+    assert plan["excluded_condition_ids"] == [
+        "historical-diagnosis",
+        "historical-v2-holdout",
+    ]
+    assert plan["market_count"] == 864
+    assert not set(plan["excluded_condition_ids"]).intersection(_partition_ids(plan))
     assert plan["diagnosis_exclusion_sha256"] == diagnosis.sha256
     assert plan["consumed_v2_final_holdout_exclusion_sha256"] == consumed.sha256
-    assert len(plan["final"]["holdout_condition_ids"]) == 143
+    assert len(plan["final"]["holdout_condition_ids"]) == 144
+
+
+def test_v3_gate_b_plan_hash_binds_future_search_contract() -> None:
+    assert plan_module is not None
+    config = FROZEN_V3_GATE_B_CONFIG
+    diagnosis, consumed = _empty_exclusions()
+    engine = _engine_with_features()
+    changed = replace(config, fee_rate=0.08)
+
+    with engine.connect() as connection:
+        frozen = plan_module.build_v3_gate_b_plan(
+            connection,
+            as_of=config.epoch_end,
+            diagnosis_exclusions=diagnosis,
+            consumed_v2_final_holdout_exclusions=consumed,
+            config=config,
+        )
+        modified = plan_module.build_v3_gate_b_plan(
+            connection,
+            as_of=config.epoch_end,
+            diagnosis_exclusions=diagnosis,
+            consumed_v2_final_holdout_exclusions=consumed,
+            config=changed,
+        )
+
+    assert frozen["readiness_input_sha256"] != modified["readiness_input_sha256"]
+    assert frozen["plan_sha256"] != modified["plan_sha256"]
 
 
 def test_v3_gate_b_plan_fails_closed_before_planning_when_readiness_is_not_met() -> None:
@@ -236,13 +267,8 @@ def test_v3_gate_b_plan_fails_closed_before_planning_when_readiness_is_not_met()
 def test_v3_gate_b_plan_enforces_v3_local_final_holdout_minimum() -> None:
     assert plan_module is not None
     config = FROZEN_V3_GATE_B_CONFIG
-    diagnosis = build_exclusion_manifest(kind="diagnosis", condition_ids=())
-    excluded_holdout_ids = tuple(f"condition-{index:03d}" for index in range(720, 745))
-    consumed = build_exclusion_manifest(
-        kind="consumed_v2_final_holdout",
-        condition_ids=excluded_holdout_ids,
-    )
-    engine = _engine_with_features()
+    diagnosis, consumed = _empty_exclusions()
+    engine = _engine_with_features(market_count=839)
 
     with engine.connect() as connection:
         with pytest.raises(
