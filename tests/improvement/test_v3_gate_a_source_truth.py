@@ -206,5 +206,11 @@ def test_immediate_next_action_is_epoch_then_readiness_then_feature_only_plan() 
         assert "feature-only" in lowered
         assert "plan" in lowered
         assert "adaptive-train" not in lowered
-        assert "model fitting" not in lowered
-        assert "final-holdout evaluation" not in lowered
+        assert (
+            "do not start model fitting" in lowered
+            or "no labeled modeling" in lowered
+        )
+        assert (
+            "do not read final-holdout labels" in lowered
+            or "no final-holdout access" in lowered
+        )
