@@ -1,10 +1,10 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+from bp_engine.features.v3_models import V3_FEATURE_VERSION, BTCStateObservation
+from bp_engine.features.v3_sources import V3FeatureSourceReader
 from sqlalchemy import create_engine, insert
 
-from bp_engine.features.v3_models import BTCStateObservation, V3_FEATURE_VERSION
-from bp_engine.features.v3_sources import V3FeatureSourceReader
 from bp_engine.storage import schema
 
 NOW = datetime(2026, 9, 13, 12, 0, tzinfo=UTC)
