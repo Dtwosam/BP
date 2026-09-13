@@ -1,7 +1,7 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.136",
+  "source_of_truth_version": "0.14.138",
   "updated_at": "2026-09-13T13:16:17Z",
   "current_phase": 14,
   "current_phase_name": "live readiness \u2014 engineering complete, live gate blocked",
@@ -3330,7 +3330,7 @@
     "training_requires_cycle_ledger_migration": true
   },
   "phase_14_btc_first_v3_gate_a": {
-    "implementation_status": "REPOSITORY_IMPLEMENTED_AWAITING_COVERAGE_ACCEPTANCE",
+    "implementation_status": "GATE_A_PASS_V3_GATE_B_PREREGISTRATION_FROZEN",
     "feature_version": "core-v3-btc-native",
     "label_version": "official-outcome-v1",
     "horizon_seconds": 300,
@@ -3366,6 +3366,31 @@
     "max_daily_loss_usd": 0,
     "source_design": "docs/superpowers/specs/2026-09-13-phase-14-btc-first-v3-challenger-design.md",
     "source_plan": "docs/superpowers/plans/2026-09-13-phase-14-btc-first-v3-gate-a.md",
-    "next_action": "Collect outcome-blind core-v3-btc-native coverage and perform separate Gate A acceptance; no training or activation."
+    "next_action": "After the frozen prospective epoch completes at 2026-09-16T13:45:00Z, run outcome-blind V3 Gate B readiness with the two frozen historical exclusion manifests; if ready, write the fixed five-fold feature-only plan. No labeled modeling or final-holdout access is part of this action.",
+    "merged_main_head": "8b2d983ec75692de7ed39043c4a0e19dcf691942",
+    "production_materialization_performed": true,
+    "production_materialization_passed": true,
+    "coverage_acceptance": "PASS",
+    "coverage_start": "2026-09-13T13:45:00Z",
+    "coverage_end": "2026-09-13T15:10:00Z",
+    "target_markets": 17,
+    "feature_rows_before": 0,
+    "feature_rows_inserted": 68,
+    "feature_rows_after": 68,
+    "coverage_input_sha256": "32c283a7769681ebe5b2e0d1fe255ad6c38aa5b0301303f8fe86f4e7b2278ffb",
+    "future_cutoff_violation_count": 0,
+    "polymarket_predictor_key_count": 0,
+    "evidence": "docs/evidence/phase-14-v3-gate-a-production-20260913.json",
+    "preregistration_frozen": true,
+    "preregistration_design_commit": "c9e179c91ea990ca4a25a13f69fc5932811fb32a",
+    "preregistration_issue": 193,
+    "preregistration_implementation_head": "39a887e138398215ac97dc45f8099e3515a90fe2",
+    "preregistration_ci_run_id": 34775202056,
+    "preregistration_ci_passed": true,
+    "research_plan_version": "v3-gate-b-preregister-v1",
+    "prospective_epoch_start": "2026-09-13T13:45:00Z",
+    "prospective_epoch_end": "2026-09-16T13:45:00Z",
+    "ordinary_fold_count": 5,
+    "final_holdout_hours": 12
   }
 }
