@@ -1,0 +1,86 @@
+{
+  "coverage": {
+    "automatic_promotion": false,
+    "by_offset": {
+      "120": {"market_count": 17, "row_count": 17},
+      "180": {"market_count": 17, "row_count": 17},
+      "240": {"market_count": 17, "row_count": 17},
+      "60": {"market_count": 17, "row_count": 17}
+    },
+    "coverage_input_sha256": "32c283a7769681ebe5b2e0d1fe255ad6c38aa5b0301303f8fe86f4e7b2278ffb",
+    "feature_version": "core-v3-btc-native",
+    "future_cutoff_violation_count": 0,
+    "market_count": 17,
+    "offsets": [60, 120, 180, 240],
+    "policy_selected": false,
+    "polymarket_predictor_key_count": 0,
+    "returns": {
+      "bybit_linear_return_120s": {"available_count": 51, "missing_count": 17},
+      "bybit_linear_return_30s": {"available_count": 68, "missing_count": 0},
+      "bybit_linear_return_60s": {"available_count": 68, "missing_count": 0},
+      "bybit_linear_return_from_market_start": {"available_count": 68, "missing_count": 0},
+      "bybit_spot_return_120s": {"available_count": 51, "missing_count": 17},
+      "bybit_spot_return_30s": {"available_count": 68, "missing_count": 0},
+      "bybit_spot_return_60s": {"available_count": 68, "missing_count": 0},
+      "bybit_spot_return_from_market_start": {"available_count": 68, "missing_count": 0},
+      "coinbase_return_120s": {"available_count": 51, "missing_count": 17},
+      "coinbase_return_30s": {"available_count": 68, "missing_count": 0},
+      "coinbase_return_60s": {"available_count": 68, "missing_count": 0},
+      "coinbase_return_from_market_start": {"available_count": 68, "missing_count": 0}
+    },
+    "row_count": 68,
+    "sources": {
+      "bybit_linear": {
+        "current_state": {
+          "age_s": {"count": 68, "max": 5.167817, "median": 0.9603505, "min": 0.0, "p90": 2.988169},
+          "available_count": 68,
+          "missing_count": 0,
+          "stale_count": 0
+        }
+      },
+      "bybit_spot": {
+        "current_state": {
+          "age_s": {"count": 68, "max": 5.184815, "median": 0.9661925, "min": 0.0, "p90": 2.430207},
+          "available_count": 68,
+          "missing_count": 0,
+          "stale_count": 0
+        }
+      },
+      "coinbase": {
+        "current_state": {
+          "age_s": {"count": 68, "max": 5.158203, "median": 0.8915825, "min": 0.0, "p90": 3.0},
+          "available_count": 68,
+          "missing_count": 0,
+          "stale_count": 0
+        }
+      }
+    },
+    "training_run": false
+  },
+  "coverage_end": "2026-09-13T15:10:00Z",
+  "coverage_start": "2026-09-13T13:45:00Z",
+  "feature_version": "core-v3-btc-native",
+  "generation": {
+    "existing": 0,
+    "inserted": 68,
+    "missing_group_counts": {
+      "bybit_linear_trailing_120s_missing": 17,
+      "bybit_spot_trailing_120s_missing": 17,
+      "coinbase_trailing_120s_missing": 17
+    },
+    "planned_rows": 68,
+    "targets_considered": 17
+  },
+  "live_trading_changed": false,
+  "main_sha": "8b2d983ec75692de7ed39043c4a0e19dcf691942",
+  "model_activated": false,
+  "services_after": {
+    "bp-postgres.service": "active",
+    "bp-recorder.service": "active"
+  },
+  "target_markets": 17,
+  "training_performed": false,
+  "v3_rows_after": 68,
+  "v3_rows_before": 0,
+  "verdict": "PASS"
+}
