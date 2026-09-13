@@ -37,6 +37,10 @@ feature_offsets = 60, 120, 180, 240
 
 Its forecast must be produced from BTC-native Coinbase/Bybit state. Polymarket price/book data is used afterward as the executable benchmark/price-to-beat, not as the source of the first V3 forecast probability. V1 and V2 evidence remain immutable.
 
-The exact next repository task is **V3 Gate A only**: write the test-first implementation plan and then implement timestamp-coherent BTC-native source/calculator/feature generation for `core-v3-btc-native`, preserving all V1/V2 behavior and with no model training or production mutation.
+V3 Gate A repository implementation is now present on PR #192. The audited implementation checkpoint is `e09e9834260996553fa3cff7c18bf5269e48f4f0`, and CI run `34757241403` passed before this source-of-truth handoff. Gate A adds the immutable BTC-only `core-v3-btc-native` feature family plus outcome-blind coverage reporting and future-data leakage protection. This is repository implementation evidence only: it is **not** Gate A production acceptance, and no production rollout, training, migration, model activation, paper activation, final-holdout access, live trading, or money-limit change occurred.
+
+## Immediate next task
+
+Collect and inspect outcome-blind `core-v3-btc-native` coverage, then perform the separate **Gate A acceptance** decision. Do not train or activate a V3 model during this step. Preserve the paused V2 adaptive path and all existing evidence unchanged.
 
 Safety remains unchanged: `LIVE_TRADING_ENABLED=false`, real trade-size and daily-loss limits remain zero, automatic promotion remains false, no production deployment/restart/migration/model activation/final-holdout access/paper activation/live trading/geographic bypass is authorized.
