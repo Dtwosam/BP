@@ -175,14 +175,14 @@ def v3_gate_b_config_payload(config: V3GateBConfig) -> dict[str, object]:
 
 
 FROZEN_V3_GATE_B_CONFIG = V3GateBConfig(
-    research_plan_version="v3-gate-b-preregister-v1",
+    research_plan_version="v3-gate-b-preregister-v2",
     dataset_version="supervised-core-v3-btc-native-v1",
     feature_version="core-v3-btc-native",
     label_version="official-outcome-v1",
     horizon_seconds=300,
     feature_offsets_seconds=(60, 120, 180, 240),
-    epoch_start=datetime(2026, 9, 13, 13, 45, tzinfo=UTC),
-    epoch_end=datetime(2026, 9, 16, 13, 45, tzinfo=UTC),
+    epoch_start=datetime(2026, 9, 16, 13, 45, tzinfo=UTC),
+    epoch_end=datetime(2026, 9, 19, 13, 45, tzinfo=UTC),
     train_duration=timedelta(hours=24),
     validation_duration=timedelta(hours=6),
     test_duration=timedelta(hours=6),
