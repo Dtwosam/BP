@@ -4,9 +4,17 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SPEC_PATH = "docs/superpowers/specs/2026-09-14-phase-14-v3-gate-b-successor-preregistration.md"
-PLAN_PATH = "docs/superpowers/plans/2026-09-14-phase-14-v3-gate-b-successor-preregistration.md"
-EVIDENCE_PATH = "docs/evidence/phase-14-v3-gate-b-successor-preregistration-20260914.json"
+SPEC_PATH = (
+    "docs/superpowers/specs/"
+    "2026-09-14-phase-14-v3-gate-b-successor-preregistration.md"
+)
+PLAN_PATH = (
+    "docs/superpowers/plans/"
+    "2026-09-14-phase-14-v3-gate-b-successor-preregistration.md"
+)
+EVIDENCE_PATH = (
+    "docs/evidence/phase-14-v3-gate-b-successor-preregistration-20260914.json"
+)
 SUCCESSOR_PLAN_VERSION = "v3-gate-b-preregister-v2"
 SUCCESSOR_EPOCH_START = "2026-09-16T13:45:00Z"
 SUCCESSOR_EPOCH_END = "2026-09-19T13:45:00Z"
@@ -21,10 +29,11 @@ def test_successor_preregistration_evidence_freezes_clean_future_epoch() -> None
     evidence = json.loads(_text(EVIDENCE_PATH))
 
     assert evidence["status"] == "APPROVED_SUCCESSOR_PREREGISTRATION_DESIGN"
-    assert evidence["retired_attempt"]["research_plan_version"] == RETIRED_PLAN_VERSION
-    assert evidence["retired_attempt"]["policy_selection_executable"] is False
-    assert evidence["retired_attempt"]["diagnosis_identity_recoverable"] is False
-    assert evidence["retired_attempt"]["epoch_data_policy"] == "engineering_coverage_only"
+    retired = evidence["retired_attempt"]
+    assert retired["research_plan_version"] == RETIRED_PLAN_VERSION
+    assert retired["policy_selection_executable"] is False
+    assert retired["diagnosis_identity_recoverable"] is False
+    assert retired["epoch_data_policy"] == "engineering_coverage_only"
 
     successor = evidence["successor"]
     assert successor["research_plan_version"] == SUCCESSOR_PLAN_VERSION
@@ -35,7 +44,9 @@ def test_successor_preregistration_evidence_freezes_clean_future_epoch() -> None
     assert successor["epoch_end"] == SUCCESSOR_EPOCH_END
     assert successor["ordinary_fold_count"] == 5
     assert successor["final_holdout_hours"] == 12
-    assert successor["eligibility"] == "market_start_at >= epoch_start AND market_start_at < epoch_end"
+    assert successor["eligibility"] == (
+        "market_start_at >= epoch_start AND market_start_at < epoch_end"
+    )
     assert successor["pre_epoch_markets_eligible"] is False
     assert successor["diagnosis_manifest_runtime_required"] is False
     assert successor["consumed_v2_manifest_runtime_required"] is False
@@ -54,7 +65,7 @@ def test_successor_preregistration_evidence_freezes_clean_future_epoch() -> None
     assert safety["max_daily_loss_usd"] == 0
 
 
-def test_successor_spec_and_plan_preserve_v1_search_contract_except_epoch_and_contamination_gate() -> None:
+def test_successor_spec_and_plan_preserve_frozen_search_contract() -> None:
     spec = _text(SPEC_PATH)
     plan = _text(PLAN_PATH)
 
