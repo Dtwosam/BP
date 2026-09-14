@@ -4,7 +4,7 @@ This folder is the handoff pack for the **BTC Polymarket Prediction Engine**.
 
 If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project and say:
 
-> Read `docs/MASTER-SOURCE-OF-TRUTH.md`, `PROJECT_STATE.json`, `docs/BUILD-ORDER.md`, `docs/DECISION-LOG.md`, `AGENTS.md`, `docs/superpowers/specs/2026-09-13-phase-14-btc-first-v3-challenger-design.md`, and `docs/evidence/phase-14-v3-preregistration-handoff-20260913.json`. Continue the project from the current phase. Do not redesign or restart it from memory unless the source of truth explicitly requires a change.
+> Read `docs/MASTER-SOURCE-OF-TRUTH.md`, `PROJECT_STATE.json`, `docs/BUILD-ORDER.md`, `docs/DECISION-LOG.md`, `AGENTS.md`, `docs/superpowers/specs/2026-09-13-phase-14-btc-first-v3-challenger-design.md`, `docs/superpowers/specs/2026-09-14-phase-14-v3-gate-b-successor-preregistration.md`, `docs/evidence/phase-14-v3-preregistration-handoff-20260913.json`, and `docs/evidence/phase-14-v3-gate-b-successor-preregistration-20260914.json`. Continue the project from the current phase. Do not redesign or restart it from memory unless the source of truth explicitly requires a change.
 
 ## Authority order
 
@@ -14,20 +14,16 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 4. `docs/DECISION-LOG.md` — why key decisions were made
 5. `docs/CHANGELOG.md` — what changed over time
 6. `AGENTS.md` — working rules for AI/developers
-7. `docs/superpowers/specs/2026-09-13-phase-14-btc-first-v3-challenger-design.md` — active Phase 14 BTC-first research correction
-8. `docs/evidence/phase-14-v3-preregistration-handoff-20260913.json` — durable V3 Gate A acceptance and Gate B preregistration delta handoff
+7. `docs/superpowers/specs/2026-09-13-phase-14-btc-first-v3-challenger-design.md` — BTC-first V3 research design
+8. `docs/evidence/phase-14-v3-preregistration-handoff-20260913.json` — historical V3 Gate A / Gate B v1 handoff
+9. `docs/superpowers/specs/2026-09-14-phase-14-v3-gate-b-successor-preregistration.md` — approved Gate B successor design
+10. `docs/evidence/phase-14-v3-gate-b-successor-preregistration-20260914.json` — durable successor preregistration decision evidence
 
 ## Current next step
 
-Phase 14 Live Readiness engineering is complete, but the Master live gate is blocked. The current project status remains `PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED`; Phase 15 is **not permitted**.
+Phase 14 Live Readiness engineering remains research-only and the Master live gate remains blocked. Phase 15 is **not permitted**. Safety remains `LIVE_TRADING_ENABLED=false`, real trade-size and daily-loss limits remain zero, and automatic promotion remains false.
 
-A read-only production investigation on 13 September 2026 found that the current paper signal is not a reliable independent BTC-direction forecast. Across 84 settled paper trades it was correct against the official outcome 26 times (30.95%) and realized about `-100 USD`. Fresh Coinbase BTC state showed simple pre-decision BTC direction matching final Coinbase direction 64/84 times (76.19%), while the paper machine matched final Coinbase direction only 31/84 times (36.90%).
-
-The investigation also isolated the apparent-edge failure: the live probability path uses an older Polymarket Up-token historical price while execution uses a fresher current book ask. Gap bands of 30% or more were 2/45 correct and lost about `-120.24 USD`; high-gap trades placed against BTC momentum were 0/38 correct in the diagnosis sample. Token mapping, selected-book mapping, and calibration-side-flip checks were clean.
-
-Therefore the current `core-v2-last-trade` adaptive training cycle is **paused even though readiness is true**. Do not run `adaptive-train`, do not reset the existing bootstrap/readiness evidence, and do not treat the 84-trade diagnosis cohort as a validation/test/holdout set for new policy selection.
-
-The active research direction is the separately versioned **BTC-first V3 challenger** described in `docs/superpowers/specs/2026-09-13-phase-14-btc-first-v3-challenger-design.md`:
+The active research direction remains the separately versioned **BTC-first V3 challenger**:
 
 ```text
 feature_version = core-v3-btc-native
@@ -36,20 +32,47 @@ horizon_seconds = 300
 feature_offsets = 60, 120, 180, 240
 ```
 
-Its forecast must be produced from BTC-native Coinbase/Bybit state. Polymarket price/book data is used afterward as the executable benchmark/price-to-beat, not as the source of the first V3 forecast probability. V1 and V2 evidence remain immutable.
+V3 forecasting uses BTC-native Coinbase/Bybit state. Polymarket price/book data remains the downstream executable benchmark/price-to-beat and is not a V3 forecast predictor. Existing V1/V2 evidence remains immutable.
 
-V3 Gate A repository implementation was merged through PR #192. The audited implementation checkpoint is `e09e9834260996553fa3cff7c18bf5269e48f4f0`, CI run `34757241403` passed, and merged `main` is `8b2d983ec75692de7ed39043c4a0e19dcf691942`.
+V3 Gate A is accepted PASS. Sanitized production evidence remains `docs/evidence/phase-14-v3-gate-a-production-20260913.json`; no model training or activation was performed by Gate A.
 
-Gate A production coverage is now accepted **PASS**. Sanitized evidence is frozen at `docs/evidence/phase-14-v3-gate-a-production-20260913.json`. It covers 17 markets / 68 immutable V3 rows from `2026-09-13T13:45:00Z` through `2026-09-13T15:10:00Z`, with coverage hash `32c283a7769681ebe5b2e0d1fe255ad6c38aa5b0301303f8fe86f4e7b2278ffb`, zero future-cutoff violations, zero Polymarket predictor keys, and complete current-state availability for Coinbase, Bybit spot, and Bybit linear. No model training or activation occurred as part of that acceptance.
+### Gate B v1 is retired for policy selection
 
-V3 Gate B preregistration is also frozen. The approved design is commit `c9e179c91ea990ca4a25a13f69fc5932811fb32a`, with the implementation sequence durably tracked in Issue #193. The read-only readiness/planning implementation checkpoint is `4efa403f0fcfcc9a7d4717c48d6da721fb3a1f38`, and CI run `34773596855` passed the full repository suite, deployment-asset validation, health check, and dashboard checks. The frozen research plan identity is `v3-gate-b-preregister-v1`: epoch `2026-09-13T13:45:00Z` through `2026-09-16T13:45:00Z`, exactly five ordinary folds, a final 12-hour reserved window, and separate hash-bound `diagnosis` / `consumed_v2_final_holdout` exclusions. Readiness remains outcome-blind and planning remains feature-only/read-only.
+The historical `v3-gate-b-preregister-v1` contract froze epoch `2026-09-13T13:45:00Z` through `2026-09-16T13:45:00Z` and required separate hash-bound `diagnosis` and `consumed_v2_final_holdout` exclusion manifests.
 
-The durable V3 delta handoff is `docs/evidence/phase-14-v3-preregistration-handoff-20260913.json`. It does **not** authorize model fitting, label access for the final reserved window, final-holdout evaluation, activation, deployment, or live trading.
+The exact 84-trade diagnosis identities were not durably frozen before that epoch began. Repository and host-side recovery found the diagnosis methodology but not a valid exact identity list, cohort hash, or replay-safe snapshot. Do not reconstruct the cohort from current database state, later settlements, outcomes, inferred timestamps, approximate date windows, or a synthetic/empty manifest.
+
+Therefore `v3-gate-b-preregister-v1` is **non-executable for model/policy selection**. Do not run its readiness or planning path. Data from its `2026-09-13T13:45:00Z` to `2026-09-16T13:45:00Z` epoch may be retained only as immutable engineering, source-availability, leakage, and coverage evidence.
+
+The complete consumed-V2 final-holdout contamination boundary has separately been recovered as 48 unique historical condition IDs with zero overlap across the two consumed plans. Those identities remain permanently non-reusable historical contamination evidence.
+
+### Approved Gate B successor
+
+The approved successor design is `docs/superpowers/specs/2026-09-14-phase-14-v3-gate-b-successor-preregistration.md`, with durable decision evidence at `docs/evidence/phase-14-v3-gate-b-successor-preregistration-20260914.json`.
+
+Its exact identity is:
+
+```text
+research_plan_version = v3-gate-b-preregister-v2
+dataset_version       = supervised-core-v3-btc-native-v1
+feature_version       = core-v3-btc-native
+label_version         = official-outcome-v1
+epoch_start           = 2026-09-16T13:45:00Z
+epoch_end             = 2026-09-19T13:45:00Z
+```
+
+The successor preserves the v1 predictor set, model candidates, calibration/economic search rules, 24h/6h/6h/6h train-validation-test-step geometry, exactly five ordinary folds, one-market embargo, and final 12h reserved holdout.
+
+Its contamination boundary is structural: only markets with `market_start_at >= epoch_start AND market_start_at < epoch_end` may participate. Every pre-epoch market is ineligible for successor train/validation/test/final-holdout membership. Historical diagnosis and consumed-V2 identities remain evidence but are not successor runtime selection inputs.
+
+Readiness remains outcome-blind and planning remains feature-only/read-only. The successor preregistration authorizes neither model fitting nor final-holdout access.
 
 ## Immediate next task
 
-Continue prospective `core-v3-btc-native` feature collection through the frozen epoch end `2026-09-16T13:45:00Z`. After the epoch is complete, run the outcome-blind V3 `readiness` command with both frozen exclusion manifests. Only if readiness passes, run the feature-only `plan` command to freeze the five ordinary folds, final reserved membership, and deterministic hashes.
+**Implement `v3-gate-b-preregister-v2` in the repository before `2026-09-16T13:45:00Z`**, following `docs/superpowers/plans/2026-09-14-phase-14-v3-gate-b-successor-preregistration.md`.
 
-Do not start model fitting during this step. Do not read final-holdout labels or evaluate the final holdout. Those remain separate authorization boundaries.
+Do not run v1 readiness or planning. Do not run successor readiness before the successor epoch closes at `2026-09-19T13:45:00Z`. During implementation, preserve outcome-blind readiness, feature-only planning, read-only database transactions, no-clobber plan output, and the unchanged v1 search/economic contract except for the approved successor identity, epoch, and structural contamination gate.
 
-Safety remains unchanged: `LIVE_TRADING_ENABLED=false`, real trade-size and daily-loss limits remain zero, automatic promotion remains false, no production deployment/restart/migration/model activation/final-holdout access/paper activation/live trading/geographic bypass is authorized.
+If the successor runtime implementation is not merged before `2026-09-16T13:45:00Z`, do not backdate the epoch. Stop and preregister a later wholly future epoch instead.
+
+No model fitting. No final-holdout access or evaluation. No model activation, paper activation, production deployment/restart/migration, geographic bypass, live trading, automatic promotion, or money-limit change is authorized by this step.
