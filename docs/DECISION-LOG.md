@@ -418,3 +418,14 @@ Production materialization/coverage for `core-v3-btc-native` is accepted PASS fr
 **Status:** Active
 
 Freeze the approved V3 Gate B preregistration design at `c9e179c91ea990ca4a25a13f69fc5932811fb32a` and implementation checkpoint `39a887e138398215ac97dc45f8099e3515a90fe2` (Issue #193, CI `34775202056`). The prospective epoch is `2026-09-13T13:45:00Z` through `2026-09-16T13:45:00Z`, with exactly five ordinary folds and a separate 12-hour final reserved window. The complete future search contract is frozen and hash-bound. Historical `diagnosis` and `consumed_v2_final_holdout` exclusion manifests remain mandatory, and supplied exclusions may not intersect the prospective V3 epoch. After epoch completion, proceed only through outcome-blind readiness and then, if ready, a fixed feature-only plan. No labeled modeling or final-holdout access is authorized here.
+
+## D-048 — Retire Gate B v1 and execute successor v2 with structural prospective contamination boundary
+
+**Date:** 14 Sep 2026
+**Status:** Active
+
+`v3-gate-b-preregister-v1` remains immutable historical preregistration evidence but is retired and non-executable for model/policy selection because the exact 84-trade diagnosis identities were not durably frozen before its `2026-09-13T13:45:00Z` to `2026-09-16T13:45:00Z` prospective epoch. No post-hoc diagnosis reconstruction is allowed. Data from that epoch may be retained only as engineering, source-availability, leakage, and coverage evidence. The complete 48-condition consumed-V2 final-holdout contamination boundary remains permanently non-reusable historical evidence. Gate A coverage remains accepted under `32c283a7769681ebe5b2e0d1fe255ad6c38aa5b0301303f8fe86f4e7b2278ffb` and the historical preregistration design commit remains `c9e179c91ea990ca4a25a13f69fc5932811fb32a`.
+
+The approved clean successor is `v3-gate-b-preregister-v2` for `core-v3-btc-native`, with epoch `[2026-09-16T13:45:00Z, 2026-09-19T13:45:00Z)`. Contamination control is structural: only `market_start_at >= epoch_start AND market_start_at < epoch_end` may enter train/validation/test/final-holdout membership, so every pre-epoch market is ineligible. Historical diagnosis and consumed-V2 manifests are evidence only and are not successor runtime selection inputs. The v1 predictor/model/calibration/economic search contract is otherwise unchanged.
+
+Repository runtime checkpoint `659d9524fe8bfeba182b7cf7c8d9b664280f7562` passed CI `34841954823`. The implementation preserves outcome-blind readiness, feature-only planning, PostgreSQL read-only transactions, and no-clobber plan output. No successor readiness or plan has been run yet. No model fitting, final-holdout access/evaluation, activation, production mutation, live trading, automatic promotion, geographic bypass, or money-limit change is authorized by this decision.
