@@ -10,7 +10,6 @@ from typing import Any
 from sqlalchemy import Connection, Engine, create_engine
 
 from bp_engine.config import Settings
-from bp_engine.v3_research.exclusions import load_exclusion_manifest
 from bp_engine.v3_research.plan import build_v3_gate_b_plan
 from bp_engine.v3_research.readiness import assess_v3_gate_b_readiness
 
@@ -51,12 +50,7 @@ def _read_only(
             return operation(connection)
 
 
-def _add_manifest_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--diagnosis-exclusions", required=True)
-    parser.add_argument(
-        "--consumed-v2-final-holdout-exclusions",
-        required=True,
-    )
+def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--as-of", type=_parse_datetime, required=True)
 
 
@@ -72,28 +66,16 @@ def build_parser() -> argparse.ArgumentParser:
         "readiness",
         help="report outcome-blind V3 Gate B readiness",
     )
-    _add_manifest_arguments(readiness)
+    _add_common_arguments(readiness)
 
     plan = subparsers.add_parser(
         "plan",
         help="freeze the preregistered feature-only V3 Gate B plan",
     )
-    _add_manifest_arguments(plan)
+    _add_common_arguments(plan)
     plan.add_argument("--output", required=True)
 
     return parser
-
-
-def _load_manifests(args: argparse.Namespace):
-    diagnosis = load_exclusion_manifest(
-        args.diagnosis_exclusions,
-        expected_kind="diagnosis",
-    )
-    consumed = load_exclusion_manifest(
-        args.consumed_v2_final_holdout_exclusions,
-        expected_kind="consumed_v2_final_holdout",
-    )
-    return diagnosis, consumed
 
 
 def _readiness_summary(payload: dict[str, Any]) -> dict[str, Any]:
@@ -103,10 +85,6 @@ def _readiness_summary(payload: dict[str, Any]) -> dict[str, Any]:
         "blocking_reasons": list(payload["blocking_reasons"]),
         "market_count": int(coverage["market_count"]),
         "coverage_input_sha256": coverage["coverage_input_sha256"],
-        "diagnosis_exclusion_sha256": payload["diagnosis_exclusion_sha256"],
-        "consumed_v2_final_holdout_exclusion_sha256": (
-            payload["consumed_v2_final_holdout_exclusion_sha256"]
-        ),
         "readiness_input_sha256": payload["readiness_input_sha256"],
     }
 
@@ -121,16 +99,11 @@ def _plan_summary(payload: dict[str, Any]) -> dict[str, Any]:
         "feature_manifest_sha256": payload["feature_manifest_sha256"],
         "plan_sha256": payload["plan_sha256"],
         "readiness_input_sha256": payload["readiness_input_sha256"],
-        "diagnosis_exclusion_sha256": payload["diagnosis_exclusion_sha256"],
-        "consumed_v2_final_holdout_exclusion_sha256": (
-            payload["consumed_v2_final_holdout_exclusion_sha256"]
-        ),
         "readiness_blocking_reasons": [],
     }
 
 
 def _run(args: argparse.Namespace) -> dict[str, Any]:
-    diagnosis, consumed = _load_manifests(args)
     settings = _settings(args)
     engine = create_engine(settings.database_url)
 
@@ -140,8 +113,6 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
             lambda connection: assess_v3_gate_b_readiness(
                 connection,
                 as_of=args.as_of,
-                diagnosis_exclusions=diagnosis,
-                consumed_v2_final_holdout_exclusions=consumed,
             ),
         )
         return _readiness_summary(payload)
@@ -152,8 +123,6 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
             lambda connection: build_v3_gate_b_plan(
                 connection,
                 as_of=args.as_of,
-                diagnosis_exclusions=diagnosis,
-                consumed_v2_final_holdout_exclusions=consumed,
             ),
         )
         _write_exclusive(args.output, payload)
