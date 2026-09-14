@@ -34,7 +34,11 @@ feature_offsets = 60, 120, 180, 240
 
 V3 forecasting uses BTC-native Coinbase/Bybit state. Polymarket price/book data remains the downstream executable benchmark/price-to-beat and is not a V3 forecast predictor. Existing V1/V2 evidence remains immutable.
 
-V3 Gate A is accepted PASS. Sanitized production evidence remains `docs/evidence/phase-14-v3-gate-a-production-20260913.json`; no model training or activation was performed by Gate A.
+### Historical Gate A acceptance
+
+V3 Gate A remains accepted **PASS**. Sanitized production evidence is frozen at `docs/evidence/phase-14-v3-gate-a-production-20260913.json`. It covers 17 markets / 68 immutable V3 rows beginning at `2026-09-13T13:45:00Z`, with coverage hash `32c283a7769681ebe5b2e0d1fe255ad6c38aa5b0301303f8fe86f4e7b2278ffb`, zero future-cutoff violations, zero Polymarket predictor keys, and complete current-state availability for Coinbase, Bybit spot, and Bybit linear. No model training or activation occurred as part of that acceptance.
+
+The historical Gate B v1 preregistration design was approved at commit `c9e179c91ea990ca4a25a13f69fc5932811fb32a` and froze the original epoch ending `2026-09-16T13:45:00Z`. That historical evidence remains immutable even though v1 is now retired for policy-selection execution.
 
 ### Gate B v1 is retired for policy selection
 
@@ -69,7 +73,7 @@ Readiness remains outcome-blind and planning remains feature-only/read-only. The
 
 ## Immediate next task
 
-**Implement `v3-gate-b-preregister-v2` in the repository before `2026-09-16T13:45:00Z`**, following `docs/superpowers/plans/2026-09-14-phase-14-v3-gate-b-successor-preregistration.md`.
+**Implement `v3-gate-b-preregister-v2` for `core-v3-btc-native` in the repository before `2026-09-16T13:45:00Z`**, following `docs/superpowers/plans/2026-09-14-phase-14-v3-gate-b-successor-preregistration.md`.
 
 Do not run v1 readiness or planning. Do not run successor readiness before the successor epoch closes at `2026-09-19T13:45:00Z`. During implementation, preserve outcome-blind readiness, feature-only planning, read-only database transactions, no-clobber plan output, and the unchanged v1 search/economic contract except for the approved successor identity, epoch, and structural contamination gate.
 
