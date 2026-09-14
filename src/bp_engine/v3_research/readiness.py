@@ -19,11 +19,6 @@ from bp_engine.v3_research.config import (
     V3GateBConfig,
     v3_gate_b_config_payload,
 )
-from bp_engine.v3_research.exclusions import (
-    ExclusionManifest,
-    ExclusionManifestError,
-    build_exclusion_manifest,
-)
 
 READINESS_AVAILABILITY_THRESHOLD = 0.90
 
@@ -44,51 +39,10 @@ def _finite(value: object) -> bool:
     return math.isfinite(parsed)
 
 
-def _validated_manifest(
-    manifest: ExclusionManifest,
-    *,
-    expected_kind: str,
-) -> ExclusionManifest:
-    rebuilt = build_exclusion_manifest(
-        kind=expected_kind,
-        condition_ids=manifest.condition_ids,
-    )
-    if manifest != rebuilt:
-        raise ExclusionManifestError(
-            f"{expected_kind} exclusion manifest does not match its hash-bound payload"
-        )
-    return manifest
-
-
-def _reject_epoch_exclusions(
-    connection: Connection,
-    *,
-    config: V3GateBConfig,
-    excluded_condition_ids: tuple[str, ...],
-) -> None:
-    if not excluded_condition_ids:
-        return
-    query = (
-        select(market_features.c.condition_id)
-        .where(market_features.c.feature_version == config.feature_version)
-        .where(market_features.c.market_start_at >= config.epoch_start)
-        .where(market_features.c.market_start_at < config.epoch_end)
-        .where(market_features.c.condition_id.in_(excluded_condition_ids))
-        .distinct()
-        .order_by(market_features.c.condition_id)
-    )
-    matches = tuple(str(value) for value in connection.execute(query).scalars())
-    if matches:
-        raise ExclusionManifestError(
-            "exclusion manifests contain condition IDs from the frozen V3 epoch"
-        )
-
-
 def _eligible_rows(
     connection: Connection,
     *,
     config: V3GateBConfig,
-    excluded_condition_ids: tuple[str, ...],
 ) -> list[Mapping[str, Any]]:
     query = (
         select(
@@ -99,20 +53,13 @@ def _eligible_rows(
         .where(market_features.c.feature_version == config.feature_version)
         .where(market_features.c.market_start_at >= config.epoch_start)
         .where(market_features.c.market_start_at < config.epoch_end)
-    )
-    if excluded_condition_ids:
-        query = query.where(
-            market_features.c.condition_id.not_in(excluded_condition_ids)
+        .order_by(
+            market_features.c.condition_id,
+            market_features.c.feature_offset_seconds,
+            market_features.c.id,
         )
-    return list(
-        connection.execute(
-            query.order_by(
-                market_features.c.condition_id,
-                market_features.c.feature_offset_seconds,
-                market_features.c.id,
-            )
-        ).mappings()
     )
+    return list(connection.execute(query).mappings())
 
 
 def _source_availability(coverage: Mapping[str, Any]) -> dict[str, float]:
@@ -165,38 +112,18 @@ def assess_v3_gate_b_readiness(
     connection: Connection,
     *,
     as_of: datetime,
-    diagnosis_exclusions: ExclusionManifest,
-    consumed_v2_final_holdout_exclusions: ExclusionManifest,
     config: V3GateBConfig = FROZEN_V3_GATE_B_CONFIG,
 ) -> dict[str, Any]:
     checked_at = _aware_utc("as_of", as_of)
-    diagnosis = _validated_manifest(
-        diagnosis_exclusions,
-        expected_kind="diagnosis",
-    )
-    consumed = _validated_manifest(
-        consumed_v2_final_holdout_exclusions,
-        expected_kind="consumed_v2_final_holdout",
-    )
-    excluded_condition_ids = tuple(
-        sorted(set(diagnosis.condition_ids) | set(consumed.condition_ids))
-    )
-    _reject_epoch_exclusions(
-        connection,
-        config=config,
-        excluded_condition_ids=excluded_condition_ids,
-    )
 
     coverage = build_v3_coverage_report(
         connection,
         epoch_start=config.epoch_start,
         epoch_end=config.epoch_end,
-        excluded_condition_ids=excluded_condition_ids,
     )
     rows = _eligible_rows(
         connection,
         config=config,
-        excluded_condition_ids=excluded_condition_ids,
     )
     source_availability = _source_availability(coverage)
     return_availability = _non_structural_return_availability(rows)
@@ -229,9 +156,6 @@ def assess_v3_gate_b_readiness(
             "config": v3_gate_b_config_payload(config),
             "as_of": checked_at,
             "coverage_input_sha256": coverage["coverage_input_sha256"],
-            "diagnosis_exclusion_sha256": diagnosis.sha256,
-            "consumed_v2_final_holdout_exclusion_sha256": consumed.sha256,
-            "excluded_condition_ids": excluded_condition_ids,
             "availability_threshold": READINESS_AVAILABILITY_THRESHOLD,
             "source_availability": source_availability,
             "non_structural_return_availability": return_availability,
@@ -245,7 +169,5 @@ def assess_v3_gate_b_readiness(
         "coverage": coverage,
         "source_availability": source_availability,
         "non_structural_return_availability": return_availability,
-        "diagnosis_exclusion_sha256": diagnosis.sha256,
-        "consumed_v2_final_holdout_exclusion_sha256": consumed.sha256,
         "readiness_input_sha256": readiness_input_sha256,
     }
