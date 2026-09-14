@@ -1,0 +1,26 @@
+name: Source Truth Snapshot
+
+on:
+  push:
+    branches:
+      - research/v3-gate-b-successor-runtime
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-truth-snapshot
+          path: |
+            PROJECT_STATE.json
+            docs/BUILD-ORDER.md
+            docs/DECISION-LOG.md
+            docs/CHANGELOG.md
+            docs/MASTER-SOURCE-OF-TRUTH.md
+          if-no-files-found: error
+          retention-days: 1
