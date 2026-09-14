@@ -157,7 +157,7 @@ def test_v3_gate_b_plan_is_fixed_five_fold_deterministic_and_feature_only() -> N
         )
 
     assert first == second
-    assert first["research_plan_version"] == "v3-gate-b-preregister-v1"
+    assert first["research_plan_version"] == "v3-gate-b-preregister-v2"
     assert first["feature_version"] == "core-v3-btc-native"
     assert first["market_count"] == 864
     assert len(first["folds"]) == 5
