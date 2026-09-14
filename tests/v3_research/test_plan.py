@@ -9,7 +9,6 @@ from sqlalchemy import create_engine, insert
 
 from bp_engine.storage import schema
 from bp_engine.v3_research.config import FROZEN_V3_GATE_B_CONFIG
-from bp_engine.v3_research.exclusions import build_exclusion_manifest
 
 try:
     from bp_engine.v3_research import plan as plan_module
@@ -41,13 +40,16 @@ def _iso(value: datetime) -> str:
 def _feature_rows(
     market_count: int = 864,
     *,
+    start: datetime | None = None,
+    condition_prefix: str = "condition",
+    seed_offset: int = 0,
     future_cutoff: bool = False,
 ) -> list[dict[str, object]]:
-    start = FROZEN_V3_GATE_B_CONFIG.epoch_start
+    epoch_start = start or FROZEN_V3_GATE_B_CONFIG.epoch_start
     rows: list[dict[str, object]] = []
     for market_index in range(market_count):
-        market_start = start + timedelta(minutes=5 * market_index)
-        condition_id = f"condition-{market_index:03d}"
+        market_start = epoch_start + timedelta(minutes=5 * market_index)
+        condition_id = f"{condition_prefix}-{market_index:03d}"
         for offset_index, offset in enumerate(OFFSETS):
             feature_at = market_start + timedelta(seconds=offset)
             features: dict[str, object] = {
@@ -75,11 +77,11 @@ def _feature_rows(
                     (f"{prefix}_current_stale", False),
                 )
             }
-            fingerprint_seed = market_index * 10 + offset_index + 1
+            fingerprint_seed = seed_offset + market_index * 10 + offset_index + 1
             rows.append(
                 {
                     "condition_id": condition_id,
-                    "slug": f"btc-updown-5m-{market_index:03d}",
+                    "slug": f"btc-updown-5m-{condition_id}",
                     "horizon_seconds": 300,
                     "market_start_at": market_start,
                     "market_end_at": market_start + timedelta(minutes=5),
@@ -100,26 +102,16 @@ def _feature_rows(
 def _engine_with_features(
     market_count: int = 864,
     *,
+    extra_rows: list[dict[str, object]] | None = None,
     future_cutoff: bool = False,
 ):
     engine = create_engine("sqlite://")
     schema.metadata.create_all(engine)
+    rows = _feature_rows(market_count, future_cutoff=future_cutoff)
+    rows.extend(extra_rows or [])
     with engine.begin() as connection:
-        connection.execute(
-            insert(schema.market_features),
-            _feature_rows(market_count, future_cutoff=future_cutoff),
-        )
+        connection.execute(insert(schema.market_features), rows)
     return engine
-
-
-def _empty_exclusions():
-    return (
-        build_exclusion_manifest(kind="diagnosis", condition_ids=()),
-        build_exclusion_manifest(
-            kind="consumed_v2_final_holdout",
-            condition_ids=(),
-        ),
-    )
 
 
 def _partition_ids(plan: dict[str, object]) -> set[str]:
@@ -139,25 +131,20 @@ def _partition_ids(plan: dict[str, object]) -> set[str]:
 def test_v3_gate_b_plan_is_fixed_five_fold_deterministic_and_feature_only() -> None:
     assert plan_module is not None
     config = FROZEN_V3_GATE_B_CONFIG
-    diagnosis, consumed = _empty_exclusions()
     engine = _engine_with_features()
 
     with engine.connect() as connection:
         first = plan_module.build_v3_gate_b_plan(
             connection,
             as_of=config.epoch_end,
-            diagnosis_exclusions=diagnosis,
-            consumed_v2_final_holdout_exclusions=consumed,
         )
         second = plan_module.build_v3_gate_b_plan(
             connection,
             as_of=config.epoch_end,
-            diagnosis_exclusions=diagnosis,
-            consumed_v2_final_holdout_exclusions=consumed,
         )
 
     assert first == second
-    assert first["research_plan_version"] == "v3-gate-b-preregister-v1"
+    assert first["research_plan_version"] == "v3-gate-b-preregister-v2"
     assert first["feature_version"] == "core-v3-btc-native"
     assert first["market_count"] == 864
     assert len(first["folds"]) == 5
@@ -190,42 +177,43 @@ def test_v3_gate_b_plan_is_fixed_five_fold_deterministic_and_feature_only() -> N
         int(first[field], 16)
 
 
-def test_v3_gate_b_plan_binds_historical_exclusion_manifests_without_epoch_cherry_pick() -> None:
+def test_v3_gate_b_plan_ignores_all_pre_epoch_markets_structurally() -> None:
     assert plan_module is not None
     config = FROZEN_V3_GATE_B_CONFIG
-    diagnosis = build_exclusion_manifest(
-        kind="diagnosis",
-        condition_ids=("historical-diagnosis",),
+    historical_rows = _feature_rows(
+        1,
+        start=config.epoch_start - timedelta(minutes=5),
+        condition_prefix="historical-diagnosis",
+        seed_offset=900_000,
+        future_cutoff=True,
     )
-    consumed = build_exclusion_manifest(
-        kind="consumed_v2_final_holdout",
-        condition_ids=("historical-v2-holdout",),
-    )
-    engine = _engine_with_features()
+    baseline_engine = _engine_with_features()
+    contaminated_engine = _engine_with_features(extra_rows=historical_rows)
 
-    with engine.connect() as connection:
-        plan = plan_module.build_v3_gate_b_plan(
+    with baseline_engine.connect() as connection:
+        baseline = plan_module.build_v3_gate_b_plan(
             connection,
             as_of=config.epoch_end,
-            diagnosis_exclusions=diagnosis,
-            consumed_v2_final_holdout_exclusions=consumed,
+        )
+    with contaminated_engine.connect() as connection:
+        contaminated = plan_module.build_v3_gate_b_plan(
+            connection,
+            as_of=config.epoch_end,
         )
 
-    assert plan["excluded_condition_ids"] == [
-        "historical-diagnosis",
-        "historical-v2-holdout",
-    ]
-    assert plan["market_count"] == 864
-    assert not set(plan["excluded_condition_ids"]).intersection(_partition_ids(plan))
-    assert plan["diagnosis_exclusion_sha256"] == diagnosis.sha256
-    assert plan["consumed_v2_final_holdout_exclusion_sha256"] == consumed.sha256
-    assert len(plan["final"]["holdout_condition_ids"]) == 144
+    assert contaminated == baseline
+    assert "historical-diagnosis-000" not in _partition_ids(contaminated)
+    for forbidden in (
+        "excluded_condition_ids",
+        "diagnosis_exclusion_sha256",
+        "consumed_v2_final_holdout_exclusion_sha256",
+    ):
+        assert forbidden not in contaminated
 
 
 def test_v3_gate_b_plan_hash_binds_future_search_contract() -> None:
     assert plan_module is not None
     config = FROZEN_V3_GATE_B_CONFIG
-    diagnosis, consumed = _empty_exclusions()
     engine = _engine_with_features()
     changed = replace(config, fee_rate=0.08)
 
@@ -233,15 +221,11 @@ def test_v3_gate_b_plan_hash_binds_future_search_contract() -> None:
         frozen = plan_module.build_v3_gate_b_plan(
             connection,
             as_of=config.epoch_end,
-            diagnosis_exclusions=diagnosis,
-            consumed_v2_final_holdout_exclusions=consumed,
             config=config,
         )
         modified = plan_module.build_v3_gate_b_plan(
             connection,
             as_of=config.epoch_end,
-            diagnosis_exclusions=diagnosis,
-            consumed_v2_final_holdout_exclusions=consumed,
             config=changed,
         )
 
@@ -251,7 +235,6 @@ def test_v3_gate_b_plan_hash_binds_future_search_contract() -> None:
 
 def test_v3_gate_b_plan_fails_closed_before_planning_when_readiness_is_not_met() -> None:
     assert plan_module is not None
-    diagnosis, consumed = _empty_exclusions()
     engine = _engine_with_features(future_cutoff=True)
 
     with engine.connect() as connection:
@@ -259,15 +242,12 @@ def test_v3_gate_b_plan_fails_closed_before_planning_when_readiness_is_not_met()
             plan_module.build_v3_gate_b_plan(
                 connection,
                 as_of=FROZEN_V3_GATE_B_CONFIG.epoch_end,
-                diagnosis_exclusions=diagnosis,
-                consumed_v2_final_holdout_exclusions=consumed,
             )
 
 
 def test_v3_gate_b_plan_enforces_v3_local_final_holdout_minimum() -> None:
     assert plan_module is not None
     config = FROZEN_V3_GATE_B_CONFIG
-    diagnosis, consumed = _empty_exclusions()
     engine = _engine_with_features(market_count=839)
 
     with engine.connect() as connection:
@@ -278,8 +258,6 @@ def test_v3_gate_b_plan_enforces_v3_local_final_holdout_minimum() -> None:
             plan_module.build_v3_gate_b_plan(
                 connection,
                 as_of=config.epoch_end,
-                diagnosis_exclusions=diagnosis,
-                consumed_v2_final_holdout_exclusions=consumed,
             )
 
 

@@ -3,17 +3,12 @@ from __future__ import annotations
 import inspect
 from datetime import UTC, datetime, timedelta
 
-import pytest
 from sqlalchemy import create_engine, insert
 
 from bp_engine.features import v3_coverage
 from bp_engine.features.v3_models import V3_FEATURE_VERSION
 from bp_engine.storage import schema
 from bp_engine.v3_research.config import FROZEN_V3_GATE_B_CONFIG
-from bp_engine.v3_research.exclusions import (
-    ExclusionManifestError,
-    build_exclusion_manifest,
-)
 
 try:
     from bp_engine.v3_research import readiness as readiness_module
@@ -129,42 +124,33 @@ def test_v3_coverage_report_supports_epoch_and_exclusion_filters() -> None:
     assert filtered["coverage_input_sha256"] != default["coverage_input_sha256"]
 
 
-def test_v3_gate_b_readiness_passes_only_outcome_blind_coverage() -> None:
+def test_v3_gate_b_readiness_passes_with_structural_prospective_boundary() -> None:
     assert readiness_module is not None
     config = FROZEN_V3_GATE_B_CONFIG
-    rows = [
-        *_market_rows("eligible", config.epoch_start),
-        *_market_rows(
-            "diagnosis-market",
-            config.epoch_start - timedelta(minutes=5),
-            future_cutoff=True,
-            polymarket_key=True,
-        ),
-    ]
-    diagnosis = build_exclusion_manifest(
-        kind="diagnosis",
-        condition_ids=("diagnosis-market",),
-    )
-    consumed = build_exclusion_manifest(
-        kind="consumed_v2_final_holdout",
-        condition_ids=("old-holdout",),
+    eligible_rows = _market_rows("eligible", config.epoch_start)
+    contaminated_pre_epoch_rows = _market_rows(
+        "historical-diagnosis-market",
+        config.epoch_start - timedelta(minutes=5),
+        future_cutoff=True,
+        polymarket_key=True,
     )
 
-    with _connection(rows) as connection:
+    with _connection(eligible_rows) as connection:
+        baseline = readiness_module.assess_v3_gate_b_readiness(
+            connection,
+            as_of=config.epoch_end,
+        )
+    with _connection([*eligible_rows, *contaminated_pre_epoch_rows]) as connection:
         first = readiness_module.assess_v3_gate_b_readiness(
             connection,
             as_of=config.epoch_end,
-            diagnosis_exclusions=diagnosis,
-            consumed_v2_final_holdout_exclusions=consumed,
         )
         second = readiness_module.assess_v3_gate_b_readiness(
             connection,
             as_of=config.epoch_end,
-            diagnosis_exclusions=diagnosis,
-            consumed_v2_final_holdout_exclusions=consumed,
         )
 
-    assert first == second
+    assert first == second == baseline
     assert first["ready"] is True
     assert first["blocking_reasons"] == ()
     assert first["coverage"]["market_count"] == 1
@@ -177,31 +163,14 @@ def test_v3_gate_b_readiness_passes_only_outcome_blind_coverage() -> None:
     }
     for field in RETURN_FIELDS:
         assert first["non_structural_return_availability"][field] == 1.0
+    for forbidden in (
+        "diagnosis_exclusion_sha256",
+        "consumed_v2_final_holdout_exclusion_sha256",
+        "excluded_condition_ids",
+    ):
+        assert forbidden not in first
     assert len(first["readiness_input_sha256"]) == 64
     int(first["readiness_input_sha256"], 16)
-
-
-def test_v3_gate_b_readiness_rejects_current_epoch_exclusion_ids() -> None:
-    assert readiness_module is not None
-    config = FROZEN_V3_GATE_B_CONFIG
-    rows = _market_rows("prospective-market", config.epoch_start)
-    diagnosis = build_exclusion_manifest(
-        kind="diagnosis",
-        condition_ids=("prospective-market",),
-    )
-    consumed = build_exclusion_manifest(
-        kind="consumed_v2_final_holdout",
-        condition_ids=(),
-    )
-
-    with _connection(rows) as connection:
-        with pytest.raises(ExclusionManifestError, match="frozen V3 epoch"):
-            readiness_module.assess_v3_gate_b_readiness(
-                connection,
-                as_of=config.epoch_end,
-                diagnosis_exclusions=diagnosis,
-                consumed_v2_final_holdout_exclusions=consumed,
-            )
 
 
 def test_v3_gate_b_readiness_returns_sorted_blocking_reasons() -> None:
@@ -216,18 +185,11 @@ def test_v3_gate_b_readiness_returns_sorted_blocking_reasons() -> None:
         future_cutoff=True,
         polymarket_key=True,
     )
-    diagnosis = build_exclusion_manifest(kind="diagnosis", condition_ids=())
-    consumed = build_exclusion_manifest(
-        kind="consumed_v2_final_holdout",
-        condition_ids=(),
-    )
 
     with _connection(rows) as connection:
         result = readiness_module.assess_v3_gate_b_readiness(
             connection,
             as_of=config.epoch_end - timedelta(seconds=1),
-            diagnosis_exclusions=diagnosis,
-            consumed_v2_final_holdout_exclusions=consumed,
         )
 
     assert result["ready"] is False

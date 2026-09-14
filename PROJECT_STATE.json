@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.138",
-  "updated_at": "2026-09-13T13:16:17Z",
+  "source_of_truth_version": "0.14.139",
+  "updated_at": "2026-09-14T12:35:00Z",
   "current_phase": 14,
   "current_phase_name": "live readiness \u2014 engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -648,18 +648,19 @@
     "The separately authorized same-plan Gate B resume later wrote its durable holdout-attempt marker before final-holdout evaluation and then failed closed while loading the final holdout because condition 0x2a760ccdb973c19ce13b6af86d752cf377790d5149a46b8498462904ece86efd lacked canonical supervised input. The frozen plan/final holdout is therefore consumed and must not be rerun; Gate B was not accepted.",
     "PR #179 fixed the future V2 outcome-label coverage class by adding unlabeled completed 5m markets with V2 features to prospective outcome sync without collapsing live-prediction versions. Exact head 65739199ceeb77f591814241125060067d9b26d0 passed 1,067 tests plus all smoke gates and merged as 13dee896a46ce38625159d5e587b68c08493a525; post-merge main CI 34586051419 passed. The fix is not yet deployed to production.",
     "PR #182 merged a read-only production preflight for immutable PR #179 rollout candidate 7c3af78da1922a0e5187c24b799951130cc98887, rooted at deployed production head 71b33d3beaba4a11ef93e7c5bde1c517323f3440, as f3ef5717390d0dd8d577bdc73143baabd12ff5ce; post-merge CI 34594260516 passed. The preflight performs no production mutation and has not been executed from an authenticated production operator environment; the outcome-label coverage fix remains undeployed.",
-    "Phase 14 V2 outcome-label coverage rollout passed in production at 2026-09-11T12:48:01Z using helper/main 17833c64ba7b3836ad4f047167d7d2d861fd2bc0: deployed exact immutable candidate 7c3af78da1922a0e5187c24b799951130cc98887 from 71b33d3beaba4a11ef93e7c5bde1c517323f3440, restarted only bp-prospective-outcomes.service, kept unrelated long-running service PIDs unchanged, returned storage status ok, preserved research/live-disabled/zero-money/automatic-promotion-false safety, performed no holdout or Gate B action, and wrote durable evidence /var/lib/bp/evidence/phase14-v2-outcome-label-rollout-20260911T124801Z.json."
+    "Phase 14 V2 outcome-label coverage rollout passed in production at 2026-09-11T12:48:01Z using helper/main 17833c64ba7b3836ad4f047167d7d2d861fd2bc0: deployed exact immutable candidate 7c3af78da1922a0e5187c24b799951130cc98887 from 71b33d3beaba4a11ef93e7c5bde1c517323f3440, restarted only bp-prospective-outcomes.service, kept unrelated long-running service PIDs unchanged, returned storage status ok, preserved research/live-disabled/zero-money/automatic-promotion-false safety, performed no holdout or Gate B action, and wrote durable evidence /var/lib/bp/evidence/phase14-v2-outcome-label-rollout-20260911T124801Z.json.",
+    "Phase 14 V3 Gate B successor v2 repository runtime implemented at 659d9524fe8bfeba182b7cf7c8d9b664280f7562 with CI 34841954823; historical manifests are evidence-only, pre-epoch markets are structurally ineligible, and no readiness, planning, training, or final-holdout access was performed"
   ],
   "not_completed": [
-    "A new statistically clean V2 Gate B plan with a new final holdout, one-shot evaluation, and explicit acceptance; the consumed frozen plan/final holdout must not be reused",
+    "V3 Gate B successor v2 outcome-blind readiness and feature-only plan after the frozen epoch closes; model fitting and final-holdout access remain separate authorization boundaries",
     "Phase 15 controlled live launch",
     "Live trading"
   ],
   "next_actions": [
-    "Preserve /var/lib/bp/evidence/phase14-v2-outcome-label-rollout-20260911T124801Z.json as immutable rollout evidence and do not rerun the consumed Phase 14 V2 outcome-label coverage rollout. Production is accepted at exact candidate 7c3af78da1922a0e5187c24b799951130cc98887 for this research-only fix.",
-    "Build future Gate B evidence from a fresh feature-only planning epoch and a new final holdout. Planning/readiness must remain label-blind, and the consumed frozen plan/final holdout must never be reused.",
-    "Treat access to the new final holdout as a separate one-shot explicit authorization boundary; do not infer authorization from the completed outcome-label coverage rollout.",
-    "Keep Gate B unaccepted and do not activate a V2 policy/model/calibration/edge configuration, Phase 15, geographic bypass, live trading, automatic promotion, or nonzero money limits unless a new statistically clean Gate B run and all other live gates pass under their separate authorization boundaries."
+    "Continue prospective core-v3-btc-native source/feature collection for v3-gate-b-preregister-v2 through 2026-09-19T13:45:00Z; do not run successor readiness or planning before that timestamp.",
+    "After 2026-09-19T13:45:00Z, run only the outcome-blind read-only successor readiness check; if and only if ready, write the fixed five-fold feature-only no-clobber plan and stop.",
+    "Preserve the retired v1 epoch as engineering/source-availability/leakage/coverage evidence only. Never reconstruct the unfrozen diagnosis cohort post hoc; preserve all 48 consumed-V2 historical condition IDs as permanently non-reusable contamination evidence.",
+    "No model fitting, final-holdout access/evaluation, model or paper activation, production deployment/restart/migration, live trading, automatic promotion, geographic bypass, or money-limit change is authorized."
   ],
   "open_questions": [
     "Current/recurring availability of a 10m BTC Up/Down Polymarket market",
@@ -3330,7 +3331,7 @@
     "training_requires_cycle_ledger_migration": true
   },
   "phase_14_btc_first_v3_gate_a": {
-    "implementation_status": "GATE_A_PASS_V3_GATE_B_PREREGISTRATION_FROZEN",
+    "implementation_status": "GATE_A_PASS_V3_GATE_B_SUCCESSOR_RUNTIME_IMPLEMENTED_PROSPECTIVE_COLLECTION",
     "feature_version": "core-v3-btc-native",
     "label_version": "official-outcome-v1",
     "horizon_seconds": 300,
@@ -3366,7 +3367,7 @@
     "max_daily_loss_usd": 0,
     "source_design": "docs/superpowers/specs/2026-09-13-phase-14-btc-first-v3-challenger-design.md",
     "source_plan": "docs/superpowers/plans/2026-09-13-phase-14-btc-first-v3-gate-a.md",
-    "next_action": "After the frozen prospective epoch completes at 2026-09-16T13:45:00Z, run outcome-blind V3 Gate B readiness with the two frozen historical exclusion manifests; if ready, write the fixed five-fold feature-only plan. No labeled modeling or final-holdout access is part of this action.",
+    "next_action": "Continue prospective core-v3-btc-native source/feature collection through 2026-09-19T13:45:00Z. Do not run successor readiness or planning before epoch close. After close run outcome-blind read-only readiness; only if ready write the feature-only no-clobber plan, then stop before model fitting or final-holdout access.",
     "merged_main_head": "8b2d983ec75692de7ed39043c4a0e19dcf691942",
     "production_materialization_performed": true,
     "production_materialization_passed": true,
@@ -3391,6 +3392,24 @@
     "prospective_epoch_start": "2026-09-13T13:45:00Z",
     "prospective_epoch_end": "2026-09-16T13:45:00Z",
     "ordinary_fold_count": 5,
-    "final_holdout_hours": 12
+    "final_holdout_hours": 12,
+    "successor_gate_b": {
+      "research_plan_version": "v3-gate-b-preregister-v2",
+      "epoch_start": "2026-09-16T13:45:00Z",
+      "epoch_end": "2026-09-19T13:45:00Z",
+      "eligibility": "market_start_at >= epoch_start AND market_start_at < epoch_end",
+      "runtime_implementation_checkpoint": "659d9524fe8bfeba182b7cf7c8d9b664280f7562",
+      "runtime_ci_run_id": 34841954823,
+      "runtime_ci_passed": true,
+      "historical_manifests_runtime_required": false,
+      "retired_v1_policy_selection_executable": false,
+      "retired_v1_epoch_data_policy": "engineering_coverage_only",
+      "posthoc_diagnosis_reconstruction_allowed": false,
+      "consumed_v2_historical_exclusion_count": 48,
+      "readiness_performed": false,
+      "plan_performed": false,
+      "training_performed": false,
+      "final_holdout_access_performed": false
+    }
   }
 }

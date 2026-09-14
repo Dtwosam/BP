@@ -71,12 +71,16 @@ Its contamination boundary is structural: only markets with `market_start_at >= 
 
 Readiness remains outcome-blind and planning remains feature-only/read-only. The successor preregistration authorizes neither model fitting nor final-holdout access.
 
+### Successor runtime implementation checkpoint
+
+The repository implementation of `v3-gate-b-preregister-v2` is complete at runtime checkpoint `659d9524fe8bfeba182b7cf7c8d9b664280f7562`. Exact-head CI run `34841954823` passed the full suite, deployment-asset validation, research-mode health check, and dashboard checks. The runtime removes historical exclusion manifests from successor readiness/plan APIs and CLI, while preserving the structural half-open epoch boundary, outcome-blind readiness, feature-only planning, PostgreSQL read-only transactions, no-clobber plan output, and the frozen search/economic contract.
+
+This checkpoint is repository-only. It did not run readiness or planning against production, inspect successor outcomes/labels, fit models, access/evaluate the final holdout, activate a model/paper policy, mutate production, enable live trading, or change money limits.
+
 ## Immediate next task
 
-**Implement `v3-gate-b-preregister-v2` for `core-v3-btc-native` in the repository before `2026-09-16T13:45:00Z`**, following `docs/superpowers/plans/2026-09-14-phase-14-v3-gate-b-successor-preregistration.md`.
+**Continue prospective `core-v3-btc-native` source/feature collection for `v3-gate-b-preregister-v2` across the frozen epoch `[2026-09-16T13:45:00Z, 2026-09-19T13:45:00Z)`.** Do not run successor readiness or planning before the epoch end `2026-09-19T13:45:00Z`.
 
-Do not run v1 readiness or planning. Do not run successor readiness before the successor epoch closes at `2026-09-19T13:45:00Z`. During implementation, preserve outcome-blind readiness, feature-only planning, read-only database transactions, no-clobber plan output, and the unchanged v1 search/economic contract except for the approved successor identity, epoch, and structural contamination gate.
-
-If the successor runtime implementation is not merged before `2026-09-16T13:45:00Z`, do not backdate the epoch. Stop and preregister a later wholly future epoch instead.
+After the epoch closes, run only the outcome-blind, read-only successor readiness check. If and only if readiness is true, write the frozen feature-only plan with the existing no-clobber output contract. Stop there for a separate authorization/review boundary.
 
 No model fitting. No final-holdout access or evaluation. No model activation, paper activation, production deployment/restart/migration, geographic bypass, live trading, automatic promotion, or money-limit change is authorized by this step.
