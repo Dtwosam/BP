@@ -29,7 +29,10 @@ def test_project_state_records_gate_a_pass_and_frozen_v3_preregistration() -> No
 
     assert state["source_of_truth_version"] == "0.14.139"
     v3 = state["phase_14_btc_first_v3_gate_a"]
-    assert v3["implementation_status"] == "GATE_A_PASS_V3_GATE_B_SUCCESSOR_RUNTIME_IMPLEMENTED_PROSPECTIVE_COLLECTION"
+    assert (
+        v3["implementation_status"]
+        == "GATE_A_PASS_V3_GATE_B_SUCCESSOR_RUNTIME_IMPLEMENTED_PROSPECTIVE_COLLECTION"
+    )
     assert v3["feature_version"] == "core-v3-btc-native"
     assert v3["label_version"] == "official-outcome-v1"
     assert v3["horizon_seconds"] == 300
