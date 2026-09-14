@@ -9,7 +9,6 @@ from sqlalchemy import Connection, select
 from bp_engine.features.hashing import canonical_hash
 from bp_engine.storage.schema import market_features
 from bp_engine.v3_research.config import FROZEN_V3_GATE_B_CONFIG, V3GateBConfig
-from bp_engine.v3_research.exclusions import ExclusionManifest
 from bp_engine.v3_research.readiness import assess_v3_gate_b_readiness
 
 
@@ -55,7 +54,6 @@ def _load_feature_rows(
     connection: Connection,
     *,
     config: V3GateBConfig,
-    excluded_condition_ids: tuple[str, ...],
 ) -> list[Mapping[str, Any]]:
     query = (
         select(
@@ -73,10 +71,6 @@ def _load_feature_rows(
         .where(market_features.c.market_start_at >= config.epoch_start)
         .where(market_features.c.market_start_at < config.epoch_end)
     )
-    if excluded_condition_ids:
-        query = query.where(
-            market_features.c.condition_id.not_in(excluded_condition_ids)
-        )
     return list(
         connection.execute(
             query.order_by(
@@ -397,35 +391,24 @@ def build_v3_gate_b_plan(
     connection: Connection,
     *,
     as_of: datetime,
-    diagnosis_exclusions: ExclusionManifest,
-    consumed_v2_final_holdout_exclusions: ExclusionManifest,
     config: V3GateBConfig = FROZEN_V3_GATE_B_CONFIG,
 ) -> dict[str, Any]:
     readiness = assess_v3_gate_b_readiness(
         connection,
         as_of=as_of,
-        diagnosis_exclusions=diagnosis_exclusions,
-        consumed_v2_final_holdout_exclusions=consumed_v2_final_holdout_exclusions,
         config=config,
     )
     if not readiness["ready"]:
         reasons = ",".join(readiness["blocking_reasons"])
         raise V3PlanIntegrityError(f"readiness failed: {reasons}")
 
-    excluded_condition_ids = tuple(
-        sorted(
-            set(diagnosis_exclusions.condition_ids)
-            | set(consumed_v2_final_holdout_exclusions.condition_ids)
-        )
-    )
     rows = _load_feature_rows(
         connection,
         config=config,
-        excluded_condition_ids=excluded_condition_ids,
     )
     markets, feature_manifest_sha256 = _build_markets(rows, config=config)
     if not markets:
-        raise V3PlanIntegrityError("no eligible V3 markets remain after exclusions")
+        raise V3PlanIntegrityError("no eligible V3 markets in frozen epoch")
 
     folds = [
         _build_fold(
@@ -449,11 +432,6 @@ def build_v3_gate_b_plan(
         "epoch_start": _iso(config.epoch_start),
         "epoch_end": _iso(config.epoch_end),
         "market_count": len(markets),
-        "excluded_condition_ids": list(excluded_condition_ids),
-        "diagnosis_exclusion_sha256": diagnosis_exclusions.sha256,
-        "consumed_v2_final_holdout_exclusion_sha256": (
-            consumed_v2_final_holdout_exclusions.sha256
-        ),
         "readiness_input_sha256": readiness["readiness_input_sha256"],
         "config_sha256": config_sha256,
         "feature_manifest_sha256": feature_manifest_sha256,
