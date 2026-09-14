@@ -1,0 +1,79 @@
+{
+  "status": "APPROVED_SUCCESSOR_PREREGISTRATION_DESIGN",
+  "decision_date": "2026-09-14",
+  "source_main_at_decision": "563895f35a0437190ec91ba5ad46a618202443ab",
+  "retired_attempt": {
+    "research_plan_version": "v3-gate-b-preregister-v1",
+    "epoch_start": "2026-09-13T13:45:00Z",
+    "epoch_end": "2026-09-16T13:45:00Z",
+    "policy_selection_executable": false,
+    "diagnosis_identity_recoverable": false,
+    "epoch_data_policy": "engineering_coverage_only",
+    "reason": "exact diagnosis cohort identities were not durably frozen before collection and will not be reconstructed post hoc"
+  },
+  "historical_contamination": {
+    "diagnosis_exact_ids_recovered": false,
+    "consumed_v2_final_holdout_unique_count": 48,
+    "consumed_v2_final_holdout_overlap_count": 0,
+    "consumed_v2_final_holdout_combined_sha256": "f581d33676a4f9acfab45a7b0ab5103b36b1d4021fca4a9dc373d927d55e5938",
+    "historical_only": true
+  },
+  "successor": {
+    "research_plan_version": "v3-gate-b-preregister-v2",
+    "dataset_version": "supervised-core-v3-btc-native-v1",
+    "feature_version": "core-v3-btc-native",
+    "label_version": "official-outcome-v1",
+    "horizon_seconds": 300,
+    "feature_offsets_seconds": [
+      60,
+      120,
+      180,
+      240
+    ],
+    "epoch_start": "2026-09-16T13:45:00Z",
+    "epoch_end": "2026-09-19T13:45:00Z",
+    "train_hours": 24,
+    "validation_hours": 6,
+    "test_hours": 6,
+    "step_hours": 6,
+    "ordinary_fold_count": 5,
+    "final_holdout_hours": 12,
+    "embargo_markets": 1,
+    "minimum_markets": {
+      "train": 240,
+      "validation": 60,
+      "test": 60,
+      "final_holdout": 120
+    },
+    "eligibility": "market_start_at >= epoch_start AND market_start_at < epoch_end",
+    "pre_epoch_markets_eligible": false,
+    "diagnosis_manifest_runtime_required": false,
+    "consumed_v2_manifest_runtime_required": false,
+    "historical_contamination_evidence_preserved": true,
+    "readiness_outcome_blind": true,
+    "planning_feature_only": true,
+    "final_holdout_separate_authorization_required": true
+  },
+  "unchanged_search_contract": {
+    "primary_validation_metric": "log_loss",
+    "xgboost_replacement_rule": "strictly_better_validation_log_loss_and_brier_than_full_v3_logistic",
+    "fee_rate": 0.07,
+    "slippage_buffer": 0.01,
+    "max_selected_book_age_seconds": 10,
+    "min_validation_trades_per_fold": 8,
+    "required_non_negative_validation_folds": 4,
+    "require_positive_aggregate_validation_pnl": true
+  },
+  "safety": {
+    "training_authorized": false,
+    "final_holdout_access_authorized": false,
+    "model_activation_authorized": false,
+    "production_mutation_authorized": false,
+    "deployment_authorized": false,
+    "paper_activation_authorized": false,
+    "automatic_promotion": false,
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0
+  }
+}
