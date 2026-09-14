@@ -79,7 +79,7 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
-**Continue prospective `core-v3-btc-native` source/feature collection for `v3-gate-b-preregister-v2` through the frozen epoch end `2026-09-19T13:45:00Z`.** Do not run successor readiness or planning before that timestamp.
+**Continue prospective `core-v3-btc-native` source/feature collection for `v3-gate-b-preregister-v2` across the frozen epoch `[2026-09-16T13:45:00Z, 2026-09-19T13:45:00Z)`.** Do not run successor readiness or planning before the epoch end `2026-09-19T13:45:00Z`.
 
 After the epoch closes, run only the outcome-blind, read-only successor readiness check. If and only if readiness is true, write the frozen feature-only plan with the existing no-clobber output contract. Stop there for a separate authorization/review boundary.
 
