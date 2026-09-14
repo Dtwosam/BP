@@ -194,13 +194,41 @@ def test_exclusion_manifest_allows_only_preregistered_kinds() -> None:
 
 def test_consumed_v2_final_holdout_evidence_is_frozen_and_loadable() -> None:
     assert load_exclusion_manifest is not None
+    evidence_path = (
+        "docs/evidence/phase-14-v3-consumed-v2-final-holdout-exclusions-20260913.json"
+    )
     manifest = load_exclusion_manifest(
-        "docs/evidence/phase-14-v3-consumed-v2-final-holdout-exclusions-20260913.json",
+        evidence_path,
         expected_kind="consumed_v2_final_holdout",
     )
 
     assert manifest.sha256 == (
-        "28f46a8feff52bc02780fd67b1e42bbcd462ff562b33a0b5d8df903b6d54ef54"
+        "f581d33676a4f9acfab45a7b0ab5103b36b1d4021fca4a9dc373d927d55e5938"
     )
-    assert len(manifest.condition_ids) == 24
-    assert len(set(manifest.condition_ids)) == 24
+    assert len(manifest.condition_ids) == 48
+    assert len(set(manifest.condition_ids)) == 48
+    assert (
+        "0x2a760ccdb973c19ce13b6af86d752cf377790d5149a46b8498462904ece86efd"
+        in manifest.condition_ids
+    )
+    assert (
+        "0xac1167ba583b466939a483aac37371197ccc1b5abe1f7ef9203856430bbcd77d"
+        in manifest.condition_ids
+    )
+
+    with open(evidence_path, encoding="utf-8") as handle:
+        payload = json.load(handle)
+    assert payload["source_artifacts"] == [
+        {
+            "path": "/var/lib/bp/evidence/phase14-v2-gate-b-20260910T102812Z/plan.json",
+            "sha256": "8f2a756161bb0d85e6020d6ff0d6f4f3540eb28caf133870a4926f65ac7d2fea",
+            "holdout_count": 24,
+        },
+        {
+            "path": "/var/lib/bp/evidence/phase14-v2-gate-b-20260912T092505Z/plan.json",
+            "sha256": "7021b470a985bd61f3074b57ab3d934f862f01acc29921a2edd7aee8d9fe1524",
+            "holdout_count": 24,
+        },
+    ]
+    assert payload["source_overlap_count"] == 0
+    assert payload["source_holdout_count"] == 48
