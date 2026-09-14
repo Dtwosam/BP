@@ -61,14 +61,14 @@ def test_frozen_v3_gate_b_config_matches_preregistered_contract() -> None:
     assert FROZEN_V3_GATE_B_CONFIG is not None
     config = FROZEN_V3_GATE_B_CONFIG
 
-    assert config.research_plan_version == "v3-gate-b-preregister-v1"
+    assert config.research_plan_version == "v3-gate-b-preregister-v2"
     assert config.dataset_version == "supervised-core-v3-btc-native-v1"
     assert config.feature_version == "core-v3-btc-native"
     assert config.label_version == "official-outcome-v1"
     assert config.horizon_seconds == 300
     assert config.feature_offsets_seconds == (60, 120, 180, 240)
-    assert config.epoch_start == datetime(2026, 9, 13, 13, 45, tzinfo=UTC)
-    assert config.epoch_end == datetime(2026, 9, 16, 13, 45, tzinfo=UTC)
+    assert config.epoch_start == datetime(2026, 9, 16, 13, 45, tzinfo=UTC)
+    assert config.epoch_end == datetime(2026, 9, 19, 13, 45, tzinfo=UTC)
     assert config.epoch_end - config.epoch_start == timedelta(hours=72)
 
     assert config.train_duration == timedelta(hours=24)
