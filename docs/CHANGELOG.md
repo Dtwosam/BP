@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.139 — 14 September 2026
+
+- Retired historical `v3-gate-b-preregister-v1` for model/policy selection because the exact diagnosis cohort identities were not durably frozen before its `2026-09-13T13:45:00Z` to `2026-09-16T13:45:00Z` epoch. That interval is engineering/source-availability/leakage/coverage evidence only; post-hoc diagnosis reconstruction is forbidden. The 48 consumed-V2 historical final-holdout condition IDs remain permanently non-reusable evidence.
+- Froze the clean successor `v3-gate-b-preregister-v2` for `core-v3-btc-native` on `[2026-09-16T13:45:00Z, 2026-09-19T13:45:00Z)` with structural eligibility `market_start_at >= epoch_start AND market_start_at < epoch_end`. Historical exclusion manifests are no longer successor runtime inputs; the existing predictor/model/calibration/economic search contract is unchanged. Gate A coverage remains bound to `32c283a7769681ebe5b2e0d1fe255ad6c38aa5b0301303f8fe86f4e7b2278ffb` and historical preregistration provenance to `c9e179c91ea990ca4a25a13f69fc5932811fb32a`.
+- Implemented the successor repository runtime through checkpoint `659d9524fe8bfeba182b7cf7c8d9b664280f7562`; exact-head CI `34841954823` passed. Readiness remains outcome-blind, planning remains feature-only/read-only, and plan output remains no-clobber. No readiness/plan execution, no model fitting, no final-holdout access/evaluation, no activation, no production mutation, no live trading, no automatic promotion, and no money-limit change occurred.
+- Current action is prospective collection only through `2026-09-19T13:45:00Z`; after close, run read-only outcome-blind readiness and, only if ready, write the feature-only plan and stop.
+
 ## 0.14.138 — 13 September 2026
 
 - Froze the V3 Gate B preregistration from approved design `c9e179c91ea990ca4a25a13f69fc5932811fb32a` through implementation checkpoint `39a887e138398215ac97dc45f8099e3515a90fe2` / CI `34775202056`. The full future search contract is now frozen and hash-bound, prospective-epoch exclusions are rejected, and the next sequence after `2026-09-16T13:45:00Z` is outcome-blind readiness followed only by a fixed five-fold feature-only plan. **No training** or final-holdout access is authorized. Gate A coverage remains bound to `32c283a7769681ebe5b2e0d1fe255ad6c38aa5b0301303f8fe86f4e7b2278ffb`.
