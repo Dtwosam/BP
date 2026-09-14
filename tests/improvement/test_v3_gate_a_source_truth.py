@@ -15,6 +15,9 @@ PREREGISTRATION_IMPLEMENTATION_HEAD = "39a887e138398215ac97dc45f8099e3515a90fe2"
 PREREGISTRATION_CI_RUN = 34775202056
 EPOCH_START = "2026-09-13T13:45:00Z"
 EPOCH_END = "2026-09-16T13:45:00Z"
+SUCCESSOR_PLAN_VERSION = "v3-gate-b-preregister-v2"
+SUCCESSOR_EPOCH_START = "2026-09-16T13:45:00Z"
+SUCCESSOR_EPOCH_END = "2026-09-19T13:45:00Z"
 
 
 def _text(path: str) -> str:
@@ -191,26 +194,32 @@ def test_canonical_docs_record_gate_a_pass_and_preregistration_handoff() -> None
     assert PREREGISTRATION_IMPLEMENTATION_HEAD in entry
 
 
-def test_immediate_next_action_is_epoch_then_readiness_then_feature_only_plan() -> None:
+def test_successor_design_handoff_is_pending_runtime_source_truth_update() -> None:
     start = _text("START-HERE.md")
     build = _text("docs/BUILD-ORDER.md")
 
     start_next = start.split("## Immediate next task", 1)[1]
+    lowered_start = start_next.lower()
+    assert "core-v3-btc-native" in start_next
+    assert SUCCESSOR_PLAN_VERSION in start_next
+    assert SUCCESSOR_EPOCH_START in start_next
+    assert SUCCESSOR_EPOCH_END in start_next
+    assert "implement" in lowered_start
+    assert "before" in lowered_start
+    assert "outcome-blind" in lowered_start
+    assert "readiness" in lowered_start
+    assert "feature-only" in lowered_start
+    assert "do not run v1 readiness or planning" in lowered_start
+    assert "no model fitting" in lowered_start
+    assert "no final-holdout access" in lowered_start
+
     build_next = build.split("## Immediate next action", 1)[1]
-    for section in (start_next, build_next):
-        lowered = section.lower()
-        assert "core-v3-btc-native" in section
-        assert EPOCH_END in section
-        assert "outcome-blind" in lowered
-        assert "readiness" in lowered
-        assert "feature-only" in lowered
-        assert "plan" in lowered
-        assert "adaptive-train" not in lowered
-        assert (
-            "do not start model fitting" in lowered
-            or "no labeled modeling" in lowered
-        )
-        assert (
-            "do not read final-holdout labels" in lowered
-            or "no final-holdout access" in lowered
-        )
+    lowered_build = build_next.lower()
+    assert "core-v3-btc-native" in build_next
+    assert EPOCH_END in build_next
+    assert "outcome-blind" in lowered_build
+    assert "readiness" in lowered_build
+    assert "feature-only" in lowered_build
+    assert "plan" in lowered_build
+    assert SUCCESSOR_PLAN_VERSION not in build_next
+    assert "adaptive-train" not in lowered_build
