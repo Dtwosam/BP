@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, replace
 from typing import Any, Mapping
 
-import numpy as np
 from sqlalchemy import Connection, select
 
 from bp_engine.calibration.calibrators import apply_calibration, select_calibrator
