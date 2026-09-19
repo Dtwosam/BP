@@ -634,15 +634,23 @@ def _edge_selection(
         candidates.append(item)
         if item["minimum_trade_count_met"]:
             eligible.append(item)
+    no_trade = evaluate_edge_policy_v3(
+        rows,
+        probability_map,
+        books,
+        fee_rate=config.fee_rate,
+        slippage_buffer=config.slippage_buffer,
+        min_edge=None,
+    )
+    candidates.append(
+        {
+            "min_edge": None,
+            "policy": "no_trade",
+            "metrics": asdict(no_trade),
+            "minimum_trade_count_met": False,
+        }
+    )
     if not eligible:
-        no_trade = evaluate_edge_policy_v3(
-            rows,
-            probability_map,
-            books,
-            fee_rate=config.fee_rate,
-            slippage_buffer=config.slippage_buffer,
-            min_edge=None,
-        )
         return {
             "policy": "no_trade",
             "reason": "no_threshold_meets_minimum_validation_trades",
