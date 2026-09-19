@@ -155,8 +155,14 @@ def model_predictor_names(
         )
     )
     if candidate == "single_feature_btc_logistic":
+        required_missing_names = (
+            "missing__coinbase_market_start_missing",
+            "missing__coinbase_market_start_stale",
+            "missing__coinbase_current_missing",
+            "missing__coinbase_current_stale",
+        )
         required_missing = tuple(
-            name for name in missing if name.startswith("missing__coinbase_")
+            name for name in required_missing_names if name in row_predictors
         )
         return ("coinbase_return_from_market_start", *required_missing)
     if candidate in ("full_v3_logistic", "full_v3_xgboost"):
