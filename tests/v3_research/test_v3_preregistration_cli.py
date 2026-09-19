@@ -27,11 +27,23 @@ def test_v3_cli_exposes_only_readiness_and_plan_without_override_flags(
     plan = parser.parse_args(
         ["plan", "--as-of", AS_OF_TEXT, "--output", str(tmp_path / "plan.json")]
     )
+    prepare = parser.parse_args(
+        [
+            "prepare",
+            "--plan",
+            str(tmp_path / "plan.json"),
+            "--output",
+            str(tmp_path / "selection.json"),
+            "--model-output",
+            str(tmp_path / "model.joblib"),
+        ]
+    )
 
     assert readiness.command == "readiness"
     assert readiness.as_of == AS_OF
     assert plan.command == "plan"
     assert plan.as_of == AS_OF
+    assert prepare.command == "prepare"
 
     help_text = parser.format_help().lower()
     for forbidden in (
