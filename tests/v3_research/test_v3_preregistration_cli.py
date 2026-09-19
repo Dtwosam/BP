@@ -47,7 +47,6 @@ def test_v3_cli_exposes_readiness_plan_and_prepare_without_override_flags(
 
     help_text = parser.format_help().lower()
     for forbidden in (
-        "prepare",
         "evaluate-holdout",
         "diagnosis-exclusions",
         "consumed-v2-final-holdout-exclusions",
