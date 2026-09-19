@@ -75,7 +75,11 @@ def test_v3_model_predictors_are_btc_only_and_missingness_explicit() -> None:
     row_predictors.update(
         {
             "missing__coinbase_market_start_missing": 0.0,
+            "missing__coinbase_market_start_stale": 0.0,
             "missing__coinbase_current_missing": 0.0,
+            "missing__coinbase_current_stale": 0.0,
+            "missing__coinbase_trailing_30s_missing": 0.0,
+            "missing__coinbase_trailing_60s_stale": 0.0,
             "missing__bybit_spot_current_missing": 0.0,
             "missing__bybit_linear_current_missing": 0.0,
             "horizon_seconds": 300.0,
@@ -88,10 +92,12 @@ def test_v3_model_predictors_are_btc_only_and_missingness_explicit() -> None:
     )
     full = service_module.model_predictor_names(row_predictors, "full_v3_logistic")
 
-    assert single[0] == "coinbase_return_from_market_start"
-    assert all(
-        name == "coinbase_return_from_market_start" or name.startswith("missing__")
-        for name in single
+    assert single == (
+        "coinbase_return_from_market_start",
+        "missing__coinbase_market_start_missing",
+        "missing__coinbase_market_start_stale",
+        "missing__coinbase_current_missing",
+        "missing__coinbase_current_stale",
     )
     assert set(FROZEN_V3_GATE_B_CONFIG.predictor_names) <= set(full)
     assert all("pm_" not in name and "polymarket" not in name.lower() for name in full)
