@@ -27,7 +27,11 @@ from bp_engine.v3_research.config import (
     V3GateBConfig,
     v3_gate_b_config_payload,
 )
-from bp_engine.v3_research.policy import V3ExecutionBook, evaluate_edge_policy_v3
+from bp_engine.v3_research.policy import (
+    V3ExecutionBook,
+    edge_band_report_v3,
+    evaluate_edge_policy_v3,
+)
 
 
 class V3PrepareIntegrityError(RuntimeError):
@@ -478,20 +482,16 @@ def _fit_forecast_selection(
         test_offset = _rows_at_offset(test_rows, offset)
         momentum[str(offset)] = _momentum_diagnostic(validation_offset)
         for candidate in probability_candidates:
-            try:
-                fits.append(
-                    _candidate_fit(
-                        dataset_sha256=dataset_sha256,
-                        train_rows=train_offset,
-                        validation_rows=validation_offset,
-                        test_rows=test_offset,
-                        candidate=candidate,
-                        offset_seconds=offset,
-                    )
+            fits.append(
+                _candidate_fit(
+                    dataset_sha256=dataset_sha256,
+                    train_rows=train_offset,
+                    validation_rows=validation_offset,
+                    test_rows=test_offset,
+                    candidate=candidate,
+                    offset_seconds=offset,
                 )
-            except (ValueError, V3PrepareIntegrityError):
-                if candidate == "training_prior":
-                    raise
+            )
 
     full_by_offset = {
         fit.offset_seconds: fit
@@ -793,6 +793,21 @@ def prepare_v3_gate_b(
                 "momentum_diagnostic_by_offset": momentum,
                 "selected_forecast": _candidate_summary(selected),
                 "edge_selection": edge,
+                "validation_edge_bands": edge_band_report_v3(
+                    validation_offset,
+                    {
+                        row.condition_id: probability
+                        for row, probability in zip(
+                            validation_offset,
+                            selected.validation_probabilities,
+                            strict=True,
+                        )
+                    },
+                    validation_books,
+                    fee_rate=config.fee_rate,
+                    slippage_buffer=config.slippage_buffer,
+                    boundaries=config.min_edge_grid,
+                ),
                 "ordinary_test": {
                     "forecast_metrics": asdict(
                         evaluate_probabilities(
@@ -802,6 +817,21 @@ def prepare_v3_gate_b(
                         )
                     ),
                     "edge_metrics": test_edge,
+                    "edge_bands": edge_band_report_v3(
+                        test_offset,
+                        {
+                            row.condition_id: probability
+                            for row, probability in zip(
+                                test_offset,
+                                selected.test_probabilities,
+                                strict=True,
+                            )
+                        },
+                        test_books,
+                        fee_rate=config.fee_rate,
+                        slippage_buffer=config.slippage_buffer,
+                        boundaries=config.min_edge_grid,
+                    ),
                 },
             }
         )
@@ -875,6 +905,21 @@ def prepare_v3_gate_b(
             "momentum_diagnostic_by_offset": final_momentum,
             "selected_forecast": _candidate_summary(final_selected),
             "edge_selection": final_edge,
+            "validation_edge_bands": edge_band_report_v3(
+                final_validation_offset,
+                {
+                    row.condition_id: probability
+                    for row, probability in zip(
+                        final_validation_offset,
+                        final_selected.validation_probabilities,
+                        strict=True,
+                    )
+                },
+                final_books,
+                fee_rate=config.fee_rate,
+                slippage_buffer=config.slippage_buffer,
+                boundaries=config.min_edge_grid,
+            ),
         },
         "labels_read_non_holdout": True,
         "holdout_labels_read": False,
