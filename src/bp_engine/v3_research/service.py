@@ -702,6 +702,19 @@ def _candidate_summary(fit: _CandidateFit) -> dict[str, Any]:
     }
 
 
+
+def _json_safe_config(config: V3GateBConfig) -> dict[str, Any]:
+    payload = v3_gate_b_config_payload(config)
+    result: dict[str, Any] = {}
+    for key, value in payload.items():
+        if isinstance(value, tuple):
+            result[key] = list(value)
+        elif hasattr(value, "isoformat"):
+            result[key] = value.isoformat()
+        else:
+            result[key] = value
+    return result
+
 def prepare_v3_gate_b(
     connection: Connection,
     *,
@@ -836,7 +849,7 @@ def prepare_v3_gate_b(
         "readiness_input_sha256": plan["readiness_input_sha256"],
         "feature_manifest_sha256": plan["feature_manifest_sha256"],
         "dataset_sha256_non_holdout": dataset.dataset_sha256,
-        "config": v3_gate_b_config_payload(config),
+        "config": _json_safe_config(config),
         "folds": fold_reports,
         "ordinary_validation_economics_passed": economics_passed,
         "final": {
