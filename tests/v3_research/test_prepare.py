@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import inspect
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
 from bp_engine.features.hashing import canonical_hash
+from bp_engine.modeling.models import SupervisedRow
 from bp_engine.v3_research import cli as cli_module
+from bp_engine.v3_research import policy as policy_module
 from bp_engine.v3_research import service as service_module
 from bp_engine.v3_research.config import FROZEN_V3_GATE_B_CONFIG
 
@@ -103,6 +106,100 @@ def test_v3_model_predictors_are_btc_only_and_missingness_explicit() -> None:
     assert all("pm_" not in name and "polymarket" not in name.lower() for name in full)
     assert "horizon_seconds" not in full
 
+
+
+def _row(
+    condition_id: str,
+    *,
+    target: int,
+    offset_seconds: int = 60,
+) -> SupervisedRow:
+    start = datetime(2026, 9, 16, 14, 0, tzinfo=UTC)
+    at = datetime(2026, 9, 16, 14, 1, tzinfo=UTC)
+    end = datetime(2026, 9, 16, 14, 5, tzinfo=UTC)
+    return SupervisedRow(
+        condition_id=condition_id,
+        slug=f"btc-updown-5m-{condition_id}",
+        horizon_seconds=300,
+        market_start_at=start,
+        market_end_at=end,
+        feature_at=at,
+        feature_offset_seconds=offset_seconds,
+        predictors={"coinbase_return_from_market_start": 0.01},
+        target=target,
+        feature_hash="a" * 64,
+        input_fingerprint="b" * 64,
+    )
+
+
+def test_edge_band_report_is_diagnostic_and_covers_executable_rows() -> None:
+    rows = (_row("up", target=1), _row("down", target=0))
+    probabilities = {"up": 0.8, "down": 0.6}
+    books = {
+        "up": policy_module.V3ExecutionBook(
+            up_best_bid=0.49,
+            up_best_ask=0.50,
+            up_fresh=True,
+            down_best_bid=0.49,
+            down_best_ask=0.50,
+            down_fresh=True,
+        ),
+        "down": policy_module.V3ExecutionBook(
+            up_best_bid=0.60,
+            up_best_ask=0.61,
+            up_fresh=True,
+            down_best_bid=0.38,
+            down_best_ask=0.39,
+            down_fresh=True,
+        ),
+    }
+
+    report = policy_module.edge_band_report_v3(
+        rows,
+        probabilities,
+        books,
+        fee_rate=0.07,
+        slippage_buffer=0.01,
+        boundaries=FROZEN_V3_GATE_B_CONFIG.min_edge_grid,
+    )
+
+    assert sum(int(item["count"]) for item in report) == 2
+    assert report[0]["band"] == "<0"
+    assert report[-1]["band"] == ">=0.15"
+    assert int(report[-1]["count"]) == 1
+
+
+def test_forecast_candidate_fit_failures_are_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    rows = (_row("candidate", target=1),)
+
+    def fake_fit(**kwargs: object) -> object:
+        candidate = str(kwargs["candidate"])
+        if candidate == "single_feature_btc_logistic":
+            raise ValueError("candidate fit boom")
+        return service_module._CandidateFit(
+            candidate=candidate,
+            offset_seconds=60,
+            validation_metrics={
+                "log_loss": 0.5,
+                "brier_score": 0.2,
+                "ece": 0.1,
+            },
+            calibration={},
+            validation_probabilities=(0.5,),
+            test_probabilities=(0.5,),
+            model_bundle={"config": {}},
+        )
+
+    monkeypatch.setattr(service_module, "_candidate_fit", fake_fit)
+
+    with pytest.raises(ValueError, match="candidate fit boom"):
+        service_module._fit_forecast_selection(
+            dataset_sha256="c" * 64,
+            train_rows=rows,
+            validation_rows=rows,
+            test_rows=rows,
+            config=FROZEN_V3_GATE_B_CONFIG,
+        )
 
 def test_xgboost_cannot_replace_logistic_without_both_metric_improvements() -> None:
     logistic = {"log_loss": 0.60, "brier_score": 0.20}
