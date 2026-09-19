@@ -192,3 +192,93 @@ def evaluate_edge_policy_v3(
             sum(cost_pnl) / trades if trades else None
         ),
     )
+
+
+def edge_band_report_v3(
+    rows: tuple[SupervisedRow, ...],
+    calibrated_by_condition: dict[str, float],
+    books_by_condition: dict[str, V3ExecutionBook],
+    *,
+    fee_rate: float,
+    slippage_buffer: float,
+    boundaries: tuple[float, ...],
+) -> list[dict[str, float | int | str | None]]:
+    if tuple(sorted(set(boundaries))) != boundaries:
+        raise ValueError("edge band boundaries must be sorted and unique")
+
+    buckets: list[dict[str, object]] = []
+    labels = [f"<{boundaries[0]:g}"] if boundaries else ["all"]
+    if boundaries:
+        labels.extend(
+            f"[{lower:g},{upper:g})"
+            for lower, upper in zip(boundaries, boundaries[1:], strict=False)
+        )
+        labels.append(f">={boundaries[-1]:g}")
+    for label in labels:
+        buckets.append(
+            {
+                "band": label,
+                "count": 0,
+                "correct": 0,
+                "edge_sum": 0.0,
+                "pnl_sum": 0.0,
+            }
+        )
+
+    for row in rows:
+        probability = calibrated_by_condition.get(row.condition_id)
+        book = books_by_condition.get(row.condition_id)
+        if probability is None or book is None:
+            continue
+        decision = edge_decision_v3(
+            calibrated_probability_up=probability,
+            book=book,
+            fee_rate=fee_rate,
+            slippage_buffer=slippage_buffer,
+            min_edge=None,
+        )
+        if (
+            not decision.executable
+            or decision.ask is None
+            or decision.cost_adjusted_edge is None
+        ):
+            continue
+
+        edge = decision.cost_adjusted_edge
+        if not boundaries:
+            index = 0
+        elif edge < boundaries[0]:
+            index = 0
+        else:
+            index = len(boundaries)
+            for candidate_index, upper in enumerate(boundaries[1:], start=1):
+                if edge < upper:
+                    index = candidate_index
+                    break
+
+        correct = row.target == decision.predicted_target
+        payout = 1.0 if correct else 0.0
+        realized = payout - decision.ask - decision.fee - slippage_buffer
+        bucket = buckets[index]
+        bucket["count"] = int(bucket["count"]) + 1
+        bucket["correct"] = int(bucket["correct"]) + int(correct)
+        bucket["edge_sum"] = float(bucket["edge_sum"]) + edge
+        bucket["pnl_sum"] = float(bucket["pnl_sum"]) + realized
+
+    report: list[dict[str, float | int | str | None]] = []
+    for bucket in buckets:
+        count = int(bucket["count"])
+        correct = int(bucket["correct"])
+        report.append(
+            {
+                "band": str(bucket["band"]),
+                "count": count,
+                "correct": correct,
+                "accuracy": correct / count if count else None,
+                "mean_cost_adjusted_edge": (
+                    float(bucket["edge_sum"]) / count if count else None
+                ),
+                "realized_pnl_after_assumed_costs": float(bucket["pnl_sum"]),
+            }
+        )
+    return report
