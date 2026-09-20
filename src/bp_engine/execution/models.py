@@ -9,7 +9,12 @@ from typing import Any
 
 PAPER_EXECUTION_VERSION = "paper-execution-v1"
 V3_FROZEN_PAPER_EXECUTION_VERSION = "paper-execution-v3-frozen-v1"
-_ALLOWED_EXECUTION_VERSIONS = frozenset({PAPER_EXECUTION_VERSION, V3_FROZEN_PAPER_EXECUTION_VERSION})
+_ALLOWED_EXECUTION_VERSIONS = frozenset(
+    {
+        PAPER_EXECUTION_VERSION,
+        V3_FROZEN_PAPER_EXECUTION_VERSION,
+    }
+)
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _PROVENANCE_SHA256_RE = re.compile(r"^(?:sha256:)?[0-9a-f]{64}$")
 _TERMINAL_STATUSES = frozenset(
