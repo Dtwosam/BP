@@ -4,8 +4,8 @@ if __name__ == "__main__":
     raise SystemExit(
         main(
             [
-                "--prediction-version",
-                "live-prediction-v1",
+                "--exclude-prediction-version",
+                "v3-frozen-paper-v1",
                 "--execution-version",
                 "paper-execution-v1",
                 "--poll-seconds",
