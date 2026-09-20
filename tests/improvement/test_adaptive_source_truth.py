@@ -67,7 +67,7 @@ def test_build_order_preserves_adaptive_history_but_points_next_to_v4_regime_res
     assert "bull" in lowered
     assert "bear" in lowered
     assert "sideways" in lowered
-    assert "production feature materialization/collection" in lowered
+    assert "do not train a v4 model yet" in lowered
     assert "adaptive-train" not in lowered
 
     assert "## D-042 — Resolved markets drive adaptive supervised learning" in decisions
