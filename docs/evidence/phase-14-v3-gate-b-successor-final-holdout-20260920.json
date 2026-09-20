@@ -1,0 +1,75 @@
+{
+  "status": "V3_GATE_B_SUCCESSOR_FINAL_HOLDOUT_EVALUATED",
+  "recorded_at_date": "2026-09-20",
+  "production_runtime_head": "93d630420802f1874473113b19b838f38487a079",
+  "research_plan_version": "v3-gate-b-preregister-v2",
+  "plan_sha256": "f1480734cb4accf08fe0b3cfd0f15a733786dd008f8e76df75944e9dd39a9022",
+  "plan_file_sha256": "aa433c0cd0745fde6cf839326b3ed6daacbb8572df15bb72675832f148d7d997",
+  "selection_sha256": "a088c61b291a67866af1c565ee936d9761e6a2936b49f121f616081284dcd508",
+  "selection_file_sha256": "944dd6c3f7f049148e6cd6ab2585377b824e534b06cbc0ba344f4d57a48b6650",
+  "model_artifact_sha256": "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7",
+  "holdout_file_sha256": "831740159f8a14a2ab275c81218fc0cdd9e57da29cf6af34b9181d58e6bbaabb",
+  "holdout_evidence_sha256": "a093de346cde6a98cf056bdbc3f7c901c3570aff611363cda996a04fa8e4d66a",
+  "holdout_dataset_sha256": "96c917a579fc43a428a6df6c249f4ff1c4da3b33a57cd7301bcd96f0daa48eea",
+  "frozen_policy": {
+    "candidate": "single_feature_btc_logistic",
+    "offset_seconds": 240,
+    "edge_policy": "trade_threshold",
+    "min_edge": 0.075
+  },
+  "final_holdout": {
+    "market_count": 144,
+    "accuracy": 0.8402777777777778,
+    "balanced_accuracy": 0.8407335907335907,
+    "log_loss": 0.35419212970900277,
+    "brier_score": 0.10943703117284813,
+    "trade_count": 20,
+    "trade_coverage": 0.1388888888888889,
+    "realized_pnl_after_assumed_costs": 1.654224,
+    "mean_realized_pnl_after_assumed_costs": 0.0827112
+  },
+  "trade_ledger_summary": {
+    "wins": 9,
+    "losses": 11,
+    "traded_accuracy": 0.45,
+    "gross_pnl_before_costs": 2.12,
+    "fee_total": 0.265776,
+    "slippage_total": 0.2,
+    "assumed_total_outlay": 7.345776,
+    "net_return_on_assumed_outlay": 0.2251939073557375,
+    "average_win": 0.5323858888888888,
+    "average_loss": -0.28520445454545457,
+    "profit_factor": 1.5272848919547029,
+    "largest_win": 0.957963,
+    "largest_loss": -0.5074719999999999,
+    "max_drawdown_one_share": 1.4698569999999997,
+    "by_side": {
+      "up": {
+        "trades": 10,
+        "wins": 7,
+        "net_pnl": 2.6369559999999996
+      },
+      "down": {
+        "trades": 10,
+        "wins": 2,
+        "net_pnl": -0.9827319999999999
+      }
+    }
+  },
+  "safety": {
+    "holdout_labels_read": true,
+    "holdout_evaluated_once": true,
+    "model_refit_performed": false,
+    "automatic_promotion": false,
+    "activation_performed": false,
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0
+  },
+  "interpretation": {
+    "final_holdout_consumed": true,
+    "reusable_for_future_tuning": false,
+    "v4_motivation_only": true,
+    "no_numeric_v3_final_acceptance_threshold_was_frozen": true
+  }
+}
