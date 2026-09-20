@@ -1,0 +1,44 @@
+[Unit]
+Description=BP frozen V3 prospective paper signal service
+Requires=bp-postgres.service bp-recorder.service
+After=bp-postgres.service bp-recorder.service
+
+[Service]
+Type=simple
+User=bp
+Group=bp
+WorkingDirectory=/var/lib/bp/runtime/v3-paper-current
+EnvironmentFile=/etc/bp/bp.env
+EnvironmentFile=/etc/bp/bp-prospective-runtime-safety.env
+Environment=MODE=research
+Environment=LIVE_TRADING_ENABLED=false
+Environment=MAX_TRADE_SIZE_USD=0
+Environment=MAX_DAILY_LOSS_USD=0
+Environment=PYTHONPATH=/var/lib/bp/runtime/v3-paper-current/src
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/bp/.venv/bin/python /var/lib/bp/runtime/v3-paper-current/scripts/run_v3_frozen_paper.py --env-file /etc/bp/bp.env --model /var/lib/bp/v3-paper/frozen-model.joblib --activation /var/lib/bp/v3-paper/activation.json --poll-seconds 1
+Restart=on-failure
+RestartSec=2
+TimeoutStartSec=30
+TimeoutStopSec=20
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=full
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-v3-frozen-predictor
+
+[Install]
+WantedBy=multi-user.target
