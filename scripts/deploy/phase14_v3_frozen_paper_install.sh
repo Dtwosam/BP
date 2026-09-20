@@ -141,6 +141,7 @@ ACTIVATION_TARGET="$STATE_ROOT/activation.json"
 ACTIVATION_TMP=""
 ACTIVATION_SOURCE=""
 ACTIVATION_INSTALLED=0
+SERVICES_STARTED=0
 OLD_LINK_TARGET=""
 LEGACY_BACKUP=""
 PREDICTOR_BACKUP=""
@@ -197,8 +198,10 @@ rollback() {
     rm -f "$CURRENT_LINK"
   fi
 
-  if (( ACTIVATION_INSTALLED )); then
+  if (( ACTIVATION_INSTALLED && SERVICES_STARTED == 0 )); then
     rm -f "$ACTIVATION_TARGET"
+  elif (( ACTIVATION_INSTALLED && SERVICES_STARTED == 1 )); then
+    echo "NOTE=activation manifest preserved because V3 predictor started" >&2
   fi
 
   systemctl daemon-reload >/dev/null 2>&1 || true
@@ -261,7 +264,6 @@ from pathlib import Path
 path, candidate_head, model_sha = sys.argv[1:]
 payload = json.loads(Path(path).read_text(encoding="utf-8"))
 expected = {
-    "candidate_head": candidate_head,
     "model_sha256": model_sha,
     "prediction_version": "v3-frozen-paper-v1",
     "execution_version": "paper-execution-v3-frozen-v1",
@@ -273,6 +275,9 @@ expected = {
 for key, value in expected.items():
     if payload.get(key) != value:
         raise SystemExit(f"existing activation manifest mismatch: {key}")
+manifest_head = payload.get("candidate_head")
+if not isinstance(manifest_head, str) or len(manifest_head) != 40:
+    raise SystemExit("existing activation candidate head is invalid")
 activated_at = payload.get("activated_at")
 if not isinstance(activated_at, str) or not activated_at.endswith("Z"):
     raise SystemExit("existing activation timestamp is invalid")
@@ -280,14 +285,121 @@ print(activated_at)
 PY
   ) || fail "existing_activation_manifest_mismatch"
 else
-  ACTIVATED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  ACTIVATION_TMP=$(mktemp /var/tmp/bp-v3-activation.XXXXXX.json)
-  "$REPO/.venv/bin/python" - "$ACTIVATION_TMP" "$ACTIVATED_AT" "$SHA" "$FROZEN_MODEL_SHA" <<'PY'
+  RECOVERY_JSON=$(mktemp /var/tmp/bp-v3-activation-recovery.XXXXXX.json)
+  chown bp:bp "$RECOVERY_JSON"
+  chmod 0640 "$RECOVERY_JSON"
+  sudo -u bp env \
+    PYTHONPATH="$VERSION_DIR/src" \
+    "$REPO/.venv/bin/python" - \
+    "$ENV_FILE" "$RECOVERY_JSON" <<'PY'
+import json
+import sys
+from datetime import UTC
+from pathlib import Path
+
+from sqlalchemy import create_engine, func, select
+
+from bp_engine.config import Settings
+from bp_engine.storage import schema
+
+env_file, output_path = sys.argv[1:]
+settings = Settings(_env_file=env_file)
+engine = create_engine(settings.database_url)
+with engine.connect() as connection:
+    prediction_count = int(
+        connection.execute(
+            select(func.count()).select_from(schema.live_predictions).where(
+                schema.live_predictions.c.prediction_version == "v3-frozen-paper-v1"
+            )
+        ).scalar_one()
+    )
+    earliest_start = connection.execute(
+        select(func.min(schema.live_predictions.c.market_start_at)).where(
+            schema.live_predictions.c.prediction_version == "v3-frozen-paper-v1"
+        )
+    ).scalar_one()
+    order_count = int(
+        connection.execute(
+            select(func.count()).select_from(schema.paper_orders).where(
+                schema.paper_orders.c.execution_version
+                == "paper-execution-v3-frozen-v1"
+            )
+        ).scalar_one()
+    )
+engine.dispose()
+
+if order_count and not prediction_count:
+    raise SystemExit("orphaned V3 paper orders exist without V3 predictions")
+
+if earliest_start is not None:
+    if earliest_start.tzinfo is None or earliest_start.utcoffset() is None:
+        earliest_start = earliest_start.replace(tzinfo=UTC)
+    earliest_start = earliest_start.astimezone(UTC)
+    recovered_at = earliest_start.isoformat().replace("+00:00", "Z")
+else:
+    recovered_at = None
+
+Path(output_path).write_text(
+    json.dumps(
+        {
+            "prediction_count": prediction_count,
+            "order_count": order_count,
+            "recovered_activated_at": recovered_at,
+        },
+        indent=2,
+        sort_keys=True,
+    )
+    + "\n",
+    encoding="utf-8",
+)
+PY
+
+  RECOVERED_ACTIVATED_AT=$(
+    "$REPO/.venv/bin/python" - "$RECOVERY_JSON" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-path, activated_at, candidate_head, model_sha = sys.argv[1:]
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+print(payload.get("recovered_activated_at") or "")
+PY
+  )
+  RECOVERED_PREDICTION_COUNT=$(
+    "$REPO/.venv/bin/python" - "$RECOVERY_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+print(int(payload.get("prediction_count", 0)))
+PY
+  )
+  rm -f "$RECOVERY_JSON"
+
+  if [[ -n "$RECOVERED_ACTIVATED_AT" ]]; then
+    ACTIVATED_AT="$RECOVERED_ACTIVATED_AT"
+    RECOVERED_FROM_ORPHANED_ROWS=true
+  else
+    ACTIVATED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    RECOVERED_FROM_ORPHANED_ROWS=false
+  fi
+
+  ACTIVATION_TMP=$(mktemp /var/tmp/bp-v3-activation.XXXXXX.json)
+  "$REPO/.venv/bin/python" - \
+    "$ACTIVATION_TMP" "$ACTIVATED_AT" "$SHA" "$FROZEN_MODEL_SHA" \
+    "$RECOVERED_FROM_ORPHANED_ROWS" "$RECOVERED_PREDICTION_COUNT" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+(
+    path,
+    activated_at,
+    candidate_head,
+    model_sha,
+    recovered_raw,
+    recovered_prediction_count,
+) = sys.argv[1:]
 payload = {
     "activated_at": activated_at,
     "candidate_head": candidate_head,
@@ -298,8 +410,13 @@ payload = {
     "paper_target_notional_usd": "5.00",
     "real_money_usd": "0.00",
     "automatic_promotion": False,
+    "recovered_from_orphaned_rows": recovered_raw == "true",
+    "recovered_prediction_count": int(recovered_prediction_count),
 }
-Path(path).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+Path(path).write_text(
+    json.dumps(payload, indent=2, sort_keys=True) + "\n",
+    encoding="utf-8",
+)
 PY
   chown bp:bp "$ACTIVATION_TMP"
   chmod 0440 "$ACTIVATION_TMP"
@@ -322,6 +439,7 @@ systemctl daemon-reload
 systemctl restart "$LEGACY_UNIT"
 require_active "$LEGACY_UNIT"
 systemctl enable --now "$PREDICTOR_UNIT"
+SERVICES_STARTED=1
 systemctl enable --now "$V3_EXEC_UNIT"
 require_active "$PREDICTOR_UNIT"
 require_active "$V3_EXEC_UNIT"
