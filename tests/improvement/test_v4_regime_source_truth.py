@@ -38,8 +38,19 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert v4["prospective_collection_epoch_start"] == "2026-09-20T12:40:53Z"
     assert v4["collector_preserves_deployed_checkout"] is True
     assert v4["collector_restarts_recorder"] is False
-    assert v4["production_materialization_performed"] is False
-    assert v4["production_collector_enabled"] is False
+    assert v4["production_materialization_performed"] is True
+    assert v4["production_collector_enabled"] is True
+    assert v4["production_collector_active"] is True
+    assert v4["production_rollout_passed"] is True
+    assert v4["initial_coverage_market_count"] == 9
+    assert v4["initial_coverage_row_count"] == 36
+    assert v4["initial_bull_market_count"] == 2
+    assert v4["initial_bear_market_count"] == 0
+    assert v4["initial_sideways_mixed_market_count"] == 7
+    assert v4["initial_unknown_market_count"] == 0
+    assert v4["initial_future_cutoff_violation_count"] == 0
+    assert v4["initial_polymarket_predictor_key_count"] == 0
+    assert v4["initial_regime_invariant_violation_count"] == 0
     assert v4["training_performed"] is False
     assert v4["final_holdout_access_performed"] is False
     assert v4["paper_activation_performed"] is False
@@ -105,10 +116,11 @@ def test_canonical_handoff_points_to_v4_and_keeps_activation_blocked() -> None:
 
     assert "## D-049 —" in decisions
     assert "## D-050 —" in decisions
-    assert "## 0.14.141 — 20 September 2026" in changelog
-    assert "feature materialization and collection" in start.lower()
-    assert "2026-09-20t12:40:53z" in start.lower()
-    assert "2026-09-20t12:40:53z" in build.lower()
-    assert "leave `/opt/bp` unchanged" in build.lower()
+    assert "## D-051 —" in decisions
+    assert "## 0.14.142 — 20 September 2026" in changelog
+    assert "production pass and active" in start.lower()
+    assert "36" in start
+    assert "prospective collection only" in start.lower()
+    assert "do not train a v4 model yet" in build.lower()
     assert "automatic promotion" in master.lower()
     assert "live trading" in master.lower()
