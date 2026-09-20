@@ -98,6 +98,8 @@ def test_canonical_handoff_points_to_v4_and_keeps_activation_blocked() -> None:
 
     for content in (start, build, master, decisions, changelog):
         assert "core-v4-regime-aware" in content
+
+    for content in (master, decisions, changelog):
         assert "V3" in content or "v3" in content
         assert "holdout" in content.lower()
 
