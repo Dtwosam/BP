@@ -1516,7 +1516,7 @@ Paper execution assumptions remain frozen at $100.00 virtual starting cash, $5.0
 
 Activation verification found zero pre-activation V3 predictions and zero invalid V3 order sources. Initial V3 prediction/order/fill counts were all zero because activation completed before the first eligible post-activation decision point. The deployed `/opt/bp` checkout remained unchanged at `7c3af78da1922a0e5187c24b799951130cc98887`, the recorder PID remained `2113524`, and the recorder was not restarted.
 
-The V3 predictor, V3 paper executor, legacy paper service, prospective-outcome service, and V4 forward collector were all active at acceptance. V4 regime-aware collection therefore continues in parallel with V3 paper observation.
+The V3 predictor, V3 paper executor, legacy paper service, prospective-outcome service, and V4 forward collector were all active at acceptance. V4 regime-aware collection continues in parallel with V3 paper observation.
 
 This paper epoch is observational evidence only. It must not be used to refit V3, recalibrate it, tune thresholds, alter paper sizing, or justify automatic promotion. Live-order access, live trading, geographic bypass, Phase 15, and nonzero real-money limits remain blocked.
 
