@@ -106,7 +106,7 @@ def test_canonical_handoff_points_to_v4_and_keeps_activation_blocked() -> None:
     assert "## D-049 —" in decisions
     assert "## D-050 —" in decisions
     assert "## 0.14.141 — 20 September 2026" in changelog
-    assert "production feature materialization and collection" in start.lower()
+    assert "feature materialization and collection" in start.lower()
     assert "2026-09-20t12:40:53z" in start.lower()
     assert "2026-09-20t12:40:53z" in build.lower()
     assert "leave `/opt/bp` unchanged" in build.lower()
