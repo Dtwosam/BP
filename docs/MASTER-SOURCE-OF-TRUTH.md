@@ -1506,3 +1506,20 @@ The paper simulation uses the established Phase 12 defaults: $100.00 virtual sta
 
 Real money remains exactly zero. Production controls remain RESEARCH mode, live trading disabled, maximum real trade size zero, and maximum real daily loss zero. No wallet/signing/order-placement path is authorized. V4 regime-aware prospective feature collection continues in parallel.
 
+## Phase 14 frozen V3 paper production PASS — 20 September 2026
+
+The exact frozen V3 Gate B successor is now active prospectively in isolated paper mode. Production activation passed at `2026-09-20T15:39:45Z` on candidate `9d52eb753355365848a637ffa6663928664bf770`.
+
+The accepted model artifact SHA-256 remains `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`. Prediction identity is `v3-frozen-paper-v1`; execution identity is `paper-execution-v3-frozen-v1`. The frozen strategy remains `single_feature_btc_logistic` at 240 seconds with `trade_threshold`, minimum cost-adjusted edge 0.075, fee coefficient 0.07, slippage buffer 0.01, and selected-book freshness limit 10 seconds.
+
+Paper execution assumptions remain frozen at $100.00 virtual starting cash, $5.00 virtual target notional, 250ms simulated latency, 2000ms order TTL, and 6-decimal share precision. Real money is exactly $0.00.
+
+Activation verification found zero pre-activation V3 predictions and zero invalid V3 order sources. Initial V3 prediction/order/fill counts were all zero because activation completed before the first eligible post-activation decision point. The deployed `/opt/bp` checkout remained unchanged at `7c3af78da1922a0e5187c24b799951130cc98887`, the recorder PID remained `2113524`, and the recorder was not restarted.
+
+The V3 predictor, V3 paper executor, legacy paper service, prospective-outcome service, and V4 forward collector were all active at acceptance. V4 regime-aware collection therefore continues in parallel with V3 paper observation.
+
+This paper epoch is observational evidence only. It must not be used to refit V3, recalibrate it, tune thresholds, alter paper sizing, or justify automatic promotion. Live-order access, live trading, geographic bypass, Phase 15, and nonzero real-money limits remain blocked.
+
+Durable repository evidence: `docs/evidence/phase-14-v3-frozen-paper-production-20260920.json`.
+Host evidence: `/var/lib/bp/evidence/phase14-v3-frozen-paper-9d52eb753355-20260920T154016Z.json`.
+
