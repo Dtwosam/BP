@@ -6,7 +6,7 @@ import signal
 import time
 from dataclasses import asdict
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from sqlalchemy import create_engine
@@ -30,6 +30,16 @@ def _money_disabled(settings: Settings) -> None:
         raise RuntimeError("paper execution worker requires MAX_TRADE_SIZE_USD=0")
     if Decimal(str(settings.max_daily_loss_usd)) != Decimal("0"):
         raise RuntimeError("paper execution worker requires MAX_DAILY_LOSS_USD=0")
+
+
+def _decimal_argument(value: str) -> Decimal:
+    try:
+        numeric = Decimal(value)
+    except InvalidOperation as exc:
+        raise argparse.ArgumentTypeError("value must be a decimal number") from exc
+    if not numeric.is_finite():
+        raise argparse.ArgumentTypeError("value must be finite")
+    return numeric
 
 
 def _json_value(value: Any) -> Any:
@@ -70,6 +80,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--execution-version", default=PAPER_EXECUTION_VERSION)
     parser.add_argument(
+        "--starting-cash-usd",
+        type=_decimal_argument,
+        default=Decimal("100.00"),
+    )
+    parser.add_argument(
+        "--target-notional-usd",
+        type=_decimal_argument,
+        default=Decimal("5.00"),
+    )
+    parser.add_argument("--latency-ms", type=int, default=250)
+    parser.add_argument("--order-ttl-ms", type=int, default=2000)
+    parser.add_argument("--share-precision", type=int, default=6)
+    parser.add_argument(
         "--poll-seconds",
         type=float,
         default=5.0,
@@ -88,6 +111,11 @@ def main(argv: list[str] | None = None) -> int:
     _money_disabled(settings)
     engine = create_engine(settings.database_url, pool_pre_ping=True)
     config = PaperExecutionConfig(
+        starting_cash_usd=args.starting_cash_usd,
+        target_notional_usd=args.target_notional_usd,
+        latency_ms=args.latency_ms,
+        order_ttl_ms=args.order_ttl_ms,
+        share_precision=args.share_precision,
         execution_version=args.execution_version,
         prediction_version=args.prediction_version,
         excluded_prediction_versions=tuple(args.exclude_prediction_version),
