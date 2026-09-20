@@ -94,7 +94,7 @@ def test_successor_spec_and_plan_preserve_frozen_search_contract() -> None:
 
 def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.144"
+    assert state["source_of_truth_version"] == "0.14.145"
     successor = state["phase_14_btc_first_v3_gate_a"]["successor_gate_b"]
     assert successor["research_plan_version"] == SUCCESSOR_PLAN_VERSION
     assert successor["epoch_start"] == SUCCESSOR_EPOCH_START
@@ -150,6 +150,6 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
     assert "## D-051 —" in decisions
     assert "## D-052 —" in decisions
     assert "## D-053 —" in decisions
-    assert "## 0.14.144 — 20 September 2026" in changelog
+    assert "## 0.14.145 — 20 September 2026" in changelog
     assert RUNTIME_CHECKPOINT in changelog
     assert str(RUNTIME_CI_RUN) in changelog
