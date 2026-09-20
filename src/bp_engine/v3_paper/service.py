@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -298,14 +298,14 @@ def build_v3_paper_prediction(
     *,
     market: V3PaperMarket,
     bundle: Mapping[str, Any],
-    recorded_at: datetime,
+    clock: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> LivePrediction:
-    recorded = _utc(recorded_at, "recorded_at")
-    if recorded < market.scheduled_at:
-        raise V3PaperIntegrityError("prediction cannot be recorded before scheduled time")
-    if recorded > market.scheduled_at + timedelta(seconds=10):
-        raise V3PaperIntegrityError("prediction exceeded 10-second prospective deadline")
-    if recorded >= market.market_end_at:
+    started = _utc(clock(), "clock")
+    if started < market.scheduled_at:
+        raise V3PaperIntegrityError("prediction cannot run before scheduled time")
+    if started > market.scheduled_at + timedelta(seconds=10):
+        raise V3PaperIntegrityError("prediction started after prospective deadline")
+    if started >= market.market_end_at:
         raise V3PaperIntegrityError("prediction reached market end")
 
     feature = build_v3_feature(
@@ -318,7 +318,7 @@ def build_v3_paper_prediction(
             market_end_at=market.market_end_at,
         ),
         market.scheduled_at,
-        generated_at=recorded,
+        generated_at=started,
     )
     predictors = _predictors(feature)
     raw_probability, calibrated_probability = _model_probability(predictors, bundle)
@@ -330,6 +330,12 @@ def build_v3_paper_prediction(
         slippage_buffer=FROZEN_SLIPPAGE_BUFFER,
         min_edge=FROZEN_MIN_EDGE,
     )
+
+    recorded = _utc(clock(), "clock")
+    if recorded > market.scheduled_at + timedelta(seconds=10):
+        raise V3PaperIntegrityError("prediction exceeded 10-second prospective deadline")
+    if recorded >= market.market_end_at:
+        raise V3PaperIntegrityError("prediction reached market end")
 
     calibration_fit = dict(bundle["calibration_fit"])
     edge_config = {
@@ -522,11 +528,13 @@ class V3PaperPredictionService:
         activation: V3PaperActivation,
         model_bundle: Mapping[str, Any],
         repository: LivePredictionRepository | None = None,
+        clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._engine = engine
         self._activation = activation
         self._model_bundle = model_bundle
         self._repository = repository or LivePredictionRepository()
+        self._clock = clock
 
     def run_once(self, *, now: datetime) -> V3PaperCycleStats:
         current = _utc(now, "now")
@@ -539,21 +547,22 @@ class V3PaperPredictionService:
 
         created = existing = missed = failed = 0
         for market in due:
-            recorded = datetime.now(UTC)
-            if recorded > market.scheduled_at + timedelta(seconds=10):
-                missed += 1
-                continue
             try:
                 with self._engine.begin() as connection:
                     prediction = build_v3_paper_prediction(
                         connection,
                         market=market,
                         bundle=self._model_bundle,
-                        recorded_at=recorded,
+                        clock=self._clock,
                     )
                     result = self._repository.store(connection, prediction)
                 created += int(result.created)
                 existing += int(result.existing)
+            except V3PaperIntegrityError as exc:
+                if "deadline" in str(exc) or "market end" in str(exc):
+                    missed += 1
+                else:
+                    failed += 1
             except Exception:
                 failed += 1
 
