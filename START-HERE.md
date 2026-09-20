@@ -79,21 +79,21 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
-The V3 successor `v3-gate-b-preregister-v2` is complete. Its one-shot 144-market final holdout is permanently consumed and recorded at `docs/evidence/phase-14-v3-gate-b-successor-final-holdout-20260920.json`. Frozen-policy holdout results were 84.03% overall accuracy, 20 trades, and +1.654224 one-share-equivalent P&L after assumed costs. No model refit, automatic promotion, activation, or live trading occurred.
+The separately versioned V4 regime-aware feature implementation is complete. Production **feature materialization and collection** is now explicitly authorized, limited to research-mode immutable V4 feature rows.
 
-The active research direction is now the separately versioned **V4 regime-aware BTC challenger**:
+The prospective V4 collection boundary is frozen at the V4 merge time:
 
 ```text
-feature_version  = core-v4-regime-aware
-dataset_version  = supervised-core-v4-regime-aware-v1
-label_version    = official-outcome-v1
-horizon_seconds  = 300
-feature_offsets  = 60, 120, 180, 240
-regime_lookbacks = 5m, 15m, 60m
+feature_version = core-v4-regime-aware
+epoch_start     = 2026-09-20T12:40:53Z
+horizon         = 300 seconds
+offsets         = 60, 120, 180, 240 seconds
 ```
 
-V4 keeps the BTC-native forecast boundary and adds market-regime context from Coinbase spot, Bybit spot, and Bybit linear. Bull/bear/sideways-mixed classification is deterministic and fixed before future V4 outcomes are used.
+Only completed 5-minute markets with `market_start_at >= 2026-09-20T12:40:53Z` may be materialized by this collector. Existing immutable rows are preserved on rerun.
 
-The consumed V3 final holdout is **motivation only**. It must not be used to choose V4 thresholds, disable DOWN trades, fit/calibrate models, select hyperparameters, or claim V4 out-of-sample performance.
+The production collector must run from an isolated versioned runtime under `/var/lib/bp/runtime`, reuse the existing production Python environment, leave the deployed `/opt/bp` checkout unchanged, and not restart `bp-recorder.service`.
 
-Complete and verify the repository V4 implementation first. Then stop at the separate production V4 feature materialization/collection authorization boundary. No production mutation, V4 model training, paper activation, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero money is authorized by this step.
+This authorization does **not** include V4 model training, calibration, threshold search, Gate B planning, final-holdout construction/access, paper activation, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero money limits.
+
+After exact-head CI passes, install and verify the isolated V4 collector, enable its one-minute timer, write durable rollout evidence, and stop at the next research boundary.
