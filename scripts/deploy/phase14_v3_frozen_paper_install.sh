@@ -140,6 +140,7 @@ MODEL_TARGET="$STATE_ROOT/frozen-model.joblib"
 ACTIVATION_TARGET="$STATE_ROOT/activation.json"
 ACTIVATION_TMP=""
 ACTIVATION_SOURCE=""
+RECOVERY_JSON=""
 ACTIVATION_INSTALLED=0
 SERVICES_STARTED=0
 OLD_LINK_TARGET=""
@@ -216,7 +217,8 @@ rollback() {
 
 cleanup() {
   rm -rf "$STAGING_DIR"
-  rm -f "${ACTIVATION_TMP:-}" "${LEGACY_BACKUP:-}"     "${PREDICTOR_BACKUP:-}" "${V3_EXEC_BACKUP:-}"
+  rm -f "${ACTIVATION_TMP:-}" "${RECOVERY_JSON:-}" \
+    "${LEGACY_BACKUP:-}" "${PREDICTOR_BACKUP:-}" "${V3_EXEC_BACKUP:-}"
 }
 
 on_exit() {
