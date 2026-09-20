@@ -42,7 +42,7 @@ def test_installer_is_exact_model_exact_head_and_recorder_safe() -> None:
         "exact 40-character verified main SHA",
         "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7",
         "prefetched_remote_branch_head_mismatch",
-        "activation_manifest_already_exists",
+        "existing_activation_manifest_mismatch",
         "paper_starting_cash_usd",
         '"5.00"',
         "real_money_usd",
