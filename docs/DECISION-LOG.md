@@ -474,7 +474,7 @@ Continue prospective collection. Before fitting any V4 model, freeze a new V4 Ga
 **Date:** 20 Sep 2026
 **Status:** Active
 
-Authorize prospective paper trading of the exact frozen V3 Gate B successor only. The model artifact, calibration, 240-second timing, 0.075 minimum cost-adjusted edge, 0.07 fee coefficient, 0.01 slippage buffer, and 10-second selected-book freshness contract are immutable.
+Authorize prospective paper trading of the exact frozen V3 Gate B successor only. The model artifact SHA-256 is `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`. The model artifact, calibration, 240-second timing, 0.075 minimum cost-adjusted edge, 0.07 fee coefficient, 0.01 slippage buffer, and 10-second selected-book freshness contract are immutable.
 
 The paper signal version is `v3-frozen-paper-v1`; the paper execution version is `paper-execution-v3-frozen-v1`. The activation timestamp becomes a hard lower bound on market start time. No historical or already-started market may be added to the V3 paper epoch.
 
