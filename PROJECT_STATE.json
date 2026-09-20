@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.144",
-  "updated_at": "2026-09-20T15:40:16Z",
+  "source_of_truth_version": "0.14.145",
+  "updated_at": "2026-09-20T17:45:00Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -3504,7 +3504,7 @@
     "live_trading_enabled": false,
     "max_trade_size_usd": 0,
     "max_daily_loss_usd": 0,
-    "next_action": "Continue prospective V4 feature collection. Do not fit or tune V4 yet. Review regime coverage only after enough fresh bull, bear, and sideways/mixed markets accumulate, then preregister the next V4 Gate B selection/evaluation plan before any model fitting.",
+    "next_action": "Continue the existing prospective V4 collector unchanged. Accumulate enough fresh regime-diverse data, then freeze a comprehensive V4 Gate B preregistration that addresses all documented V3 weaknesses: regime dependence, UP/DOWN asymmetry, selected-model simplicity/feature underuse, calibration, timing, trade coverage versus quality, drawdown/loss robustness, and execution availability. Do not use consumed V3 holdout numbers to tune V4.",
     "production_materialization_authorized": true,
     "production_collection_authorized": true,
     "prospective_collection_epoch_start": "2026-09-20T12:40:53Z",
@@ -3534,7 +3534,45 @@
     "initial_unknown_market_count": 0,
     "initial_future_cutoff_violation_count": 0,
     "initial_polymarket_predictor_key_count": 0,
-    "initial_regime_invariant_violation_count": 0
+    "initial_regime_invariant_violation_count": 0,
+    "successor_scope": "COMPREHENSIVE_V3_WEAKNESS_REMEDIATION",
+    "regime_awareness_is_only_one_objective": true,
+    "weakness_remediation_objectives": [
+      "regime_dependence",
+      "trade_side_asymmetry",
+      "selected_model_simplicity_and_feature_underuse",
+      "calibration_robustness",
+      "timing_dependence",
+      "trade_quality_vs_coverage",
+      "loss_drawdown_robustness",
+      "execution_availability"
+    ],
+    "future_gate_b_required_model_families": [
+      "simple_baseline",
+      "multivariate_btc_native",
+      "nonlinear_btc_native"
+    ],
+    "future_gate_b_required_offsets_seconds": [
+      60,
+      120,
+      180,
+      240
+    ],
+    "future_gate_b_required_slices": [
+      "overall",
+      "bull",
+      "bear",
+      "sideways_mixed",
+      "up",
+      "down",
+      "regime_by_side"
+    ],
+    "future_gate_b_must_report_coverage_frontier": true,
+    "future_gate_b_must_report_drawdown_and_losing_streak": true,
+    "future_gate_b_must_separate_execution_from_forecast_quality": true,
+    "v3_holdout_may_only_motivate_hypotheses": true,
+    "v3_holdout_numeric_tuning_allowed": false,
+    "current_collector_change_required": false
   },
   "phase_14_v3_frozen_paper": {
     "status": "PRODUCTION_PASS_ACTIVE",
