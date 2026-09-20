@@ -9,6 +9,7 @@ import pytest
 from bp_engine.features.hashing import canonical_hash
 from bp_engine.modeling.models import SupervisedRow
 from bp_engine.v3_research import cli as cli_module
+from bp_engine.v3_research import plan as plan_module
 from bp_engine.v3_research import policy as policy_module
 from bp_engine.v3_research import service as service_module
 from bp_engine.v3_research.config import FROZEN_V3_GATE_B_CONFIG
@@ -37,7 +38,7 @@ def _plan() -> dict[str, object]:
         "market_count": 15,
         "readiness_input_sha256": "a" * 64,
         "config_sha256": canonical_hash(
-            service_module.v3_gate_b_config_payload(FROZEN_V3_GATE_B_CONFIG)
+            plan_module._config_payload(FROZEN_V3_GATE_B_CONFIG)
         ),
         "feature_manifest_sha256": "b" * 64,
         "folds": folds,
