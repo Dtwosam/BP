@@ -33,7 +33,7 @@ No field above may be selected again from paper results.
 
 ## Prospective signal contract
 
-The production activation timestamp is a hard lower bound on market start time. The paper predictor must not create a V3 paper signal for a market that started before activation.
+The production activation timestamp is a hard lower bound on market start time. The paper predictor must not create a V3 paper signal for a market that started before activation. Pre-activation markets are permanently outside this paper epoch.
 
 At market start + 240 seconds:
 
