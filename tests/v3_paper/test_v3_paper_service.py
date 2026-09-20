@@ -279,7 +279,9 @@ def test_v3_prediction_uses_btc_for_forecast_and_polymarket_only_for_execution()
 def test_future_state_after_scheduled_time_cannot_change_prediction() -> None:
     engine = _engine()
     condition_id = "future-safe"
-    fixed_clock = lambda: SCHEDULED + timedelta(seconds=1)
+    def fixed_clock() -> datetime:
+        return SCHEDULED + timedelta(seconds=1)
+
     with engine.begin() as connection:
         _insert_market(connection, condition_id=condition_id)
         _seed_btc(connection)
