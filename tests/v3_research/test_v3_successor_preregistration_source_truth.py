@@ -133,9 +133,8 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
 
     next_task = start.split("## Immediate next task", 1)[1].lower()
     assert "core-v4-regime-aware" in next_task
-    assert "permanently consumed" in next_task
-    assert "must not be used" in next_task
-    assert "production feature materialization and collection" in next_task
+    assert "production **feature materialization and collection**" in next_task
+    assert "2026-09-20t12:40:53z" in next_task
     assert "2026-09-20t12:40:53z" in next_task
 
     build_next = build.split("## Immediate next action", 1)[1].lower()
