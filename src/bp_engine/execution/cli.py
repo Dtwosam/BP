@@ -63,6 +63,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="process one bounded paper execution pass",
     )
     parser.add_argument("--prediction-version", default=None)
+    parser.add_argument(
+        "--exclude-prediction-version",
+        action="append",
+        default=[],
+    )
     parser.add_argument("--execution-version", default=PAPER_EXECUTION_VERSION)
     parser.add_argument(
         "--poll-seconds",
@@ -85,6 +90,7 @@ def main(argv: list[str] | None = None) -> int:
     config = PaperExecutionConfig(
         execution_version=args.execution_version,
         prediction_version=args.prediction_version,
+        excluded_prediction_versions=tuple(args.exclude_prediction_version),
     )
     service = PaperExecutionService(engine=engine, config=config)
 
