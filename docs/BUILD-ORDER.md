@@ -618,19 +618,17 @@ Current order: (1) do not rerun this rollout and preserve its evidence; (2) buil
 
 ## Immediate next action
 
-The V4 regime-aware repository foundation is complete and production feature materialization/collection is explicitly authorized.
+The V4 regime-aware forward collector is production PASS and active in RESEARCH mode.
 
-Implement and verify the isolated `core-v4-regime-aware` forward collector, then roll it out under these fixed constraints:
+Continue immutable prospective `core-v4-regime-aware` collection from the fixed boundary `2026-09-20T12:40:53Z`. The accepted first cycle materialized 36 rows across 9 completed 5-minute markets: 2 bull, 0 bear, 7 sideways/mixed, 0 unknown.
 
-1. prospective collection starts at `2026-09-20T12:40:53Z`;
-2. only completed 5-minute markets starting on/after that boundary are eligible;
-3. exactly four immutable feature offsets are allowed: 60, 120, 180, 240 seconds;
-4. reruns preserve existing feature rows and fill only missing keys;
-5. coverage must report zero future-cutoff violations and zero Polymarket predictor keys;
-6. regime classification must remain outcome-blind and report bull/bear/sideways-mixed/unknown coverage;
-7. production safety remains RESEARCH, live-disabled, and zero-money;
-8. the collector must use an isolated versioned runtime and leave `/opt/bp` unchanged;
-9. the recorder must not be restarted;
-10. no labels, training, calibration, threshold search, trading policy, or activation path may be invoked.
+Do not train a V4 model yet. The immediate objective is coverage, not optimization.
 
-After the collector is installed, the initial cycle passes, the one-minute timer is enabled, and durable evidence is written, stop. The next boundary is prospective V4 coverage review and future preregistration—not model fitting.
+Before V4 model fitting:
+
+1. accumulate enough fresh prospective markets to include meaningful bull, bear, and sideways/mixed coverage;
+2. verify zero future-cutoff, predictor-leakage, and regime-invariant violations continue;
+3. freeze a new V4 Gate B preregistration describing the exact cohort, candidate models, features, folds, calibration, policy search space, and untouched final holdout;
+4. only then permit model fitting under a separate research authorization.
+
+No paper activation, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero money is authorized.

@@ -456,3 +456,16 @@ To avoid an unrelated production application deployment, the collector runs from
 
 This authorization does not include labels as selection inputs, V4 model training, calibration, edge/threshold search, Gate B planning, final-holdout construction/access, paper activation, automatic promotion, Phase 15, geographic bypass, live trading, or nonzero money.
 
+## D-051 — Accept V4 forward collector production rollout and remain in collection mode
+
+**Date:** 20 Sep 2026
+**Status:** Active
+
+The authorized isolated V4 production feature collector passed rollout acceptance on candidate `36b02d0687194173ab5d3862d3b88c6c90607574`. It runs from the isolated versioned runtime under `/var/lib/bp/runtime`, while the deployed `/opt/bp` checkout remains unchanged at `7c3af78da1922a0e5187c24b799951130cc98887`.
+
+The first accepted cycle processed 9 completed prospective 5-minute markets and inserted 36 immutable V4 feature rows. Regime coverage was 2 bull, 0 bear, 7 sideways/mixed, and 0 unknown. Future-cutoff violations, Polymarket predictor leakage, and regime-invariant violations were all zero. Training, policy selection, automatic promotion, model activation, and recorder restart were all false.
+
+Because the first cycle contains no bear markets and only nine total markets, this evidence establishes collector correctness and initial coverage only. It is not model-performance evidence and must not be used to tune V4.
+
+Continue prospective collection. Before fitting any V4 model, freeze a new V4 Gate B preregistration over a fresh cohort with meaningful regime coverage and an untouched final holdout.
+
