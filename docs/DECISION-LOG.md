@@ -469,3 +469,18 @@ Because the first cycle contains no bear markets and only nine total markets, th
 
 Continue prospective collection. Before fitting any V4 model, freeze a new V4 Gate B preregistration over a fresh cohort with meaningful regime coverage and an untouched final holdout.
 
+## D-052 — Activate frozen V3 prospectively in isolated zero-real-money paper mode
+
+**Date:** 20 Sep 2026
+**Status:** Active
+
+Authorize prospective paper trading of the exact frozen V3 Gate B successor only. The model artifact SHA-256 is `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`. The model artifact, calibration, 240-second timing, 0.075 minimum cost-adjusted edge, 0.07 fee coefficient, 0.01 slippage buffer, and 10-second selected-book freshness contract are immutable.
+
+The paper signal version is `v3-frozen-paper-v1`; the paper execution version is `paper-execution-v3-frozen-v1`. The activation timestamp becomes a hard lower bound on market start time. No historical or already-started market may be added to the V3 paper epoch.
+
+The existing Phase 12 paper broker is preserved for legacy research signals but must explicitly exclude the V3 prediction version. V3 paper orders, virtual cash, fills, and settlements are isolated by their execution version.
+
+Use the established $100 virtual starting cash and $5 virtual target notional with 250ms simulated latency and 2s order TTL. These values are simulated execution settings only. Real-money limits remain zero.
+
+V4 collection continues. This decision does not authorize V3 tuning, V4 training, automatic promotion, Phase 15, wallet/signing access, real Polymarket order submission, geographic bypass, or live trading.
+

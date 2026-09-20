@@ -27,7 +27,7 @@ def _text(path: str) -> str:
 def test_project_state_records_gate_a_pass_and_frozen_v3_preregistration() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
 
-    assert state["source_of_truth_version"] == "0.14.142"
+    assert state["source_of_truth_version"] == "0.14.143"
     v3 = state["phase_14_btc_first_v3_gate_a"]
     assert (
         v3["implementation_status"]
@@ -172,8 +172,9 @@ def test_canonical_docs_record_gate_a_pass_and_preregistration_handoff() -> None
         assert PREREGISTRATION_DESIGN_COMMIT in content
         assert EPOCH_END in content
 
-    assert "core-v4-regime-aware" in build
-    assert "do not train a v4 model yet" in build.lower()
+    assert "frozen V3" in build
+    assert "paper" in build.lower()
+    assert "v4 feature collection continues" in build.lower()
 
     current_master = master.split(
         "## Phase 14 BTC-first V3 Gate A production acceptance + Gate B preregistration",
@@ -199,20 +200,19 @@ def test_canonical_docs_record_gate_a_pass_and_preregistration_handoff() -> None
     assert PREREGISTRATION_IMPLEMENTATION_HEAD in entry
 
 
-def test_current_handoff_points_to_v4_prospective_collection() -> None:
+def test_current_handoff_points_to_frozen_v3_paper_activation() -> None:
     start = _text("START-HERE.md")
     build = _text("docs/BUILD-ORDER.md")
 
     start_next = start.split("## Immediate next task", 1)[1].lower()
-    assert "production pass and active" in start_next
-    assert "core-v4-regime-aware" in start_next
-    assert "prospective collection only" in start_next
-    assert "do not fit" in start_next
+    assert "frozen v3" in start_next
+    assert "paper trading with zero real money" in start_next
+    assert "v3-frozen-paper-v1" in start_next
+    assert "paper-execution-v3-frozen-v1" in start_next
+    assert "real_money" in start_next and "$0.00" in start_next
 
     build_next = build.split("## Immediate next action", 1)[1].lower()
-    assert "core-v4-regime-aware" in build_next
-    assert "2 bull" in build_next
-    assert "0 bear" in build_next
-    assert "7 sideways/mixed" in build_next
-    assert "do not train a v4 model yet" in build_next
-    assert "preregistration" in build_next
+    assert "exact frozen v3" in build_next
+    assert "0.075" in build_next
+    assert "no wallet" in build_next
+    assert "do not restart the recorder" in build_next

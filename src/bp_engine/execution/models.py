@@ -8,6 +8,13 @@ from decimal import Decimal
 from typing import Any
 
 PAPER_EXECUTION_VERSION = "paper-execution-v1"
+V3_FROZEN_PAPER_EXECUTION_VERSION = "paper-execution-v3-frozen-v1"
+_ALLOWED_EXECUTION_VERSIONS = frozenset(
+    {
+        PAPER_EXECUTION_VERSION,
+        V3_FROZEN_PAPER_EXECUTION_VERSION,
+    }
+)
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _PROVENANCE_SHA256_RE = re.compile(r"^(?:sha256:)?[0-9a-f]{64}$")
 _TERMINAL_STATUSES = frozenset(
@@ -93,6 +100,8 @@ class PaperExecutionConfig:
     order_ttl_ms: int = 2000
     share_precision: int = 6
     execution_version: str = PAPER_EXECUTION_VERSION
+    prediction_version: str | None = None
+    excluded_prediction_versions: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -111,8 +120,23 @@ class PaperExecutionConfig:
             raise ValueError("order_ttl_ms must be greater than zero")
         if not 0 <= self.share_precision <= 18:
             raise ValueError("share_precision must be within [0, 18]")
-        if self.execution_version != PAPER_EXECUTION_VERSION:
-            raise ValueError(f"execution_version must be {PAPER_EXECUTION_VERSION}")
+        if self.execution_version not in _ALLOWED_EXECUTION_VERSIONS:
+            raise ValueError("unsupported paper execution_version")
+        if self.prediction_version is not None:
+            object.__setattr__(
+                self,
+                "prediction_version",
+                _text(self.prediction_version, name="prediction_version"),
+            )
+        excluded = tuple(
+            _text(value, name="excluded_prediction_version")
+            for value in self.excluded_prediction_versions
+        )
+        if len(excluded) != len(set(excluded)):
+            raise ValueError("excluded_prediction_versions must be unique")
+        if self.prediction_version is not None and self.prediction_version in excluded:
+            raise ValueError("prediction_version cannot also be excluded")
+        object.__setattr__(self, "excluded_prediction_versions", excluded)
 
     def as_mapping(self) -> dict[str, object]:
         return {
@@ -187,8 +211,8 @@ class ExecutionOrderRequest:
         object.__setattr__(self, "submitted_at", submitted_at)
         object.__setattr__(self, "arrival_at", arrival_at)
         object.__setattr__(self, "expires_at", expires_at)
-        if self.execution_version != PAPER_EXECUTION_VERSION:
-            raise ValueError(f"execution_version must be {PAPER_EXECUTION_VERSION}")
+        if self.execution_version not in _ALLOWED_EXECUTION_VERSIONS:
+            raise ValueError("unsupported paper execution_version")
         object.__setattr__(
             self,
             "execution_config_sha256",
@@ -292,8 +316,8 @@ class PaperOrderRecord:
             "semantic_sha256",
             _sha256(self.semantic_sha256, name="semantic_sha256"),
         )
-        if self.execution_version != PAPER_EXECUTION_VERSION:
-            raise ValueError(f"execution_version must be {PAPER_EXECUTION_VERSION}")
+        if self.execution_version not in _ALLOWED_EXECUTION_VERSIONS:
+            raise ValueError("unsupported paper execution_version")
         object.__setattr__(self, "selected_side", _side(self.selected_side))
         object.__setattr__(
             self,

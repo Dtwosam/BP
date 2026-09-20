@@ -289,8 +289,34 @@ class PaperExecutionService:
         self._book_reader = book_reader or PolymarketBookReplayReader()
 
     def _current_cash(self, connection: Connection) -> Decimal:
-        fill_costs = connection.execute(select(schema.paper_fills.c.total_cost)).scalars().all()
-        payouts = connection.execute(select(schema.paper_settlements.c.payout)).scalars().all()
+        fill_costs = connection.execute(
+            select(schema.paper_fills.c.total_cost)
+            .select_from(
+                schema.paper_fills.join(
+                    schema.paper_orders,
+                    schema.paper_fills.c.paper_order_id
+                    == schema.paper_orders.c.paper_order_id,
+                )
+            )
+            .where(
+                schema.paper_orders.c.execution_version
+                == self._config.execution_version
+            )
+        ).scalars().all()
+        payouts = connection.execute(
+            select(schema.paper_settlements.c.payout)
+            .select_from(
+                schema.paper_settlements.join(
+                    schema.paper_orders,
+                    schema.paper_settlements.c.paper_order_id
+                    == schema.paper_orders.c.paper_order_id,
+                )
+            )
+            .where(
+                schema.paper_orders.c.execution_version
+                == self._config.execution_version
+            )
+        ).scalars().all()
         return derive_paper_cash(
             starting_cash=self._config.starting_cash_usd,
             fill_costs=(_decimal(value) for value in fill_costs),
@@ -424,7 +450,15 @@ class PaperExecutionService:
         created = 0
         existing = 0
         orders = connection.execute(
-            select(schema.paper_orders).order_by(schema.paper_orders.c.submitted_at, schema.paper_orders.c.id)
+            select(schema.paper_orders)
+            .where(
+                schema.paper_orders.c.execution_version
+                == self._config.execution_version
+            )
+            .order_by(
+                schema.paper_orders.c.submitted_at,
+                schema.paper_orders.c.id,
+            )
         ).mappings().all()
         for order in orders:
             terminal = connection.execute(
@@ -493,10 +527,25 @@ class PaperExecutionService:
             existing_settlements += first_existing
             available_cash = self._current_cash(connection)
 
+            prediction_query = select(schema.live_predictions).where(
+                schema.live_predictions.c.recorded_at <= current_now
+            )
+            if self._config.prediction_version is not None:
+                prediction_query = prediction_query.where(
+                    schema.live_predictions.c.prediction_version
+                    == self._config.prediction_version
+                )
+            if self._config.excluded_prediction_versions:
+                prediction_query = prediction_query.where(
+                    schema.live_predictions.c.prediction_version.not_in(
+                        self._config.excluded_prediction_versions
+                    )
+                )
             predictions = connection.execute(
-                select(schema.live_predictions)
-                .where(schema.live_predictions.c.recorded_at <= current_now)
-                .order_by(schema.live_predictions.c.recorded_at, schema.live_predictions.c.id)
+                prediction_query.order_by(
+                    schema.live_predictions.c.recorded_at,
+                    schema.live_predictions.c.id,
+                )
             ).mappings().all()
             for prediction in predictions:
                 examined += 1
