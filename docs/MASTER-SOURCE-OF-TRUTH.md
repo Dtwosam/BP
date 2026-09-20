@@ -1484,3 +1484,11 @@ Production installation is intentionally isolated from the deployed application 
 
 This authorization ends after successful initial materialization, timer enablement, and durable rollout evidence. Model fitting and V4 Gate B preregistration remain later, separate research boundaries.
 
+## Phase 14 V4 forward collector production PASS — 20 September 2026
+
+The isolated `core-v4-regime-aware` forward collector is now production PASS and active in RESEARCH mode. Candidate head `36b02d0687194173ab5d3862d3b88c6c90607574` runs from `/var/lib/bp/runtime/v4-forward-36b02d0687194173ab5d3862d3b88c6c90607574`; the deployed `/opt/bp` checkout remained unchanged at `7c3af78da1922a0e5187c24b799951130cc98887`, and the recorder was not restarted.
+
+The accepted first cycle at `2026-09-20T13:35:12.316825Z` processed 9 prospective completed 5-minute markets and inserted 36 immutable feature rows. Regime coverage was 2 bull, 0 bear, 7 sideways/mixed, and 0 unknown. Future-cutoff violations, Polymarket predictor keys, and regime-invariant violations were all zero. No training, policy selection, automatic promotion, activation, live trading, or nonzero money occurred.
+
+This is collection/operational evidence only. It does not establish V4 forecast quality or profitability. Continue prospective collection until the cohort has meaningful bull, bear, and sideways/mixed representation. Before any model fitting, freeze a new V4 Gate B preregistration and untouched final holdout.
+
