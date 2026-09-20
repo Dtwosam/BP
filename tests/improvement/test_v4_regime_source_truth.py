@@ -20,7 +20,7 @@ def _text(path: str) -> str:
 
 def test_v4_source_truth_is_separate_and_prospective() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.143"
+    assert state["source_of_truth_version"] == "0.14.144"
 
     v4 = state["phase_14_v4_regime_aware"]
     assert v4["feature_version"] == "core-v4-regime-aware"
@@ -109,13 +109,14 @@ def test_v4_collection_remains_active_during_frozen_v3_paper_activation() -> Non
 
     assert "core-v4-regime-aware" in master
     assert "V4 regime-aware" in start
-    assert "V4 feature collection continues" in build
-    assert "V4 regime-aware prospective feature collection continues" in master
+    assert "V4 regime-aware feature collection" in build
+    assert "V4 regime-aware collection continues in parallel" in master
 
     assert "## D-049 —" in decisions
     assert "## D-050 —" in decisions
     assert "## D-051 —" in decisions
     assert "## D-052 —" in decisions
-    assert "## 0.14.143 — 20 September 2026" in changelog
+    assert "## D-053 —" in decisions
+    assert "## 0.14.144 — 20 September 2026" in changelog
     assert "automatic promotion" in master.lower()
     assert "live trading" in master.lower()
