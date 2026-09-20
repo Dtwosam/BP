@@ -301,6 +301,8 @@ payload = {
 }
 Path(path).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 PY
+  chown bp:bp "$ACTIVATION_TMP"
+  chmod 0440 "$ACTIVATION_TMP"
   ACTIVATION_SOURCE="$ACTIVATION_TMP"
 fi
 
