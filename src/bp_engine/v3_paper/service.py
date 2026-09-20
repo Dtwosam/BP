@@ -15,6 +15,7 @@ from sqlalchemy import Connection, Engine, select
 
 from bp_engine.calibration.calibrators import apply_calibration
 from bp_engine.calibration.models import CalibrationFit
+from bp_engine.features.calculators import book_state
 from bp_engine.features.hashing import canonical_hash
 from bp_engine.features.sources import FeatureSourceReader, StateObservation
 from bp_engine.features.v3_models import V3FeatureTarget
@@ -220,21 +221,6 @@ def _model_probability(
     return raw, calibrated
 
 
-def _quote(observation: StateObservation | None, key: str) -> float | None:
-    if observation is None:
-        return None
-    raw = observation.state.get(key)
-    if raw is None:
-        return None
-    try:
-        value = float(raw)
-    except (TypeError, ValueError):
-        return None
-    if not math.isfinite(value) or not 0.0 <= value <= 1.0:
-        return None
-    return value
-
-
 def _book_descriptor(observation: StateObservation | None) -> dict[str, Any] | None:
     if observation is None:
         return None
@@ -270,14 +256,20 @@ def _books(
         asset_id=market.down_token_id,
         feature_at=market.scheduled_at,
     )
+    up_group = book_state("pm_up", up)
+    down_group = book_state("pm_down", down)
+    up_missing = bool(up_group.missing_flags["pm_up_book_missing"])
+    up_stale = bool(up_group.missing_flags["pm_up_book_stale"])
+    down_missing = bool(down_group.missing_flags["pm_down_book_missing"])
+    down_stale = bool(down_group.missing_flags["pm_down_book_stale"])
     return (
         V3ExecutionBook(
-            up_best_bid=_quote(up, "best_bid"),
-            up_best_ask=_quote(up, "best_ask"),
-            up_fresh=bool(up is not None and up.fresh),
-            down_best_bid=_quote(down, "best_bid"),
-            down_best_ask=_quote(down, "best_ask"),
-            down_fresh=bool(down is not None and down.fresh),
+            up_best_bid=up_group.values["pm_up_best_bid"],
+            up_best_ask=up_group.values["pm_up_best_ask"],
+            up_fresh=not up_missing and not up_stale,
+            down_best_bid=down_group.values["pm_down_best_bid"],
+            down_best_ask=down_group.values["pm_down_best_ask"],
+            down_fresh=not down_missing and not down_stale,
         ),
         up,
         down,
