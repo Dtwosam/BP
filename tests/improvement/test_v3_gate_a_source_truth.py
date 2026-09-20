@@ -27,7 +27,7 @@ def _text(path: str) -> str:
 def test_project_state_records_gate_a_pass_and_frozen_v3_preregistration() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
 
-    assert state["source_of_truth_version"] == "0.14.140"
+    assert state["source_of_truth_version"] == "0.14.141"
     v3 = state["phase_14_btc_first_v3_gate_a"]
     assert (
         v3["implementation_status"]
@@ -173,7 +173,7 @@ def test_canonical_docs_record_gate_a_pass_and_preregistration_handoff() -> None
         assert EPOCH_END in content
 
     assert "core-v4-regime-aware" in build
-    assert "production v4 materialization" in build.lower()
+    assert "production feature materialization/collection" in build.lower()
 
     current_master = master.split(
         "## Phase 14 BTC-first V3 Gate A production acceptance + Gate B preregistration",
@@ -206,14 +206,16 @@ def test_current_handoff_points_to_v4_regime_research() -> None:
     start_next = start.split("## Immediate next task", 1)[1].lower()
     assert "core-v4-regime-aware" in start_next
     assert "regime" in start_next
-    assert "v3 final holdout" in start_next
-    assert "must not be used" in start_next
-    assert "production v4 feature materialization" in start_next
+    assert "v4 regime-aware feature implementation is complete" in start_next
+    assert "production **feature materialization and collection**" in start_next
+    assert "2026-09-20t12:40:53z" in start_next
+    assert "leave the deployed `/opt/bp` checkout unchanged" in start_next
 
     build_next = build.split("## Immediate next action", 1)[1].lower()
     assert "core-v4-regime-aware" in build_next
-    assert "5m/15m/60m" in build_next
+    assert "2026-09-20t12:40:53z" in build_next
     assert "bull" in build_next
     assert "bear" in build_next
     assert "sideways" in build_next
-    assert "stop before production v4 materialization" in build_next
+    assert "leave `/opt/bp` unchanged" in build_next
+    assert "recorder must not be restarted" in build_next

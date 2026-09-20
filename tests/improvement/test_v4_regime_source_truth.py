@@ -20,7 +20,7 @@ def _text(path: str) -> str:
 
 def test_v4_source_truth_is_separate_and_prospective() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.140"
+    assert state["source_of_truth_version"] == "0.14.141"
 
     v4 = state["phase_14_v4_regime_aware"]
     assert v4["feature_version"] == "core-v4-regime-aware"
@@ -33,7 +33,13 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert v4["polymarket_predictor_keys_allowed"] is False
     assert v4["v3_final_holdout_tuning_allowed"] is False
     assert v4["prospective_gate_b_required"] is True
+    assert v4["production_materialization_authorized"] is True
+    assert v4["production_collection_authorized"] is True
+    assert v4["prospective_collection_epoch_start"] == "2026-09-20T12:40:53Z"
+    assert v4["collector_preserves_deployed_checkout"] is True
+    assert v4["collector_restarts_recorder"] is False
     assert v4["production_materialization_performed"] is False
+    assert v4["production_collector_enabled"] is False
     assert v4["training_performed"] is False
     assert v4["final_holdout_access_performed"] is False
     assert v4["paper_activation_performed"] is False
@@ -92,12 +98,17 @@ def test_canonical_handoff_points_to_v4_and_keeps_activation_blocked() -> None:
 
     for content in (start, build, master, decisions, changelog):
         assert "core-v4-regime-aware" in content
+
+    for content in (master, decisions, changelog):
         assert "V3" in content or "v3" in content
         assert "holdout" in content.lower()
 
     assert "## D-049 —" in decisions
-    assert "## 0.14.140 — 20 September 2026" in changelog
-    assert "production v4 feature materialization" in start.lower()
-    assert "stop before production v4 materialization" in build.lower()
+    assert "## D-050 —" in decisions
+    assert "## 0.14.141 — 20 September 2026" in changelog
+    assert "feature materialization and collection" in start.lower()
+    assert "2026-09-20t12:40:53z" in start.lower()
+    assert "2026-09-20t12:40:53z" in build.lower()
+    assert "leave `/opt/bp` unchanged" in build.lower()
     assert "automatic promotion" in master.lower()
     assert "live trading" in master.lower()

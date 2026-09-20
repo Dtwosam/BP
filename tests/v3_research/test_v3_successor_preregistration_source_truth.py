@@ -94,7 +94,7 @@ def test_successor_spec_and_plan_preserve_frozen_search_contract() -> None:
 
 def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.140"
+    assert state["source_of_truth_version"] == "0.14.141"
     successor = state["phase_14_btc_first_v3_gate_a"]["successor_gate_b"]
     assert successor["research_plan_version"] == SUCCESSOR_PLAN_VERSION
     assert successor["epoch_start"] == SUCCESSOR_EPOCH_START
@@ -133,19 +133,20 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
 
     next_task = start.split("## Immediate next task", 1)[1].lower()
     assert "core-v4-regime-aware" in next_task
-    assert "permanently consumed" in next_task
-    assert "must not be used" in next_task
-    assert "production v4 feature materialization" in next_task
+    assert "production **feature materialization and collection**" in next_task
+    assert "2026-09-20t12:40:53z" in next_task
+    assert "2026-09-20t12:40:53z" in next_task
 
     build_next = build.split("## Immediate next action", 1)[1].lower()
     assert "core-v4-regime-aware" in build_next
     assert "bull" in build_next
     assert "bear" in build_next
     assert "sideways" in build_next
-    assert "stop before production v4 materialization" in build_next
+    assert "2026-09-20t12:40:53z" in build_next
 
     assert "## D-048 —" in decisions
     assert "## D-049 —" in decisions
-    assert "## 0.14.140 — 20 September 2026" in changelog
+    assert "## D-050 —" in decisions
+    assert "## 0.14.141 — 20 September 2026" in changelog
     assert RUNTIME_CHECKPOINT in changelog
     assert str(RUNTIME_CI_RUN) in changelog

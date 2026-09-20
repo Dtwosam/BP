@@ -1,0 +1,11 @@
+[Unit]
+Description=Schedule BP V4 regime-aware forward coverage collection
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Persistent=true
+Unit=bp-v4-forward-coverage.service
+
+[Install]
+WantedBy=timers.target

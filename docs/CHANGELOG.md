@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.141 — 20 September 2026
+
+- Authorized the production research-only `core-v4-regime-aware` feature collector with a prospective boundary fixed at `2026-09-20T12:40:53Z`. Only completed 5-minute markets starting on/after that boundary may be materialized.
+- Added outcome-blind V4 forward discovery, preserve-existing immutable generation, coverage diagnostics for bull/bear/sideways-mixed/unknown regimes, and fail-closed guards for future cutoffs, Polymarket predictor leakage, invalid regime state, training, policy selection, and automatic promotion.
+- Added a hardened one-minute systemd collector package that runs from an isolated versioned runtime under `/var/lib/bp/runtime`, reuses the existing production Python environment, leaves `/opt/bp` unchanged, and does not restart the recorder.
+- Production rollout is authorized but not yet performed at this repository checkpoint. V4 model training, Gate B planning/holdout work, activation, live trading, and nonzero money remain unauthorized.
+
 ## 0.14.140 — 20 September 2026
 
 - Recorded the completed one-shot V3 Gate B successor final holdout: 144 markets, 84.03% overall accuracy, log loss 0.35419, Brier 0.10944, 20 frozen-policy trades, and +1.654224 one-share-equivalent P&L after the frozen assumed costs. The holdout is permanently consumed; model refit, automatic promotion, and activation remained false.

@@ -1472,3 +1472,15 @@ The active next research challenger is separately versioned `core-v4-regime-awar
 
 Repository implementation does not authorize production V4 materialization, deployment/restart, model training, paper activation, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero money limits.
 
+## Phase 14 V4 prospective feature collection authorization — 20 September 2026
+
+Production materialization and continuous collection of `core-v4-regime-aware` features is authorized as a research-only data operation.
+
+The immutable prospective collection boundary is `2026-09-20T12:40:53Z`. The collector may only process completed 5-minute markets whose `market_start_at` is at or after that timestamp, and it may only create/preserve the fixed 60/120/180/240-second V4 feature rows.
+
+The collector is outcome-blind: it does not read outcome labels for feature construction or selection, does not train/calibrate a model, does not choose thresholds or policy, and does not access any future final holdout. Polymarket prices/books remain excluded from the V4 forecast features.
+
+Production installation is intentionally isolated from the deployed application checkout. The V4 collector must run from a versioned runtime under `/var/lib/bp/runtime` using the existing production Python environment, leave `/opt/bp` unchanged, and not restart the recorder. Safety remains RESEARCH mode with live trading disabled and both money limits at zero.
+
+This authorization ends after successful initial materialization, timer enablement, and durable rollout evidence. Model fitting and V4 Gate B preregistration remain later, separate research boundaries.
+

@@ -443,3 +443,16 @@ The consumed V3 holdout may motivate this hypothesis but may not select V4 thres
 
 This decision authorizes repository research implementation only. Production feature materialization, model training, paper activation, automatic promotion, Phase 15, live trading, geographic bypass, and nonzero money remain separately controlled boundaries.
 
+## D-050 — Authorize isolated prospective V4 production feature collection
+
+**Date:** 20 Sep 2026
+**Status:** Active
+
+Authorize production materialization and continuous collection of immutable `core-v4-regime-aware` feature rows only. The prospective collection boundary is fixed at `2026-09-20T12:40:53Z`, the merge time of the V4 regime-aware foundation. Only completed 5-minute markets with `market_start_at >= 2026-09-20T12:40:53Z` are eligible.
+
+The collector must remain outcome-blind and research-only. It may discover completed eligible markets, materialize the four fixed 60/120/180/240-second V4 feature rows using Coinbase/Bybit compact state, preserve existing immutable rows, report regime/source coverage, and write operational evidence. It must fail closed on future source cutoffs, Polymarket predictor keys, invalid regime one-hot state, or non-research/nonzero-money configuration.
+
+To avoid an unrelated production application deployment, the collector runs from a separate versioned runtime under `/var/lib/bp/runtime` using the existing `/opt/bp/.venv`. It must leave the deployed `/opt/bp` checkout unchanged and must not restart the recorder.
+
+This authorization does not include labels as selection inputs, V4 model training, calibration, edge/threshold search, Gate B planning, final-holdout construction/access, paper activation, automatic promotion, Phase 15, geographic bypass, live trading, or nonzero money.
+
