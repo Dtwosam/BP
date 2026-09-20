@@ -109,12 +109,14 @@ Overall profitability is not sufficient if a regime-specific failure is being hi
 
 ## 8. Current implementation boundary
 
-The repository implementation may add immutable V4 feature models, BTC state source reads, 5m/15m/60m regime calculations, deterministic regime one-hot fields, leakage and immutability tests, and regime-sliced probability reporting.
+The immutable V4 feature implementation and isolated prospective production collector are active in RESEARCH mode. The collector materializes the frozen V4 predictor set and regime context only; it does not fit models, read a V4 final holdout, select a policy, activate a V4 model, or trade money.
 
-This step does not authorize production database writes, production feature materialization, deployment or service restart, model training, threshold search, final-holdout construction or access, paper activation, automatic promotion, live trading, or nonzero money limits.
+The current collector must remain unchanged while the prospective cohort accumulates unless a separately versioned successor feature contract is explicitly designed before collecting a new cohort. Do not silently add predictors to the active V4 feature version.
 
 ## 9. Next controlled step
 
-After repository CI passes, the next controlled boundary is production V4 feature collection/materialization in RESEARCH mode.
+Continue prospective V4 collection until the cohort has enough regime and side diversity for meaningful ordinary model selection.
 
-That production mutation requires separate authorization. Once sufficient prospective V4 coverage exists, freeze a new V4 Gate B preregistration before reading selection outcomes.
+Before reading V4 labels for selection, freeze a new comprehensive V4 Gate B preregistration that covers every weakness-remediation objective in Section 5. That preregistration must define the model/calibration/timing/policy candidate ladders, chronological folds, coverage and risk reporting, side/regime slices, and an untouched final holdout.
+
+Model fitting, threshold selection, final-holdout access, V4 paper activation, automatic promotion, live trading, and nonzero money remain separate controlled boundaries.
