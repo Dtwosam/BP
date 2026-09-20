@@ -126,7 +126,6 @@ class PaperExecutionConfig:
     def as_mapping(self) -> dict[str, object]:
         return {
             "execution_version": self.execution_version,
-            "prediction_version": self.prediction_version,
             "starting_cash_usd": str(self.starting_cash_usd),
             "target_notional_usd": str(self.target_notional_usd),
             "latency_ms": self.latency_ms,
