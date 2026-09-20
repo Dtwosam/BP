@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.140",
-  "updated_at": "2026-09-20T12:09:32Z",
+  "source_of_truth_version": "0.14.141",
+  "updated_at": "2026-09-20T12:40:53Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -3433,7 +3433,7 @@
     }
   },
   "phase_14_v4_regime_aware": {
-    "status": "REPOSITORY_IMPLEMENTATION_IN_PROGRESS",
+    "status": "FORWARD_COLLECTOR_IMPLEMENTED_PRODUCTION_MATERIALIZATION_AUTHORIZED_PENDING",
     "feature_version": "core-v4-regime-aware",
     "dataset_version": "supervised-core-v4-regime-aware-v1",
     "label_version": "official-outcome-v1",
@@ -3472,6 +3472,15 @@
     "live_trading_enabled": false,
     "max_trade_size_usd": 0,
     "max_daily_loss_usd": 0,
-    "next_action": "Complete repository CI. Then stop at the separate production V4 feature materialization/collection authorization boundary."
+    "next_action": "After exact-head CI passes, install the isolated V4 forward collector on production, materialize only completed 5m markets with start_at >= 2026-09-20T12:40:53Z, enable its one-minute timer, record evidence, then stop before V4 model training or Gate B planning.",
+    "production_materialization_authorized": true,
+    "production_collection_authorized": true,
+    "prospective_collection_epoch_start": "2026-09-20T12:40:53Z",
+    "collector_service_unit": "bp-v4-forward-coverage.service",
+    "collector_timer_unit": "bp-v4-forward-coverage.timer",
+    "collector_runtime_symlink": "/var/lib/bp/runtime/v4-forward-current",
+    "collector_preserves_deployed_checkout": true,
+    "collector_restarts_recorder": false,
+    "production_collector_enabled": false
   }
 }
