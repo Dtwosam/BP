@@ -92,9 +92,9 @@ def test_successor_spec_and_plan_preserve_frozen_search_contract() -> None:
         assert "no final-holdout access" in content.lower()
 
 
-def test_successor_runtime_source_truth_is_implemented_and_waiting_for_epoch_close() -> None:
+def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.139"
+    assert state["source_of_truth_version"] == "0.14.140"
     successor = state["phase_14_btc_first_v3_gate_a"]["successor_gate_b"]
     assert successor["research_plan_version"] == SUCCESSOR_PLAN_VERSION
     assert successor["epoch_start"] == SUCCESSOR_EPOCH_START
@@ -110,10 +110,15 @@ def test_successor_runtime_source_truth_is_implemented_and_waiting_for_epoch_clo
     assert successor["retired_v1_epoch_data_policy"] == "engineering_coverage_only"
     assert successor["posthoc_diagnosis_reconstruction_allowed"] is False
     assert successor["consumed_v2_historical_exclusion_count"] == 48
-    assert successor["readiness_performed"] is False
-    assert successor["plan_performed"] is False
-    assert successor["training_performed"] is False
-    assert successor["final_holdout_access_performed"] is False
+    assert successor["readiness_performed"] is True
+    assert successor["plan_performed"] is True
+    assert successor["training_performed"] is True
+    assert successor["final_holdout_access_performed"] is True
+    assert successor["final_holdout_evaluated"] is True
+    assert successor["final_holdout_market_count"] == 144
+    assert successor["final_holdout_reusable"] is False
+    assert successor["automatic_promotion"] is False
+    assert successor["activation_performed"] is False
 
     start = _text("START-HERE.md")
     build = _text("docs/BUILD-ORDER.md")
@@ -121,31 +126,26 @@ def test_successor_runtime_source_truth_is_implemented_and_waiting_for_epoch_clo
     decisions = _text("docs/DECISION-LOG.md")
     changelog = _text("docs/CHANGELOG.md")
 
-    for content in (start, build, master, decisions, changelog):
+    for content in (start, master, decisions, changelog):
         assert SUCCESSOR_PLAN_VERSION in content
         assert SUCCESSOR_EPOCH_START in content
         assert SUCCESSOR_EPOCH_END in content
-        assert "engineering" in content.lower()
-        assert "48" in content
 
     next_task = start.split("## Immediate next task", 1)[1].lower()
-    assert "continue" in next_task or "collect" in next_task
-    assert "2026-09-19t13:45:00z" in next_task
-    assert "outcome-blind" in next_task
-    assert "readiness" in next_task
-    assert "feature-only" in next_task
-    assert "no model fitting" in next_task
-    assert "no final-holdout access" in next_task
-    assert "implement `v3-gate-b-preregister-v2`" not in next_task
+    assert "core-v4-regime-aware" in next_task
+    assert "permanently consumed" in next_task
+    assert "must not be used" in next_task
+    assert "production v4 feature materialization" in next_task
 
     build_next = build.split("## Immediate next action", 1)[1].lower()
-    assert SUCCESSOR_PLAN_VERSION in build_next
-    assert "2026-09-19t13:45:00z" in build_next
-    assert "readiness" in build_next
-    assert "feature-only" in build_next
-    assert "model fitting" in build_next
+    assert "core-v4-regime-aware" in build_next
+    assert "bull" in build_next
+    assert "bear" in build_next
+    assert "sideways" in build_next
+    assert "stop before production v4 materialization" in build_next
 
     assert "## D-048 —" in decisions
-    assert "## 0.14.139 — 14 September 2026" in changelog
+    assert "## D-049 —" in decisions
+    assert "## 0.14.140 — 20 September 2026" in changelog
     assert RUNTIME_CHECKPOINT in changelog
     assert str(RUNTIME_CI_RUN) in changelog

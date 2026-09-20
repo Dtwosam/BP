@@ -79,8 +79,21 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
-**Continue prospective `core-v3-btc-native` source/feature collection for `v3-gate-b-preregister-v2` across the frozen epoch `[2026-09-16T13:45:00Z, 2026-09-19T13:45:00Z)`.** Do not run successor readiness or planning before the epoch end `2026-09-19T13:45:00Z`.
+The V3 successor `v3-gate-b-preregister-v2` is complete. Its one-shot 144-market final holdout is permanently consumed and recorded at `docs/evidence/phase-14-v3-gate-b-successor-final-holdout-20260920.json`. Frozen-policy holdout results were 84.03% overall accuracy, 20 trades, and +1.654224 one-share-equivalent P&L after assumed costs. No model refit, automatic promotion, activation, or live trading occurred.
 
-After the epoch closes, run only the outcome-blind, read-only successor readiness check. If and only if readiness is true, write the frozen feature-only plan with the existing no-clobber output contract. Stop there for a separate authorization/review boundary.
+The active research direction is now the separately versioned **V4 regime-aware BTC challenger**:
 
-No model fitting. No final-holdout access or evaluation. No model activation, paper activation, production deployment/restart/migration, geographic bypass, live trading, automatic promotion, or money-limit change is authorized by this step.
+```text
+feature_version  = core-v4-regime-aware
+dataset_version  = supervised-core-v4-regime-aware-v1
+label_version    = official-outcome-v1
+horizon_seconds  = 300
+feature_offsets  = 60, 120, 180, 240
+regime_lookbacks = 5m, 15m, 60m
+```
+
+V4 keeps the BTC-native forecast boundary and adds market-regime context from Coinbase spot, Bybit spot, and Bybit linear. Bull/bear/sideways-mixed classification is deterministic and fixed before future V4 outcomes are used.
+
+The consumed V3 final holdout is **motivation only**. It must not be used to choose V4 thresholds, disable DOWN trades, fit/calibrate models, select hyperparameters, or claim V4 out-of-sample performance.
+
+Complete and verify the repository V4 implementation first. Then stop at the separate production V4 feature materialization/collection authorization boundary. No production mutation, V4 model training, paper activation, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero money is authorized by this step.

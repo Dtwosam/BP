@@ -1461,3 +1461,14 @@ The active successor is `v3-gate-b-preregister-v2` with dataset `supervised-core
 The repository runtime implementation checkpoint is `659d9524fe8bfeba182b7cf7c8d9b664280f7562` and exact-head CI `34841954823` passed. The runtime exposes outcome-blind readiness and feature-only planning without historical manifest arguments, keeps PostgreSQL transactions read-only, and preserves exclusive/no-clobber plan output. This is repository engineering only: successor readiness has not been run, the feature-only plan has not been written against the prospective epoch, and no outcome/label inspection, model fitting, final-holdout access/evaluation, model/paper activation, production deployment/restart/migration, live trading, automatic promotion, geographic bypass, or money-limit change occurred.
 
 **Current order:** continue prospective `core-v3-btc-native` source/feature collection through `2026-09-19T13:45:00Z`. Do not run successor readiness or planning before epoch close. After close, run only the read-only outcome-blind readiness check; if and only if ready, write the fixed five-fold feature-only no-clobber plan, then stop for a separate review/authorization boundary. No model fitting and no final-holdout access are authorized.
+
+# Current research amendment — 20 September 2026
+
+The one-shot `v3-gate-b-preregister-v2` final holdout has been evaluated and is permanently consumed. Frozen V3 selection remained `single_feature_btc_logistic` at 240 seconds with a 0.075 minimum cost-adjusted edge. The 144-market holdout recorded 84.03% overall accuracy, log loss 0.35419, Brier 0.10944, 20 trades, and +1.654224 one-share-equivalent P&L after the frozen assumed costs. No refit, automatic promotion, model activation, or live trading occurred.
+
+The trade ledger was asymmetric by side: UP trades were 7/10 with +2.636956 P&L, while DOWN trades were 2/10 with -0.982732 P&L. This is diagnostic evidence only. It does not prove a permanent UP advantage, and the consumed V3 holdout must never be used to tune a DOWN veto, confidence threshold, edge threshold, regime rule, model, or calibration.
+
+The active next research challenger is separately versioned `core-v4-regime-aware`. It remains BTC-native and adds timestamp-coherent 5m, 15m, and 60m market context from Coinbase spot, Bybit spot, and Bybit linear. V4 must report model and economic performance separately across bull, bear, sideways/mixed, and unknown regimes. Any V4 Gate B model/policy selection must use a new prospective cohort frozen after the V4 implementation/collection boundary.
+
+Repository implementation does not authorize production V4 materialization, deployment/restart, model training, paper activation, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero money limits.
+

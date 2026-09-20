@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.140 — 20 September 2026
+
+- Recorded the completed one-shot V3 Gate B successor final holdout: 144 markets, 84.03% overall accuracy, log loss 0.35419, Brier 0.10944, 20 frozen-policy trades, and +1.654224 one-share-equivalent P&L after the frozen assumed costs. The holdout is permanently consumed; model refit, automatic promotion, and activation remained false.
+- Recorded the trade-level diagnostic summary: 9 wins / 11 losses overall, with UP trades 7/10 and +2.636956 P&L versus DOWN trades 2/10 and -0.982732 P&L. This asymmetry is motivation only and may not be used to tune the consumed V3 holdout.
+- Added the separately versioned `core-v4-regime-aware` research challenger. It preserves BTC-only forecasting and adds 5m/15m/60m Coinbase/Bybit trend context, deterministic bull/bear/sideways-mixed regime features, leakage protection, and mandatory regime-sliced model reporting.
+- V4 uses a fresh prospective evaluation boundary. No production V4 materialization, training, threshold search, paper activation, automatic promotion, live trading, or nonzero money is authorized by this repository checkpoint.
+
 ## 0.14.139 — 14 September 2026
 
 - Retired historical `v3-gate-b-preregister-v1` for model/policy selection because the exact diagnosis cohort identities were not durably frozen before its `2026-09-13T13:45:00Z` to `2026-09-16T13:45:00Z` epoch. That interval is engineering/source-availability/leakage/coverage evidence only; post-hoc diagnosis reconstruction is forbidden. The 48 consumed-V2 historical final-holdout condition IDs remain permanently non-reusable evidence.
