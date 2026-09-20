@@ -495,3 +495,14 @@ Continue prospective paper observation only. V3 paper results may be measured an
 
 Live-order access, Phase 15, geographic bypass, live trading, and nonzero real-money limits remain unauthorized.
 
+## D-054 — Treat V4 as comprehensive V3 weakness remediation, not regime-only
+
+**Date:** 20 Sep 2026
+**Status:** Active
+
+V4 is the full successor research program for the documented weaknesses exposed by V3. Regime robustness remains important, but it is only one required objective.
+
+The next V4 Gate B preregistration must cover regime dependence, UP/DOWN asymmetry, model simplicity/feature underuse, calibration robustness, decision timing, trade-quality versus coverage, drawdown/loss robustness, and execution availability. Candidate models must include a simple baseline, multivariate BTC-native approaches, and at least one nonlinear BTC-native challenger using only the frozen V4 predictor set.
+
+The existing prospective V4 collector remains unchanged. The consumed V3 holdout may motivate these questions but may not provide numeric tuning values or acceptance thresholds.
+

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.145 — 20 September 2026
+
+- Expanded V4 from a regime-focused challenger into the comprehensive successor program for all documented V3 weaknesses.
+- Required future V4 Gate B work to address regime dependence, UP/DOWN asymmetry, selected-model simplicity/feature underuse, calibration robustness, decision timing, trade-quality versus coverage, drawdown/loss robustness, and execution availability.
+- Required the future V4 model ladder to include a simple baseline, multivariate BTC-native models, and at least one nonlinear BTC-native challenger, with all four 60/120/180/240-second offsets reconsidered on fresh data.
+- Kept the current V4 collector unchanged because it already carries the broader BTC-native predictor family plus 5m/15m/60m context; no mid-epoch feature-version mutation was introduced.
+- Preserved the anti-overfit boundary: V3's consumed holdout is motivation only and cannot provide V4 numeric tuning values, side filters, thresholds, or acceptance criteria.
+
 ## 0.14.144 — 20 September 2026
 
 - Frozen V3 paper trading passed production activation at `2026-09-20T15:39:45Z` on candidate `9d52eb753355365848a637ffa6663928664bf770`.

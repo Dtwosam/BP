@@ -622,6 +622,8 @@ Frozen V3 paper trading is production PASS and active from `2026-09-20T15:39:45Z
 
 Continue two prospective processes in parallel:
 
+V4 is the comprehensive V3 successor. Before any V4 fitting, its Gate B preregistration must explicitly cover every documented V3 weakness: regime dependence, side asymmetry, model simplicity/feature underuse, calibration, timing, trade-quality versus coverage, drawdown/loss robustness, and execution availability. Do not change the current V4 collector mid-epoch.
+
 1. frozen V3 paper observation using `v3-frozen-paper-v1` + `paper-execution-v3-frozen-v1`;
 2. V4 regime-aware feature collection using `core-v4-regime-aware`.
 

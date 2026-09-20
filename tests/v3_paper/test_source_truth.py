@@ -13,7 +13,7 @@ def _text(path: str) -> str:
 
 def test_v3_paper_source_truth_freezes_exact_authorized_strategy() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.144"
+    assert state["source_of_truth_version"] == "0.14.145"
 
     paper = state["phase_14_v3_frozen_paper"]
     assert paper["status"] == "PRODUCTION_PASS_ACTIVE"
@@ -107,7 +107,7 @@ def test_canonical_docs_keep_paper_and_live_money_boundaries_explicit() -> None:
 
     assert "## D-052 —" in decisions
     assert "## D-053 —" in decisions
-    assert "## 0.14.144 — 20 September 2026" in changelog
+    assert "## 0.14.145 — 20 September 2026" in changelog
     assert "pre-activation" in spec.lower()
     assert "polymarket state is execution-only" in spec.lower()
     assert "v4 regime-aware collection continues in parallel" in master.lower()

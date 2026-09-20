@@ -1523,3 +1523,24 @@ This paper epoch is observational evidence only. It must not be used to refit V3
 Durable repository evidence: `docs/evidence/phase-14-v3-frozen-paper-production-20260920.json`.
 Host evidence: `/var/lib/bp/evidence/phase14-v3-frozen-paper-9d52eb753355-20260920T154016Z.json`.
 
+## Phase 14 V4 comprehensive successor scope — 20 September 2026
+
+V4 is not limited to regime classification. It is the comprehensive successor research program for the weaknesses documented in V3.
+
+The future V4 Gate B preregistration must explicitly address:
+
+- robustness across bull, bear, and sideways/mixed regimes;
+- UP/DOWN side asymmetry;
+- V3's selection of a single-feature logistic model despite a broader BTC-native feature set;
+- calibration robustness overall and by regime/side;
+- whether 60/120/180/240-second decision timing should remain or change;
+- the trade-quality versus coverage frontier rather than maximizing trade count;
+- loss, drawdown, losing-streak, and profit-factor robustness;
+- execution availability/freshness separately from forecast quality.
+
+The existing V4 collector remains unchanged because it already preserves the V3 BTC-native short-horizon family and adds 5m/15m/60m context and regime fields. Changing the collector mid-epoch is not required for these objectives and would weaken comparability.
+
+When enough prospective V4 data exists, freeze a new Gate B plan before using labels for selection. That plan must preregister a simple baseline, multivariate BTC-native models, at least one nonlinear BTC-native challenger, calibration candidates, all four timing offsets, economic-policy candidates, regime/side reporting, chronological folds, and a fresh untouched final holdout.
+
+The consumed V3 final holdout is motivation only. Its numerical results must not be used to set V4 thresholds, side filters, model hyperparameters, calibration values, or acceptance criteria.
+
