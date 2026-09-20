@@ -13,6 +13,7 @@ import joblib
 from sqlalchemy import Connection, Engine, create_engine
 
 from bp_engine.config import Settings
+from bp_engine.v3_research.holdout import evaluate_v3_gate_b_holdout
 from bp_engine.v3_research.plan import build_v3_gate_b_plan
 from bp_engine.v3_research.readiness import assess_v3_gate_b_readiness
 from bp_engine.v3_research.service import (
@@ -75,6 +76,28 @@ def _write_model_exclusive(path: str, prepared: V3PreparedSelection) -> dict[str
     }
 
 
+def _load_model_verified(
+    path: str,
+    selection: dict[str, Any],
+) -> tuple[dict[str, Any], str, int]:
+    destination = Path(path)
+    payload = destination.read_bytes()
+    digest = hashlib.sha256(payload).hexdigest()
+    artifact = selection.get("model_artifact")
+    if not isinstance(artifact, dict):
+        raise ValueError("selection model artifact is missing")
+    if artifact.get("sha256") != digest:
+        raise ValueError("model artifact SHA-256 mismatch")
+    if artifact.get("file_name") != destination.name:
+        raise ValueError("model artifact filename mismatch")
+    if int(artifact.get("size_bytes", -1)) != len(payload):
+        raise ValueError("model artifact size mismatch")
+    value = joblib.load(destination)
+    if not isinstance(value, dict):
+        raise ValueError("model artifact must contain a mapping")
+    return value, digest, len(payload)
+
+
 def _read_json(path: str) -> dict[str, Any]:
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
@@ -125,6 +148,15 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--plan", required=True)
     prepare.add_argument("--output", required=True)
     prepare.add_argument("--model-output", required=True)
+
+    holdout = subparsers.add_parser(
+        "evaluate-holdout",
+        help="evaluate the already-frozen V3 policy on the final holdout exactly once",
+    )
+    holdout.add_argument("--plan", required=True)
+    holdout.add_argument("--selection", required=True)
+    holdout.add_argument("--model", required=True)
+    holdout.add_argument("--output", required=True)
 
     return parser
 
@@ -178,6 +210,37 @@ def _prepare_summary(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _holdout_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    forecast = payload["holdout_evaluation"]["forecast_metrics"]
+    edge = payload["holdout_evaluation"]["edge_metrics"]
+    frozen = payload["frozen_selection"]
+    return {
+        "research_plan_version": payload["research_plan_version"],
+        "stage": payload["stage"],
+        "plan_sha256": payload["plan_sha256"],
+        "selection_sha256": payload["selection_sha256"],
+        "model_artifact_sha256": payload["model_artifact_sha256"],
+        "holdout_dataset_sha256": payload["holdout_dataset_sha256"],
+        "holdout_market_count": int(forecast["market_count"]),
+        "selected_forecast_candidate": frozen["candidate"],
+        "selected_offset_seconds": int(frozen["offset_seconds"]),
+        "selected_edge_policy": frozen["edge_policy"],
+        "selected_min_edge": frozen["min_edge"],
+        "holdout_log_loss": forecast["log_loss"],
+        "holdout_brier_score": forecast["brier_score"],
+        "holdout_accuracy": forecast["accuracy"],
+        "holdout_trade_count": int(edge["trade_count"]),
+        "holdout_realized_pnl_after_assumed_costs": edge[
+            "realized_pnl_after_assumed_costs"
+        ],
+        "holdout_evidence_sha256": payload["holdout_evidence_sha256"],
+        "holdout_labels_read": True,
+        "holdout_evaluated_once": True,
+        "automatic_promotion": False,
+        "activation_performed": False,
+    }
+
+
 def _run(args: argparse.Namespace) -> dict[str, Any]:
     settings = _settings(args)
     engine = create_engine(settings.database_url)
@@ -223,6 +286,44 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
         )
         _write_exclusive(args.output, payload)
         return _prepare_summary(payload)
+
+    if args.command == "evaluate-holdout":
+        plan_path = Path(args.plan)
+        selection_path = Path(args.selection)
+        model_path = Path(args.model)
+        output_path = Path(args.output)
+        evidence_dir = plan_path.parent
+        if (
+            selection_path.parent != evidence_dir
+            or model_path.parent != evidence_dir
+            or output_path.parent != evidence_dir
+        ):
+            raise ValueError("holdout artifacts must share the frozen evidence directory")
+        if output_path.name != "holdout.json":
+            raise ValueError("one-shot holdout output must be named holdout.json")
+        if output_path.exists():
+            raise FileExistsError(args.output)
+
+        plan = _read_json(args.plan)
+        selection = _read_json(args.selection)
+        model_bundle, model_sha256, model_size_bytes = _load_model_verified(
+            args.model,
+            selection,
+        )
+        payload = _read_only(
+            engine,
+            lambda connection: evaluate_v3_gate_b_holdout(
+                connection,
+                plan=plan,
+                selection=selection,
+                model_bundle=model_bundle,
+                model_sha256=model_sha256,
+                model_file_name=model_path.name,
+                model_size_bytes=model_size_bytes,
+            ),
+        )
+        _write_exclusive(args.output, payload)
+        return _holdout_summary(payload)
 
     raise ValueError(f"unsupported command: {args.command}")
 
