@@ -15,12 +15,14 @@ from bp_engine.v3_paper.service import (
 )
 
 _ZERO = Decimal("0")
+_MONEY_QUANTUM = Decimal("0.000000000001")
 
 
 def _decimal(value: object | None) -> Decimal:
     if value is None:
         return _ZERO
-    return value if isinstance(value, Decimal) else Decimal(str(value))
+    numeric = value if isinstance(value, Decimal) else Decimal(str(value))
+    return numeric.quantize(_MONEY_QUANTUM)
 
 
 def _utc(value: datetime) -> datetime:
