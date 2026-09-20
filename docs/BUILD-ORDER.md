@@ -618,19 +618,19 @@ Current order: (1) do not rerun this rollout and preserve its evidence; (2) buil
 
 ## Immediate next action
 
-V3 Gate B successor research is complete and its final holdout is permanently consumed. Preserve the frozen V3 plan, selection, model, holdout evidence, and all historical V1/V2 evidence unchanged.
+The V4 regime-aware repository foundation is complete and production feature materialization/collection is explicitly authorized.
 
-Build and verify the separately versioned `core-v4-regime-aware` research challenger described in `docs/superpowers/specs/2026-09-20-phase-14-v4-regime-aware-challenger.md`.
+Implement and verify the isolated `core-v4-regime-aware` forward collector, then roll it out under these fixed constraints:
 
-Repository scope for this step:
+1. prospective collection starts at `2026-09-20T12:40:53Z`;
+2. only completed 5-minute markets starting on/after that boundary are eligible;
+3. exactly four immutable feature offsets are allowed: 60, 120, 180, 240 seconds;
+4. reruns preserve existing feature rows and fill only missing keys;
+5. coverage must report zero future-cutoff violations and zero Polymarket predictor keys;
+6. regime classification must remain outcome-blind and report bull/bear/sideways-mixed/unknown coverage;
+7. production safety remains RESEARCH, live-disabled, and zero-money;
+8. the collector must use an isolated versioned runtime and leave `/opt/bp` unchanged;
+9. the recorder must not be restarted;
+10. no labels, training, calibration, threshold search, trading policy, or activation path may be invoked.
 
-1. preserve the existing 60/120/180/240-second 5-minute decision offsets;
-2. add BTC-native 5m/15m/60m trend context from Coinbase spot, Bybit spot, and Bybit linear;
-3. derive deterministic bull/bear/sideways-mixed/unknown regime state without outcome-tuned magnitude thresholds;
-4. preserve strict as-of/future-data leakage protection and immutable feature hashes;
-5. make regime-sliced probability reporting mandatory so overall results cannot hide a failing market condition;
-6. keep Polymarket price/book data out of the forecast predictors.
-
-After repository CI passes, **stop before production V4 materialization**. Production feature writes/collection are a separate authorization boundary. A future V4 Gate B must freeze a new prospective cohort and selection contract before outcomes are used for model/policy selection.
-
-No V4 model training, threshold tuning, paper activation, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero money is authorized here.
+After the collector is installed, the initial cycle passes, the one-minute timer is enabled, and durable evidence is written, stop. The next boundary is prospective V4 coverage review and future preregistration—not model fitting.
