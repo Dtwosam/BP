@@ -1,6 +1,4 @@
 from dataclasses import replace
-from decimal import Decimal
-
 from sqlalchemy import create_engine
 
 from bp_engine.execution.models import (
