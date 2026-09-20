@@ -335,6 +335,8 @@ RECORDER_PID_AFTER=$(systemctl show --property=MainPID --value bp-recorder.servi
 [[ "$(git_repo rev-parse HEAD)" == "$OLD_DEPLOYED_HEAD" ]]   || fail "deployed_checkout_changed"
 
 VERIFY_JSON=$(mktemp /var/tmp/bp-v3-paper-db-verify.XXXXXX.json)
+chown bp:bp "$VERIFY_JSON"
+chmod 0640 "$VERIFY_JSON"
 sudo -u bp env   PYTHONPATH="$VERSION_DIR/src"   "$REPO/.venv/bin/python" -   "$ENV_FILE" "$ACTIVATION_TARGET" "$VERIFY_JSON" <<'PY'
 import json
 import sys
