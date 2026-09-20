@@ -96,6 +96,7 @@ class PaperExecutionConfig:
     share_precision: int = 6
     execution_version: str = PAPER_EXECUTION_VERSION
     prediction_version: str | None = None
+    excluded_prediction_versions: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -122,6 +123,15 @@ class PaperExecutionConfig:
                 "prediction_version",
                 _text(self.prediction_version, name="prediction_version"),
             )
+        excluded = tuple(
+            _text(value, name="excluded_prediction_version")
+            for value in self.excluded_prediction_versions
+        )
+        if len(excluded) != len(set(excluded)):
+            raise ValueError("excluded_prediction_versions must be unique")
+        if self.prediction_version is not None and self.prediction_version in excluded:
+            raise ValueError("prediction_version cannot also be excluded")
+        object.__setattr__(self, "excluded_prediction_versions", excluded)
 
     def as_mapping(self) -> dict[str, object]:
         return {
