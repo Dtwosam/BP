@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import math
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass
@@ -45,6 +46,8 @@ FROZEN_SLIPPAGE_BUFFER = 0.01
 FROZEN_MAX_BOOK_AGE_SECONDS = 10
 FROZEN_HORIZON_SECONDS = 300
 OFFICIAL_LABEL_VERSION = "official-outcome-v1"
+
+LOGGER = logging.getLogger(__name__)
 
 
 class V3PaperIntegrityError(RuntimeError):
@@ -521,12 +524,14 @@ class V3PaperPredictionService:
         model_bundle: Mapping[str, Any],
         repository: LivePredictionRepository | None = None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        logger: logging.Logger | None = None,
     ) -> None:
         self._engine = engine
         self._activation = activation
         self._model_bundle = model_bundle
         self._repository = repository or LivePredictionRepository()
         self._clock = clock
+        self._logger = logger or LOGGER
 
     def run_once(self, *, now: datetime) -> V3PaperCycleStats:
         current = _utc(now, "now")
@@ -550,13 +555,50 @@ class V3PaperPredictionService:
                     result = self._repository.store(connection, prediction)
                 created += int(result.created)
                 existing += int(result.existing)
+                self._logger.info(
+                    "v3_paper_prediction_recorded",
+                    extra={
+                        "condition_id": market.condition_id,
+                        "prediction_id": prediction.prediction_id,
+                        "created": result.created,
+                        "existing": result.existing,
+                        "trade": prediction.trade,
+                        "selected_side": prediction.selected_side,
+                        "scheduled_at": market.scheduled_at.isoformat(),
+                        "recorded_at": prediction.recorded_at.isoformat(),
+                    },
+                )
             except V3PaperIntegrityError as exc:
                 if "deadline" in str(exc) or "market end" in str(exc):
                     missed += 1
+                    self._logger.warning(
+                        "v3_paper_prediction_missed",
+                        extra={
+                            "condition_id": market.condition_id,
+                            "scheduled_at": market.scheduled_at.isoformat(),
+                            "reason": str(exc),
+                        },
+                    )
                 else:
                     failed += 1
-            except Exception:
+                    self._logger.exception(
+                        "v3_paper_prediction_failed",
+                        extra={
+                            "condition_id": market.condition_id,
+                            "error_type": type(exc).__name__,
+                            "error": str(exc),
+                        },
+                    )
+            except Exception as exc:
                 failed += 1
+                self._logger.exception(
+                    "v3_paper_prediction_failed",
+                    extra={
+                        "condition_id": market.condition_id,
+                        "error_type": type(exc).__name__,
+                        "error": str(exc),
+                    },
+                )
 
         return V3PaperCycleStats(
             cycle_at=current,
