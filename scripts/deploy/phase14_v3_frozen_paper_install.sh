@@ -32,6 +32,10 @@ read_env() {
   awk -F= -v key="$key" '$1 == key {sub(/^[^=]*=/, ""); print; exit}' "$path"
 }
 
+git_repo() {
+  git -c safe.directory="$REPO" -C "$REPO" "$@"
+}
+
 require_zero_money() {
   local path mode live trade loss
   for path in "$ENV_FILE" "$SAFETY_FILE"; do
@@ -67,10 +71,10 @@ fi
 [[ -d "$REPO/.git" ]] || fail "deployed_repo_missing"
 [[ -x "$REPO/.venv/bin/python" ]] || fail "production_python_missing"
 
-OLD_DEPLOYED_HEAD=$(git -C "$REPO" rev-parse HEAD)
-REMOTE_HEAD=$(git -C "$REPO" rev-parse "refs/remotes/origin/$BRANCH")
+OLD_DEPLOYED_HEAD=$(git_repo rev-parse HEAD)
+REMOTE_HEAD=$(git_repo rev-parse "refs/remotes/origin/$BRANCH")
 [[ "$REMOTE_HEAD" == "$SHA" ]] || fail "prefetched_remote_branch_head_mismatch:$REMOTE_HEAD"
-git -C "$REPO" cat-file -e "$SHA^{commit}" || fail "candidate_commit_missing"
+git_repo cat-file -e "$SHA^{commit}" || fail "candidate_commit_missing"
 
 require_zero_money
 for unit in   bp-postgres.service   bp-recorder.service   "$LEGACY_UNIT"   bp-prospective-outcomes.service   bp-v4-forward-coverage.timer; do
@@ -85,18 +89,21 @@ LEGACY_PID_BEFORE=$(systemctl show --property=MainPID --value "$LEGACY_UNIT")
 required_paths=(
   src/bp_engine/v3_paper/service.py
   src/bp_engine/v3_paper/cli.py
+  src/bp_engine/v3_paper/report.py
+  src/bp_engine/v3_paper/report_cli.py
   src/bp_engine/execution/service.py
   src/bp_engine/execution/models.py
   src/bp_engine/execution/cli.py
   scripts/run_v3_frozen_paper.py
   scripts/run_v3_paper_execution.py
+  scripts/report_v3_paper.py
   scripts/run_v1_paper_execution_isolated.py
   deploy/bp-paper-execution-v1-isolated.service
   deploy/bp-v3-frozen-predictor.service
   deploy/bp-v3-paper-execution.service
 )
 for path in "${required_paths[@]}"; do
-  git -C "$REPO" cat-file -e "$SHA:$path" || fail "candidate_path_missing:$path"
+  git_repo cat-file -e "$SHA:$path" || fail "candidate_path_missing:$path"
 done
 
 find_model() {
@@ -132,6 +139,7 @@ STAGING_DIR="$RUNTIME_ROOT/.v3-paper-$SHA.staging"
 MODEL_TARGET="$STATE_ROOT/frozen-model.joblib"
 ACTIVATION_TARGET="$STATE_ROOT/activation.json"
 ACTIVATION_TMP=""
+ACTIVATION_SOURCE=""
 ACTIVATION_INSTALLED=0
 OLD_LINK_TARGET=""
 LEGACY_BACKUP=""
@@ -230,7 +238,7 @@ install -d -o root -g bp -m 0755 "$RUNTIME_ROOT"
 if [[ ! -d "$VERSION_DIR" ]]; then
   rm -rf "$STAGING_DIR"
   install -d -o root -g bp -m 0755 "$STAGING_DIR"
-  git -C "$REPO" archive "$SHA" | tar -x -C "$STAGING_DIR"
+  git_repo archive "$SHA" | tar -x -C "$STAGING_DIR"
   chown -R root:bp "$STAGING_DIR"
   chmod -R a-w "$STAGING_DIR"
   chmod -R a+rX "$STAGING_DIR"
@@ -243,6 +251,7 @@ install -o bp -g bp -m 0440 "$MODEL_SOURCE" "$MODEL_TARGET"
 [[ "$(sha256sum "$MODEL_TARGET" | awk '{print $1}')" == "$FROZEN_MODEL_SHA" ]]   || fail "installed_model_sha_mismatch"
 
 if [[ -f "$ACTIVATION_TARGET" ]]; then
+  ACTIVATION_SOURCE="$ACTIVATION_TARGET"
   ACTIVATED_AT=$(
     "$REPO/.venv/bin/python" - "$ACTIVATION_TARGET" "$SHA" "$FROZEN_MODEL_SHA" <<'PY'
 import json
@@ -292,14 +301,16 @@ payload = {
 }
 Path(path).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 PY
-  install -o bp -g bp -m 0440 "$ACTIVATION_TMP" "$ACTIVATION_TARGET"
+  ACTIVATION_SOURCE="$ACTIVATION_TMP"
 fi
 
-sudo -u bp env   MODE=research   LIVE_TRADING_ENABLED=false   MAX_TRADE_SIZE_USD=0   MAX_DAILY_LOSS_USD=0   PYTHONPATH="$VERSION_DIR/src"   "$REPO/.venv/bin/python"   "$VERSION_DIR/scripts/run_v3_frozen_paper.py"   --env-file "$ENV_FILE"   --model "$MODEL_TARGET"   --activation "$ACTIVATION_TMP"   --verify-model >/var/tmp/bp-v3-model-verify.json
+sudo -u bp env   MODE=research   LIVE_TRADING_ENABLED=false   MAX_TRADE_SIZE_USD=0   MAX_DAILY_LOSS_USD=0   PYTHONPATH="$VERSION_DIR/src"   "$REPO/.venv/bin/python"   "$VERSION_DIR/scripts/run_v3_frozen_paper.py"   --env-file "$ENV_FILE"   --model "$MODEL_TARGET"   --activation "$ACTIVATION_SOURCE"   --verify-model >/var/tmp/bp-v3-model-verify.json
 grep -q '"verified": true' /var/tmp/bp-v3-model-verify.json   || fail "frozen_model_runtime_verification_failed"
 
-install -o bp -g bp -m 0440 "$ACTIVATION_TMP" "$ACTIVATION_TARGET"
-ACTIVATION_INSTALLED=1
+if [[ "$ACTIVATION_SOURCE" == "$ACTIVATION_TMP" ]]; then
+  install -o bp -g bp -m 0440 "$ACTIVATION_TMP" "$ACTIVATION_TARGET"
+  ACTIVATION_INSTALLED=1
+fi
 
 install -o root -g root -m 0644   "$VERSION_DIR/deploy/bp-paper-execution-v1-isolated.service" "$LEGACY_PATH"
 install -o root -g root -m 0644   "$VERSION_DIR/deploy/bp-v3-frozen-predictor.service" "$PREDICTOR_PATH"
@@ -319,7 +330,7 @@ require_active bp-recorder.service
 require_zero_money
 RECORDER_PID_AFTER=$(systemctl show --property=MainPID --value bp-recorder.service)
 [[ "$RECORDER_PID_AFTER" == "$RECORDER_PID_BEFORE" ]] || fail "recorder_pid_changed"
-[[ "$(git -C "$REPO" rev-parse HEAD)" == "$OLD_DEPLOYED_HEAD" ]]   || fail "deployed_checkout_changed"
+[[ "$(git_repo rev-parse HEAD)" == "$OLD_DEPLOYED_HEAD" ]]   || fail "deployed_checkout_changed"
 
 VERIFY_JSON=$(mktemp /var/tmp/bp-v3-paper-db-verify.XXXXXX.json)
 sudo -u bp env   PYTHONPATH="$VERSION_DIR/src"   "$REPO/.venv/bin/python" -   "$ENV_FILE" "$ACTIVATION_TARGET" "$VERIFY_JSON" <<'PY'

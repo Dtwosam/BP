@@ -3,6 +3,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 INSTALLER = ROOT / "scripts" / "deploy" / "phase14_v3_frozen_paper_install.sh"
+CLOUDSHELL = (
+    ROOT
+    / "scripts"
+    / "deploy"
+    / "phase14_v3_frozen_paper_rollout_cloudshell.sh"
+)
 LEGACY = ROOT / "deploy" / "bp-paper-execution-v1-isolated.service"
 PREDICTOR = ROOT / "deploy" / "bp-v3-frozen-predictor.service"
 EXECUTOR = ROOT / "deploy" / "bp-v3-paper-execution.service"
@@ -42,7 +48,10 @@ def test_installer_is_exact_model_exact_head_and_recorder_safe() -> None:
         "exact 40-character verified main SHA",
         "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7",
         "prefetched_remote_branch_head_mismatch",
+        'git -c safe.directory="$REPO"',
         "existing_activation_manifest_mismatch",
+        "ACTIVATION_SOURCE",
+        '--activation "$ACTIVATION_SOURCE"',
         "paper_starting_cash_usd",
         '"5.00"',
         "real_money_usd",
@@ -96,3 +105,69 @@ def test_installer_has_clean_bash_syntax() -> None:
         check=False,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_installer_runtime_requires_v3_reporting_assets() -> None:
+    content = INSTALLER.read_text(encoding="utf-8")
+    for marker in (
+        "src/bp_engine/v3_paper/report.py",
+        "src/bp_engine/v3_paper/report_cli.py",
+        "scripts/report_v3_paper.py",
+    ):
+        assert marker in content
+
+
+def test_cloudshell_launcher_is_exact_head_safe_directory_and_checkout_preserving() -> None:
+    content = CLOUDSHELL.read_text(encoding="utf-8")
+    for marker in (
+        "PHASE14_V3_PAPER_HEAD",
+        "exact 40-character verified main SHA",
+        "project-4397f2c0-7098-4c1c-abb",
+        "us-east1-c",
+        "bp-recorder",
+        'git -c safe.directory="$REPO"',
+        'git_repo fetch --quiet origin "refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"',
+        '[[ "$REMOTE_HEAD" == "$SHA" ]]',
+        'git_repo show "$SHA:$INSTALLER_PATH"',
+        "phase14_v3_frozen_paper_install.sh",
+        'DEPLOYED_HEAD_BEFORE=$(git_repo rev-parse HEAD)',
+        'DEPLOYED_HEAD_AFTER=$(git_repo rev-parse HEAD)',
+        "deployed_checkout_changed_by_launcher",
+        "gcloud compute ssh",
+        "--project",
+        "--zone",
+        "sudo env",
+        "PHASE14_V3_PAPER_CLOUDSHELL=PASS",
+    ):
+        assert marker in content
+
+    lowered = content.lower()
+    for forbidden in (
+        "git checkout",
+        "git reset --hard",
+        "systemctl restart bp-recorder",
+        "live_trading_enabled=true",
+    ):
+        assert forbidden not in lowered
+
+
+def test_cloudshell_launcher_has_clean_bash_syntax() -> None:
+    result = subprocess.run(
+        ["bash", "-n", str(CLOUDSHELL)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_installer_verifies_new_activation_before_persisting_it() -> None:
+    content = INSTALLER.read_text(encoding="utf-8")
+    verify = content.index('--activation "$ACTIVATION_SOURCE"')
+    persist = content.index(
+        'install -o bp -g bp -m 0440 "$ACTIVATION_TMP" "$ACTIVATION_TARGET"'
+    )
+    assert verify < persist
+    assert 'ACTIVATION_SOURCE="$ACTIVATION_TARGET"' in content
+    assert 'ACTIVATION_SOURCE="$ACTIVATION_TMP"' in content
