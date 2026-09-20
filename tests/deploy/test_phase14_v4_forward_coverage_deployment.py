@@ -65,6 +65,9 @@ def test_v4_forward_installer_does_not_deploy_or_restart_main_runtime() -> None:
         "regime_invariant_violation_count",
         "training_run",
         "automatic_promotion",
+        "RECORDER_PID_BEFORE",
+        "RECORDER_PID_AFTER",
+        "recorder_pid_changed",
         "recorder_restarted",
         "PHASE14_V4_FORWARD_ROLLOUT=PASS",
     )
