@@ -2,7 +2,7 @@
 
 ## 0.14.143 — 20 September 2026
 
-- Recorded explicit authorization to activate the exact frozen V3 Gate B successor prospectively in paper mode with $0 real money.
+- Recorded explicit authorization to activate the exact frozen V3 Gate B successor prospectively in paper mode with $0 real money, preserving the frozen `min_edge=0.075` decision threshold.
 - Added a V3-only prospective signal runtime that verifies the exact frozen model SHA `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`, rebuilds the original BTC-native 240-second feature input, applies the frozen calibration/model, and uses Polymarket compact books only for the frozen executable-edge decision.
 - Added strict V3 paper identity isolation: `v3-frozen-paper-v1` predictions and `paper-execution-v3-frozen-v1` execution. The legacy paper worker excludes V3 but otherwise preserves existing research behavior and historical V1 execution-config hashes.
 - Added exact-head isolated deployment assets with a prospective activation timestamp, model-hash verification, research/live-disabled/zero-money guards, recorder-PID continuity, V4-collector continuity, rollback of unit changes, and no `/opt/bp` checkout mutation.
