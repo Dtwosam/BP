@@ -242,7 +242,7 @@ def test_validation_economic_gate_matches_frozen_five_fold_rule() -> None:
     assert service_module.validation_economics_pass(failing_trades) is False
 
 
-def test_prepare_cli_is_read_only_no_clobber_and_has_no_holdout_command(tmp_path: Path) -> None:
+def test_prepare_cli_is_read_only_no_clobber_with_separate_holdout_command(tmp_path: Path) -> None:
     parser = cli_module.build_parser()
     output = tmp_path / "selection.json"
     artifact = tmp_path / "model.joblib"
@@ -261,14 +261,14 @@ def test_prepare_cli_is_read_only_no_clobber_and_has_no_holdout_command(tmp_path
 
     help_text = parser.format_help().lower()
     assert "prepare" in help_text
-    assert "evaluate-holdout" not in help_text
+    assert "evaluate-holdout" in help_text
 
     cli_module._write_exclusive(str(output), {"ok": True})
     with pytest.raises(FileExistsError):
         cli_module._write_exclusive(str(output), {"ok": False})
 
 
-def test_v3_prepare_source_has_no_database_write_or_holdout_evaluator() -> None:
+def test_v3_prepare_source_has_no_database_write_or_automatic_activation() -> None:
     source = "\n".join(
         (
             inspect.getsource(service_module),
@@ -276,8 +276,6 @@ def test_v3_prepare_source_has_no_database_write_or_holdout_evaluator() -> None:
         )
     ).lower()
     for forbidden in (
-        "evaluate_gate_b_holdout",
-        "evaluate-holdout",
         "modeltrainingrunrepository",
         "backtestrunrepository",
         "calibrationedgerunrepository",
