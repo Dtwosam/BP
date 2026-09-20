@@ -70,6 +70,16 @@ def test_prepare_plan_verification_and_non_holdout_scope() -> None:
     with pytest.raises(service_module.V3PrepareIntegrityError, match="plan_sha256"):
         service_module.verify_v3_prepare_plan(changed)
 
+    tampered_config = dict(plan)
+    tampered_config["config_sha256"] = "0" * 64
+    tampered_config.pop("plan_sha256")
+    tampered_config["plan_sha256"] = canonical_hash(tampered_config)
+    with pytest.raises(
+        service_module.V3PrepareIntegrityError,
+        match="config_sha256 does not match frozen V3 config",
+    ):
+        service_module.verify_v3_prepare_plan(tampered_config)
+
 
 def test_v3_model_predictors_are_btc_only_and_missingness_explicit() -> None:
     row_predictors = {
