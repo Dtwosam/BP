@@ -79,28 +79,33 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
-The isolated V4 forward collector is now **production PASS and active** in research mode.
+Frozen V3 **paper trading with zero real money is explicitly authorized**.
 
-Initial accepted production cycle:
+The paper runtime must use exactly:
 
 ```text
-feature_version          = core-v4-regime-aware
-prospective_epoch_start  = 2026-09-20T12:40:53Z
-candidate_head           = 36b02d0687194173ab5d3862d3b88c6c90607574
-eligible_markets         = 9
-feature_rows_inserted    = 36
-bull_markets             = 2
-bear_markets             = 0
-sideways_mixed_markets   = 7
-unknown_markets          = 0
-future_cutoff_violations = 0
-Polymarket predictor keys= 0
-training_run             = false
-automatic_promotion      = false
+research_plan_version = v3-gate-b-preregister-v2
+model_sha256          = 124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7
+candidate             = single_feature_btc_logistic
+offset_seconds        = 240
+edge_policy           = trade_threshold
+min_edge              = 0.075
+fee_rate              = 0.07
+slippage_buffer       = 0.01
+max_book_age_seconds  = 10
+prediction_version    = v3-frozen-paper-v1
+execution_version     = paper-execution-v3-frozen-v1
+virtual_starting_cash = $100.00
+virtual_target_trade  = $5.00
+real_money            = $0.00
 ```
 
-The collector runs once per minute from the isolated V4 runtime under `/var/lib/bp/runtime`. The deployed `/opt/bp` checkout was preserved and the recorder was not restarted.
+This is a prospective activation only. No market that started before the activation timestamp may enter the V3 paper epoch.
 
-The current task is now **prospective collection only**. Do not fit, calibrate, tune thresholds, construct/access a V4 final holdout, activate a model, or trade money.
+The legacy paper broker must remain behaviorally intact for existing non-V3 research signals while explicitly excluding `v3-frozen-paper-v1`. V3 paper execution must use a separate execution version and separate derived virtual cash balance so old V1/V2 evidence and V3 paper results cannot mix.
 
-Wait until enough fresh markets exist across bull, bear, and sideways/mixed conditions to support a meaningful regime comparison. Before any V4 model fitting, freeze a new preregistered Gate B plan on that fresh prospective cohort.
+V4 regime-aware feature collection remains active in parallel.
+
+After exact-head CI passes, install the isolated V3 paper runtime, verify the exact frozen model SHA, preserve the deployed `/opt/bp` checkout, do not restart the recorder, activate the V3 predictor + V3 paper executor, and record durable host evidence.
+
+No V3 refit, calibration change, threshold tuning, automatic promotion, Phase 15, live-order path, live trading, geographic bypass, or nonzero real-money limit is authorized.
