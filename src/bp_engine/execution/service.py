@@ -535,6 +535,12 @@ class PaperExecutionService:
                     schema.live_predictions.c.prediction_version
                     == self._config.prediction_version
                 )
+            if self._config.excluded_prediction_versions:
+                prediction_query = prediction_query.where(
+                    schema.live_predictions.c.prediction_version.not_in(
+                        self._config.excluded_prediction_versions
+                    )
+                )
             predictions = connection.execute(
                 prediction_query.order_by(
                     schema.live_predictions.c.recorded_at,
