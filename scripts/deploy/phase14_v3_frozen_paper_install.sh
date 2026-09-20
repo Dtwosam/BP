@@ -32,6 +32,10 @@ read_env() {
   awk -F= -v key="$key" '$1 == key {sub(/^[^=]*=/, ""); print; exit}' "$path"
 }
 
+git_repo() {
+  git -c safe.directory="$REPO" -C "$REPO" "$@"
+}
+
 require_zero_money() {
   local path mode live trade loss
   for path in "$ENV_FILE" "$SAFETY_FILE"; do
@@ -67,10 +71,10 @@ fi
 [[ -d "$REPO/.git" ]] || fail "deployed_repo_missing"
 [[ -x "$REPO/.venv/bin/python" ]] || fail "production_python_missing"
 
-OLD_DEPLOYED_HEAD=$(git -C "$REPO" rev-parse HEAD)
-REMOTE_HEAD=$(git -C "$REPO" rev-parse "refs/remotes/origin/$BRANCH")
+OLD_DEPLOYED_HEAD=$(git_repo rev-parse HEAD)
+REMOTE_HEAD=$(git_repo rev-parse "refs/remotes/origin/$BRANCH")
 [[ "$REMOTE_HEAD" == "$SHA" ]] || fail "prefetched_remote_branch_head_mismatch:$REMOTE_HEAD"
-git -C "$REPO" cat-file -e "$SHA^{commit}" || fail "candidate_commit_missing"
+git_repo cat-file -e "$SHA^{commit}" || fail "candidate_commit_missing"
 
 require_zero_money
 for unit in   bp-postgres.service   bp-recorder.service   "$LEGACY_UNIT"   bp-prospective-outcomes.service   bp-v4-forward-coverage.timer; do
@@ -99,7 +103,7 @@ required_paths=(
   deploy/bp-v3-paper-execution.service
 )
 for path in "${required_paths[@]}"; do
-  git -C "$REPO" cat-file -e "$SHA:$path" || fail "candidate_path_missing:$path"
+  git_repo cat-file -e "$SHA:$path" || fail "candidate_path_missing:$path"
 done
 
 find_model() {
@@ -234,7 +238,7 @@ install -d -o root -g bp -m 0755 "$RUNTIME_ROOT"
 if [[ ! -d "$VERSION_DIR" ]]; then
   rm -rf "$STAGING_DIR"
   install -d -o root -g bp -m 0755 "$STAGING_DIR"
-  git -C "$REPO" archive "$SHA" | tar -x -C "$STAGING_DIR"
+  git_repo archive "$SHA" | tar -x -C "$STAGING_DIR"
   chown -R root:bp "$STAGING_DIR"
   chmod -R a-w "$STAGING_DIR"
   chmod -R a+rX "$STAGING_DIR"
@@ -326,7 +330,7 @@ require_active bp-recorder.service
 require_zero_money
 RECORDER_PID_AFTER=$(systemctl show --property=MainPID --value bp-recorder.service)
 [[ "$RECORDER_PID_AFTER" == "$RECORDER_PID_BEFORE" ]] || fail "recorder_pid_changed"
-[[ "$(git -C "$REPO" rev-parse HEAD)" == "$OLD_DEPLOYED_HEAD" ]]   || fail "deployed_checkout_changed"
+[[ "$(git_repo rev-parse HEAD)" == "$OLD_DEPLOYED_HEAD" ]]   || fail "deployed_checkout_changed"
 
 VERIFY_JSON=$(mktemp /var/tmp/bp-v3-paper-db-verify.XXXXXX.json)
 sudo -u bp env   PYTHONPATH="$VERSION_DIR/src"   "$REPO/.venv/bin/python" -   "$ENV_FILE" "$ACTIVATION_TARGET" "$VERIFY_JSON" <<'PY'
