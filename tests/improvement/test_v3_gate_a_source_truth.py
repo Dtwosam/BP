@@ -27,11 +27,11 @@ def _text(path: str) -> str:
 def test_project_state_records_gate_a_pass_and_frozen_v3_preregistration() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
 
-    assert state["source_of_truth_version"] == "0.14.139"
+    assert state["source_of_truth_version"] == "0.14.140"
     v3 = state["phase_14_btc_first_v3_gate_a"]
     assert (
         v3["implementation_status"]
-        == "GATE_A_PASS_V3_GATE_B_SUCCESSOR_RUNTIME_IMPLEMENTED_PROSPECTIVE_COLLECTION"
+        == "GATE_A_PASS_V3_GATE_B_FINAL_HOLDOUT_CONSUMED_V4_REGIME_RESEARCH_BUILD"
     )
     assert v3["feature_version"] == "core-v3-btc-native"
     assert v3["label_version"] == "official-outcome-v1"
@@ -82,11 +82,10 @@ def test_project_state_records_gate_a_pass_and_frozen_v3_preregistration() -> No
     assert v3["max_trade_size_usd"] == 0
     assert v3["max_daily_loss_usd"] == 0
     next_action = v3["next_action"].lower()
-    assert SUCCESSOR_EPOCH_END.lower() in next_action
-    assert "outcome-blind" in next_action
-    assert "readiness" in next_action
-    assert "feature-only" in next_action
-    assert "training" not in next_action
+    assert "v3 gate b successor is complete" in next_action
+    assert "permanently consumed" in next_action
+    assert "v4 regime-aware challenger" in next_action
+    assert "do not tune v4" in next_action
 
 
 def test_v3_gate_a_production_evidence_is_sanitized_and_exact() -> None:
@@ -197,33 +196,21 @@ def test_canonical_docs_record_gate_a_pass_and_preregistration_handoff() -> None
     assert PREREGISTRATION_IMPLEMENTATION_HEAD in entry
 
 
-def test_successor_runtime_handoff_points_to_prospective_collection() -> None:
+def test_current_handoff_points_to_v4_regime_research() -> None:
     start = _text("START-HERE.md")
     build = _text("docs/BUILD-ORDER.md")
 
-    start_next = start.split("## Immediate next task", 1)[1]
-    lowered_start = start_next.lower()
-    assert "core-v3-btc-native" in start_next
-    assert SUCCESSOR_PLAN_VERSION in start_next
-    assert SUCCESSOR_EPOCH_START in start_next
-    assert SUCCESSOR_EPOCH_END in start_next
-    assert "continue prospective" in lowered_start
-    assert "outcome-blind" in lowered_start
-    assert "readiness" in lowered_start
-    assert "feature-only" in lowered_start
-    assert "no model fitting" in lowered_start
-    assert "no final-holdout access" in lowered_start
-    assert "implement `v3-gate-b-preregister-v2`" not in lowered_start
+    start_next = start.split("## Immediate next task", 1)[1].lower()
+    assert "core-v4-regime-aware" in start_next
+    assert "regime" in start_next
+    assert "v3 final holdout" in start_next
+    assert "must not be used" in start_next
+    assert "production v4 feature materialization" in start_next
 
-    build_next = build.split("## Immediate next action", 1)[1]
-    lowered_build = build_next.lower()
-    assert "core-v3-btc-native" in build_next
-    assert SUCCESSOR_PLAN_VERSION in build_next
-    assert SUCCESSOR_EPOCH_START in build_next
-    assert SUCCESSOR_EPOCH_END in build_next
-    assert "outcome-blind" in lowered_build
-    assert "readiness" in lowered_build
-    assert "feature-only" in lowered_build
-    assert "plan" in lowered_build
-    assert "no model fitting" in lowered_build
-    assert "adaptive-train" not in lowered_build
+    build_next = build.split("## Immediate next action", 1)[1].lower()
+    assert "core-v4-regime-aware" in build_next
+    assert "5m/15m/60m" in build_next
+    assert "bull" in build_next
+    assert "bear" in build_next
+    assert "sideways" in build_next
+    assert "stop before production v4 materialization" in build_next
