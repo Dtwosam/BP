@@ -82,7 +82,13 @@ def test_canonical_docs_keep_paper_and_live_money_boundaries_explicit() -> None:
         assert "v3-frozen-paper-v1" in content
         assert "paper-execution-v3-frozen-v1" in content
         assert "0.075" in content
-        assert "$0" in content or "zero real money" in content.lower()
+
+    assert "$0.00" in start
+    assert "zero real money" in build.lower()
+    assert "real money remains exactly zero" in master.lower()
+    assert "real-money limits remain zero" in decisions.lower()
+    assert "$0 real money" in changelog.lower()
+    assert "real_money         = $0.00" in spec
 
     assert "## D-052 —" in decisions
     assert "## 0.14.143 — 20 September 2026" in changelog
