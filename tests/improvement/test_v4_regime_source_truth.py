@@ -33,6 +33,30 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert v4["polymarket_predictor_keys_allowed"] is False
     assert v4["v3_final_holdout_tuning_allowed"] is False
     assert v4["prospective_gate_b_required"] is True
+    assert v4["successor_scope"] == "COMPREHENSIVE_V3_WEAKNESS_REMEDIATION"
+    assert v4["regime_awareness_is_only_one_objective"] is True
+    assert v4["weakness_remediation_objectives"] == [
+        "regime_dependence",
+        "trade_side_asymmetry",
+        "selected_model_simplicity_and_feature_underuse",
+        "calibration_robustness",
+        "timing_dependence",
+        "trade_quality_vs_coverage",
+        "loss_drawdown_robustness",
+        "execution_availability",
+    ]
+    assert v4["future_gate_b_required_model_families"] == [
+        "simple_baseline",
+        "multivariate_btc_native",
+        "nonlinear_btc_native",
+    ]
+    assert v4["future_gate_b_required_offsets_seconds"] == [60, 120, 180, 240]
+    assert v4["future_gate_b_must_report_coverage_frontier"] is True
+    assert v4["future_gate_b_must_report_drawdown_and_losing_streak"] is True
+    assert v4["future_gate_b_must_separate_execution_from_forecast_quality"] is True
+    assert v4["v3_holdout_may_only_motivate_hypotheses"] is True
+    assert v4["v3_holdout_numeric_tuning_allowed"] is False
+    assert v4["current_collector_change_required"] is False
     assert v4["production_materialization_authorized"] is True
     assert v4["production_collection_authorized"] is True
     assert v4["prospective_collection_epoch_start"] == "2026-09-20T12:40:53Z"
@@ -96,6 +120,17 @@ def test_v4_design_freezes_regime_definition_and_safety_boundary() -> None:
         "model training",
         "paper activation",
         "live trading",
+        "v3 weakness-remediation objectives",
+        "trade-side asymmetry",
+        "selected-model simplicity / feature underuse",
+        "calibration robustness",
+        "timing dependence",
+        "trade-quality versus coverage",
+        "loss/drawdown robustness",
+        "execution availability",
+        "simple baseline",
+        "multivariate btc-native models",
+        "nonlinear challenger",
     ):
         assert required in spec
 
@@ -117,6 +152,7 @@ def test_v4_collection_remains_active_during_frozen_v3_paper_activation() -> Non
     assert "## D-051 —" in decisions
     assert "## D-052 —" in decisions
     assert "## D-053 —" in decisions
+    assert "## D-054 —" in decisions
     assert "## 0.14.145 — 20 September 2026" in changelog
     assert "automatic promotion" in master.lower()
     assert "live trading" in master.lower()
