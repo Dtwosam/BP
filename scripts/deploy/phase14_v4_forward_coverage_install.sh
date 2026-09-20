@@ -245,6 +245,8 @@ systemctl is-active --quiet "$TIMER_UNIT" || fail "collector_timer_not_active"
 
 require_research_zero_money
 require_services_active
+RECORDER_PID_AFTER=$(systemctl show --property=MainPID --value bp-recorder.service)
+[[ "$RECORDER_PID_AFTER" == "$RECORDER_PID_BEFORE" ]] || fail "recorder_pid_changed"
 [[ "$(git -C "$REPO" rev-parse HEAD)" == "$OLD_DEPLOYED_HEAD" ]]   || fail "deployed_checkout_changed"
 
 DISK_AFTER=$(mktemp /var/tmp/bp-v4-forward-disk-after.XXXXXX.json)
