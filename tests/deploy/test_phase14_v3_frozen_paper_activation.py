@@ -171,3 +171,12 @@ def test_installer_verifies_new_activation_before_persisting_it() -> None:
     assert verify < persist
     assert 'ACTIVATION_SOURCE="$ACTIVATION_TARGET"' in content
     assert 'ACTIVATION_SOURCE="$ACTIVATION_TMP"' in content
+
+
+def test_new_activation_temp_is_readable_by_bp_before_verification() -> None:
+    content = INSTALLER.read_text(encoding="utf-8")
+    chown = content.index('chown bp:bp "$ACTIVATION_TMP"')
+    chmod = content.index('chmod 0440 "$ACTIVATION_TMP"')
+    verify = content.index('--activation "$ACTIVATION_SOURCE"')
+    assert chown < verify
+    assert chmod < verify
