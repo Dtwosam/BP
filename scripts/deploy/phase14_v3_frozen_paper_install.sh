@@ -234,11 +234,37 @@ install -o bp -g bp -m 0440 "$MODEL_SOURCE" "$MODEL_TARGET"
 [[ "$(sha256sum "$MODEL_TARGET" | awk '{print $1}')" == "$FROZEN_MODEL_SHA" ]]   || fail "installed_model_sha_mismatch"
 
 if [[ -f "$ACTIVATION_TARGET" ]]; then
-  fail "activation_manifest_already_exists"
-fi
-ACTIVATED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-ACTIVATION_TMP=$(mktemp /var/tmp/bp-v3-activation.XXXXXX.json)
-"$REPO/.venv/bin/python" -   "$ACTIVATION_TMP" "$ACTIVATED_AT" "$SHA" "$FROZEN_MODEL_SHA" <<'PY'
+  ACTIVATED_AT=$(
+    "$REPO/.venv/bin/python" - "$ACTIVATION_TARGET" "$SHA" "$FROZEN_MODEL_SHA" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path, candidate_head, model_sha = sys.argv[1:]
+payload = json.loads(Path(path).read_text(encoding="utf-8"))
+expected = {
+    "candidate_head": candidate_head,
+    "model_sha256": model_sha,
+    "prediction_version": "v3-frozen-paper-v1",
+    "execution_version": "paper-execution-v3-frozen-v1",
+    "paper_starting_cash_usd": "100.00",
+    "paper_target_notional_usd": "5.00",
+    "real_money_usd": "0.00",
+    "automatic_promotion": False,
+}
+for key, value in expected.items():
+    if payload.get(key) != value:
+        raise SystemExit(f"existing activation manifest mismatch: {key}")
+activated_at = payload.get("activated_at")
+if not isinstance(activated_at, str) or not activated_at.endswith("Z"):
+    raise SystemExit("existing activation timestamp is invalid")
+print(activated_at)
+PY
+  ) || fail "existing_activation_manifest_mismatch"
+else
+  ACTIVATED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  ACTIVATION_TMP=$(mktemp /var/tmp/bp-v3-activation.XXXXXX.json)
+  "$REPO/.venv/bin/python" - "$ACTIVATION_TMP" "$ACTIVATED_AT" "$SHA" "$FROZEN_MODEL_SHA" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -257,7 +283,8 @@ payload = {
 }
 Path(path).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 PY
-install -o bp -g bp -m 0440 "$ACTIVATION_TMP" "$ACTIVATION_TARGET"
+  install -o bp -g bp -m 0440 "$ACTIVATION_TMP" "$ACTIVATION_TARGET"
+fi
 
 sudo -u bp env   MODE=research   LIVE_TRADING_ENABLED=false   MAX_TRADE_SIZE_USD=0   MAX_DAILY_LOSS_USD=0   PYTHONPATH="$VERSION_DIR/src"   "$REPO/.venv/bin/python"   "$VERSION_DIR/scripts/run_v3_frozen_paper.py"   --env-file "$ENV_FILE"   --model "$MODEL_TARGET"   --activation "$ACTIVATION_TARGET"   --verify-model >/var/tmp/bp-v3-model-verify.json
 grep -q '"verified": true' /var/tmp/bp-v3-model-verify.json   || fail "frozen_model_runtime_verification_failed"
