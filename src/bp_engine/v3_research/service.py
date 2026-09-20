@@ -27,6 +27,7 @@ from bp_engine.v3_research.config import (
     V3GateBConfig,
     v3_gate_b_config_payload,
 )
+from bp_engine.v3_research.plan import _config_payload as v3_plan_config_payload
 from bp_engine.v3_research.policy import (
     V3ExecutionBook,
     edge_band_report_v3,
@@ -122,7 +123,7 @@ def verify_v3_prepare_plan(
     config_hash = plan.get("config_sha256")
     if not isinstance(config_hash, str) or len(config_hash) != 64:
         raise V3PrepareIntegrityError("config_sha256 must be SHA-256")
-    expected_config_hash = canonical_hash(v3_gate_b_config_payload(config))
+    expected_config_hash = canonical_hash(v3_plan_config_payload(config))
     if config_hash != expected_config_hash:
         raise V3PrepareIntegrityError("config_sha256 does not match frozen V3 config")
     non_holdout_condition_ids(plan)
