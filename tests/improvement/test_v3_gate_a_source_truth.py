@@ -166,11 +166,14 @@ def test_canonical_docs_record_gate_a_pass_and_preregistration_handoff() -> None
     decisions = _text("docs/DECISION-LOG.md")
     changelog = _text("docs/CHANGELOG.md")
 
-    for content in (start, master, build, decisions, changelog):
+    for content in (start, master, decisions, changelog):
         assert "core-v3-btc-native" in content
         assert COVERAGE_SHA256 in content
         assert PREREGISTRATION_DESIGN_COMMIT in content
         assert EPOCH_END in content
+
+    assert "core-v4-regime-aware" in build
+    assert "production v4 materialization" in build.lower()
 
     current_master = master.split(
         "## Phase 14 BTC-first V3 Gate A production acceptance + Gate B preregistration",
