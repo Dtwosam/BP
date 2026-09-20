@@ -28,7 +28,7 @@ def test_master_records_adaptive_learning_and_consumed_gate_b() -> None:
 def test_project_state_keeps_live_gate_blocked_and_records_research_cycle() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
 
-    assert state["source_of_truth_version"] == "0.14.142"
+    assert state["source_of_truth_version"] == "0.14.143"
     assert state["current_phase"] == 14
     assert state["status"] == "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED"
     assert state["trading_mode"] == "RESEARCH"
@@ -56,18 +56,17 @@ def test_project_state_keeps_live_gate_blocked_and_records_research_cycle() -> N
     assert gate_b["gate_b_latest_v2_paper_activation_authorized"] is False
 
 
-def test_build_order_preserves_adaptive_history_but_points_next_to_v4_regime_research() -> None:
+def test_build_order_preserves_adaptive_history_but_points_next_to_v3_paper() -> None:
     build_order = _text("docs/BUILD-ORDER.md")
     decisions = _text("docs/DECISION-LOG.md")
 
     assert "## Phase 14 adaptive learning research milestone — 12 September 2026" in build_order
     immediate = build_order.split("## Immediate next action", 1)[1]
     lowered = immediate.lower()
-    assert "core-v4-regime-aware" in immediate
-    assert "bull" in lowered
-    assert "bear" in lowered
-    assert "sideways" in lowered
-    assert "do not train a v4 model yet" in lowered
+    assert "frozen v3" in lowered
+    assert "paper" in lowered
+    assert "$0 real money" in lowered
+    assert "v4 feature collection continues" in lowered
     assert "adaptive-train" not in lowered
 
     assert "## D-042 — Resolved markets drive adaptive supervised learning" in decisions
@@ -106,7 +105,7 @@ def test_first_adaptive_cycle_bootstrap_boundary_is_frozen() -> None:
 
     adaptive = state["phase_14_adaptive_learning"]
     assert adaptive["first_cycle_bootstrap_since_at"] == "2026-09-12T17:21:13Z"
-    assert state["source_of_truth_version"] == "0.14.142"
+    assert state["source_of_truth_version"] == "0.14.143"
     assert "2026-09-12T17:21:13Z" in master
     assert "2026-09-12T17:21:13Z" in build_order
     assert "## D-043 — Freeze first adaptive-cycle bootstrap boundary" in decisions
@@ -122,7 +121,7 @@ def test_unmigrated_first_cycle_readiness_is_read_only_and_training_stays_blocke
     changelog = _text("docs/CHANGELOG.md")
 
     adaptive = state["phase_14_adaptive_learning"]
-    assert state["source_of_truth_version"] == "0.14.142"
+    assert state["source_of_truth_version"] == "0.14.143"
     assert adaptive["unmigrated_first_cycle_readiness_allowed"] is True
     assert adaptive["unmigrated_readiness_schema_mutation_allowed"] is False
     assert adaptive["training_requires_cycle_ledger_migration"] is True
