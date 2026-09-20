@@ -37,6 +37,8 @@ VERSION_DIR="$RUNTIME_ROOT/v4-forward-$SHA"
 STAGING_DIR="$RUNTIME_ROOT/.v4-forward-$SHA.staging"
 OLD_DEPLOYED_HEAD=""
 OLD_LINK_TARGET=""
+RECORDER_PID_BEFORE=""
+RECORDER_PID_AFTER=""
 SERVICE_PREEXISTED=0
 TIMER_PREEXISTED=0
 TIMER_WAS_ENABLED=0
@@ -173,6 +175,8 @@ trap on_exit EXIT
 OLD_DEPLOYED_HEAD=$(git -C "$REPO" rev-parse HEAD)
 require_research_zero_money
 require_services_active
+RECORDER_PID_BEFORE=$(systemctl show --property=MainPID --value bp-recorder.service)
+[[ "$RECORDER_PID_BEFORE" =~ ^[1-9][0-9]*$ ]] || fail "invalid_recorder_pid_before"
 
 DISK_BEFORE=$(mktemp /var/tmp/bp-v4-forward-disk-before.XXXXXX.json)
 run_disk_health "$DISK_BEFORE"
@@ -249,13 +253,23 @@ run_disk_health "$DISK_AFTER"
 install -d -o bp -g bp -m 0750 "$EVIDENCE_DIR"
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 EVIDENCE_PATH="$EVIDENCE_DIR/phase14-v4-forward-coverage-${SHA:0:12}-$STAMP.json"
-"$REPO/.venv/bin/python" -   "$CYCLE_FILE" "$DISK_BEFORE" "$DISK_AFTER" "$EVIDENCE_PATH"   "$OLD_DEPLOYED_HEAD" "$SHA" "$VERSION_DIR" <<'PY'
+"$REPO/.venv/bin/python" -   "$CYCLE_FILE" "$DISK_BEFORE" "$DISK_AFTER" "$EVIDENCE_PATH"   "$OLD_DEPLOYED_HEAD" "$SHA" "$VERSION_DIR" "$RECORDER_PID_BEFORE" "$RECORDER_PID_AFTER" <<'PY'
 import json
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-cycle_path, before_path, after_path, output_path, deployed_head, candidate, runtime = sys.argv[1:]
+(
+    cycle_path,
+    before_path,
+    after_path,
+    output_path,
+    deployed_head,
+    candidate,
+    runtime,
+    recorder_pid_before,
+    recorder_pid_after,
+) = sys.argv[1:]
 payload = {
     "verdict": "PASS",
     "recorded_at": datetime.now(UTC).isoformat(),
@@ -280,7 +294,9 @@ payload = {
         "automatic_promotion": False,
         "model_activation": False,
     },
-    "recorder_restarted": False,
+    "recorder_pid_before": int(recorder_pid_before),
+    "recorder_pid_after": int(recorder_pid_after),
+    "recorder_restarted": recorder_pid_before != recorder_pid_after,
     "production_checkout_changed": False,
 }
 Path(output_path).write_text(
