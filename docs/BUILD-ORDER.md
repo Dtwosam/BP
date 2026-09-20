@@ -618,17 +618,20 @@ Current order: (1) do not rerun this rollout and preserve its evidence; (2) buil
 
 ## Immediate next action
 
-The V4 regime-aware forward collector is production PASS and active in RESEARCH mode.
+Activate the **exact frozen V3 Gate B successor** prospectively in paper mode with zero real money while V4 feature collection continues.
 
-Continue immutable prospective `core-v4-regime-aware` collection from the fixed boundary `2026-09-20T12:40:53Z`. The accepted first cycle materialized 36 rows across 9 completed 5-minute markets: 2 bull, 0 bear, 7 sideways/mixed, 0 unknown.
+Required activation invariants:
 
-Do not train a V4 model yet. The immediate objective is coverage, not optimization.
+1. model artifact SHA-256 is exactly `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`;
+2. candidate remains `single_feature_btc_logistic` at 240 seconds;
+3. policy remains `trade_threshold` with `min_edge=0.075`, fee coefficient `0.07`, slippage buffer `0.01`, and selected-book freshness `10s`;
+4. Polymarket book state is execution-only and never enters the V3 forecast vector;
+5. activation is prospective; no pre-activation market may be backfilled into the paper epoch;
+6. legacy paper execution excludes the V3 prediction version while retaining its prior treatment of all other historical research prediction versions;
+7. V3 uses isolated `v3-frozen-paper-v1` predictions and `paper-execution-v3-frozen-v1` orders/cash;
+8. paper scenario remains the existing conservative simulation defaults: $100 virtual starting cash, $5 virtual target notional, 250ms latency, 2000ms order TTL;
+9. production safety remains RESEARCH, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0`;
+10. no wallet, signer, allowance, real-order submission, live-order cancellation, model refit, calibration change, threshold search, or automatic promotion is permitted;
+11. preserve the deployed `/opt/bp` checkout, keep V4 collection active, and do not restart the recorder.
 
-Before V4 model fitting:
-
-1. accumulate enough fresh prospective markets to include meaningful bull, bear, and sideways/mixed coverage;
-2. verify zero future-cutoff, predictor-leakage, and regime-invariant violations continue;
-3. freeze a new V4 Gate B preregistration describing the exact cohort, candidate models, features, folds, calibration, policy search space, and untouched final holdout;
-4. only then permit model fitting under a separate research authorization.
-
-No paper activation, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero money is authorized.
+After production PASS, record the activation timestamp and service/evidence identities. Then continue prospective paper observation; do not modify the frozen V3 policy based on those results.
