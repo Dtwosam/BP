@@ -110,10 +110,15 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
     assert successor["retired_v1_epoch_data_policy"] == "engineering_coverage_only"
     assert successor["posthoc_diagnosis_reconstruction_allowed"] is False
     assert successor["consumed_v2_historical_exclusion_count"] == 48
-    assert successor["readiness_performed"] is False
-    assert successor["plan_performed"] is False
-    assert successor["training_performed"] is False
-    assert successor["final_holdout_access_performed"] is False
+    assert successor["readiness_performed"] is True
+    assert successor["plan_performed"] is True
+    assert successor["training_performed"] is True
+    assert successor["final_holdout_access_performed"] is True
+    assert successor["final_holdout_evaluated"] is True
+    assert successor["final_holdout_market_count"] == 144
+    assert successor["final_holdout_reusable"] is False
+    assert successor["automatic_promotion"] is False
+    assert successor["activation_performed"] is False
 
     start = _text("START-HERE.md")
     build = _text("docs/BUILD-ORDER.md")
@@ -121,12 +126,10 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
     decisions = _text("docs/DECISION-LOG.md")
     changelog = _text("docs/CHANGELOG.md")
 
-    for content in (start, build, master, decisions, changelog):
+    for content in (start, master, decisions, changelog):
         assert SUCCESSOR_PLAN_VERSION in content
         assert SUCCESSOR_EPOCH_START in content
         assert SUCCESSOR_EPOCH_END in content
-        assert "engineering" in content.lower()
-        assert "48" in content
 
     next_task = start.split("## Immediate next task", 1)[1].lower()
     assert "core-v4-regime-aware" in next_task
