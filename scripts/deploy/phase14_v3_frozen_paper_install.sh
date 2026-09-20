@@ -85,11 +85,14 @@ LEGACY_PID_BEFORE=$(systemctl show --property=MainPID --value "$LEGACY_UNIT")
 required_paths=(
   src/bp_engine/v3_paper/service.py
   src/bp_engine/v3_paper/cli.py
+  src/bp_engine/v3_paper/report.py
+  src/bp_engine/v3_paper/report_cli.py
   src/bp_engine/execution/service.py
   src/bp_engine/execution/models.py
   src/bp_engine/execution/cli.py
   scripts/run_v3_frozen_paper.py
   scripts/run_v3_paper_execution.py
+  scripts/report_v3_paper.py
   scripts/run_v1_paper_execution_isolated.py
   deploy/bp-paper-execution-v1-isolated.service
   deploy/bp-v3-frozen-predictor.service
