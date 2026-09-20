@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.142 — 20 September 2026
+
+- Production V4 forward coverage rollout passed on candidate `36b02d0687194173ab5d3862d3b88c6c90607574` using the isolated runtime at `/var/lib/bp/runtime/v4-forward-36b02d0687194173ab5d3862d3b88c6c90607574`. The deployed `/opt/bp` checkout remained at `7c3af78da1922a0e5187c24b799951130cc98887`.
+- The initial accepted cycle materialized 36 immutable `core-v4-regime-aware` rows across 9 completed prospective 5-minute markets: 2 bull, 0 bear, 7 sideways/mixed, and 0 unknown.
+- Safety/integrity checks remained clean: zero future-cutoff violations, zero Polymarket predictor keys, zero regime-invariant violations, no training, no policy selection, no automatic promotion, no model activation, and no recorder restart.
+- V4 now remains in prospective collection mode only. Model fitting must wait for broader fresh regime coverage and a new preregistered V4 Gate B plan.
+
 ## 0.14.141 — 20 September 2026
 
 - Authorized the production research-only `core-v4-regime-aware` feature collector with a prospective boundary fixed at `2026-09-20T12:40:53Z`. Only completed 5-minute markets starting on/after that boundary may be materialized.
