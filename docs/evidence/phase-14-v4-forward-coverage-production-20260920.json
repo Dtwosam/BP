@@ -1,0 +1,41 @@
+{
+  "status": "V4_FORWARD_COVERAGE_PRODUCTION_PASS",
+  "recorded_at": "2026-09-20T13:35:37Z",
+  "candidate_head": "36b02d0687194173ab5d3862d3b88c6c90607574",
+  "deployed_checkout_head": "7c3af78da1922a0e5187c24b799951130cc98887",
+  "runtime_path": "/var/lib/bp/runtime/v4-forward-36b02d0687194173ab5d3862d3b88c6c90607574",
+  "service_unit": "bp-v4-forward-coverage.service",
+  "timer_unit": "bp-v4-forward-coverage.timer",
+  "evidence_path": "/var/lib/bp/evidence/phase14-v4-forward-coverage-36b02d068719-20260920T133537Z.json",
+  "prospective_epoch_start": "2026-09-20T12:40:53Z",
+  "initial_cycle": {
+    "cycle_at": "2026-09-20T13:35:12.316825+00:00",
+    "eligible_targets": 9,
+    "planned_rows": 36,
+    "inserted": 36,
+    "existing": 0,
+    "coverage_market_count": 9,
+    "coverage_row_count": 36,
+    "bull_market_count": 2,
+    "bear_market_count": 0,
+    "sideways_mixed_market_count": 7,
+    "unknown_market_count": 0,
+    "future_cutoff_violation_count": 0,
+    "polymarket_predictor_key_count": 0,
+    "regime_invariant_violation_count": 0,
+    "policy_selected": false,
+    "training_run": false,
+    "automatic_promotion": false
+  },
+  "safety": {
+    "mode": "research",
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "production_checkout_preserved": true,
+    "recorder_restart_performed": false,
+    "model_training_performed": false,
+    "model_activation_performed": false,
+    "automatic_promotion": false
+  }
+}
