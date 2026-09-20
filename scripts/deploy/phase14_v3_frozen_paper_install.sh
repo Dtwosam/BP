@@ -167,7 +167,11 @@ rollback() {
   echo "PHASE14_V3_FROZEN_PAPER_ROLLBACK=START" >&2
   systemctl disable --now "$PREDICTOR_UNIT" "$V3_EXEC_UNIT" >/dev/null 2>&1 || true
 
-  if (( LEGACY_PREEXISTED )); then cp -a "$LEGACY_BACKUP" "$LEGACY_PATH"; fi
+  if (( LEGACY_PREEXISTED )); then
+    cp -a "$LEGACY_BACKUP" "$LEGACY_PATH"
+  else
+    rm -f "$LEGACY_PATH"
+  fi
   if (( PREDICTOR_PREEXISTED )); then
     cp -a "$PREDICTOR_BACKUP" "$PREDICTOR_PATH"
   else
