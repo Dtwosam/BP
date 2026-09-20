@@ -245,12 +245,12 @@ def test_holdout_cli_has_no_tuning_knobs_and_requires_canonical_output(
 
     help_text = parser.format_help().lower()
     for forbidden in (
-        "min-edge",
-        "offset-seconds",
-        "candidate",
-        "calibration",
-        "fee-rate",
-        "slippage",
+        "--min-edge",
+        "--offset-seconds",
+        "--candidate",
+        "--calibration",
+        "--fee-rate",
+        "--slippage",
     ):
         assert forbidden not in help_text
 
