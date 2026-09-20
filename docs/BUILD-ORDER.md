@@ -618,7 +618,7 @@ Current order: (1) do not rerun this rollout and preserve its evidence; (2) buil
 
 ## Immediate next action
 
-Activate the **exact frozen V3 Gate B successor** prospectively in paper mode with **$0 real money** while V4 feature collection continues.
+Activate the **exact frozen V3 Gate B successor** prospectively in paper mode with **$0 real money (zero real money)** while V4 feature collection continues.
 
 Required activation invariants:
 
