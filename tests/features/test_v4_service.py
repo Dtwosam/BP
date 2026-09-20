@@ -1,7 +1,6 @@
 import inspect
 from datetime import UTC, datetime, timedelta
 
-import pytest
 from sqlalchemy import create_engine, insert, select
 
 from bp_engine.features.v3_models import V3_FEATURE_VERSION
