@@ -17,7 +17,7 @@ AS_OF = datetime(2026, 9, 19, 13, 45, tzinfo=UTC)
 AS_OF_TEXT = "2026-09-19T13:45:00Z"
 
 
-def test_v3_cli_exposes_readiness_plan_and_prepare_without_override_flags(
+def test_v3_cli_exposes_frozen_stages_without_override_flags(
     tmp_path: Path,
 ) -> None:
     assert cli_module is not None
@@ -46,8 +46,8 @@ def test_v3_cli_exposes_readiness_plan_and_prepare_without_override_flags(
     assert prepare.command == "prepare"
 
     help_text = parser.format_help().lower()
+    assert "evaluate-holdout" in help_text
     for forbidden in (
-        "evaluate-holdout",
         "diagnosis-exclusions",
         "consumed-v2-final-holdout-exclusions",
         "train-hours",
