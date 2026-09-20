@@ -12,6 +12,10 @@ from typing import Any
 from sqlalchemy import create_engine
 
 from bp_engine.config import Settings, TradingMode, get_settings
+from bp_engine.execution.models import (
+    PAPER_EXECUTION_VERSION,
+    PaperExecutionConfig,
+)
 from bp_engine.execution.service import PaperExecutionService, PaperRunReport
 
 _STOP_REQUESTED = False
@@ -58,6 +62,8 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="process one bounded paper execution pass",
     )
+    parser.add_argument("--prediction-version", default=None)
+    parser.add_argument("--execution-version", default=PAPER_EXECUTION_VERSION)
     parser.add_argument(
         "--poll-seconds",
         type=float,
@@ -76,7 +82,11 @@ def main(argv: list[str] | None = None) -> int:
     settings = get_settings()
     _money_disabled(settings)
     engine = create_engine(settings.database_url, pool_pre_ping=True)
-    service = PaperExecutionService(engine=engine)
+    config = PaperExecutionConfig(
+        execution_version=args.execution_version,
+        prediction_version=args.prediction_version,
+    )
+    service = PaperExecutionService(engine=engine, config=config)
 
     if args.once:
         report = service.run_once(now=datetime.now(UTC))
