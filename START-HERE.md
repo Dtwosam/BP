@@ -79,33 +79,28 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
-Frozen V3 **paper trading with zero real money is explicitly authorized**.
+Frozen V3 paper trading is now **production PASS and active** in research mode.
 
-The paper runtime must use exactly:
+Accepted activation:
 
 ```text
-research_plan_version = v3-gate-b-preregister-v2
-model_sha256          = 124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7
-candidate             = single_feature_btc_logistic
-offset_seconds        = 240
-edge_policy           = trade_threshold
-min_edge              = 0.075
-fee_rate              = 0.07
-slippage_buffer       = 0.01
-max_book_age_seconds  = 10
-prediction_version    = v3-frozen-paper-v1
-execution_version     = paper-execution-v3-frozen-v1
-virtual_starting_cash = $100.00
-virtual_target_trade  = $5.00
-real_money            = $0.00
+activated_at            = 2026-09-20T15:39:45Z
+candidate_head          = 9d52eb753355365848a637ffa6663928664bf770
+model_sha256            = 124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7
+prediction_version      = v3-frozen-paper-v1
+execution_version       = paper-execution-v3-frozen-v1
+virtual_starting_cash   = $100.00
+virtual_target_trade    = $5.00
+real_money              = $0.00
+pre_activation_signals  = 0
+invalid_order_sources   = 0
+recorder_restarted      = false
 ```
 
-This is a prospective activation only. No market that started before the activation timestamp may enter the V3 paper epoch.
+The V3 predictor service and V3 paper-execution service are active. The legacy paper service remains active, prospective outcome settlement remains active, and the V4 regime-aware forward collector remains active in parallel.
 
-The legacy paper broker must remain behaviorally intact for existing non-V3 research signals while explicitly excluding `v3-frozen-paper-v1`. V3 paper execution must use a separate execution version and separate derived virtual cash balance so old V1/V2 evidence and V3 paper results cannot mix.
+The immediate task is **prospective observation only**. Use the isolated V3 paper report to track signal count, executable/trade decisions, simulated fills, settlements, UP/DOWN results, virtual cash, and realized paper P&L without mixing legacy paper evidence.
 
-V4 regime-aware feature collection remains active in parallel.
+Do not refit V3, recalibrate it, change the frozen 0.075 minimum edge, alter the frozen paper sizing assumptions, tune from paper results, automatically promote anything, enable a live-order path, enter Phase 15, bypass geographic restrictions, or change real-money limits.
 
-After exact-head CI passes, install the isolated V3 paper runtime, verify the exact frozen model SHA, preserve the deployed `/opt/bp` checkout, do not restart the recorder, activate the V3 predictor + V3 paper executor, and record durable host evidence.
-
-No V3 refit, calibration change, threshold tuning, automatic promotion, Phase 15, live-order path, live trading, geographic bypass, or nonzero real-money limit is authorized.
+The production activation evidence is frozen at `docs/evidence/phase-14-v3-frozen-paper-production-20260920.json`.
