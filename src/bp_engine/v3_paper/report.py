@@ -7,7 +7,7 @@ from typing import Any
 
 from sqlalchemy import Engine, select
 
-from bp_engine.execution.models import PaperExecutionConfig
+from bp_engine.execution.models import V3_FROZEN_PAPER_STARTING_CASH_USD
 from bp_engine.storage import schema
 from bp_engine.v3_paper.service import (
     V3_PAPER_EXECUTION_VERSION,
@@ -195,7 +195,7 @@ def build_v3_paper_report(
         (_decimal(row["payout"]) for row in latest_settlement.values()),
         _ZERO,
     )
-    starting_cash = PaperExecutionConfig().starting_cash_usd
+    starting_cash = V3_FROZEN_PAPER_STARTING_CASH_USD
     current_cash = starting_cash - all_fill_cost + all_payouts
 
     settled_order_ids = set(latest_settlement)
