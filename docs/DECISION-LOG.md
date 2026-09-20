@@ -429,3 +429,17 @@ Freeze the approved V3 Gate B preregistration design at `c9e179c91ea990ca4a25a13
 The approved clean successor is `v3-gate-b-preregister-v2` for `core-v3-btc-native`, with epoch `[2026-09-16T13:45:00Z, 2026-09-19T13:45:00Z)`. Contamination control is structural: only `market_start_at >= epoch_start AND market_start_at < epoch_end` may enter train/validation/test/final-holdout membership, so every pre-epoch market is ineligible. Historical diagnosis and consumed-V2 manifests are evidence only and are not successor runtime selection inputs. The v1 predictor/model/calibration/economic search contract is otherwise unchanged.
 
 Repository runtime checkpoint `659d9524fe8bfeba182b7cf7c8d9b664280f7562` passed CI `34841954823`. The implementation preserves outcome-blind readiness, feature-only planning, PostgreSQL read-only transactions, and no-clobber plan output. No successor readiness or plan has been run yet. No model fitting, final-holdout access/evaluation, activation, production mutation, live trading, automatic promotion, geographic bypass, or money-limit change is authorized by this decision.
+
+## D-049 — Create a separate regime-aware V4 challenger after consumed V3 holdout
+
+**Date:** 20 Sep 2026
+**Status:** Active
+
+The V3 successor one-shot final holdout is complete and permanently consumed. It produced positive aggregate holdout economics, but the trade ledger was directionally asymmetric: UP trades were materially stronger than DOWN trades. This result is evidence that regime robustness deserves explicit study, not authorization to disable DOWN trades or tune V3 after seeing the holdout.
+
+Create a separately versioned `core-v4-regime-aware` challenger. Preserve the V3 BTC-native short-horizon inputs and add timestamp-coherent 5m, 15m, and 60m returns from Coinbase spot, Bybit spot, and Bybit linear. Regime classification is fixed without a learned magnitude cutoff: each horizon uses a majority sign across venues; bull requires all three horizon directions positive, bear requires all negative, and complete mixed directions are sideways/mixed. Missing direction evidence remains unknown.
+
+The consumed V3 holdout may motivate this hypothesis but may not select V4 thresholds, confidence cutoffs, side filters, model hyperparameters, calibration, or economic policy. V4 must use a new prospective cohort frozen after the V4 feature implementation/collection boundary. Every future V4 evaluation must report performance separately for bull, bear, sideways/mixed, and unknown regimes.
+
+This decision authorizes repository research implementation only. Production feature materialization, model training, paper activation, automatic promotion, Phase 15, live trading, geographic bypass, and nonzero money remain separately controlled boundaries.
+
