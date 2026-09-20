@@ -1,0 +1,31 @@
+[Unit]
+Description=BP V4 regime-aware forward coverage collector
+Requires=bp-postgres.service
+After=bp-postgres.service
+
+[Service]
+Type=oneshot
+User=bp
+Group=bp
+WorkingDirectory=/var/lib/bp/runtime/v4-forward-current
+EnvironmentFile=/etc/bp/bp.env
+EnvironmentFile=/etc/bp/bp-prospective-runtime-safety.env
+Environment=MODE=research
+Environment=LIVE_TRADING_ENABLED=false
+Environment=MAX_TRADE_SIZE_USD=0
+Environment=MAX_DAILY_LOSS_USD=0
+Environment=PYTHONPATH=/var/lib/bp/runtime/v4-forward-current/src
+ExecStart=/opt/bp/.venv/bin/python /var/lib/bp/runtime/v4-forward-current/scripts/run_v4_forward_coverage.py once --env-file /etc/bp/bp.env
+UMask=0077
+TimeoutStartSec=2min
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=full
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-v4-forward-coverage
