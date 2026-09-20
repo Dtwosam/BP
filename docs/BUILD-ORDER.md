@@ -618,20 +618,21 @@ Current order: (1) do not rerun this rollout and preserve its evidence; (2) buil
 
 ## Immediate next action
 
-Activate the **exact frozen V3 Gate B successor** prospectively in paper mode with **$0 real money (zero real money)** while V4 feature collection continues.
+Frozen V3 paper trading is production PASS and active from `2026-09-20T15:39:45Z`.
 
-Required activation invariants:
+Continue two prospective processes in parallel:
 
-1. model artifact SHA-256 is exactly `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`;
-2. candidate remains `single_feature_btc_logistic` at 240 seconds;
-3. policy remains `trade_threshold` with `min_edge=0.075`, fee coefficient `0.07`, slippage buffer `0.01`, and selected-book freshness `10s`;
-4. Polymarket book state is execution-only and never enters the V3 forecast vector;
-5. activation is prospective; no pre-activation market may be backfilled into the paper epoch;
-6. legacy paper execution excludes the V3 prediction version while retaining its prior treatment of all other historical research prediction versions;
-7. V3 uses isolated `v3-frozen-paper-v1` predictions and `paper-execution-v3-frozen-v1` orders/cash;
-8. paper scenario remains the existing conservative simulation defaults: $100 virtual starting cash, $5 virtual target notional, 250ms latency, 2000ms order TTL;
-9. production safety remains RESEARCH, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0`;
-10. no wallet, signer, allowance, real-order submission, live-order cancellation, model refit, calibration change, threshold search, or automatic promotion is permitted;
-11. preserve the deployed `/opt/bp` checkout, keep V4 collection active, and do not restart the recorder.
+1. frozen V3 paper observation using `v3-frozen-paper-v1` + `paper-execution-v3-frozen-v1`;
+2. V4 regime-aware feature collection using `core-v4-regime-aware`.
 
-After production PASS, record the activation timestamp and service/evidence identities. Then continue prospective paper observation; do not modify the frozen V3 policy based on those results.
+For V3 paper observation:
+
+- keep model SHA `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7` unchanged;
+- keep the 240-second forecast timing and `min_edge=0.075` unchanged;
+- keep $100 virtual starting cash, $5 virtual target notional, 250ms simulated latency, 2000ms order TTL, and 6-decimal share precision unchanged;
+- keep Polymarket state execution-only;
+- use the V3-only report so legacy paper rows cannot contaminate results;
+- keep real money at zero and all live-order paths disabled;
+- do not tune V3 from paper results.
+
+No V3 refit, calibration change, threshold search, sizing change, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero real-money limit is authorized.

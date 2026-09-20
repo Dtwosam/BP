@@ -1,0 +1,54 @@
+{
+  "verdict": "PASS",
+  "recorded_at": "2026-09-20T15:40:16.416509+00:00",
+  "activated_at": "2026-09-20T15:39:45Z",
+  "candidate_head": "9d52eb753355365848a637ffa6663928664bf770",
+  "deployed_checkout_head_unchanged": "7c3af78da1922a0e5187c24b799951130cc98887",
+  "runtime_path": "/var/lib/bp/runtime/v3-paper-9d52eb753355365848a637ffa6663928664bf770",
+  "host_evidence_path": "/var/lib/bp/evidence/phase14-v3-frozen-paper-9d52eb753355-20260920T154016Z.json",
+  "model": {
+    "source_path": "/var/lib/bp/evidence/phase14-v3-gate-b-successor-20260919T134500Z/model.joblib",
+    "installed_path": "/var/lib/bp/v3-paper/frozen-model.joblib",
+    "sha256": "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7"
+  },
+  "activation": {
+    "automatic_promotion": false,
+    "execution_version": "paper-execution-v3-frozen-v1",
+    "paper_starting_cash_usd": "100.00",
+    "paper_target_notional_usd": "5.00",
+    "prediction_version": "v3-frozen-paper-v1",
+    "real_money_usd": "0.00",
+    "recovered_from_orphaned_rows": false,
+    "recovered_prediction_count": 0
+  },
+  "database_verification": {
+    "invalid_v3_order_source_count": 0,
+    "pre_activation_prediction_count": 0,
+    "v3_fill_count": 0,
+    "v3_order_count": 0,
+    "v3_prediction_count": 0
+  },
+  "services": {
+    "legacy_paper_service": "active",
+    "v3_predictor_service": "active",
+    "v3_paper_execution_service": "active",
+    "prospective_outcomes_service": "active",
+    "v4_forward_timer": "active"
+  },
+  "recorder": {
+    "pid_before": 2113524,
+    "pid_after": 2113524,
+    "restarted": false
+  },
+  "safety": {
+    "mode": "research",
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "real_money_usd": 0,
+    "model_refit_performed": false,
+    "threshold_tuning_performed": false,
+    "automatic_promotion": false,
+    "live_order_path_enabled": false
+  }
+}

@@ -13,12 +13,10 @@ def _text(path: str) -> str:
 
 def test_v3_paper_source_truth_freezes_exact_authorized_strategy() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.143"
+    assert state["source_of_truth_version"] == "0.14.144"
 
     paper = state["phase_14_v3_frozen_paper"]
-    assert paper["status"] == (
-        "REPOSITORY_IMPLEMENTED_AUTHORIZED_PENDING_PRODUCTION_ACTIVATION"
-    )
+    assert paper["status"] == "PRODUCTION_PASS_ACTIVE"
     assert paper["source_v3_research_plan_version"] == "v3-gate-b-preregister-v2"
     assert paper["source_model_artifact_sha256"] == MODEL_SHA
     assert paper["prediction_version"] == "v3-frozen-paper-v1"
@@ -44,7 +42,22 @@ def test_v3_paper_source_truth_freezes_exact_authorized_strategy() -> None:
     assert paper["live_trading_enabled"] is False
     assert paper["max_trade_size_usd"] == 0
     assert paper["max_daily_loss_usd"] == 0
-    assert paper["production_activation_performed"] is False
+    assert paper["production_activation_performed"] is True
+    assert paper["production_activation_passed"] is True
+    assert paper["activated_at"] == "2026-09-20T15:39:45Z"
+    assert paper["activation_candidate_head"] == (
+        "9d52eb753355365848a637ffa6663928664bf770"
+    )
+    assert paper["predictor_service_active"] is True
+    assert paper["execution_service_active"] is True
+    assert paper["prospective_outcomes_service_active"] is True
+    assert paper["v4_forward_timer_active"] is True
+    assert paper["recorder_restarted"] is False
+    assert paper["initial_prediction_count"] == 0
+    assert paper["initial_order_count"] == 0
+    assert paper["initial_fill_count"] == 0
+    assert paper["pre_activation_prediction_count"] == 0
+    assert paper["invalid_order_source_count"] == 0
 
 
 def test_v3_successor_records_explicit_paper_authorization_without_reopening_holdout() -> None:
@@ -53,7 +66,9 @@ def test_v3_successor_records_explicit_paper_authorization_without_reopening_hol
 
     assert successor["final_holdout_reusable"] is False
     assert successor["paper_activation_authorized"] is True
-    assert successor["paper_activation_performed"] is False
+    assert successor["paper_activation_performed"] is True
+    assert successor["paper_activation_passed"] is True
+    assert successor["paper_activated_at"] == "2026-09-20T15:39:45Z"
     assert successor["paper_model_artifact_sha256"] == MODEL_SHA
     assert successor["paper_selected_forecast_candidate"] == (
         "single_feature_btc_logistic"
@@ -84,16 +99,17 @@ def test_canonical_docs_keep_paper_and_live_money_boundaries_explicit() -> None:
         assert "0.075" in content
 
     assert "$0.00" in start
-    assert "zero real money" in build.lower()
-    assert "real money remains exactly zero" in master.lower()
-    assert "real-money limits remain zero" in decisions.lower()
+    assert "real money at zero" in build.lower()
+    assert "real money is exactly $0.00" in master.lower()
+    assert "nonzero real-money limits remain unauthorized" in decisions.lower()
     assert "$0 real money" in changelog.lower()
     assert "real_money         = $0.00" in spec
 
     assert "## D-052 —" in decisions
-    assert "## 0.14.143 — 20 September 2026" in changelog
+    assert "## D-053 —" in decisions
+    assert "## 0.14.144 — 20 September 2026" in changelog
     assert "pre-activation" in spec.lower()
     assert "polymarket state is execution-only" in spec.lower()
-    assert "v4 regime-aware prospective feature collection continues" in master.lower()
-    assert "no wallet" in build.lower()
-    assert "do not restart the recorder" in build.lower()
+    assert "v4 regime-aware collection continues in parallel" in master.lower()
+    assert "live-order paths disabled" in build.lower()
+    assert "prospective observation only" in start.lower()

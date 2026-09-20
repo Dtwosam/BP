@@ -484,3 +484,14 @@ Use the established $100 virtual starting cash and $5 virtual target notional wi
 
 V4 collection continues. This decision does not authorize V3 tuning, V4 training, automatic promotion, Phase 15, wallet/signing access, real Polymarket order submission, geographic bypass, or live trading.
 
+## D-053 — Accept frozen V3 paper activation and observe without tuning
+
+**Date:** 20 Sep 2026
+**Status:** Active
+
+Accept the production rollout of frozen V3 paper trading at `2026-09-20T15:39:45Z`. Candidate `9d52eb753355365848a637ffa6663928664bf770` passed the guarded activation with the exact frozen model SHA, isolated V3 prediction/execution identities, zero pre-activation predictions, zero invalid order sources, zero real money, unchanged recorder PID, and V4 collection still active.
+
+Continue prospective paper observation only. V3 paper results may be measured and reported, including simulated fills, settlements, side-specific outcomes, virtual cash, and realized paper P&L, but they must not be used to refit, recalibrate, change `min_edge=0.075`, alter paper sizing, or automatically promote the model.
+
+Live-order access, Phase 15, geographic bypass, live trading, and nonzero real-money limits remain unauthorized.
+

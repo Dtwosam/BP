@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.144 — 20 September 2026
+
+- Frozen V3 paper trading passed production activation at `2026-09-20T15:39:45Z` on candidate `9d52eb753355365848a637ffa6663928664bf770`.
+- Verified exact model SHA `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`, isolated `v3-frozen-paper-v1` / `paper-execution-v3-frozen-v1` identities, zero pre-activation predictions, and zero invalid V3 order sources.
+- Activated the V3 predictor and V3 paper executor while preserving the deployed `/opt/bp` checkout and recorder PID. The legacy paper service, prospective outcome service, and V4 forward collector remained active.
+- Paper execution remains $100 virtual starting cash / $5 virtual target notional / 250ms latency / 2s TTL / 6-decimal shares with exactly $0 real money. No refit, threshold tuning, sizing change, automatic promotion, live-order path, or live trading was enabled.
+- Added durable production evidence at `docs/evidence/phase-14-v3-frozen-paper-production-20260920.json`.
+
 ## 0.14.143 — 20 September 2026
 
 - Recorded explicit authorization to activate the exact frozen V3 Gate B successor prospectively in paper mode with $0 real money, preserving the frozen `min_edge=0.075` decision threshold.

@@ -94,7 +94,7 @@ def test_successor_spec_and_plan_preserve_frozen_search_contract() -> None:
 
 def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.143"
+    assert state["source_of_truth_version"] == "0.14.144"
     successor = state["phase_14_btc_first_v3_gate_a"]["successor_gate_b"]
     assert successor["research_plan_version"] == SUCCESSOR_PLAN_VERSION
     assert successor["epoch_start"] == SUCCESSOR_EPOCH_START
@@ -132,23 +132,24 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
         assert SUCCESSOR_EPOCH_END in content
 
     next_task = start.split("## Immediate next task", 1)[1].lower()
-    assert "frozen v3" in next_task
-    assert "paper trading with zero real money" in next_task
+    assert "frozen v3 paper trading is now **production pass and active**" in next_task
     assert "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7" in next_task
-    assert "v4 regime-aware feature collection remains active" in next_task
+    assert "v4 regime-aware forward collector remains active" in next_task
+    assert "prospective observation only" in next_task
 
     build_next = build.split("## Immediate next action", 1)[1].lower()
-    assert "exact frozen v3" in build_next
+    assert "frozen v3 paper trading is production pass and active" in build_next
     assert "min_edge=0.075" in build_next
     assert "$100 virtual starting cash" in build_next
     assert "$5 virtual target notional" in build_next
-    assert "v4 feature collection continues" in build_next
+    assert "v4 regime-aware feature collection" in build_next
 
     assert "## D-048 —" in decisions
     assert "## D-049 —" in decisions
     assert "## D-050 —" in decisions
     assert "## D-051 —" in decisions
     assert "## D-052 —" in decisions
-    assert "## 0.14.143 — 20 September 2026" in changelog
+    assert "## D-053 —" in decisions
+    assert "## 0.14.144 — 20 September 2026" in changelog
     assert RUNTIME_CHECKPOINT in changelog
     assert str(RUNTIME_CI_RUN) in changelog
