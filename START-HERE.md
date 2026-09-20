@@ -79,21 +79,28 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
-The separately versioned V4 regime-aware feature implementation is complete. Production **feature materialization and collection** is now explicitly authorized, limited to research-mode immutable V4 feature rows.
+The isolated V4 forward collector is now **production PASS and active** in research mode.
 
-The prospective V4 collection boundary is frozen at the V4 merge time:
+Initial accepted production cycle:
 
 ```text
-feature_version = core-v4-regime-aware
-epoch_start     = 2026-09-20T12:40:53Z
-horizon         = 300 seconds
-offsets         = 60, 120, 180, 240 seconds
+feature_version          = core-v4-regime-aware
+prospective_epoch_start  = 2026-09-20T12:40:53Z
+candidate_head           = 36b02d0687194173ab5d3862d3b88c6c90607574
+eligible_markets         = 9
+feature_rows_inserted    = 36
+bull_markets             = 2
+bear_markets             = 0
+sideways_mixed_markets   = 7
+unknown_markets          = 0
+future_cutoff_violations = 0
+Polymarket predictor keys= 0
+training_run             = false
+automatic_promotion      = false
 ```
 
-Only completed 5-minute markets with `market_start_at >= 2026-09-20T12:40:53Z` may be materialized by this collector. Existing immutable rows are preserved on rerun.
+The collector runs once per minute from the isolated V4 runtime under `/var/lib/bp/runtime`. The deployed `/opt/bp` checkout was preserved and the recorder was not restarted.
 
-The production collector must run from an isolated versioned runtime under `/var/lib/bp/runtime`, reuse the existing production Python environment, leave the deployed `/opt/bp` checkout unchanged, and not restart `bp-recorder.service`.
+The current task is now **prospective collection only**. Do not fit, calibrate, tune thresholds, construct/access a V4 final holdout, activate a model, or trade money.
 
-This authorization does **not** include V4 model training, calibration, threshold search, Gate B planning, final-holdout construction/access, paper activation, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero money limits.
-
-After exact-head CI passes, install and verify the isolated V4 collector, enable its one-minute timer, write durable rollout evidence, and stop at the next research boundary.
+Wait until enough fresh markets exist across bull, bear, and sideways/mixed conditions to support a meaningful regime comparison. Before any V4 model fitting, freeze a new preregistered Gate B plan on that fresh prospective cohort.
