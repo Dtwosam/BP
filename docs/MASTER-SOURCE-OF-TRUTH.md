@@ -1492,3 +1492,17 @@ The accepted first cycle at `2026-09-20T13:35:12.316825Z` processed 9 prospectiv
 
 This is collection/operational evidence only. It does not establish V4 forecast quality or profitability. Continue prospective collection until the cohort has meaningful bull, bear, and sideways/mixed representation. Before any model fitting, freeze a new V4 Gate B preregistration and untouched final holdout.
 
+## Phase 14 frozen V3 zero-real-money paper authorization — 20 September 2026
+
+The user explicitly authorized prospective paper activation of the already-frozen V3 Gate B successor. The authorized artifact is SHA-256 `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`, selected under `v3-gate-b-preregister-v2` as `single_feature_btc_logistic` at 240 seconds. Its economic policy remains `trade_threshold` with minimum cost-adjusted edge 0.075, fee coefficient 0.07, slippage buffer 0.01, and selected-book freshness limit 10 seconds.
+
+This authorization does not reopen the consumed V3 holdout and does not permit any refit, recalibration, threshold tuning, side filter, or policy modification. Polymarket remains execution-only for V3: BTC-native features produce the forecast; the recorded selected-side book determines executable price and edge.
+
+The paper epoch is prospective from its production activation timestamp. Pre-activation markets cannot be backfilled into it.
+
+V3 paper evidence is isolated from legacy paper evidence using prediction version `v3-frozen-paper-v1` and execution version `paper-execution-v3-frozen-v1`. The legacy paper worker must exclude the V3 version while preserving its prior behavior for other research prediction versions. V3 virtual cash is derived only from V3 execution-version fills/settlements.
+
+The paper simulation uses the established Phase 12 defaults: $100.00 virtual starting cash, $5.00 virtual target notional per trade signal, 250ms simulated latency, and 2000ms order TTL. These are paper execution assumptions, not V3 model-selection parameters.
+
+Real money remains exactly zero. Production controls remain RESEARCH mode, live trading disabled, maximum real trade size zero, and maximum real daily loss zero. No wallet/signing/order-placement path is authorized. V4 regime-aware prospective feature collection continues in parallel.
+
