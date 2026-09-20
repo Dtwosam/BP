@@ -48,6 +48,7 @@ def test_installer_is_exact_model_exact_head_and_recorder_safe() -> None:
         "exact 40-character verified main SHA",
         "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7",
         "prefetched_remote_branch_head_mismatch",
+        'git -c safe.directory="$REPO"',
         "existing_activation_manifest_mismatch",
         "ACTIVATION_SOURCE",
         '--activation "$ACTIVATION_SOURCE"',
@@ -159,3 +160,14 @@ def test_cloudshell_launcher_has_clean_bash_syntax() -> None:
         check=False,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_installer_verifies_new_activation_before_persisting_it() -> None:
+    content = INSTALLER.read_text(encoding="utf-8")
+    verify = content.index('--activation "$ACTIVATION_SOURCE"')
+    persist = content.index(
+        'install -o bp -g bp -m 0440 "$ACTIVATION_TMP" "$ACTIVATION_TARGET"'
+    )
+    assert verify < persist
+    assert 'ACTIVATION_SOURCE="$ACTIVATION_TARGET"' in content
+    assert 'ACTIVATION_SOURCE="$ACTIVATION_TMP"' in content
