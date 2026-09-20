@@ -99,7 +99,9 @@ recorder_restarted      = false
 
 The V3 predictor service and V3 paper-execution service are active. The legacy paper service remains active, prospective outcome settlement remains active, and the V4 regime-aware forward collector remains active in parallel.
 
-The immediate task is **prospective observation only**. Use the isolated V3 paper report to track signal count, executable/trade decisions, simulated fills, settlements, UP/DOWN results, virtual cash, and realized paper P&L without mixing legacy paper evidence.
+The immediate task is **prospective observation only**.
+
+V4 is now explicitly the **comprehensive successor to V3**, not a regime-only experiment. Its future Gate B plan must address regime dependence, UP/DOWN asymmetry, model simplicity/feature underuse, calibration, timing, trade coverage versus quality, drawdown/loss robustness, and execution availability. The current V4 collector remains unchanged while it builds the fresh prospective cohort. Use the isolated V3 paper report to track signal count, executable/trade decisions, simulated fills, settlements, UP/DOWN results, virtual cash, and realized paper P&L without mixing legacy paper evidence.
 
 Do not refit V3, recalibrate it, change the frozen 0.075 minimum edge, alter the frozen paper sizing assumptions, tune from paper results, automatically promote anything, enable a live-order path, enter Phase 15, bypass geographic restrictions, or change real-money limits.
 
