@@ -20,7 +20,7 @@ def _text(path: str) -> str:
 
 def test_v4_source_truth_is_separate_and_prospective() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.142"
+    assert state["source_of_truth_version"] == "0.14.143"
 
     v4 = state["phase_14_v4_regime_aware"]
     assert v4["feature_version"] == "core-v4-regime-aware"
@@ -100,27 +100,22 @@ def test_v4_design_freezes_regime_definition_and_safety_boundary() -> None:
         assert required in spec
 
 
-def test_canonical_handoff_points_to_v4_and_keeps_activation_blocked() -> None:
+def test_v4_collection_remains_active_during_frozen_v3_paper_activation() -> None:
     start = _text("START-HERE.md")
     build = _text("docs/BUILD-ORDER.md")
     master = _text("docs/MASTER-SOURCE-OF-TRUTH.md")
     decisions = _text("docs/DECISION-LOG.md")
     changelog = _text("docs/CHANGELOG.md")
 
-    for content in (start, build, master, decisions, changelog):
-        assert "core-v4-regime-aware" in content
-
-    for content in (master, decisions, changelog):
-        assert "V3" in content or "v3" in content
-        assert "holdout" in content.lower()
+    assert "core-v4-regime-aware" in master
+    assert "V4 regime-aware" in start
+    assert "V4 feature collection continues" in build
+    assert "V4 regime-aware prospective feature collection continues" in master
 
     assert "## D-049 —" in decisions
     assert "## D-050 —" in decisions
     assert "## D-051 —" in decisions
-    assert "## 0.14.142 — 20 September 2026" in changelog
-    assert "production pass and active" in start.lower()
-    assert "36" in start
-    assert "prospective collection only" in start.lower()
-    assert "do not train a v4 model yet" in build.lower()
+    assert "## D-052 —" in decisions
+    assert "## 0.14.143 — 20 September 2026" in changelog
     assert "automatic promotion" in master.lower()
     assert "live trading" in master.lower()
