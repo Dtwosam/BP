@@ -181,9 +181,9 @@ RECORDER_PID_BEFORE=$(systemctl show --property=MainPID --value bp-recorder.serv
 DISK_BEFORE=$(mktemp /var/tmp/bp-v4-forward-disk-before.XXXXXX.json)
 run_disk_health "$DISK_BEFORE"
 
-git -C "$REPO" fetch --quiet origin "refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
-REMOTE_HEAD=$(git -C "$REPO" rev-parse "origin/$BRANCH")
-[[ "$REMOTE_HEAD" == "$SHA" ]] || fail "remote_branch_head_mismatch:$REMOTE_HEAD"
+REMOTE_HEAD=$(git -C "$REPO" rev-parse "refs/remotes/origin/$BRANCH")
+[[ "$REMOTE_HEAD" == "$SHA" ]] || fail "prefetched_remote_branch_head_mismatch:$REMOTE_HEAD"
+git -C "$REPO" cat-file -e "$SHA^{commit}" || fail "candidate_commit_missing"
 
 for required_path in   src/bp_engine/features/v4_models.py   src/bp_engine/features/v4_service.py   src/bp_engine/features/v4_coverage.py   src/bp_engine/features/v4_forward.py   src/bp_engine/features/v4_forward_cli.py   scripts/run_v4_forward_coverage.py   deploy/bp-v4-forward-coverage.service   deploy/bp-v4-forward-coverage.timer; do
   git -C "$REPO" cat-file -e "$SHA:$required_path" || fail "candidate_path_missing:$required_path"
