@@ -62,7 +62,26 @@ unknown        = one or more horizon directions cannot be established
 
 V4 stores numeric one-hot regime flags plus per-horizon direction, venue agreement, and a trend score. This regime is context for modeling and mandatory reporting; it is not itself a trade instruction.
 
-## 5. Anti-overfit boundary
+## 5. V3 weakness-remediation objectives
+
+V4 is the full successor research program for the documented weaknesses exposed by V3. Regime robustness is one objective, not the entire V4 purpose.
+
+The following weaknesses must remain explicitly in scope for the future V4 Gate B preregistration and ordinary selection:
+
+1. **Regime dependence.** Test whether forecast quality and economics remain useful across bull, bear, and sideways/mixed conditions instead of depending on one directional environment.
+2. **Trade-side asymmetry.** V3 final-holdout trades were materially stronger on UP than DOWN. V4 must report and validate probability quality and economics separately for UP and DOWN.
+3. **Selected-model simplicity / feature underuse.** V3 ultimately selected `single_feature_btc_logistic` even though richer BTC-native predictors existed. V4 must compare a simple baseline with multivariate BTC-native models and at least one preregistered nonlinear challenger using only the frozen V4 predictor set.
+4. **Calibration robustness.** Calibration must be evaluated overall, by regime, and by predicted/traded side. A model with acceptable aggregate calibration but materially poor regime/side calibration cannot hide that weakness in the overall number.
+5. **Timing dependence.** V3 selected the 240-second offset. V4 must allow the frozen 60/120/180/240 decision offsets to compete again on fresh prospective data rather than assuming 240 seconds remains best.
+6. **Trade-quality versus coverage.** V3's frozen holdout produced relatively few trades. V4 must report the coverage/economic-quality frontier so a higher trade count is never treated as an improvement unless probability quality and after-cost economics remain acceptable.
+7. **Loss/drawdown robustness.** V4 economic reporting must include losses, average win/loss, drawdown, losing streak, and profit factor overall and by regime/side. Positive aggregate P&L alone is insufficient.
+8. **Execution availability.** Freshness/missing-book conditions and simulated fill/expiry behavior must be reported separately from forecast quality so execution problems are not mistaken for model problems.
+
+These objectives are hypotheses motivated by V3 evidence only. The consumed V3 final holdout must not supply V4 numeric thresholds, side filters, model hyperparameters, regime-specific rules, calibration parameters, or acceptance cutoffs.
+
+The future V4 Gate B preregistration must freeze the candidate model ladder, calibration ladder, timing candidates, economic-policy candidates, side/regime reporting contract, chronology, selection rules, and final untouched holdout before any prospective V4 labels are used for selection.
+
+## 6. Anti-overfit boundary
 
 The V3 final holdout is permanently consumed.
 
@@ -78,7 +97,7 @@ Its results may support the research hypothesis that market regime and side asym
 
 Any future V4 selection and final holdout must use a new prospective cohort frozen after this design and feature implementation.
 
-## 6. Mandatory evaluation
+## 7. Mandatory evaluation
 
 Every V4 probability evaluation must report overall metrics and separate metrics for bull, bear, sideways/mixed, and unknown regimes.
 
@@ -88,13 +107,13 @@ Any future economic evaluation must additionally report by regime and trade side
 
 Overall profitability is not sufficient if a regime-specific failure is being hidden by another market condition.
 
-## 7. Current implementation boundary
+## 8. Current implementation boundary
 
 The repository implementation may add immutable V4 feature models, BTC state source reads, 5m/15m/60m regime calculations, deterministic regime one-hot fields, leakage and immutability tests, and regime-sliced probability reporting.
 
 This step does not authorize production database writes, production feature materialization, deployment or service restart, model training, threshold search, final-holdout construction or access, paper activation, automatic promotion, live trading, or nonzero money limits.
 
-## 8. Next controlled step
+## 9. Next controlled step
 
 After repository CI passes, the next controlled boundary is production V4 feature collection/materialization in RESEARCH mode.
 
