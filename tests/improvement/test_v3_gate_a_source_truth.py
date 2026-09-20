@@ -173,7 +173,7 @@ def test_canonical_docs_record_gate_a_pass_and_preregistration_handoff() -> None
         assert EPOCH_END in content
 
     assert "core-v4-regime-aware" in build
-    assert "production v4 materialization" in build.lower()
+    assert "production feature materialization/collection" in build.lower()
 
     current_master = master.split(
         "## Phase 14 BTC-first V3 Gate A production acceptance + Gate B preregistration",
@@ -206,9 +206,8 @@ def test_current_handoff_points_to_v4_regime_research() -> None:
     start_next = start.split("## Immediate next task", 1)[1].lower()
     assert "core-v4-regime-aware" in start_next
     assert "regime" in start_next
-    assert "v3 final holdout" in start_next
-    assert "must not be used" in start_next
-    assert "production feature materialization and collection" in start_next
+    assert "v4 regime-aware feature implementation is complete" in start_next
+    assert "production **feature materialization and collection**" in start_next
     assert "2026-09-20t12:40:53z" in start_next
     assert "leave the deployed `/opt/bp` checkout unchanged" in start_next
 
