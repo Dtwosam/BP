@@ -132,6 +132,7 @@ STAGING_DIR="$RUNTIME_ROOT/.v3-paper-$SHA.staging"
 MODEL_TARGET="$STATE_ROOT/frozen-model.joblib"
 ACTIVATION_TARGET="$STATE_ROOT/activation.json"
 ACTIVATION_TMP=""
+ACTIVATION_INSTALLED=0
 OLD_LINK_TARGET=""
 LEGACY_BACKUP=""
 PREDICTOR_BACKUP=""
@@ -182,6 +183,10 @@ rollback() {
     ln -sfn "$OLD_LINK_TARGET" "$CURRENT_LINK"
   else
     rm -f "$CURRENT_LINK"
+  fi
+
+  if (( ACTIVATION_INSTALLED )); then
+    rm -f "$ACTIVATION_TARGET"
   fi
 
   systemctl daemon-reload >/dev/null 2>&1 || true
@@ -286,8 +291,11 @@ PY
   install -o bp -g bp -m 0440 "$ACTIVATION_TMP" "$ACTIVATION_TARGET"
 fi
 
-sudo -u bp env   MODE=research   LIVE_TRADING_ENABLED=false   MAX_TRADE_SIZE_USD=0   MAX_DAILY_LOSS_USD=0   PYTHONPATH="$VERSION_DIR/src"   "$REPO/.venv/bin/python"   "$VERSION_DIR/scripts/run_v3_frozen_paper.py"   --env-file "$ENV_FILE"   --model "$MODEL_TARGET"   --activation "$ACTIVATION_TARGET"   --verify-model >/var/tmp/bp-v3-model-verify.json
+sudo -u bp env   MODE=research   LIVE_TRADING_ENABLED=false   MAX_TRADE_SIZE_USD=0   MAX_DAILY_LOSS_USD=0   PYTHONPATH="$VERSION_DIR/src"   "$REPO/.venv/bin/python"   "$VERSION_DIR/scripts/run_v3_frozen_paper.py"   --env-file "$ENV_FILE"   --model "$MODEL_TARGET"   --activation "$ACTIVATION_TMP"   --verify-model >/var/tmp/bp-v3-model-verify.json
 grep -q '"verified": true' /var/tmp/bp-v3-model-verify.json   || fail "frozen_model_runtime_verification_failed"
+
+install -o bp -g bp -m 0440 "$ACTIVATION_TMP" "$ACTIVATION_TARGET"
+ACTIVATION_INSTALLED=1
 
 install -o root -g root -m 0644   "$VERSION_DIR/deploy/bp-paper-execution-v1-isolated.service" "$LEGACY_PATH"
 install -o root -g root -m 0644   "$VERSION_DIR/deploy/bp-v3-frozen-predictor.service" "$PREDICTOR_PATH"
