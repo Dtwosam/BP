@@ -180,3 +180,46 @@ def test_new_activation_temp_is_readable_by_bp_before_verification() -> None:
     verify = content.index('--activation "$ACTIVATION_SOURCE"')
     assert chown < verify
     assert chmod < verify
+
+
+def test_db_verify_temp_is_writable_by_bp_before_db_verification() -> None:
+    content = INSTALLER.read_text(encoding="utf-8")
+    make = content.index(
+        "VERIFY_JSON=$(mktemp /var/tmp/bp-v3-paper-db-verify.XXXXXX.json)"
+    )
+    chown = content.index('chown bp:bp "$VERIFY_JSON"')
+    chmod = content.index('chmod 0640 "$VERIFY_JSON"')
+    verify = content.index('"$ENV_FILE" "$ACTIVATION_TARGET" "$VERIFY_JSON"')
+    assert make < chown < verify
+    assert make < chmod < verify
+
+
+def test_activation_epoch_is_preserved_after_predictor_has_started() -> None:
+    content = INSTALLER.read_text(encoding="utf-8")
+    assert "SERVICES_STARTED=0" in content
+    assert 'SERVICES_STARTED=1' in content
+    assert "ACTIVATION_INSTALLED && SERVICES_STARTED == 0" in content
+    assert "activation manifest preserved because V3 predictor started" in content
+
+
+def test_missing_manifest_recovers_conservative_epoch_from_preserved_v3_rows() -> None:
+    content = INSTALLER.read_text(encoding="utf-8")
+    required = (
+        "recovered_activated_at",
+        "recovered_from_orphaned_rows",
+        "recovered_prediction_count",
+        "func.min(schema.live_predictions.c.market_start_at)",
+        'schema.live_predictions.c.prediction_version == "v3-frozen-paper-v1"',
+        "orphaned V3 paper orders exist without V3 predictions",
+    )
+    for marker in required:
+        assert marker in content
+
+
+def test_existing_activation_manifest_allows_runtime_hotfix_head() -> None:
+    content = INSTALLER.read_text(encoding="utf-8")
+    existing_block = content.split('if [[ -f "$ACTIVATION_TARGET" ]]', 1)[1].split(
+        "else", 1
+    )[0]
+    assert '"candidate_head": candidate_head' not in existing_block
+    assert "existing activation candidate head is invalid" in existing_block
