@@ -1,17 +1,25 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
+import joblib
 from sqlalchemy import Connection, Engine, create_engine
 
 from bp_engine.config import Settings
 from bp_engine.v3_research.plan import build_v3_gate_b_plan
 from bp_engine.v3_research.readiness import assess_v3_gate_b_readiness
+from bp_engine.v3_research.service import (
+    V3PreparedSelection,
+    finalize_v3_selection,
+    prepare_v3_gate_b,
+)
 
 
 def _parse_datetime(value: str) -> datetime:
@@ -39,10 +47,45 @@ def _write_exclusive(path: str, payload: dict[str, Any]) -> None:
         handle.write("\n")
 
 
+def _library_version(family: str) -> str:
+    if family == "xgboost":
+        try:
+            return version("xgboost-cpu")
+        except PackageNotFoundError:
+            return version("xgboost")
+    if family == "logistic":
+        return version("scikit-learn")
+    return version("joblib")
+
+
+def _write_model_exclusive(path: str, prepared: V3PreparedSelection) -> dict[str, Any]:
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with destination.open("xb") as handle:
+        joblib.dump(prepared.model_bundle, handle)
+    payload = destination.read_bytes()
+    family = str(prepared.model_bundle["family"])
+    return {
+        "candidate": str(prepared.model_bundle["candidate"]),
+        "family": family,
+        "file_name": destination.name,
+        "size_bytes": len(payload),
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "library_version": _library_version(family),
+    }
+
+
+def _read_json(path: str) -> dict[str, Any]:
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("JSON artifact must contain an object")
+    return payload
+
+
 def _read_only(
     engine: Engine,
-    operation: Callable[[Connection], dict[str, Any]],
-) -> dict[str, Any]:
+    operation: Callable[[Connection], Any],
+) -> Any:
     with engine.connect() as connection:
         with connection.begin():
             if connection.dialect.name == "postgresql":
@@ -75,6 +118,14 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common_arguments(plan)
     plan.add_argument("--output", required=True)
 
+    prepare = subparsers.add_parser(
+        "prepare",
+        help="fit ordinary V3 candidates and freeze non-holdout selection",
+    )
+    prepare.add_argument("--plan", required=True)
+    prepare.add_argument("--output", required=True)
+    prepare.add_argument("--model-output", required=True)
+
     return parser
 
 
@@ -103,6 +154,30 @@ def _plan_summary(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _prepare_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    selected = payload["final"]["selected_forecast"]
+    edge = payload["final"]["edge_selection"]
+    artifact = payload["model_artifact"]
+    return {
+        "research_plan_version": payload["research_plan_version"],
+        "stage": payload["stage"],
+        "plan_sha256": payload["plan_sha256"],
+        "dataset_sha256_non_holdout": payload["dataset_sha256_non_holdout"],
+        "ordinary_fold_count": len(payload["folds"]),
+        "ordinary_validation_economics_passed": bool(
+            payload["ordinary_validation_economics_passed"]
+        ),
+        "selected_forecast_candidate": selected["candidate"],
+        "selected_offset_seconds": int(selected["offset_seconds"]),
+        "selected_edge_policy": edge["policy"],
+        "selected_min_edge": edge["min_edge"],
+        "model_artifact_sha256": artifact["sha256"],
+        "selection_sha256": payload["selection_sha256"],
+        "holdout_labels_read": False,
+        "holdout_evaluated": False,
+    }
+
+
 def _run(args: argparse.Namespace) -> dict[str, Any]:
     settings = _settings(args)
     engine = create_engine(settings.database_url)
@@ -127,6 +202,27 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
         )
         _write_exclusive(args.output, payload)
         return _plan_summary(payload)
+
+    if args.command == "prepare":
+        if Path(args.output).exists():
+            raise FileExistsError(args.output)
+        if Path(args.model_output).exists():
+            raise FileExistsError(args.model_output)
+        plan = _read_json(args.plan)
+        prepared = _read_only(
+            engine,
+            lambda connection: prepare_v3_gate_b(
+                connection,
+                plan=plan,
+            ),
+        )
+        model_artifact = _write_model_exclusive(args.model_output, prepared)
+        payload = finalize_v3_selection(
+            prepared,
+            model_artifact=model_artifact,
+        )
+        _write_exclusive(args.output, payload)
+        return _prepare_summary(payload)
 
     raise ValueError(f"unsupported command: {args.command}")
 
