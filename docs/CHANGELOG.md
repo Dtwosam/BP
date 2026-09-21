@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.146 — 21 September 2026
+
+- Diagnosed the 21 September Phase 14 storage-maintenance fail-closed stop as steady-state raw-partition retirement contention: the 10:00 UTC cycle completed and verified the 09:00–10:00 archive but then exceeded the existing 55-minute service timeout before raw retirement completed; the next cycle caught up only after the recorder had stopped.
+- Replaced steady-state direct attached-partition `DROP TABLE` with verified PostgreSQL concurrent detach followed by a second physical-table parity check, standalone table drop, and then the existing partition-local dedupe cleanup. Interrupted `DETACH PARTITION ... CONCURRENTLY` is resumable through `FINALIZE`, and already-detached raw tables remain explicit retirement candidates.
+- Kept detached-but-not-dropped raw tables visible to retention health and physical raw-byte accounting and prevented nonempty detached raw intervals from passing the archive-prune raw-empty guard.
+- Added PostgreSQL regression coverage for active-writer progress during concurrent detach, cancellation/pending-detach recovery, detached-table retry, health visibility, archive safety, and maintenance-test isolation. Exact branch head `8a916a439fbe569da1326fe247cf9d5cece57a54` passed CI run `35598406536` with **1,252 tests**, plus Historical Backfill Smoke `35598406257`, Live Recorder Smoke `35598406276`, and Recorder Short Soak `35598406255`.
+- This is engineering validation only. Production remains on checkout `7c3af78da1922a0e5187c24b799951130cc98887`; no production checkout, service, timer, database, V3/V4, trading, promotion, or money-limit mutation is authorized by this change.
+
 ## 0.14.145 — 20 September 2026
 
 - Expanded V4 from a regime-focused challenger into the comprehensive successor program for all documented V3 weaknesses.
