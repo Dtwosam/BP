@@ -79,7 +79,7 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
-Frozen V3 paper trading is now **production PASS and active** in research mode.
+Frozen V3 paper trading retains its accepted **production PASS** activation evidence in research mode.
 
 Accepted activation:
 
@@ -97,9 +97,11 @@ invalid_order_sources   = 0
 recorder_restarted      = false
 ```
 
-The V3 predictor service and V3 paper-execution service are active. The legacy paper service remains active, prospective outcome settlement remains active, and the V4 regime-aware forward collector remains active in parallel.
+Current runtime status is newer than that activation snapshot. On 21 September, the latest already-authorized recorder/V3 recovery passed, but the chained concurrent-partition-retirement rollout failed closed before candidate checkout because `bp-storage-disk-health.service` was transiently active during preflight. Pre-checkout rollback stopped the recorder and frozen-V3 predictor/execution chain and restored the storage-maintenance timer.
 
-The immediate task is **prospective observation only**.
+The immediate task is to rerun the already-approved recorder/V3 recovery from exact helper head `f50f01d3baf2dc2e968469e44c4dbb9e660a9378` against deployed head `7c3af78da1922a0e5187c24b799951130cc98887`, then only on recovery PASS run the already-approved concurrent-partition-retirement rollout from the same helper head. No broader production authorization is implied.
+
+After that sequence passes and current runtime health is re-established, return to **prospective observation only**.
 
 Use the read-only combined observation report when you want one snapshot of frozen V3 paper evidence, prospective V4 regime coverage, storage-maintenance health, and the current research/zero-money guard:
 
