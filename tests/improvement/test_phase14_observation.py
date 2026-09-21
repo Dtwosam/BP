@@ -1,6 +1,6 @@
+import json
 from datetime import UTC, datetime
 from decimal import Decimal
-import json
 from pathlib import Path
 
 import pytest
