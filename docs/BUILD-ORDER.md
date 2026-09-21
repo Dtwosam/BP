@@ -618,9 +618,11 @@ Current order: (1) do not rerun this rollout and preserve its evidence; (2) buil
 
 ## Immediate next action
 
-Frozen V3 paper trading is production PASS and active from `2026-09-20T15:39:45Z`.
+The 20 September frozen-V3 paper activation remains accepted production evidence, but the latest 21 September storage-reliability sequence rolled back before candidate checkout. That fail-closed rollback stopped the recorder and frozen-V3 predictor/execution chain and restored the storage-maintenance timer, so the earlier accepted activation must not be treated as proof that those services are currently active.
 
-Continue two prospective processes in parallel:
+Rerun the already-approved Phase 14 recorder/V3 recovery gate from exact helper head `f50f01d3baf2dc2e968469e44c4dbb9e660a9378` against deployed head `7c3af78da1922a0e5187c24b799951130cc98887`. Only if recovery passes, run the already-approved concurrent-partition-retirement rollout from the same exact helper head. Do not broaden authorization: preserve `MODE=research`, `LIVE_TRADING_ENABLED=false`, zero real-money limits, `automatic_promotion=false`, no Gate B/model tuning, and Phase 15 blocked.
+
+After the recovery + rollout sequence passes and current runtime health is re-established, resume the **prospective observation only** steady state with two processes in parallel:
 
 V4 is the comprehensive V3 successor. Before any V4 fitting, its Gate B preregistration must explicitly cover every documented V3 weakness: regime dependence, side asymmetry, model simplicity/feature underuse, calibration, timing, trade-quality versus coverage, drawdown/loss robustness, and execution availability. Do not change the current V4 collector mid-epoch.
 
