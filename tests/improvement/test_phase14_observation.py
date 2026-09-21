@@ -286,7 +286,7 @@ def test_phase14_observation_source_truth_preserves_read_only_boundary() -> None
     build = (root / "docs/BUILD-ORDER.md").read_text(encoding="utf-8")
 
     observation = state["phase_14_observation_report"]
-    assert observation["status"] == "REPOSITORY_ENGINEERING_GREEN_NOT_PRODUCTION_RUN"
+    assert observation["status"] == "MERGED_MAIN_READ_ONLY_OBSERVATION_AVAILABLE_NOT_PRODUCTION_RUN"
     assert observation["database_writes"] is False
     assert observation["filesystem_creation"] is False
     assert observation["training_performed"] is False
@@ -295,6 +295,9 @@ def test_phase14_observation_source_truth_preserves_read_only_boundary() -> None
     assert observation["service_or_timer_mutation"] is False
     assert observation["production_checkout_mutation"] is False
     assert observation["production_run_performed"] is False
+    assert observation["merge_commit"] == "767cac3b78c20c9162b20c74eff770d4b2e8d1d8"
+    assert observation["post_merge_ci_run_id"] == 35606952694
+    assert observation["post_merge_ci_passed"] is True
     assert observation["live_trading_enabled"] is False
     assert observation["max_trade_size_usd"] == 0
     assert observation["max_daily_loss_usd"] == 0
@@ -306,3 +309,5 @@ def test_phase14_observation_source_truth_preserves_read_only_boundary() -> None
     assert command in build
     assert "prospective observation only" in start.lower()
     assert "do not tune v3 from paper results" in build.lower()
+    assert "no further authorized v3/v4 model or trading build step" in observation["next_action"].lower()
+    assert "separate explicit sha-bound authorization boundary" in observation["next_action"].lower()
