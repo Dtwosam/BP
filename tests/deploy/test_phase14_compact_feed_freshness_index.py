@@ -106,7 +106,12 @@ def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
     assert storage["compact_feed_freshness_index_historical_backfill_smoke_run_id"] == 35663923521
     assert storage["compact_feed_freshness_index_live_recorder_smoke_run_id"] == 35663923483
     assert storage["compact_feed_freshness_index_recorder_short_soak_run_id"] == 35663923480
-    assert storage["prior_recovery_rollout_sha_bound_authorization_invalidated_by_main_advance"] is True
+    assert (
+        storage[
+            "prior_recovery_rollout_sha_bound_authorization_invalidated_by_main_advance"
+        ]
+        is True
+    )
     assert storage["concurrent_partition_retirement_production_rollout_authorized"] is False
     assert storage["concurrent_partition_retirement_rollout_gate_production_authorized"] is False
     assert storage["recorder_v3_recovery_authorized"] is False
