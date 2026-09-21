@@ -17,8 +17,10 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from bp_engine.storage.partitioned_raw import (
     RawStorageMode,
-    drop_raw_partition,
+    detach_raw_partition_concurrently,
+    drop_detached_raw_partition,
     list_raw_partitions,
+    raw_partition_row_count,
     raw_storage_mode,
 )
 from bp_engine.storage.recorder import RecorderRepository
@@ -362,28 +364,48 @@ def retire_verified_partition(
         compact_cutoff_at = terminal_cutoff
         terminal_partial_compact_cutoff = True
 
-    with engine.begin() as connection:
+    with engine.connect() as connection:
         if raw_storage_mode(connection) is not RawStorageMode.PARTITIONED:
             raise RuntimeError("raw_market_events is not partitioned")
-        live_rows = int(
-            connection.execute(
-                select(func.count(raw_market_events.c.id)).where(
-                    raw_market_events.c.received_at >= manifest.start_at,
-                    raw_market_events.c.received_at < manifest.end_at,
-                )
-            ).scalar_one()
-        )
-        if live_rows != manifest.row_count:
-            raise ArchiveVerificationError(
-                "verified archive row count does not match live partition"
-            )
-        raw_partition_name = drop_raw_partition(
+        live_rows = raw_partition_row_count(
             connection,
             start_at=manifest.start_at,
             end_at=manifest.end_at,
         )
-        if raw_partition_name is None:
+        if live_rows is None:
             raise RuntimeError("raw partition is missing")
+        if live_rows != manifest.row_count:
+            raise ArchiveVerificationError(
+                "verified archive row count does not match live partition"
+            )
+
+    raw_partition_name = detach_raw_partition_concurrently(
+        engine,
+        start_at=manifest.start_at,
+        end_at=manifest.end_at,
+    )
+    if raw_partition_name is None:
+        raise RuntimeError("raw partition is missing")
+
+    with engine.begin() as connection:
+        live_rows = raw_partition_row_count(
+            connection,
+            start_at=manifest.start_at,
+            end_at=manifest.end_at,
+        )
+        if live_rows is None:
+            raise RuntimeError("detached raw partition is missing before physical drop")
+        if live_rows != manifest.row_count:
+            raise ArchiveVerificationError(
+                "verified archive row count changed during concurrent detach"
+            )
+        dropped_partition_name = drop_detached_raw_partition(
+            connection,
+            start_at=manifest.start_at,
+            end_at=manifest.end_at,
+        )
+        if dropped_partition_name != raw_partition_name:
+            raise RuntimeError("detached raw partition physical drop did not complete")
 
     with engine.connect() as connection:
         dedupe_partitions = tuple(
