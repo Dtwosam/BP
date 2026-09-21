@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.154 — 21 September 2026
+
+- The first explicitly authorized recorder/V3 recovery attempt stopped before any service mutation with `oneshot_not_idle:bp-storage-maintenance.service`; the hourly storage-maintenance cycle was already in flight.
+- Hardened the recovery gate to treat an in-flight maintenance oneshot as a synchronization condition rather than a configuration failure: it waits boundedly for completion, requires the completed cycle to report `Result=success`, waits briefly for an overlapping disk-health oneshot if necessary, and requires at least 600 seconds before the next hourly maintenance trigger before starting recorder/V3 recovery.
+- The hardening does not stop, restart, disable, or reconfigure the maintenance timer and does not broaden the authorized production scope. Recovery, concurrent-partition-retirement rollout, live trading, nonzero money, automatic promotion, Gate B, model tuning, and Phase 15 remain otherwise unchanged.
+
 ## 0.14.153 — 21 September 2026
 
 - Recorded explicit production authorization for the Phase 14 concurrent-partition-retirement rollout and, after its preflight safely stopped on an already-inactive recorder, a narrower authorization to restore only the accepted recorder and frozen-V3 paper service chain.
