@@ -101,6 +101,14 @@ The V3 predictor service and V3 paper-execution service are active. The legacy p
 
 The immediate task is **prospective observation only**.
 
+Use the read-only combined observation report when you want one snapshot of frozen V3 paper evidence, prospective V4 regime coverage, storage-maintenance health, and the current research/zero-money guard:
+
+```bash
+python scripts/report_phase14_observation.py --env-file /etc/bp/bp.env
+```
+
+The report composes the existing V3/V4/storage metrics without training, tuning, service changes, database writes, or filesystem creation. The storage path must already exist; unsafe mode/money settings are reported as failed observation guards rather than hidden.
+
 V4 is now explicitly the **comprehensive successor to V3**, not a regime-only experiment. Its future Gate B plan must address regime dependence, UP/DOWN asymmetry, model simplicity/feature underuse, calibration, timing, trade coverage versus quality, drawdown/loss robustness, and execution availability. The current V4 collector remains unchanged while it builds the fresh prospective cohort. Use the isolated V3 paper report to track signal count, executable/trade decisions, simulated fills, settlements, UP/DOWN results, virtual cash, and realized paper P&L without mixing legacy paper evidence.
 
 Do not refit V3, recalibrate it, change the frozen 0.075 minimum edge, alter the frozen paper sizing assumptions, tune from paper results, automatically promote anything, enable a live-order path, enter Phase 15, bypass geographic restrictions, or change real-money limits.
