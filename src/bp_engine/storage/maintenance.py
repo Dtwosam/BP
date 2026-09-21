@@ -17,8 +17,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from bp_engine.storage.partitioned_raw import (
     RawStorageMode,
-    drop_raw_partition,
+    detach_raw_partition_concurrently,
+    drop_detached_raw_partition,
     list_raw_partitions,
+    list_raw_retirement_candidates,
+    raw_partition_row_count,
     raw_storage_mode,
 )
 from bp_engine.storage.recorder import RecorderRepository
@@ -362,28 +365,48 @@ def retire_verified_partition(
         compact_cutoff_at = terminal_cutoff
         terminal_partial_compact_cutoff = True
 
-    with engine.begin() as connection:
+    with engine.connect() as connection:
         if raw_storage_mode(connection) is not RawStorageMode.PARTITIONED:
             raise RuntimeError("raw_market_events is not partitioned")
-        live_rows = int(
-            connection.execute(
-                select(func.count(raw_market_events.c.id)).where(
-                    raw_market_events.c.received_at >= manifest.start_at,
-                    raw_market_events.c.received_at < manifest.end_at,
-                )
-            ).scalar_one()
-        )
-        if live_rows != manifest.row_count:
-            raise ArchiveVerificationError(
-                "verified archive row count does not match live partition"
-            )
-        raw_partition_name = drop_raw_partition(
+        live_rows = raw_partition_row_count(
             connection,
             start_at=manifest.start_at,
             end_at=manifest.end_at,
         )
-        if raw_partition_name is None:
+        if live_rows is None:
             raise RuntimeError("raw partition is missing")
+        if live_rows != manifest.row_count:
+            raise ArchiveVerificationError(
+                "verified archive row count does not match live partition"
+            )
+
+    raw_partition_name = detach_raw_partition_concurrently(
+        engine,
+        start_at=manifest.start_at,
+        end_at=manifest.end_at,
+    )
+    if raw_partition_name is None:
+        raise RuntimeError("raw partition is missing")
+
+    with engine.begin() as connection:
+        live_rows = raw_partition_row_count(
+            connection,
+            start_at=manifest.start_at,
+            end_at=manifest.end_at,
+        )
+        if live_rows is None:
+            raise RuntimeError("detached raw partition is missing before physical drop")
+        if live_rows != manifest.row_count:
+            raise ArchiveVerificationError(
+                "verified archive row count changed during concurrent detach"
+            )
+        dropped_partition_name = drop_detached_raw_partition(
+            connection,
+            start_at=manifest.start_at,
+            end_at=manifest.end_at,
+        )
+        if dropped_partition_name != raw_partition_name:
+            raise RuntimeError("detached raw partition physical drop did not complete")
 
     with engine.connect() as connection:
         dedupe_partitions = tuple(
@@ -448,6 +471,14 @@ def retire_verified_partition(
 
 def _raw_interval_is_empty(engine: Engine, start_at: datetime, end_at: datetime) -> bool:
     with engine.connect() as connection:
+        if engine.dialect.name == "postgresql":
+            partition_rows = raw_partition_row_count(
+                connection,
+                start_at=start_at,
+                end_at=end_at,
+            )
+            if partition_rows is not None:
+                return partition_rows == 0
         remaining = connection.execute(
             select(raw_market_events.c.id)
             .where(raw_market_events.c.received_at >= start_at)
@@ -611,15 +642,15 @@ def _partition_relation_bytes(engine: Engine) -> int | None:
             value = connection.execute(
                 text(
                     """
-                    SELECT COALESCE(sum(pg_total_relation_size(child.oid)), 0)
-                    FROM pg_inherits
-                    JOIN pg_class AS parent ON parent.oid = pg_inherits.inhparent
-                    JOIN pg_namespace AS parent_ns ON parent_ns.oid = parent.relnamespace
-                    JOIN pg_class AS child ON child.oid = pg_inherits.inhrelid
-                    WHERE parent_ns.nspname = current_schema()
-                      AND parent.relname = 'raw_market_events'
+                    SELECT COALESCE(sum(pg_total_relation_size(relation.oid)), 0)
+                    FROM pg_class AS relation
+                    JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+                    WHERE namespace.nspname = current_schema()
+                      AND relation.relkind = 'r'
+                      AND relation.relname ~ :raw_partition_pattern
                     """
-                )
+                ),
+                {"raw_partition_pattern": r"^raw_market_events_[0-9]{8}_[0-9]{2}$"},
             ).scalar_one()
     except SQLAlchemyError:
         return None
@@ -702,18 +733,19 @@ def build_composite_storage_health(
             },
         }
 
-    partitions = list_raw_partitions(engine)
+    attached_partitions = list_raw_partitions(engine)
+    retained_raw_tables = list_raw_retirement_candidates(engine)
     current_hour = _floor_hour(now_at)
     current_present = any(
         partition.start_at <= now_at < partition.end_at
-        for partition in partitions
+        for partition in attached_partitions
     )
     eligible_end = _floor_hour(
         now_at - timedelta(hours=int(settings.storage_hot_raw_hours))
     )
     expired = [
         partition
-        for partition in partitions
+        for partition in retained_raw_tables
         if partition.end_at <= eligible_end
     ]
     retention_lag_hours = 0.0
@@ -743,8 +775,16 @@ def build_composite_storage_health(
     if not all(guards.values()):
         status = "critical"
 
-    oldest = min(partitions, key=lambda item: item.start_at) if partitions else None
-    newest = max(partitions, key=lambda item: item.end_at) if partitions else None
+    oldest = (
+        min(retained_raw_tables, key=lambda item: item.start_at)
+        if retained_raw_tables
+        else None
+    )
+    newest = (
+        max(retained_raw_tables, key=lambda item: item.end_at)
+        if retained_raw_tables
+        else None
+    )
     oldest_age_hours = (
         None
         if oldest is None
@@ -762,7 +802,7 @@ def build_composite_storage_health(
             "max_age_hours": max_age_hours,
         },
         "raw_partitions": {
-            "count": len(partitions),
+            "count": len(retained_raw_tables),
             "current_hour_start_at": _iso_utc(current_hour),
             "oldest_start_at": _iso_utc(oldest.start_at) if oldest else None,
             "newest_end_at": _iso_utc(newest.end_at) if newest else None,
