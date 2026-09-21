@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.156 — 21 September 2026
+
+- Closed the Phase 14 recovery-to-rollout handoff gap observed after recorder/frozen-V3 recovery: the production checkout remained at the old `7c3af78...` head, the rollout never reached candidate checkout, and the still-active hourly maintenance timer fired the 17:00 UTC old-code maintenance cycle while recorder/V3 were active. A read-only diagnostic found no PostgreSQL blockers and no live rollout remote shell; the operator then stopped recorder and frozen V3, leaving the in-flight maintenance cycle undisturbed.
+- Recovery now freezes `bp-storage-maintenance.timer` before starting recorder/V3, verifies the timer is enabled but inactive and maintenance is idle, leaves that timer stopped on a successful handoff, and restores it during recovery rollback.
+- The concurrent-partition-retirement rollout now requires that timer-stopped recovery handoff and arms rollback immediately after the exact base-head check. Any pre-checkout failure stops frozen V3 execution/predictor and recorder before restoring the maintenance timer, preventing old maintenance from being re-armed under an active recorder.
+- RESEARCH mode, four recorder writers, live-disabled/zero-money limits, automatic-promotion=false, Gate B state, immutable candidate SHA, and the concurrent-retirement acceptance criteria remain unchanged.
+
 ## 0.14.155 — 21 September 2026
 
 - The second explicitly authorized recorder/V3 recovery attempt passed maintenance synchronization and started the recorder plus frozen-V3 service chain, but the recovery helper then rejected a healthy natural-load soak because it checked a nonexistent `verdict=PASS` field instead of the canonical `passed=true` field emitted by `scripts/soak_report.py`.

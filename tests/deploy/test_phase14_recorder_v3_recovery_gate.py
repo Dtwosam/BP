@@ -109,7 +109,7 @@ def test_project_state_records_authorized_recovery_and_rollout_without_claiming_
     import json
 
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["source_of_truth_version"] == "0.14.155"
+    assert state["source_of_truth_version"] == "0.14.156"
     storage = state["phase_14_storage_reliability_followup"]
     assert storage["concurrent_partition_retirement_production_rollout_authorized"] is True
     assert storage["concurrent_partition_retirement_rollout_gate_production_authorized"] is True
@@ -125,7 +125,7 @@ def test_project_state_records_authorized_recovery_and_rollout_without_claiming_
     )
 
 
-def test_recorder_v3_recovery_waits_for_inflight_maintenance_without_mutating_timer() -> None:
+def test_recorder_v3_recovery_waits_for_inflight_maintenance_and_stops_timer_for_handoff() -> None:
     source = read_helper()
     assert "wait_for_oneshot_idle_success" in source
     assert 'wait_for_oneshot_idle_success "$MAINTENANCE_SERVICE" 3600' in source
@@ -134,8 +134,14 @@ def test_recorder_v3_recovery_waits_for_inflight_maintenance_without_mutating_ti
     assert "oneshot_last_result_not_success" in source
     assert 'require_timer_headroom "$MAINTENANCE_TIMER" 600' in source
     assert "timer_headroom_insufficient" in source
-    assert 'systemctl stop "$MAINTENANCE_TIMER"' not in source
-    assert 'systemctl restart "$MAINTENANCE_TIMER"' not in source
+    timer_stop = source.index('systemctl stop "$MAINTENANCE_TIMER"')
+    recorder_start = source.index('systemctl start "$RECORDER_UNIT"')
+    assert timer_stop < recorder_start
+    assert 'require_timer_enabled_inactive "$MAINTENANCE_TIMER"' in source
+    rollback = source[source.index("rollback() {") : source.index("cleanup() {")]
+    assert 'systemctl start "$MAINTENANCE_TIMER"' in rollback
+    assert "MAINTENANCE_TIMER_ACTIVE=inactive" in source
+    assert "ROLLOUT_HANDOFF_READY=true" in source
 
 
 def test_recorder_v3_recovery_uses_canonical_soak_report_schema() -> None:
