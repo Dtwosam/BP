@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.149",
-  "updated_at": "2026-09-21T13:31:01Z",
+  "source_of_truth_version": "0.14.150",
+  "updated_at": "2026-09-21T13:40:26Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -3681,7 +3681,7 @@
     "invalid_order_source_count": 0
   },
   "phase_14_observation_report": {
-    "status": "REPOSITORY_ENGINEERING_GREEN_NOT_PRODUCTION_RUN",
+    "status": "MERGED_MAIN_READ_ONLY_OBSERVATION_AVAILABLE_NOT_PRODUCTION_RUN",
     "pr": 217,
     "validation_head": "7db3ecd21e3680298f171c54d6f48e41141d1bdd",
     "ci_run_id": 35605896956,
@@ -3707,6 +3707,10 @@
     "max_trade_size_usd": 0,
     "max_daily_loss_usd": 0,
     "automatic_promotion": false,
-    "next_action": "Merge the read-only observation report after exact-head validation. After merge, use it only for prospective V3/V4/storage observation; do not treat report output as authorization to tune V3, fit V4, deploy the concurrent-retirement production candidate, enable live trading, or change real-money limits."
+    "next_action": "Use the merged report only for read-only prospective observation when desired. The repository has no further authorized V3/V4 model or trading build step: continue frozen V3 paper observation and unchanged V4 prospective collection. Concurrent-partition-retirement production execution remains a separate explicit SHA-bound authorization boundary; no report output authorizes tuning, fitting, activation, live trading, or nonzero money.",
+    "merge_commit": "767cac3b78c20c9162b20c74eff770d4b2e8d1d8",
+    "merged_at": "2026-09-21T13:38:50Z",
+    "post_merge_ci_run_id": 35606952694,
+    "post_merge_ci_passed": true
   }
 }
