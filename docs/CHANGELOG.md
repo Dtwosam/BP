@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.160 — 21 September 2026
+
+- The authorized recorder/frozen-V3 recovery passed again and produced durable evidence at `/var/lib/bp/evidence/phase14-recorder-v3-recovery-20260921T204332Z.json`. The subsequent concurrent-partition-retirement rollout found eligible partition `raw_market_events_20260920_20`, checked out immutable candidate `ed7d930c69e417dda388b0cb62b3a543a4b8134f`, and entered real acceptance maintenance.
+- Production diagnostics isolated the acceptance slowdown to compact-feed freshness checks. `_compact_feeds_advanced()` used `MAX(market_state_1s.last_event_at)` for each required feed, while production had `(source, stream, bucket_at)` but no general `(source, stream, last_event_at)` index. EXPLAIN therefore selected a parallel bitmap heap scan over roughly 711k matching rows for Bybit spot.
+- While that maintenance cycle remained in flight across the next UTC retention boundary, disk health correctly changed only `retention_current` from true to false as retention lag advanced from 1 hour to 2 hours, marked composite storage health critical, and triggered the existing fail-closed recorder stop. The rollout then failed `recorder_not_active_after_maintenance`; live trading stayed disabled and money limits stayed zero.
+- Candidate-side reconciliation later recorded a successful maintenance completion at `2026-09-21T22:20:29.473369Z`; disk health was back to `status=ok`, `retention_current=true`, and 1-hour retention lag by 22:22:51Z. Final old-checkout rollback is not claimed until terminal helper output confirms it.
+- The repair adds `ix_market_state_1s_feed_last_event (source, stream, last_event_at DESC)` for fresh and existing hosts, changes compact-feed freshness to an ordered `LIMIT 1` lookup with equivalent latest-event semantics, and adds an exact-head, separately approved production index helper. The helper requires recorder/frozen-V3 to remain fail-closed stopped, preserves RESEARCH/live-disabled/zero-money safety, requires 20 minutes of next-hour headroom, verifies the planner selects the new index for all four required feeds, and never starts recorder or V3 services.
+
 ## 0.14.159 — 21 September 2026
 
 - The latest recorder/frozen-V3 recovery passed and produced durable recovery evidence, but the chained concurrent-partition-retirement rollout failed before candidate checkout because `bp-storage-disk-health.service` was transiently active during preflight. Pre-checkout rollback stopped recorder/frozen V3 and restored the maintenance timer.
