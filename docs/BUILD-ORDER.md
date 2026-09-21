@@ -626,8 +626,14 @@ Proceed in this order:
 2. PR #229's compact-feed freshness repair is merged and green. Production installation of `ix_market_state_1s_feed_last_event (source, stream, last_event_at DESC)` remains separately unauthorized. When explicitly approved against the exact current `main`, run `scripts/deploy/phase14_compact_feed_freshness_index_cloudshell.sh` while recorder/frozen-V3 remain stopped.
 3. After the index gate passes, obtain fresh exact-head authorization for recorder/V3 recovery. Require RESEARCH mode, four recorder writers, live trading disabled, zero real-money limits, and the timer-stopped rollout handoff.
 4. Only after recovery PASS, obtain fresh exact-head authorization for the concurrent-partition-retirement rollout and require real retirement acceptance without recorder/V3 identity loss.
-5. Resume frozen V3 paper observation and V4 prospective collection only after rollout PASS.
+5. Resume frozen V3 paper observation and V4 prospective collection only after rollout PASS. This resumes the established V4 regime-aware feature collection; it does not authorize V4 fitting or a collector change.
+
+The read-only combined observation command remains available for diagnostics and later steady-state observation:
+
+```bash
+python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env
+```
 
 The frozen V3 policy remains immutable: model SHA `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`, `v3-frozen-paper-v1`, `paper-execution-v3-frozen-v1`, 240-second timing, and `min_edge=0.075`. Keep $100 virtual starting cash, $5 virtual target notional, and **real money at zero**. Do not tune V3 from paper results.
 
-No V3 refit, calibration change, threshold search, sizing change, Gate B action, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero real-money limit is authorized.
+Keep all live-order paths disabled. No V3 refit, calibration change, threshold search, sizing change, Gate B action, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero real-money limit is authorized.
