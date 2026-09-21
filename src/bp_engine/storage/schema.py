@@ -99,6 +99,12 @@ Index(
     market_state_1s.c.stream,
     market_state_1s.c.bucket_at,
 )
+Index(
+    "ix_market_state_1s_feed_last_event",
+    market_state_1s.c.source,
+    market_state_1s.c.stream,
+    market_state_1s.c.last_event_at.desc(),
+)
 
 feed_incidents = Table(
     "feed_incidents",
