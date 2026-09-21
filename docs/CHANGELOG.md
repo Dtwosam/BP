@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.147 — 21 September 2026
+
+- Froze the production-shaped concurrent-partition-retirement candidate at `ed7d930c69e417dda388b0cb62b3a543a4b8134f`, descended directly from deployed production head `7c3af78da1922a0e5187c24b799951130cc98887` with exactly four changed files. Verification-only PR #214 passed CI run `35600313836` and was closed without merge.
+- Added the fail-closed production rollout/acceptance helper `scripts/deploy/phase14_concurrent_partition_retirement_rollout_cloudshell.sh` plus its operator runbook and deployment-contract tests. The helper requires exact main/candidate/storage-evidence binding and a separate SHA-bound approval token before any GCP contact.
+- Acceptance cannot pass on a no-op maintenance cycle: the maintenance timer is frozen before eligibility is proven, at least one expired raw partition must be eligible, the active-recorder cycle must record at least one retired partition, recorder/V3 PIDs and recorder restart count must remain unchanged, all four recorder feeds must pass the natural-load soak, and partitioned storage must finish `ok` with no detach leftovers.
+- Post-checkout failure is fail-closed: frozen V3 and recorder services stop, candidate code reconciles pending/detached retirement state first, and old-code checkout is permitted only after that reconciliation succeeds. A pre-checkout failure restores only the maintenance timer and leaves recorder/V3 untouched.
+- Exact rollout-gate validation head `2047f4256bfc7cf9e47017403f222f25df1c65d6` passed CI `35601850507`, Historical Backfill Smoke `35601850400`, Live Recorder Smoke `35601850506`, and Recorder Short Soak `35601850378`.
+- This remains engineering evidence only. Production rollout is not authorized or performed; RESEARCH mode, live trading disabled, zero real-money limits, V3/V4 no-tuning boundaries, and automatic-promotion=false remain unchanged.
+
 ## 0.14.146 — 21 September 2026
 
 - Diagnosed the 21 September Phase 14 storage-maintenance fail-closed stop as steady-state raw-partition retirement contention: the 10:00 UTC cycle completed and verified the 09:00–10:00 archive but then exceeded the existing 55-minute service timeout before raw retirement completed; the next cycle caught up only after the recorder had stopped.
