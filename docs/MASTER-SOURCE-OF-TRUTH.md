@@ -275,6 +275,8 @@ Do not store every high-frequency raw update forever without a retention strateg
 
 For the current Phase 14 production storage architecture, physical raw retirement uses verified hourly partitions. Normal retirement requires compact state beyond the full hourly interval. A separately gated stopped-recorder recovery may retire only the terminal partially populated partition at its last retained raw timestamp when there are no later raw rows and every required compact feed is strictly beyond that timestamp; this recovery exception must be explicit and auditable and must not alter steady-state retention semantics.
 
+Steady-state PostgreSQL retirement must preserve that archive/parity contract without allowing attached-child physical removal to block the active recorder indefinitely. Under D-055, an eligible verified hourly child is detached with PostgreSQL concurrent partition detach, its standalone physical row count is reverified against the same manifest, the detached table is physically dropped, and dedupe-ledger cleanup follows only after that physical raw retirement. Interrupted or already-completed detach state remains visible to retention health and is resumed fail-closed; the existing maintenance timeout and storage-health thresholds are not relaxed.
+
 ## 6.3 Dashboard
 
 - Next.js
