@@ -3412,7 +3412,7 @@
       "stream",
       "last_event_at DESC"
     ],
-    "compact_feed_freshness_lookup_strategy": "ORDER_BY_LAST_EVENT_AT_DESC_LIMIT_1",
+    "compact_feed_freshness_lookup_strategy": "EXISTING_MAX_LAST_EVENT_AT_ACCELERATED_BY_SUPPORTING_INDEX",
     "compact_feed_freshness_index_repository_status": "PR_PENDING_CI",
     "compact_feed_freshness_index_production_authorized": false,
     "compact_feed_freshness_index_production_performed": false,
