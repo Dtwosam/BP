@@ -21,7 +21,7 @@ from bp_engine.storage.maintenance import (
 from bp_engine.storage.partitioned_raw import (
     RawStorageMode,
     ensure_partitioned_raw_storage,
-    list_raw_partitions,
+    list_raw_retirement_candidates,
     raw_storage_mode,
 )
 from bp_engine.storage.schema import (
@@ -269,7 +269,7 @@ def _run_command(args: argparse.Namespace) -> int:
         eligible_end = _floor_hour(hot_cutoff)
 
         if storage_mode is RawStorageMode.PARTITIONED:
-            for partition in list_raw_partitions(engine):
+            for partition in list_raw_retirement_candidates(engine):
                 if partition.end_at > eligible_end:
                     continue
                 health = disk_health(
