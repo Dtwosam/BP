@@ -8,7 +8,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import create_engine
+from sqlalchemy import Engine, create_engine
+from sqlalchemy.engine import make_url
 
 from bp_engine.config import Settings
 from bp_engine.phase14_observation import build_phase14_observation_report
@@ -30,6 +31,15 @@ def _json_value(value: Any) -> Any:
     return value
 
 
+def _create_observation_engine(database_url: str) -> Engine:
+    engine_kwargs: dict[str, Any] = {"pool_pre_ping": True}
+    if make_url(database_url).get_backend_name() == "postgresql":
+        engine_kwargs["connect_args"] = {
+            "options": "-c default_transaction_read_only=on",
+        }
+    return create_engine(database_url, **engine_kwargs)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
@@ -49,7 +59,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.database_url:
         settings = settings.model_copy(update={"database_url": args.database_url})
 
-    engine = create_engine(settings.database_url, pool_pre_ping=True)
+    engine = _create_observation_engine(settings.database_url)
     try:
         payload = build_phase14_observation_report(
             engine,
