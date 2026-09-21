@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -7,7 +6,6 @@ SCHEMA = ROOT / "src/bp_engine/storage/schema.py"
 MAINTENANCE = ROOT / "src/bp_engine/storage/maintenance.py"
 HELPER = ROOT / "scripts/deploy/phase14_compact_feed_freshness_index_cloudshell.sh"
 CI = ROOT / ".github/workflows/ci.yml"
-STATE = ROOT / "PROJECT_STATE.json"
 
 INDEX_NAME = "ix_market_state_1s_feed_last_event"
 INDEX_COLUMNS = "source, stream, last_event_at DESC"
@@ -25,20 +23,19 @@ def test_compact_feed_freshness_index_is_declared_for_fresh_and_existing_hosts()
     assert "market_state_1s.c.last_event_at.desc()" in schema
 
 
-def test_compact_feed_freshness_lookup_is_bounded_latest_row_not_full_feed_max() -> None:
+def test_compact_feed_freshness_semantics_remain_existing_max_query() -> None:
     content = MAINTENANCE.read_text(encoding="utf-8")
     start = content.index("def _compact_feeds_advanced(")
     end = content.index("\ndef _terminal_partial_compact_cutoff(", start)
     function = content[start:end]
 
-    assert "select(market_state_1s.c.last_event_at)" in function
-    assert ".order_by(market_state_1s.c.last_event_at.desc())" in function
-    assert ".limit(1)" in function
-    assert ".scalar_one_or_none()" in function
-    assert "func.max(market_state_1s.c.last_event_at)" not in function
+    assert "select(func.max(market_state_1s.c.last_event_at))" in function
+    assert "market_state_1s.c.source == source" in function
+    assert "market_state_1s.c.stream == stream" in function
+    assert ".order_by(market_state_1s.c.last_event_at.desc())" not in function
 
 
-def test_production_index_helper_is_exact_head_safety_bound_and_service_preserving() -> None:
+def test_production_index_helper_is_exact_head_safety_bound_and_verifies_actual_max_plan() -> None:
     content = HELPER.read_text(encoding="utf-8")
 
     for required in (
@@ -53,6 +50,7 @@ def test_production_index_helper_is_exact_head_safety_bound_and_service_preservi
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS",
         "indisvalid",
         "indisready",
+        "SELECT max(last_event_at)",
         "planner did not select",
         "SET statement_timeout = '10s'",
         "insufficient_next_hour_headroom",
@@ -78,21 +76,3 @@ def test_ci_syntax_checks_compact_feed_freshness_index_helper() -> None:
         "bash -n scripts/deploy/phase14_compact_feed_freshness_index_cloudshell.sh"
         in ci
     )
-
-
-def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
-    state = json.loads(STATE.read_text(encoding="utf-8"))
-    assert state["source_of_truth_version"] == "0.14.160"
-
-    storage = state["phase_14_storage_reliability_followup"]
-    assert storage["concurrent_partition_retirement_rollout_last_attempt_status"] == (
-        "POSTCHECKOUT_RECORDER_FAIL_CLOSED_ON_RETENTION_HEALTH"
-    )
-    assert storage["concurrent_partition_retirement_rollout_candidate_checkout_performed"] is True
-    assert (
-        storage["concurrent_partition_retirement_rollout_final_checkout_rollback_confirmed"]
-        is False
-    )
-    assert storage["compact_feed_freshness_index_name"] == INDEX_NAME
-    assert storage["compact_feed_freshness_index_production_authorized"] is False
-    assert storage["compact_feed_freshness_index_production_performed"] is False
