@@ -5,6 +5,7 @@
 - PR #227 merged the bounded disk-health oneshot wait to `main` at `f50f01d3baf2dc2e968469e44c4dbb9e660a9378` from exact tested head `d2d451c791d9c8a26878964900dc2fe9e9d72394`.
 - Exact-head gates all passed: CI `35647277384`, Historical Backfill Smoke `35647277375`, Live Recorder Smoke `35647277434`, and Recorder Short Soak `35647277388`. The rollout helper now waits up to 30 seconds for a transient `bp-storage-disk-health.service` overlap and still fails closed on timeout, unexpected state, or non-success result.
 - No production rerun or candidate checkout is recorded by this source-truth update. The next action remains the already-approved recorder/V3 recovery followed, only on recovery PASS, by the already-approved concurrent-partition-retirement rollout from exact helper head `f50f01d3baf2dc2e968469e44c4dbb9e660a9378`. RESEARCH/live-disabled/zero-money, automatic-promotion=false, Gate B, model-tuning, and Phase 15 constraints are unchanged.
+- Reconciled the canonical handoff docs with the latest fail-closed runtime state: the 20 September V3 paper activation remains accepted evidence, but the recorder/frozen-V3 chain is not currently claimed active after the 21 September rollback. `BUILD-ORDER.md` and `START-HERE.md` now put the authorized recovery + rollout ahead of the observation-only steady state.
 
 ## 0.14.159 — 21 September 2026
 
