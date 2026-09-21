@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -6,6 +7,7 @@ SCHEMA = ROOT / "src/bp_engine/storage/schema.py"
 MAINTENANCE = ROOT / "src/bp_engine/storage/maintenance.py"
 HELPER = ROOT / "scripts/deploy/phase14_compact_feed_freshness_index_cloudshell.sh"
 CI = ROOT / ".github/workflows/ci.yml"
+STATE = ROOT / "PROJECT_STATE.json"
 
 INDEX_NAME = "ix_market_state_1s_feed_last_event"
 INDEX_COLUMNS = "source, stream, last_event_at DESC"
@@ -76,3 +78,18 @@ def test_ci_syntax_checks_compact_feed_freshness_index_helper() -> None:
         "bash -n scripts/deploy/phase14_compact_feed_freshness_index_cloudshell.sh"
         in ci
     )
+
+
+def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    assert state["source_of_truth_version"] == "0.14.160"
+
+    storage = state["phase_14_storage_reliability_followup"]
+    assert storage["concurrent_partition_retirement_rollout_last_attempt_status"] == (
+        "POSTCHECKOUT_RECORDER_FAIL_CLOSED_ON_RETENTION_HEALTH"
+    )
+    assert storage["concurrent_partition_retirement_rollout_candidate_checkout_performed"] is True
+    assert storage["concurrent_partition_retirement_rollout_final_checkout_rollback_confirmed"] is False
+    assert storage["compact_feed_freshness_index_name"] == INDEX_NAME
+    assert storage["compact_feed_freshness_index_production_authorized"] is False
+    assert storage["compact_feed_freshness_index_production_performed"] is False
