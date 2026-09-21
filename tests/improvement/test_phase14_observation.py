@@ -4,9 +4,9 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import create_engine
 
+from bp_engine import phase14_observation, phase14_observation_cli
 from bp_engine.config import Settings, TradingMode
 from bp_engine.features.v4_forward import V4_FORWARD_EPOCH
-from bp_engine import phase14_observation, phase14_observation_cli
 
 
 def _settings(tmp_path, **updates):
