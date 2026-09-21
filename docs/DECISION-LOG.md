@@ -506,3 +506,16 @@ The next V4 Gate B preregistration must cover regime dependence, UP/DOWN asymmet
 
 The existing prospective V4 collector remains unchanged. The consumed V3 holdout may motivate these questions but may not provide numeric tuning values or acceptance thresholds.
 
+## D-055 — Steady-state raw partition retirement detaches concurrently before physical drop
+**Date:** 21 Sep 2026  
+**Status:** Active
+
+D-034 remains authoritative for retention windows and the archive-before-retire safety contract, and D-036 remains authoritative for the already-partitioned runtime bootstrap path. Production diagnostics on 21 September 2026 exposed a separate steady-state contention class: the hourly maintenance cycle completed and verified the expired raw archive but then waited long enough in raw-partition retirement to hit the existing 55-minute systemd timeout while the four-writer recorder remained active. With the recorder later stopped by the existing fail-closed storage-health chain, the following maintenance cycle retired both overdue hours successfully. Disk reserve remained healthy.
+
+Normal partitioned PostgreSQL retirement therefore uses this order: verify the exact canonical archive/manifest, require compact-state advancement, verify the physical hourly child row count equals the archive manifest, detach that child with `ALTER TABLE raw_market_events DETACH PARTITION ... CONCURRENTLY`, verify the now-stable standalone table still has the exact manifest row count, physically drop that standalone table, and only then remove matching rows from the hash-partitioned dedupe ledger. This preserves D-034's data-safety ordering while avoiding the parent-table `ACCESS EXCLUSIVE` lock required by direct attached-child `DROP TABLE`.
+
+Concurrent detach is explicitly restartable. If PostgreSQL records the child with `pg_inherits.inhdetachpending=true`, the next maintenance attempt must complete `DETACH PARTITION ... FINALIZE`; if detach completed but physical drop did not, the standalone hourly table remains an explicit retirement candidate. Such retained physical tables continue to count toward retention lag and raw physical bytes, and nonempty detached intervals cannot satisfy the archive-prune raw-empty guard. A retry must reverify row-count parity before physical drop and dedupe cleanup.
+
+The 55-minute service timeout, two-hour maintenance-freshness guard, one-extra-hour retention-lag tolerance, free-space thresholds, 24-hour hot raw retention, 24-hour additional archive retention, and fail-closed recorder-stop behavior are unchanged. Increasing the service timeout is not the remedy for this incident class.
+
+This decision is engineering source truth only until a separately authorized exact-SHA production rollout passes active-recorder maintenance acceptance. It does not authorize a production checkout change, service restart, schema migration, V3/V4 model change, automatic promotion, Gate B action, Phase 15, live trading, or nonzero money limits.

@@ -48,6 +48,13 @@ class RawStorageMode(StrEnum):
     PARTITIONED = "partitioned"
 
 
+class RawPartitionRetirementState(StrEnum):
+    MISSING = "missing"
+    ATTACHED = "attached"
+    DETACH_PENDING = "detach_pending"
+    DETACHED = "detached"
+
+
 @dataclass(frozen=True)
 class RawStorageSetup:
     mode: RawStorageMode
@@ -439,6 +446,192 @@ def list_raw_partitions(bind: Engine | Connection) -> tuple[RawPartition, ...]:
         return _list_raw_partitions_connection(bind)
     with bind.connect() as connection:
         return _list_raw_partitions_connection(connection)
+
+
+def _list_raw_retirement_candidates_connection(
+    connection: Connection,
+) -> tuple[RawPartition, ...]:
+    if connection.dialect.name != "postgresql":
+        return ()
+    names = connection.execute(
+        text(
+            """
+            SELECT relation.relname
+            FROM pg_class AS relation
+            JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+            WHERE namespace.nspname = current_schema()
+              AND relation.relkind = 'r'
+              AND relation.relname LIKE 'raw_market_events_%'
+            ORDER BY relation.relname
+            """
+        )
+    ).scalars()
+    partitions: list[RawPartition] = []
+    for name in names:
+        bounds = _partition_bounds_from_name(str(name))
+        if bounds is None:
+            continue
+        start_at, end_at = bounds
+        partitions.append(
+            RawPartition(
+                name=str(name),
+                start_at=start_at,
+                end_at=end_at,
+            )
+        )
+    partitions.sort(key=lambda item: item.start_at)
+    return tuple(partitions)
+
+
+def list_raw_retirement_candidates(
+    bind: Engine | Connection,
+) -> tuple[RawPartition, ...]:
+    if isinstance(bind, Connection):
+        return _list_raw_retirement_candidates_connection(bind)
+    with bind.connect() as connection:
+        return _list_raw_retirement_candidates_connection(connection)
+
+
+def raw_partition_retirement_state(
+    connection: Connection,
+    *,
+    start_at: datetime,
+    end_at: datetime,
+) -> RawPartitionRetirementState:
+    if connection.dialect.name != "postgresql":
+        raise ValueError("raw partition retirement state requires PostgreSQL")
+    start = _floor_hour(start_at)
+    end = _require_aware_utc(end_at, field="end_at")
+    if end != start + timedelta(hours=1):
+        raise ValueError("raw partition retirement requires exactly one UTC hour")
+    name = _partition_name(start)
+
+    relation_oid = connection.execute(
+        text(
+            """
+            SELECT relation.oid
+            FROM pg_class AS relation
+            JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+            WHERE namespace.nspname = current_schema()
+              AND relation.relname = :name
+            """
+        ),
+        {"name": name},
+    ).scalar_one_or_none()
+    if relation_oid is None:
+        return RawPartitionRetirementState.MISSING
+
+    detach_pending = connection.execute(
+        text(
+            """
+            SELECT inheritance.inhdetachpending
+            FROM pg_inherits AS inheritance
+            JOIN pg_class AS parent ON parent.oid = inheritance.inhparent
+            JOIN pg_namespace AS parent_ns ON parent_ns.oid = parent.relnamespace
+            WHERE inheritance.inhrelid = :relation_oid
+              AND parent_ns.nspname = current_schema()
+              AND parent.relname = 'raw_market_events'
+            """
+        ),
+        {"relation_oid": relation_oid},
+    ).scalar_one_or_none()
+    if detach_pending is None:
+        return RawPartitionRetirementState.DETACHED
+    if bool(detach_pending):
+        return RawPartitionRetirementState.DETACH_PENDING
+    return RawPartitionRetirementState.ATTACHED
+
+
+def raw_partition_row_count(
+    connection: Connection,
+    *,
+    start_at: datetime,
+    end_at: datetime,
+) -> int | None:
+    state = raw_partition_retirement_state(
+        connection,
+        start_at=start_at,
+        end_at=end_at,
+    )
+    if state is RawPartitionRetirementState.MISSING:
+        return None
+    name = _partition_name(start_at)
+    return int(
+        connection.execute(
+            text(f"SELECT count(*) FROM {_quote(connection, name)}")
+        ).scalar_one()
+    )
+
+
+def detach_raw_partition_concurrently(
+    engine: Engine,
+    *,
+    start_at: datetime,
+    end_at: datetime,
+) -> str | None:
+    if engine.dialect.name != "postgresql":
+        raise ValueError("concurrent raw partition retirement requires PostgreSQL")
+    start = _floor_hour(start_at)
+    end = _require_aware_utc(end_at, field="end_at")
+    if end != start + timedelta(hours=1):
+        raise ValueError("raw partition retirement requires exactly one UTC hour")
+    name = _partition_name(start)
+
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
+        state = raw_partition_retirement_state(
+            connection,
+            start_at=start,
+            end_at=end,
+        )
+        if state is RawPartitionRetirementState.MISSING:
+            return None
+        if state is RawPartitionRetirementState.ATTACHED:
+            connection.execute(
+                text(
+                    "ALTER TABLE raw_market_events "
+                    f"DETACH PARTITION {_quote(connection, name)} CONCURRENTLY"
+                )
+            )
+        elif state is RawPartitionRetirementState.DETACH_PENDING:
+            connection.execute(
+                text(
+                    "ALTER TABLE raw_market_events "
+                    f"DETACH PARTITION {_quote(connection, name)} FINALIZE"
+                )
+            )
+
+        final_state = raw_partition_retirement_state(
+            connection,
+            start_at=start,
+            end_at=end,
+        )
+        if final_state is not RawPartitionRetirementState.DETACHED:
+            raise RuntimeError(
+                f"raw partition {name!r} did not reach detached retirement state"
+            )
+    return name
+
+
+def drop_detached_raw_partition(
+    connection: Connection,
+    *,
+    start_at: datetime,
+    end_at: datetime,
+) -> str | None:
+    state = raw_partition_retirement_state(
+        connection,
+        start_at=start_at,
+        end_at=end_at,
+    )
+    if state is RawPartitionRetirementState.MISSING:
+        return None
+    name = _partition_name(start_at)
+    if state is not RawPartitionRetirementState.DETACHED:
+        raise RuntimeError(
+            f"refusing to drop raw partition {name!r} before concurrent detach completes"
+        )
+    connection.execute(text(f"DROP TABLE {_quote(connection, name)}"))
+    return name
 
 
 def _rename_legacy_indexes(connection: Connection) -> None:

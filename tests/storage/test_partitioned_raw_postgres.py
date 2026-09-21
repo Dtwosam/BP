@@ -4,6 +4,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from datetime import UTC, datetime, timedelta
 from threading import Barrier
+from time import monotonic, sleep
 
 import pytest
 from sqlalchemy import create_engine, event, insert, text
@@ -16,6 +17,7 @@ from bp_engine.storage.maintenance import (
     ArchiveVerificationError,
     archive_interval,
     build_composite_storage_health,
+    prune_expired_archives,
     retire_verified_partition,
 )
 from bp_engine.storage.partitioned_raw import (
@@ -24,6 +26,7 @@ from bp_engine.storage.partitioned_raw import (
     ensure_hour_partitions,
     ensure_partitioned_raw_storage,
     list_raw_partitions,
+    list_raw_retirement_candidates,
     raw_storage_mode,
     rollback_partitioned_raw_storage,
 )
@@ -58,6 +61,11 @@ def engine():
             ).scalar_one()
             if state_exists is not None:
                 connection.execute(text("DELETE FROM market_state_1s"))
+            maintenance_exists = connection.execute(
+                text("SELECT to_regclass('storage_maintenance_runs')")
+            ).scalar_one()
+            if maintenance_exists is not None:
+                connection.execute(text("DELETE FROM storage_maintenance_runs"))
 
     reset()
     raw_market_events.create(value)
@@ -703,6 +711,292 @@ def test_verified_partition_retirement_drops_relation_then_dedupe(engine, tmp_pa
 
     assert relation is None
     assert ledger_count == 0
+
+
+def test_partition_retirement_concurrent_detach_allows_active_writer_progress(
+    engine,
+    tmp_path,
+) -> None:
+    start_at = datetime(2026, 9, 4, 21, tzinfo=UTC)
+    events = _seed_partitioned_hour(engine, start_at, count=2)
+    end_at = start_at + timedelta(hours=1)
+    writer_at = start_at + timedelta(hours=2, minutes=5)
+    archive_dir = tmp_path / "archive"
+    manifest = archive_interval(engine, archive_dir, start_at, end_at)
+    archive_path, manifest_path = _archive_paths(archive_dir, manifest)
+    _advance_required_compact_feeds(engine, end_at + timedelta(seconds=1))
+    partition_name = "raw_market_events_20260904_21"
+    repository = RecorderRepository()
+
+    blocker = engine.connect()
+    blocker_transaction = blocker.begin()
+    assert repository.insert_events(
+        blocker,
+        [_event(writer_at, sequence=501)],
+    ) == 1
+
+    executor = ThreadPoolExecutor(max_workers=2)
+    try:
+        retirement = executor.submit(
+            retire_verified_partition,
+            engine,
+            archive_path,
+            manifest_path,
+        )
+
+        deadline = monotonic() + 3.0
+        detach_pending = False
+        while monotonic() < deadline:
+            with engine.connect() as connection:
+                detach_pending = bool(
+                    connection.execute(
+                        text(
+                            """
+                            SELECT COALESCE(bool_or(inheritance.inhdetachpending), false)
+                            FROM pg_inherits AS inheritance
+                            JOIN pg_class AS child ON child.oid = inheritance.inhrelid
+                            JOIN pg_class AS parent ON parent.oid = inheritance.inhparent
+                            WHERE parent.relname = 'raw_market_events'
+                              AND child.relname = :partition_name
+                            """
+                        ),
+                        {"partition_name": partition_name},
+                    ).scalar_one()
+                )
+            if detach_pending:
+                break
+            sleep(0.02)
+
+        assert detach_pending, "retirement never entered concurrent detach"
+
+        def write_while_detach_waits() -> int:
+            with engine.begin() as connection:
+                return repository.insert_events(
+                    connection,
+                    [_event(writer_at + timedelta(seconds=1), sequence=502)],
+                )
+
+        writer = executor.submit(write_while_detach_waits)
+        assert writer.result(timeout=2.0) == 1
+
+        blocker_transaction.commit()
+        result = retirement.result(timeout=5.0)
+    finally:
+        if blocker_transaction.is_active:
+            blocker_transaction.rollback()
+        blocker.close()
+        executor.shutdown(wait=True, cancel_futures=True)
+
+    assert result.partition_name == partition_name
+    assert result.archived_rows == len(events)
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT to_regclass(:name)"),
+            {"name": partition_name},
+        ).scalar_one() is None
+        current_rows = connection.execute(
+            text(
+                """
+                SELECT count(*)
+                FROM raw_market_events
+                WHERE received_at >= :start_at
+                """
+            ),
+            {"start_at": writer_at},
+        ).scalar_one()
+    assert current_rows == 2
+
+
+def test_partition_retirement_finalizes_interrupted_concurrent_detach(
+    engine,
+    tmp_path,
+) -> None:
+    start_at = datetime(2026, 9, 4, 23, tzinfo=UTC)
+    events = _seed_partitioned_hour(engine, start_at, count=2)
+    end_at = start_at + timedelta(hours=1)
+    writer_at = start_at + timedelta(hours=2, minutes=5)
+    archive_dir = tmp_path / "archive"
+    manifest = archive_interval(engine, archive_dir, start_at, end_at)
+    archive_path, manifest_path = _archive_paths(archive_dir, manifest)
+    _advance_required_compact_feeds(engine, end_at + timedelta(seconds=1))
+    partition_name = "raw_market_events_20260904_23"
+    repository = RecorderRepository()
+
+    blocker = engine.connect()
+    blocker_transaction = blocker.begin()
+    assert repository.insert_events(
+        blocker,
+        [_event(writer_at, sequence=601)],
+    ) == 1
+
+    worker_ready = Barrier(2)
+    backend_pid: dict[str, int] = {}
+
+    def interrupted_detach() -> None:
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
+            backend_pid["value"] = int(
+                connection.execute(text("SELECT pg_backend_pid()")).scalar_one()
+            )
+            worker_ready.wait(timeout=5)
+            connection.execute(
+                text(
+                    "ALTER TABLE raw_market_events "
+                    f"DETACH PARTITION {partition_name} CONCURRENTLY"
+                )
+            )
+
+    executor = ThreadPoolExecutor(max_workers=1)
+    detach = executor.submit(interrupted_detach)
+    try:
+        worker_ready.wait(timeout=5)
+        deadline = monotonic() + 3.0
+        detach_pending = False
+        while monotonic() < deadline:
+            with engine.connect() as connection:
+                detach_pending = bool(
+                    connection.execute(
+                        text(
+                            """
+                            SELECT COALESCE(bool_or(inheritance.inhdetachpending), false)
+                            FROM pg_inherits AS inheritance
+                            JOIN pg_class AS child ON child.oid = inheritance.inhrelid
+                            JOIN pg_class AS parent ON parent.oid = inheritance.inhparent
+                            WHERE parent.relname = 'raw_market_events'
+                              AND child.relname = :partition_name
+                            """
+                        ),
+                        {"partition_name": partition_name},
+                    ).scalar_one()
+                )
+            if detach_pending:
+                break
+            sleep(0.02)
+        assert detach_pending, "concurrent detach never reached pending state"
+
+        with engine.begin() as connection:
+            cancelled = connection.execute(
+                text("SELECT pg_cancel_backend(:pid)"),
+                {"pid": backend_pid["value"]},
+            ).scalar_one()
+        assert cancelled is True
+
+        with pytest.raises(DBAPIError):
+            detach.result(timeout=2.0)
+    finally:
+        if blocker_transaction.is_active:
+            blocker_transaction.commit()
+        blocker.close()
+        executor.shutdown(wait=True, cancel_futures=True)
+
+    with engine.connect() as connection:
+        pending_after_cancel = bool(
+            connection.execute(
+                text(
+                    """
+                    SELECT COALESCE(bool_or(inheritance.inhdetachpending), false)
+                    FROM pg_inherits AS inheritance
+                    JOIN pg_class AS child ON child.oid = inheritance.inhrelid
+                    JOIN pg_class AS parent ON parent.oid = inheritance.inhparent
+                    WHERE parent.relname = 'raw_market_events'
+                      AND child.relname = :partition_name
+                    """
+                ),
+                {"partition_name": partition_name},
+            ).scalar_one()
+        )
+    assert pending_after_cancel is True
+
+    result = retire_verified_partition(
+        engine,
+        archive_path,
+        manifest_path,
+        batch_size=1,
+    )
+
+    assert result.partition_name == partition_name
+    assert result.archived_rows == len(events)
+    assert result.dedupe_rows_removed == len(events)
+    with engine.connect() as connection:
+        relation = connection.execute(
+            text("SELECT to_regclass(:name)"),
+            {"name": partition_name},
+        ).scalar_one()
+    assert relation is None
+
+
+def test_partition_retirement_resumes_detached_table_before_physical_drop(
+    engine,
+    tmp_path,
+) -> None:
+    start_at = datetime(2026, 9, 4, 22, tzinfo=UTC)
+    events = _seed_partitioned_hour(engine, start_at, count=2)
+    end_at = start_at + timedelta(hours=1)
+    archive_dir = tmp_path / "archive"
+    manifest = archive_interval(engine, archive_dir, start_at, end_at)
+    archive_path, manifest_path = _archive_paths(archive_dir, manifest)
+    _advance_required_compact_feeds(engine, end_at + timedelta(seconds=1))
+    partition_name = "raw_market_events_20260904_22"
+
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "ALTER TABLE raw_market_events "
+                f"DETACH PARTITION {partition_name}"
+            )
+        )
+
+    assert all(
+        item.name != partition_name
+        for item in list_raw_partitions(engine)
+    )
+    assert any(
+        item.name == partition_name
+        for item in list_raw_retirement_candidates(engine)
+    )
+
+    health_now = end_at + timedelta(hours=2, minutes=30)
+    ensure_partitioned_raw_storage(engine, now=health_now)
+    _record_maintenance_success(engine, health_now - timedelta(minutes=5))
+    health = build_composite_storage_health(
+        engine,
+        tmp_path,
+        _storage_settings(tmp_path, hot_raw_hours=1),
+        now=health_now,
+    )
+    assert health["guards"]["current_partition_present"] is True
+    assert health["guards"]["maintenance_fresh"] is True
+    assert health["guards"]["retention_current"] is False
+    assert health["raw_partitions"]["oldest_start_at"] == start_at.isoformat().replace(
+        "+00:00",
+        "Z",
+    )
+
+    removed = prune_expired_archives(
+        engine,
+        archive_dir,
+        now=health_now,
+        retention_hours=1,
+    )
+    assert removed == []
+    assert archive_path.exists()
+    assert manifest_path.exists()
+
+    result = retire_verified_partition(
+        engine,
+        archive_path,
+        manifest_path,
+        batch_size=1,
+    )
+
+    assert result.partition_name == partition_name
+    assert result.archived_rows == len(events)
+    assert result.dedupe_rows_removed == len(events)
+    with engine.connect() as connection:
+        relation = connection.execute(
+            text("SELECT to_regclass(:name)"),
+            {"name": partition_name},
+        ).scalar_one()
+    assert relation is None
 
 
 def test_partition_retirement_uses_partition_local_ctid_dedupe_batches(engine, tmp_path) -> None:
