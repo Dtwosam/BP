@@ -89,9 +89,9 @@ The helper does not restart the recorder, V3 services, or V4 collector on the pa
 
 ## Fail-closed rollback
 
-Any failure after candidate checkout arms fail-closed rollback.
+After the maintenance timer is frozen, a pre-checkout failure restores that timer and leaves the recorder/V3 services untouched. Any failure after candidate checkout uses the full fail-closed rollback below.
 
-The rollback:
+The post-checkout rollback:
 
 1. stops automatic storage maintenance;
 2. stops frozen V3 execution and predictor;
