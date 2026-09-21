@@ -368,6 +368,17 @@ def test_phase14_observation_source_truth_preserves_read_only_boundary() -> None
     assert observation["merge_commit"] == "767cac3b78c20c9162b20c74eff770d4b2e8d1d8"
     assert observation["post_merge_ci_run_id"] == 35606952694
     assert observation["post_merge_ci_passed"] is True
+    assert observation["database_read_only_hardening_status"] == "GREEN_PR_NOT_MERGED"
+    assert observation["database_read_only_hardening_pr"] == 219
+    assert observation["database_read_only_hardening_ci_run_id"] == 35608355600
+    assert observation["database_read_only_hardening_test_count"] == 1266
+    assert observation["postgres_session_default_read_only"] is True
+    assert (
+        observation["postgres_session_read_only_option"]
+        == "-c default_transaction_read_only=on"
+    )
+    assert observation["postgres_session_read_only_verified_in_ci"] is True
+    assert observation["sqlite_connection_args_unchanged"] is True
     assert observation["live_trading_enabled"] is False
     assert observation["max_trade_size_usd"] == 0
     assert observation["max_daily_loss_usd"] == 0
