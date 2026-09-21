@@ -79,38 +79,23 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
-Frozen V3 paper trading is now **production PASS and active** in research mode.
+Frozen V3 paper activation remains a **historical production PASS**, but the current recorder/frozen-V3 runtime must be treated as **fail-closed stopped** after the 21 September concurrent-partition-retirement acceptance failure. Do not describe the V3 predictor or V3 paper-execution service as currently active until a later recorder/V3 recovery gate passes again.
 
-Accepted activation:
+The accepted frozen identity remains unchanged:
 
 ```text
-activated_at            = 2026-09-20T15:39:45Z
-candidate_head          = 9d52eb753355365848a637ffa6663928664bf770
-model_sha256            = 124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7
-prediction_version      = v3-frozen-paper-v1
-execution_version       = paper-execution-v3-frozen-v1
-virtual_starting_cash   = $100.00
-virtual_target_trade    = $5.00
-real_money              = $0.00
-pre_activation_signals  = 0
-invalid_order_sources   = 0
-recorder_restarted      = false
+model_sha256       = 124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7
+prediction_version = v3-frozen-paper-v1
+execution_version  = paper-execution-v3-frozen-v1
+min_edge           = 0.075
+real_money         = $0.00
 ```
 
-The V3 predictor service and V3 paper-execution service are active. The legacy paper service remains active, prospective outcome settlement remains active, and the V4 regime-aware forward collector remains active in parallel.
+The immediate operational sequence is:
 
-The immediate task is **prospective observation only**.
+1. **Read-only confirm rollback state.** Require production checkout `7c3af78da1922a0e5187c24b799951130cc98887`, recorder/frozen-V3 stopped, storage-maintenance and disk-health timers healthy, and composite storage health `ok`. Source-of-truth does not yet claim the final old-checkout rollback because the terminal helper output has not been captured.
+2. **Compact-feed freshness index.** PR #229 is merged and green. Production index installation remains unauthorized and unperformed. After rollback confirmation, use `scripts/deploy/phase14_compact_feed_freshness_index_cloudshell.sh` only with a new exact-current-main approval.
+3. **Recovery then rollout.** Only after the index gate passes may the recorder/V3 recovery helper and concurrent-partition-retirement rollout receive fresh exact-head authorizations. The old `f50f01d...` approval epoch is invalid because `main` advanced.
+4. **Resume prospective observation only after rollout PASS.** The read-only combined observation report remains available at `python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env`, but it is not the current operational priority while recorder/frozen-V3 are fail-closed stopped.
 
-Use the read-only combined observation report when you want one snapshot of frozen V3 paper evidence, prospective V4 regime coverage, storage-maintenance health, and the current research/zero-money guard:
-
-```bash
-python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env
-```
-
-The report composes the existing V3/V4/storage metrics without training, tuning, service changes, database writes, or filesystem creation. On PostgreSQL, the CLI creates every report connection with `default_transaction_read_only=on`, so V3, V4, and storage reads inherit a database-enforced read-only session default. The storage path must already exist; unsafe mode/money settings are reported as failed observation guards rather than hidden.
-
-V4 is now explicitly the **comprehensive successor to V3**, not a regime-only experiment. Its future Gate B plan must address regime dependence, UP/DOWN asymmetry, model simplicity/feature underuse, calibration, timing, trade coverage versus quality, drawdown/loss robustness, and execution availability. The current V4 collector remains unchanged while it builds the fresh prospective cohort. Use the isolated V3 paper report to track signal count, executable/trade decisions, simulated fills, settlements, UP/DOWN results, virtual cash, and realized paper P&L without mixing legacy paper evidence.
-
-Do not refit V3, recalibrate it, change the frozen 0.075 minimum edge, alter the frozen paper sizing assumptions, tune from paper results, automatically promote anything, enable a live-order path, enter Phase 15, bypass geographic restrictions, or change real-money limits.
-
-The production activation evidence is frozen at `docs/evidence/phase-14-v3-frozen-paper-production-20260920.json`.
+Do not refit V3, recalibrate it, change `min_edge=0.075`, alter paper sizing, tune from paper results, perform Gate B actions, automatically promote anything, enable a live-order path, enter Phase 15, bypass geographic restrictions, or change real-money limits.
