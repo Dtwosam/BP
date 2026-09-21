@@ -172,3 +172,25 @@ def test_recorder_v3_recovery_matches_ci_short_soak_warmup() -> None:
     )
     assert "for _ in $(seq 1 45)" in ci
     assert "python scripts/soak_report.py --hours 0.01 --minimum-hours 0.008" in ci
+
+
+def test_recorder_v3_recovery_uses_canonical_dashboard_safety_schema() -> None:
+    source = read_helper()
+    assert 'mode.get("trading_mode") != "RESEARCH"' in source
+    assert 'mode.get("live_trading_enabled") is not False' in source
+    assert 'mode.get("execution_available") is not False' in source
+    assert 'mode.get("mode")' not in source
+    assert "dashboard max trade size nonzero" not in source
+    assert "dashboard max daily loss nonzero" not in source
+    rollout = (
+        ROOT
+        / "scripts"
+        / "deploy"
+        / "phase14_concurrent_partition_retirement_rollout_cloudshell.sh"
+    ).read_text(encoding="utf-8")
+    for marker in (
+        'mode.get("trading_mode") != "RESEARCH"',
+        'mode.get("live_trading_enabled") is not False',
+        'mode.get("execution_available") is not False',
+    ):
+        assert marker in rollout
