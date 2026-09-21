@@ -292,14 +292,11 @@ def _compact_feeds_advanced(
     with engine.connect() as connection:
         for source, stream in required_feeds:
             latest = connection.execute(
-                select(market_state_1s.c.last_event_at)
-                .where(
+                select(func.max(market_state_1s.c.last_event_at)).where(
                     market_state_1s.c.source == source,
                     market_state_1s.c.stream == stream,
                 )
-                .order_by(market_state_1s.c.last_event_at.desc())
-                .limit(1)
-            ).scalar_one_or_none()
+            ).scalar_one()
             if latest is None or _utc(latest) <= end_at:
                 return False
     return True
