@@ -107,7 +107,7 @@ Use the read-only combined observation report when you want one snapshot of froz
 python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env
 ```
 
-The report composes the existing V3/V4/storage metrics without training, tuning, service changes, database writes, or filesystem creation. The storage path must already exist; unsafe mode/money settings are reported as failed observation guards rather than hidden.
+The report composes the existing V3/V4/storage metrics without training, tuning, service changes, database writes, or filesystem creation. On PostgreSQL, the CLI creates every report connection with `default_transaction_read_only=on`, so V3, V4, and storage reads inherit a database-enforced read-only session default. The storage path must already exist; unsafe mode/money settings are reported as failed observation guards rather than hidden.
 
 V4 is now explicitly the **comprehensive successor to V3**, not a regime-only experiment. Its future Gate B plan must address regime dependence, UP/DOWN asymmetry, model simplicity/feature underuse, calibration, timing, trade coverage versus quality, drawdown/loss robustness, and execution availability. The current V4 collector remains unchanged while it builds the fresh prospective cohort. Use the isolated V3 paper report to track signal count, executable/trade decisions, simulated fills, settlements, UP/DOWN results, virtual cash, and realized paper P&L without mixing legacy paper evidence.
 
