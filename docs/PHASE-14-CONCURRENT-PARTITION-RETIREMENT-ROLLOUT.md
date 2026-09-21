@@ -61,17 +61,19 @@ Production preflight then requires:
 - `MAX_DAILY_LOSS_USD=0`;
 - every deployed `automatic_promotion` field false;
 - PostgreSQL, recorder, dashboard, legacy paper/predictor, prospective outcomes, frozen V3 predictor, and frozen V3 paper execution active;
-- storage-maintenance, storage-disk-health, V2 forward-coverage, and V4 forward-coverage timers active+enabled;
+- storage-maintenance timer enabled but inactive from the recorder/V3 recovery handoff; storage-disk-health, V2 forward-coverage, and V4 forward-coverage timers active+enabled;
 - composite partitioned-storage health `ok` with maintenance-fresh/current-partition/retention guards true;
 - no pending concurrent detach and no detached raw retirement leftovers;
 - at least one actually eligible expired raw partition, so acceptance cannot pass on a no-op cycle.
 
 ## Authorized sequence when separately approved
 
-A future explicit authorization may permit only this helper-defined sequence:
+The recorder/V3 recovery gate now freezes `bp-storage-maintenance.timer` before starting recorder/V3 and leaves that enabled timer inactive on a successful handoff. If recovery fails, it stops recorder/V3 and restores the timer.
 
-1. Freeze automatic storage maintenance by stopping only `bp-storage-maintenance.timer`.
-2. Fetch and revalidate the immutable four-file candidate.
+The rollout helper consumes only that timer-stopped handoff:
+
+1. Require `bp-storage-maintenance.timer` enabled but inactive, with the maintenance oneshot idle and successful.
+2. Revalidate the immutable four-file candidate.
 3. Switch `/opt/bp` detached to the candidate without force.
 4. Revalidate safety, unit contracts, active services/timers, checkout scope, and candidate blobs.
 5. Run one real `bp-storage-maintenance.service` cycle while the recorder and V3 paper services remain active.
@@ -89,7 +91,7 @@ The helper does not restart the recorder, V3 services, or V4 collector on the pa
 
 ## Fail-closed rollback
 
-After the maintenance timer is frozen, a pre-checkout failure restores that timer and leaves the recorder/V3 services untouched. Any failure after candidate checkout uses the full fail-closed rollback below.
+Rollback is armed immediately after the exact deployed-head check. A pre-checkout failure stops frozen V3 execution, frozen V3 predictor, and recorder before restoring the maintenance timer. Any failure after candidate checkout uses the full fail-closed rollback below.
 
 The post-checkout rollback:
 
