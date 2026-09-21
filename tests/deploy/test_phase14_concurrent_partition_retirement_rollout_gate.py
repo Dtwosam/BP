@@ -59,6 +59,10 @@ def test_rollout_gate_requires_healthy_research_runtime_and_live_v3_v4_observati
         "current_partition_present",
         "retention_current",
         "raw retirement leftovers present",
+        "unit_fragment_mismatch",
+        "unit_dropins_present",
+        "recorder_environment_file_mismatch",
+        "maintenance_environment_file_mismatch",
     ):
         assert required in content
 
