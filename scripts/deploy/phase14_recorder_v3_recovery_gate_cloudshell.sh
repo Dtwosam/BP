@@ -268,9 +268,23 @@ run_soak() {
 import json
 import sys
 from pathlib import Path
+
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-if payload.get("verdict") != "PASS":
-    raise SystemExit(f"soak did not pass: {payload.get('failures')}")
+if payload.get("passed") is not True:
+    raise SystemExit(f"soak failed: {payload.get('failures')}")
+required = {"polymarket/market", "bybit/spot", "bybit/linear", "coinbase/spot"}
+feeds = payload.get("feeds") or {}
+missing = sorted(
+    label
+    for label in required
+    if int((feeds.get(label) or {}).get("event_count", 0)) <= 0
+)
+if missing:
+    raise SystemExit(f"required feeds missing events: {missing}")
+for label in required:
+    incidents = (payload.get("incidents") or {}).get(label) or {}
+    if int(incidents.get("backpressure", 0)) != 0:
+        raise SystemExit(f"backpressure recorded for {label}")
 PY
 }
 
