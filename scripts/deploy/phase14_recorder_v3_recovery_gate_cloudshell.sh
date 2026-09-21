@@ -302,16 +302,14 @@ verify_dashboard_safety() {
 import json
 import sys
 from pathlib import Path
-payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-mode = payload.get("mode") or {}
-if mode.get("mode") != "research":
-    raise SystemExit("dashboard mode is not research")
+snapshot = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+mode = snapshot.get("mode") or {}
+if mode.get("trading_mode") != "RESEARCH":
+    raise SystemExit("dashboard left RESEARCH mode")
 if mode.get("live_trading_enabled") is not False:
     raise SystemExit("dashboard reports live trading enabled")
-if float(mode.get("max_trade_size_usd", -1)) != 0:
-    raise SystemExit("dashboard max trade size nonzero")
-if float(mode.get("max_daily_loss_usd", -1)) != 0:
-    raise SystemExit("dashboard max daily loss nonzero")
+if mode.get("execution_available") is not False:
+    raise SystemExit("dashboard reports real execution available")
 PY
   rm -f "$snapshot"
 }
