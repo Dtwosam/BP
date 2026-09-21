@@ -159,3 +159,16 @@ def test_recorder_v3_recovery_uses_canonical_soak_report_schema() -> None:
         "backpressure recorded for",
     ):
         assert marker in source
+
+
+def test_recorder_v3_recovery_matches_ci_short_soak_warmup() -> None:
+    source = read_helper()
+    warmup_at = source.index("sleep 45")
+    soak_at = source.index("run_soak", warmup_at)
+    assert warmup_at < soak_at
+    assert "sleep 20\nrun_soak" not in source
+    ci = (ROOT / ".github" / "workflows" / "recorder-short-soak.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "for _ in $(seq 1 45)" in ci
+    assert "python scripts/soak_report.py --hours 0.01 --minimum-hours 0.008" in ci
