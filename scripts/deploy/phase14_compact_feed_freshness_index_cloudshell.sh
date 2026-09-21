@@ -181,6 +181,9 @@ feeds = (
 )
 
 with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
+    connection.execute(text("SET lock_timeout = '5s'"))
+    connection.execute(text("SET statement_timeout = '15min'"))
+
     existing = connection.execute(
         text("""
             SELECT indexrelid::regclass::text, indisvalid, indisready
@@ -192,8 +195,6 @@ with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connect
     if existing is not None and (not bool(existing[1]) or not bool(existing[2])):
         connection.execute(text(f"DROP INDEX CONCURRENTLY IF EXISTS {index_name}"))
 
-    connection.execute(text("SET lock_timeout = '5s'"))
-    connection.execute(text("SET statement_timeout = '15min'"))
     connection.execute(text(f"CREATE INDEX CONCURRENTLY IF NOT EXISTS {index_name} ON market_state_1s (source, stream, last_event_at DESC)"))
 
     row = connection.execute(
