@@ -148,10 +148,36 @@ require_timer_active_enabled() {
   systemctl is-active --quiet "$timer" || fail "timer_not_active:$timer"
 }
 
-require_oneshot_idle_success() {
+wait_for_oneshot_idle_success() {
   local service=$1
-  [[ "$(systemctl show -p ActiveState --value "$service")" == "inactive" ]] || fail "oneshot_not_idle:$service"
+  local timeout_seconds=$2
+  local waited=0
+  local active_state
+  while true; do
+    active_state=$(systemctl show -p ActiveState --value "$service")
+    case "$active_state" in
+      inactive) break ;;
+      active|activating)
+        (( waited < timeout_seconds )) || fail "oneshot_wait_timeout:$service"
+        sleep 5
+        waited=$((waited + 5))
+        ;;
+      *) fail "oneshot_unexpected_state:$service:$active_state" ;;
+    esac
+  done
   [[ "$(systemctl show -p Result --value "$service")" == "success" ]] || fail "oneshot_last_result_not_success:$service"
+}
+
+require_timer_headroom() {
+  local timer=$1
+  local minimum_seconds=$2
+  local next_elapse next_epoch now_epoch headroom
+  next_elapse=$(systemctl show -p NextElapseUSecRealtime --value "$timer")
+  [[ -n "$next_elapse" && "$next_elapse" != "n/a" ]] || fail "timer_next_elapse_unavailable:$timer"
+  next_epoch=$(date -d "$next_elapse" +%s 2>/dev/null) || fail "timer_next_elapse_unparseable:$timer"
+  now_epoch=$(date +%s)
+  headroom=$((next_epoch - now_epoch))
+  (( headroom >= minimum_seconds )) || fail "timer_headroom_insufficient:$timer:$headroom"
 }
 
 validate_unit_file() {
@@ -312,12 +338,14 @@ require_timer_active_enabled "$MAINTENANCE_TIMER"
 require_timer_active_enabled "$DISK_HEALTH_TIMER"
 require_timer_active_enabled "$V2_TIMER"
 require_timer_active_enabled "$V4_TIMER"
-require_oneshot_idle_success "$MAINTENANCE_SERVICE"
-require_oneshot_idle_success "$DISK_HEALTH_SERVICE"
+wait_for_oneshot_idle_success "$MAINTENANCE_SERVICE" 3600
+wait_for_oneshot_idle_success "$DISK_HEALTH_SERVICE" 30
+require_timer_headroom "$MAINTENANCE_TIMER" 600
 
 DISK_BEFORE=$(mktemp /var/tmp/bp-phase14-recorder-v3-recovery-disk-before.XXXXXX.json)
 run_storage_health "$DISK_BEFORE"
 HOLDOUT_BEFORE=$(gate_b_fingerprint)
+require_timer_headroom "$MAINTENANCE_TIMER" 600
 
 MUTATION_STARTED=1
 systemctl reset-failed "$RECORDER_UNIT" "$V3_PREDICTOR" "$V3_EXECUTION" >/dev/null 2>&1 || true

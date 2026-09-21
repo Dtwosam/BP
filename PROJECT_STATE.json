@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.153",
-  "updated_at": "2026-09-21T14:32:00Z",
+  "source_of_truth_version": "0.14.154",
+  "updated_at": "2026-09-21T15:14:00Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -3326,7 +3326,7 @@
     "concurrent_partition_retirement_production_deployed": false,
     "concurrent_partition_retirement_production_rollout_authorized": true,
     "concurrent_partition_retirement_expected_production_from_head": "7c3af78da1922a0e5187c24b799951130cc98887",
-    "concurrent_partition_retirement_next_action": "Restore bp-recorder.service and the frozen V3 predictor/execution chain with the dedicated authorized recovery gate while preserving the accepted 4-writer RESEARCH/zero-money configuration. After that recovery passes, rerun the already-authorized exact-SHA concurrent-partition-retirement rollout. Do not enable live trading, nonzero money, automatic promotion, Gate B, model tuning, or Phase 15.",
+    "concurrent_partition_retirement_next_action": "Complete the already-authorized recorder/V3 recovery with the hardened gate after any in-flight maintenance finishes successfully and sufficient timer headroom exists. Then rerun the already-authorized exact-SHA concurrent-partition-retirement rollout. Do not enable live trading, nonzero money, automatic promotion, Gate B, model tuning, or Phase 15.",
     "concurrent_partition_retirement_candidate_verification_pr": 214,
     "concurrent_partition_retirement_candidate_verification_status": "GREEN_CLOSED_UNMERGED",
     "concurrent_partition_retirement_candidate_head": "ed7d930c69e417dda388b0cb62b3a543a4b8134f",
@@ -3353,7 +3353,11 @@
     "recorder_v3_recovery_authorized": true,
     "recorder_v3_recovery_performed": false,
     "recorder_v3_recovery_scope": "Restore only bp-recorder.service, bp-v3-frozen-predictor.service, and bp-v3-paper-execution.service after the fail-closed storage stop; preserve the existing production checkout, RECORDER_WRITER_WORKERS=4, MODE=research, LIVE_TRADING_ENABLED=false, MAX_TRADE_SIZE_USD=0, MAX_DAILY_LOSS_USD=0, automatic_promotion=false, and existing Gate B artifacts.",
-    "recorder_v3_recovery_gate_repository_status": "AUTHORIZED_GATE_PR_PENDING_CI_NOT_PRODUCTION_RUN"
+    "recorder_v3_recovery_gate_repository_status": "AUTHORIZED_GATE_HARDENING_PR_PENDING_CI_NOT_PRODUCTION_RUN",
+    "recorder_v3_recovery_last_attempt_status": "PREMUTATION_FAIL_INFLIGHT_MAINTENANCE",
+    "recorder_v3_recovery_last_attempt_reason": "oneshot_not_idle:bp-storage-maintenance.service",
+    "recorder_v3_recovery_last_attempt_mutation_started": false,
+    "recorder_v3_recovery_gate_hardening": "Wait for an already-running storage-maintenance oneshot to finish without stopping its timer, require Result=success, wait briefly for disk-health oneshot if needed, and require at least 600 seconds of maintenance-timer headroom before starting recorder/V3 recovery."
   },
   "phase_14_adaptive_learning": {
     "implementation_status": "REPOSITORY_RESEARCH_ONLY",
