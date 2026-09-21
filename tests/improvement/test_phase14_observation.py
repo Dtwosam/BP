@@ -309,5 +309,6 @@ def test_phase14_observation_source_truth_preserves_read_only_boundary() -> None
     assert command in build
     assert "prospective observation only" in start.lower()
     assert "do not tune v3 from paper results" in build.lower()
-    assert "no further authorized v3/v4 model or trading build step" in observation["next_action"].lower()
-    assert "separate explicit sha-bound authorization boundary" in observation["next_action"].lower()
+    next_action = observation["next_action"].lower()
+    assert "no further authorized v3/v4 model or trading build step" in next_action
+    assert "separate explicit sha-bound authorization boundary" in next_action
