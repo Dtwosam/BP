@@ -630,7 +630,7 @@ V4 is the comprehensive V3 successor. Before any V4 fitting, its Gate B preregis
 For a read-only combined snapshot, use:
 
 ```bash
-python scripts/report_phase14_observation.py --env-file /etc/bp/bp.env
+python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env
 ```
 
 This report composes the isolated V3 paper report, prospective V4 coverage from the frozen forward epoch, composite partitioned-storage health, and the research/live-disabled/zero-money settings. It must not create a missing storage path and it performs no training, tuning, policy selection, service mutation, database write, or production rollout.
