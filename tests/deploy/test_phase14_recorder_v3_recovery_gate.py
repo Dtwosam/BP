@@ -109,11 +109,17 @@ def test_project_state_records_authorized_recovery_and_rollout_without_claiming_
     import json
 
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["source_of_truth_version"] == "0.14.159"
+    assert state["source_of_truth_version"] == "0.14.160"
     storage = state["phase_14_storage_reliability_followup"]
     assert storage["concurrent_partition_retirement_production_rollout_authorized"] is True
     assert storage["concurrent_partition_retirement_rollout_gate_production_authorized"] is True
     assert storage["recorder_v3_recovery_authorized"] is True
+    assert storage["concurrent_partition_retirement_rollout_gate_repository_status"] == "MERGED_MAIN_GREEN_AWAITING_ALREADY_AUTHORIZED_PRODUCTION_RERUN"
+    assert storage["concurrent_partition_retirement_rollout_disk_health_wait_fix_pr"] == 227
+    assert storage["concurrent_partition_retirement_rollout_disk_health_wait_fix_head"] == "d2d451c791d9c8a26878964900dc2fe9e9d72394"
+    assert storage["concurrent_partition_retirement_rollout_disk_health_wait_fix_merge_commit"] == "f50f01d3baf2dc2e968469e44c4dbb9e660a9378"
+    assert storage["concurrent_partition_retirement_rollout_disk_health_wait_fix_exact_head_gates_passed"] is True
+    assert storage["concurrent_partition_retirement_rollout_gate_production_performed"] is False
     assert storage["recorder_v3_recovery_performed"] is False
     assert (
         storage["recorder_v3_recovery_gate_helper"]
