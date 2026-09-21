@@ -109,7 +109,7 @@ def test_project_state_records_authorized_recovery_and_rollout_without_claiming_
     import json
 
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["source_of_truth_version"] == "0.14.154"
+    assert state["source_of_truth_version"] == "0.14.155"
     storage = state["phase_14_storage_reliability_followup"]
     assert storage["concurrent_partition_retirement_production_rollout_authorized"] is True
     assert storage["concurrent_partition_retirement_rollout_gate_production_authorized"] is True
