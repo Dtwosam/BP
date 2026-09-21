@@ -656,6 +656,7 @@ def _partition_relation_bytes(engine: Engine) -> int | None:
         return None
     return int(value or 0)
 
+
 def _dedupe_relation_bytes(engine: Engine) -> int | None:
     if engine.dialect.name != "postgresql":
         return None
