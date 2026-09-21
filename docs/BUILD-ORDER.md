@@ -633,7 +633,7 @@ For a read-only combined snapshot, use:
 python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env
 ```
 
-This report composes the isolated V3 paper report, prospective V4 coverage from the frozen forward epoch, composite partitioned-storage health, and the research/live-disabled/zero-money settings. It must not create a missing storage path and it performs no training, tuning, policy selection, service mutation, database write, or production rollout.
+This report composes the isolated V3 paper report, prospective V4 coverage from the frozen forward epoch, composite partitioned-storage health, and the research/live-disabled/zero-money settings. On PostgreSQL, the observation CLI enforces `default_transaction_read_only=on` at engine creation so all component connections inherit a database-level read-only default. It must not create a missing storage path and it performs no training, tuning, policy selection, service mutation, database write, or production rollout.
 
 For V3 paper observation:
 
