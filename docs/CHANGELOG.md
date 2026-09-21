@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.158 — 21 September 2026
+
+- The latest authorized recorder/V3 recovery attempt reached dashboard safety verification, then failed closed because the recovery helper still parsed an obsolete dashboard schema (`mode.mode=research` plus dashboard money-limit fields). Rollback stopped recorder/frozen V3 and restored the storage-maintenance timer.
+- Recovery dashboard validation now matches the canonical dashboard contract already used by the concurrent-partition-retirement rollout: `mode.trading_mode=RESEARCH`, `live_trading_enabled=false`, and `execution_available=false`.
+- Zero-money limits remain independently enforced from the production environment and prospective-runtime safety files; the dashboard parser change does not relax RESEARCH, live-disabled, zero-money, automatic-promotion, Gate B, or rollout safety constraints.
+
 ## 0.14.157 — 21 September 2026
 
 - The next explicitly authorized recorder/V3 recovery attempt correctly froze the storage-maintenance timer and started recorder/frozen V3, but the natural-load soak failed because `polymarket/market` had no events in the evaluated 36-second window. Bybit spot/linear and Coinbase had events, and rollback cleanly stopped recorder/V3 and restored the maintenance timer.
