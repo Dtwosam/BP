@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 
 from bp_engine.config import Settings, TradingMode
 from bp_engine.features.v4_forward import V4_FORWARD_EPOCH
-from bp_engine import phase14_observation
+from bp_engine import phase14_observation, phase14_observation_cli
 
 
 def _settings(tmp_path, **updates):
@@ -261,3 +261,17 @@ def test_phase14_observation_marks_v4_or_storage_integrity_failures(
     assert report["integrity"]["v4"]["ok"] is False
     assert report["integrity"]["storage_ok"] is False
     assert report["integrity"]["all_observation_guards_ok"] is False
+
+
+def test_phase14_observation_cli_serializes_decimal_and_datetime() -> None:
+    payload = {
+        "cash": Decimal("165.290000"),
+        "generated_at": datetime(2026, 9, 21, 13, 30, tzinfo=UTC),
+    }
+
+    rendered = phase14_observation_cli._json_value(payload)
+
+    assert rendered == {
+        "cash": "165.290000",
+        "generated_at": "2026-09-21T13:30:00+00:00",
+    }
