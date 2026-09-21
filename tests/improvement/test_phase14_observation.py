@@ -368,14 +368,33 @@ def test_phase14_observation_source_truth_preserves_read_only_boundary() -> None
     assert observation["merge_commit"] == "767cac3b78c20c9162b20c74eff770d4b2e8d1d8"
     assert observation["post_merge_ci_run_id"] == 35606952694
     assert observation["post_merge_ci_passed"] is True
-    assert observation["database_read_only_hardening_status"] == "MERGED_MAIN_POST_MERGE_CI_GREEN_NOT_PRODUCTION_RUN"
+    assert (
+        observation["database_read_only_hardening_status"]
+        == "MERGED_MAIN_POST_MERGE_CI_GREEN_NOT_PRODUCTION_RUN"
+    )
     assert observation["database_read_only_hardening_pr"] == 219
-    assert observation["database_read_only_hardening_validation_head"] == "3747f4bbf13ab3fec12b4b08c10df52c0b0dbbec"\n    assert observation["database_read_only_hardening_ci_run_id"] == 35608740215
+    assert (
+        observation["database_read_only_hardening_validation_head"]
+        == "3747f4bbf13ab3fec12b4b08c10df52c0b0dbbec"
+    )
+    assert observation["database_read_only_hardening_ci_run_id"] == 35608740215
     assert observation["database_read_only_hardening_test_count"] == 1266
-    assert observation["database_read_only_hardening_historical_backfill_smoke_run_id"] == 35608740066
-    assert observation["database_read_only_hardening_live_recorder_smoke_run_id"] == 35608740154
-    assert observation["database_read_only_hardening_recorder_short_soak_run_id"] == 35608740253
-    assert observation["database_read_only_hardening_merge_commit"] == "cc646933c82c4a0b9a613d98a769c07aca9cfe49"
+    assert (
+        observation["database_read_only_hardening_historical_backfill_smoke_run_id"]
+        == 35608740066
+    )
+    assert (
+        observation["database_read_only_hardening_live_recorder_smoke_run_id"]
+        == 35608740154
+    )
+    assert (
+        observation["database_read_only_hardening_recorder_short_soak_run_id"]
+        == 35608740253
+    )
+    assert (
+        observation["database_read_only_hardening_merge_commit"]
+        == "cc646933c82c4a0b9a613d98a769c07aca9cfe49"
+    )
     assert observation["database_read_only_hardening_post_merge_ci_run_id"] == 35609529018
     assert observation["database_read_only_hardening_post_merge_ci_passed"] is True
     assert observation["postgres_session_default_read_only"] is True
