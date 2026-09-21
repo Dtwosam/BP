@@ -92,6 +92,11 @@ def test_rollout_gate_acceptance_must_exercise_real_partition_retirement() -> No
     ):
         assert required in content
 
+    timer_stop_at = content.index('systemctl stop "$MAINTENANCE_TIMER"')
+    eligible_at = content.index("require_eligible_partition", timer_stop_at)
+    checkout_at = content.index('git -C "$REPO" checkout --detach "$CANDIDATE_HEAD"')
+    assert timer_stop_at < eligible_at < checkout_at
+
     assert 'systemctl restart "$RECORDER_UNIT"' not in content
     assert "evaluate-holdout" not in content
 
@@ -106,6 +111,7 @@ def test_rollout_gate_reconciles_candidate_storage_before_old_checkout_on_failur
         'systemctl stop "$V3_PREDICTOR"',
         'systemctl stop "$RECORDER_UNIT"',
         'git -C "$REPO" checkout --detach "$FROM_HEAD"',
+        "PHASE14_CONCURRENT_PARTITION_RETIREMENT_ROLLOUT_ROLLBACK=COMPLETE_PRECHECKOUT",
         "PHASE14_CONCURRENT_PARTITION_RETIREMENT_ROLLOUT_ROLLBACK=COMPLETE",
         "PHASE14_CONCURRENT_PARTITION_RETIREMENT_ROLLOUT_ROLLBACK=INCOMPLETE_RECONCILIATION_REQUIRED",
     ):
