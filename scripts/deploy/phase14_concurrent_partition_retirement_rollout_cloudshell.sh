@@ -273,6 +273,12 @@ require_timer_active_enabled() {
   systemctl is-active --quiet "$timer" || fail "timer_not_active:$timer"
 }
 
+require_timer_enabled_inactive() {
+  local timer=$1
+  systemctl is-enabled --quiet "$timer" || fail "timer_not_enabled:$timer"
+  [[ "$(systemctl show -p ActiveState --value "$timer")" == "inactive" ]] || fail "timer_not_inactive:$timer"
+}
+
 require_oneshot_idle_success() {
   local service=$1
   [[ "$(systemctl show -p ActiveState --value "$service")" == "inactive" ]] || fail "oneshot_not_idle:$service"
@@ -525,6 +531,9 @@ rollback() {
   current_head=$(git -C "$REPO" rev-parse HEAD 2>/dev/null || true)
 
   if [[ "$current_head" != "$CANDIDATE_HEAD" ]]; then
+    systemctl stop "$V3_EXECUTION" >/dev/null 2>&1 || true
+    systemctl stop "$V3_PREDICTOR" >/dev/null 2>&1 || true
+    systemctl stop "$RECORDER_UNIT" >/dev/null 2>&1 || true
     systemctl start "$MAINTENANCE_TIMER" >/dev/null 2>&1 || true
     echo "PHASE14_CONCURRENT_PARTITION_RETIREMENT_ROLLOUT_ROLLBACK=COMPLETE_PRECHECKOUT" >&2
     echo "DEPLOYED_HEAD=$current_head" >&2
@@ -580,13 +589,14 @@ trap cleanup EXIT
 [[ -r "$STORAGE_EVIDENCE" ]] || fail "storage_evidence_missing"
 [[ "$(sha256sum "$STORAGE_EVIDENCE" | awk '{print $1}')" == "$STORAGE_EVIDENCE_SHA256" ]] || fail "storage_evidence_sha256_mismatch"
 [[ "$(git -C "$REPO" rev-parse HEAD)" == "$FROM_HEAD" ]] || fail "unexpected_deployed_head"
+ROLLBACK_ARMED=1
 
 validate_deployed_checkout
 validate_unit_contracts
 require_research_zero_money
 require_automatic_promotion_false
 require_core_services_active
-require_timer_active_enabled "$MAINTENANCE_TIMER"
+require_timer_enabled_inactive "$MAINTENANCE_TIMER"
 require_timer_active_enabled "$DISK_HEALTH_TIMER"
 require_timer_active_enabled "$V2_TIMER"
 require_timer_active_enabled "$V4_TIMER"
@@ -604,8 +614,8 @@ git -C "$REPO" fetch --quiet origin "refs/heads/$CANDIDATE_BRANCH:refs/remotes/o
 git -C "$REPO" merge-base --is-ancestor "$FROM_HEAD" "$CANDIDATE_HEAD" || fail "candidate_not_descendant_of_deployed_head"
 validate_candidate_scope
 
-ROLLBACK_ARMED=1
 systemctl stop "$MAINTENANCE_TIMER"
+require_timer_enabled_inactive "$MAINTENANCE_TIMER"
 require_oneshot_idle_success "$MAINTENANCE_SERVICE"
 require_eligible_partition
 
