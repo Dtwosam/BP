@@ -1,5 +1,7 @@
 from datetime import UTC, datetime
 from decimal import Decimal
+import json
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine
@@ -275,3 +277,32 @@ def test_phase14_observation_cli_serializes_decimal_and_datetime() -> None:
         "cash": "165.290000",
         "generated_at": "2026-09-21T13:30:00+00:00",
     }
+
+
+def test_phase14_observation_source_truth_preserves_read_only_boundary() -> None:
+    root = Path(__file__).resolve().parents[2]
+    state = json.loads((root / "PROJECT_STATE.json").read_text(encoding="utf-8"))
+    start = (root / "START-HERE.md").read_text(encoding="utf-8")
+    build = (root / "docs/BUILD-ORDER.md").read_text(encoding="utf-8")
+
+    observation = state["phase_14_observation_report"]
+    assert observation["status"] == "REPOSITORY_ENGINEERING_GREEN_NOT_PRODUCTION_RUN"
+    assert observation["database_writes"] is False
+    assert observation["filesystem_creation"] is False
+    assert observation["training_performed"] is False
+    assert observation["tuning_performed"] is False
+    assert observation["policy_selection_performed"] is False
+    assert observation["service_or_timer_mutation"] is False
+    assert observation["production_checkout_mutation"] is False
+    assert observation["production_run_performed"] is False
+    assert observation["live_trading_enabled"] is False
+    assert observation["max_trade_size_usd"] == 0
+    assert observation["max_daily_loss_usd"] == 0
+    assert observation["automatic_promotion"] is False
+
+    command = "python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env"
+    assert observation["command"] == command
+    assert command in start
+    assert command in build
+    assert "prospective observation only" in start.lower()
+    assert "do not tune v3 from paper results" in build.lower()
