@@ -180,11 +180,6 @@ feeds = (
     ("polymarket", "market"),
 )
 
-create_sql = f"""
-CREATE INDEX CONCURRENTLY {index_name}
-ON market_state_1s (source, stream, last_event_at DESC)
-"""
-
 with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
     existing = connection.execute(
         text("""
@@ -245,6 +240,7 @@ with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connect
         plan = "\n".join(str(line) for line in plan_lines)
         if index_name not in plan:
             raise SystemExit(f"planner did not select {index_name} for {source}/{stream}: {plan}")
+        plans[f"{source}/{stream}"] = plan
         started = time.monotonic()
         value = connection.execute(
             text("""
