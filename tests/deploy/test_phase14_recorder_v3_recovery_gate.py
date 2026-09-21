@@ -123,3 +123,16 @@ def test_project_state_records_authorized_recovery_and_rollout_without_claiming_
         storage["recorder_v3_recovery_expected_production_head"]
         == "7c3af78da1922a0e5187c24b799951130cc98887"
     )
+
+
+def test_recorder_v3_recovery_waits_for_inflight_maintenance_without_mutating_timer() -> None:
+    source = read_helper()
+    assert "wait_for_oneshot_idle_success" in source
+    assert 'wait_for_oneshot_idle_success "$MAINTENANCE_SERVICE" 3600' in source
+    assert 'wait_for_oneshot_idle_success "$DISK_HEALTH_SERVICE" 30' in source
+    assert "oneshot_wait_timeout" in source
+    assert "oneshot_last_result_not_success" in source
+    assert 'require_timer_headroom "$MAINTENANCE_TIMER" 600' in source
+    assert "timer_headroom_insufficient" in source
+    assert 'systemctl stop "$MAINTENANCE_TIMER"' not in source
+    assert 'systemctl restart "$MAINTENANCE_TIMER"' not in source
