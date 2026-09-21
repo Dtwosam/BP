@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.152 — 21 September 2026
+
+- Closed out PR #219 database read-only hardening after its final head `3747f4bbf13ab3fec12b4b08c10df52c0b0dbbec` passed CI `35608740215` with **1,266 tests**, Historical Backfill Smoke `35608740066`, Live Recorder Smoke `35608740154`, and Recorder Short Soak `35608740253`.
+- PR #219 merged to `main` as `cc646933c82c4a0b9a613d98a769c07aca9cfe49`; post-merge CI runs `35609242166` and `35609529018` both passed on that exact merge commit.
+- The Phase 14 observation CLI now has merged PostgreSQL session-level read-only enforcement via `default_transaction_read_only=on`, while SQLite connection arguments remain unchanged.
+- This remains read-only repository safety hardening only. The observation report has not been run against production by this closeout, frozen V3 remains observation-only, V4 remains prospective-collection-only, and concurrent-partition-retirement production execution remains separately unauthorized.
+
 ## 0.14.151 — 21 September 2026
 
 - Hardened the unified Phase 14 observation report so PostgreSQL engines are created with session option `default_transaction_read_only=on`; every V3/V4/storage connection opened from that engine inherits the database-enforced read-only default.
