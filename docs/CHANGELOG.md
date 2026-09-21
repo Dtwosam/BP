@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.159 — 21 September 2026
+
+- The latest recorder/frozen-V3 recovery passed and produced durable recovery evidence, but the chained concurrent-partition-retirement rollout failed before candidate checkout because `bp-storage-disk-health.service` was transiently active during preflight. Pre-checkout rollback stopped recorder/frozen V3 and restored the maintenance timer.
+- The disk-health unit is a two-minute oneshot triggered every five minutes. Recovery already tolerates brief overlap by waiting up to 30 seconds for the oneshot to become idle and then requiring `Result=success`; rollout previously used an immediate idle assertion.
+- Rollout now uses the same bounded 30-second disk-health wait. Timeout, unexpected oneshot state, or a non-success result still fail closed. Candidate binding, storage acceptance, safety checks, timer handoff, and rollback semantics are unchanged.
+
 ## 0.14.158 — 21 September 2026
 
 - The latest authorized recorder/V3 recovery attempt reached dashboard safety verification, then failed closed because the recovery helper still parsed an obsolete dashboard schema (`mode.mode=research` plus dashboard money-limit fields). Rollback stopped recorder/frozen V3 and restored the storage-maintenance timer.
