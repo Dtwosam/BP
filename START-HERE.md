@@ -98,4 +98,6 @@ The immediate operational sequence is:
 3. **Recovery then rollout.** Only after the index gate passes may the recorder/V3 recovery helper and concurrent-partition-retirement rollout receive fresh exact-head authorizations. The old `f50f01d...` approval epoch is invalid because `main` advanced.
 4. **Resume prospective observation only after rollout PASS.** The read-only combined observation report remains available at `python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env`, but it is not the current operational priority while recorder/frozen-V3 are fail-closed stopped.
 
+The historical **V4 regime-aware** collector acceptance remains valid research evidence. After storage rollout PASS, resume V4 regime-aware feature collection and frozen-V3 paper observation under their unchanged prospective boundaries; this statement does not claim those services are currently active.
+
 Do not refit V3, recalibrate it, change `min_edge=0.075`, alter paper sizing, tune from paper results, perform Gate B actions, automatically promote anything, enable a live-order path, enter Phase 15, bypass geographic restrictions, or change real-money limits.
