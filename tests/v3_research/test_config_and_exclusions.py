@@ -190,3 +190,17 @@ def test_exclusion_manifest_allows_only_preregistered_kinds() -> None:
     assert build_exclusion_manifest is not None
     with pytest.raises(ExclusionManifestError, match="kind"):
         build_exclusion_manifest(kind="other", condition_ids=("condition-a",))
+
+
+def test_consumed_v2_final_holdout_evidence_is_frozen_and_loadable() -> None:
+    assert load_exclusion_manifest is not None
+    manifest = load_exclusion_manifest(
+        "docs/evidence/phase-14-v3-consumed-v2-final-holdout-exclusions-20260913.json",
+        expected_kind="consumed_v2_final_holdout",
+    )
+
+    assert manifest.sha256 == (
+        "28f46a8feff52bc02780fd67b1e42bbcd462ff562b33a0b5d8df903b6d54ef54"
+    )
+    assert len(manifest.condition_ids) == 24
+    assert len(set(manifest.condition_ids)) == 24
