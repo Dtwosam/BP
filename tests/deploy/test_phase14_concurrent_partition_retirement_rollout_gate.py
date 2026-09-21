@@ -54,7 +54,7 @@ def test_rollout_gate_requires_healthy_research_runtime_and_live_v3_v4_observati
         "bp-storage-maintenance.timer",
         "bp-storage-disk-health.timer",
         "bp-v2-forward-coverage.timer",
-        "storage_health is not ok",
+        "storage health is not ok",
         "maintenance_fresh",
         "current_partition_present",
         "retention_current",
@@ -98,6 +98,8 @@ def test_rollout_gate_reconciles_candidate_storage_before_old_checkout_on_failur
     for required in (
         "PHASE14_CONCURRENT_PARTITION_RETIREMENT_ROLLOUT_ROLLBACK=START",
         "reconcile_candidate_storage",
+        'systemctl stop "$V3_EXECUTION"',
+        'systemctl stop "$V3_PREDICTOR"',
         'systemctl stop "$RECORDER_UNIT"',
         'git -C "$REPO" checkout --detach "$FROM_HEAD"',
         "PHASE14_CONCURRENT_PARTITION_RETIREMENT_ROLLOUT_ROLLBACK=COMPLETE",
