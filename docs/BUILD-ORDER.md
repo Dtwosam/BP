@@ -618,31 +618,16 @@ Current order: (1) do not rerun this rollout and preserve its evidence; (2) buil
 
 ## Immediate next action
 
-Frozen V3 paper trading is production PASS and active from `2026-09-20T15:39:45Z`.
+The accepted frozen V3 paper activation remains historical PASS evidence, but the current recorder/frozen-V3 runtime is **fail-closed stopped** after the latest storage rollout attempt. Prospective observation is paused as the immediate operational action until the storage rollout is recovered.
 
-Continue two prospective processes in parallel:
+Proceed in this order:
 
-V4 is the comprehensive V3 successor. Before any V4 fitting, its Gate B preregistration must explicitly cover every documented V3 weakness: regime dependence, side asymmetry, model simplicity/feature underuse, calibration, timing, trade-quality versus coverage, drawdown/loss robustness, and execution availability. Do not change the current V4 collector mid-epoch.
+1. Read-only verify production is back on `7c3af78da1922a0e5187c24b799951130cc98887`, recorder/frozen-V3 are inactive, required storage/V2/V4 timers are healthy, and composite storage health is `ok`.
+2. PR #229's compact-feed freshness repair is merged and green. Production installation of `ix_market_state_1s_feed_last_event (source, stream, last_event_at DESC)` remains separately unauthorized. When explicitly approved against the exact current `main`, run `scripts/deploy/phase14_compact_feed_freshness_index_cloudshell.sh` while recorder/frozen-V3 remain stopped.
+3. After the index gate passes, obtain fresh exact-head authorization for recorder/V3 recovery. Require RESEARCH mode, four recorder writers, live trading disabled, zero real-money limits, and the timer-stopped rollout handoff.
+4. Only after recovery PASS, obtain fresh exact-head authorization for the concurrent-partition-retirement rollout and require real retirement acceptance without recorder/V3 identity loss.
+5. Resume frozen V3 paper observation and V4 prospective collection only after rollout PASS.
 
-1. frozen V3 paper observation using `v3-frozen-paper-v1` + `paper-execution-v3-frozen-v1`;
-2. V4 regime-aware feature collection using `core-v4-regime-aware`.
+The frozen V3 policy remains immutable: model SHA `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`, `v3-frozen-paper-v1`, `paper-execution-v3-frozen-v1`, 240-second timing, and `min_edge=0.075`. Keep $100 virtual starting cash, $5 virtual target notional, and **real money at zero**. Do not tune V3 from paper results.
 
-For a read-only combined snapshot, use:
-
-```bash
-python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env
-```
-
-This report composes the isolated V3 paper report, prospective V4 coverage from the frozen forward epoch, composite partitioned-storage health, and the research/live-disabled/zero-money settings. On PostgreSQL, the observation CLI enforces `default_transaction_read_only=on` at engine creation so all component connections inherit a database-level read-only default. It must not create a missing storage path and it performs no training, tuning, policy selection, service mutation, database write, or production rollout.
-
-For V3 paper observation:
-
-- keep model SHA `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7` unchanged;
-- keep the 240-second forecast timing and `min_edge=0.075` unchanged;
-- keep $100 virtual starting cash, $5 virtual target notional, 250ms simulated latency, 2000ms order TTL, and 6-decimal share precision unchanged;
-- keep Polymarket state execution-only;
-- use the V3-only report so legacy paper rows cannot contaminate results;
-- keep real money at zero and all live-order paths disabled;
-- do not tune V3 from paper results.
-
-No V3 refit, calibration change, threshold search, sizing change, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero real-money limit is authorized.
+No V3 refit, calibration change, threshold search, sizing change, Gate B action, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero real-money limit is authorized.
