@@ -103,3 +103,23 @@ def test_recorder_v3_recovery_requires_stable_services_and_preserves_gate_b_arti
         "PHASE14_RECORDER_V3_RECOVERY_GATE=PASS",
     ):
         assert marker in source
+
+
+def test_project_state_records_authorized_recovery_and_rollout_without_claiming_execution() -> None:
+    import json
+
+    state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
+    assert state["source_of_truth_version"] == "0.14.153"
+    storage = state["phase_14_storage_reliability_followup"]
+    assert storage["concurrent_partition_retirement_production_rollout_authorized"] is True
+    assert storage["concurrent_partition_retirement_rollout_gate_production_authorized"] is True
+    assert storage["recorder_v3_recovery_authorized"] is True
+    assert storage["recorder_v3_recovery_performed"] is False
+    assert (
+        storage["recorder_v3_recovery_gate_helper"]
+        == "scripts/deploy/phase14_recorder_v3_recovery_gate_cloudshell.sh"
+    )
+    assert (
+        storage["recorder_v3_recovery_expected_production_head"]
+        == "7c3af78da1922a0e5187c24b799951130cc98887"
+    )
