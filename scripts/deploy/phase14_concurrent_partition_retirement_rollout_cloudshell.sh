@@ -318,22 +318,25 @@ with engine.connect() as connection:
         JOIN pg_namespace AS parent_ns ON parent_ns.oid = parent.relnamespace
         JOIN pg_class AS child ON child.oid = inheritance.inhrelid
         WHERE parent_ns.nspname = current_schema()
-          AND parent.relname = '''raw_market_events'''
+          AND parent.relname = :parent_name
           AND inheritance.inhdetachpending
-    """)).scalar_one())
+    """), {"parent_name": "raw_market_events"}).scalar_one())
     detached = int(connection.execute(text("""
         SELECT count(*)
         FROM pg_class AS relation
         JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
         WHERE namespace.nspname = current_schema()
-          AND relation.relkind = '''r'''
-          AND relation.relname ~ '''^raw_market_events_[0-9]{8}_[0-9]{2}$'''
+          AND relation.relkind = :relkind
+          AND relation.relname ~ :pattern
           AND NOT EXISTS (
               SELECT 1
               FROM pg_inherits AS inheritance
               WHERE inheritance.inhrelid = relation.oid
           )
-    """)).scalar_one())
+    """), {
+        "relkind": "r",
+        "pattern": "^raw_market_events_[0-9]{8}_[0-9]{2}$",
+    }).scalar_one())
 if pending or detached:
     raise SystemExit(f"raw retirement leftovers present: pending={pending} detached={detached}")
 PY
@@ -349,7 +352,7 @@ exec "$2" - <<"PY"
 from datetime import UTC, datetime, timedelta
 from sqlalchemy import create_engine
 from bp_engine.config import Settings
-from bp_engine.storage.partitioned_raw import list_raw_retirement_candidates
+from bp_engine.storage.partitioned_raw import list_raw_partitions
 
 settings = Settings(_env_file="/etc/bp/bp.env")
 engine = create_engine(settings.database_url)
@@ -358,7 +361,7 @@ eligible_end = (now - timedelta(hours=settings.storage_hot_raw_hours)).replace(
     minute=0, second=0, microsecond=0
 )
 eligible = [
-    item for item in list_raw_retirement_candidates(engine)
+    item for item in list_raw_partitions(engine)
     if item.end_at <= eligible_end
 ]
 if not eligible:
@@ -419,11 +422,11 @@ with engine.connect() as connection:
     row = connection.execute(text("""
         SELECT id, partitions_retired, dedupe_rows_removed
         FROM storage_maintenance_runs
-        WHERE status = '''success'''
+        WHERE status = :status
           AND started_at >= CAST(:since_at AS timestamptz)
         ORDER BY id DESC
         LIMIT 1
-    """), {"since_at": sys.argv[1]}).one_or_none()
+    """), {"status": "success", "since_at": sys.argv[1]}).one_or_none()
 if row is None:
     raise SystemExit("acceptance maintenance success row missing")
 print(int(row[0]), int(row[1]), int(row[2]))
@@ -492,6 +495,8 @@ rollback() {
   set +e
   echo "PHASE14_CONCURRENT_PARTITION_RETIREMENT_ROLLOUT_ROLLBACK=START" >&2
   systemctl stop "$MAINTENANCE_TIMER" >/dev/null 2>&1 || true
+  systemctl stop "$V3_EXECUTION" >/dev/null 2>&1 || true
+  systemctl stop "$V3_PREDICTOR" >/dev/null 2>&1 || true
   systemctl stop "$RECORDER_UNIT" >/dev/null 2>&1 || true
   systemctl stop "$MAINTENANCE_SERVICE" >/dev/null 2>&1 || true
 
