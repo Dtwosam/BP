@@ -144,7 +144,10 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
     assert "$100 virtual starting cash" in build_next
     assert "$5 virtual target notional" in build_next
     assert "ix_market_state_1s_feed_last_event" in build_next
-    assert "resume frozen v3 paper observation and v4 prospective collection only after rollout pass" in build_next
+    assert (
+        "resume frozen v3 paper observation and v4 prospective collection only after rollout pass"
+        in build_next
+    )
 
     assert "## D-048 —" in decisions
     assert "## D-049 —" in decisions
