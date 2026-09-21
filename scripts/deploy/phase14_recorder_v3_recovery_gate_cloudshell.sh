@@ -395,7 +395,7 @@ PREDICTOR_RESTARTS=$(systemctl show -p NRestarts --value "$V3_PREDICTOR")
 EXECUTION_RESTARTS=$(systemctl show -p NRestarts --value "$V3_EXECUTION")
 for pid in "$RECORDER_PID" "$PREDICTOR_PID" "$EXECUTION_PID"; do [[ "$pid" =~ ^[1-9][0-9]*$ ]] || fail "invalid_service_pid"; done
 
-sleep 20
+sleep 45
 run_soak
 verify_dashboard_safety
 require_research_zero_money

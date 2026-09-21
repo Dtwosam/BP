@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.157 — 21 September 2026
+
+- The next explicitly authorized recorder/V3 recovery attempt correctly froze the storage-maintenance timer and started recorder/frozen V3, but the natural-load soak failed because `polymarket/market` had no events in the evaluated 36-second window. Bybit spot/linear and Coinbase had events, and rollback cleanly stopped recorder/V3 and restored the maintenance timer.
+- Root cause in the recovery gate: it waited only 20 seconds after recorder start before evaluating the trailing 36-second soak window, so part of that window necessarily predated recorder startup. The established Recorder Short Soak CI instead runs the recorder for 45 seconds before evaluating the same `--hours 0.01 --minimum-hours 0.008` report.
+- Recovery now waits 45 seconds before the unchanged 36-second natural-load soak. Required feeds, zero-backpressure checks, RESEARCH/zero-money safety, timer handoff, immutable candidate, Gate B protection, and rollout scope are unchanged.
+
 ## 0.14.156 — 21 September 2026
 
 - Closed the Phase 14 recovery-to-rollout handoff gap observed after recorder/frozen-V3 recovery: the production checkout remained at the old `7c3af78...` head, the rollout never reached candidate checkout, and the still-active hourly maintenance timer fired the 17:00 UTC old-code maintenance cycle while recorder/V3 were active. A read-only diagnostic found no PostgreSQL blockers and no live rollout remote shell; the operator then stopped recorder and frozen V3, leaving the in-flight maintenance cycle undisturbed.

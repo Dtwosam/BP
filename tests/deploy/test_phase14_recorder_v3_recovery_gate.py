@@ -109,7 +109,7 @@ def test_project_state_records_authorized_recovery_and_rollout_without_claiming_
     import json
 
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["source_of_truth_version"] == "0.14.156"
+    assert state["source_of_truth_version"] == "0.14.157"
     storage = state["phase_14_storage_reliability_followup"]
     assert storage["concurrent_partition_retirement_production_rollout_authorized"] is True
     assert storage["concurrent_partition_retirement_rollout_gate_production_authorized"] is True
@@ -159,3 +159,16 @@ def test_recorder_v3_recovery_uses_canonical_soak_report_schema() -> None:
         "backpressure recorded for",
     ):
         assert marker in source
+
+
+def test_recorder_v3_recovery_matches_ci_short_soak_warmup() -> None:
+    source = read_helper()
+    warmup_at = source.index("sleep 45")
+    soak_at = source.index("run_soak", warmup_at)
+    assert warmup_at < soak_at
+    assert "sleep 20\nrun_soak" not in source
+    ci = (ROOT / ".github" / "workflows" / "recorder-short-soak.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "for _ in $(seq 1 45)" in ci
+    assert "python scripts/soak_report.py --hours 0.01 --minimum-hours 0.008" in ci
