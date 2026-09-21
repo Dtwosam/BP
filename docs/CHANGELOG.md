@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.150 — 21 September 2026
+
+- Merged the unified Phase 14 read-only observation report by PR #217 as `767cac3b78c20c9162b20c74eff770d4b2e8d1d8`.
+- Post-merge CI run `35606952694` (CI #4249) passed on the merge commit.
+- The report is now a repository capability for read-only prospective V3/V4/storage observation; it has not been run against production by this closeout and does not authorize model fitting, V3 tuning, activation, live trading, automatic promotion, or nonzero money.
+- Frozen V3 remains observation-only, V4 remains prospective-collection-only, and concurrent-partition-retirement production execution remains a separate explicit SHA-bound authorization boundary.
+
 ## 0.14.149 — 21 September 2026
 
 - Added a unified read-only Phase 14 observation report that composes the existing isolated frozen-V3 paper report, prospective `core-v4-regime-aware` coverage from the fixed V4 forward epoch, composite partitioned-storage health, and the current RESEARCH/live-disabled/zero-money settings.
