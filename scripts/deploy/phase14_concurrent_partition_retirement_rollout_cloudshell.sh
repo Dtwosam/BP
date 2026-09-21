@@ -520,21 +520,26 @@ rollback() {
   set +e
   echo "PHASE14_CONCURRENT_PARTITION_RETIREMENT_ROLLOUT_ROLLBACK=START" >&2
   systemctl stop "$MAINTENANCE_TIMER" >/dev/null 2>&1 || true
+
+  local current_head
+  current_head=$(git -C "$REPO" rev-parse HEAD 2>/dev/null || true)
+
+  if [[ "$current_head" != "$CANDIDATE_HEAD" ]]; then
+    systemctl start "$MAINTENANCE_TIMER" >/dev/null 2>&1 || true
+    echo "PHASE14_CONCURRENT_PARTITION_RETIREMENT_ROLLOUT_ROLLBACK=COMPLETE_PRECHECKOUT" >&2
+    echo "DEPLOYED_HEAD=$current_head" >&2
+    echo "RECORDER_ACTIVE=$(systemctl is-active "$RECORDER_UNIT" 2>/dev/null || true)" >&2
+    echo "MAINTENANCE_TIMER_ACTIVE=$(systemctl is-active "$MAINTENANCE_TIMER" 2>/dev/null || true)" >&2
+    set -e
+    return
+  fi
+
   systemctl stop "$V3_EXECUTION" >/dev/null 2>&1 || true
   systemctl stop "$V3_PREDICTOR" >/dev/null 2>&1 || true
   systemctl stop "$RECORDER_UNIT" >/dev/null 2>&1 || true
   systemctl stop "$MAINTENANCE_SERVICE" >/dev/null 2>&1 || true
 
-  local reconciled=0
-  if [[ "$(git -C "$REPO" rev-parse HEAD 2>/dev/null || true)" == "$CANDIDATE_HEAD" ]]; then
-    if reconcile_candidate_storage; then
-      reconciled=1
-    fi
-  else
-    reconciled=1
-  fi
-
-  if (( reconciled )); then
+  if reconcile_candidate_storage; then
     git -C "$REPO" checkout --detach "$FROM_HEAD" >/dev/null 2>&1 || true
     systemctl start "$DISK_HEALTH_TIMER" >/dev/null 2>&1 || true
     systemctl start "$MAINTENANCE_TIMER" >/dev/null 2>&1 || true
@@ -592,7 +597,6 @@ require_no_detached_retirement_leftovers
 DISK_BEFORE=$(mktemp /var/tmp/bp-phase14-concurrent-retirement-disk-before.XXXXXX.json)
 run_storage_health "$DISK_BEFORE"
 HOLDOUT_FINGERPRINT_BEFORE=$(gate_b_fingerprint)
-require_eligible_partition
 capture_service_identity
 
 git -C "$REPO" fetch --quiet origin "refs/heads/$CANDIDATE_BRANCH:refs/remotes/origin/$CANDIDATE_BRANCH"
@@ -603,6 +607,7 @@ validate_candidate_scope
 ROLLBACK_ARMED=1
 systemctl stop "$MAINTENANCE_TIMER"
 require_oneshot_idle_success "$MAINTENANCE_SERVICE"
+require_eligible_partition
 
 git -C "$REPO" checkout --detach "$CANDIDATE_HEAD" >/dev/null
 MUTATION_STARTED=1
