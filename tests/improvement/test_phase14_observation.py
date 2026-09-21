@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -263,6 +264,75 @@ def test_phase14_observation_marks_v4_or_storage_integrity_failures(
     assert report["integrity"]["v4"]["ok"] is False
     assert report["integrity"]["storage_ok"] is False
     assert report["integrity"]["all_observation_guards_ok"] is False
+
+
+def test_phase14_observation_cli_enforces_postgres_session_read_only(
+    monkeypatch,
+) -> None:
+    captured = {}
+    sentinel = object()
+    database_url = "postgresql+psycopg://bp:test@localhost:5432/bp"
+
+    def fake_create_engine(url, **kwargs):
+        captured["url"] = url
+        captured["kwargs"] = kwargs
+        return sentinel
+
+    monkeypatch.setattr(phase14_observation_cli, "create_engine", fake_create_engine)
+
+    engine = phase14_observation_cli._create_observation_engine(database_url)
+
+    assert engine is sentinel
+    assert captured == {
+        "url": database_url,
+        "kwargs": {
+            "pool_pre_ping": True,
+            "connect_args": {
+                "options": "-c default_transaction_read_only=on",
+            },
+        },
+    }
+
+
+def test_phase14_observation_cli_leaves_sqlite_connection_args_unchanged(
+    monkeypatch,
+) -> None:
+    captured = {}
+    sentinel = object()
+
+    def fake_create_engine(url, **kwargs):
+        captured["url"] = url
+        captured["kwargs"] = kwargs
+        return sentinel
+
+    monkeypatch.setattr(phase14_observation_cli, "create_engine", fake_create_engine)
+
+    engine = phase14_observation_cli._create_observation_engine("sqlite://")
+
+    assert engine is sentinel
+    assert captured == {
+        "url": "sqlite://",
+        "kwargs": {
+            "pool_pre_ping": True,
+        },
+    }
+
+
+def test_phase14_observation_postgres_engine_defaults_to_read_only() -> None:
+    database_url = os.getenv("BP_TEST_DATABASE_URL")
+    if not database_url:
+        pytest.skip("BP_TEST_DATABASE_URL is required for PostgreSQL integration coverage")
+
+    engine = phase14_observation_cli._create_observation_engine(database_url)
+    try:
+        with engine.connect() as connection:
+            read_only = connection.exec_driver_sql(
+                "SHOW default_transaction_read_only"
+            ).scalar_one()
+    finally:
+        engine.dispose()
+
+    assert read_only == "on"
 
 
 def test_phase14_observation_cli_serializes_decimal_and_datetime() -> None:
