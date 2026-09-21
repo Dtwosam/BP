@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.149 — 21 September 2026
+
+- Added a unified read-only Phase 14 observation report that composes the existing isolated frozen-V3 paper report, prospective `core-v4-regime-aware` coverage from the fixed V4 forward epoch, composite partitioned-storage health, and the current RESEARCH/live-disabled/zero-money settings.
+- The report reuses existing metric builders rather than redefining V3/V4/storage semantics, exposes explicit combined integrity guards, and refuses to create a missing storage path. Unsafe mode or money settings are reported as failed observation guards rather than hidden.
+- The report performs no database writes, filesystem creation, training, tuning, policy selection, service/timer mutation, production checkout change, automatic promotion, live trading, or nonzero-money action. Its module CLI is `python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env`.
+- Exact repository validation head `7db3ecd21e3680298f171c54d6f48e41141d1bdd` passed CI run `35605896956` with **1,262 tests**, Historical Backfill Smoke `35605896944`, Live Recorder Smoke `35605897057`, and Recorder Short Soak `35605897096`.
+- This is repository engineering only; the report has not been run against production, and the concurrent-partition-retirement production rollout remains separately unauthorized and unperformed. Frozen V3 stays observation-only and V4 stays prospective-collection-only.
+
 ## 0.14.148 — 21 September 2026
 
 - Merged the Phase 14 concurrent-partition-retirement rollout gate to `main` as `ec6f847754a5409b5e68796f0e65c1a86a94be9b` after green PR validation. Post-merge CI run `35602656085` also passed.

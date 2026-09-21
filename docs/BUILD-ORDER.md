@@ -627,6 +627,14 @@ V4 is the comprehensive V3 successor. Before any V4 fitting, its Gate B preregis
 1. frozen V3 paper observation using `v3-frozen-paper-v1` + `paper-execution-v3-frozen-v1`;
 2. V4 regime-aware feature collection using `core-v4-regime-aware`.
 
+For a read-only combined snapshot, use:
+
+```bash
+python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env
+```
+
+This report composes the isolated V3 paper report, prospective V4 coverage from the frozen forward epoch, composite partitioned-storage health, and the research/live-disabled/zero-money settings. It must not create a missing storage path and it performs no training, tuning, policy selection, service mutation, database write, or production rollout.
+
 For V3 paper observation:
 
 - keep model SHA `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7` unchanged;
