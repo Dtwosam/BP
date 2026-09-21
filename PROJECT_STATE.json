@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.150",
-  "updated_at": "2026-09-21T13:40:26Z",
+  "source_of_truth_version": "0.14.151",
+  "updated_at": "2026-09-21T13:53:35Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -3711,6 +3711,18 @@
     "merge_commit": "767cac3b78c20c9162b20c74eff770d4b2e8d1d8",
     "merged_at": "2026-09-21T13:38:50Z",
     "post_merge_ci_run_id": 35606952694,
-    "post_merge_ci_passed": true
+    "post_merge_ci_passed": true,
+    "database_read_only_hardening_status": "GREEN_PR_NOT_MERGED",
+    "database_read_only_hardening_pr": 219,
+    "database_read_only_hardening_validation_head": "5c85539dd52001a357733fb4319ce3354d05f2bc",
+    "database_read_only_hardening_ci_run_id": 35608355600,
+    "database_read_only_hardening_test_count": 1266,
+    "database_read_only_hardening_historical_backfill_smoke_run_id": 35608355485,
+    "database_read_only_hardening_live_recorder_smoke_run_id": 35608355554,
+    "database_read_only_hardening_recorder_short_soak_run_id": 35608355608,
+    "postgres_session_default_read_only": true,
+    "postgres_session_read_only_option": "-c default_transaction_read_only=on",
+    "postgres_session_read_only_verified_in_ci": true,
+    "sqlite_connection_args_unchanged": true
   }
 }
