@@ -148,6 +148,12 @@ require_timer_active_enabled() {
   systemctl is-active --quiet "$timer" || fail "timer_not_active:$timer"
 }
 
+require_timer_enabled_inactive() {
+  local timer=$1
+  systemctl is-enabled --quiet "$timer" || fail "timer_not_enabled:$timer"
+  [[ "$(systemctl show -p ActiveState --value "$timer")" == "inactive" ]] || fail "timer_not_inactive:$timer"
+}
+
 wait_for_oneshot_idle_success() {
   local service=$1
   local timeout_seconds=$2
@@ -316,9 +322,11 @@ rollback() {
   systemctl stop "$V3_EXECUTION" >/dev/null 2>&1 || true
   systemctl stop "$V3_PREDICTOR" >/dev/null 2>&1 || true
   systemctl stop "$RECORDER_UNIT" >/dev/null 2>&1 || true
+  systemctl start "$MAINTENANCE_TIMER" >/dev/null 2>&1 || true
   echo "RECORDER_ACTIVE=$(systemctl is-active "$RECORDER_UNIT" 2>/dev/null || true)" >&2
   echo "V3_PREDICTOR_ACTIVE=$(systemctl is-active "$V3_PREDICTOR" 2>/dev/null || true)" >&2
   echo "V3_EXECUTION_ACTIVE=$(systemctl is-active "$V3_EXECUTION" 2>/dev/null || true)" >&2
+  echo "MAINTENANCE_TIMER_ACTIVE=$(systemctl is-active "$MAINTENANCE_TIMER" 2>/dev/null || true)" >&2
   echo "PHASE14_RECORDER_V3_RECOVERY_ROLLBACK=COMPLETE" >&2
   set -e
 }
@@ -362,6 +370,10 @@ HOLDOUT_BEFORE=$(gate_b_fingerprint)
 require_timer_headroom "$MAINTENANCE_TIMER" 600
 
 MUTATION_STARTED=1
+systemctl stop "$MAINTENANCE_TIMER"
+require_timer_enabled_inactive "$MAINTENANCE_TIMER"
+wait_for_oneshot_idle_success "$MAINTENANCE_SERVICE" 3600
+
 systemctl reset-failed "$RECORDER_UNIT" "$V3_PREDICTOR" "$V3_EXECUTION" >/dev/null 2>&1 || true
 systemctl start "$RECORDER_UNIT"
 for _ in $(seq 1 45); do systemctl is-active --quiet "$RECORDER_UNIT" && break; sleep 1; done
@@ -400,7 +412,7 @@ DISK_AFTER=$(mktemp /var/tmp/bp-phase14-recorder-v3-recovery-disk-after.XXXXXX.j
 run_storage_health "$DISK_AFTER"
 [[ "$(git -C "$REPO" rev-parse HEAD)" == "$DEPLOYED_HEAD" ]] || fail "deployed_head_changed"
 validate_deployed_checkout
-require_timer_active_enabled "$MAINTENANCE_TIMER"
+require_timer_enabled_inactive "$MAINTENANCE_TIMER"
 require_timer_active_enabled "$DISK_HEALTH_TIMER"
 require_timer_active_enabled "$V2_TIMER"
 require_timer_active_enabled "$V4_TIMER"
@@ -438,6 +450,11 @@ payload = {
     "storage_after": json.loads(Path(after).read_text()),
     "soak": json.loads(Path(soak).read_text()),
     "gate_b_artifacts_fingerprint": fingerprint,
+    "handoff": {
+        "maintenance_timer_enabled": True,
+        "maintenance_timer_active": False,
+        "rollout_handoff_ready": True,
+    },
 }
 Path(output).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 PY
@@ -452,6 +469,8 @@ echo "RECORDER_PID=$RECORDER_PID"
 echo "V3_PREDICTOR_PID=$PREDICTOR_PID"
 echo "V3_EXECUTION_PID=$EXECUTION_PID"
 echo "EVIDENCE_PATH=$EVIDENCE_PATH"
+echo "MAINTENANCE_TIMER_ACTIVE=inactive"
+echo "ROLLOUT_HANDOFF_READY=true"
 echo "LIVE_TRADING_ENABLED=false"
 echo "MAX_TRADE_SIZE_USD=0"
 echo "MAX_DAILY_LOSS_USD=0"
