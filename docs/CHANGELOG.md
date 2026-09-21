@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.155 — 21 September 2026
+
+- The second explicitly authorized recorder/V3 recovery attempt passed maintenance synchronization and started the recorder plus frozen-V3 service chain, but the recovery helper then rejected a healthy natural-load soak because it checked a nonexistent `verdict=PASS` field instead of the canonical `passed=true` field emitted by `scripts/soak_report.py`.
+- The soak command itself returned exit 0, which means the underlying `SoakReport.passed` value was true; the printed `failures` list was empty. The gate rollback then stopped `bp-v3-paper-execution.service`, `bp-v3-frozen-predictor.service`, and `bp-recorder.service`, returning production to the intended fail-closed stopped state.
+- Fixed the recovery gate to reuse the existing concurrent-partition-retirement soak acceptance contract: `passed=true`, positive event counts for all four required feeds, and zero backpressure incidents for each required feed. Authorization scope is unchanged.
+
 ## 0.14.154 — 21 September 2026
 
 - The first explicitly authorized recorder/V3 recovery attempt stopped before any service mutation with `oneshot_not_idle:bp-storage-maintenance.service`; the hourly storage-maintenance cycle was already in flight.
