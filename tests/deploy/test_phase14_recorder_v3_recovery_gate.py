@@ -118,7 +118,12 @@ def test_project_state_invalidates_prior_sha_bound_recovery_and_rollout_authoriz
     )
     assert storage["recorder_v3_recovery_authorized"] is False
     assert storage["recorder_v3_recovery_performed"] is False
-    assert storage["prior_recovery_rollout_sha_bound_authorization_invalidated_by_main_advance"] is True
+    assert (
+        storage[
+            "prior_recovery_rollout_sha_bound_authorization_invalidated_by_main_advance"
+        ]
+        is True
+    )
     assert storage["compact_feed_freshness_index_production_authorized"] is False
     assert storage["compact_feed_freshness_index_production_performed"] is False
     assert (
