@@ -1510,7 +1510,9 @@ Real money remains exactly zero. Production controls remain RESEARCH mode, live 
 
 ## Phase 14 frozen V3 paper production PASS — 20 September 2026
 
-The exact frozen V3 Gate B successor is now active prospectively in isolated paper mode. Production activation passed at `2026-09-20T15:39:45Z` on candidate `9d52eb753355365848a637ffa6663928664bf770`.
+The exact frozen V3 Gate B successor was accepted for prospective isolated paper mode. Production activation passed at `2026-09-20T15:39:45Z` on candidate `9d52eb753355365848a637ffa6663928664bf770`.
+
+**Current operational status — 21 September 2026:** the accepted activation evidence remains valid, but the latest already-authorized storage-reliability recovery + concurrent-partition-retirement sequence rolled back before candidate checkout when the rollout preflight encountered a transient active disk-health oneshot. That rollback stopped the recorder and frozen-V3 predictor/execution chain and restored the storage-maintenance timer. Therefore historical statements in this section that describe the accepted V3 paper activation as active are not proof of the current service state. The immediate operational action is the already-approved recorder/V3 recovery from exact helper head `f50f01d3baf2dc2e968469e44c4dbb9e660a9378` against deployed head `7c3af78da1922a0e5187c24b799951130cc98887`, followed only on recovery PASS by the already-approved concurrent-partition-retirement rollout from the same helper head. RESEARCH mode, live trading disabled, zero real-money limits, automatic promotion disabled, Gate B/model-tuning prohibitions, and Phase 15 blocking remain unchanged.
 
 The accepted model artifact SHA-256 remains `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`. Prediction identity is `v3-frozen-paper-v1`; execution identity is `paper-execution-v3-frozen-v1`. The frozen strategy remains `single_feature_btc_logistic` at 240 seconds with `trade_threshold`, minimum cost-adjusted edge 0.075, fee coefficient 0.07, slippage buffer 0.01, and selected-book freshness limit 10 seconds.
 
