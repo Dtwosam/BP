@@ -92,10 +92,14 @@ def test_rollout_gate_acceptance_must_exercise_real_partition_retirement() -> No
     ):
         assert required in content
 
-    timer_stop_at = content.index('systemctl stop "$MAINTENANCE_TIMER"')
+    rollout_at = content.index("ROLLBACK_ARMED=1")
+    timer_stop_at = content.index('systemctl stop "$MAINTENANCE_TIMER"', rollout_at)
     eligible_at = content.index("require_eligible_partition", timer_stop_at)
-    checkout_at = content.index('git -C "$REPO" checkout --detach "$CANDIDATE_HEAD"')
-    assert timer_stop_at < eligible_at < checkout_at
+    checkout_at = content.index(
+        'git -C "$REPO" checkout --detach "$CANDIDATE_HEAD"',
+        eligible_at,
+    )
+    assert rollout_at < timer_stop_at < eligible_at < checkout_at
 
     assert 'systemctl restart "$RECORDER_UNIT"' not in content
     assert "evaluate-holdout" not in content
