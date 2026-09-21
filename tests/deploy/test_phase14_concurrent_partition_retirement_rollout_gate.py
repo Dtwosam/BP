@@ -93,13 +93,17 @@ def test_rollout_gate_acceptance_must_exercise_real_partition_retirement() -> No
         assert required in content
 
     rollout_at = content.index("ROLLBACK_ARMED=1")
-    timer_stop_at = content.index('systemctl stop "$MAINTENANCE_TIMER"', rollout_at)
+    handoff_check_at = content.index(
+        'require_timer_enabled_inactive "$MAINTENANCE_TIMER"',
+        rollout_at,
+    )
+    timer_stop_at = content.index('systemctl stop "$MAINTENANCE_TIMER"', handoff_check_at)
     eligible_at = content.index("require_eligible_partition", timer_stop_at)
     checkout_at = content.index(
         'git -C "$REPO" checkout --detach "$CANDIDATE_HEAD"',
         eligible_at,
     )
-    assert rollout_at < timer_stop_at < eligible_at < checkout_at
+    assert rollout_at < handoff_check_at < timer_stop_at < eligible_at < checkout_at
 
     assert 'systemctl restart "$RECORDER_UNIT"' not in content
     assert "evaluate-holdout" not in content
@@ -132,3 +136,22 @@ def test_ci_syntax_checks_concurrent_partition_retirement_rollout_gate() -> None
         "bash -n scripts/deploy/phase14_concurrent_partition_retirement_rollout_cloudshell.sh"
         in ci
     )
+
+
+def test_rollout_gate_precheckout_failure_returns_to_fail_closed_baseline() -> None:
+    content = _content()
+    rollback = content[content.index("rollback() {") : content.index("cleanup() {")]
+    precheckout = rollback[
+        rollback.index('if [[ "$current_head" != "$CANDIDATE_HEAD" ]]')
+        : rollback.index("set -e\n    return")
+    ]
+    assert precheckout.index('systemctl stop "$V3_EXECUTION"') < precheckout.index(
+        'systemctl start "$MAINTENANCE_TIMER"'
+    )
+    assert precheckout.index('systemctl stop "$V3_PREDICTOR"') < precheckout.index(
+        'systemctl start "$MAINTENANCE_TIMER"'
+    )
+    assert precheckout.index('systemctl stop "$RECORDER_UNIT"') < precheckout.index(
+        'systemctl start "$MAINTENANCE_TIMER"'
+    )
+    assert 'require_timer_enabled_inactive "$MAINTENANCE_TIMER"' in content
