@@ -165,11 +165,12 @@ def test_rollout_gate_waits_briefly_for_disk_health_oneshot() -> None:
     assert "oneshot_wait_timeout" in content
     assert "oneshot_unexpected_state" in content
     assert "oneshot_last_result_not_success" in content
-    maintenance_check = content.index(
+    preflight = content[content.index("ROLLBACK_ARMED=1") :]
+    maintenance_check = preflight.index(
         'require_oneshot_idle_success "$MAINTENANCE_SERVICE"'
     )
-    disk_wait = content.index(
+    disk_wait = preflight.index(
         'wait_for_oneshot_idle_success "$DISK_HEALTH_SERVICE" 30'
     )
-    detached_check = content.index("require_no_detached_retirement_leftovers")
+    detached_check = preflight.index("require_no_detached_retirement_leftovers")
     assert maintenance_check < disk_wait < detached_check
