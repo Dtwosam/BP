@@ -89,7 +89,10 @@ def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
         "POSTCHECKOUT_RECORDER_FAIL_CLOSED_ON_RETENTION_HEALTH"
     )
     assert storage["concurrent_partition_retirement_rollout_candidate_checkout_performed"] is True
-    assert storage["concurrent_partition_retirement_rollout_final_checkout_rollback_confirmed"] is False
+    assert (
+        storage["concurrent_partition_retirement_rollout_final_checkout_rollback_confirmed"]
+        is False
+    )
     assert storage["compact_feed_freshness_index_name"] == INDEX_NAME
     assert storage["compact_feed_freshness_index_production_authorized"] is False
     assert storage["compact_feed_freshness_index_production_performed"] is False
