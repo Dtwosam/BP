@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.153 — 21 September 2026
+
+- Recorded explicit production authorization for the Phase 14 concurrent-partition-retirement rollout and, after its preflight safely stopped on an already-inactive recorder, a narrower authorization to restore only the accepted recorder and frozen-V3 paper service chain.
+- Added `scripts/deploy/phase14_recorder_v3_recovery_gate_cloudshell.sh`. The gate requires exact current-main and deployed-head bindings plus an exact approval token before cloud contact, revalidates healthy partitioned storage, the accepted four-writer recorder configuration, immutable frozen-V3 activation/unit contracts, RESEARCH/live-disabled/zero-money safety, active timers and unchanged Gate B artifacts, then starts recorder -> frozen V3 predictor -> frozen V3 paper execution.
+- The recovery gate does not change the production checkout, rewrite `/etc/bp/bp.env`, install a model, enable services, tune a model, run Gate B, enable automatic promotion, enable live trading, or authorize nonzero money. Any post-start acceptance failure stops the three restored services again.
+- Production recovery and the concurrent-partition-retirement rollout remain unperformed until the new recovery gate itself passes on the host.
+
 ## 0.14.152 — 21 September 2026
 
 - Closed out PR #219 database read-only hardening after its final head `3747f4bbf13ab3fec12b4b08c10df52c0b0dbbec` passed CI `35608740215` with **1,266 tests**, Historical Backfill Smoke `35608740066`, Live Recorder Smoke `35608740154`, and Recorder Short Soak `35608740253`.
