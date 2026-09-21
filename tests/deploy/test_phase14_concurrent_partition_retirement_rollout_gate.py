@@ -155,3 +155,22 @@ def test_rollout_gate_precheckout_failure_returns_to_fail_closed_baseline() -> N
         'systemctl start "$MAINTENANCE_TIMER"'
     )
     assert 'require_timer_enabled_inactive "$MAINTENANCE_TIMER"' in content
+
+
+def test_rollout_gate_waits_briefly_for_disk_health_oneshot() -> None:
+    content = _content()
+    assert "wait_for_oneshot_idle_success" in content
+    assert 'wait_for_oneshot_idle_success "$DISK_HEALTH_SERVICE" 30' in content
+    assert 'require_oneshot_idle_success "$DISK_HEALTH_SERVICE"' not in content
+    assert "oneshot_wait_timeout" in content
+    assert "oneshot_unexpected_state" in content
+    assert "oneshot_last_result_not_success" in content
+    preflight = content[content.index("ROLLBACK_ARMED=1") :]
+    maintenance_check = preflight.index(
+        'require_oneshot_idle_success "$MAINTENANCE_SERVICE"'
+    )
+    disk_wait = preflight.index(
+        'wait_for_oneshot_idle_success "$DISK_HEALTH_SERVICE" 30'
+    )
+    detached_check = preflight.index("require_no_detached_retirement_leftovers")
+    assert maintenance_check < disk_wait < detached_check

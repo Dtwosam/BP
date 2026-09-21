@@ -285,6 +285,26 @@ require_oneshot_idle_success() {
   [[ "$(systemctl show -p Result --value "$service")" == "success" ]] || fail "oneshot_last_result_not_success:$service"
 }
 
+wait_for_oneshot_idle_success() {
+  local service=$1
+  local timeout_seconds=$2
+  local waited=0
+  local active_state
+  while true; do
+    active_state=$(systemctl show -p ActiveState --value "$service")
+    case "$active_state" in
+      inactive) break ;;
+      active|activating)
+        (( waited < timeout_seconds )) || fail "oneshot_wait_timeout:$service"
+        sleep 5
+        waited=$((waited + 5))
+        ;;
+      *) fail "oneshot_unexpected_state:$service:$active_state" ;;
+    esac
+  done
+  [[ "$(systemctl show -p Result --value "$service")" == "success" ]] || fail "oneshot_last_result_not_success:$service"
+}
+
 run_storage_health() {
   local destination=$1
   if ! sudo -u bp "$REPO/.venv/bin/python" "$REPO/scripts/storage_maintenance.py" disk-health --env-file "$ENV_FILE" > "$destination"; then
@@ -601,7 +621,7 @@ require_timer_active_enabled "$DISK_HEALTH_TIMER"
 require_timer_active_enabled "$V2_TIMER"
 require_timer_active_enabled "$V4_TIMER"
 require_oneshot_idle_success "$MAINTENANCE_SERVICE"
-require_oneshot_idle_success "$DISK_HEALTH_SERVICE"
+wait_for_oneshot_idle_success "$DISK_HEALTH_SERVICE" 30
 require_no_detached_retirement_leftovers
 
 DISK_BEFORE=$(mktemp /var/tmp/bp-phase14-concurrent-retirement-disk-before.XXXXXX.json)
