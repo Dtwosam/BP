@@ -229,12 +229,10 @@ with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connect
         plan_lines = connection.execute(
             text("""
                 EXPLAIN
-                SELECT last_event_at
+                SELECT max(last_event_at)
                 FROM market_state_1s
                 WHERE source = :source
                   AND stream = :stream
-                ORDER BY last_event_at DESC
-                LIMIT 1
             """),
             params,
         ).scalars().all()
@@ -245,15 +243,13 @@ with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connect
         started = time.monotonic()
         value = connection.execute(
             text("""
-                SELECT last_event_at
+                SELECT max(last_event_at)
                 FROM market_state_1s
                 WHERE source = :source
                   AND stream = :stream
-                ORDER BY last_event_at DESC
-                LIMIT 1
             """),
             params,
-        ).scalar_one_or_none()
+        ).scalar_one()
         elapsed_ms[f"{source}/{stream}"] = round((time.monotonic() - started) * 1000, 3)
         if value is None:
             raise SystemExit(f"required compact feed has no state: {source}/{stream}")
