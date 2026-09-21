@@ -17,6 +17,7 @@ from bp_engine.storage.maintenance import (
     ArchiveVerificationError,
     archive_interval,
     build_composite_storage_health,
+    prune_expired_archives,
     retire_verified_partition,
 )
 from bp_engine.storage.partitioned_raw import (
@@ -830,6 +831,33 @@ def test_partition_retirement_resumes_detached_table_before_physical_drop(
         item.name == partition_name
         for item in list_raw_retirement_candidates(engine)
     )
+
+    health_now = end_at + timedelta(hours=2, minutes=30)
+    ensure_partitioned_raw_storage(engine, now=health_now)
+    _record_maintenance_success(engine, health_now - timedelta(minutes=5))
+    health = build_composite_storage_health(
+        engine,
+        tmp_path,
+        _storage_settings(tmp_path, hot_raw_hours=1),
+        now=health_now,
+    )
+    assert health["guards"]["current_partition_present"] is True
+    assert health["guards"]["maintenance_fresh"] is True
+    assert health["guards"]["retention_current"] is False
+    assert health["raw_partitions"]["oldest_start_at"] == start_at.isoformat().replace(
+        "+00:00",
+        "Z",
+    )
+
+    removed = prune_expired_archives(
+        engine,
+        archive_dir,
+        now=health_now,
+        retention_hours=1,
+    )
+    assert removed == []
+    assert archive_path.exists()
+    assert manifest_path.exists()
 
     result = retire_verified_partition(
         engine,
