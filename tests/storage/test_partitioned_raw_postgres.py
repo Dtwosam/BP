@@ -61,6 +61,11 @@ def engine():
             ).scalar_one()
             if state_exists is not None:
                 connection.execute(text("DELETE FROM market_state_1s"))
+            maintenance_exists = connection.execute(
+                text("SELECT to_regclass('storage_maintenance_runs')")
+            ).scalar_one()
+            if maintenance_exists is not None:
+                connection.execute(text("DELETE FROM storage_maintenance_runs"))
 
     reset()
     raw_market_events.create(value)
