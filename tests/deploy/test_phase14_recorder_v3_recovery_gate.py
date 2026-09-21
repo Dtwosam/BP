@@ -109,7 +109,7 @@ def test_project_state_records_authorized_recovery_and_rollout_without_claiming_
     import json
 
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["source_of_truth_version"] == "0.14.154"
+    assert state["source_of_truth_version"] == "0.14.155"
     storage = state["phase_14_storage_reliability_followup"]
     assert storage["concurrent_partition_retirement_production_rollout_authorized"] is True
     assert storage["concurrent_partition_retirement_rollout_gate_production_authorized"] is True
@@ -136,3 +136,20 @@ def test_recorder_v3_recovery_waits_for_inflight_maintenance_without_mutating_ti
     assert "timer_headroom_insufficient" in source
     assert 'systemctl stop "$MAINTENANCE_TIMER"' not in source
     assert 'systemctl restart "$MAINTENANCE_TIMER"' not in source
+
+
+def test_recorder_v3_recovery_uses_canonical_soak_report_schema() -> None:
+    source = read_helper()
+    assert 'payload.get("passed") is not True' in source
+    assert 'payload.get("verdict")' not in source
+    for marker in (
+        '"polymarket/market"',
+        '"bybit/spot"',
+        '"bybit/linear"',
+        '"coinbase/spot"',
+        '"event_count"',
+        '"backpressure"',
+        "required feeds missing events",
+        "backpressure recorded for",
+    ):
+        assert marker in source
