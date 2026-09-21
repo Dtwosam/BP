@@ -193,6 +193,31 @@ validate_candidate_scope() {
   [[ "$(git -C "$REPO" rev-parse "$CANDIDATE_HEAD:$TEST_PATH")" == "$EXPECTED_TEST_BLOB" ]] || fail "candidate_test_blob_mismatch"
 }
 
+validate_unit_file() {
+  local unit=$1
+  local repo_path=$2
+  local fragment dropins
+  fragment=$(systemctl show -p FragmentPath --value "$unit")
+  [[ -r "$fragment" ]] || fail "unit_fragment_missing:$unit"
+  cmp -s "$fragment" "$REPO/$repo_path" || fail "unit_fragment_mismatch:$unit"
+  dropins=$(systemctl show -p DropInPaths --value "$unit")
+  [[ -z "$dropins" ]] || fail "unit_dropins_present:$unit"
+}
+
+validate_unit_contracts() {
+  validate_unit_file "$RECORDER_UNIT" deploy/systemd/bp-recorder.service
+  validate_unit_file "$MAINTENANCE_SERVICE" deploy/systemd/bp-storage-maintenance.service
+  validate_unit_file "$MAINTENANCE_TIMER" deploy/systemd/bp-storage-maintenance.timer
+  validate_unit_file "$DISK_HEALTH_SERVICE" deploy/systemd/bp-storage-disk-health.service
+  validate_unit_file "$DISK_HEALTH_TIMER" deploy/systemd/bp-storage-disk-health.timer
+
+  local recorder_env maintenance_env
+  recorder_env=$(systemctl show -p EnvironmentFiles --value "$RECORDER_UNIT")
+  maintenance_env=$(systemctl show -p EnvironmentFiles --value "$MAINTENANCE_SERVICE")
+  [[ "$recorder_env" == "$ENV_FILE (ignore_errors=no)" ]] || fail "recorder_environment_file_mismatch"
+  [[ "$maintenance_env" == "$ENV_FILE (ignore_errors=no)" ]] || fail "maintenance_environment_file_mismatch"
+}
+
 require_research_zero_money() {
   local path mode live trade loss
   for path in "$ENV_FILE" "$SAFETY_FILE"; do
@@ -552,6 +577,7 @@ trap cleanup EXIT
 [[ "$(git -C "$REPO" rev-parse HEAD)" == "$FROM_HEAD" ]] || fail "unexpected_deployed_head"
 
 validate_deployed_checkout
+validate_unit_contracts
 require_research_zero_money
 require_automatic_promotion_false
 require_core_services_active
@@ -583,6 +609,7 @@ MUTATION_STARTED=1
 [[ "$(git -C "$REPO" rev-parse HEAD)" == "$CANDIDATE_HEAD" ]] || fail "candidate_checkout_failed"
 validate_deployed_checkout
 validate_candidate_scope
+validate_unit_contracts
 require_research_zero_money
 require_automatic_promotion_false
 require_core_services_active
