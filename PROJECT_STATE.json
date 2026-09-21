@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.147",
-  "updated_at": "2026-09-21T12:52:12Z",
+  "source_of_truth_version": "0.14.148",
+  "updated_at": "2026-09-21T12:59:51Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -3326,7 +3326,7 @@
     "concurrent_partition_retirement_production_deployed": false,
     "concurrent_partition_retirement_production_rollout_authorized": false,
     "concurrent_partition_retirement_expected_production_from_head": "7c3af78da1922a0e5187c24b799951130cc98887",
-    "concurrent_partition_retirement_next_action": "Merge the green rollout gate to main. Production execution remains blocked until a separate explicit SHA-bound authorization is granted for the helper-defined rollout; do not mutate production, V3/V4 policy, live trading, or money limits.",
+    "concurrent_partition_retirement_next_action": "Production execution is the next boundary and remains blocked. Do not run scripts/deploy/phase14_concurrent_partition_retirement_rollout_cloudshell.sh until a separate explicit SHA-bound production authorization is granted; continue V3 paper observation and V4 prospective collection unchanged.",
     "concurrent_partition_retirement_candidate_verification_pr": 214,
     "concurrent_partition_retirement_candidate_verification_status": "GREEN_CLOSED_UNMERGED",
     "concurrent_partition_retirement_candidate_head": "ed7d930c69e417dda388b0cb62b3a543a4b8134f",
@@ -3343,7 +3343,11 @@
     "concurrent_partition_retirement_rollout_gate_requires_unit_contract_match": true,
     "concurrent_partition_retirement_rollout_gate_reconciles_detach_before_old_code_rollback": true,
     "concurrent_partition_retirement_rollout_gate_production_authorized": false,
-    "concurrent_partition_retirement_rollout_gate_production_performed": false
+    "concurrent_partition_retirement_rollout_gate_production_performed": false,
+    "concurrent_partition_retirement_rollout_gate_repository_status": "MERGED_MAIN_ENGINEERING_READY_NOT_PRODUCTION_AUTHORIZED",
+    "concurrent_partition_retirement_rollout_gate_merge_commit": "ec6f847754a5409b5e68796f0e65c1a86a94be9b",
+    "concurrent_partition_retirement_rollout_gate_post_merge_ci_run_id": 35602656085,
+    "concurrent_partition_retirement_rollout_gate_post_merge_ci_passed": true
   },
   "phase_14_adaptive_learning": {
     "implementation_status": "REPOSITORY_RESEARCH_ONLY",

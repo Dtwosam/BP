@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.148 — 21 September 2026
+
+- Merged the Phase 14 concurrent-partition-retirement rollout gate to `main` as `ec6f847754a5409b5e68796f0e65c1a86a94be9b` after green PR validation. Post-merge CI run `35602656085` also passed.
+- The repository is now engineering-ready for the exact production-shaped rollout candidate `ed7d930c69e417dda388b0cb62b3a543a4b8134f`, but production execution remains a separate explicit SHA-bound authorization boundary.
+- No production checkout, service, timer, database, V3/V4 policy, live-trading, promotion, or money-limit mutation was performed by this closeout. Continue frozen V3 paper observation and V4 prospective collection unchanged until separately authorized rollout execution.
+
 ## 0.14.147 — 21 September 2026
 
 - Froze the production-shaped concurrent-partition-retirement candidate at `ed7d930c69e417dda388b0cb62b3a543a4b8134f`, descended directly from deployed production head `7c3af78da1922a0e5187c24b799951130cc98887` with exactly four changed files. Verification-only PR #214 passed CI run `35600313836` and was closed without merge.
