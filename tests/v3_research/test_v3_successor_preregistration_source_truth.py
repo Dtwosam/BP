@@ -94,7 +94,7 @@ def test_successor_spec_and_plan_preserve_frozen_search_contract() -> None:
 
 def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.173"
+    assert state["source_of_truth_version"] == "0.14.174"
     successor = state["phase_14_btc_first_v3_gate_a"]["successor_gate_b"]
     assert successor["research_plan_version"] == SUCCESSOR_PLAN_VERSION
     assert successor["epoch_start"] == SUCCESSOR_EPOCH_START
@@ -135,7 +135,7 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
     assert "historical production pass" in next_task
     assert "active after concurrent-partition-retirement rollout pass" in next_task
     assert "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7" in next_task
-    assert "continue prospective observation only" in next_task
+    assert "frozen v4 gate b v1 future cohort" in next_task
     assert "do not rerun the storage rollout" in next_task
     assert "keep all promotion/live boundaries closed" in next_task
 
@@ -144,10 +144,10 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
     assert "min_edge=0.075" in build_next
     assert "$100 virtual starting cash" in build_next
     assert "$5 virtual target notional" in build_next
-    assert "resume frozen v3 paper observation and v4 prospective collection" in build_next
+    assert "v4 gate b v1 is now prospectively frozen" in build_next
     assert "do not rerun the concurrent-partition-retirement rollout" in build_next
-    assert "resume frozen v3 paper observation" in build_next
-    assert "v4 regime-aware feature collection" in build_next
+    assert "continue frozen v3 paper observation" in build_next
+    assert "v4 regime-aware feature collector" in build_next
 
     assert "## D-048 —" in decisions
     assert "## D-049 —" in decisions
