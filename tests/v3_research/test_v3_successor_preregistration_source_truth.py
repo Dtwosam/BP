@@ -94,7 +94,7 @@ def test_successor_spec_and_plan_preserve_frozen_search_contract() -> None:
 
 def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.164"
+    assert state["source_of_truth_version"] == "0.14.165"
     successor = state["phase_14_btc_first_v3_gate_a"]["successor_gate_b"]
     assert successor["research_plan_version"] == SUCCESSOR_PLAN_VERSION
     assert successor["epoch_start"] == SUCCESSOR_EPOCH_START
@@ -135,9 +135,10 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
     assert "historical production pass" in next_task
     assert "fail-closed stopped" in next_task
     assert "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7" in next_task
-    assert "old-snapshot-wait hardening" in next_task
-    assert "indisvalid=false" in next_task
-    assert "new exact-current-main approval" in next_task
+    assert "recorder/v3 recovery authorization" in next_task
+    assert "index gate passed in production" in next_task
+    assert "index-only scans" in next_task
+    assert "phase14_recorder_v3_recovery_gate_cloudshell.sh" in next_task
     assert "resume prospective observation only after rollout pass" in next_task
 
     build_next = build.split("## Immediate next action", 1)[1].lower()
@@ -146,8 +147,8 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
     assert "$100 virtual starting cash" in build_next
     assert "$5 virtual target notional" in build_next
     assert "ix_market_state_1s_feed_last_event" in build_next
-    assert "lock_timeout" in build_next
-    assert "statement_timeout=15min" in build_next
+    assert "index-only scans" in build_next
+    assert "recorder/v3 recovery" in build_next
     assert (
         "resume frozen v3 paper observation and v4 prospective collection only after rollout pass"
         in build_next
