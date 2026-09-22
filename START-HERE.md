@@ -95,9 +95,9 @@ The latest recovery PASS is `/var/lib/bp/evidence/phase14-recorder-v3-recovery-2
 
 The immediate operational sequence is:
 
-1. **Collect the frozen V4 Gate B v1 future cohort.** Continue frozen-V3 paper observation and the existing V4 collector unchanged. Only V4 markets with `market_start_at >= 2026-09-23T00:00:00Z` and `< 2026-09-30T00:00:00Z` may enter future selection; earlier V4 rows are coverage/engineering evidence only.
+1. **Collect the frozen V4 Gate B v1 future cohort.** Continue frozen-V3 paper observation and **V4 regime-aware feature collection** with the existing collector unchanged. This remains **prospective observation only**. Only V4 markets with `market_start_at >= 2026-09-23T00:00:00Z` and `< 2026-09-30T00:00:00Z` may enter future selection; earlier V4 rows are coverage/engineering evidence only.
 2. **Do not run V4 readiness or planning early.** After `2026-09-30T00:00:00Z`, run only outcome-blind read-only readiness. If and only if it passes, write the feature-only no-clobber plan and stop. Labeled preparation, training, policy selection, and final-holdout access remain blocked.
-3. **Preserve observation/storage evidence.** Continue using `bash scripts/deploy/phase14_observation_cloudshell.sh` only for read-only evidence collection, preserve the storage rollout PASS, and monitor normal hourly maintenance.
+3. **Preserve observation/storage evidence.** Continue using `bash scripts/deploy/phase14_observation_cloudshell.sh` only for read-only evidence collection. **Do not rerun the storage rollout.** Preserve the rollout PASS and monitor normal hourly maintenance.
 4. **Keep all promotion/live boundaries closed.** V3 refit/tuning, V4 label access/model fitting/policy selection/final-holdout access, automatic promotion, Phase 15, live trading, geographic bypass, and nonzero real-money limits remain unauthorized.
 
 The frozen V4 Gate B contract is `docs/superpowers/specs/2026-09-22-phase-14-v4-gate-b-preregistration.md`, with durable preregistration evidence at `docs/evidence/phase-14-v4-gate-b-preregistration-20260922.json`.
