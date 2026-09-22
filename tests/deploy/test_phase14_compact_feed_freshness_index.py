@@ -86,18 +86,24 @@ def test_ci_syntax_checks_compact_feed_freshness_index_helper() -> None:
 
 def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
     state = json.loads(STATE.read_text(encoding="utf-8"))
-    assert state["source_of_truth_version"] == "0.14.169"
+    assert state["source_of_truth_version"] == "0.14.170"
 
     storage = state["phase_14_storage_reliability_followup"]
-    assert storage["concurrent_partition_retirement_rollout_last_attempt_status"] == (
-        "PRECHECKOUT_NO_ELIGIBLE_PARTITION_ROLLED_BACK"
-    )
-    assert storage["concurrent_partition_retirement_rollout_candidate_checkout_performed"] is False
-    assert storage["concurrent_partition_retirement_rollout_precheckout_rollback_complete"] is True
-    assert storage["concurrent_partition_retirement_rollout_last_attempt_mutation_started"] is False
+    assert storage["concurrent_partition_retirement_rollout_last_attempt_status"] == "PASS"
+    assert storage["concurrent_partition_retirement_rollout_candidate_checkout_performed"] is True
+    assert storage["concurrent_partition_retirement_rollout_precheckout_rollback_complete"] is False
+    assert storage["concurrent_partition_retirement_rollout_last_attempt_mutation_started"] is True
     assert storage["concurrent_partition_retirement_rollout_last_attempt_eligibility_result"] == (
-        "no_eligible_partition_for_acceptance"
+        "ONE_ELIGIBLE_PARTITION_EXERCISED"
     )
+    assert storage["concurrent_partition_retirement_production_deployed"] is True
+    assert storage["concurrent_partition_retirement_rollout_gate_production_performed"] is True
+    assert storage["concurrent_partition_retirement_rollout_gate_repository_status"] == "PRODUCTION_PASS"
+    assert storage["concurrent_partition_retirement_rollout_pass_partitions_retired"] == 1
+    assert storage["concurrent_partition_retirement_rollout_pass_dedupe_rows_removed"] == 35983
+    assert storage["concurrent_partition_retirement_rollout_pass_storage_after_status"] == "ok"
+    assert storage["concurrent_partition_retirement_rollout_pass_storage_after_retention_lag_hours"] == 0.0
+    assert storage["concurrent_partition_retirement_rollout_pass_detached_retirement_leftovers"] == 0
     assert (
         storage["concurrent_partition_retirement_rollout_final_checkout_rollback_confirmed"]
         is True
