@@ -1,0 +1,136 @@
+{
+  "status": "V4_GATE_B_PREREGISTRATION_FROZEN_RESEARCH_ONLY",
+  "recorded_at": "2026-09-22T16:20:00Z",
+  "source_main": "9e5c5cda7384740a4ffafd231694935da8ab1cc3",
+  "research_plan_version": "v4-gate-b-preregister-v1",
+  "dataset_version": "supervised-core-v4-regime-aware-v1",
+  "feature_version": "core-v4-regime-aware",
+  "label_version": "official-outcome-v1",
+  "horizon_seconds": 300,
+  "feature_offsets_seconds": [
+    60,
+    120,
+    180,
+    240
+  ],
+  "epoch": {
+    "start": "2026-09-23T00:00:00Z",
+    "end": "2026-09-30T00:00:00Z",
+    "eligibility": "market_start_at >= epoch_start AND market_start_at < epoch_end",
+    "pre_epoch_v4_rows_reusable_for_selection": false
+  },
+  "chronology": {
+    "train_hours": 48,
+    "validation_hours": 12,
+    "test_hours": 12,
+    "step_hours": 12,
+    "ordinary_fold_count": 7,
+    "final_holdout_hours": 24,
+    "embargo_markets": 1,
+    "min_train_markets": 480,
+    "min_validation_markets": 120,
+    "min_test_markets": 120,
+    "min_final_holdout_markets": 240
+  },
+  "readiness": {
+    "current_state_availability_min": 0.9,
+    "short_return_availability_min": 0.9,
+    "regime_return_availability_min": 0.75,
+    "min_known_regime_markets": 120,
+    "known_regimes": [
+      "bull",
+      "bear",
+      "sideways_mixed"
+    ],
+    "future_cutoff_violation_count_required": 0,
+    "polymarket_predictor_key_count_required": 0,
+    "regime_invariant_violation_count_required": 0,
+    "labels_read": false
+  },
+  "forecast_candidates": [
+    "training_prior",
+    "single_feature_btc_logistic",
+    "short_context_v4_logistic",
+    "full_v4_logistic",
+    "full_v4_xgboost"
+  ],
+  "calibration_candidates": [
+    "identity",
+    "platt"
+  ],
+  "timing_candidates_seconds": [
+    60,
+    120,
+    180,
+    240
+  ],
+  "economics": {
+    "fee_rate": 0.07,
+    "slippage_buffer": 0.01,
+    "min_edge_grid": [
+      0,
+      0.01,
+      0.02,
+      0.03,
+      0.05,
+      0.075,
+      0.1,
+      0.15
+    ],
+    "no_trade_candidate": true,
+    "max_selected_book_age_seconds": 10,
+    "min_validation_trades_per_fold": 16,
+    "required_non_negative_validation_folds": 6,
+    "require_positive_aggregate_validation_pnl": true
+  },
+  "reporting": {
+    "slices": [
+      "overall",
+      "bull",
+      "bear",
+      "sideways_mixed",
+      "unknown",
+      "up",
+      "down",
+      "regime_by_side"
+    ],
+    "min_slice_markets": 60,
+    "side_specific_policy_allowed": false,
+    "regime_specific_policy_allowed": false,
+    "coverage_frontier_required": true,
+    "drawdown_required": true,
+    "losing_streak_required": true,
+    "profit_factor_required": true,
+    "execution_availability_separate_from_forecast_quality": true
+  },
+  "anti_overfit": {
+    "pre_epoch_observation_evidence": "docs/evidence/phase-14-observation-production-20260922.json",
+    "pre_epoch_observation_market_count": 373,
+    "pre_epoch_observation_row_count": 1492,
+    "pre_epoch_values_used_for_model_or_policy_selection": false,
+    "v3_consumed_holdout_numeric_tuning_allowed": false,
+    "v4_labels_or_outcomes_used_to_set_contract": false,
+    "v4_pnl_used_to_set_contract": false
+  },
+  "safety": {
+    "training_performed": false,
+    "policy_selected": false,
+    "final_holdout_access_performed": false,
+    "paper_activation_performed": false,
+    "automatic_promotion": false,
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "phase15_permitted": false
+  },
+  "runtime": {
+    "config_module": "bp_engine.v4_research.config",
+    "readiness_module": "bp_engine.v4_research.readiness",
+    "plan_module": "bp_engine.v4_research.plan",
+    "cli_module": "bp_engine.v4_research.cli",
+    "plan_output_no_clobber": true,
+    "database_read_only": true,
+    "labeled_prepare_command_present": false,
+    "holdout_command_present": false
+  }
+}
