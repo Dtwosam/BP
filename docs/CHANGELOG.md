@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.166 — 22 September 2026
+
+- The separately authorized recorder/frozen-V3 recovery gate passed production at `2026-09-22T12:07:37Z` on deployed head `7c3af78da1922a0e5187c24b799951130cc98887`.
+- Recovery restored `bp-recorder.service` (PID `3989760`), `bp-v3-frozen-predictor.service` (PID `3989766`), and `bp-v3-paper-execution.service` (PID `3989771`). The helper passed its natural-load soak, dashboard safety contract, storage-health recheck, four-writer contract, stable-PID/restart checks, and Gate B artifact fingerprint preservation.
+- Evidence is `/var/lib/bp/evidence/phase14-recorder-v3-recovery-20260922T120737Z.json`. The enabled storage-maintenance timer is intentionally inactive and `ROLLOUT_HANDOFF_READY=true` for the next separately authorized rollout.
+- Safety remains RESEARCH, live trading disabled, trade-size and daily-loss limits zero, and automatic promotion false. Concurrent-partition-retirement rollout remains unauthorized until a fresh exact-current-main approval is supplied; Phase 15 and live trading remain blocked.
+
 ## 0.14.165 — 22 September 2026
 
 - The separately authorized hardened compact-feed freshness index gate passed production at `2026-09-22T10:39:45.309001Z` on deployed head `7c3af78da1922a0e5187c24b799951130cc98887`, with 1,608 seconds of next-hour headroom.

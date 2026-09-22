@@ -618,15 +618,14 @@ Current order: (1) do not rerun this rollout and preserve its evidence; (2) buil
 
 ## Immediate next action
 
-The accepted frozen V3 paper activation remains historical PASS evidence, but the current recorder/frozen-V3 runtime is **fail-closed stopped** after the latest storage rollout attempt. Prospective observation is paused as the immediate operational action until the storage rollout is recovered.
+The accepted frozen V3 paper activation remains historical PASS evidence, and the current recorder/frozen-V3 runtime is **recovery PASS / rollout handoff ready** after the authorized 22 September recovery gate. Prospective observation remains paused as the immediate operational action until the storage rollout itself passes.
 
-Rollback verification is complete: production is back on `7c3af78da1922a0e5187c24b799951130cc98887`, recorder/frozen-V3 are inactive, the 00:00 UTC maintenance cycle completed successfully at `2026-09-22T00:29:37.423952Z`, retention lag is 0 hours, and composite storage health is `ok`.
+Recovery PASS is confirmed on `7c3af78da1922a0e5187c24b799951130cc98887`: recorder PID `3989760`, frozen predictor PID `3989766`, and frozen paper-execution PID `3989771` were active at handoff. Evidence is `/var/lib/bp/evidence/phase14-recorder-v3-recovery-20260922T120737Z.json`; the maintenance timer is enabled but intentionally inactive and `ROLLOUT_HANDOFF_READY=true`.
 
 Proceed in this order:
 
-1. The hardened compact-feed freshness index gate passed production at `2026-09-22T10:39:45.309001Z`. `ix_market_state_1s_feed_last_event` is installed, the invalid stub is cleared, and all four required latest-event lookups use index-only scans with measured latency from 4.692 ms to 10.434 ms. Obtain fresh exact-current-main authorization for recorder/V3 recovery. Require RESEARCH mode, four recorder writers, live trading disabled, zero real-money limits, and the timer-stopped rollout handoff.
-2. Only after recovery PASS, obtain fresh exact-head authorization for the concurrent-partition-retirement rollout and require real retirement acceptance without recorder/V3 identity loss.
-3. Resume frozen V3 paper observation and V4 prospective collection only after rollout PASS. This resumes the established V4 regime-aware feature collection; it does not authorize V4 fitting or a collector change.
+1. Recorder/V3 recovery passed production at `2026-09-22T12:07:37Z` with the expected checkout and service chain, RESEARCH mode, four recorder writers, live trading disabled, zero real-money limits, preserved Gate B artifacts, and the maintenance timer stopped for handoff. Obtain fresh exact-current-main authorization for the concurrent-partition-retirement rollout and require real retirement acceptance without recorder/V3 identity loss.
+2. Resume frozen V3 paper observation and V4 prospective collection only after rollout PASS. This resumes the established V4 regime-aware feature collection; it does not authorize V4 fitting or a collector change.
 
 The read-only combined observation command remains available for diagnostics and later steady-state observation:
 
