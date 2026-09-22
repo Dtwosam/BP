@@ -16,8 +16,14 @@ def test_observation_cloudshell_bridge_is_read_only_and_runtime_bound() -> None:
 
     for marker in (
         "52b4355d6f077373b873f7a6f42bc37a20ddbc7b",
-        "/var/lib/bp/runtime/v3-paper-9d52eb753355365848a637ffa6663928664bf770",
-        "/var/lib/bp/runtime/v4-forward-36b02d0687194173ab5d3862d3b88c6c90607574",
+        (
+            "/var/lib/bp/runtime/"
+            "v3-paper-9d52eb753355365848a637ffa6663928664bf770"
+        ),
+        (
+            "/var/lib/bp/runtime/"
+            "v4-forward-36b02d0687194173ab5d3862d3b88c6c90607574"
+        ),
         "default_transaction_read_only=on",
         "SHOW default_transaction_read_only",
         "build_v3_paper_report",
