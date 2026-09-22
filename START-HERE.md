@@ -95,8 +95,8 @@ The latest recovery PASS remains historical evidence at `/var/lib/bp/evidence/ph
 
 The immediate operational sequence is:
 
-1. **Determine the next eligible partition time read-only.** The candidate-v2 rollout reached the real eligibility gate but found no partition older than the configured 24-hour hot-raw horizon. Do not repeat recovery/rollout until an hourly raw partition is actually eligible.
-2. **Recovery then rollout near that eligibility window.** Once eligibility exists, obtain fresh exact-current-main recorder/V3 recovery authorization, then a fresh rollout authorization against verified candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`.
+1. **Use the next one-hour acceptance window.** The rollout health contract tolerates one expired hourly partition (`retention_lag_hours <= 1.0`). Recover recorder/V3 before a UTC hour boundary so recovery leaves the maintenance timer stopped; then run rollout just after that boundary, when exactly one hourly partition is newly eligible, and before the following boundary.
+2. **Fresh authorization remains required.** Use fresh exact-current-main recovery authorization before the boundary and fresh rollout authorization afterward against verified candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`.
 3. **Resume prospective observation only after rollout PASS.** The read-only combined observation report remains available at `python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env`, but it is not the current operational priority while recorder/frozen-V3 are fail-closed stopped.
 
 The historical **V4 regime-aware** collector acceptance remains valid research evidence. After storage rollout PASS, resume V4 regime-aware feature collection and frozen-V3 paper observation under their unchanged prospective boundaries; this statement does not claim those services are currently active.
