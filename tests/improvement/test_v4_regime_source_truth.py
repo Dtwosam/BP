@@ -20,7 +20,7 @@ def _text(path: str) -> str:
 
 def test_v4_source_truth_is_separate_and_prospective() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.173"
+    assert state["source_of_truth_version"] == "0.14.174"
 
     v4 = state["phase_14_v4_regime_aware"]
     assert v4["feature_version"] == "core-v4-regime-aware"
@@ -115,7 +115,7 @@ def test_v4_design_freezes_regime_definition_and_safety_boundary() -> None:
         "majority sign",
         "v3 final holdout is permanently consumed",
         "must not be used",
-        "new prospective cohort",
+        "wholly future cohort",
         "active in research mode",
         "model fitting",
         "paper activation",
@@ -144,7 +144,7 @@ def test_v4_collection_remains_active_during_frozen_v3_paper_activation() -> Non
 
     assert "core-v4-regime-aware" in master
     assert "V4 regime-aware" in start
-    assert "V4 regime-aware feature collection" in build
+    assert "V4 regime-aware feature collector" in build
     assert "V4 regime-aware collection continues in parallel" in master
 
     assert "## D-049 —" in decisions
@@ -153,6 +153,71 @@ def test_v4_collection_remains_active_during_frozen_v3_paper_activation() -> Non
     assert "## D-052 —" in decisions
     assert "## D-053 —" in decisions
     assert "## D-054 —" in decisions
+    assert "## D-056 —" in decisions
+    assert "## 0.14.174 — 22 September 2026" in changelog
     assert "## 0.14.145 — 20 September 2026" in changelog
     assert "automatic promotion" in master.lower()
     assert "live trading" in master.lower()
+
+
+def test_v4_gate_b_v1_is_frozen_future_only_and_still_label_free() -> None:
+    state = json.loads(_text("PROJECT_STATE.json"))
+    spec = _text(
+        "docs/superpowers/specs/"
+        "2026-09-22-phase-14-v4-gate-b-preregistration.md"
+    ).lower()
+    evidence = json.loads(
+        _text("docs/evidence/phase-14-v4-gate-b-preregistration-20260922.json")
+    )
+
+    gate = state["phase_14_v4_regime_aware"]["gate_b_preregistration"]
+    assert gate["status"] == "FROZEN_FUTURE_EPOCH_RUNTIME_IMPLEMENTED_NOT_EXECUTED"
+    assert gate["research_plan_version"] == "v4-gate-b-preregister-v1"
+    assert gate["epoch_start"] == "2026-09-23T00:00:00Z"
+    assert gate["epoch_end"] == "2026-09-30T00:00:00Z"
+    assert gate["pre_epoch_v4_rows_reusable_for_selection"] is False
+    assert gate["ordinary_fold_count"] == 7
+    assert gate["final_holdout_hours"] == 24
+    assert gate["forecast_candidates"] == [
+        "training_prior",
+        "single_feature_btc_logistic",
+        "short_context_v4_logistic",
+        "full_v4_logistic",
+        "full_v4_xgboost",
+    ]
+    assert gate["side_specific_policy_allowed"] is False
+    assert gate["regime_specific_policy_allowed"] is False
+    assert gate["readiness_run_performed"] is False
+    assert gate["plan_run_performed"] is False
+    assert gate["labels_read"] is False
+    assert gate["training_performed"] is False
+    assert gate["policy_selected"] is False
+    assert gate["final_holdout_access_performed"] is False
+    assert gate["automatic_promotion"] is False
+    assert gate["live_trading_enabled"] is False
+    assert gate["max_trade_size_usd"] == 0
+    assert gate["max_daily_loss_usd"] == 0
+    assert gate["phase15_permitted"] is False
+
+    assert evidence["status"] == "V4_GATE_B_PREREGISTRATION_FROZEN_RESEARCH_ONLY"
+    assert evidence["epoch"]["pre_epoch_v4_rows_reusable_for_selection"] is False
+    assert evidence["anti_overfit"]["v4_labels_or_outcomes_used_to_set_contract"] is False
+    assert evidence["anti_overfit"]["v4_pnl_used_to_set_contract"] is False
+    assert evidence["safety"]["training_performed"] is False
+    assert evidence["safety"]["final_holdout_access_performed"] is False
+    assert evidence["runtime"]["labeled_prepare_command_present"] is False
+    assert evidence["runtime"]["holdout_command_present"] is False
+
+    for required in (
+        "2026-09-23t00:00:00z",
+        "2026-09-30t00:00:00z",
+        "pre-epoch v4 rows",
+        "structurally ineligible",
+        "side-specific",
+        "regime-specific",
+        "outcome-blind readiness",
+        "feature-only",
+        "no-clobber",
+        "no v4 `prepare`",
+    ):
+        assert required in spec

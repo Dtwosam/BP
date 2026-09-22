@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.174 — 22 September 2026
+
+- Froze `v4-gate-b-preregister-v1` before any V4 selection labels are read. The wholly future selection epoch is `[2026-09-23T00:00:00Z, 2026-09-30T00:00:00Z)`; all earlier V4 rows, including the 373-market / 1,492-row observation cohort, are structurally ineligible for model/policy selection.
+- Added the frozen V4 search contract: 48h/12h/12h/12h chronology, seven ordinary folds, 24h untouched final holdout, feature-only regime-diversity/source-availability readiness, prior + simple logistic + short-context logistic + full V4 logistic + full V4 XGBoost candidates, identity/Platt calibration, all four offsets, the finite edge grid plus `no_trade`, and mandatory regime/side/risk/execution reporting. Side-specific and regime-specific policy tuning are forbidden.
+- Added `bp_engine.v4_research` config, outcome-blind readiness, deterministic feature-only planning, and a readiness/plan-only CLI. Planning is read-only at the database and exclusive-create/no-clobber on its output; no labeled prepare, training, selection, or holdout command is introduced.
+- Durable preregistration evidence is `docs/evidence/phase-14-v4-gate-b-preregistration-20260922.json`. No V4 labels/outcomes or P&L were used to set the contract; no training, policy selection, final-holdout access, activation, automatic promotion, Phase 15, live trading, or nonzero money is authorized.
+
 ## 0.14.173 — 22 September 2026
 
 - The first post-rollout Phase 14 read-only production observation passed at `2026-09-22T16:01:03.847347+00:00` from exact clean Cloud Shell `main` head `aee1b6e7783825fa597f27b971354e6bbdc272ef` against deployed candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`.

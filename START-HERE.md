@@ -95,9 +95,12 @@ The latest recovery PASS is `/var/lib/bp/evidence/phase14-recorder-v3-recovery-2
 
 The immediate operational sequence is:
 
-1. **Continue prospective observation only.** The first post-rollout production observation passed at `2026-09-22T16:01:03.847347+00:00` and is recorded at `docs/evidence/phase-14-observation-production-20260922.json`. It verified read-only PostgreSQL sessions, no checkout/service/timer/filesystem mutation, storage `ok`, RESEARCH/live-disabled/zero-money safety, frozen-V3 paper evidence, and V4 regime-aware forward coverage. Continue frozen-V3 paper plus V4 regime-aware collection under their unchanged prospective boundaries; use `bash scripts/deploy/phase14_observation_cloudshell.sh` only for further read-only evidence collection.
-2. **Do not rerun the storage rollout.** Preserve the rollout PASS evidence and monitor normal hourly maintenance/storage health; no additional storage mutation is currently required.
-3. **Keep all promotion/live boundaries closed.** The observation PASS does not authorize V3 refit/tuning, V4 fitting, Gate B execution, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero real-money limits.
+1. **Collect the frozen V4 Gate B v1 future cohort.** Continue frozen-V3 paper observation and **V4 regime-aware feature collection** with the existing collector unchanged. This remains **prospective observation only**. Only V4 markets with `market_start_at >= 2026-09-23T00:00:00Z` and `< 2026-09-30T00:00:00Z` may enter future selection; earlier V4 rows are coverage/engineering evidence only.
+2. **Do not run V4 readiness or planning early.** After `2026-09-30T00:00:00Z`, run only outcome-blind read-only readiness. If and only if it passes, write the feature-only no-clobber plan and stop. Labeled preparation, training, policy selection, and final-holdout access remain blocked.
+3. **Preserve observation/storage evidence.** Continue using `bash scripts/deploy/phase14_observation_cloudshell.sh` only for read-only evidence collection. **Do not rerun the storage rollout.** Preserve the rollout PASS and monitor normal hourly maintenance.
+4. **Keep all promotion/live boundaries closed.** V3 refit/tuning, V4 label access/model fitting/policy selection/final-holdout access, automatic promotion, Phase 15, live trading, geographic bypass, and nonzero real-money limits remain unauthorized.
+
+The frozen V4 Gate B contract is `docs/superpowers/specs/2026-09-22-phase-14-v4-gate-b-preregistration.md`, with durable preregistration evidence at `docs/evidence/phase-14-v4-gate-b-preregistration-20260922.json`.
 
 The observation PASS recorded 308 frozen-V3 predictions, 60 trade signals, 45 settled orders, and virtual cash of `472.362970092036` from the frozen `100.00` starting balance. It also recorded 373 V4 markets / 1,492 rows with bull, bear, sideways/mixed, and unknown regimes represented, zero future-cutoff violations, zero Polymarket predictor keys, zero regime-invariant violations, no training, no policy selection, and no automatic promotion. These are observation facts only, not tuning inputs or a promotion decision.
 

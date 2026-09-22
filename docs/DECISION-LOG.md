@@ -519,3 +519,17 @@ Concurrent detach is explicitly restartable. If PostgreSQL records the child wit
 The 55-minute service timeout, two-hour maintenance-freshness guard, one-extra-hour retention-lag tolerance, free-space thresholds, 24-hour hot raw retention, 24-hour additional archive retention, and fail-closed recorder-stop behavior are unchanged. Increasing the service timeout is not the remedy for this incident class.
 
 This decision is engineering source truth only until a separately authorized exact-SHA production rollout passes active-recorder maintenance acceptance. It does not authorize a production checkout change, service restart, schema migration, V3/V4 model change, automatic promotion, Gate B action, Phase 15, live trading, or nonzero money limits.
+
+## D-056 — Freeze V4 Gate B v1 on a wholly future seven-day cohort
+**Date:** 22 Sep 2026  
+**Status:** Active
+
+**Decision:** Freeze `v4-gate-b-preregister-v1` before any V4 selection labels are read. The only eligible selection cohort is `2026-09-23T00:00:00Z <= market_start_at < 2026-09-30T00:00:00Z`. Earlier V4 rows, including the 373-market / 1,492-row read-only observation cohort, remain coverage/engineering evidence only and cannot enter V4 train, validation, ordinary test, or final-holdout membership.
+
+The preregistration doubles V3's time windows to 48h train / 12h validation / 12h ordinary test with 12h steps, seven ordinary folds, one-market embargo, and a final untouched 24h holdout. Feature-only readiness requires exact offsets, zero leakage/predictor/regime-invariant violations, >=90% current/short-return availability, >=75% long regime-return availability, and at least 120 distinct markets observed in each bull, bear, and sideways/mixed regime.
+
+The global candidate ladder is `training_prior`, `single_feature_btc_logistic`, `short_context_v4_logistic`, `full_v4_logistic`, and `full_v4_xgboost`, with identity/Platt calibration and all four 60/120/180/240-second offsets. The finite edge grid remains `0, 0.01, 0.02, 0.03, 0.05, 0.075, 0.10, 0.15` plus `no_trade`. Side-specific and regime-specific policy tuning are forbidden in v1; those slices are mandatory diagnostics only.
+
+**Reason:** V4 must address regime dependence, side asymmetry, feature underuse, calibration, timing, coverage/quality, drawdown/losses, and execution availability without converting the consumed V3 holdout or the pre-epoch V4 observation cohort into tuning data. A future-only epoch and feature-only plan make the contamination boundary structural and auditable.
+
+**Boundary:** This decision authorizes continued feature collection plus outcome-blind readiness and feature-only/no-clobber planning after epoch close. It does not authorize V4 labels/outcomes for selection, model/calibration fitting, economic-policy selection, final-holdout access, paper activation, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero money.
