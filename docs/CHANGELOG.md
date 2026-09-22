@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.163 — 22 September 2026
+
+- The first explicitly authorized compact-feed freshness index attempt passed its production safety, timer, maintenance-idle, disk-health, and 1,480-second hour-headroom checks and reached `CREATE INDEX CONCURRENTLY`.
+- PostgreSQL canceled the concurrent build under the helper's `lock_timeout='5s'`. Read-only diagnostics showed the failed attempt left `ix_market_state_1s_feed_last_event` present as `indisvalid=false`, `indisready=true`, `indislive=true`, with no create-index progress, vacuum progress, or relation lock still active.
+- The failure pattern is consistent with PostgreSQL's later concurrent-index synchronization phase waiting for an older transaction snapshot: a short `lock_timeout` also applies to those waits even after the physical index has become ready. The helper is hardened to use `lock_timeout=0` for concurrent DROP/CREATE and retain the existing 15-minute statement timeout plus >=20-minute next-hour headroom as the bounded fail-closed limit.
+- The previous production-index approval is not reusable after this fix advances `main`. Cleanup of the invalid stub and the retry remain separately unauthorized until the hardening merges green and a new exact-current-main approval is supplied. Recorder/frozen-V3 remain fail-closed stopped; live trading, nonzero money, Gate B actions, automatic promotion, and Phase 15 remain blocked.
+
 ## 0.14.162 — 22 September 2026
 
 - Read-only production verification confirmed the failed concurrent-partition-retirement rollout fully restored checkout `7c3af78da1922a0e5187c24b799951130cc98887`. Recorder, frozen-V3 predictor, and frozen-V3 paper execution all remained inactive.
