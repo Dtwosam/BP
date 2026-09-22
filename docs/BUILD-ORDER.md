@@ -618,14 +618,15 @@ Current order: (1) do not rerun this rollout and preserve its evidence; (2) buil
 
 ## Immediate next action
 
-The accepted frozen V3 paper activation remains historical PASS evidence, but the current recorder/frozen-V3 runtime is **fail-closed stopped** after the latest rollout attempt found no eligible partition before candidate checkout. Prospective observation remains paused until the storage rollout itself passes.
+The accepted frozen V3 paper activation remains historical PASS evidence, and the current recorder/frozen-V3 runtime is **active after concurrent-partition-retirement rollout PASS** on deployed candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`.
 
-The latest recovery PASS remains historical evidence, but its rollout handoff was consumed. The candidate-v2 rollout failed on `no_eligible_partition_for_acceptance` before candidate checkout and completed pre-checkout rollback: production remains on `7c3af78da1922a0e5187c24b799951130cc98887`, recorder/frozen-V3 are stopped, and the maintenance timer is active.
+The latest recovery PASS is `/var/lib/bp/evidence/phase14-recorder-v3-recovery-20260922T134508Z.json`. The accepted storage rollout evidence is `/var/lib/bp/evidence/phase14-concurrent-partition-retirement-rollout-20260922T140747Z.json`: one eligible partition retired, 35,983 dedupe rows removed, recorder/frozen-V3 identities stayed stable, zero detached leftovers remained, storage health returned `ok`, retention lag returned to `0.0h`, and the maintenance timer was restored active.
 
 Proceed in this order:
 
-1. Target the next one-hour acceptance window. Storage health treats `retention_lag_hours <= 1.0` as current, so one newly expired hourly partition is acceptable but two are not. Obtain fresh exact-current-main recorder/V3 recovery authorization before a UTC hour boundary so recovery stops the maintenance timer; then, just after that boundary and before the next one, obtain fresh rollout authorization for verified candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b` and require real partition retirement without recorder/V3 identity loss.
-3. Resume frozen V3 paper observation and V4 prospective collection only after rollout PASS. This resumes the established V4 regime-aware feature collection; it does not authorize V4 fitting or a collector change.
+1. Resume frozen V3 paper observation and V4 prospective collection, including **V4 regime-aware feature collection**, under the existing research-only prospective boundaries. Use the read-only combined observation report for ongoing evidence. This remains prospective observation only; it does not authorize V4 fitting or any V3 policy change.
+2. Preserve rollout PASS evidence and monitor normal hourly storage maintenance; do not rerun the concurrent-partition-retirement rollout unless a new incident creates a separate engineering/authorization boundary.
+3. Keep the frozen V3 policy immutable and keep V4 fitting, Gate B actions, automatic promotion, Phase 15, live trading, geographic bypass, and nonzero real-money limits blocked.
 
 The read-only combined observation command remains available for diagnostics and later steady-state observation:
 

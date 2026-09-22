@@ -79,7 +79,7 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
-Frozen V3 paper activation remains a **historical production PASS**, but the current recorder/frozen-V3 runtime is **fail-closed stopped** after the latest rollout attempt found no eligible raw partition before candidate checkout. Production stayed on the expected base checkout and the storage-maintenance timer was restored active.
+Frozen V3 paper activation remains a **historical production PASS**, and the current recorder/frozen-V3 runtime is **active after concurrent-partition-retirement rollout PASS** on deployed candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`. The maintenance timer is restored active.
 
 The accepted frozen identity remains unchanged:
 
@@ -91,14 +91,14 @@ min_edge           = 0.075
 real_money         = $0.00
 ```
 
-The latest recovery PASS remains historical evidence at `/var/lib/bp/evidence/phase14-recorder-v3-recovery-20260922T120737Z.json`, but that handoff was consumed by the subsequent rollout attempt. The rollout exited on `no_eligible_partition_for_acceptance` before candidate checkout, then completed pre-checkout rollback: production remains `7c3af78da1922a0e5187c24b799951130cc98887`, recorder/frozen-V3 are stopped, and the maintenance timer is active.
+The latest recovery PASS is `/var/lib/bp/evidence/phase14-recorder-v3-recovery-20260922T134508Z.json`. The subsequent rollout PASS is `/var/lib/bp/evidence/phase14-concurrent-partition-retirement-rollout-20260922T140747Z.json`: maintenance retired exactly one eligible hourly partition, recorder PID `4016465` stayed stable with zero restarts, frozen predictor PID `4016471` and frozen execution PID `4016476` stayed active, post-maintenance storage health was `ok` with retention lag `0.0h`, and no detached-retirement leftovers remained.
 
 The immediate operational sequence is:
 
-1. **Use the next one-hour acceptance window.** The rollout health contract tolerates one expired hourly partition (`retention_lag_hours <= 1.0`). Recover recorder/V3 before a UTC hour boundary so recovery leaves the maintenance timer stopped; then run rollout just after that boundary, when exactly one hourly partition is newly eligible, and before the following boundary.
-2. **Fresh authorization remains required.** Use fresh exact-current-main recovery authorization before the boundary and fresh rollout authorization afterward against verified candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`.
-3. **Resume prospective observation only after rollout PASS.** The read-only combined observation report remains available at `python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env`, but it is not the current operational priority while recorder/frozen-V3 are fail-closed stopped.
+1. **Resume prospective observation.** This remains **prospective observation only**: run the read-only combined observation report at `python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env` and continue frozen-V3 paper plus V4 regime-aware collection under their unchanged prospective boundaries.
+2. **Do not rerun the storage rollout.** Preserve the rollout PASS evidence and monitor normal hourly maintenance/storage health; no additional storage mutation is currently required.
+3. **Keep all promotion/live boundaries closed.** V3 refit/tuning, V4 fitting, Gate B actions, automatic promotion, Phase 15, live trading, geographic bypass, and nonzero real-money limits remain unauthorized.
 
-The historical **V4 regime-aware** collector acceptance remains valid research evidence. After storage rollout PASS, resume V4 regime-aware feature collection and frozen-V3 paper observation under their unchanged prospective boundaries; this statement does not claim those services are currently active.
+The historical **V4 regime-aware** collector acceptance remains valid research evidence. V4 regime-aware feature collection and frozen-V3 paper observation may now resume under their unchanged prospective boundaries; current rollout evidence confirms the recorder/frozen-V3 chain remained active through acceptance.
 
 Do not refit V3, recalibrate it, change `min_edge=0.075`, alter paper sizing, tune from paper results, perform Gate B actions, automatically promote anything, enable a live-order path, enter Phase 15, bypass geographic restrictions, or change real-money limits.
