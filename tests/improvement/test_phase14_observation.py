@@ -356,7 +356,9 @@ def test_phase14_observation_source_truth_preserves_read_only_boundary() -> None
     build = (root / "docs/BUILD-ORDER.md").read_text(encoding="utf-8")
 
     observation = state["phase_14_observation_report"]
-    assert observation["status"] == "MERGED_MAIN_READ_ONLY_OBSERVATION_AVAILABLE_NOT_PRODUCTION_RUN"
+    assert observation["status"] == (
+        "CLOUDSHELL_RUNTIME_BRIDGE_PENDING_VALIDATION_NOT_PRODUCTION_RUN"
+    )
     assert observation["database_writes"] is False
     assert observation["filesystem_creation"] is False
     assert observation["training_performed"] is False
@@ -409,14 +411,22 @@ def test_phase14_observation_source_truth_preserves_read_only_boundary() -> None
     assert observation["max_daily_loss_usd"] == 0
     assert observation["automatic_promotion"] is False
 
-    command = "python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env"
+    command = "bash scripts/deploy/phase14_observation_cloudshell.sh"
+    module_command = "python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env"
     assert observation["command"] == command
+    assert observation["repository_module_command"] == module_command
+    assert observation["deployed_checkout_contains_unified_observation_cli"] is False
+    assert observation["production_runtime_bridge_required"] is True
+    assert observation["production_runtime_bridge_postgres_read_only"] is True
+    assert observation["production_runtime_bridge_filesystem_creation"] is False
+    assert observation["production_runtime_bridge_service_or_timer_mutation"] is False
+    assert observation["production_runtime_bridge_checkout_mutation"] is False
     assert command in start
     assert command in build
+    assert module_command in build
     assert "prospective observation only" in start.lower()
     assert "do not tune v3 from paper results" in build.lower()
     next_action = observation["next_action"].lower()
-    assert "storage rollback verification" in next_action
-    assert "compact-feed index/recovery/rollout sequence" in next_action
-    assert "only after rollout pass" in next_action
+    assert "validate and merge the read-only cloud shell runtime bridge" in next_action
+    assert "run one production observation" in next_action
     assert "no report output authorizes tuning" in next_action
