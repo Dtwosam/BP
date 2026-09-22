@@ -91,12 +91,13 @@ min_edge           = 0.075
 real_money         = $0.00
 ```
 
+Rollback is now **read-only confirmed**: production checkout is `7c3af78da1922a0e5187c24b799951130cc98887`, recorder/frozen-V3 are stopped, the 00:00 UTC maintenance cycle settled successfully at `2026-09-22T00:29:37.423952Z`, retention lag is 0 hours, and composite storage health is `ok`.
+
 The immediate operational sequence is:
 
-1. **Read-only confirm rollback state.** Require production checkout `7c3af78da1922a0e5187c24b799951130cc98887`, recorder/frozen-V3 stopped, storage-maintenance and disk-health timers healthy, and composite storage health `ok`. Source-of-truth does not yet claim the final old-checkout rollback because the terminal helper output has not been captured.
-2. **Compact-feed freshness index.** PR #229 is merged and green. Production index installation remains unauthorized and unperformed. After rollback confirmation, use `scripts/deploy/phase14_compact_feed_freshness_index_cloudshell.sh` only with a new exact-current-main approval.
-3. **Recovery then rollout.** Only after the index gate passes may the recorder/V3 recovery helper and concurrent-partition-retirement rollout receive fresh exact-head authorizations. The old `f50f01d...` approval epoch is invalid because `main` advanced.
-4. **Resume prospective observation only after rollout PASS.** The read-only combined observation report remains available at `python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env`, but it is not the current operational priority while recorder/frozen-V3 are fail-closed stopped.
+1. **Compact-feed freshness index.** PR #229 is merged and green. Production index installation remains unauthorized and unperformed. Use `scripts/deploy/phase14_compact_feed_freshness_index_cloudshell.sh` only after a new exact-current-main approval.
+2. **Recovery then rollout.** Only after the index gate passes may the recorder/V3 recovery helper and concurrent-partition-retirement rollout receive fresh exact-head authorizations. The old `f50f01d...` approval epoch is invalid because `main` advanced.
+3. **Resume prospective observation only after rollout PASS.** The read-only combined observation report remains available at `python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env`, but it is not the current operational priority while recorder/frozen-V3 are fail-closed stopped.
 
 The historical **V4 regime-aware** collector acceptance remains valid research evidence. After storage rollout PASS, resume V4 regime-aware feature collection and frozen-V3 paper observation under their unchanged prospective boundaries; this statement does not claim those services are currently active.
 
