@@ -13,10 +13,18 @@ def _text(path: str) -> str:
 
 def test_v3_paper_source_truth_freezes_exact_authorized_strategy() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.160"
+    assert state["source_of_truth_version"] == "0.14.161"
 
     paper = state["phase_14_v3_frozen_paper"]
-    assert paper["status"] == "PRODUCTION_PASS_ACTIVE"
+    assert (
+        paper["status"]
+        == "PRODUCTION_PASS_HISTORICAL_RUNTIME_FAIL_CLOSED_PENDING_CONFIRMATION"
+    )
+    assert paper["current_runtime_status"] == (
+        "TREAT_FAIL_CLOSED_STOPPED_PENDING_READ_ONLY_CONFIRMATION"
+    )
+    assert paper["current_runtime_liveness_confirmed"] is False
+    assert "activation-time evidence" in paper["activation_snapshot_scope"]
     assert paper["source_v3_research_plan_version"] == "v3-gate-b-preregister-v2"
     assert paper["source_model_artifact_sha256"] == MODEL_SHA
     assert paper["prediction_version"] == "v3-frozen-paper-v1"
@@ -48,6 +56,7 @@ def test_v3_paper_source_truth_freezes_exact_authorized_strategy() -> None:
     assert paper["activation_candidate_head"] == (
         "9d52eb753355365848a637ffa6663928664bf770"
     )
+    # These booleans are the historical activation snapshot, not current liveness.
     assert paper["predictor_service_active"] is True
     assert paper["execution_service_active"] is True
     assert paper["prospective_outcomes_service_active"] is True

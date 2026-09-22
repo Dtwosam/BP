@@ -94,7 +94,7 @@ def test_successor_spec_and_plan_preserve_frozen_search_contract() -> None:
 
 def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.160"
+    assert state["source_of_truth_version"] == "0.14.161"
     successor = state["phase_14_btc_first_v3_gate_a"]["successor_gate_b"]
     assert successor["research_plan_version"] == SUCCESSOR_PLAN_VERSION
     assert successor["epoch_start"] == SUCCESSOR_EPOCH_START
@@ -132,17 +132,22 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
         assert SUCCESSOR_EPOCH_END in content
 
     next_task = start.split("## Immediate next task", 1)[1].lower()
-    assert "frozen v3 paper trading is now **production pass and active**" in next_task
+    assert "historical production pass" in next_task
+    assert "fail-closed stopped" in next_task
     assert "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7" in next_task
-    assert "v4 regime-aware forward collector remains active" in next_task
-    assert "prospective observation only" in next_task
+    assert "phase14_compact_feed_freshness_index_cloudshell.sh" in next_task
+    assert "resume prospective observation only after rollout pass" in next_task
 
     build_next = build.split("## Immediate next action", 1)[1].lower()
-    assert "frozen v3 paper trading is production pass and active" in build_next
+    assert "fail-closed stopped" in build_next
     assert "min_edge=0.075" in build_next
     assert "$100 virtual starting cash" in build_next
     assert "$5 virtual target notional" in build_next
-    assert "v4 regime-aware feature collection" in build_next
+    assert "ix_market_state_1s_feed_last_event" in build_next
+    assert (
+        "resume frozen v3 paper observation and v4 prospective collection only after rollout pass"
+        in build_next
+    )
 
     assert "## D-048 —" in decisions
     assert "## D-049 —" in decisions

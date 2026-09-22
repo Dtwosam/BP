@@ -82,7 +82,7 @@ def test_ci_syntax_checks_compact_feed_freshness_index_helper() -> None:
 
 def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
     state = json.loads(STATE.read_text(encoding="utf-8"))
-    assert state["source_of_truth_version"] == "0.14.160"
+    assert state["source_of_truth_version"] == "0.14.161"
 
     storage = state["phase_14_storage_reliability_followup"]
     assert storage["concurrent_partition_retirement_rollout_last_attempt_status"] == (
@@ -94,5 +94,26 @@ def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
         is False
     )
     assert storage["compact_feed_freshness_index_name"] == INDEX_NAME
+    assert (
+        storage["compact_feed_freshness_index_repository_status"]
+        == "MERGED_MAIN_GREEN_NOT_PRODUCTION_RUN"
+    )
+    assert storage["compact_feed_freshness_index_pr"] == 229
+    assert storage["compact_feed_freshness_index_validation_head"] == (
+        "abc53100b624ebdb300599c7a29e617c79c6ebe5"
+    )
+    assert storage["compact_feed_freshness_index_ci_run_id"] == 35663923482
+    assert storage["compact_feed_freshness_index_historical_backfill_smoke_run_id"] == 35663923521
+    assert storage["compact_feed_freshness_index_live_recorder_smoke_run_id"] == 35663923483
+    assert storage["compact_feed_freshness_index_recorder_short_soak_run_id"] == 35663923480
+    assert (
+        storage[
+            "prior_recovery_rollout_sha_bound_authorization_invalidated_by_main_advance"
+        ]
+        is True
+    )
+    assert storage["concurrent_partition_retirement_production_rollout_authorized"] is False
+    assert storage["concurrent_partition_retirement_rollout_gate_production_authorized"] is False
+    assert storage["recorder_v3_recovery_authorized"] is False
     assert storage["compact_feed_freshness_index_production_authorized"] is False
     assert storage["compact_feed_freshness_index_production_performed"] is False

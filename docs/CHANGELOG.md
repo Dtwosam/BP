@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.161 — 21 September 2026
+
+- PR #229 (`Fix Phase 14 compact-feed freshness scan`) merged as `18a05e4e453d161d71158d4d0f8a884a6c799157` after exact head `abc53100b624ebdb300599c7a29e617c79c6ebe5` passed CI `35663923482`, Historical Backfill Smoke `35663923521`, Live Recorder Smoke `35663923483`, and Recorder Short Soak `35663923480`.
+- The merged repair adds the general compact-feed latest-event index, changes the retention continuity check to an ordered bounded lookup, and includes the separately approved production index helper. No production database, checkout, service, timer, trading, promotion, or money-limit mutation was performed by the merge.
+- Because `main` advanced, the earlier SHA-bound recorder/V3 recovery and concurrent-partition-retirement rollout authorizations are no longer valid for the new helper head. Their source-truth authorization flags are reset to false. Production index installation is also unauthorized/unperformed.
+- The accepted frozen-V3 paper activation remains historical evidence, but the current recorder/frozen-V3 runtime must be treated as fail-closed stopped until the latest rollout rollback checkout is read-only confirmed and a later recovery gate passes. Prospective observation is not the immediate operational action.
+- Next sequence: confirm the rollback state read-only; separately authorize and run the compact-feed freshness index gate from the then-current exact `main`; then obtain fresh exact-head authorization for recovery and rollout. Phase 15, live trading, nonzero real money, model tuning, Gate B actions, and automatic promotion remain blocked.
+
 ## 0.14.160 — 21 September 2026
 
 - The authorized recorder/frozen-V3 recovery passed again and produced durable evidence at `/var/lib/bp/evidence/phase14-recorder-v3-recovery-20260921T204332Z.json`. The subsequent concurrent-partition-retirement rollout found eligible partition `raw_market_events_20260920_20`, checked out immutable candidate `ed7d930c69e417dda388b0cb62b3a543a4b8134f`, and entered real acceptance maintenance.

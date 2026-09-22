@@ -105,16 +105,27 @@ def test_recorder_v3_recovery_requires_stable_services_and_preserves_gate_b_arti
         assert marker in source
 
 
-def test_project_state_records_authorized_recovery_and_rollout_without_claiming_execution() -> None:
+def test_project_state_invalidates_prior_sha_bound_recovery_and_rollout_authorization() -> None:
     import json
 
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["source_of_truth_version"] == "0.14.160"
+    assert state["source_of_truth_version"] == "0.14.161"
     storage = state["phase_14_storage_reliability_followup"]
-    assert storage["concurrent_partition_retirement_production_rollout_authorized"] is True
-    assert storage["concurrent_partition_retirement_rollout_gate_production_authorized"] is True
-    assert storage["recorder_v3_recovery_authorized"] is True
+    assert storage["concurrent_partition_retirement_production_rollout_authorized"] is False
+    assert (
+        storage["concurrent_partition_retirement_rollout_gate_production_authorized"]
+        is False
+    )
+    assert storage["recorder_v3_recovery_authorized"] is False
     assert storage["recorder_v3_recovery_performed"] is False
+    assert (
+        storage[
+            "prior_recovery_rollout_sha_bound_authorization_invalidated_by_main_advance"
+        ]
+        is True
+    )
+    assert storage["compact_feed_freshness_index_production_authorized"] is False
+    assert storage["compact_feed_freshness_index_production_performed"] is False
     assert (
         storage["recorder_v3_recovery_gate_helper"]
         == "scripts/deploy/phase14_recorder_v3_recovery_gate_cloudshell.sh"

@@ -27,7 +27,7 @@ def _text(path: str) -> str:
 def test_project_state_records_gate_a_pass_and_frozen_v3_preregistration() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
 
-    assert state["source_of_truth_version"] == "0.14.160"
+    assert state["source_of_truth_version"] == "0.14.161"
     v3 = state["phase_14_btc_first_v3_gate_a"]
     assert (
         v3["implementation_status"]
@@ -200,19 +200,22 @@ def test_canonical_docs_record_gate_a_pass_and_preregistration_handoff() -> None
     assert PREREGISTRATION_IMPLEMENTATION_HEAD in entry
 
 
-def test_current_handoff_points_to_active_v3_paper_observation() -> None:
+def test_current_handoff_points_to_fail_closed_storage_recovery_sequence() -> None:
     start = _text("START-HERE.md")
     build = _text("docs/BUILD-ORDER.md")
 
     start_next = start.split("## Immediate next task", 1)[1].lower()
-    assert "production pass and active" in start_next
+    assert "historical production pass" in start_next
+    assert "fail-closed stopped" in start_next
     assert "v3-frozen-paper-v1" in start_next
     assert "paper-execution-v3-frozen-v1" in start_next
     assert "real_money" in start_next and "$0.00" in start_next
-    assert "prospective observation only" in start_next
+    assert "phase14_compact_feed_freshness_index_cloudshell.sh" in start_next
+    assert "resume prospective observation only after rollout pass" in start_next
 
     build_next = build.split("## Immediate next action", 1)[1].lower()
-    assert "production pass and active" in build_next
-    assert "0.075" in build_next
+    assert "fail-closed stopped" in build_next
+    assert "ix_market_state_1s_feed_last_event" in build_next
+    assert "min_edge=0.075" in build_next
     assert "real money at zero" in build_next
     assert "do not tune v3 from paper results" in build_next
