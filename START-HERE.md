@@ -95,7 +95,7 @@ Recovery PASS is now confirmed on production checkout `7c3af78da1922a0e5187c24b7
 
 The immediate operational sequence is:
 
-1. **Concurrent-partition-retirement rollout authorization.** Recorder/V3 recovery passed at `2026-09-22T12:07:37Z` and left the exact rollout handoff state: recorder/frozen-V3 active, production checkout unchanged, maintenance timer enabled but inactive, RESEARCH mode, live disabled, and zero money. Obtain a fresh exact-current-main authorization for the concurrent-partition-retirement rollout helper.
+1. **Concurrent-partition-retirement rollout authorization.** Recorder/V3 recovery passed at `2026-09-22T12:07:37Z` and left the exact rollout handoff state: recorder/frozen-V3 active, production checkout unchanged, maintenance timer enabled but inactive, RESEARCH mode, live disabled, and zero money. Verified rollout candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b` (verification PR #237, CI `35726920563`) now matches current `main` for all four rollout files. Obtain a fresh exact-current-main authorization for `scripts/deploy/phase14_concurrent_partition_retirement_rollout_cloudshell.sh`.
 2. **Resume prospective observation only after rollout PASS.** The read-only combined observation report remains available at `python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env`, but it is not the current operational priority while recorder/frozen-V3 are fail-closed stopped.
 
 The historical **V4 regime-aware** collector acceptance remains valid research evidence. After storage rollout PASS, resume V4 regime-aware feature collection and frozen-V3 paper observation under their unchanged prospective boundaries; this statement does not claim those services are currently active.
