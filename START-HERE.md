@@ -95,8 +95,8 @@ Rollback is now **read-only confirmed**: production checkout is `7c3af78da1922a0
 
 The immediate operational sequence is:
 
-1. **Re-authorize the compact-feed freshness index after old-snapshot-wait hardening.** PR #233 is merged and green. The helper now disables PostgreSQL `lock_timeout` for concurrent DROP/CREATE while retaining `statement_timeout=15min` and the 20-minute hour-headroom guard. The failed attempt's `ix_market_state_1s_feed_last_event` stub remains `indisvalid=false`, `indisready=true`, `indislive=true`; cleanup/retry is still unauthorized until a new exact-current-main approval is given.
-2. **Recovery then rollout.** Only after the index gate passes may the recorder/V3 recovery helper and concurrent-partition-retirement rollout receive fresh exact-head authorizations. The old `f50f01d...` approval epoch is invalid because `main` advanced.
+1. **Recorder/V3 recovery authorization.** The hardened compact-feed freshness index gate passed in production at `2026-09-22T10:39:45.309001Z`. `ix_market_state_1s_feed_last_event` is installed and all four required compact-feed lookups use index-only scans; the invalid stub is cleared. Obtain a fresh exact-current-main authorization for `scripts/deploy/phase14_recorder_v3_recovery_gate_cloudshell.sh`.
+2. **Concurrent-partition-retirement rollout authorization.** Only after recovery PASS may the rollout receive a fresh exact-head authorization. The old `f50f01d...` approval epoch remains invalid because `main` advanced.
 3. **Resume prospective observation only after rollout PASS.** The read-only combined observation report remains available at `python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env`, but it is not the current operational priority while recorder/frozen-V3 are fail-closed stopped.
 
 The historical **V4 regime-aware** collector acceptance remains valid research evidence. After storage rollout PASS, resume V4 regime-aware feature collection and frozen-V3 paper observation under their unchanged prospective boundaries; this statement does not claim those services are currently active.
