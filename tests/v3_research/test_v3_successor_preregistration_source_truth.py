@@ -135,9 +135,9 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
     assert "historical production pass" in next_task
     assert "fail-closed stopped" in next_task
     assert "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7" in next_task
-    assert "determine the next eligible partition time read-only" in next_task
+    assert "use the next one-hour acceptance window" in next_task
     assert "no_eligible_partition_for_acceptance" in next_task
-    assert "recovery then rollout near that eligibility window" in next_task
+    assert "fresh authorization remains required" in next_task
     assert "resume prospective observation only after rollout pass" in next_task
 
     build_next = build.split("## Immediate next action", 1)[1].lower()
@@ -146,8 +146,8 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
     assert "$100 virtual starting cash" in build_next
     assert "$5 virtual target notional" in build_next
     assert "no_eligible_partition_for_acceptance" in build_next
-    assert "next eligible hourly raw partition time read-only" in build_next
-    assert "fresh exact-current-main recorder/v3 recovery authorization" in build_next
+    assert "target the next one-hour acceptance window" in build_next
+    assert "recover before a utc hour boundary" in build_next
     assert (
         "resume frozen v3 paper observation and v4 prospective collection only after rollout pass"
         in build_next
