@@ -109,7 +109,7 @@ def test_project_state_invalidates_prior_sha_bound_recovery_and_rollout_authoriz
     import json
 
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["source_of_truth_version"] == "0.14.168"
+    assert state["source_of_truth_version"] == "0.14.169"
     storage = state["phase_14_storage_reliability_followup"]
     assert storage["concurrent_partition_retirement_production_rollout_authorized"] is False
     assert (
@@ -120,8 +120,15 @@ def test_project_state_invalidates_prior_sha_bound_recovery_and_rollout_authoriz
     assert storage["recorder_v3_recovery_performed"] is True
     assert storage["recorder_v3_recovery_last_attempt_status"] == "PASS"
     assert storage["recorder_v3_recovery_gate_repository_status"] == (
-        "PRODUCTION_PASS_ROLLOUT_HANDOFF_READY"
+        "HISTORICAL_PASS_CURRENT_RUNTIME_STOPPED_BY_PRECHECKOUT_ROLLOUT_ROLLBACK"
     )
+    assert storage["recorder_v3_current_runtime_status"] == (
+        "FAIL_CLOSED_STOPPED_AFTER_NO_ELIGIBLE_PARTITION_ROLLOUT"
+    )
+    assert storage["recorder_v3_current_runtime_recorder_active"] is False
+    assert storage["recorder_v3_current_runtime_v3_predictor_active"] is False
+    assert storage["recorder_v3_current_runtime_v3_execution_active"] is False
+    assert storage["recorder_v3_current_runtime_maintenance_timer_active"] is True
     assert storage["recorder_v3_recovery_production_pass_rollout_handoff_ready"] is True
     assert storage["recorder_v3_recovery_production_pass_maintenance_timer_active"] is False
     assert storage["recorder_v3_recovery_production_pass_recorder_pid"] == 3989760
