@@ -624,7 +624,7 @@ Recovery PASS is confirmed on `7c3af78da1922a0e5187c24b799951130cc98887`: record
 
 Proceed in this order:
 
-1. Recorder/V3 recovery passed production at `2026-09-22T12:07:37Z` with the expected checkout and service chain, RESEARCH mode, four recorder writers, live trading disabled, zero real-money limits, preserved Gate B artifacts, and the maintenance timer stopped for handoff. Verified candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b` (PR #237, CI `35726920563`) matches current `main` for all four rollout files. Obtain fresh exact-current-main authorization for `scripts/deploy/phase14_concurrent_partition_retirement_rollout_cloudshell.sh` and require real retirement acceptance without recorder/V3 identity loss.
+1. Recorder/V3 recovery passed production at `2026-09-22T12:07:37Z` with the expected checkout and service chain, RESEARCH mode, four recorder writers, live trading disabled, zero real-money limits, preserved Gate B artifacts, and the maintenance timer stopped for handoff. Verified candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b` (PR #237, CI `35726920563`) matches current `main` for all four rollout files. Obtain fresh exact-current-main authorization for the concurrent-partition-retirement rollout via `scripts/deploy/phase14_concurrent_partition_retirement_rollout_cloudshell.sh` and require real retirement acceptance without recorder/V3 identity loss.
 2. Resume frozen V3 paper observation and V4 prospective collection only after rollout PASS. This resumes the established V4 regime-aware feature collection; it does not authorize V4 fitting or a collector change.
 
 The read-only combined observation command remains available for diagnostics and later steady-state observation:
