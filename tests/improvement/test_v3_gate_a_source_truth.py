@@ -210,16 +210,17 @@ def test_current_handoff_points_to_fail_closed_storage_recovery_sequence() -> No
     assert "v3-frozen-paper-v1" in start_next
     assert "paper-execution-v3-frozen-v1" in start_next
     assert "real_money" in start_next and "$0.00" in start_next
-    assert "old-snapshot-wait hardening" in start_next
-    assert "indisvalid=false" in start_next
-    assert "new exact-current-main approval" in start_next
+    assert "recorder/v3 recovery authorization" in start_next
+    assert "index gate passed in production" in start_next
+    assert "index-only scans" in start_next
+    assert "phase14_recorder_v3_recovery_gate_cloudshell.sh" in start_next
     assert "resume prospective observation only after rollout pass" in start_next
 
     build_next = build.split("## Immediate next action", 1)[1].lower()
     assert "fail-closed stopped" in build_next
     assert "ix_market_state_1s_feed_last_event" in build_next
-    assert "lock_timeout" in build_next
-    assert "statement_timeout=15min" in build_next
+    assert "index-only scans" in build_next
+    assert "recorder/v3 recovery" in build_next
     assert "min_edge=0.075" in build_next
     assert "real money at zero" in build_next
     assert "do not tune v3 from paper results" in build_next
