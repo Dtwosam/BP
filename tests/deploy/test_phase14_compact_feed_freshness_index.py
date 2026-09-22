@@ -118,8 +118,17 @@ def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
     assert storage["compact_feed_freshness_index_name"] == INDEX_NAME
     assert (
         storage["compact_feed_freshness_index_repository_status"]
-        == "MERGED_MAIN_GREEN_NOT_PRODUCTION_RUN"
+        == "OLD_SNAPSHOT_WAIT_HARDENING_PR_PENDING_CI"
     )
+    assert (
+        storage["compact_feed_freshness_index_last_attempt_status"]
+        == "FAILED_LOCK_TIMEOUT_INVALID_READY_STUB"
+    )
+    assert storage["compact_feed_freshness_index_last_attempt_mutation_started"] is True
+    assert storage["compact_feed_freshness_index_invalid_stub_present"] is True
+    assert storage["compact_feed_freshness_index_invalid_stub_indisvalid"] is False
+    assert storage["compact_feed_freshness_index_invalid_stub_indisready"] is True
+    assert storage["compact_feed_freshness_index_invalid_stub_indislive"] is True
     assert storage["compact_feed_freshness_index_pr"] == 229
     assert storage["compact_feed_freshness_index_validation_head"] == (
         "abc53100b624ebdb300599c7a29e617c79c6ebe5"
