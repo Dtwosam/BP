@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.169 — 22 September 2026
+
+- The separately authorized candidate-v2 concurrent-partition-retirement rollout reached the production eligibility precheck and returned `no_eligible_partition_for_acceptance`. No candidate checkout occurred and no candidate storage mutation began.
+- The armed pre-checkout rollback completed as designed: production remained on `7c3af78da1922a0e5187c24b799951130cc98887`, recorder/frozen-V3 were stopped, and the storage-maintenance timer was restored active.
+- Verified candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b` remains valid and rollout remains unperformed. The configured/canonical hot-raw retention horizon is 24 hours. Storage health allows `retention_lag_hours <= 1.0`, so the next acceptance attempt must recover before a UTC hour boundary (stopping the timer) and run rollout just after that boundary while exactly one hourly partition is newly eligible, before a second expired hour would make storage health critical.
+- Safety remains RESEARCH, live trading disabled, real-money limits zero, automatic promotion false, Gate B actions blocked, and Phase 15 blocked.
+
 ## 0.14.168 — 22 September 2026
 
 - PR #238 (`Bind Phase 14 rollout to refreshed candidate v2`) merged as `2df6a354c711ed3f62ea08d6d676a9a55909aec9` after exact head `9e79a03d7388c678f1f7cc73834dcde40a96e368` passed CI `35727782401`, Historical Backfill Smoke `35727782317`, Live Recorder Smoke `35727782324`, and Recorder Short Soak `35727782331`.
