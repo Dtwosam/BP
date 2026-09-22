@@ -109,7 +109,7 @@ def test_project_state_invalidates_prior_sha_bound_recovery_and_rollout_authoriz
     import json
 
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
-    assert state["source_of_truth_version"] == "0.14.169"
+    assert state["source_of_truth_version"] == "0.14.170"
     storage = state["phase_14_storage_reliability_followup"]
     assert storage["concurrent_partition_retirement_production_rollout_authorized"] is False
     assert (
@@ -120,20 +120,20 @@ def test_project_state_invalidates_prior_sha_bound_recovery_and_rollout_authoriz
     assert storage["recorder_v3_recovery_performed"] is True
     assert storage["recorder_v3_recovery_last_attempt_status"] == "PASS"
     assert storage["recorder_v3_recovery_gate_repository_status"] == (
-        "HISTORICAL_PASS_CURRENT_RUNTIME_STOPPED_BY_PRECHECKOUT_ROLLOUT_ROLLBACK"
+        "PRODUCTION_PASS_ROLLOUT_PASS_RUNTIME_ACTIVE"
     )
     assert storage["recorder_v3_current_runtime_status"] == (
-        "FAIL_CLOSED_STOPPED_AFTER_NO_ELIGIBLE_PARTITION_ROLLOUT"
+        "ACTIVE_AFTER_CONCURRENT_PARTITION_RETIREMENT_ROLLOUT_PASS"
     )
-    assert storage["recorder_v3_current_runtime_recorder_active"] is False
-    assert storage["recorder_v3_current_runtime_v3_predictor_active"] is False
-    assert storage["recorder_v3_current_runtime_v3_execution_active"] is False
+    assert storage["recorder_v3_current_runtime_recorder_active"] is True
+    assert storage["recorder_v3_current_runtime_v3_predictor_active"] is True
+    assert storage["recorder_v3_current_runtime_v3_execution_active"] is True
     assert storage["recorder_v3_current_runtime_maintenance_timer_active"] is True
     assert storage["recorder_v3_recovery_production_pass_rollout_handoff_ready"] is True
     assert storage["recorder_v3_recovery_production_pass_maintenance_timer_active"] is False
-    assert storage["recorder_v3_recovery_production_pass_recorder_pid"] == 3989760
-    assert storage["recorder_v3_recovery_production_pass_predictor_pid"] == 3989766
-    assert storage["recorder_v3_recovery_production_pass_execution_pid"] == 3989771
+    assert storage["recorder_v3_recovery_production_pass_recorder_pid"] == 4016465
+    assert storage["recorder_v3_recovery_production_pass_predictor_pid"] == 4016471
+    assert storage["recorder_v3_recovery_production_pass_execution_pid"] == 4016476
     assert (
         storage[
             "prior_recovery_rollout_sha_bound_authorization_invalidated_by_main_advance"
