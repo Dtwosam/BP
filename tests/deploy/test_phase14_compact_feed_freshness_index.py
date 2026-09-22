@@ -82,7 +82,7 @@ def test_ci_syntax_checks_compact_feed_freshness_index_helper() -> None:
 
 def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
     state = json.loads(STATE.read_text(encoding="utf-8"))
-    assert state["source_of_truth_version"] == "0.14.161"
+    assert state["source_of_truth_version"] == "0.14.162"
 
     storage = state["phase_14_storage_reliability_followup"]
     assert storage["concurrent_partition_retirement_rollout_last_attempt_status"] == (
@@ -91,8 +91,13 @@ def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
     assert storage["concurrent_partition_retirement_rollout_candidate_checkout_performed"] is True
     assert (
         storage["concurrent_partition_retirement_rollout_final_checkout_rollback_confirmed"]
-        is False
+        is True
     )
+    assert storage["concurrent_partition_retirement_rollout_rollback_confirmed_production_head"] == (
+        "7c3af78da1922a0e5187c24b799951130cc98887"
+    )
+    assert storage["concurrent_partition_retirement_rollout_rollback_confirmed_storage_health"] == "ok"
+    assert storage["concurrent_partition_retirement_rollout_rollback_confirmed_retention_lag_hours"] == 0.0
     assert storage["compact_feed_freshness_index_name"] == INDEX_NAME
     assert (
         storage["compact_feed_freshness_index_repository_status"]
