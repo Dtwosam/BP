@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.163",
-  "updated_at": "2026-09-22T09:30:00Z",
+  "source_of_truth_version": "0.14.164",
+  "updated_at": "2026-09-22T09:36:00Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -3423,7 +3423,7 @@
       "last_event_at DESC"
     ],
     "compact_feed_freshness_lookup_strategy": "ORDER_BY_LAST_EVENT_AT_DESC_LIMIT_1",
-    "compact_feed_freshness_index_repository_status": "OLD_SNAPSHOT_WAIT_HARDENING_PR_PENDING_CI",
+    "compact_feed_freshness_index_repository_status": "OLD_SNAPSHOT_WAIT_HARDENING_MERGED_GREEN_AWAITING_NEW_PRODUCTION_AUTH",
     "compact_feed_freshness_index_production_authorized": false,
     "compact_feed_freshness_index_production_performed": false,
     "compact_feed_freshness_index_last_attempt_status": "FAILED_LOCK_TIMEOUT_INVALID_READY_STUB",
@@ -3448,7 +3448,15 @@
     "compact_feed_freshness_index_merge_commit": "18a05e4e453d161d71158d4d0f8a884a6c799157",
     "compact_feed_freshness_index_exact_head_gates_passed": true,
     "prior_recovery_rollout_sha_bound_authorization_invalidated_by_main_advance": true,
-    "compact_feed_freshness_index_prior_approval_invalidated_by_fix_main_advance": true
+    "compact_feed_freshness_index_prior_approval_invalidated_by_fix_main_advance": true,
+    "compact_feed_freshness_index_hardening_pr": 233,
+    "compact_feed_freshness_index_hardening_validation_head": "6eaf5095ec0c33db424e19d2ebee63b7ce231db9",
+    "compact_feed_freshness_index_hardening_ci_run_id": 35711018287,
+    "compact_feed_freshness_index_hardening_historical_backfill_smoke_run_id": 35711019406,
+    "compact_feed_freshness_index_hardening_live_recorder_smoke_run_id": 35711018953,
+    "compact_feed_freshness_index_hardening_recorder_short_soak_run_id": 35711019046,
+    "compact_feed_freshness_index_hardening_merge_commit": "50f226173f881c0e139cfe3325e975c21048432b",
+    "compact_feed_freshness_index_hardening_exact_head_gates_passed": true
   },
   "phase_14_adaptive_learning": {
     "implementation_status": "REPOSITORY_RESEARCH_ONLY",
