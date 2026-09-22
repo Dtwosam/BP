@@ -181,7 +181,11 @@ feeds = (
 )
 
 with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
-    connection.execute(text("SET lock_timeout = '5s'"))
+    # CREATE/DROP INDEX CONCURRENTLY may wait for old snapshots after the
+    # physical index build is already complete. A short lock_timeout aborts
+    # that synchronization phase and can leave an invalid-ready index stub.
+    # Keep the operation bounded by statement_timeout instead.
+    connection.execute(text("SET lock_timeout = '0'"))
     connection.execute(text("SET statement_timeout = '15min'"))
 
     existing = connection.execute(
