@@ -146,10 +146,8 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
     assert "$5 virtual target notional" in build_next
     assert "resume frozen v3 paper observation and v4 prospective collection" in build_next
     assert "do not rerun the concurrent-partition-retirement rollout" in build_next
-    assert (
-        "resume frozen v3 paper observation and v4 prospective collection only after rollout pass"
-        in build_next
-    )
+    assert "resume frozen v3 paper observation" in build_next
+    assert "v4 regime-aware feature collection" in build_next
 
     assert "## D-048 —" in decisions
     assert "## D-049 —" in decisions
