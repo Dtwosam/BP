@@ -624,7 +624,7 @@ Rollback verification is complete: production is back on `7c3af78da1922a0e5187c2
 
 Proceed in this order:
 
-1. Harden the compact-feed index helper for PostgreSQL old-snapshot synchronization. The first authorized `CREATE INDEX CONCURRENTLY` attempt was canceled by the helper's 5-second `lock_timeout` after leaving an invalid-ready-live index stub. Disable `lock_timeout` for concurrent DROP/CREATE, keep `statement_timeout=15min`, and retain the existing 20-minute next-hour headroom guard.
+1. Harden the compact-feed index helper for PostgreSQL old-snapshot synchronization. The first authorized `CREATE INDEX CONCURRENTLY` attempt for `ix_market_state_1s_feed_last_event` was canceled by the helper's 5-second `lock_timeout` after leaving an invalid-ready-live index stub. Disable `lock_timeout` for concurrent DROP/CREATE, keep `statement_timeout=15min`, and retain the existing 20-minute next-hour headroom guard.
 2. After that hardening merges, obtain a new exact-current-main authorization for the compact-feed index helper. The helper must remove the invalid stub concurrently, recreate the index concurrently, and prove planner selection while recorder/frozen-V3 remain stopped.
 3. After the index gate passes, obtain fresh exact-head authorization for recorder/V3 recovery. Require RESEARCH mode, four recorder writers, live trading disabled, zero real-money limits, and the timer-stopped rollout handoff.
 4. Only after recovery PASS, obtain fresh exact-head authorization for the concurrent-partition-retirement rollout and require real retirement acceptance without recorder/V3 identity loss.
