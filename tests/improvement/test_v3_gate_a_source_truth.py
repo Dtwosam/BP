@@ -219,7 +219,7 @@ def test_current_handoff_points_to_fail_closed_storage_recovery_sequence() -> No
     assert "fail-closed stopped" in build_next
     assert "no_eligible_partition_for_acceptance" in build_next
     assert "target the next one-hour acceptance window" in build_next
-    assert "recover before a utc hour boundary" in build_next
+    assert "recovery authorization before a utc hour boundary" in build_next
     assert "min_edge=0.075" in build_next
     assert "real money at zero" in build_next
     assert "do not tune v3 from paper results" in build_next
