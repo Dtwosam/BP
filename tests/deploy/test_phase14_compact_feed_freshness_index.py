@@ -86,7 +86,7 @@ def test_ci_syntax_checks_compact_feed_freshness_index_helper() -> None:
 
 def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
     state = json.loads(STATE.read_text(encoding="utf-8"))
-    assert state["source_of_truth_version"] == "0.14.172"
+    assert state["source_of_truth_version"] == "0.14.173"
 
     storage = state["phase_14_storage_reliability_followup"]
     assert storage["concurrent_partition_retirement_rollout_last_attempt_status"] == "PASS"
