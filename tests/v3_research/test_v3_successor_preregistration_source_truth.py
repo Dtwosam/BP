@@ -147,7 +147,7 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
     assert "$5 virtual target notional" in build_next
     assert "no_eligible_partition_for_acceptance" in build_next
     assert "target the next one-hour acceptance window" in build_next
-    assert "recover before a utc hour boundary" in build_next
+    assert "recovery authorization before a utc hour boundary" in build_next
     assert (
         "resume frozen v3 paper observation and v4 prospective collection only after rollout pass"
         in build_next
