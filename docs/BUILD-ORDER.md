@@ -624,7 +624,7 @@ The latest recovery PASS is `/var/lib/bp/evidence/phase14-recorder-v3-recovery-2
 
 Proceed in this order:
 
-1. Continue frozen V3 paper observation and the existing **V4 regime-aware feature collector** unchanged. V4 Gate B v1 is now prospectively frozen: only markets in `[2026-09-23T00:00:00Z, 2026-09-30T00:00:00Z)` may enter future V4 selection. All earlier V4 rows remain coverage/engineering evidence only.
+1. Continue frozen V3 paper observation and **V4 regime-aware feature collection** with the existing collector unchanged. V4 Gate B v1 is now prospectively frozen: only markets in `[2026-09-23T00:00:00Z, 2026-09-30T00:00:00Z)` may enter future V4 selection. All earlier V4 rows remain coverage/engineering evidence only.
 2. Do **not** run V4 readiness or planning before `2026-09-30T00:00:00Z`. After epoch close, run only the outcome-blind read-only readiness command; if and only if it returns ready, write the deterministic feature-only no-clobber plan and stop. No labeled preparation or model fitting is authorized.
 3. Preserve rollout PASS and read-only observation PASS evidence and monitor normal hourly storage maintenance; do not rerun the concurrent-partition-retirement rollout unless a new incident creates a separate engineering/authorization boundary.
 4. Keep frozen V3 immutable and keep V4 label access/model fitting/policy selection/final-holdout access, automatic promotion, Phase 15, live trading, geographic bypass, and nonzero real-money limits blocked.
