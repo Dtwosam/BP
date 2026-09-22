@@ -94,7 +94,7 @@ def test_successor_spec_and_plan_preserve_frozen_search_contract() -> None:
 
 def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.168"
+    assert state["source_of_truth_version"] == "0.14.169"
     successor = state["phase_14_btc_first_v3_gate_a"]["successor_gate_b"]
     assert successor["research_plan_version"] == SUCCESSOR_PLAN_VERSION
     assert successor["epoch_start"] == SUCCESSOR_EPOCH_START
@@ -133,20 +133,21 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
 
     next_task = start.split("## Immediate next task", 1)[1].lower()
     assert "historical production pass" in next_task
-    assert "recovery pass / rollout handoff ready" in next_task
+    assert "fail-closed stopped" in next_task
     assert "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7" in next_task
-    assert "concurrent-partition-retirement rollout authorization" in next_task
-    assert "recorder/v3 recovery passed" in next_task
-    assert "rollout_handoff_ready=true" in next_task
+    assert "determine the next eligible partition time read-only" in next_task
+    assert "no_eligible_partition_for_acceptance" in next_task
+    assert "recovery then rollout near that eligibility window" in next_task
     assert "resume prospective observation only after rollout pass" in next_task
 
     build_next = build.split("## Immediate next action", 1)[1].lower()
-    assert "recovery pass / rollout handoff ready" in build_next
+    assert "fail-closed stopped" in build_next
     assert "min_edge=0.075" in build_next
     assert "$100 virtual starting cash" in build_next
     assert "$5 virtual target notional" in build_next
-    assert "recorder/v3 recovery passed production" in build_next
-    assert "concurrent-partition-retirement rollout" in build_next
+    assert "no_eligible_partition_for_acceptance" in build_next
+    assert "next eligible hourly raw partition time read-only" in build_next
+    assert "fresh exact-current-main recorder/v3 recovery authorization" in build_next
     assert (
         "resume frozen v3 paper observation and v4 prospective collection only after rollout pass"
         in build_next
