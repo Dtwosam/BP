@@ -620,13 +620,14 @@ Current order: (1) do not rerun this rollout and preserve its evidence; (2) buil
 
 The accepted frozen V3 paper activation remains historical PASS evidence, but the current recorder/frozen-V3 runtime is **fail-closed stopped** after the latest storage rollout attempt. Prospective observation is paused as the immediate operational action until the storage rollout is recovered.
 
+Rollback verification is complete: production is back on `7c3af78da1922a0e5187c24b799951130cc98887`, recorder/frozen-V3 are inactive, the 00:00 UTC maintenance cycle completed successfully at `2026-09-22T00:29:37.423952Z`, retention lag is 0 hours, and composite storage health is `ok`.
+
 Proceed in this order:
 
-1. Read-only verify production is back on `7c3af78da1922a0e5187c24b799951130cc98887`, recorder/frozen-V3 are inactive, required storage/V2/V4 timers are healthy, and composite storage health is `ok`.
-2. PR #229's compact-feed freshness repair is merged and green. Production installation of `ix_market_state_1s_feed_last_event (source, stream, last_event_at DESC)` remains separately unauthorized. When explicitly approved against the exact current `main`, run `scripts/deploy/phase14_compact_feed_freshness_index_cloudshell.sh` while recorder/frozen-V3 remain stopped.
-3. After the index gate passes, obtain fresh exact-head authorization for recorder/V3 recovery. Require RESEARCH mode, four recorder writers, live trading disabled, zero real-money limits, and the timer-stopped rollout handoff.
-4. Only after recovery PASS, obtain fresh exact-head authorization for the concurrent-partition-retirement rollout and require real retirement acceptance without recorder/V3 identity loss.
-5. Resume frozen V3 paper observation and V4 prospective collection only after rollout PASS. This resumes the established V4 regime-aware feature collection; it does not authorize V4 fitting or a collector change.
+1. PR #229's compact-feed freshness repair is merged and green. Production installation of `ix_market_state_1s_feed_last_event (source, stream, last_event_at DESC)` remains separately unauthorized. When explicitly approved against the exact current `main`, run `scripts/deploy/phase14_compact_feed_freshness_index_cloudshell.sh` while recorder/frozen-V3 remain stopped.
+2. After the index gate passes, obtain fresh exact-head authorization for recorder/V3 recovery. Require RESEARCH mode, four recorder writers, live trading disabled, zero real-money limits, and the timer-stopped rollout handoff.
+3. Only after recovery PASS, obtain fresh exact-head authorization for the concurrent-partition-retirement rollout and require real retirement acceptance without recorder/V3 identity loss.
+4. Resume frozen V3 paper observation and V4 prospective collection only after rollout PASS. This resumes the established V4 regime-aware feature collection; it does not authorize V4 fitting or a collector change.
 
 The read-only combined observation command remains available for diagnostics and later steady-state observation:
 
