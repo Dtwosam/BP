@@ -115,7 +115,7 @@ def test_v4_design_freezes_regime_definition_and_safety_boundary() -> None:
         "majority sign",
         "v3 final holdout is permanently consumed",
         "must not be used",
-        "new prospective cohort",
+        "wholly future cohort",
         "active in research mode",
         "model fitting",
         "paper activation",
