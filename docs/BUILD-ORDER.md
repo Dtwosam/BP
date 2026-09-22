@@ -628,11 +628,13 @@ Proceed in this order:
 2. Preserve rollout PASS evidence and monitor normal hourly storage maintenance; do not rerun the concurrent-partition-retirement rollout unless a new incident creates a separate engineering/authorization boundary.
 3. Keep the frozen V3 policy immutable and keep V4 fitting, Gate B actions, automatic promotion, Phase 15, live trading, geographic bypass, and nonzero real-money limits blocked.
 
-The read-only combined observation command remains available for diagnostics and later steady-state observation:
+The current production-safe read-only observation command is run from a clean, current Cloud Shell `main` checkout:
 
 ```bash
-python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env
+bash scripts/deploy/phase14_observation_cloudshell.sh
 ```
+
+The repo-native module command remains `python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env`, but the accepted deployed storage candidate predates that module. The Cloud Shell bridge therefore reads the immutable V3 and V4 runtime materializations plus deployed storage health without mutating the production checkout.
 
 The frozen V3 policy remains immutable: model SHA `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`, `v3-frozen-paper-v1`, `paper-execution-v3-frozen-v1`, 240-second timing, and `min_edge=0.075`. Keep $100 virtual starting cash, $5 virtual target notional, and **real money at zero**. Do not tune V3 from paper results.
 
