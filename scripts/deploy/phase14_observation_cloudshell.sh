@@ -23,6 +23,7 @@ gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q .   
 
 read -r -d '' REMOTE_SCRIPT <<'REMOTE' || true
 set -Eeuo pipefail
+export PYTHONDONTWRITEBYTECODE=1
 
 REPO=/opt/bp
 ENV_FILE=/etc/bp/bp.env
