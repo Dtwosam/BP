@@ -27,7 +27,7 @@ def _text(path: str) -> str:
 def test_project_state_records_gate_a_pass_and_frozen_v3_preregistration() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
 
-    assert state["source_of_truth_version"] == "0.14.173"
+    assert state["source_of_truth_version"] == "0.14.174"
     v3 = state["phase_14_btc_first_v3_gate_a"]
     assert (
         v3["implementation_status"]
@@ -174,7 +174,7 @@ def test_canonical_docs_record_gate_a_pass_and_preregistration_handoff() -> None
 
     assert "frozen V3" in build
     assert "paper" in build.lower()
-    assert "v4 regime-aware feature collection" in build.lower()
+    assert "v4 regime-aware feature collector" in build.lower()
 
     current_master = master.split(
         "## Phase 14 BTC-first V3 Gate A production acceptance + Gate B preregistration",
@@ -210,13 +210,13 @@ def test_current_handoff_points_to_fail_closed_storage_recovery_sequence() -> No
     assert "v3-frozen-paper-v1" in start_next
     assert "paper-execution-v3-frozen-v1" in start_next
     assert "real_money" in start_next and "$0.00" in start_next
-    assert "continue prospective observation only" in start_next
+    assert "frozen v4 gate b v1 future cohort" in start_next
     assert "do not rerun the storage rollout" in start_next
     assert "keep all promotion/live boundaries closed" in start_next
 
     build_next = build.split("## Immediate next action", 1)[1].lower()
     assert "active after concurrent-partition-retirement rollout pass" in build_next
-    assert "resume frozen v3 paper observation and v4 prospective collection" in build_next
+    assert "v4 gate b v1 is now prospectively frozen" in build_next
     assert "do not rerun the concurrent-partition-retirement rollout" in build_next
     assert "min_edge=0.075" in build_next
     assert "real money at zero" in build_next
