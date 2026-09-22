@@ -2,7 +2,7 @@
 
 **Status:** engineering rollout gate under validation; production execution not authorized  
 **Production checkout:** `7c3af78da1922a0e5187c24b799951130cc98887`  
-**Production candidate:** `ed7d930c69e417dda388b0cb62b3a543a4b8134f`  
+**Production candidate:** `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`  
 **Trading boundary:** RESEARCH only; live trading disabled; real-money limits remain zero
 
 ## Purpose
@@ -18,9 +18,9 @@ This rollout changes storage-maintenance runtime only. It does not change V3/V4 
 Verification-only PR #214 uses a frozen base at the currently deployed production checkout.
 
 - from head: `7c3af78da1922a0e5187c24b799951130cc98887`
-- candidate branch: `ops/phase14-concurrent-partition-retirement-candidate`
-- candidate head: `ed7d930c69e417dda388b0cb62b3a543a4b8134f`
-- verification PR: #214, closed without merge after CI success
+- candidate branch: `ops/phase14-concurrent-partition-retirement-candidate-v2`
+- candidate head: `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`
+- verification PR: #237, closed without merge after CI success
 - accepted storage evidence: `/mnt/bp-data/evidence/phase14-partitioned-storage-rollout-20260909T070219Z.json`
 - accepted storage evidence SHA-256: `f33a28f5306e46c509b0000a176d226c079aa2d160d595095ca228118542ce19`
 
@@ -116,6 +116,6 @@ Repository merge, candidate verification, and CI success are engineering evidenc
 
 Do not set `PHASE14_CONCURRENT_PARTITION_RETIREMENT_ROLLOUT_APPROVAL` and do not execute the helper until a separate explicit production authorization is granted. The token format is:
 
-`I_APPROVE_PHASE14_CONCURRENT_PARTITION_RETIREMENT_ROLLOUT:<helper-head>:7c3af78da1922a0e5187c24b799951130cc98887:ed7d930c69e417dda388b0cb62b3a543a4b8134f:f33a28f5306e46c509b0000a176d226c079aa2d160d595095ca228118542ce19`
+`I_APPROVE_PHASE14_CONCURRENT_PARTITION_RETIREMENT_ROLLOUT:<helper-head>:7c3af78da1922a0e5187c24b799951130cc98887:52b4355d6f077373b873f7a6f42bc37a20ddbc7b:f33a28f5306e46c509b0000a176d226c079aa2d160d595095ca228118542ce19`
 
 That future authorization would cover only the helper-defined research/storage rollout and rollback. It would not authorize Gate B work, holdout access, V3/V4 tuning, automatic promotion, Phase 15, geographic bypass, live trading, or nonzero money.
