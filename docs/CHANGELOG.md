@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.172 — 22 September 2026
+
+- PR #242 (`Add read-only Phase 14 production observation bridge`) merged as `6fbd4d0e9e0827b34b47404534f28cf1f65291c4` after exact head `7e108dbcfbe9613ebb8312ab2c8b7859eaa767cd` passed CI `35748419483`, Historical Backfill Smoke `35748419455`, Live Recorder Smoke `35748419427`, and Recorder Short Soak `35748419504`.
+- The production-safe observation command is now `bash scripts/deploy/phase14_observation_cloudshell.sh`. It verifies the accepted deployed head and V3/V4 runtime identities, forces and verifies PostgreSQL read-only sessions, creates no production files, and makes no service/timer/checkout changes.
+- The bridge has not yet been run against production. Next action is one read-only production observation; its output cannot authorize tuning, fitting, activation, Gate B actions, automatic promotion, live trading, Phase 15, or nonzero money.
+
 ## 0.14.171 — 22 September 2026
 
 - Added a read-only Cloud Shell bridge for the post-rollout Phase 14 observation report because the accepted deployed storage candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b` intentionally predates the later unified observation CLI on `main`.
