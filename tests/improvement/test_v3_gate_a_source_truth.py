@@ -27,7 +27,7 @@ def _text(path: str) -> str:
 def test_project_state_records_gate_a_pass_and_frozen_v3_preregistration() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
 
-    assert state["source_of_truth_version"] == "0.14.169"
+    assert state["source_of_truth_version"] == "0.14.170"
     v3 = state["phase_14_btc_first_v3_gate_a"]
     assert (
         v3["implementation_status"]
@@ -206,20 +206,18 @@ def test_current_handoff_points_to_fail_closed_storage_recovery_sequence() -> No
 
     start_next = start.split("## Immediate next task", 1)[1].lower()
     assert "historical production pass" in start_next
-    assert "fail-closed stopped" in start_next
+    assert "active after concurrent-partition-retirement rollout pass" in start_next
     assert "v3-frozen-paper-v1" in start_next
     assert "paper-execution-v3-frozen-v1" in start_next
     assert "real_money" in start_next and "$0.00" in start_next
-    assert "use the next one-hour acceptance window" in start_next
-    assert "no_eligible_partition_for_acceptance" in start_next
-    assert "fresh authorization remains required" in start_next
-    assert "resume prospective observation only after rollout pass" in start_next
+    assert "resume prospective observation" in start_next
+    assert "do not rerun the storage rollout" in start_next
+    assert "keep all promotion/live boundaries closed" in start_next
 
     build_next = build.split("## Immediate next action", 1)[1].lower()
-    assert "fail-closed stopped" in build_next
-    assert "no_eligible_partition_for_acceptance" in build_next
-    assert "target the next one-hour acceptance window" in build_next
-    assert "recovery authorization before a utc hour boundary" in build_next
+    assert "active after concurrent-partition-retirement rollout pass" in build_next
+    assert "resume frozen v3 paper observation and v4 prospective collection" in build_next
+    assert "do not rerun the concurrent-partition-retirement rollout" in build_next
     assert "min_edge=0.075" in build_next
     assert "real money at zero" in build_next
     assert "do not tune v3 from paper results" in build_next
