@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.168 — 22 September 2026
+
+- PR #238 (`Bind Phase 14 rollout to refreshed candidate v2`) merged as `2df6a354c711ed3f62ea08d6d676a9a55909aec9` after exact head `9e79a03d7388c678f1f7cc73834dcde40a96e368` passed CI `35727782401`, Historical Backfill Smoke `35727782317`, Live Recorder Smoke `35727782324`, and Recorder Short Soak `35727782331`.
+- The production rollout helper is now canonically bound to verified immutable candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b` on `ops/phase14-concurrent-partition-retirement-candidate-v2`; all four rollout file blobs match current `main` exactly.
+- Recorder/frozen-V3 recovery remains PASS and the production handoff remains `ROLLOUT_HANDOFF_READY=true` with the maintenance timer intentionally inactive.
+- Production rollout remains unauthorized and unperformed. The next boundary is a fresh exact-current-main authorization for the concurrent-partition-retirement rollout; live trading, nonzero money, automatic promotion, Gate B actions, and Phase 15 remain blocked.
+
 ## 0.14.167 — 22 September 2026
 
 - Pre-authorization exactness review found the original immutable concurrent-partition-retirement candidate `ed7d930c69e417dda388b0cb62b3a543a4b8134f` no longer matched current `main` for `src/bp_engine/storage/maintenance.py` after the merged compact-feed freshness repair. The rollout helper would have failed locally before production contact.
