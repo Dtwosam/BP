@@ -120,15 +120,16 @@ def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
         storage["compact_feed_freshness_index_repository_status"]
         == "PRODUCTION_PASS"
     )
-    assert (
-        storage["compact_feed_freshness_index_last_attempt_status"]
-        == "FAILED_LOCK_TIMEOUT_INVALID_READY_STUB"
-    )
+    assert storage["compact_feed_freshness_index_last_attempt_status"] == "PASS"
     assert storage["compact_feed_freshness_index_last_attempt_mutation_started"] is True
-    assert storage["compact_feed_freshness_index_invalid_stub_present"] is True
-    assert storage["compact_feed_freshness_index_invalid_stub_indisvalid"] is False
-    assert storage["compact_feed_freshness_index_invalid_stub_indisready"] is True
-    assert storage["compact_feed_freshness_index_invalid_stub_indislive"] is True
+    assert storage["compact_feed_freshness_index_invalid_stub_present"] is False
+    assert storage["compact_feed_freshness_index_invalid_stub_indisvalid"] is None
+    assert storage["compact_feed_freshness_index_invalid_stub_indisready"] is None
+    assert storage["compact_feed_freshness_index_invalid_stub_indislive"] is None
+    assert storage["compact_feed_freshness_index_production_performed"] is True
+    assert storage["compact_feed_freshness_index_production_pass_plan"] == (
+        "INDEX_ONLY_SCAN_ALL_REQUIRED_FEEDS"
+    )
     assert storage["compact_feed_freshness_index_hardening_pr"] == 233
     assert storage["compact_feed_freshness_index_hardening_validation_head"] == (
         "6eaf5095ec0c33db424e19d2ebee63b7ce231db9"
