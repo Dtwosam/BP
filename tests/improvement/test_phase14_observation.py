@@ -354,11 +354,14 @@ def test_phase14_observation_source_truth_preserves_read_only_boundary() -> None
     state = json.loads((root / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     start = (root / "START-HERE.md").read_text(encoding="utf-8")
     build = (root / "docs/BUILD-ORDER.md").read_text(encoding="utf-8")
+    evidence = json.loads(
+        (root / "docs/evidence/phase-14-observation-production-20260922.json").read_text(
+            encoding="utf-8"
+        )
+    )
 
     observation = state["phase_14_observation_report"]
-    assert observation["status"] == (
-        "MERGED_MAIN_READ_ONLY_CLOUDSHELL_BRIDGE_NOT_PRODUCTION_RUN"
-    )
+    assert observation["status"] == "PRODUCTION_PASS_READ_ONLY_OBSERVATION_RECORDED"
     assert observation["database_writes"] is False
     assert observation["filesystem_creation"] is False
     assert observation["training_performed"] is False
@@ -366,7 +369,7 @@ def test_phase14_observation_source_truth_preserves_read_only_boundary() -> None
     assert observation["policy_selection_performed"] is False
     assert observation["service_or_timer_mutation"] is False
     assert observation["production_checkout_mutation"] is False
-    assert observation["production_run_performed"] is False
+    assert observation["production_run_performed"] is True
     assert observation["merge_commit"] == "767cac3b78c20c9162b20c74eff770d4b2e8d1d8"
     assert observation["post_merge_ci_run_id"] == 35606952694
     assert observation["post_merge_ci_passed"] is True
@@ -421,9 +424,7 @@ def test_phase14_observation_source_truth_preserves_read_only_boundary() -> None
     assert observation["production_runtime_bridge_filesystem_creation"] is False
     assert observation["production_runtime_bridge_service_or_timer_mutation"] is False
     assert observation["production_runtime_bridge_checkout_mutation"] is False
-    assert observation["production_runtime_bridge_status"] == (
-        "MERGED_MAIN_GREEN_NOT_PRODUCTION_RUN"
-    )
+    assert observation["production_runtime_bridge_status"] == "PRODUCTION_PASS_READ_ONLY"
     assert observation["production_runtime_bridge_pr"] == 242
     assert observation["production_runtime_bridge_validation_head"] == (
         "7e108dbcfbe9613ebb8312ab2c8b7859eaa767cd"
@@ -438,11 +439,80 @@ def test_phase14_observation_source_truth_preserves_read_only_boundary() -> None
     assert observation["production_runtime_bridge_merge_commit"] == (
         "6fbd4d0e9e0827b34b47404534f28cf1f65291c4"
     )
+    assert observation["production_observation_verdict"] == "PASS"
+    assert (
+        observation["production_observation_generated_at"]
+        == "2026-09-22T16:01:03.847347+00:00"
+    )
+    assert observation["production_observation_local_main"] == (
+        "aee1b6e7783825fa597f27b971354e6bbdc272ef"
+    )
+    assert observation["production_observation_deployed_head"] == (
+        "52b4355d6f077373b873f7a6f42bc37a20ddbc7b"
+    )
+    assert observation["production_observation_all_guards_ok"] is True
+    assert observation["production_observation_database_sessions_read_only"] is True
+    assert observation["production_observation_files_created"] is False
+    assert observation["production_observation_service_or_timer_mutation"] is False
+    assert observation["production_observation_checkout_mutation"] is False
+    assert observation["production_observation_storage_status"] == "ok"
+    assert observation["production_observation_storage_free_bytes"] == 147836997632
+    assert observation["production_observation_storage_retention_lag_hours"] == 1.0
+    assert observation["production_observation_v3_prediction_count"] == 308
+    assert observation["production_observation_v3_trade_signal_count"] == 60
+    assert observation["production_observation_v3_settled_order_count"] == 45
+    assert observation["production_observation_v3_trade_signal_accuracy"] == (
+        0.5166666666666667
+    )
+    assert observation["production_observation_v3_realized_pnl"] == "372.362970092036"
+    assert observation["production_observation_v3_virtual_current_cash"] == (
+        "472.362970092036"
+    )
+    assert observation["production_observation_v3_invalid_order_source_count"] == 0
+    assert observation["production_observation_v4_market_count"] == 373
+    assert observation["production_observation_v4_row_count"] == 1492
+    assert observation["production_observation_v4_coverage_input_sha256"] == (
+        "b273b08b3626fdee2615d26794208a1d923037cead9b2e7e6669867aa0a671f4"
+    )
+    assert observation["production_observation_v4_bull_market_count"] == 134
+    assert observation["production_observation_v4_bear_market_count"] == 75
+    assert observation["production_observation_v4_sideways_mixed_market_count"] == 234
+    assert observation["production_observation_v4_unknown_market_count"] == 90
+    assert observation["production_observation_v4_future_cutoff_violation_count"] == 0
+    assert observation["production_observation_v4_polymarket_predictor_key_count"] == 0
+    assert observation["production_observation_v4_regime_invariant_violation_count"] == 0
+    assert observation["production_observation_v4_training_run"] is False
+    assert observation["production_observation_v4_policy_selected"] is False
+    assert observation["production_observation_v4_automatic_promotion"] is False
+    assert observation["production_observation_sanitized_evidence"] == (
+        "docs/evidence/phase-14-observation-production-20260922.json"
+    )
+
+    assert evidence["verdict"] == "PASS"
+    assert evidence["local_main"] == "aee1b6e7783825fa597f27b971354e6bbdc272ef"
+    assert evidence["runtime"]["database_sessions_read_only"] is True
+    assert evidence["runtime"]["checkout_mutation"] is False
+    assert evidence["runtime"]["production_files_created"] is False
+    assert evidence["runtime"]["service_or_timer_mutation"] is False
+    assert evidence["integrity"]["all_observation_guards_ok"] is True
+    assert evidence["storage"]["status"] == "ok"
+    assert evidence["v3_paper"]["summary"]["prediction_count"] == 308
+    assert evidence["v3_paper"]["summary"]["settled_order_count"] == 45
+    assert evidence["v4_forward_coverage"]["market_count"] == 373
+    assert evidence["v4_forward_coverage"]["row_count"] == 1492
+    assert evidence["boundaries"]["v3_refit_or_tuning_authorized"] is False
+    assert evidence["boundaries"]["v4_fitting_authorized"] is False
+    assert evidence["boundaries"]["gate_b_action_authorized_by_this_observation"] is False
+    assert evidence["boundaries"]["automatic_promotion_authorized"] is False
+    assert evidence["boundaries"]["phase15_permitted"] is False
+    assert evidence["boundaries"]["live_trading_authorized"] is False
+    assert evidence["boundaries"]["nonzero_money_authorized"] is False
     assert command in start
     assert command in build
     assert module_command in build
     assert "prospective observation only" in start.lower()
     assert "do not tune v3 from paper results" in build.lower()
     next_action = observation["next_action"].lower()
-    assert "run one read-only production observation" in next_action
-    assert "no report output authorizes tuning" in next_action
+    assert "continue frozen v3 paper observation and v4 prospective collection" in next_action
+    assert "preserve this pass without tuning or fitting from it" in next_action
+    assert "no report output authorizes gate b execution" in next_action

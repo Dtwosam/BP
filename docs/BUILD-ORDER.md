@@ -624,9 +624,11 @@ The latest recovery PASS is `/var/lib/bp/evidence/phase14-recorder-v3-recovery-2
 
 Proceed in this order:
 
-1. Resume frozen V3 paper observation and V4 prospective collection, including **V4 regime-aware feature collection**, under the existing research-only prospective boundaries. Use the read-only combined observation report for ongoing evidence. This remains prospective observation only; it does not authorize V4 fitting or any V3 policy change.
+1. Resume frozen V3 paper observation and V4 prospective collection, including **V4 regime-aware feature collection**, under the existing research-only prospective boundaries. The first post-rollout read-only production observation passed at `2026-09-22T16:01:03.847347+00:00`; preserve `docs/evidence/phase-14-observation-production-20260922.json` and use the same read-only combined observation report for ongoing evidence. This remains prospective observation only; it does not authorize V4 fitting or any V3 policy change.
 2. Preserve rollout PASS evidence and monitor normal hourly storage maintenance; do not rerun the concurrent-partition-retirement rollout unless a new incident creates a separate engineering/authorization boundary.
 3. Keep the frozen V3 policy immutable and keep V4 fitting, Gate B actions, automatic promotion, Phase 15, live trading, geographic bypass, and nonzero real-money limits blocked.
+
+The accepted observation PASS recorded 308 frozen-V3 predictions, 60 trade signals, 45 settled orders, and virtual cash `472.362970092036` from the frozen `100.00` starting balance. V4 coverage reached 373 markets / 1,492 rows with bull, bear, sideways/mixed, and unknown regimes represented; future-cutoff violations, Polymarket predictor-key violations, and regime-invariant violations were all zero. No training, policy selection, or automatic promotion occurred. These values are observation evidence only and must not become post-hoc tuning or acceptance cutoffs.
 
 The current production-safe read-only observation command is run from a clean, current Cloud Shell `main` checkout:
 

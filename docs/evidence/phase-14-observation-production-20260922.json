@@ -1,0 +1,208 @@
+{
+  "verdict": "PASS",
+  "recorded_at": "2026-09-22T16:01:03.847347+00:00",
+  "command": "bash scripts/deploy/phase14_observation_cloudshell.sh",
+  "local_main": "aee1b6e7783825fa597f27b971354e6bbdc272ef",
+  "mode": "phase14_observation_only",
+  "runtime": {
+    "deployed_head": "52b4355d6f077373b873f7a6f42bc37a20ddbc7b",
+    "v3_runtime": "/var/lib/bp/runtime/v3-paper-9d52eb753355365848a637ffa6663928664bf770",
+    "v4_runtime": "/var/lib/bp/runtime/v4-forward-36b02d0687194173ab5d3862d3b88c6c90607574",
+    "database_sessions_read_only": true,
+    "checkout_mutation": false,
+    "production_files_created": false,
+    "service_or_timer_mutation": false
+  },
+  "safety": {
+    "mode": "research",
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "research_zero_money": true
+  },
+  "integrity": {
+    "all_observation_guards_ok": true,
+    "research_zero_money": true,
+    "storage_ok": true,
+    "v4": {
+      "ok": true,
+      "future_cutoff_violation_count": 0,
+      "polymarket_predictor_key_count": 0,
+      "regime_invariant_violation_count": 0,
+      "training_run": false,
+      "policy_selected": false,
+      "automatic_promotion": false
+    }
+  },
+  "storage": {
+    "status": "ok",
+    "storage_mode": "partitioned",
+    "path": "/mnt/bp-data",
+    "free_bytes": 147836997632,
+    "free_percent": 70.13833411342509,
+    "used_bytes": 61830180864,
+    "total_bytes": 210779168768,
+    "warning_free_bytes": 26843545600,
+    "critical_free_bytes": 16106127360,
+    "guards": {
+      "current_partition_present": true,
+      "maintenance_fresh": true,
+      "retention_current": true
+    },
+    "maintenance": {
+      "last_success_at": "2026-09-22T15:05:47.556883Z",
+      "age_hours": 0.9207122236111112,
+      "max_age_hours": 2
+    },
+    "raw_partitions": {
+      "count": 28,
+      "bytes": 5673467904,
+      "dedupe_bytes": 9807233024,
+      "oldest_start_at": "2026-09-21T15:00:00Z",
+      "newest_end_at": "2026-09-22T19:00:00Z",
+      "current_hour_start_at": "2026-09-22T16:00:00Z",
+      "oldest_age_hours": 25.017255802222223,
+      "retention_lag_hours": 1
+    }
+  },
+  "v3_paper": {
+    "prediction_version": "v3-frozen-paper-v1",
+    "execution_version": "paper-execution-v3-frozen-v1",
+    "integrity": {
+      "invalid_order_source_count": 0
+    },
+    "decision_reason_counts": {
+      "edge_below_minimum": 193,
+      "selected_book_stale_or_missing": 55,
+      "trade": 60
+    },
+    "by_side": {
+      "down": {
+        "trades": 24,
+        "wins": 13,
+        "losses": 11,
+        "breakeven": 0,
+        "realized_pnl": "139.978554710415"
+      },
+      "up": {
+        "trades": 21,
+        "wins": 10,
+        "losses": 11,
+        "breakeven": 0,
+        "realized_pnl": "232.384415381621"
+      }
+    },
+    "summary": {
+      "prediction_count": 308,
+      "executable_prediction_count": 253,
+      "trade_signal_count": 60,
+      "evaluated_trade_signal_count": 60,
+      "correct_trade_signal_count": 31,
+      "trade_signal_accuracy": 0.5166666666666667,
+      "paper_order_count": 60,
+      "paper_fill_count": 47,
+      "filled_order_count": 45,
+      "settled_order_count": 45,
+      "open_filled_order_count": 0,
+      "open_fill_cost": "0",
+      "wins": 23,
+      "losses": 22,
+      "breakeven": 0,
+      "realized_pnl": "372.362970092036",
+      "settled_fill_cost": "207.757857907964",
+      "settled_return_on_cost": "1.792293075417592558588727598",
+      "virtual_starting_cash": "100.00",
+      "virtual_current_cash": "472.362970092036"
+    },
+    "terminal_status_counts": {
+      "EXPIRED": 16,
+      "FILLED": 44
+    }
+  },
+  "v4_forward_coverage": {
+    "feature_version": "core-v4-regime-aware",
+    "coverage_input_sha256": "b273b08b3626fdee2615d26794208a1d923037cead9b2e7e6669867aa0a671f4",
+    "offsets": [
+      60,
+      120,
+      180,
+      240
+    ],
+    "market_count": 373,
+    "row_count": 1492,
+    "by_offset": {
+      "60": {
+        "market_count": 373,
+        "row_count": 373
+      },
+      "120": {
+        "market_count": 373,
+        "row_count": 373
+      },
+      "180": {
+        "market_count": 373,
+        "row_count": 373
+      },
+      "240": {
+        "market_count": 373,
+        "row_count": 373
+      }
+    },
+    "regime": {
+      "bull": {
+        "market_count": 134,
+        "row_count": 347
+      },
+      "bear": {
+        "market_count": 75,
+        "row_count": 178
+      },
+      "sideways_mixed": {
+        "market_count": 234,
+        "row_count": 636
+      },
+      "unknown": {
+        "market_count": 90,
+        "row_count": 331
+      }
+    },
+    "future_cutoff_violation_count": 0,
+    "polymarket_predictor_key_count": 0,
+    "regime_invariant_violation_count": 0,
+    "training_run": false,
+    "policy_selected": false,
+    "automatic_promotion": false,
+    "source_current_state": {
+      "bybit_linear": {
+        "available_count": 1492,
+        "missing_count": 0,
+        "stale_count": 113,
+        "median_age_s": 0.8291355,
+        "p90_age_s": 4.144166
+      },
+      "bybit_spot": {
+        "available_count": 1492,
+        "missing_count": 0,
+        "stale_count": 112,
+        "median_age_s": 0.845761,
+        "p90_age_s": 4.114744
+      },
+      "coinbase": {
+        "available_count": 1492,
+        "missing_count": 0,
+        "stale_count": 111,
+        "median_age_s": 0.832424,
+        "p90_age_s": 4
+      }
+    }
+  },
+  "boundaries": {
+    "v3_refit_or_tuning_authorized": false,
+    "v4_fitting_authorized": false,
+    "gate_b_action_authorized_by_this_observation": false,
+    "automatic_promotion_authorized": false,
+    "phase15_permitted": false,
+    "live_trading_authorized": false,
+    "nonzero_money_authorized": false
+  }
+}
