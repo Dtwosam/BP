@@ -1,7 +1,7 @@
 # Phase 14 — V4 Regime-Aware BTC Challenger
 
 **Date:** 20 September 2026  
-**Status:** repository research implementation; no production rollout, training, paper activation, or live trading authorized  
+**Status:** prospective collector active; Gate B v1 preregistration frozen; no training, paper activation, or live trading authorized  
 **Phase:** 14 — live readiness research  
 **Mode:** RESEARCH only
 
@@ -115,8 +115,8 @@ The current collector must remain unchanged while the prospective cohort accumul
 
 ## 9. Next controlled step
 
-Continue prospective V4 collection until the cohort has enough regime and side diversity for meaningful ordinary model selection.
+The comprehensive V4 Gate B v1 preregistration is now frozen at `docs/superpowers/specs/2026-09-22-phase-14-v4-gate-b-preregistration.md`.
 
-Before reading V4 labels for selection, freeze a new comprehensive V4 Gate B preregistration that covers every weakness-remediation objective in Section 5. That preregistration must define the model/calibration/timing/policy candidate ladders, chronological folds, coverage and risk reporting, side/regime slices, and an untouched final holdout.
+Continue the existing collector unchanged through the wholly future half-open epoch `[2026-09-23T00:00:00Z, 2026-09-30T00:00:00Z)`. Do not run V4 readiness or planning before the epoch closes. After close, run only the outcome-blind read-only readiness check and, if and only if ready, write the deterministic feature-only no-clobber plan and stop.
 
-Model fitting, threshold selection, final-holdout access, V4 paper activation, automatic promotion, live trading, and nonzero money remain separate controlled boundaries.
+Model fitting, calibration fitting, threshold selection, final-holdout access, V4 paper activation, automatic promotion, live trading, and nonzero money remain separate controlled boundaries.
