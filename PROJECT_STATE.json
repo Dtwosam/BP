@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.162",
-  "updated_at": "2026-09-22T00:30:00Z",
+  "source_of_truth_version": "0.14.163",
+  "updated_at": "2026-09-22T09:30:00Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -3423,9 +3423,21 @@
       "last_event_at DESC"
     ],
     "compact_feed_freshness_lookup_strategy": "ORDER_BY_LAST_EVENT_AT_DESC_LIMIT_1",
-    "compact_feed_freshness_index_repository_status": "MERGED_MAIN_GREEN_NOT_PRODUCTION_RUN",
+    "compact_feed_freshness_index_repository_status": "OLD_SNAPSHOT_WAIT_HARDENING_PR_PENDING_CI",
     "compact_feed_freshness_index_production_authorized": false,
     "compact_feed_freshness_index_production_performed": false,
+    "compact_feed_freshness_index_last_attempt_status": "FAILED_LOCK_TIMEOUT_INVALID_READY_STUB",
+    "compact_feed_freshness_index_last_attempt_mutation_started": true,
+    "compact_feed_freshness_index_last_attempt_headroom_seconds": 1480,
+    "compact_feed_freshness_index_last_attempt_error": "CREATE INDEX CONCURRENTLY canceled due to lock_timeout while waiting in a later synchronization phase.",
+    "compact_feed_freshness_index_invalid_stub_present": true,
+    "compact_feed_freshness_index_invalid_stub_indisvalid": false,
+    "compact_feed_freshness_index_invalid_stub_indisready": true,
+    "compact_feed_freshness_index_invalid_stub_indislive": true,
+    "compact_feed_freshness_index_diagnostic_create_progress_active": false,
+    "compact_feed_freshness_index_diagnostic_vacuum_progress_active": false,
+    "compact_feed_freshness_index_diagnostic_relation_locks_present": false,
+    "compact_feed_freshness_index_old_snapshot_wait_fix": "Disable PostgreSQL lock_timeout for concurrent DROP/CREATE and retain statement_timeout=15min plus the existing >=20min next-hour headroom guard. This allows PostgreSQL's required old-snapshot synchronization to complete while preserving a bounded fail-closed operation.",
     "compact_feed_freshness_index_helper": "scripts/deploy/phase14_compact_feed_freshness_index_cloudshell.sh",
     "compact_feed_freshness_index_pr": 229,
     "compact_feed_freshness_index_validation_head": "abc53100b624ebdb300599c7a29e617c79c6ebe5",
@@ -3435,7 +3447,8 @@
     "compact_feed_freshness_index_recorder_short_soak_run_id": 35663923480,
     "compact_feed_freshness_index_merge_commit": "18a05e4e453d161d71158d4d0f8a884a6c799157",
     "compact_feed_freshness_index_exact_head_gates_passed": true,
-    "prior_recovery_rollout_sha_bound_authorization_invalidated_by_main_advance": true
+    "prior_recovery_rollout_sha_bound_authorization_invalidated_by_main_advance": true,
+    "compact_feed_freshness_index_prior_approval_invalidated_by_fix_main_advance": true
   },
   "phase_14_adaptive_learning": {
     "implementation_status": "REPOSITORY_RESEARCH_ONLY",
