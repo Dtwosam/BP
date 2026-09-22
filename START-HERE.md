@@ -79,7 +79,7 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
-Frozen V3 paper activation remains a **historical production PASS**, but the current recorder/frozen-V3 runtime must be treated as **fail-closed stopped** after the 21 September concurrent-partition-retirement acceptance failure. Do not describe the V3 predictor or V3 paper-execution service as currently active until a later recorder/V3 recovery gate passes again.
+Frozen V3 paper activation remains a **historical production PASS**, and the current recorder/frozen-V3 runtime is now **recovery PASS / rollout handoff ready** after the authorized 22 September recovery gate. Recorder, frozen predictor, and frozen paper execution are active on the expected production checkout; the enabled storage-maintenance timer is intentionally inactive until the separately authorized rollout completes or rolls back.
 
 The accepted frozen identity remains unchanged:
 
@@ -91,13 +91,12 @@ min_edge           = 0.075
 real_money         = $0.00
 ```
 
-Rollback is now **read-only confirmed**: production checkout is `7c3af78da1922a0e5187c24b799951130cc98887`, recorder/frozen-V3 are stopped, the 00:00 UTC maintenance cycle settled successfully at `2026-09-22T00:29:37.423952Z`, retention lag is 0 hours, and composite storage health is `ok`.
+Recovery PASS is now confirmed on production checkout `7c3af78da1922a0e5187c24b799951130cc98887`: recorder PID `3989760`, frozen predictor PID `3989766`, and frozen paper-execution PID `3989771` were active at handoff. Evidence is `/var/lib/bp/evidence/phase14-recorder-v3-recovery-20260922T120737Z.json`; `ROLLOUT_HANDOFF_READY=true`; the maintenance timer is intentionally inactive.
 
 The immediate operational sequence is:
 
-1. **Recorder/V3 recovery authorization.** The hardened compact-feed freshness index gate passed in production at `2026-09-22T10:39:45.309001Z`. `ix_market_state_1s_feed_last_event` is installed and all four required compact-feed lookups use index-only scans; the invalid stub is cleared. Obtain a fresh exact-current-main authorization for `scripts/deploy/phase14_recorder_v3_recovery_gate_cloudshell.sh`.
-2. **Concurrent-partition-retirement rollout authorization.** Only after recovery PASS may the rollout receive a fresh exact-head authorization. The old `f50f01d...` approval epoch remains invalid because `main` advanced.
-3. **Resume prospective observation only after rollout PASS.** The read-only combined observation report remains available at `python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env`, but it is not the current operational priority while recorder/frozen-V3 are fail-closed stopped.
+1. **Concurrent-partition-retirement rollout authorization.** Recorder/V3 recovery passed at `2026-09-22T12:07:37Z` and left the exact rollout handoff state: recorder/frozen-V3 active, production checkout unchanged, maintenance timer enabled but inactive, RESEARCH mode, live disabled, and zero money. Obtain a fresh exact-current-main authorization for the concurrent-partition-retirement rollout helper.
+2. **Resume prospective observation only after rollout PASS.** The read-only combined observation report remains available at `python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env`, but it is not the current operational priority while recorder/frozen-V3 are fail-closed stopped.
 
 The historical **V4 regime-aware** collector acceptance remains valid research evidence. After storage rollout PASS, resume V4 regime-aware feature collection and frozen-V3 paper observation under their unchanged prospective boundaries; this statement does not claim those services are currently active.
 
