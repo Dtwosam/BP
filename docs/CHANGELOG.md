@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.167 — 22 September 2026
+
+- Pre-authorization exactness review found the original immutable concurrent-partition-retirement candidate `ed7d930c69e417dda388b0cb62b3a543a4b8134f` no longer matched current `main` for `src/bp_engine/storage/maintenance.py` after the merged compact-feed freshness repair. The rollout helper would have failed locally before production contact.
+- Refreshed immutable candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b` on `ops/phase14-concurrent-partition-retirement-candidate-v2` preserves the exact four-file diff from deployed head `7c3af78da1922a0e5187c24b799951130cc98887`; all four rollout file blobs now match current `main` exactly.
+- Verification-only PR #237 passed CI `35726920563` and was closed unmerged. The production rollout helper is rebound to candidate v2; production rollout remains unauthorized and unperformed.
+- Recorder/frozen-V3 recovery remains PASS with `ROLLOUT_HANDOFF_READY=true`, RESEARCH mode, live trading disabled, zero money, and the maintenance timer intentionally inactive. The next boundary is a fresh exact-current-main rollout authorization.
+
 ## 0.14.166 — 22 September 2026
 
 - The separately authorized recorder/frozen-V3 recovery gate passed production at `2026-09-22T12:07:37Z` on deployed head `7c3af78da1922a0e5187c24b799951130cc98887`.
