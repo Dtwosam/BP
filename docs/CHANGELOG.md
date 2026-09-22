@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.164 — 22 September 2026
+
+- PR #233 (`Allow Phase 14 concurrent index old-snapshot wait`) merged as `50f226173f881c0e139cfe3325e975c21048432b` after exact head `6eaf5095ec0c33db424e19d2ebee63b7ce231db9` passed CI `35711018287`, Historical Backfill Smoke `35711019406`, Live Recorder Smoke `35711018953`, and Recorder Short Soak `35711019046`.
+- The production index helper now uses `lock_timeout=0` for concurrent invalid-stub cleanup and index creation, while retaining `statement_timeout=15min` and the existing >=20-minute next-hour headroom guard. This permits PostgreSQL's required old-snapshot synchronization without making the operation unbounded.
+- The failed production attempt's `ix_market_state_1s_feed_last_event` stub remains recorded as invalid-ready-live. This merge does not mutate production and does not authorize cleanup/retry.
+- The prior production-index approval is invalid after the main-head advance. Next boundary is a new exact-current-main approval for the hardened compact-feed index helper. Recorder/frozen-V3 remain fail-closed stopped; recovery, rollout, live trading, nonzero money, Gate B actions, automatic promotion, and Phase 15 remain separately blocked.
+
 ## 0.14.163 — 22 September 2026
 
 - The first explicitly authorized compact-feed freshness index attempt passed its production safety, timer, maintenance-idle, disk-health, and 1,480-second hour-headroom checks and reached `CREATE INDEX CONCURRENTLY`.

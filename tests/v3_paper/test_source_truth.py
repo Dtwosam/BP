@@ -13,7 +13,7 @@ def _text(path: str) -> str:
 
 def test_v3_paper_source_truth_freezes_exact_authorized_strategy() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.163"
+    assert state["source_of_truth_version"] == "0.14.164"
 
     paper = state["phase_14_v3_frozen_paper"]
     assert (

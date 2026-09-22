@@ -86,7 +86,7 @@ def test_ci_syntax_checks_compact_feed_freshness_index_helper() -> None:
 
 def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
     state = json.loads(STATE.read_text(encoding="utf-8"))
-    assert state["source_of_truth_version"] == "0.14.163"
+    assert state["source_of_truth_version"] == "0.14.164"
 
     storage = state["phase_14_storage_reliability_followup"]
     assert storage["concurrent_partition_retirement_rollout_last_attempt_status"] == (
@@ -118,7 +118,7 @@ def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
     assert storage["compact_feed_freshness_index_name"] == INDEX_NAME
     assert (
         storage["compact_feed_freshness_index_repository_status"]
-        == "OLD_SNAPSHOT_WAIT_HARDENING_PR_PENDING_CI"
+        == "OLD_SNAPSHOT_WAIT_HARDENING_MERGED_GREEN_AWAITING_NEW_PRODUCTION_AUTH"
     )
     assert (
         storage["compact_feed_freshness_index_last_attempt_status"]
@@ -129,6 +129,29 @@ def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
     assert storage["compact_feed_freshness_index_invalid_stub_indisvalid"] is False
     assert storage["compact_feed_freshness_index_invalid_stub_indisready"] is True
     assert storage["compact_feed_freshness_index_invalid_stub_indislive"] is True
+    assert storage["compact_feed_freshness_index_hardening_pr"] == 233
+    assert storage["compact_feed_freshness_index_hardening_validation_head"] == (
+        "6eaf5095ec0c33db424e19d2ebee63b7ce231db9"
+    )
+    assert storage["compact_feed_freshness_index_hardening_ci_run_id"] == 35711018287
+    assert (
+        storage[
+            "compact_feed_freshness_index_hardening_historical_backfill_smoke_run_id"
+        ]
+        == 35711019406
+    )
+    assert (
+        storage["compact_feed_freshness_index_hardening_live_recorder_smoke_run_id"]
+        == 35711018953
+    )
+    assert (
+        storage["compact_feed_freshness_index_hardening_recorder_short_soak_run_id"]
+        == 35711019046
+    )
+    assert storage["compact_feed_freshness_index_hardening_merge_commit"] == (
+        "50f226173f881c0e139cfe3325e975c21048432b"
+    )
+    assert storage["compact_feed_freshness_index_hardening_exact_head_gates_passed"] is True
     assert storage["compact_feed_freshness_index_pr"] == 229
     assert storage["compact_feed_freshness_index_validation_head"] == (
         "abc53100b624ebdb300599c7a29e617c79c6ebe5"
