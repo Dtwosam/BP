@@ -93,11 +93,24 @@ def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
         storage["concurrent_partition_retirement_rollout_final_checkout_rollback_confirmed"]
         is True
     )
-    assert storage["concurrent_partition_retirement_rollout_rollback_confirmed_production_head"] == (
-        "7c3af78da1922a0e5187c24b799951130cc98887"
+    assert (
+        storage[
+            "concurrent_partition_retirement_rollout_rollback_confirmed_production_head"
+        ]
+        == "7c3af78da1922a0e5187c24b799951130cc98887"
     )
-    assert storage["concurrent_partition_retirement_rollout_rollback_confirmed_storage_health"] == "ok"
-    assert storage["concurrent_partition_retirement_rollout_rollback_confirmed_retention_lag_hours"] == 0.0
+    assert (
+        storage[
+            "concurrent_partition_retirement_rollout_rollback_confirmed_storage_health"
+        ]
+        == "ok"
+    )
+    assert (
+        storage[
+            "concurrent_partition_retirement_rollout_rollback_confirmed_retention_lag_hours"
+        ]
+        == 0.0
+    )
     assert storage["compact_feed_freshness_index_name"] == INDEX_NAME
     assert (
         storage["compact_feed_freshness_index_repository_status"]
