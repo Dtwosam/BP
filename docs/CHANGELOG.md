@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.162 — 22 September 2026
+
+- Read-only production verification confirmed the failed concurrent-partition-retirement rollout fully restored checkout `7c3af78da1922a0e5187c24b799951130cc98887`. Recorder, frozen-V3 predictor, and frozen-V3 paper execution all remained inactive.
+- The 00:00 UTC storage-maintenance cycle was allowed to finish normally and completed successfully at `2026-09-22T00:29:37.423952Z`. Final composite storage health was `ok` with maintenance fresh, current partition present, retention current, retention lag 0 hours, 27 raw partitions, and 136,974,848,000 free bytes.
+- No production mutation was performed by this closeout. The compact-feed freshness index remains unauthorized and unperformed; prior recovery/rollout approvals remain invalid after the main-head advance.
+- Next production boundary is a separate exact-current-main authorization for `scripts/deploy/phase14_compact_feed_freshness_index_cloudshell.sh`. Recovery and concurrent-partition-retirement rollout still require their own fresh authorizations after the index gate passes. Live trading, nonzero money, Gate B actions, automatic promotion, and Phase 15 remain blocked.
+
 ## 0.14.161 — 21 September 2026
 
 - PR #229 (`Fix Phase 14 compact-feed freshness scan`) merged as `18a05e4e453d161d71158d4d0f8a884a6c799157` after exact head `abc53100b624ebdb300599c7a29e617c79c6ebe5` passed CI `35663923482`, Historical Backfill Smoke `35663923521`, Live Recorder Smoke `35663923483`, and Recorder Short Soak `35663923480`.
