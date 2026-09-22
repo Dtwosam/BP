@@ -95,7 +95,7 @@ The latest recovery PASS is `/var/lib/bp/evidence/phase14-recorder-v3-recovery-2
 
 The immediate operational sequence is:
 
-1. **Resume prospective observation.** Run the read-only combined observation report at `python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env` and continue frozen-V3 paper plus V4 regime-aware collection under their unchanged prospective boundaries.
+1. **Resume prospective observation.** This remains **prospective observation only**: run the read-only combined observation report at `python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env` and continue frozen-V3 paper plus V4 regime-aware collection under their unchanged prospective boundaries.
 2. **Do not rerun the storage rollout.** Preserve the rollout PASS evidence and monitor normal hourly maintenance/storage health; no additional storage mutation is currently required.
 3. **Keep all promotion/live boundaries closed.** V3 refit/tuning, V4 fitting, Gate B actions, automatic promotion, Phase 15, live trading, geographic bypass, and nonzero real-money limits remain unauthorized.
 
