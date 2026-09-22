@@ -23,7 +23,7 @@ horizon_seconds  = 300
 feature_offsets  = 60, 120, 180, 240
 ```
 
-The future V4 Gate B planning epoch must be prospective and frozen only after V4 feature collection is accepted. No market from before that future frozen boundary may enter final V4 model/policy selection.
+The frozen V4 Gate B v1 planning epoch is the prospective half-open interval `2026-09-23T00:00:00Z <= market_start_at < 2026-09-30T00:00:00Z`. No earlier market may enter V4 model/policy selection.
 
 ## 3. Forecast inputs
 
@@ -66,7 +66,7 @@ V4 stores numeric one-hot regime flags plus per-horizon direction, venue agreeme
 
 V4 is the full successor research program for the documented weaknesses exposed by V3. Regime robustness is one objective, not the entire V4 purpose.
 
-The following weaknesses must remain explicitly in scope for the future V4 Gate B preregistration and ordinary selection:
+The following weaknesses are explicitly in scope for the frozen V4 Gate B v1 preregistration and ordinary selection:
 
 1. **Regime dependence.** Test whether forecast quality and economics remain useful across bull, bear, and sideways/mixed conditions instead of depending on one directional environment.
 2. **Trade-side asymmetry.** V3 final-holdout trades were materially stronger on UP than DOWN. V4 must report and validate probability quality and economics separately for UP and DOWN.
@@ -79,7 +79,7 @@ The following weaknesses must remain explicitly in scope for the future V4 Gate 
 
 These objectives are hypotheses motivated by V3 evidence only. The consumed V3 final holdout must not supply V4 numeric thresholds, side filters, model hyperparameters, regime-specific rules, calibration parameters, or acceptance cutoffs.
 
-The future V4 Gate B preregistration must freeze the candidate model ladder, calibration ladder, timing candidates, economic-policy candidates, side/regime reporting contract, chronology, selection rules, and final untouched holdout before any prospective V4 labels are used for selection.
+The frozen V4 Gate B v1 preregistration defines the candidate model ladder, calibration ladder, timing candidates, economic-policy candidates, side/regime reporting contract, chronology, selection rules, and final untouched holdout before any prospective V4 labels are used for selection.
 
 ## 6. Anti-overfit boundary
 
@@ -95,7 +95,7 @@ Its results may support the research hypothesis that market regime and side asym
 - select V4 hyperparameters;
 - claim V4 out-of-sample performance.
 
-Any future V4 selection and final holdout must use a new prospective cohort frozen after this design and feature implementation.
+V4 Gate B v1 selection and its final holdout use only the wholly future cohort frozen after this design and feature implementation.
 
 ## 7. Mandatory evaluation
 
