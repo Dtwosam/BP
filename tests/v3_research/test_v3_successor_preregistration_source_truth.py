@@ -94,7 +94,7 @@ def test_successor_spec_and_plan_preserve_frozen_search_contract() -> None:
 
 def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.172"
+    assert state["source_of_truth_version"] == "0.14.173"
     successor = state["phase_14_btc_first_v3_gate_a"]["successor_gate_b"]
     assert successor["research_plan_version"] == SUCCESSOR_PLAN_VERSION
     assert successor["epoch_start"] == SUCCESSOR_EPOCH_START
@@ -135,7 +135,7 @@ def test_successor_runtime_source_truth_records_completed_consumed_holdout() -> 
     assert "historical production pass" in next_task
     assert "active after concurrent-partition-retirement rollout pass" in next_task
     assert "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7" in next_task
-    assert "resume prospective observation" in next_task
+    assert "continue prospective observation only" in next_task
     assert "do not rerun the storage rollout" in next_task
     assert "keep all promotion/live boundaries closed" in next_task
 
