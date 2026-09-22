@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.171 — 22 September 2026
+
+- Added a read-only Cloud Shell bridge for the post-rollout Phase 14 observation report because the accepted deployed storage candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b` intentionally predates the later unified observation CLI on `main`.
+- The bridge reads frozen-V3 evidence from `/var/lib/bp/runtime/v3-paper-current`, V4 coverage from `/var/lib/bp/runtime/v4-forward-current`, and composite storage health from the deployed candidate. Each PostgreSQL engine is created with `default_transaction_read_only=on` and verified read-only before report queries.
+- The bridge creates no production files and performs no database write, service/timer mutation, checkout mutation, training, tuning, policy selection, automatic promotion, Gate B action, live trading, or nonzero-money action. It validates the current deployed/runtime identities and RESEARCH/live-disabled/zero-money environment before reporting.
+- This checkpoint is repository engineering pending validation/merge and has not yet been run against production.
+
 ## 0.14.170 — 22 September 2026
 
 - The separately authorized candidate-v2 concurrent-partition-retirement rollout passed production. Deployed head is `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`; helper/main binding was `b19c7db9a928d79c0f2417a55b041dadcbdf1524`.
