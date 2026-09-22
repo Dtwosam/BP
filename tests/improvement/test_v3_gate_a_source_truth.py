@@ -210,16 +210,16 @@ def test_current_handoff_points_to_fail_closed_storage_recovery_sequence() -> No
     assert "v3-frozen-paper-v1" in start_next
     assert "paper-execution-v3-frozen-v1" in start_next
     assert "real_money" in start_next and "$0.00" in start_next
-    assert "determine the next eligible partition time read-only" in start_next
+    assert "use the next one-hour acceptance window" in start_next
     assert "no_eligible_partition_for_acceptance" in start_next
-    assert "recovery then rollout near that eligibility window" in start_next
+    assert "fresh authorization remains required" in start_next
     assert "resume prospective observation only after rollout pass" in start_next
 
     build_next = build.split("## Immediate next action", 1)[1].lower()
     assert "fail-closed stopped" in build_next
     assert "no_eligible_partition_for_acceptance" in build_next
-    assert "next eligible hourly raw partition time read-only" in build_next
-    assert "fresh exact-current-main recorder/v3 recovery authorization" in build_next
+    assert "target the next one-hour acceptance window" in build_next
+    assert "recover before a utc hour boundary" in build_next
     assert "min_edge=0.075" in build_next
     assert "real money at zero" in build_next
     assert "do not tune v3 from paper results" in build_next
