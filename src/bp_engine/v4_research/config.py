@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-
 V4_SHORT_CONTEXT_PREDICTORS = (
     "coinbase_return_from_market_start",
     "coinbase_return_30s",
