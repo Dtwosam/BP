@@ -357,7 +357,7 @@ def test_phase14_observation_source_truth_preserves_read_only_boundary() -> None
 
     observation = state["phase_14_observation_report"]
     assert observation["status"] == (
-        "CLOUDSHELL_RUNTIME_BRIDGE_PENDING_VALIDATION_NOT_PRODUCTION_RUN"
+        "MERGED_MAIN_READ_ONLY_CLOUDSHELL_BRIDGE_NOT_PRODUCTION_RUN"
     )
     assert observation["database_writes"] is False
     assert observation["filesystem_creation"] is False
@@ -421,12 +421,28 @@ def test_phase14_observation_source_truth_preserves_read_only_boundary() -> None
     assert observation["production_runtime_bridge_filesystem_creation"] is False
     assert observation["production_runtime_bridge_service_or_timer_mutation"] is False
     assert observation["production_runtime_bridge_checkout_mutation"] is False
+    assert observation["production_runtime_bridge_status"] == (
+        "MERGED_MAIN_GREEN_NOT_PRODUCTION_RUN"
+    )
+    assert observation["production_runtime_bridge_pr"] == 242
+    assert observation["production_runtime_bridge_validation_head"] == (
+        "7e108dbcfbe9613ebb8312ab2c8b7859eaa767cd"
+    )
+    assert observation["production_runtime_bridge_ci_run_id"] == 35748419483
+    assert (
+        observation["production_runtime_bridge_historical_backfill_smoke_run_id"]
+        == 35748419455
+    )
+    assert observation["production_runtime_bridge_live_recorder_smoke_run_id"] == 35748419427
+    assert observation["production_runtime_bridge_recorder_short_soak_run_id"] == 35748419504
+    assert observation["production_runtime_bridge_merge_commit"] == (
+        "6fbd4d0e9e0827b34b47404534f28cf1f65291c4"
+    )
     assert command in start
     assert command in build
     assert module_command in build
     assert "prospective observation only" in start.lower()
     assert "do not tune v3 from paper results" in build.lower()
     next_action = observation["next_action"].lower()
-    assert "validate and merge the read-only cloud shell runtime bridge" in next_action
-    assert "run one production observation" in next_action
+    assert "run one read-only production observation" in next_action
     assert "no report output authorizes tuning" in next_action
