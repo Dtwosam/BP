@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.173 — 22 September 2026
+
+- The first post-rollout Phase 14 read-only production observation passed at `2026-09-22T16:01:03.847347+00:00` from exact clean Cloud Shell `main` head `aee1b6e7783825fa597f27b971354e6bbdc272ef` against deployed candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`.
+- PostgreSQL sessions were verified read-only; no production checkout, file, service, timer, training, tuning, policy-selection, automatic-promotion, live-trading, or money-limit mutation occurred. Storage remained `ok` with all guards true and RESEARCH/live-disabled/zero-money safety intact.
+- Frozen V3 observation recorded 308 predictions, 60 trade signals, 45 settled orders, zero invalid order sources, realized virtual P&L `372.362970092036`, and virtual cash `472.362970092036` from `100.00` starting cash. V4 forward coverage recorded 373 markets / 1,492 rows across bull, bear, sideways/mixed, and unknown regimes with zero future-cutoff, predictor-key, or regime-invariant violations and no training or policy selection.
+- Sanitized evidence is `docs/evidence/phase-14-observation-production-20260922.json`. This PASS is observation evidence only: continue frozen-V3 paper and V4 prospective collection unchanged; it does not authorize V3 tuning/refit, V4 fitting, Gate B execution, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero money.
+
 ## 0.14.172 — 22 September 2026
 
 - PR #242 (`Add read-only Phase 14 production observation bridge`) merged as `6fbd4d0e9e0827b34b47404534f28cf1f65291c4` after exact head `7e108dbcfbe9613ebb8312ab2c8b7859eaa767cd` passed CI `35748419483`, Historical Backfill Smoke `35748419455`, Live Recorder Smoke `35748419427`, and Recorder Short Soak `35748419504`.
