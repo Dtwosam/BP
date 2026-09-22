@@ -98,12 +98,25 @@ def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
     )
     assert storage["concurrent_partition_retirement_production_deployed"] is True
     assert storage["concurrent_partition_retirement_rollout_gate_production_performed"] is True
-    assert storage["concurrent_partition_retirement_rollout_gate_repository_status"] == "PRODUCTION_PASS"
+    assert (
+        storage["concurrent_partition_retirement_rollout_gate_repository_status"]
+        == "PRODUCTION_PASS"
+    )
     assert storage["concurrent_partition_retirement_rollout_pass_partitions_retired"] == 1
     assert storage["concurrent_partition_retirement_rollout_pass_dedupe_rows_removed"] == 35983
     assert storage["concurrent_partition_retirement_rollout_pass_storage_after_status"] == "ok"
-    assert storage["concurrent_partition_retirement_rollout_pass_storage_after_retention_lag_hours"] == 0.0
-    assert storage["concurrent_partition_retirement_rollout_pass_detached_retirement_leftovers"] == 0
+    assert (
+        storage[
+            "concurrent_partition_retirement_rollout_pass_storage_after_retention_lag_hours"
+        ]
+        == 0.0
+    )
+    assert (
+        storage[
+            "concurrent_partition_retirement_rollout_pass_detached_retirement_leftovers"
+        ]
+        == 0
+    )
     assert (
         storage["concurrent_partition_retirement_rollout_final_checkout_rollback_confirmed"]
         is True
