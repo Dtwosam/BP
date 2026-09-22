@@ -618,14 +618,15 @@ Current order: (1) do not rerun this rollout and preserve its evidence; (2) buil
 
 ## Immediate next action
 
-The accepted frozen V3 paper activation remains historical PASS evidence, and the current recorder/frozen-V3 runtime is **recovery PASS / rollout handoff ready** after the authorized 22 September recovery gate. Prospective observation remains paused as the immediate operational action until the storage rollout itself passes.
+The accepted frozen V3 paper activation remains historical PASS evidence, but the current recorder/frozen-V3 runtime is **fail-closed stopped** after the latest rollout attempt found no eligible partition before candidate checkout. Prospective observation remains paused until the storage rollout itself passes.
 
-Recovery PASS is confirmed on `7c3af78da1922a0e5187c24b799951130cc98887`: recorder PID `3989760`, frozen predictor PID `3989766`, and frozen paper-execution PID `3989771` were active at handoff. Evidence is `/var/lib/bp/evidence/phase14-recorder-v3-recovery-20260922T120737Z.json`; the maintenance timer is enabled but intentionally inactive and `ROLLOUT_HANDOFF_READY=true`.
+The latest recovery PASS remains historical evidence, but its rollout handoff was consumed. The candidate-v2 rollout failed on `no_eligible_partition_for_acceptance` before candidate checkout and completed pre-checkout rollback: production remains on `7c3af78da1922a0e5187c24b799951130cc98887`, recorder/frozen-V3 are stopped, and the maintenance timer is active.
 
 Proceed in this order:
 
-1. Recorder/V3 recovery passed production at `2026-09-22T12:07:37Z` with the expected checkout and service chain, RESEARCH mode, four recorder writers, live trading disabled, zero real-money limits, preserved Gate B artifacts, and the maintenance timer stopped for handoff. Verified candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b` (PR #237, CI `35726920563`) matches current `main` for all four rollout files. Obtain fresh exact-current-main authorization for the concurrent-partition-retirement rollout via `scripts/deploy/phase14_concurrent_partition_retirement_rollout_cloudshell.sh` and require real retirement acceptance without recorder/V3 identity loss.
-2. Resume frozen V3 paper observation and V4 prospective collection only after rollout PASS. This resumes the established V4 regime-aware feature collection; it does not authorize V4 fitting or a collector change.
+1. Determine the next eligible hourly raw partition time read-only. The latest rollout proved there is currently no child whose `end_at <= floor_hour(now - STORAGE_HOT_RAW_HOURS)`; with the canonical 24-hour hot-raw horizon, repeating the production gate before eligibility changes is not useful.
+2. Once eligibility exists, obtain fresh exact-current-main recorder/V3 recovery authorization and then fresh rollout authorization for verified candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`; require real partition retirement without recorder/V3 identity loss.
+3. Resume frozen V3 paper observation and V4 prospective collection only after rollout PASS. This resumes the established V4 regime-aware feature collection; it does not authorize V4 fitting or a collector change.
 
 The read-only combined observation command remains available for diagnostics and later steady-state observation:
 
