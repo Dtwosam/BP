@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.165 — 22 September 2026
+
+- The separately authorized hardened compact-feed freshness index gate passed production at `2026-09-22T10:39:45.309001Z` on deployed head `7c3af78da1922a0e5187c24b799951130cc98887`, with 1,608 seconds of next-hour headroom.
+- The helper successfully removed the prior invalid-ready-live stub and installed `ix_market_state_1s_feed_last_event (source, stream, last_event_at DESC)`. All four required feeds now use index-only scans; measured latest-event lookups were 4.692 ms (Bybit linear), 10.434 ms (Bybit spot), 5.903 ms (Coinbase spot), and 5.510 ms (Polymarket market).
+- Production evidence is stored at `/var/lib/bp/evidence/phase14-compact-feed-freshness-index-20260922T103945Z.json`. Safety remained RESEARCH, live trading disabled, automatic promotion false, and both real-money limits zero.
+- Recorder/frozen-V3 remained fail-closed stopped throughout. The index step is complete; next production boundary is a fresh exact-current-main recorder/V3 recovery authorization. Concurrent-partition-retirement rollout remains separately unauthorized until recovery PASS. Phase 15 and live trading remain blocked.
+
 ## 0.14.164 — 22 September 2026
 
 - PR #233 (`Allow Phase 14 concurrent index old-snapshot wait`) merged as `50f226173f881c0e139cfe3325e975c21048432b` after exact head `6eaf5095ec0c33db424e19d2ebee63b7ce231db9` passed CI `35711018287`, Historical Backfill Smoke `35711019406`, Live Recorder Smoke `35711018953`, and Recorder Short Soak `35711019046`.
