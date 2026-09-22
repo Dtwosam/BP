@@ -51,6 +51,9 @@ def test_production_index_helper_is_exact_head_safety_bound_and_service_preservi
         "7c3af78da1922a0e5187c24b799951130cc98887",
         INDEX_NAME,
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS",
+        "DROP INDEX CONCURRENTLY IF EXISTS",
+        "SET lock_timeout = '0'",
+        "SET statement_timeout = '15min'",
         "indisvalid",
         "indisready",
         "planner did not select",
@@ -66,6 +69,7 @@ def test_production_index_helper_is_exact_head_safety_bound_and_service_preservi
     ):
         assert required in content
 
+    assert "SET lock_timeout = '5s'" not in content
     assert 'systemctl start "$RECORDER_UNIT"' not in content
     assert 'systemctl start "$V3_PREDICTOR"' not in content
     assert 'systemctl start "$V3_EXECUTION"' not in content
