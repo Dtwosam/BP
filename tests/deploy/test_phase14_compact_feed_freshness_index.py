@@ -86,13 +86,18 @@ def test_ci_syntax_checks_compact_feed_freshness_index_helper() -> None:
 
 def test_source_truth_keeps_compact_feed_index_production_gate_closed() -> None:
     state = json.loads(STATE.read_text(encoding="utf-8"))
-    assert state["source_of_truth_version"] == "0.14.168"
+    assert state["source_of_truth_version"] == "0.14.169"
 
     storage = state["phase_14_storage_reliability_followup"]
     assert storage["concurrent_partition_retirement_rollout_last_attempt_status"] == (
-        "POSTCHECKOUT_RECORDER_FAIL_CLOSED_ON_RETENTION_HEALTH"
+        "PRECHECKOUT_NO_ELIGIBLE_PARTITION_ROLLED_BACK"
     )
-    assert storage["concurrent_partition_retirement_rollout_candidate_checkout_performed"] is True
+    assert storage["concurrent_partition_retirement_rollout_candidate_checkout_performed"] is False
+    assert storage["concurrent_partition_retirement_rollout_precheckout_rollback_complete"] is True
+    assert storage["concurrent_partition_retirement_rollout_last_attempt_mutation_started"] is False
+    assert storage["concurrent_partition_retirement_rollout_last_attempt_eligibility_result"] == (
+        "no_eligible_partition_for_acceptance"
+    )
     assert (
         storage["concurrent_partition_retirement_rollout_final_checkout_rollback_confirmed"]
         is True
