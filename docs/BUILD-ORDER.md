@@ -624,10 +624,11 @@ Rollback verification is complete: production is back on `7c3af78da1922a0e5187c2
 
 Proceed in this order:
 
-1. PR #229's compact-feed freshness repair is merged and green. Production installation of `ix_market_state_1s_feed_last_event (source, stream, last_event_at DESC)` remains separately unauthorized. When explicitly approved against the exact current `main`, run `scripts/deploy/phase14_compact_feed_freshness_index_cloudshell.sh` while recorder/frozen-V3 remain stopped.
-2. After the index gate passes, obtain fresh exact-head authorization for recorder/V3 recovery. Require RESEARCH mode, four recorder writers, live trading disabled, zero real-money limits, and the timer-stopped rollout handoff.
-3. Only after recovery PASS, obtain fresh exact-head authorization for the concurrent-partition-retirement rollout and require real retirement acceptance without recorder/V3 identity loss.
-4. Resume frozen V3 paper observation and V4 prospective collection only after rollout PASS. This resumes the established V4 regime-aware feature collection; it does not authorize V4 fitting or a collector change.
+1. Harden the compact-feed index helper for PostgreSQL old-snapshot synchronization. The first authorized `CREATE INDEX CONCURRENTLY` attempt was canceled by the helper's 5-second `lock_timeout` after leaving an invalid-ready-live index stub. Disable `lock_timeout` for concurrent DROP/CREATE, keep `statement_timeout=15min`, and retain the existing 20-minute next-hour headroom guard.
+2. After that hardening merges, obtain a new exact-current-main authorization for the compact-feed index helper. The helper must remove the invalid stub concurrently, recreate the index concurrently, and prove planner selection while recorder/frozen-V3 remain stopped.
+3. After the index gate passes, obtain fresh exact-head authorization for recorder/V3 recovery. Require RESEARCH mode, four recorder writers, live trading disabled, zero real-money limits, and the timer-stopped rollout handoff.
+4. Only after recovery PASS, obtain fresh exact-head authorization for the concurrent-partition-retirement rollout and require real retirement acceptance without recorder/V3 identity loss.
+5. Resume frozen V3 paper observation and V4 prospective collection only after rollout PASS. This resumes the established V4 regime-aware feature collection; it does not authorize V4 fitting or a collector change.
 
 The read-only combined observation command remains available for diagnostics and later steady-state observation:
 
