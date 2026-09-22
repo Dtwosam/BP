@@ -624,7 +624,7 @@ The latest recovery PASS is `/var/lib/bp/evidence/phase14-recorder-v3-recovery-2
 
 Proceed in this order:
 
-1. Resume frozen V3 paper observation and **V4 regime-aware feature collection** under the existing research-only prospective boundaries. Use the read-only combined observation report for ongoing evidence. This remains prospective observation only; it does not authorize V4 fitting or any V3 policy change.
+1. Resume frozen V3 paper observation and **V4 prospective collection**, including V4 regime-aware feature collection, under the existing research-only prospective boundaries. Use the read-only combined observation report for ongoing evidence. This remains prospective observation only; it does not authorize V4 fitting or any V3 policy change.
 2. Preserve rollout PASS evidence and monitor normal hourly storage maintenance; do not rerun the concurrent-partition-retirement rollout unless a new incident creates a separate engineering/authorization boundary.
 3. Keep the frozen V3 policy immutable and keep V4 fitting, Gate B actions, automatic promotion, Phase 15, live trading, geographic bypass, and nonzero real-money limits blocked.
 
