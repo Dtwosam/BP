@@ -624,8 +624,7 @@ The latest recovery PASS remains historical evidence, but its rollout handoff wa
 
 Proceed in this order:
 
-1. Determine the next eligible hourly raw partition time read-only. The latest rollout proved there is currently no child whose `end_at <= floor_hour(now - STORAGE_HOT_RAW_HOURS)`; with the canonical 24-hour hot-raw horizon, repeating the production gate before eligibility changes is not useful.
-2. Once eligibility exists, obtain fresh exact-current-main recorder/V3 recovery authorization and then fresh rollout authorization for verified candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`; require real partition retirement without recorder/V3 identity loss.
+1. Target the next one-hour acceptance window. Storage health treats `retention_lag_hours <= 1.0` as current, so one newly expired hourly partition is acceptable but two are not. Obtain fresh exact-current-main recorder/V3 recovery authorization before a UTC hour boundary so recovery stops the maintenance timer; then, just after that boundary and before the next one, obtain fresh rollout authorization for verified candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b` and require real partition retirement without recorder/V3 identity loss.
 3. Resume frozen V3 paper observation and V4 prospective collection only after rollout PASS. This resumes the established V4 regime-aware feature collection; it does not authorize V4 fitting or a collector change.
 
 The read-only combined observation command remains available for diagnostics and later steady-state observation:
