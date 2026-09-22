@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.170 — 22 September 2026
+
+- The separately authorized candidate-v2 concurrent-partition-retirement rollout passed production. Deployed head is `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`; helper/main binding was `b19c7db9a928d79c0f2417a55b041dadcbdf1524`.
+- Acceptance maintenance ran from `2026-09-22T14:00:35Z` to `14:07:13Z` as storage-maintenance run `327`, retired exactly one eligible hourly raw partition, and removed 35,983 dedupe rows. Recorder PID `4016465` had zero restarts; frozen predictor PID `4016471` and frozen paper-execution PID `4016476` remained active.
+- The 36-second natural-load soak passed with positive events on all four required feeds and no failures. Post-maintenance storage health was `ok`, retention lag returned from `1.0h` to `0.0h`, free space was 149,497,827,328 bytes, and detached-retirement leftovers were zero.
+- Durable evidence is `/var/lib/bp/evidence/phase14-concurrent-partition-retirement-rollout-20260922T140747Z.json`. Gate B artifacts were unchanged; Gate B actions were not performed. Safety remained RESEARCH, live trading disabled, zero money, and automatic promotion false.
+- The concurrent-partition-retirement production rollout is complete. Resume frozen-V3 paper and V4 prospective observation under existing boundaries; do not refit/tune V3, fit V4, perform Gate B actions, enter Phase 15, or enable live/nonzero-money paths.
+
 ## 0.14.169 — 22 September 2026
 
 - The separately authorized candidate-v2 concurrent-partition-retirement rollout reached the production eligibility precheck and returned `no_eligible_partition_for_acceptance`. No candidate checkout occurred and no candidate storage mutation began.
