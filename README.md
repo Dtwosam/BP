@@ -5,12 +5,15 @@ Research-first system for estimating short-duration BTC Polymarket Up/Down proba
 ## Current status
 
 **Phases 0–14 engineering:** complete.  
-**Current gate:** `PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED`.  
-**Trading mode:** `RESEARCH`. Live trading is disabled.
+**Current phase:** Phase 15 — controlled frozen-V3 one-dollar canary, code-ready and not deployed.  
+**Master live gate:** `PASS`.  
+**Trading state:** live trading remains disabled until an explicit operator activation boundary is crossed.
 
 Phase 14 — Live Readiness V1 — passed non-spending production host acceptance on exact candidate `5854e3003aa3340ce3733bf4532e204c1ec55836`. The accepted path imports the official `polymarket-client`, enforces fail-closed activation/geoblock/kill-switch/risk interlocks, reconciles synthetic/live-readiness state, exposes read-only diagnostics, and proved `REAL_ORDER_SIDE_EFFECTS=0` with real-money limits still zero.
 
-The Master live gate is **not** satisfied. The frozen-V3 read-only reassessment completed on 23 September 2026 and moved `positive_after_cost_profitability` to `pass`, with 76 settled trades, +$682.252111761097 realized paper P&L, and a deterministic bootstrap 95% mean-P&L interval of +$1.6407501892525114 to +$18.945890261783955. Execution/reconciliation and explicit user authorization are also `pass`. However, the direct official Polymarket geoblock check from the production VM returned `blocked=true` for `US/SC`, so geographic compliance remains `fail`; sample sufficiency, calibration acceptance, and walk-forward stability remain `insufficient_evidence`. Phase 15 is therefore not permitted. The ~80% accuracy discussed for this project remains a research target, not an assumed or guaranteed capability.
+The Master live gate is now **satisfied for the exact frozen V3**. The accelerated prospective audit passed walk-forward stability, sample sufficiency with uncertainty, profitability, calibration, and execution/reconciliation. The user's ordinary network returned `blocked=false` in `NG/LA`, and the dedicated Johannesburg execution host returned `blocked=false` in `ZA/GP`. Durable host evidence is `docs/evidence/phase-15-v3-canary-execution-host-geoblock-20260923.json`.
+
+Phase 15 is limited to a one-shot canary contract: at most one live submission intent, $1 maximum trade size, $1 maximum concurrent exposure, $2 maximum daily loss, and two consecutive losses. The frozen model, timing, calibration, and `min_edge=0.075` remain unchanged. Credential provisioning and real-money activation are not automated in the repository.
 
 ## Read before working
 
@@ -51,11 +54,11 @@ Expected health output includes:
 
 - Never commit `.env`, wallet keys, seed phrases, API secrets, or server secrets.
 - Never paste a wallet private key or seed phrase into ChatGPT.
-- Real-money trading is not authorized at this stage.
+- The Master gate permits only the exact one-dollar frozen-V3 canary contract; broad live trading is not authorized.
 - Phase 12 Paper Execution remains money-disabled; paper fills must remain causal and reconciled to immutable signals.
 - Phase 13 Improvement Loop remains accepted; promotion requires frozen hypotheses plus permitted evidence, economic uncertainty, calibration guardrails, and deliberate decisions.
-- Phase 14 Live Readiness engineering is accepted, but the Master live gate remains closed.
-- `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0` remain required until every live-gate row passes. Explicit frozen-V3 authorization was recorded on 23 September 2026, but all other gate rows still apply.
+- Phase 14 Live Readiness engineering is accepted and the Master live gate now passes for the exact frozen-V3 one-dollar canary.
+- Repository automation remains non-spending: wallet/private-key provisioning and the final real-money activation are explicit operator boundaries outside GitHub automation.
 - Do not bypass geographic/service restrictions with proxies, VPNs, tunneling, or relocation tricks.
 - A 10-minute recurring Polymarket BTC market is not assumed to exist; horizons remain configurable.
 
