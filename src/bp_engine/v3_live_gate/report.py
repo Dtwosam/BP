@@ -19,7 +19,12 @@ def _decimal(value: object, *, field: str) -> Decimal:
     return number
 
 
-def _bootstrap_mean(values: Sequence[Decimal], *, seed: int, resamples: int) -> dict[str, object] | None:
+def _bootstrap_mean(
+    values: Sequence[Decimal],
+    *,
+    seed: int,
+    resamples: int,
+) -> dict[str, object] | None:
     if not values:
         return None
     if resamples <= 0:
@@ -50,7 +55,11 @@ def _wilson(wins: int, total: int) -> dict[str, float] | None:
     denom = 1.0 + z * z / total
     center = (p + z * z / (2 * total)) / denom
     margin = z * sqrt((p * (1 - p) + z * z / (4 * total)) / total) / denom
-    return {"lower": center - margin, "upper": center + margin, "method": "wilson_95pct"}
+    return {
+        "lower": center - margin,
+        "upper": center + margin,
+        "method": "wilson_95pct",
+    }
 
 
 def _max_drawdown(values: Sequence[Decimal]) -> Decimal:
@@ -149,13 +158,19 @@ def build_v3_live_gate_report(
         "reconciliation": dict(reconciliation),
         "diagnostics": {
             "positive_total_pnl": total > 0,
-            "bootstrap_mean_lower_bound_positive": bool(interval and float(interval["lower"]) > 0),
+            "bootstrap_mean_lower_bound_positive": bool(
+                interval and float(interval["lower"]) > 0
+            ),
             "profitable_without_largest_winner": without_largest > 0,
             "reconciliation_ok": recon_ok,
         },
         "gate_boundary": {
             "master_live_gate_mutated": False,
             "phase15_permitted": False,
-            "reason": "This report is evidence only. Geographic eligibility, risk/live readiness, calibration/sample sufficiency, and a complete Master live-gate decision remain separate gates.",
+            "reason": (
+                "This report is evidence only. Geographic eligibility, risk/live "
+                "readiness, calibration/sample sufficiency, and a complete Master "
+                "live-gate decision remain separate gates."
+            ),
         },
     }
