@@ -4,14 +4,21 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+EVIDENCE = (
+    ROOT
+    / "docs/evidence/phase-15-v3-accelerated-readiness-production-20260923.json"
+)
 
 
-def test_phase15_v3_canary_readiness_is_frozen_and_fail_closed() -> None:
+def test_phase15_v3_statistical_readiness_passes_but_geography_stays_closed() -> None:
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     gate = state["phase_15_v3_canary_readiness"]
+    master = state["phase_14_checkpoint"]["master_live_gate"]
 
-    assert state["source_of_truth_version"] == "0.14.178"
-    assert gate["status"] == "ACCELERATED_READINESS_ENGINEERING_NOT_RUN"
+    assert state["source_of_truth_version"] == "0.14.179"
+    assert gate["status"] == (
+        "PRODUCTION_READ_ONLY_PASS_STATISTICAL_GATES_PASS_EXECUTION_HOST_BLOCKED"
+    )
     assert gate["source_prediction_version"] == "v3-frozen-paper-v1"
     assert gate["source_v3_model_sha256"] == (
         "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7"
@@ -26,22 +33,58 @@ def test_phase15_v3_canary_readiness_is_frozen_and_fail_closed() -> None:
     assert gate["timing_change_allowed"] is False
     assert gate["statistical_rules_frozen_before_new_reliability_audit"] is True
     assert gate["accelerated_audit_read_only"] is True
-    assert gate["accelerated_audit_run_performed"] is False
-    assert gate["geographic_gate_separate_and_mandatory"] is True
-    assert gate["physical_location_geoblock_check_required"] is True
-    assert gate["execution_host_geoblock_check_required"] is True
-    assert gate["vpn_proxy_tunnel_bypass_allowed"] is False
+    assert gate["accelerated_audit_run_performed"] is True
+    assert gate["phase15_candidate"] is True
+
+    assert gate["walk_forward_results_stable_enough"] == "pass"
+    assert gate["sufficiently_large_live_paper_sample_with_uncertainty"] == "pass"
+    assert gate["positive_after_cost_profitability"] == "pass"
+    assert gate["calibration_acceptable"] == "pass"
+    assert gate["order_execution_and_reconciliation_tested"] == "pass"
+
+    assert gate["evaluation_count"] == 533
+    assert gate["settled_trade_count"] == 77
+    assert gate["wins"] == 48
+    assert gate["losses"] == 29
+    assert gate["mean_pnl_95pct_ci_lower_usd"] > 0
+    assert gate["calibration_intercept_95pct_lower"] <= 0 <= (
+        gate["calibration_intercept_95pct_upper"]
+    )
+    assert gate["calibration_slope_95pct_lower"] <= 1 <= (
+        gate["calibration_slope_95pct_upper"]
+    )
+
+    assert master["walk_forward_results_stable_enough"] == "pass"
+    assert master["sufficiently_large_live_paper_sample_with_uncertainty"] == "pass"
+    assert master["positive_after_cost_profitability"] == "pass"
+    assert master["calibration_acceptable"] == "pass"
+    assert master["order_execution_and_reconciliation_tested"] == "pass"
+    assert master["explicit_user_live_authorization"] == "pass"
+    assert master["geographic_compliance_eligible"] == "fail"
+
+    user_geo = gate["user_physical_network_geoblock"]
+    assert user_geo["status"] == "pass"
+    assert user_geo["blocked"] is False
+    assert user_geo["country"] == "NG"
+    assert user_geo["ip_address_persisted"] is False
+
+    candidate = gate["execution_host_candidate"]
+    assert candidate["provider"] == "gcp"
+    assert candidate["zone"] == "africa-south1-a"
+    assert candidate["machine_type"] == "e2-micro"
+    assert candidate["status"] == "NOT_PROVISIONED"
+
     assert gate["phase15_permitted"] is False
     assert gate["live_trading_enabled"] is False
     assert gate["max_trade_size_usd"] == 0
     assert gate["max_daily_loss_usd"] == 0
     assert gate["real_money_mutation_performed"] is False
 
-    spec = (
-        ROOT
-        / "docs/superpowers/specs/2026-09-23-phase-15-v3-same-day-canary-readiness.md"
-    ).read_text(encoding="utf-8")
-    assert "frozen before new prospective calibration-reliability diagnostics" in spec
-    assert "No new round-number minimum is introduced" in spec
-    assert "new reliability diagnostics have not yet been read" in spec
-    assert "VPN, proxy, tunnel" in spec
+    evidence = json.loads(EVIDENCE.read_text(encoding="utf-8"))
+    assert evidence["helper_result"] == "PASS"
+    assert evidence["phase15_candidate"] is True
+    assert all(value == "pass" for value in evidence["statistical_gates"].values())
+    assert evidence["safety"]["real_order_submission_attempted"] is False
+    assert evidence["geography"]["overall_geographic_compliance"] == (
+        "fail_until_execution_host_unblocked"
+    )

@@ -1594,3 +1594,22 @@ The production runner is `bash scripts/deploy/phase15_v3_accelerated_readiness_c
 Geographic eligibility is still a separate hard gate. User-provided direct official geoblock evidence from the ordinary physical network on 23 Sep 2026 reports `blocked=false`, country `NG`, region `LA`; no IP address is persisted in source truth. The latest production execution host direct check remains blocked from `US/SC`. Therefore geographic status is **partial pass only**. No VPN/proxy/tunnel or other location-circumvention path is permitted. Before any live canary, both the user's ordinary physical connection and the actual execution host must be directly unblocked.
 
 Until a fresh accelerated audit passes and execution-host geography is independently unblocked, the complete Master live gate remains blocked, Phase 15 production activation remains prohibited, and real-money limits remain zero.
+
+
+## 23 Sep 2026 — Accelerated frozen-V3 statistical gate PASS; execution-host geography remains
+
+The read-only `phase15-v3-canary-readiness-v1` audit completed on exact main `ceeec0bded4bb6ae60291ee8f5f60db214eceb98`. Durable evidence is `docs/evidence/phase-15-v3-accelerated-readiness-production-20260923.json`.
+
+The predeclared statistical mapping passed all targeted rows:
+
+- `walk_forward_results_stable_enough=pass`;
+- `sufficiently_large_live_paper_sample_with_uncertainty=pass`;
+- `positive_after_cost_profitability=pass`;
+- `calibration_acceptable=pass`;
+- `order_execution_and_reconciliation_tested=pass`.
+
+The run observed 77 settled frozen-V3 paper trades (48 wins / 29 losses), realized after-cost paper P&L `687.612927164917` USD, profit factor `6.303923587614901`, and a deterministic bootstrap 95% interval for mean realized P&L of `[1.746626049710839, 18.521917124071315]` USD. The calibration audit covered 533 prospective evaluations; Brier/log loss remained below the frozen holdout reference, the calibration-intercept 95% interval `[-0.35298851177376006, 0.19023844953087868]` contains 0, and the slope interval `[0.8813085772634305, 1.2937796253992961]` contains 1.
+
+Explicit user live authorization remains `pass`. The user’s ordinary physical-network official geoblock check is `blocked=false`, `NG/LA`; the IP address is not persisted. The current execution host remains `blocked=true`, `US/SC`. Therefore `geographic_compliance_eligible=fail`, overall live gate remains `fail`, Phase 15 production activation remains prohibited, and real-money limits remain zero.
+
+The next authorized mutation is only the source-truth-bound Johannesburg candidate-host probe in `scripts/deploy/phase15_v3_canary_host_probe_cloudshell.sh`. It requires explicit billable-VM acknowledgement, may create only `bp-v3-canary-exec` in `africa-south1-a` as `e2-micro`, installs no trading software or wallet/signing material, and performs only the direct official Polymarket geoblock check. A blocked/error response requires deletion. An unblocked PASS is evidence for a later canary-deployment decision, not automatic live activation.

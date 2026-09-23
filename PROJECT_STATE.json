@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.178",
-  "updated_at": "2026-09-23",
+  "source_of_truth_version": "0.14.179",
+  "updated_at": "2026-09-23T10:55:30Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -657,10 +657,10 @@
     "Live trading"
   ],
   "next_actions": [
-    "Validate and merge the read-only accelerated frozen-V3 readiness audit. Its sample rule reuses the accepted Phase 13 uncertainty principle; its calibration intercept/slope acceptance rule is frozen before those new prospective diagnostics are read.",
-    "After merge, run the accelerated V3 audit once read-only. If it passes, refresh only the evidence-backed statistical Master live-gate rows; do not activate money yet.",
-    "Independently verify Polymarket geographic eligibility from the user's ordinary physical network with VPN/proxy disabled, and separately require the eventual execution host's direct official geoblock result to be unblocked. Never use VPN/proxy/tunneling to bypass a restricted physical location.",
-    "Continue frozen V3 paper observation and V4 Gate B collection unchanged. No V3 tuning, V4 early label/model actions, automatic promotion, Phase 15 production activation, or nonzero money until the complete gate passes."
+    "Preserve the accelerated frozen-V3 readiness PASS at docs/evidence/phase-15-v3-accelerated-readiness-production-20260923.json. All statistical Master live-gate rows now pass under predeclared rules; do not rerun or weaken those rules.",
+    "Provision only the dedicated Johannesburg execution-host candidate (GCP africa-south1-a, e2-micro) and run the direct official Polymarket geoblock probe. Install no trading software, wallet/signing material, or production service during this probe.",
+    "If and only if the candidate host returns blocked=false, record that geography evidence and then build/deploy the exact frozen-V3 controlled live canary with tiny nonzero risk limits. The existing US host must never submit real orders.",
+    "Continue frozen V3 paper observation and V4 Gate B collection unchanged. No V3 tuning, V4 early label/model actions, automatic promotion, geographic circumvention, or broad live rollout."
   ],
   "open_questions": [
     "Current/recurring availability of a 10m BTC Up/Down Polymarket market",
@@ -802,10 +802,10 @@
       "historical_pipeline_reproducible": "pass",
       "no_known_target_leakage": "pass",
       "time_ordered_splits": "pass",
-      "walk_forward_results_stable_enough": "insufficient_evidence",
-      "sufficiently_large_live_paper_sample_with_uncertainty": "insufficient_evidence",
+      "walk_forward_results_stable_enough": "pass",
+      "sufficiently_large_live_paper_sample_with_uncertainty": "pass",
       "positive_after_cost_profitability": "pass",
-      "calibration_acceptable": "insufficient_evidence",
+      "calibration_acceptable": "pass",
       "risk_limits_and_kill_switch_tested": "pass",
       "order_execution_and_reconciliation_tested": "pass",
       "geographic_compliance_eligible": "fail",
@@ -4187,7 +4187,7 @@
     "master_live_gate_mutation_scope": "Evidence-backed status refresh only; no activation or money change."
   },
   "phase_15_v3_canary_readiness": {
-    "status": "ACCELERATED_READINESS_ENGINEERING_NOT_RUN",
+    "status": "PRODUCTION_READ_ONLY_PASS_STATISTICAL_GATES_PASS_EXECUTION_HOST_BLOCKED",
     "purpose": "Attempt a same-day, evidence-based frozen-V3 live-readiness decision without tuning V3 or bypassing geography.",
     "source_v3_model_sha256": "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7",
     "source_prediction_version": "v3-frozen-paper-v1",
@@ -4225,7 +4225,7 @@
     },
     "accelerated_audit_module": "bp_engine.v3_live_gate.accelerated_cli",
     "accelerated_audit_read_only": true,
-    "accelerated_audit_run_performed": false,
+    "accelerated_audit_run_performed": true,
     "geographic_gate_separate_and_mandatory": true,
     "physical_location_geoblock_check_required": true,
     "execution_host_geoblock_check_required": true,
@@ -4234,7 +4234,7 @@
     "live_trading_enabled": false,
     "max_trade_size_usd": 0,
     "max_daily_loss_usd": 0,
-    "next_action": "Merge and run the read-only accelerated V3 audit. If statistical gates pass, move the execution service to a genuinely non-restricted region consistent with Polymarket's published server guidance, then verify the new host's direct official geoblock result before any live canary. Do not use VPN/proxy/tunnel circumvention and do not enable money until the complete gate passes.",
+    "next_action": "Provision the dedicated Johannesburg execution-only candidate with the exact source-truth-bound host-probe helper, run the official direct Polymarket geoblock check from that VM, and stop. If blocked=false, record the candidate host evidence and only then build/deploy the controlled V3 canary execution package. Do not install wallet/signing material or enable live trading during the host probe.",
     "user_physical_network_geoblock": {
       "status": "pass",
       "blocked": false,
@@ -4252,6 +4252,41 @@
       "region": "SC",
       "source": "latest production read-only live-gate reassessment"
     },
-    "geographic_gate_status": "PARTIAL_PASS_USER_LOCATION_PASS_EXECUTION_HOST_BLOCKED"
+    "geographic_gate_status": "USER_LOCATION_PASS_CURRENT_HOST_FAIL_CANDIDATE_HOST_NOT_PROBED",
+    "accelerated_audit_run_at": "2026-09-23T10:55:30.826590+00:00",
+    "accelerated_audit_source_main_sha": "ceeec0bded4bb6ae60291ee8f5f60db214eceb98",
+    "accelerated_audit_evidence": "docs/evidence/phase-15-v3-accelerated-readiness-production-20260923.json",
+    "phase15_candidate": true,
+    "walk_forward_results_stable_enough": "pass",
+    "sufficiently_large_live_paper_sample_with_uncertainty": "pass",
+    "positive_after_cost_profitability": "pass",
+    "calibration_acceptable": "pass",
+    "order_execution_and_reconciliation_tested": "pass",
+    "evaluation_count": 533,
+    "calibration_ece_10_bin": 0.03144019640262532,
+    "calibration_intercept": -0.09001576350042613,
+    "calibration_intercept_95pct_lower": -0.35298851177376006,
+    "calibration_intercept_95pct_upper": 0.19023844953087868,
+    "calibration_slope": 1.054803400697569,
+    "calibration_slope_95pct_lower": 0.8813085772634305,
+    "calibration_slope_95pct_upper": 1.2937796253992961,
+    "settled_trade_count": 77,
+    "wins": 48,
+    "losses": 29,
+    "realized_total_usd": "687.612927164917000000",
+    "mean_pnl_95pct_ci_lower_usd": 1.746626049710839,
+    "mean_pnl_95pct_ci_upper_usd": 18.521917124071315,
+    "profit_factor": 6.303923587614901,
+    "max_drawdown_usd": "27.974134608836000000",
+    "pnl_excluding_largest_winner_usd": "456.163601812276000000",
+    "execution_host_candidate": {
+      "provider": "gcp",
+      "region": "africa-south1",
+      "zone": "africa-south1-a",
+      "location": "Johannesburg, South Africa",
+      "role": "execution-only geoblock probe first; no trading software or wallet material until direct official geoblock passes",
+      "machine_type": "e2-micro",
+      "status": "NOT_PROVISIONED"
+    }
   }
 }

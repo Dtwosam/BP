@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.179 — 23 September 2026
+
+- Recorded the successful production read-only accelerated V3 readiness audit from exact main `ceeec0bded4bb6ae60291ee8f5f60db214eceb98` at `docs/evidence/phase-15-v3-accelerated-readiness-production-20260923.json`.
+- All statistical V3 Master live-gate rows now pass under rules frozen before the new reliability diagnostics were read: walk-forward stability, sample sufficiency with uncertainty, positive after-cost profitability, calibration acceptance, and order execution/reconciliation.
+- Current frozen-V3 paper evidence is 77 settled trades (48 wins / 29 losses), +$687.612927164917 realized after-cost P&L, profit factor 6.303923587614901, and a deterministic bootstrap 95% mean-P&L interval of +$1.746626049710839 to +$18.521917124071315. Calibration used 533 prospective evaluations; the intercept 95% interval contains 0 and the slope 95% interval contains 1.
+- User physical-network geography is unblocked (`NG/LA`, IP intentionally not persisted), but the current US execution host remains blocked. Overall live activation therefore remains blocked.
+- Added `scripts/deploy/phase15_v3_canary_host_probe_cloudshell.sh`, a source-truth-bound Johannesburg execution-host probe. It creates at most one explicitly accepted billable `e2-micro` in `africa-south1-a`, installs no trading software or wallet material, runs only the official direct geoblock check, deletes itself on a blocked/failed probe, and leaves the candidate running only on an unblocked PASS.
+
 ## 0.14.178 — 23 September 2026
 
 - Froze the separately versioned `phase15-v3-canary-readiness-v1` statistical acceptance contract before reading any new prospective calibration intercept/slope diagnostics.
