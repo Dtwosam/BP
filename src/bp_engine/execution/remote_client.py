@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 from collections.abc import Callable
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -40,6 +41,7 @@ class RemoteSshPolymarketTradingClient:
         self._known_hosts_path = str(Path(known_hosts_path))
         self._timeout_seconds = timeout_seconds
         self._runner = runner
+        self._order_deadline: datetime | None = None
 
     def _call(self, payload: dict[str, object]) -> dict[str, Any]:
         command = [
@@ -94,6 +96,11 @@ class RemoteSshPolymarketTradingClient:
             and result.get("kill_switch_engaged") is False
         )
 
+    def set_order_deadline(self, expires_at: datetime) -> None:
+        if expires_at.tzinfo is None or expires_at.utcoffset() is None:
+            raise ValueError("order deadline must be timezone-aware")
+        self._order_deadline = expires_at.astimezone(UTC)
+
     def submit_limit_buy(
         self,
         *,
@@ -101,6 +108,10 @@ class RemoteSshPolymarketTradingClient:
         price: Decimal,
         size: Decimal,
     ) -> LiveClientOrderResult:
+        deadline = self._order_deadline
+        if deadline is None:
+            raise RemoteExecutorError("remote order deadline is not configured")
+        self._order_deadline = None
         result = self._call(
             {
                 "operation": "submit_limit_buy",
@@ -108,6 +119,7 @@ class RemoteSshPolymarketTradingClient:
                 "price": str(price),
                 "size": str(size),
                 "ttl_ms": 2000,
+                "expires_at": deadline.isoformat(),
             }
         )
         return LiveClientOrderResult(
