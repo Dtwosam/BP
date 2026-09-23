@@ -30,6 +30,16 @@ def test_phase15_one_order_canary_is_authorized_but_not_yet_submitted() -> None:
     assert gate["max_daily_loss_usd"] == 10
     assert gate["max_consecutive_losses"] == 1
     assert gate["max_accepted_orders"] == 1
+    assert gate["max_submission_attempts"] == 1
+    assert gate["live_min_liquidity_usd"] == 5
+    assert gate["official_account_preflight_required"] is True
+    assert gate["official_open_order_count_required"] == 0
+    assert gate["minimum_collateral_balance_usd"] == 5
+    assert gate["activation_binds_exact_intent"] is True
+    assert gate["activation_binds_request_sha256"] is True
+    assert gate["activation_binds_executor_sha256"] is True
+    assert gate["executor_direct_post_order_no_sdk_recovery_retry"] is True
+    assert gate["ambiguous_result_retry_allowed"] is False
     assert gate["order_ttl_seconds"] == 2
     assert gate["historical_trade_reuse_allowed"] is False
     assert gate["wallet_material_allowed_on_us_host"] is False
