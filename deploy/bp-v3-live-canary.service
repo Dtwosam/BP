@@ -10,6 +10,7 @@ Group=bp
 WorkingDirectory=/opt/bp
 EnvironmentFile=/etc/bp/bp-v3-live-canary.env
 Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONPATH=/var/lib/bp/runtime/v3-live-canary-current/src
 ExecStart=/opt/bp/.venv/bin/python /var/lib/bp/runtime/v3-live-canary-current/scripts/run_v3_live_canary.py
 Restart=no
 NoNewPrivileges=true
