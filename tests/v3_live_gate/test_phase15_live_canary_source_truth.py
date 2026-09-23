@@ -40,6 +40,21 @@ def test_phase15_one_order_canary_is_authorized_but_not_yet_submitted() -> None:
     assert gate["activation_binds_executor_sha256"] is True
     assert gate["executor_direct_post_order_no_sdk_recovery_retry"] is True
     assert gate["ambiguous_result_retry_allowed"] is False
+    assert (
+        gate["unsubmitted_intent_reconciliation_helper"]
+        == "scripts/deploy/phase15_v3_canary_reconcile_unsubmitted_cloudshell.sh"
+    )
+    assert gate["pre_submission_closed_event_type"] == "closed_before_submission"
+    assert gate["pre_submission_closure_consumes_submission_attempt"] is False
+    assert gate["pre_submission_reconciliation_requires_kill_switch_engaged"] is True
+    assert gate["pre_submission_reconciliation_requires_activation_invalid"] is True
+    assert gate["pre_submission_reconciliation_requires_submission_not_ready"] is True
+    assert (
+        gate["pre_submission_reconciliation_requires_live_order_submitted_false"] is True
+    )
+    assert (
+        gate["pre_submission_reconciliation_requires_zero_official_open_orders"] is True
+    )
     assert gate["order_ttl_seconds"] == 2
     assert gate["historical_trade_reuse_allowed"] is False
     assert gate["wallet_material_allowed_on_us_host"] is False

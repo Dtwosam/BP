@@ -614,3 +614,14 @@ Only a NEW frozen-V3 paper order created after the canary activation timestamp m
 The operational sequence is intentionally split: bootstrap signer with the kill switch engaged and no order; require a fresh official-account preflight with zero open orders and at least $5 collateral; prepare and durably persist one risk-approved intent with no order; explicitly arm for at most 45 seconds with `PHASE15_ACCEPT_REAL_MONEY=yes` and bind the arm to the exact intent/request/executor hashes; then the user manually submits only the prepared payload. The executor rechecks geography/account/binding and atomically re-engages its kill switch before the pinned SDK's direct `post_order()`, making the arm one-shot without the higher-level allowance-recovery retry helper. Ambiguous outcomes fail closed.
 
 No automated real-money submission is authorized. No second submission attempt or retry is authorized. Official order/fill reconciliation is mandatory before any additional live action. A successful canary does not authorize stake growth. Frozen V3 and the preregistered V4 Gate B process remain unchanged.
+
+
+## D-061 — Close expired prepared intents without consuming the one network attempt
+**Date:** 23 Sep 2026  
+**Status:** Active
+
+A Phase 15 prepare persists a live intent before any arm or network submission. If that prepared market becomes unarmable and the arm fails before activation/submission, the persisted intent must not be silently deleted or mislabeled as a rejected/unknown submission. It is reconciled with the distinct terminal event `closed_before_submission`.
+
+This closure is permitted only after the Johannesburg executor proves the kill switch is engaged, activation is invalid, submission is not ready, `live_order_submitted=false`, the official account has zero open orders, and collateral remains at least $5. The closure writes a zero-unresolved reconciliation record and does **not** increment the canary submission-attempt count.
+
+The one-network-attempt rule from D-060 is unchanged: only `accepted`, `rejected`, or `submission_unknown` consumes that attempt. After a verified `closed_before_submission` reconciliation, a later NEW frozen-V3 signal may be prepared under the same original one-order authorization. No retry after an actual network submission is authorized.

@@ -59,6 +59,17 @@ bash scripts/deploy/phase15_v3_canary_arm_cloudshell.sh
 
 The arm is valid for at most 45 seconds and only for the exact prepared intent/request and exact executor SHA-256. It rechecks account cleanliness/collateral, removes the kill switch, but submits nothing.
 
+If arm fails **before activation/submission** because the prepared market is no longer armable, do not run the submission command. The persisted intent must first be reconciled as closed-before-submission. That reconciliation is allowed only when the Johannesburg executor reports the kill switch engaged, activation invalid, submission not ready, no live order submitted, zero official open orders, and at least $5 collateral. It records a `closed_before_submission` event that does **not** consume the one permitted network submission attempt.
+
+The production reconciliation is a separate explicit mutation boundary:
+
+```bash
+PHASE15_ACCEPT_UNSUBMITTED_RECONCILIATION=yes \
+bash scripts/deploy/phase15_v3_canary_reconcile_unsubmitted_cloudshell.sh
+```
+
+Only after that helper returns `PHASE15_V3_CANARY_RECONCILE_UNSUBMITTED=PASS` may prepare be run again.
+
 ### 4. Manual one-shot submission
 
 Run only after the arm helper returns PASS:

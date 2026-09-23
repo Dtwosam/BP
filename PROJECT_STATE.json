@@ -4339,7 +4339,7 @@
     "second_order_authorized": false,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "After merge: bootstrap the Johannesburg signer with the kill switch engaged and verify official account preflight (zero open orders, at least $5 collateral); prepare one NEW frozen-V3 $5 intent with at least $5 displayed liquidity; inspect it; explicitly arm the exact intent/request/executor hash with PHASE15_ACCEPT_REAL_MONEY=yes for at most 45 seconds; manually submit once; record the bound sanitized result; then stop for official reconciliation. No second submission attempt is authorized.",
+    "next_action": "If a prepared intent becomes unarmable before any network submission, first reconcile it with the explicit unsubmitted-intent reconciliation helper; that closed-before-submission event does not consume the one network submission attempt. Then prepare one NEW frozen-V3 $5 intent with at least $5 displayed liquidity; explicitly arm the exact intent/request/executor hash with PHASE15_ACCEPT_REAL_MONEY=yes for at most 45 seconds; manually submit once; record the bound sanitized result; then stop for official reconciliation. No second network submission attempt is authorized.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
@@ -4358,7 +4358,15 @@
     "activation_binds_request_sha256": true,
     "activation_binds_executor_sha256": true,
     "executor_direct_post_order_no_sdk_recovery_retry": true,
-    "ambiguous_result_retry_allowed": false
+    "ambiguous_result_retry_allowed": false,
+    "unsubmitted_intent_reconciliation_helper": "scripts/deploy/phase15_v3_canary_reconcile_unsubmitted_cloudshell.sh",
+    "pre_submission_closed_event_type": "closed_before_submission",
+    "pre_submission_closure_consumes_submission_attempt": false,
+    "pre_submission_reconciliation_requires_kill_switch_engaged": true,
+    "pre_submission_reconciliation_requires_activation_invalid": true,
+    "pre_submission_reconciliation_requires_submission_not_ready": true,
+    "pre_submission_reconciliation_requires_live_order_submitted_false": true,
+    "pre_submission_reconciliation_requires_zero_official_open_orders": true
   },
   "phase_15_v3_paper_hotpath_rollout": {
     "status": "PRODUCTION_PASS",
