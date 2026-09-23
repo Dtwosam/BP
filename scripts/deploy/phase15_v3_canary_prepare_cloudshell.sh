@@ -89,11 +89,12 @@ from datetime import UTC, datetime
 print(datetime.now(UTC).isoformat())
 PY
 )
+LIVE_SOURCE_B64=$(base64 -w0 "$ROOT/src/bp_engine/execution/live.py")
 CANARY_SOURCE_B64=$(base64 -w0 "$ROOT/src/bp_engine/execution/canary.py")
 DEADLINE=$(( $(date +%s) + MAX_WAIT_SECONDS ))
 
 prepare_once() {
-  gcloud compute ssh "$US_VM"     --project="$PROJECT"     --zone="$US_ZONE"     --quiet     --command="sudo -u bp env PYTHONPATH='$V3_RUNTIME/src' MODE=research LIVE_TRADING_ENABLED=false MAX_TRADE_SIZE_USD=0 MAX_DAILY_LOSS_USD=0 CANARY_SOURCE_B64='$CANARY_SOURCE_B64' CANARY_ACTIVATED_AT='$ACTIVATED_AT' CANARY_OFFICIAL_OPEN_ORDER_COUNT='$OFFICIAL_OPEN_ORDER_COUNT' CANARY_COLLATERAL_BALANCE_USD='$COLLATERAL_BALANCE_USD' /opt/bp/.venv/bin/python -" <<'PY'
+  gcloud compute ssh "$US_VM"     --project="$PROJECT"     --zone="$US_ZONE"     --quiet     --command="sudo -u bp env PYTHONPATH='$V3_RUNTIME/src' MODE=research LIVE_TRADING_ENABLED=false MAX_TRADE_SIZE_USD=0 MAX_DAILY_LOSS_USD=0 LIVE_SOURCE_B64='$LIVE_SOURCE_B64' CANARY_SOURCE_B64='$CANARY_SOURCE_B64' CANARY_ACTIVATED_AT='$ACTIVATED_AT' CANARY_OFFICIAL_OPEN_ORDER_COUNT='$OFFICIAL_OPEN_ORDER_COUNT' CANARY_COLLATERAL_BALANCE_USD='$COLLATERAL_BALANCE_USD' /opt/bp/.venv/bin/python -" <<'PY'
 import base64
 import json
 import os
@@ -102,7 +103,13 @@ import types
 from datetime import UTC, datetime
 from sqlalchemy import create_engine
 from bp_engine.config import Settings
-from bp_engine.execution.live import InterlockDecision
+
+live_module=types.ModuleType("bp_engine.execution.live")
+live_module.__package__="bp_engine.execution"
+sys.modules[live_module.__name__]=live_module
+live_source=base64.b64decode(os.environ["LIVE_SOURCE_B64"]).decode("utf-8")
+exec(compile(live_source, "<phase15_live_inline>", "exec"), live_module.__dict__)
+InterlockDecision=live_module.InterlockDecision
 
 module=types.ModuleType("phase15_canary_inline")
 sys.modules[module.__name__]=module
