@@ -6,6 +6,7 @@ import sys
 import time
 import urllib.request
 from datetime import UTC, datetime
+from pathlib import Path
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -14,6 +15,8 @@ import polymarket
 GEOBLOCK_URL = "https://polymarket.com/api/geoblock"
 MAX_NOTIONAL_USD = Decimal("10")
 TTL_SECONDS = 2
+ACTIVATION_PATH = Path("/etc/bp-canary/activation.json")
+KILL_SWITCH_PATH = Path("/etc/bp-canary/KILL")
 
 
 def _fail(code: str) -> int:
@@ -65,6 +68,53 @@ def _geoblock() -> dict[str, object]:
     }
 
 
+def _activation() -> dict[str, object]:
+    try:
+        payload = json.loads(ACTIVATION_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError("activation_missing_or_invalid") from exc
+    if payload.get("authorized") is not True:
+        raise RuntimeError("activation_not_authorized")
+    if payload.get("source_prediction_version") != "v3-frozen-paper-v1":
+        raise RuntimeError("activation_prediction_version_mismatch")
+    if payload.get("source_execution_version") != "paper-execution-v3-frozen-v1":
+        raise RuntimeError("activation_execution_version_mismatch")
+    if _decimal(payload.get("max_trade_size_usd"), "activation.max_trade_size_usd") != MAX_NOTIONAL_USD:
+        raise RuntimeError("activation_trade_limit_mismatch")
+    if int(payload.get("max_submission_attempts", 0)) != 1:
+        raise RuntimeError("activation_attempt_limit_mismatch")
+    issued = datetime.fromisoformat(str(payload["issued_at"])).astimezone(UTC)
+    expires = datetime.fromisoformat(str(payload["expires_at"])).astimezone(UTC)
+    now = datetime.now(UTC)
+    if issued > now or now >= expires:
+        raise RuntimeError("activation_expired_or_future")
+    return payload
+
+
+def _kill_switch_engaged() -> bool:
+    try:
+        return KILL_SWITCH_PATH.exists()
+    except OSError:
+        return True
+
+
+def _consume_one_shot_arm() -> None:
+    if _kill_switch_engaged():
+        raise RuntimeError("kill_switch_engaged")
+    try:
+        fd = os.open(
+            KILL_SWITCH_PATH,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+            0o600,
+        )
+    except FileExistsError as exc:
+        raise RuntimeError("kill_switch_engaged") from exc
+    try:
+        os.write(fd, b"phase15-v3-live-canary one-shot arm consumed\n")
+    finally:
+        os.close(fd)
+
+
 def _client() -> object:
     private_key = os.environ.get("POLYMARKET_PRIVATE_KEY", "").strip()
     wallet = os.environ.get("POLYMARKET_WALLET_ADDRESS", "").strip()
@@ -88,12 +138,21 @@ def _health() -> dict[str, object]:
     if not private_key_configured:
         raise RuntimeError("private_key_missing")
     _client()
+    activation_valid = False
+    try:
+        _activation()
+        activation_valid = True
+    except RuntimeError:
+        activation_valid = False
     return {
         "status": "ok",
         "geoblock": geo,
         "private_key_configured": True,
         "wallet_configured": wallet_configured,
         "sdk_import_ok": True,
+        "activation_valid": activation_valid,
+        "kill_switch_engaged": _kill_switch_engaged(),
+        "submission_ready": activation_valid and not _kill_switch_engaged(),
         "live_order_submitted": False,
     }
 
@@ -102,6 +161,11 @@ def _submit(payload: dict[str, Any]) -> dict[str, object]:
     geo = _geoblock()
     if geo["blocked"] is not False:
         raise RuntimeError("geoblock_blocked")
+    activation = _activation()
+    if str(payload.get("authorization_id") or "") != str(
+        activation.get("authorization_id") or ""
+    ):
+        raise RuntimeError("authorization_id_mismatch")
 
     request = payload.get("request")
     if not isinstance(request, dict):
@@ -130,6 +194,7 @@ def _submit(payload: dict[str, Any]) -> dict[str, object]:
     if target > MAX_NOTIONAL_USD or price * size > MAX_NOTIONAL_USD:
         raise RuntimeError("canary_notional_limit_exceeded")
 
+    _consume_one_shot_arm()
     client = _client()
     try:
         signed_order = client.create_limit_order(
