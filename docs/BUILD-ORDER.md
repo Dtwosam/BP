@@ -635,3 +635,8 @@ Execute only the frozen-V3 one-order canary contract in `docs/PHASE-15-V3-LIVE-C
 
 Keep the exact frozen V3 model/offset/edge policy unchanged. Continue V3 paper and V4 future collection in parallel. Do not alter V4's preregistered epoch or run V4 readiness before `2026-09-30T00:00:00Z`.
 
+
+**Preserved Phase 14 history:** frozen V3 paper remained **active after concurrent-partition-retirement rollout PASS** with `min_edge=0.075`, **$100 virtual starting cash**, and **$5 virtual target notional**. During that paper-only stage, **real money at zero** and **live-order paths disabled** were mandatory, and operators were instructed to **do not tune V3 from paper results**. Those facts remain historical evidence even though the separately gated Phase 15 one-attempt canary is now authorized.
+
+**V4 Gate B v1 is now prospectively frozen** and the **V4 regime-aware feature collector** / **V4 regime-aware feature collection** continue unchanged. **Do not rerun the concurrent-partition-retirement rollout.** Continue frozen V3 paper observation in parallel with the bounded live canary; the canary must not change the paper strategy or the V4 epoch.
+
