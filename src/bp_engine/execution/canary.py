@@ -45,6 +45,9 @@ CANARY_COOLDOWN_SECONDS = Decimal("86400")
 CANARY_MAX_ACCEPTED_ORDERS = 1
 CANARY_MAX_SUBMISSION_ATTEMPTS = 1
 CANARY_TARGET_NOTIONAL_USD = Decimal("5")
+CANARY_SUBMISSION_ATTEMPT_EVENTS = ("accepted", "rejected", "submission_unknown")
+CANARY_PRE_SUBMISSION_CLOSED_EVENT = "closed_before_submission"
+CANARY_INTENT_TERMINAL_EVENTS = (*CANARY_SUBMISSION_ATTEMPT_EVENTS, CANARY_PRE_SUBMISSION_CLOSED_EVENT)
 
 
 def canary_policy() -> LiveRiskPolicy:
@@ -95,7 +98,7 @@ def _accepted_count(connection) -> int:
 
 
 def _submission_attempt_count(connection) -> int:
-    return _event_count(connection, ("accepted", "rejected", "submission_unknown"))
+    return _event_count(connection, CANARY_SUBMISSION_ATTEMPT_EVENTS)
 
 
 def _ensure_initial_reconciliation(
@@ -237,7 +240,7 @@ def prepare_next_canary(
                 .where(
                     schema.live_order_events.c.intent_id == pending["intent_id"],
                     schema.live_order_events.c.event_type.in_(
-                        ("accepted", "rejected", "submission_unknown")
+                        CANARY_INTENT_TERMINAL_EVENTS
                     ),
                 )
                 .order_by(schema.live_order_events.c.id.desc())
@@ -372,6 +375,131 @@ def prepare_next_canary(
             "max_consecutive_losses": policy.max_consecutive_losses,
             "max_submission_attempts": CANARY_MAX_SUBMISSION_ATTEMPTS,
         },
+    }
+
+
+def reconcile_unsubmitted_canary_intent(
+    *,
+    engine: Engine,
+    intent_id: str,
+    observed_at: datetime,
+    reason: str,
+    executor_health: Mapping[str, object],
+) -> dict[str, object]:
+    observed = _utc(observed_at, "observed_at")
+    normalized_reason = reason.strip()
+    if not normalized_reason:
+        raise ValueError("reason must not be blank")
+
+    status = str(executor_health.get("status") or "")
+    geoblock = executor_health.get("geoblock")
+    account = executor_health.get("account")
+    if status != "ok":
+        raise RuntimeError("executor_health_not_ok")
+    if not isinstance(geoblock, Mapping):
+        raise RuntimeError("executor_geoblock_missing")
+    if geoblock.get("blocked") is not False or str(geoblock.get("country") or "") != "ZA":
+        raise RuntimeError("executor_geography_not_authorized")
+    if not isinstance(account, Mapping):
+        raise RuntimeError("executor_account_missing")
+    if int(account.get("open_order_count") or 0) != 0:
+        raise RuntimeError("official_open_orders_present")
+    collateral = Decimal(str(account.get("collateral_balance_usd") or "0"))
+    if collateral < CANARY_TARGET_NOTIONAL_USD:
+        raise RuntimeError("insufficient_official_collateral")
+    if account.get("clean_for_canary") is not True:
+        raise RuntimeError("executor_account_not_clean")
+    if executor_health.get("kill_switch_engaged") is not True:
+        raise RuntimeError("kill_switch_not_engaged")
+    if executor_health.get("activation_valid") is not False:
+        raise RuntimeError("activation_still_valid")
+    if executor_health.get("submission_ready") is not False:
+        raise RuntimeError("submission_still_ready")
+    if executor_health.get("live_order_submitted") is not False:
+        raise RuntimeError("live_order_submission_detected")
+
+    repository = LiveReadinessRepository()
+    with engine.begin() as connection:
+        intent = connection.execute(
+            select(schema.live_order_intents).where(
+                schema.live_order_intents.c.intent_id == intent_id,
+                schema.live_order_intents.c.policy_version == CANARY_POLICY_VERSION,
+            )
+        ).mappings().one_or_none()
+        if intent is None:
+            raise RuntimeError("unknown canary intent")
+
+        attempt_event = connection.execute(
+            select(schema.live_order_events.c.event_type)
+            .where(
+                schema.live_order_events.c.intent_id == intent_id,
+                schema.live_order_events.c.event_type.in_(CANARY_SUBMISSION_ATTEMPT_EVENTS),
+            )
+            .order_by(schema.live_order_events.c.id.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if attempt_event is not None:
+            raise RuntimeError("canary_submission_attempt_already_recorded")
+
+        closed = connection.execute(
+            select(schema.live_order_events.c.event_type)
+            .where(
+                schema.live_order_events.c.intent_id == intent_id,
+                schema.live_order_events.c.event_type == CANARY_PRE_SUBMISSION_CLOSED_EVENT,
+            )
+            .order_by(schema.live_order_events.c.id.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if closed is not None:
+            return {
+                "status": "already_reconciled",
+                "intent_id": intent_id,
+                "event_type": CANARY_PRE_SUBMISSION_CLOSED_EVENT,
+                "submission_attempt_consumed": False,
+            }
+
+        repository.store_order_event(
+            connection,
+            event_key=f"{intent_id}:{CANARY_PRE_SUBMISSION_CLOSED_EVENT}",
+            intent_id=intent_id,
+            event_type=CANARY_PRE_SUBMISSION_CLOSED_EVENT,
+            observed_at=observed,
+            external_order_id=None,
+            external_trade_id=None,
+            evidence={
+                "phase": "phase15_v3_live_canary_v1",
+                "reason": normalized_reason,
+                "submission_attempt_consumed": False,
+                "kill_switch_engaged": True,
+                "activation_valid": False,
+                "submission_ready": False,
+                "live_order_submitted": False,
+                "official_open_order_count": 0,
+                "collateral_balance_usd": collateral,
+            },
+        )
+        reconciliation = repository.store_reconciliation_run(
+            connection,
+            observed_at=observed,
+            unresolved_count=0,
+            critical_count=0,
+            evidence={
+                "phase": "phase15_v3_live_canary_v1",
+                "intent_id": intent_id,
+                "reconciliation_kind": "pre_submission_intent_close",
+                "reason": normalized_reason,
+                "submission_attempt_consumed": False,
+                "official_open_order_count": 0,
+                "collateral_balance_usd": collateral,
+            },
+        )
+
+    return {
+        "status": "reconciled",
+        "intent_id": intent_id,
+        "event_type": CANARY_PRE_SUBMISSION_CLOSED_EVENT,
+        "reconciliation_id": str(reconciliation.record["reconciliation_id"]),
+        "submission_attempt_consumed": False,
     }
 
 
