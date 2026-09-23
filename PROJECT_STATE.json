@@ -657,11 +657,10 @@
     "Live trading"
   ],
   "next_actions": [
-    "Preserve the statistical readiness PASS and Johannesburg geoblock PASS. All Master live-gate rows are now pass and Phase 15 one-dollar canary deployment is authorized.",
-    "Build and validate the exact frozen-V3 one-dollar canary package: remote Johannesburg signer/executor, private-network SSH transport, US-host risk/ledger worker, exact-SHA activation manifest, dual kill switches, and a one-intent hard stop.",
-    "Deploy the canary in non-spending mode first. Install software and wallet/signing material only on the Johannesburg execution host; keep both kill switches engaged and the live worker stopped while verifying direct geoblock, SDK health, SSH transport, exact frozen identity, and zero live-order ledger side effects.",
-    "Only after non-spending deployment PASS may the exact activation command remove the canary kill switches and start the one-shot worker. The canary is capped at one $1 live order, $1 total exposure, $2 daily loss, and two consecutive losses; the worker stops after the first remote submission intent.",
-    "Continue frozen V3 paper observation and V4 Gate B collection unchanged. Do not tune V3, disturb V4, broaden risk limits, or start a second live order until the first canary is reconciled and reviewed."
+    "Preserve the statistical readiness PASS and Johannesburg geoblock PASS. All Master live-gate rows are pass and Phase 15 one-dollar canary is eligible.",
+    "Validate and merge the exact frozen-V3 one-dollar canary code package: one live intent maximum, $1 trade/exposure cap, $2 daily-loss cap, existing live risk/reconciliation gateway, and Johannesburg-only SDK signer boundary.",
+    "Do not put wallet/private-key material into GitHub, logs, chat, or automated deployment scripts. Credential provisioning and real-money activation remain an explicit external operator boundary; the repository package itself must stay non-spending until that boundary is crossed by the operator.",
+    "Continue frozen V3 paper observation and V4 Gate B collection unchanged. Do not tune V3, disturb V4, broaden risk limits, or allow a second live intent before the first canary is reconciled and reviewed."
   ],
   "open_questions": [
     "Current/recurring availability of a 10m BTC Up/Down Polymarket market",
@@ -4188,7 +4187,7 @@
     "master_live_gate_mutation_scope": "Evidence-backed status refresh only; no activation or money change."
   },
   "phase_15_v3_canary_readiness": {
-    "status": "MASTER_LIVE_GATE_PASS_ONE_DOLLAR_CANARY_DEPLOYMENT_AUTHORIZED",
+    "status": "MASTER_LIVE_GATE_PASS_ONE_DOLLAR_CANARY_CODE_READY_NOT_DEPLOYED",
     "purpose": "Attempt a same-day, evidence-based frozen-V3 live-readiness decision without tuning V3 or bypassing geography.",
     "source_v3_model_sha256": "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7",
     "source_prediction_version": "v3-frozen-paper-v1",
@@ -4235,7 +4234,7 @@
     "live_trading_enabled": false,
     "max_trade_size_usd": 0,
     "max_daily_loss_usd": 0,
-    "next_action": "Build, validate, and non-spending-deploy the one-dollar frozen-V3 canary package. Keep kill switches engaged and live disabled through deployment verification. Activation requires the exact source-truth-bound canary activation command and may submit at most one $1 live order before the worker stops.",
+    "next_action": "Validate and merge the fail-closed one-dollar canary code package. The repository must not automate wallet/private-key provisioning or the final real-money activation. After merge, perform only non-spending code/runtime verification; credential installation and live activation remain an explicit external operator boundary.",
     "user_physical_network_geoblock": {
       "status": "pass",
       "blocked": false,
@@ -4304,7 +4303,12 @@
       "cooldown_seconds": 60,
       "live_worker_stops_after_first_remote_submission_intent": true,
       "strategy_identity_unchanged": true,
-      "paper_and_v4_continue": true
+      "paper_and_v4_continue": true,
+      "credential_provisioning_automated": false,
+      "live_activation_automated": false,
+      "wallet_or_private_key_in_repository": false,
+      "execution_host_wallet_boundary": "Johannesburg only",
+      "real_order_submission_requires_external_operator_activation": true
     }
   }
 }
