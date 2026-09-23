@@ -21,18 +21,11 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
-Phase 14 Live Readiness engineering remains research-only and the Master live gate remains blocked. Phase 15 is **not permitted**. Safety remains `LIVE_TRADING_ENABLED=false`, real trade-size and daily-loss limits remain zero, and automatic promotion remains false.
+The project has entered **Phase 15 controlled live launch engineering** for the exact frozen V3. The complete Master live gate is now `pass`: the statistical readiness audit passed under predeclared rules, the user's ordinary physical-network check is unblocked (`NG/LA`), and the dedicated Johannesburg execution host `bp-v3-canary-exec` is independently unblocked (`ZA/GP`).
 
-The active research direction remains the separately versioned **BTC-first V3 challenger**:
+The only authorized live scope is `phase15-v3-single-order-canary-v1`: one external order-submission attempt total, $5 target/max exposure/max daily-loss envelope, unchanged frozen-V3 model/timing/`min_edge=0.075`, two-second TTL, and dual kill switches. The canary is **engineering only and not yet deployed**.
 
-```text
-feature_version = core-v3-btc-native
-label_version   = official-outcome-v1
-horizon_seconds = 300
-feature_offsets = 60, 120, 180, 240
-```
-
-V3 forecasting uses BTC-native Coinbase/Bybit state. Polymarket price/book data remains the downstream executable benchmark/price-to-beat and is not a V3 forecast predictor. Existing V1/V2 evidence remains immutable.
+Keep the existing US production environment in research/zero-money mode. It may generate signals and perform local risk/audit work, but it must never submit authenticated Polymarket orders. Signing/submission is isolated to Johannesburg. V3 paper observation and V4 prospective collection continue unchanged.
 
 ### Historical Gate A acceptance
 
@@ -79,20 +72,11 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
-**23 September accelerated V3 audit result:** the production read-only audit on exact main `ceeec0bded4bb6ae60291ee8f5f60db214eceb98` passed every statistical V3 live-readiness row under the frozen rules. Durable evidence is `docs/evidence/phase-15-v3-accelerated-readiness-production-20260923.json`. Current paper evidence is 77 settled trades (48W/29L), +$687.612927164917 realized after-cost P&L, and a deterministic mean-P&L 95% interval of +$1.746626049710839 to +$18.521917124071315. The prospective calibration audit also passed its predeclared intercept/slope rule.
+Validate and merge the frozen Phase 15 canary package, then deploy it only with the explicit shell acknowledgements `PHASE15_ACCEPT_REAL_MONEY_CANARY=yes` and `PHASE15_CANARY_MAX_LOSS_USD=5`.
 
-The only remaining Master blocker is execution-host geography. The user’s ordinary physical connection is unblocked (`NG/LA`), while the current US execution host remains blocked. The next authorized mutation is **only** `bash scripts/deploy/phase15_v3_canary_host_probe_cloudshell.sh`, which provisions a dedicated `e2-micro` in GCP `africa-south1-a` (Johannesburg), runs the official direct geoblock check, installs no trading software, reads no wallet material, and deletes itself automatically if blocked. It requires explicit billable-VM acknowledgement. Do not activate live trading yet.
+Deployment must install both hosts with kill switches engaged, prompt for the Polymarket private key without echoing or logging it, keep that secret only on the Johannesburg execution host, verify the official SDK plus fresh `blocked=false / ZA-GP` geoblock state, verify the US live ledger is empty, and remove both kill switches only as the final activation step.
 
-
-**Same-day V3 canary readiness:** `phase15-v3-canary-readiness-v1` is now the only authorized statistical follow-up. Its acceptance rules are frozen before the new prospective calibration intercept/slope diagnostics are read. After the package merges green, run `bash scripts/deploy/phase15_v3_accelerated_readiness_cloudshell.sh` once from exact clean current `main`. The run is PostgreSQL read-only and cannot access wallet/signing material, construct an authenticated trading client, enable live trading, or change money limits.
-
-A statistical PASS still cannot override geography. Before any live canary, independently require an unblocked official Polymarket geoblock result from the user's ordinary physical network with VPN/proxy disabled and an unblocked direct geoblock result from the eventual execution host. Do not use infrastructure to disguise a restricted physical location.
-
-
-**23 September V3 live-gate reassessment:** the read-only production run is complete and preserved at `docs/evidence/phase-14-v3-live-gate-reassessment-production-20260923.json`. Frozen V3 now has 76 settled trades, 47 wins / 29 losses, +$682.252111761097 realized paper P&L, profit factor 6.262572772140266, max drawdown $27.974134608836, and a deterministic bootstrap 95% interval for mean realized P&L of +$1.6407501892525114 to +$18.945890261783955. `positive_after_cost_profitability=pass`, execution/reconciliation remains `pass`, and explicit user authorization is `pass`.
-
-The Master live gate nevertheless remains **closed**. The direct official Polymarket geoblock request from the production VM returned `blocked=true`, `country=US`, `region=SC`, so `geographic_compliance_eligible=fail`. `sufficiently_large_live_paper_sample_with_uncertainty`, `calibration_acceptable`, and `walk_forward_results_stable_enough` remain `insufficient_evidence` under the canonical rules. Do not rerun the one-shot reassessment absent a separately versioned reason; do not bypass geographic restrictions; keep live trading disabled and real-money limits zero.
-
+After the first external submission attempt—accepted, rejected, or ambiguous—the canary is consumed and further submissions remain blocked until manual reconciliation. No broad live rollout, second attempt, V3 tuning, or V4 change is authorized.
 
 Frozen V3 paper activation remains a **historical production PASS**, and the current recorder/frozen-V3 runtime is **active after concurrent-partition-retirement rollout PASS** on deployed candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`. The maintenance timer is restored active.
 
