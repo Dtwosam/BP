@@ -599,13 +599,13 @@ The next authorized production mutation is limited to provisioning one dedicated
 No VPN, proxy, tunnel, or other mechanism may be used to disguise a restricted user or route blocked-host Polymarket traffic through the candidate. V3 paper and V4 collection continue unchanged.
 
 
-## D-060 — Permit exactly one frozen-V3 one-dollar live canary after all Master gates pass
+## D-060 — Permit exactly one frozen-V3 ten-dollar live canary after all Master gates pass
 **Date:** 23 Sep 2026  
 **Status:** Active
 
 The dedicated Johannesburg execution-host probe returned `blocked=false`, `ZA/GP`, while the user's ordinary physical-network check remains `blocked=false`, `NG/LA`. Together with the previously completed accelerated frozen-V3 statistical audit, every Master live-gate row is now `pass`.
 
-Phase 15 is therefore permitted only for `phase15-v3-one-dollar-canary-v1`. The first live contract is capped at exactly one live submission intent, $1 maximum trade size, $1 maximum total exposure, $2 maximum daily loss, and two consecutive losses. The frozen V3 model SHA, calibration, 240-second timing, and `min_edge=0.075` are unchanged. The worker exits after the first remote submission intent and no second intent is authorized before reconciliation/review.
+Phase 15 is therefore permitted only for `phase15-v3-ten-dollar-canary-v1`. The first live contract is capped at exactly one live submission intent, $10 maximum fee-inclusive total cost, $10 maximum total exposure, $10 maximum daily loss, and one consecutive loss. The frozen V3 model SHA, calibration, 240-second timing, and `min_edge=0.075` are unchanged. The worker exits after the first remote submission intent and no second intent is authorized before reconciliation/review.
 
 Execution architecture remains split: the existing BP host owns prediction identity validation, risk decisions, duplicate protection, reconciliation, and durable live ledgers; the official SDK signer/submission boundary is isolated to the directly unblocked Johannesburg host. The Johannesburg executor has its own atomic first-submit reservation, providing a second one-shot brake independent of the US worker.
 
