@@ -179,6 +179,20 @@ def _submit(settings: Settings, payload: dict[str, Any]) -> dict[str, object]:
         price = _decimal(payload.get("price"), "price")
         size = _decimal(payload.get("size"), "size")
         ttl_ms = int(payload.get("ttl_ms", -1))
+        raw_expires_at = str(payload.get("expires_at") or "")
+        expires_at = datetime.fromisoformat(raw_expires_at)
+        if expires_at.tzinfo is None or expires_at.utcoffset() is None:
+            raise ValueError("expires_at must be timezone-aware")
+        expires_at = expires_at.astimezone(UTC)
+        if datetime.now(UTC) >= expires_at:
+            return {
+                "ok": True,
+                "accepted": False,
+                "external_order_id": None,
+                "status": "rejected",
+                "code": "request_expired",
+                "message": "canary request expired before remote submission",
+            }
         if not Decimal("0") < price <= Decimal("1"):
             raise ValueError("price must be within (0, 1]")
         if size < CANARY_MIN_SHARES:
