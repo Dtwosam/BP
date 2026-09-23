@@ -66,15 +66,17 @@ gcloud compute networks describe default --project="$PROJECT" --format='value(na
   >/dev/null 2>&1 || fail "default_network_missing"
 
 CREATED=false
-cleanup_on_error() {
-  if [[ "$CREATED" == "true" ]]; then
+KEEP_CANDIDATE=false
+cleanup_candidate() {
+  status=$?
+  if [[ "$status" -ne 0 && "$CREATED" == "true" && "$KEEP_CANDIDATE" != "true" ]]; then
     gcloud compute instances delete "$VM" \
       --project="$PROJECT" \
       --zone="$ZONE" \
       --quiet >/dev/null 2>&1 || true
   fi
 }
-trap cleanup_on_error ERR
+trap cleanup_candidate EXIT
 
 echo "Creating execution-only geoblock probe VM in $ZONE."
 echo "This is a billable GCP resource. No trading software or wallet material will be installed."
@@ -164,7 +166,8 @@ if [[ "$PROBE_RESULT" != "PASS" ]]; then
   fail "candidate_execution_host_geoblocked"
 fi
 
-trap - ERR
+KEEP_CANDIDATE=true
+trap - EXIT
 
 echo "$GEOBLOCK_JSON"
 echo "PROJECT=$PROJECT"
