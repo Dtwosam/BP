@@ -1,6 +1,6 @@
 from dataclasses import replace
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 
 from bp_engine.execution.models import (
     PAPER_EXECUTION_VERSION,
@@ -120,3 +120,46 @@ def test_v3_paper_runner_pins_every_execution_assumption() -> None:
         '"6"',
     ):
         assert value in content
+
+
+def test_v3_paper_cycle_query_count_does_not_scale_with_skipped_history() -> None:
+    engine = create_engine("sqlite://")
+    schema.metadata.create_all(engine)
+    repository = LivePredictionRepository()
+    with engine.begin() as connection:
+        for index in range(100):
+            repository.store(
+                connection,
+                replace(
+                    _prediction(
+                        prediction_id=f"{index + 1:064x}",
+                        semantic_sha256=f"{index + 1001:064x}",
+                        condition_id=f"v3-skip-{index}",
+                        trade=False,
+                    ),
+                    prediction_version="v3-frozen-paper-v1",
+                ),
+            )
+
+    service = PaperExecutionService(
+        engine=engine,
+        config=PaperExecutionConfig(
+            execution_version=V3_FROZEN_PAPER_EXECUTION_VERSION,
+            prediction_version="v3-frozen-paper-v1",
+        ),
+    )
+    statement_count = 0
+
+    def count_statement(*_args: object) -> None:
+        nonlocal statement_count
+        statement_count += 1
+
+    event.listen(engine, "before_cursor_execute", count_statement)
+    try:
+        report = service.run_once(now=BASE)
+    finally:
+        event.remove(engine, "before_cursor_execute", count_statement)
+
+    assert report.examined_predictions == 100
+    assert report.skipped_predictions == 100
+    assert statement_count <= 12
