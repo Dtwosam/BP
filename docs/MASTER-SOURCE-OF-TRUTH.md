@@ -1633,6 +1633,7 @@ max_total_exposure_usd = 10
 max_daily_loss_usd = 10
 max_consecutive_losses = 1
 max_accepted_orders = 1
+max_submission_attempts = 1
 min_edge = 0.075
 min_liquidity_usd = 5
 max_spread = 0.10
@@ -1656,11 +1657,11 @@ Only NEW frozen-V3 paper orders created after a canary activation timestamp may 
 Real-money submission is deliberately not automated.
 
 1. Wallet bootstrap may install the pinned official SDK and signer material on Johannesburg, but leaves `/etc/bp-canary/KILL` engaged and submits no order.
-2. Canary preparation reuses the exact frozen paper request, applies the existing live-risk engine, creates a zero-order reconciliation baseline if necessary, persists risk evidence and the live intent, and submits no order.
-3. Explicit arm requires `PHASE15_ACCEPT_REAL_MONEY=yes`, validates the prepared $5 request against the $10 ceilings and Master gate, writes a short-lived activation manifest valid for at most 45 seconds, and removes the kill switch. Arming submits no order.
-4. The user manually sends only the prepared payload to the Johannesburg executor. The executor rechecks direct geoblock and activation, independently enforces the $10 notional ceiling, and **atomically re-engages the kill switch before the SDK submission attempt**, consuming the arm. It then submits the bounded limit BUY and attempts cancellation after two seconds.
-5. The sanitized result must be recorded in the live ledger. Stop after the first accepted order.
+2. Canary preparation first requires a fresh official-account preflight from Johannesburg: zero official open orders and at least $5 collateral. It reuses the exact frozen $5 paper request, requires at least $5 of fresh displayed selected-side ask liquidity, applies the existing live-risk engine, creates an initial zero-order reconciliation baseline only after the official account is verified clean, persists risk evidence and the live intent, and submits no order.
+3. Explicit arm requires `PHASE15_ACCEPT_REAL_MONEY=yes`, validates the prepared $5 request against the $10 ceilings and Master gate, and binds a short-lived activation manifest (at most 45 seconds) to the exact intent ID, prediction ID, paper-order ID, canonical request SHA-256, and executor SHA-256. It rechecks official-account cleanliness/collateral before removing the kill switch. Arming submits no order.
+4. The user manually sends only the prepared payload to the Johannesburg executor. The executor rechecks direct geoblock, exact activation/request/executor binding, zero official open orders, and at least $5 collateral. It independently rejects a target other than the frozen $5 canary target or gross notional above $10 and **atomically re-engages the kill switch before the SDK submission attempt**, consuming the arm. It uses the pinned SDK's direct `post_order()` path, not the higher-level allowance-recovery placement helper, so the canary performs only one submission POST. It then attempts cancellation after two seconds.
+5. The sanitized result may be recorded only when its intent, authorization, request SHA-256, executor SHA-256, ZA geoblock evidence, and official-account preflight match the prepared contract. Stop after the first network submission attempt, whether accepted, rejected, or ambiguous.
 
-No second order is authorized. Official order/fill reconciliation is mandatory before a later decision can authorize another live action. Missing, malformed, or ambiguous submission/cancellation evidence fails closed and must never trigger a retry.
+Exactly one network submission attempt is authorized. No second order or retry is authorized. Official order/fill reconciliation is mandatory before a later decision can authorize another live action. Missing, malformed, or ambiguous submission/cancellation evidence fails closed and must never trigger a retry.
 
 A profitable first canary does not authorize automatic promotion, stake growth, V3 tuning, or any V4 change. V3 paper observation and V4 Gate B collection continue in parallel.
