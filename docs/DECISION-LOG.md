@@ -567,3 +567,20 @@ Sample sufficiency reuses the pre-existing Phase 13 uncertainty rule rather than
 Calibration receives one new reliability test whose acceptance rule is fixed before the diagnostics are observed: prospective Brier/log loss no worse than the frozen V3 final holdout, calibration-intercept 95% interval containing 0, and calibration-slope 95% interval containing 1. ECE remains descriptive. A failed calibration audit cannot be repaired by weakening these criteria after the fact.
 
 This decision does not authorize live activation. Geographic compliance is independent: the user's ordinary physical connection and the eventual execution host must both be unblocked by the official Polymarket geoblock check without VPN/proxy/tunnel circumvention. Until the complete Master gate passes, wallet/signing access, authenticated client construction, live orders, Phase 15 production activation, and nonzero money remain blocked.
+
+
+## D-058 — Freeze a same-day V3 canary-readiness audit without tuning the strategy
+**Date:** 23 Sep 2026  
+**Status:** Active
+
+The user requested the shortest compliant path toward a controlled frozen-V3 live canary. The project therefore freezes `phase15-v3-canary-readiness-v1` before reading any new calibration intercept/slope diagnostics.
+
+The sample-sufficiency row reuses the accepted Phase 13 uncertainty principle rather than inventing a round-number trade threshold after seeing the current 76-trade paper sample. It passes only when the deterministic prospective mean realized after-cost P&L 95% lower bound is strictly positive.
+
+Walk-forward stability is supported only when the pre-registered five-fold V3 ordinary validation economics gate passed, the untouched V3 final holdout has positive after-cost P&L, and the prospective paper mean-P&L lower confidence bound is positive. The frozen V3 implementation forced `no_trade` when the ordinary validation economics gate failed; the immutable selected policy is `trade_threshold` at `min_edge=0.075`, so the frozen ordinary gate necessarily passed.
+
+Calibration acceptance is frozen before reading the new reliability diagnostics: prospective calibrated Brier/log loss must be no worse than the frozen pre-paper holdout, and deterministic bootstrap 95% intervals for calibration intercept/slope must contain 0/1 respectively. ECE is reported descriptively and cannot acquire an after-the-fact threshold.
+
+Geography remains an independent hard gate. User-provided direct official geoblock evidence from the ordinary physical network reports `blocked=false`, `NG/LA`; the IP is not persisted. The latest execution host remains blocked in `US/SC`. No VPN, proxy, tunnel, or other physical-location circumvention is allowed. Statistical PASS alone cannot authorize real money.
+
+The new production bridge is read-only and cannot access wallet/signing material, construct an authenticated trading client, create an activation manifest, enable live trading, or change nonzero money limits. V3 remains frozen and V4 collection continues unchanged until the complete Master live gate passes.
