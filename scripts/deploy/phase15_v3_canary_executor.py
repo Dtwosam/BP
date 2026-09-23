@@ -7,8 +7,8 @@ import sys
 import time
 import urllib.request
 from datetime import UTC, datetime
-from pathlib import Path
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from typing import Any
 
 import polymarket
@@ -78,9 +78,7 @@ def _account_preflight(client: object) -> dict[str, object]:
         "collateral_balance_base_units": balance_base_units,
         "collateral_balance_usd": format(balance_usd, "f"),
         "open_order_count": len(open_orders),
-        "clean_for_canary": (
-            len(open_orders) == 0 and balance_usd >= TARGET_NOTIONAL_USD
-        ),
+        "clean_for_canary": len(open_orders) == 0 and balance_usd >= TARGET_NOTIONAL_USD,
     }
 
 
@@ -120,7 +118,11 @@ def _activation() -> dict[str, object]:
         raise RuntimeError("activation_prediction_version_mismatch")
     if payload.get("source_execution_version") != "paper-execution-v3-frozen-v1":
         raise RuntimeError("activation_execution_version_mismatch")
-    if _decimal(payload.get("max_trade_size_usd"), "activation.max_trade_size_usd") != MAX_NOTIONAL_USD:
+    activation_trade_limit = _decimal(
+        payload.get("max_trade_size_usd"),
+        "activation.max_trade_size_usd",
+    )
+    if activation_trade_limit != MAX_NOTIONAL_USD:
         raise RuntimeError("activation_trade_limit_mismatch")
     if int(payload.get("max_submission_attempts", 0)) != 1:
         raise RuntimeError("activation_attempt_limit_mismatch")
