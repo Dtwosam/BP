@@ -101,6 +101,7 @@ def test_remote_executor_consumes_canary_before_external_submission(
             "price": "0.50",
             "size": "9",
             "ttl_ms": 2000,
+            "expires_at": (datetime.now(UTC) + timedelta(seconds=30)).isoformat(),
         },
     )
     assert result["accepted"] is True
@@ -147,3 +148,37 @@ def test_remote_executor_rejects_more_than_five_dollars(monkeypatch, tmp_path) -
             },
         )
     assert fake.submits == 0
+
+
+def test_remote_executor_expired_request_does_not_consume_canary(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    settings = _settings(monkeypatch, tmp_path)
+    fake = _FakeClient()
+    monkeypatch.setattr(
+        remote_executor.GeoblockClient,
+        "check",
+        lambda self: SimpleNamespace(blocked=False, country="ZA", region="GP"),
+    )
+    monkeypatch.setattr(
+        remote_executor.OfficialPolymarketTradingClient,
+        "create_from_environment",
+        lambda **kwargs: fake,
+    )
+
+    result = remote_executor._submit(
+        settings,
+        {
+            "token_id": "token-1",
+            "price": "0.50",
+            "size": "9",
+            "ttl_ms": 2000,
+            "expires_at": (datetime.now(UTC) - timedelta(seconds=1)).isoformat(),
+        },
+    )
+    assert result["accepted"] is False
+    assert result["code"] == "request_expired"
+    assert fake.submits == 0
+    assert not (tmp_path / "ATTEMPTED.json").exists()
+    assert not (tmp_path / "KILL").exists()
