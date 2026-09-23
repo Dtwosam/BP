@@ -1,0 +1,13 @@
+{
+  "observed_at": "2026-09-23T18:29:42.744438Z",
+  "status": "PREPARE_COMMAND_FAILED_BEFORE_CANARY_EVALUATION",
+  "main_head_before_fix": "944d8b87abc03b55c95a0f40eb2a01b0504a49a3",
+  "error": "ImportError: cannot import name 'InterlockDecision' from 'bp_engine.execution.live' (unknown location)",
+  "failing_stage": "inline current live.py module initialization",
+  "root_cause": "prepare replaced sys.modules['bp_engine.execution.live'] before bp_engine.execution package initialization. Executing current live.py then imported a sibling module, which initialized bp_engine.execution.__init__; that __init__ imported InterlockDecision from the half-initialized replacement live module.",
+  "fix": "Initialize frozen bp_engine.execution package first, then replace sys.modules['bp_engine.execution.live'], update execution_package.live, execute current live.py, and only then execute current canary.py.",
+  "no_canary_evaluation_completed": true,
+  "arm_attempted": false,
+  "live_order_submitted": false,
+  "submission_attempt_consumed": false
+}

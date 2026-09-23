@@ -103,10 +103,12 @@ import types
 from datetime import UTC, datetime
 from sqlalchemy import create_engine
 from bp_engine.config import Settings
+import bp_engine.execution as execution_package
 
 live_module=types.ModuleType("bp_engine.execution.live")
 live_module.__package__="bp_engine.execution"
 sys.modules[live_module.__name__]=live_module
+execution_package.live=live_module
 live_source=base64.b64decode(os.environ["LIVE_SOURCE_B64"]).decode("utf-8")
 exec(compile(live_source, "<phase15_live_inline>", "exec"), live_module.__dict__)
 InterlockDecision=live_module.InterlockDecision

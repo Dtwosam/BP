@@ -4339,7 +4339,7 @@
     "second_order_authorized": false,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "After merging the prepare runtime-binding fix, pull current main and rerun the no-order prepare helper. Verify the previously closed-before-submission intent no longer causes cooldown_active or reconciliation_blocked. Liquidity-based skips remain valid market-state failures. If prepare passes, arm immediately; only if arm passes, execute the one permitted network submission exactly once, record it, and stop.",
+    "next_action": "After merging the prepare live-import-order fix, pull current main and rerun the no-order prepare helper. The helper must initialize bp_engine.execution before swapping in current live.py. If prepare passes, arm immediately; only if arm passes, execute the one permitted network submission exactly once, record it, and stop.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
@@ -4401,6 +4401,17 @@
       "root_cause": "prepare loaded current canary.py against frozen-runtime bp_engine.execution.live, so current account-snapshot semantics were not active",
       "fix": "inline current live.py as bp_engine.execution.live before inline current canary.py; keep remaining imports pinned to frozen V3 runtime",
       "running_v3_service_mutated": false,
+      "live_order_submitted": false,
+      "submission_attempt_consumed": false,
+      "production_validation_pending": true
+    },
+    "prepare_live_import_order_fix": {
+      "status": "ENGINEERING_READY_NOT_YET_PRODUCTION_VALIDATED",
+      "observed_at": "2026-09-23T18:29:42.744438Z",
+      "evidence": "docs/evidence/phase-15-v3-canary-prepare-live-import-cycle-20260923.json",
+      "root_cause": "current live.py was swapped into sys.modules before bp_engine.execution package initialization, causing package __init__ to import from a half-initialized live module",
+      "fix": "initialize bp_engine.execution first, then replace package live module, then execute current canary.py",
+      "no_canary_evaluation_completed": true,
       "live_order_submitted": false,
       "submission_attempt_consumed": false,
       "production_validation_pending": true
