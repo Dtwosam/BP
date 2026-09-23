@@ -184,6 +184,16 @@ Before any real order is allowed, a fresh V3-specific reassessment must isolate 
 
 Until the complete gate passes, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0` remain mandatory. The V3 model artifact, calibration, 240-second timing, `min_edge=0.075`, and paper sizing remain frozen; this authorization is not permission to tune them from paper results.
 
+### 4.3.2 Frozen V3 read-only live-gate reassessment result — 23 September 2026
+
+The one-shot production reassessment completed read-only on exact main `ba98b3871e03895d04bb2b06d4be5350f6c17491`. Sanitized evidence is `docs/evidence/phase-14-v3-live-gate-reassessment-production-20260923.json`.
+
+The frozen V3 paper sample contained 76 settled trades (47 wins, 29 losses), realized after-cost P&L `682.252111761097` USD, mean P&L `8.97700147054075` USD, profit factor `6.262572772140266`, maximum drawdown `27.974134608836` USD, maximum losing streak 4, and P&L `450.802786408456` USD after removing the largest winner. The deterministic 10,000-resample bootstrap 95% interval for mean realized P&L was `[1.6407501892525114, 18.945890261783955]`, entirely above zero. Under the already-approved profitability rule, `positive_after_cost_profitability=pass`. Reconciliation remained `OK` with zero violations, so `order_execution_and_reconciliation_tested=pass`. Explicit user live authorization is `pass`.
+
+Across all 519 evaluated frozen-V3 predictions, raw/calibrated Brier mean was `0.0999937890122578` and raw/calibrated log-loss mean was `0.3173973846097945`. No approved numerical prospective calibration acceptance threshold exists, so `calibration_acceptable=insufficient_evidence`. Section 4.3 still defines no fixed prospective sample-size threshold, so `sufficiently_large_live_paper_sample_with_uncertainty=insufficient_evidence`. `walk_forward_results_stable_enough` also remains `insufficient_evidence`.
+
+The direct official Polymarket geoblock request from the production VM returned `blocked=true`, `country=US`, `region=SC` at `2026-09-23T09:43:05.145648Z`. Therefore `geographic_compliance_eligible=fail`. The overall Master live gate remains `fail`; Phase 15 remains blocked; live trading remains disabled; real-money limits remain zero. This result must not be bypassed with VPNs, proxies, tunnels, or relocation tricks. Preserve the one-shot evidence and do not rerun the reassessment absent a separately versioned reason.
+
 ---
 
 # 5. System architecture
