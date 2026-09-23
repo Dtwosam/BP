@@ -1,10 +1,12 @@
 # Phase 14 — Frozen V3 Live-Gate Reassessment
 
-This runbook collects fresh **read-only** evidence for the exact frozen V3 after the user authorized pursuing a controlled live transition. It does not enable live trading and does not change the Master live gate.
+**Status: completed one-shot read-only production reassessment on 23 September 2026. Do not rerun from current main absent a separately versioned reason.**
 
-## Command
+The completed run collected fresh **read-only** evidence for the exact frozen V3 after the user authorized pursuing a controlled live transition. It did not enable live trading. Its evidence-backed closeout updated only the Master gate status rows; no production or money mutation occurred.
 
-From an authenticated Google Cloud Shell with a clean checkout exactly at current `origin/main`:
+## Historical one-shot command
+
+The following command was used for the completed run on exact main `ba98b3871e03895d04bb2b06d4be5350f6c17491`. The helper is intentionally source-truth-version-bound and should now fail from later current main rather than silently rerun:
 
 ```bash
 cd ~/BP
@@ -51,3 +53,19 @@ A `PHASE14_V3_LIVE_GATE_REASSESSMENT=PASS` token means only that the read-only c
 If the direct geoblock result is `blocked=true` or the check errors, geographic eligibility remains blocked/fail-closed. Do not route, proxy, VPN, relocate, or otherwise bypass the restriction.
 
 After the output is reviewed, any Master live-gate status change must be a separate source-truth decision. V4 collection continues unchanged throughout.
+
+
+## Completed result
+
+Sanitized evidence is `docs/evidence/phase-14-v3-live-gate-reassessment-production-20260923.json`.
+
+- 76 settled frozen-V3 paper trades: 47 wins / 29 losses.
+- realized after-cost paper P&L: `+682.252111761097` USD;
+- deterministic bootstrap 95% interval for mean P&L: `[+1.6407501892525114, +18.945890261783955]` USD;
+- profit factor: `6.262572772140266`;
+- max drawdown: `27.974134608836` USD;
+- P&L excluding the largest winner: `+450.802786408456` USD;
+- reconciliation: `OK`, zero violations;
+- direct official geoblock: `blocked=true`, `US/SC`.
+
+Master gate refresh: profitability `pass`, execution/reconciliation `pass`, explicit user authorization `pass`; sample sufficiency, calibration acceptance, and walk-forward stability `insufficient_evidence`; geographic compliance `fail`; overall live gate `fail`. Phase 15 remains blocked.

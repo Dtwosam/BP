@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase14_v3_live_gate_reassessment_production_read_only",
+  "generated_at": "2026-09-23T09:43:08.131175+00:00",
+  "source_main_sha": "ba98b3871e03895d04bb2b06d4be5350f6c17491",
+  "helper": "scripts/deploy/phase14_v3_live_gate_reassessment_cloudshell.sh",
+  "helper_result": "PASS",
+  "mode": "phase14_v3_live_gate_reassessment_read_only",
+  "frozen_identity": {
+    "model_sha256": "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7",
+    "prediction_version": "v3-frozen-paper-v1",
+    "execution_version": "paper-execution-v3-frozen-v1",
+    "selected_offset_seconds": 240,
+    "min_edge": 0.075
+  },
+  "geographic_eligibility": {
+    "status": "ok",
+    "blocked": true,
+    "country": "US",
+    "region": "SC",
+    "checked_at": "2026-09-23T09:43:05.145648+00:00",
+    "direct_url": "https://polymarket.com/api/geoblock"
+  },
+  "runtime": {
+    "activation_manifest_present": false,
+    "kill_switch_engaged": false,
+    "live_order_ledger_counts": {
+      "live_order_events": 0,
+      "live_order_intents": 0,
+      "live_reconciliation_runs": 0,
+      "live_risk_decisions": 0
+    },
+    "live_trading_enabled": false,
+    "max_consecutive_losses": 0,
+    "max_daily_loss_usd": "0.0",
+    "max_total_exposure_usd": "0.0",
+    "max_trade_size_usd": "0.0",
+    "mode": "research",
+    "sdk_import_ok": true
+  },
+  "safety": {
+    "database_session_read_only": true,
+    "live_trading_enabled": false,
+    "max_daily_loss_usd": 0,
+    "max_trade_size_usd": 0,
+    "phase15_permitted": false,
+    "production_checkout_mutation": false,
+    "production_files_created": false,
+    "real_money_mutation_performed": false,
+    "real_order_submission_attempted": false,
+    "service_or_timer_mutation": false,
+    "wallet_or_signing_material_read": false
+  },
+  "v3": {
+    "sample": {
+      "settled_trade_count": 76,
+      "wins": 47,
+      "losses": 29,
+      "win_rate": 0.618421052631579,
+      "win_rate_95pct_ci": {
+        "lower": 0.5060175500135465,
+        "upper": 0.7194292324710262,
+        "method": "wilson_95pct"
+      }
+    },
+    "economics": {
+      "realized_total_usd": "682.252111761097000000",
+      "realized_mean_usd": "8.977001470540750000",
+      "mean_95pct_ci_usd": {
+        "lower": 1.6407501892525114,
+        "upper": 18.945890261783955,
+        "method": "deterministic_bootstrap_percentile",
+        "resamples": 10000,
+        "seed": 14
+      },
+      "gross_profit_usd": "811.894425758710000000",
+      "gross_loss_usd": "129.642313997613000000",
+      "profit_factor": 6.262572772140266,
+      "max_drawdown_usd": "27.974134608836000000",
+      "max_losing_streak": 4,
+      "largest_winner_usd": "231.449325352641000000",
+      "largest_winner_share_of_total": 0.33924310582960454,
+      "pnl_excluding_largest_winner_usd": "450.802786408456000000"
+    },
+    "calibration": {
+      "evaluation_count": 519,
+      "raw_brier_mean": 0.0999937890122578,
+      "raw_log_loss_mean": 0.3173973846097945,
+      "calibrated_brier_mean": 0.0999937890122578,
+      "calibrated_log_loss_mean": 0.3173973846097945
+    },
+    "reconciliation": {
+      "invalid_order_source_count": 0,
+      "status": "OK",
+      "violation_count": 0
+    },
+    "diagnostics": {
+      "positive_total_pnl": true,
+      "bootstrap_mean_lower_bound_positive": true,
+      "profitable_without_largest_winner": true,
+      "reconciliation_ok": true
+    }
+  },
+  "frozen_holdout_reference": {
+    "market_count": 144,
+    "accuracy": 0.8402777777777778,
+    "log_loss": 0.35419212970900277,
+    "brier_score": 0.10943703117284813,
+    "trade_count": 20,
+    "realized_pnl_after_assumed_costs": 1.654224,
+    "profit_factor": 1.5272848919547029,
+    "evidence_sha256": "a093de346cde6a98cf056bdbc3f7c901c3570aff611363cda996a04fa8e4d66a"
+  },
+  "live_gate_assessment": {
+    "historical_pipeline_reproducible": "pass",
+    "no_known_target_leakage": "pass",
+    "time_ordered_splits": "pass",
+    "walk_forward_results_stable_enough": "insufficient_evidence",
+    "sufficiently_large_live_paper_sample_with_uncertainty": "insufficient_evidence",
+    "positive_after_cost_profitability": "pass",
+    "calibration_acceptable": "insufficient_evidence",
+    "risk_limits_and_kill_switch_tested": "pass",
+    "order_execution_and_reconciliation_tested": "pass",
+    "geographic_compliance_eligible": "fail",
+    "explicit_user_live_authorization": "pass",
+    "overall_live_gate": "fail"
+  },
+  "interpretation": "Frozen V3 now has positive prospective paper economics with the deterministic bootstrap 95% interval for mean realized P&L entirely above zero, so positive_after_cost_profitability advances to pass. Reconciliation remains pass and explicit user authorization is pass. The canonical specification still provides no approved fixed sample-size threshold or numerical prospective calibration acceptance threshold, so those rows remain insufficient_evidence; walk-forward stability also remains insufficient_evidence. The direct official Polymarket geoblock check from the production VM returned blocked=true for US/SC, so geographic_compliance_eligible remains fail and the overall Master live gate remains fail. No production mutation, real-money action, wallet/signing read, model tuning, or V4 change occurred."
+}

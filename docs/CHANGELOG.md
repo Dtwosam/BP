@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.177 — 23 September 2026
+
+- Recorded the one-shot frozen-V3 production read-only live-gate reassessment from exact main `ba98b3871e03895d04bb2b06d4be5350f6c17491` at `docs/evidence/phase-14-v3-live-gate-reassessment-production-20260923.json`.
+- V3 paper evidence now covers 76 settled trades (47 wins / 29 losses), +$682.252111761097 realized after-cost P&L, +$8.97700147054075 mean P&L, profit factor 6.262572772140266, max drawdown $27.974134608836, max losing streak 4, and a deterministic bootstrap 95% mean-P&L interval of +$1.6407501892525114 to +$18.945890261783955. `positive_after_cost_profitability` therefore advances to `pass` under the existing rule.
+- V3 execution/reconciliation remains `pass` with zero violations and explicit user live authorization is `pass`. Sample sufficiency, calibration acceptance, and walk-forward stability remain `insufficient_evidence` because the canonical project still defines no approved sample-size or calibration threshold and no new walk-forward acceptance evidence was produced.
+- The production VM's direct official Polymarket geoblock response returned `blocked=true`, `country=US`, `region=SC`; geographic compliance remains `fail`, so the overall Master live gate remains `fail`, Phase 15 remains blocked, live trading remains disabled, and all real-money limits remain zero. The one-shot reassessment must not be rerun or used to justify geographic bypass.
+
 ## 0.14.176 — 23 September 2026
 
 - Added `scripts/deploy/phase14_v3_live_gate_reassessment_cloudshell.sh`, an exact-main-bound read-only bridge for the accepted production host whose deployed checkout predates the new V3 reassessment module.
