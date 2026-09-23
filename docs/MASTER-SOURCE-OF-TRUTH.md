@@ -1613,3 +1613,31 @@ The run observed 77 settled frozen-V3 paper trades (48 wins / 29 losses), realiz
 Explicit user live authorization remains `pass`. The user’s ordinary physical-network official geoblock check is `blocked=false`, `NG/LA`; the IP address is not persisted. The current execution host remains `blocked=true`, `US/SC`. Therefore `geographic_compliance_eligible=fail`, overall live gate remains `fail`, Phase 15 production activation remains prohibited, and real-money limits remain zero.
 
 The next authorized mutation is only the source-truth-bound Johannesburg candidate-host probe in `scripts/deploy/phase15_v3_canary_host_probe_cloudshell.sh`. It requires explicit billable-VM acknowledgement, may create only `bp-v3-canary-exec` in `africa-south1-a` as `e2-micro`, installs no trading software or wallet/signing material, and performs only the direct official Polymarket geoblock check. A blocked/error response requires deletion. An unblocked PASS is evidence for a later canary-deployment decision, not automatic live activation.
+
+
+## 23 Sep 2026 — Master live gate PASS; exact one-dollar frozen-V3 canary only
+
+The dedicated execution-host probe completed from `bp-v3-canary-exec` in GCP `africa-south1-a` and returned the official direct Polymarket geoblock result `blocked=false`, country `ZA`, region `GP`. Durable evidence is `docs/evidence/phase-15-v3-canary-execution-host-geoblock-20260923.json`. The user's ordinary physical-network result is independently `blocked=false`, `NG/LA`, with the IP intentionally not persisted.
+
+Therefore `geographic_compliance_eligible=pass`. Together with the accelerated frozen-V3 audit, the full Master matrix is now `pass`: reproducibility, leakage controls, chronological splits, walk-forward stability, live-paper sample sufficiency with uncertainty, after-cost profitability, calibration, risk/kill-switch testing, execution/reconciliation, geographic compliance, and explicit user authorization.
+
+Phase 15 permission is **narrow**. The only authorized first live contract is `phase15-v3-one-dollar-canary-v1`:
+
+- exact frozen model SHA `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`;
+- prediction version `v3-frozen-paper-v1`;
+- live execution version `live-execution-v3-canary-v1`;
+- frozen 240-second decision timing and `min_edge=0.075`;
+- at most one live submission intent;
+- maximum trade size `1.00` USD;
+- maximum total exposure `1.00` USD;
+- maximum daily loss `2.00` USD;
+- maximum consecutive losses `2`;
+- maximum prediction age 10 seconds;
+- minimum time-to-expiry 30 seconds;
+- worker exit immediately after the first remote submission intent.
+
+The existing BP host remains the source of prediction identity, risk decisions, duplicate protection, reconciliation, and durable live ledgers. It must not perform authenticated Polymarket order submission from the blocked US location. The official SDK signing/submission boundary is isolated to the directly unblocked Johannesburg execution host. The executor has an independent atomic first-submit reservation so restart/crash cannot create a second canary submission.
+
+The repository must remain non-spending by itself. Wallet/private-key material may not be committed, logged, pasted into chat, or embedded in deployment automation. Credential provisioning and final real-money activation remain explicit operator boundaries outside GitHub automation. This Master PASS does not authorize a second live intent, wider limits, broad live operation, V3 tuning, or any V4 promotion action.
+
+Frozen V3 paper observation and V4 Gate B future collection continue unchanged.
