@@ -1,21 +1,16 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
+import urllib.request
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
-from bp_engine.config import Settings, TradingMode
-from bp_engine.execution.live_client import OfficialPolymarketTradingClient
-from bp_engine.live_readiness.geoblock import GeoblockClient, GeoblockError
-from bp_engine.live_readiness.interlock import (
-    ActivationManifestError,
-    kill_switch_engaged,
-    load_activation_manifest,
-)
+import polymarket
 
 CANARY_MAX_NOTIONAL_USD = Decimal("1.00")
 CANARY_RECEIPT_PATH = "/var/lib/bp-exec/first-submit.json"
@@ -46,80 +41,123 @@ def _load_runtime_environment() -> None:
             continue
         key, value = line.split("=", 1)
         key = key.strip()
-        if not key:
-            continue
-        os.environ.setdefault(key, value.strip())
-
-
-def _settings() -> Settings:
-    path = _env_path()
-    _load_runtime_environment()
-    return Settings(_env_file=path)
+        if key:
+            os.environ.setdefault(key, value.strip())
 
 
 def _expected_git_sha() -> str:
     value = os.environ.get("BP_CANARY_EXPECTED_GIT_SHA", "").strip().lower()
-    if len(value) != 40:
+    if len(value) != 40 or any(ch not in "0123456789abcdef" for ch in value):
         raise RuntimeError("BP_CANARY_EXPECTED_GIT_SHA is invalid")
     return value
 
 
-def _geoblock(settings: Settings) -> dict[str, Any]:
-    try:
-        result = GeoblockClient(url=settings.polymarket_geoblock_url).check()
-    except GeoblockError as exc:
-        raise RuntimeError("direct geoblock check failed") from exc
-    if result.blocked:
-        raise RuntimeError("execution host is geoblocked")
-    return {
-        "blocked": False,
-        "country": result.country,
-        "region": result.region,
-    }
+def _activation_sha(git_sha: str) -> str:
+    return hashlib.sha256(git_sha.encode("ascii")).hexdigest()
 
 
 def _activation(expected_git_sha: str) -> dict[str, Any]:
-    try:
-        manifest = load_activation_manifest(
-            CANARY_ACTIVATION_PATH,
-            expected_git_sha=expected_git_sha,
-            observed_at=datetime.now(UTC),
-        )
-    except ActivationManifestError as exc:
-        raise RuntimeError("canary activation manifest is invalid") from exc
+    payload = json.loads(Path(CANARY_ACTIVATION_PATH).read_text(encoding="utf-8"))
+    if not isinstance(payload, dict) or payload.get("authorized") is not True:
+        raise RuntimeError("canary activation manifest is invalid")
+    expected = _activation_sha(expected_git_sha)
+    if payload.get("git_sha") != expected:
+        raise RuntimeError("canary activation manifest does not match code")
+    issued_at = datetime.fromisoformat(str(payload["issued_at"]))
+    expires_at = datetime.fromisoformat(str(payload["expires_at"]))
+    if issued_at.tzinfo is None or expires_at.tzinfo is None:
+        raise RuntimeError("canary activation timestamps must be timezone-aware")
+    now = datetime.now(UTC)
+    if issued_at.astimezone(UTC) > now or now >= expires_at.astimezone(UTC):
+        raise RuntimeError("canary activation manifest is outside its validity window")
+    authorization_id = str(payload.get("authorization_id") or "").strip()
+    if not authorization_id:
+        raise RuntimeError("canary activation authorization_id is missing")
     return {
-        "authorized": manifest.authorized,
-        "git_sha": manifest.git_sha,
-        "authorization_id": manifest.authorization_id,
-        "expires_at": manifest.expires_at.isoformat(),
+        "authorized": True,
+        "git_sha": expected,
+        "authorization_id": authorization_id,
+        "expires_at": expires_at.astimezone(UTC).isoformat(),
     }
 
 
-def _wallet_configured(settings: Settings) -> bool:
-    private_key = os.environ.get(settings.polymarket_private_key_env, "").strip()
-    return bool(private_key)
+def _geoblock() -> dict[str, Any]:
+    url = os.environ.get(
+        "POLYMARKET_GEOBLOCK_URL",
+        "https://polymarket.com/api/geoblock",
+    )
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "BP-phase15-one-dollar-canary/1"},
+    )
+    with urllib.request.urlopen(request, timeout=10) as response:
+        if response.status != 200:
+            raise RuntimeError("direct geoblock check returned non-success")
+        payload = json.loads(response.read().decode("utf-8"))
+    if type(payload.get("blocked")) is not bool:
+        raise RuntimeError("direct geoblock check returned invalid blocked")
+    if not isinstance(payload.get("country"), str) or not isinstance(
+        payload.get("region"), str
+    ):
+        raise RuntimeError("direct geoblock check returned invalid location")
+    if payload["blocked"]:
+        raise RuntimeError("execution host is geoblocked")
+    return {
+        "blocked": False,
+        "country": payload["country"],
+        "region": payload["region"],
+        "direct_url": url,
+    }
 
 
-def _base_health(*, settings: Settings, expected_git_sha: str) -> dict[str, Any]:
-    geo = _geoblock(settings)
+def _kill_switch_engaged() -> bool:
+    try:
+        return Path(CANARY_KILL_SWITCH_PATH).exists()
+    except OSError:
+        return True
+
+
+def _wallet_configured() -> bool:
+    return bool(os.environ.get("POLYMARKET_PRIVATE_KEY", "").strip())
+
+
+def _create_client():
+    private_key = os.environ.get("POLYMARKET_PRIVATE_KEY", "").strip()
+    wallet = os.environ.get("POLYMARKET_WALLET_ADDRESS", "").strip()
+    if not private_key:
+        raise RuntimeError("Polymarket private key is not configured")
+    kwargs: dict[str, str] = {"private_key": private_key}
+    if wallet:
+        kwargs["wallet"] = wallet
+    try:
+        return polymarket.SecureClient.create(**kwargs)
+    except Exception as exc:
+        raise RuntimeError("failed to create official Polymarket SDK client") from exc
+
+
+def _base_health(*, expected_git_sha: str) -> dict[str, Any]:
+    geo = _geoblock()
     activation = _activation(expected_git_sha)
-    kill = kill_switch_engaged(CANARY_KILL_SWITCH_PATH)
+    kill = _kill_switch_engaged()
     consumed = Path(CANARY_RESERVATION_PATH).exists() or Path(
         CANARY_RECEIPT_PATH
     ).exists()
+    mode = os.environ.get("MODE", "").strip().lower()
+    live = os.environ.get("LIVE_TRADING_ENABLED", "").strip().lower() == "true"
+    wallet_configured = _wallet_configured()
     return {
         "ok": (
-            settings.mode is TradingMode.LIVE
-            and settings.live_trading_enabled
+            mode == "live"
+            and live
             and not kill
             and not consumed
-            and _wallet_configured(settings)
+            and wallet_configured
         ),
-        "mode": settings.mode.value,
-        "live_trading_enabled": settings.live_trading_enabled,
+        "mode": mode,
+        "live_trading_enabled": live,
         "kill_switch_engaged": kill,
         "canary_consumed": consumed,
-        "wallet_configured": _wallet_configured(settings),
+        "wallet_configured": wallet_configured,
         "geoblock": geo,
         "activation": activation,
     }
@@ -146,8 +184,8 @@ def _write_receipt(payload: dict[str, Any]) -> None:
     os.replace(temp, target)
 
 
-def _submit(payload: dict[str, Any], settings: Settings) -> dict[str, Any]:
-    health = _base_health(settings=settings, expected_git_sha=_expected_git_sha())
+def _submit(payload: dict[str, Any], expected_git_sha: str) -> dict[str, Any]:
+    health = _base_health(expected_git_sha=expected_git_sha)
     if not health["ok"]:
         raise RuntimeError("remote executor is not eligible")
 
@@ -173,29 +211,60 @@ def _submit(payload: dict[str, Any], settings: Settings) -> dict[str, Any]:
     }
     _reserve_once(reservation)
 
-    client = OfficialPolymarketTradingClient.create_from_environment(
-        settings=settings
-    )
-    result = client.submit_limit_buy(
-        token_id=token_id,
-        price=price,
-        size=size,
-    )
+    client = _create_client()
+    try:
+        signed_order = client.create_limit_order(
+            token_id=token_id,
+            price=price,
+            size=size,
+            side="BUY",
+        )
+        response = client.post_order(signed_order)
+    except Exception:
+        result = {
+            "accepted": False,
+            "external_order_id": None,
+            "status": "error",
+            "code": "sdk_exception",
+            "message": "Polymarket SDK order submission failed",
+        }
+    else:
+        if isinstance(response, polymarket.AcceptedOrder):
+            result = {
+                "accepted": True,
+                "external_order_id": str(response.order_id),
+                "status": str(response.status),
+                "code": "accepted",
+                "message": "",
+            }
+        elif isinstance(response, polymarket.RejectedOrder):
+            result = {
+                "accepted": False,
+                "external_order_id": None,
+                "status": "rejected",
+                "code": str(response.code),
+                "message": str(response.message),
+            }
+        else:
+            result = {
+                "accepted": False,
+                "external_order_id": None,
+                "status": "error",
+                "code": "unexpected_sdk_response",
+                "message": "Polymarket SDK returned an unexpected order response",
+            }
+
     receipt = {
         **reservation,
-        "accepted": result.accepted,
-        "external_order_id": result.external_order_id,
-        "status": result.status,
-        "code": result.code,
-        "message": result.message,
+        **result,
         "completed_at": datetime.now(UTC).isoformat(),
     }
     _write_receipt(receipt)
     return receipt
 
 
-def _cancel(payload: dict[str, Any], settings: Settings) -> dict[str, Any]:
-    if kill_switch_engaged(CANARY_KILL_SWITCH_PATH):
+def _cancel(payload: dict[str, Any]) -> dict[str, Any]:
+    if _kill_switch_engaged():
         raise RuntimeError("canary kill switch is engaged")
     receipt_path = Path(CANARY_RECEIPT_PATH)
     if not receipt_path.is_file():
@@ -205,37 +274,58 @@ def _cancel(payload: dict[str, Any], settings: Settings) -> dict[str, Any]:
     if not external_order_id or external_order_id != receipt.get("external_order_id"):
         raise RuntimeError("cancel order id does not match canary receipt")
 
-    _geoblock(settings)
-    client = OfficialPolymarketTradingClient.create_from_environment(
-        settings=settings
-    )
-    result = client.cancel(external_order_id=external_order_id)
+    _geoblock()
+    client = _create_client()
+    try:
+        response = client.cancel_order(order_id=external_order_id)
+    except Exception:
+        return {
+            "cancelled": False,
+            "external_order_id": external_order_id,
+            "status": "error",
+            "message": "Polymarket SDK cancellation failed",
+        }
+    if isinstance(response, polymarket.CancelOrdersResponse):
+        if external_order_id in response.canceled:
+            return {
+                "cancelled": True,
+                "external_order_id": external_order_id,
+                "status": "cancelled",
+                "message": "",
+            }
+        if external_order_id in response.not_canceled:
+            return {
+                "cancelled": False,
+                "external_order_id": external_order_id,
+                "status": "not_cancelled",
+                "message": str(response.not_canceled[external_order_id]),
+            }
     return {
-        "cancelled": result.cancelled,
-        "external_order_id": result.external_order_id,
-        "status": result.status,
-        "message": result.message,
+        "cancelled": False,
+        "external_order_id": external_order_id,
+        "status": "error",
+        "message": "Polymarket SDK returned unexpected cancellation response",
     }
 
 
 def execute(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("request must be an object")
-    settings = _settings()
+    _load_runtime_environment()
+    expected_git_sha = _expected_git_sha()
     action = str(payload.get("action") or "").strip()
     if action == "health":
-        return _base_health(settings=settings, expected_git_sha=_expected_git_sha())
+        return _base_health(expected_git_sha=expected_git_sha)
     if action == "submit":
-        return _submit(payload, settings)
+        return _submit(payload, expected_git_sha)
     if action == "cancel":
-        return _cancel(payload, settings)
+        return _cancel(payload)
     raise ValueError("unsupported canary action")
 
 
 def main() -> int:
     try:
-        raw = sys.stdin.read()
-        payload = json.loads(raw)
+        payload = json.loads(sys.stdin.read())
         result = execute(payload)
         print(json.dumps(result, sort_keys=True, separators=(",", ":")))
         return 0
