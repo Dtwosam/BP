@@ -148,24 +148,23 @@ def _seed_reconciliation(engine, repository: LiveReadinessRepository) -> None:
             )
             .limit(1)
         ).mappings().one_or_none()
-        if latest is None:
-            repository.store_reconciliation_run(
-                connection,
-                observed_at=now,
-                unresolved_count=0,
-                critical_count=0,
-                evidence={
-                    "source": "phase15-v3-one-dollar-canary-initial-baseline",
-                    "official_order_count": 0,
-                    "account_snapshot": {
-                        "realized_daily_pnl_usd": "0",
-                        "consecutive_losses": 0,
-                        "total_exposure_usd": "0",
-                    },
-                },
-            )
-        elif int(latest["critical_count"]) != 0:
+        if latest is not None and int(latest["critical_count"]) != 0:
             raise RuntimeError("latest live reconciliation contains critical issues")
+        repository.store_reconciliation_run(
+            connection,
+            observed_at=now,
+            unresolved_count=0,
+            critical_count=0,
+            evidence={
+                "source": "phase15-v3-one-dollar-canary-initial-baseline",
+                "official_order_count": 0,
+                "account_snapshot": {
+                    "realized_daily_pnl_usd": "0",
+                    "consecutive_losses": 0,
+                    "total_exposure_usd": "0",
+                },
+            },
+        )
 
 
 def _candidate_rows(engine, activated_at: datetime) -> list[dict[str, Any]]:
