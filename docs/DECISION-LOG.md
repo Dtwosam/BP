@@ -625,3 +625,12 @@ A Phase 15 prepare persists a live intent before any arm or network submission. 
 This closure is permitted only after the Johannesburg executor proves the kill switch is engaged, activation is invalid, submission is not ready, `live_order_submitted=false`, the official account has zero open orders, and collateral remains at least $5. The closure writes a zero-unresolved reconciliation record and does **not** increment the canary submission-attempt count.
 
 The one-network-attempt rule from D-060 is unchanged: only `accepted`, `rejected`, or `submission_unknown` consumes that attempt. After a verified `closed_before_submission` reconciliation, a later NEW frozen-V3 signal may be prepared under the same original one-order authorization. No retry after an actual network submission is authorized.
+
+
+## D-062 — Require an armable window before persisting a canary intent
+**Date:** 23 Sep 2026  
+**Status:** Active
+
+The Phase 15 live-risk minimum time to expiry remains 15 seconds. Separately, the prepare step now requires at least 30 seconds remaining before it may persist a live intent. This is an operational safety margin above the arm helper's 20-second freshness requirement.
+
+A candidate that passes the strategy/live-risk checks but has less than 30 seconds remaining is recorded as evaluated and returned as `insufficient_arm_window`; no live intent is persisted. This tightens the canary workflow without changing model behavior, target notional, live-risk thresholds, or the one-network-attempt rule.

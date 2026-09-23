@@ -4339,7 +4339,7 @@
     "second_order_authorized": false,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "Rerun the no-order prepare helper for one NEW frozen-V3 signal. If prepare passes, arm immediately; only if arm passes, execute the one permitted network submission exactly once, record the bound result, then stop for official reconciliation. The latest expired intent was reconciled as closed_before_submission and consumed no network submission attempt.",
+    "next_action": "After merging the prepare armability-window fix, pull current main and rerun the no-order prepare helper. Candidates with under 30 seconds to market end are skipped without persisting an intent. If prepare passes, arm immediately; only if arm passes, execute the one permitted network submission exactly once, record the bound result, then stop for official reconciliation.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
@@ -4415,7 +4415,9 @@
       "live_order_submitted": false,
       "submission_attempt_consumed": false,
       "production_validation_pending": false
-    }
+    },
+    "prepare_min_arm_window_seconds": 30,
+    "prepare_arm_window_reason": "Operational safety margin before arm; stricter than the 15-second live-risk expiry minimum and does not relax strategy/risk."
   },
   "phase_15_v3_paper_hotpath_rollout": {
     "status": "PRODUCTION_PASS",

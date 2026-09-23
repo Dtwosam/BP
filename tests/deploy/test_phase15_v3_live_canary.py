@@ -64,6 +64,12 @@ def test_prepare_is_manual_review_only_and_writes_no_real_order() -> None:
     assert '{"action":"submit"}' not in text
     assert "post_order" not in text
     assert "PHASE15_ACCEPT_REAL_MONEY" not in text
+    assert "insufficient_arm_window" in (
+        ROOT / "src/bp_engine/execution/canary.py"
+    ).read_text(encoding="utf-8")
+    assert 'CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS = Decimal("30")' in (
+        ROOT / "src/bp_engine/execution/canary.py"
+    ).read_text(encoding="utf-8")
 
 
 def test_record_helper_only_persists_executor_result() -> None:
@@ -121,6 +127,16 @@ assert live_module._account_snapshot.__name__ == "_account_snapshot"
         capture_output=True,
         text=True,
     )
+
+
+def test_prepare_armability_guard_runs_before_intent_persistence() -> None:
+    text = (ROOT / "src/bp_engine/execution/canary.py").read_text(encoding="utf-8")
+    guard = text.index(
+        "if arm_window_seconds < CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS:"
+    )
+    persist = text.index("intent_store = repository.store_order_intent(")
+    assert guard < persist
+    assert '"reason": "insufficient_arm_window"' in text
 
 
 def test_arm_binds_exact_prepared_request_and_executor() -> None:
