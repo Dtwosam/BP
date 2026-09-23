@@ -41,6 +41,7 @@ CANARY_MIN_LIQUIDITY_USD = Decimal("5")
 CANARY_MAX_SPREAD = Decimal("0.10")
 CANARY_MAX_PREDICTION_AGE_SECONDS = Decimal("30")
 CANARY_MIN_TIME_TO_EXPIRY_SECONDS = Decimal("15")
+CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS = Decimal("30")
 CANARY_COOLDOWN_SECONDS = Decimal("86400")
 CANARY_MAX_ACCEPTED_ORDERS = 1
 CANARY_MAX_SUBMISSION_ATTEMPTS = 1
@@ -328,6 +329,12 @@ def prepare_next_canary(
                 "staging_interlock": True,
                 "interlock_eligible": interlock.eligible,
                 "interlock_reasons": interlock.reasons,
+                "prepare_arm_window_seconds": Decimal(
+                    str((context.market_end_at - observed).total_seconds())
+                ),
+                "prepare_arm_window_min_seconds": (
+                    CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS
+                ),
             },
             created_at=observed,
         )
@@ -338,6 +345,22 @@ def prepare_next_canary(
                 "reasons": decision.reasons,
                 "prediction_id": request.prediction_id,
                 "paper_order_id": str(order["paper_order_id"]),
+            }
+
+        arm_window_seconds = Decimal(
+            str((context.market_end_at - observed).total_seconds())
+        )
+        if arm_window_seconds < CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS:
+            return {
+                "status": "skipped",
+                "reason": "insufficient_arm_window",
+                "reasons": ("insufficient_arm_window",),
+                "prediction_id": request.prediction_id,
+                "paper_order_id": str(order["paper_order_id"]),
+                "time_to_expiry_seconds": arm_window_seconds,
+                "minimum_prepare_arm_window_seconds": (
+                    CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS
+                ),
             }
 
         intent_store = repository.store_order_intent(
