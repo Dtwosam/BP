@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -17,6 +18,9 @@ MAX_NOTIONAL_USD = Decimal("10")
 TTL_SECONDS = 2
 ACTIVATION_PATH = Path("/etc/bp-canary/activation.json")
 KILL_SWITCH_PATH = Path("/etc/bp-canary/KILL")
+SOURCE_GIT_SHA_PATH = Path("/opt/bp-canary/source_git_sha")
+COLLATERAL_BASE_UNITS_PER_USD = Decimal("1000000")
+TARGET_NOTIONAL_USD = Decimal("5")
 
 
 def _fail(code: str) -> int:
@@ -43,6 +47,45 @@ def _decimal(value: object, name: str) -> Decimal:
     if not result.is_finite():
         raise ValueError(f"{name} must be finite")
     return result
+
+
+def _source_git_sha() -> str:
+    try:
+        value = SOURCE_GIT_SHA_PATH.read_text(encoding="utf-8").strip().lower()
+    except OSError as exc:
+        raise RuntimeError("source_git_sha_missing") from exc
+    if len(value) != 40 or any(char not in "0123456789abcdef" for char in value):
+        raise RuntimeError("source_git_sha_invalid")
+    return value
+
+
+def _request_sha256(request: dict[str, Any]) -> str:
+    encoded = json.dumps(
+        request,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _account_preflight(client: object) -> dict[str, object]:
+    try:
+        balance_allowance = client.get_balance_allowance(asset_type="COLLATERAL")
+        open_orders = tuple(client.list_open_orders().iter_items())
+    except Exception as exc:
+        raise RuntimeError("account_preflight_failed") from exc
+
+    balance_base_units = int(balance_allowance.balance)
+    balance_usd = Decimal(balance_base_units) / COLLATERAL_BASE_UNITS_PER_USD
+    return {
+        "collateral_balance_base_units": balance_base_units,
+        "collateral_balance_usd": format(balance_usd, "f"),
+        "open_order_count": len(open_orders),
+        "clean_for_canary": (
+            len(open_orders) == 0 and balance_usd >= TARGET_NOTIONAL_USD
+        ),
+    }
 
 
 def _geoblock() -> dict[str, object]:
@@ -75,6 +118,8 @@ def _activation() -> dict[str, object]:
         raise RuntimeError("activation_missing_or_invalid") from exc
     if payload.get("authorized") is not True:
         raise RuntimeError("activation_not_authorized")
+    if str(payload.get("git_sha") or "").lower() != _source_git_sha():
+        raise RuntimeError("activation_git_sha_mismatch")
     if payload.get("source_prediction_version") != "v3-frozen-paper-v1":
         raise RuntimeError("activation_prediction_version_mismatch")
     if payload.get("source_execution_version") != "paper-execution-v3-frozen-v1":
@@ -83,6 +128,9 @@ def _activation() -> dict[str, object]:
         raise RuntimeError("activation_trade_limit_mismatch")
     if int(payload.get("max_submission_attempts", 0)) != 1:
         raise RuntimeError("activation_attempt_limit_mismatch")
+    for name in ("intent_id", "prediction_id", "paper_order_id", "request_sha256"):
+        if not str(payload.get(name) or "").strip():
+            raise RuntimeError(f"activation_{name}_missing")
     issued = datetime.fromisoformat(str(payload["issued_at"])).astimezone(UTC)
     expires = datetime.fromisoformat(str(payload["expires_at"])).astimezone(UTC)
     now = datetime.now(UTC)
@@ -137,7 +185,8 @@ def _health() -> dict[str, object]:
     wallet_configured = bool(os.environ.get("POLYMARKET_WALLET_ADDRESS", "").strip())
     if not private_key_configured:
         raise RuntimeError("private_key_missing")
-    _client()
+    client = _client()
+    account = _account_preflight(client)
     activation_valid = False
     try:
         _activation()
@@ -150,9 +199,15 @@ def _health() -> dict[str, object]:
         "private_key_configured": True,
         "wallet_configured": wallet_configured,
         "sdk_import_ok": True,
+        "source_git_sha": _source_git_sha(),
+        "account": account,
         "activation_valid": activation_valid,
         "kill_switch_engaged": _kill_switch_engaged(),
-        "submission_ready": activation_valid and not _kill_switch_engaged(),
+        "submission_ready": (
+            activation_valid
+            and not _kill_switch_engaged()
+            and account["clean_for_canary"] is True
+        ),
         "live_order_submitted": False,
     }
 
@@ -166,6 +221,9 @@ def _submit(payload: dict[str, Any]) -> dict[str, object]:
         activation.get("authorization_id") or ""
     ):
         raise RuntimeError("authorization_id_mismatch")
+    for name in ("intent_id", "prediction_id", "paper_order_id"):
+        if str(payload.get(name) or "") != str(activation.get(name) or ""):
+            raise RuntimeError(f"{name}_mismatch")
 
     request = payload.get("request")
     if not isinstance(request, dict):
@@ -191,11 +249,33 @@ def _submit(payload: dict[str, Any]) -> dict[str, object]:
         raise ValueError("limit_price must be within (0, 1]")
     if size <= 0 or target <= 0:
         raise ValueError("size and target_notional_usd must be positive")
+    if target != TARGET_NOTIONAL_USD:
+        raise RuntimeError("canary_target_notional_changed")
     if target > MAX_NOTIONAL_USD or price * size > MAX_NOTIONAL_USD:
         raise RuntimeError("canary_notional_limit_exceeded")
 
-    _consume_one_shot_arm()
+    request_sha256 = _request_sha256(request)
+    if request_sha256 != str(activation.get("request_sha256") or ""):
+        raise RuntimeError("request_sha256_mismatch")
+
     client = _client()
+    account = _account_preflight(client)
+    if account["open_order_count"] != 0:
+        raise RuntimeError("official_open_orders_present")
+    if Decimal(str(account["collateral_balance_usd"])) < target:
+        raise RuntimeError("insufficient_official_collateral")
+
+    metadata = {
+        "intent_id": str(payload["intent_id"]),
+        "prediction_id": str(payload["prediction_id"]),
+        "paper_order_id": str(payload["paper_order_id"]),
+        "authorization_id": str(payload["authorization_id"]),
+        "request_sha256": request_sha256,
+        "source_git_sha": _source_git_sha(),
+        "account_preflight": account,
+    }
+
+    _consume_one_shot_arm()
     try:
         signed_order = client.create_limit_order(
             token_id=token_id,
@@ -212,6 +292,7 @@ def _submit(payload: dict[str, Any]) -> dict[str, object]:
             "code": "sdk_exception",
             "message": "Polymarket SDK order submission failed",
             "geoblock": geo,
+            **metadata,
         }
 
     if isinstance(response, polymarket.RejectedOrder):
@@ -222,6 +303,7 @@ def _submit(payload: dict[str, Any]) -> dict[str, object]:
             "code": str(response.code),
             "message": str(response.message),
             "geoblock": geo,
+            **metadata,
         }
     if not isinstance(response, polymarket.AcceptedOrder):
         return {
@@ -231,6 +313,7 @@ def _submit(payload: dict[str, Any]) -> dict[str, object]:
             "code": "unexpected_sdk_response",
             "message": "Polymarket SDK returned an unexpected order response",
             "geoblock": geo,
+            **metadata,
         }
 
     order_id = str(response.order_id)
@@ -280,6 +363,7 @@ def _submit(payload: dict[str, Any]) -> dict[str, object]:
         "geoblock": geo,
         "ttl_seconds": TTL_SECONDS,
         "cancellation": cancellation,
+        **metadata,
     }
 
 
