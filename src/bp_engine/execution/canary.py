@@ -142,20 +142,10 @@ def _candidate(
 ) -> tuple[Mapping[str, Any], Mapping[str, Any]] | None:
     evaluated = _evaluated_prediction_ids(connection)
     query = (
-        select(schema.paper_orders, schema.live_predictions)
-        .select_from(
-            schema.paper_orders.join(
-                schema.live_predictions,
-                schema.paper_orders.c.prediction_id
-                == schema.live_predictions.c.prediction_id,
-            )
-        )
+        select(schema.paper_orders)
         .where(
             schema.paper_orders.c.execution_version == V3_PAPER_EXECUTION_VERSION,
-            schema.live_predictions.c.prediction_version == V3_PAPER_PREDICTION_VERSION,
             schema.paper_orders.c.created_at >= activated_at,
-            schema.live_predictions.c.trade.is_(True),
-            schema.live_predictions.c.executable.is_(True),
         )
         .order_by(schema.paper_orders.c.created_at, schema.paper_orders.c.id)
     )
@@ -163,9 +153,17 @@ def _candidate(
         prediction_id = str(row["prediction_id"])
         if prediction_id in evaluated:
             continue
-        order = {column.name: row[column.name] for column in schema.paper_orders.c}
-        prediction = {column.name: row[column.name] for column in schema.live_predictions.c}
-        return order, prediction
+        prediction = connection.execute(
+            select(schema.live_predictions).where(
+                schema.live_predictions.c.prediction_id == prediction_id,
+                schema.live_predictions.c.prediction_version == V3_PAPER_PREDICTION_VERSION,
+                schema.live_predictions.c.trade.is_(True),
+                schema.live_predictions.c.executable.is_(True),
+            )
+        ).mappings().one_or_none()
+        if prediction is None:
+            continue
+        return dict(row), dict(prediction)
     return None
 
 
