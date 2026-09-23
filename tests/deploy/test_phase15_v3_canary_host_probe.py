@@ -17,6 +17,7 @@ def test_johannesburg_host_probe_is_geoblock_only() -> None:
         "https://polymarket.com/api/geoblock",
         "candidate_instance_already_exists",
         "--no-service-account",
+        "--no-scopes",
         "TRADING_SOFTWARE_INSTALLED=false",
         "WALLET_OR_SIGNING_MATERIAL_PRESENT=false",
         "LIVE_TRADING_ENABLED=false",
