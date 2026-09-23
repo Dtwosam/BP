@@ -91,6 +91,7 @@ gcloud compute instances create "$VM" \
   --boot-disk-size=10GB \
   --boot-disk-type=pd-standard \
   --no-service-account \
+  --no-scopes \
   --labels=bp-role=v3-canary-probe,bp-phase=15 \
   --quiet >/dev/null
 CREATED=true
