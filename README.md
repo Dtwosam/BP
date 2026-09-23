@@ -4,13 +4,15 @@ Research-first system for estimating short-duration BTC Polymarket Up/Down proba
 
 ## Current status
 
-**Phases 0–14 engineering:** complete.  
-**Current gate:** `PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED`.  
-**Trading mode:** `RESEARCH`. Live trading is disabled.
+**Phases 0–14:** complete.  
+**Current phase:** Phase 15 controlled live launch engineering.  
+**Current checkpoint:** `PHASE_15_CANARY_ENGINEERING_NOT_DEPLOYED`.
 
-Phase 14 — Live Readiness V1 — passed non-spending production host acceptance on exact candidate `5854e3003aa3340ce3733bf4532e204c1ec55836`. The accepted path imports the official `polymarket-client`, enforces fail-closed activation/geoblock/kill-switch/risk interlocks, reconciles synthetic/live-readiness state, exposes read-only diagnostics, and proved `REAL_ORDER_SIDE_EFFECTS=0` with real-money limits still zero.
+The complete Master live gate now passes for the exact frozen V3. Statistical readiness is preserved at `docs/evidence/phase-15-v3-accelerated-readiness-production-20260923.json`; the user's ordinary physical-network check is unblocked (`NG/LA`), and the dedicated Johannesburg execution host is independently unblocked (`ZA/GP`) at `docs/evidence/phase-15-v3-canary-host-geography-20260923.json`.
 
-The Master live gate is **not** satisfied. The frozen-V3 read-only reassessment completed on 23 September 2026 and moved `positive_after_cost_profitability` to `pass`, with 76 settled trades, +$682.252111761097 realized paper P&L, and a deterministic bootstrap 95% mean-P&L interval of +$1.6407501892525114 to +$18.945890261783955. Execution/reconciliation and explicit user authorization are also `pass`. However, the direct official Polymarket geoblock check from the production VM returned `blocked=true` for `US/SC`, so geographic compliance remains `fail`; sample sufficiency, calibration acceptance, and walk-forward stability remain `insufficient_evidence`. Phase 15 is therefore not permitted. The ~80% accuracy discussed for this project remains a research target, not an assumed or guaranteed capability.
+The existing US production host remains geographically blocked and must never submit authenticated Polymarket orders. The approved architecture keeps recorder, frozen-V3 prediction, paper execution, V4 collection, risk evaluation, duplicate prevention, and the audit ledger on that host while isolating authenticated signing/submission to `bp-v3-canary-exec` in Johannesburg.
+
+The next deployment is intentionally narrow: **one external frozen-V3 order-submission attempt total**, using the unchanged $5 target notional, `min_edge=0.075`, 240-second timing, 2-second order TTL, and hard kill switches on both hosts. The canary has not been deployed and no real order has yet been attempted.
 
 ## Read before working
 
@@ -51,11 +53,11 @@ Expected health output includes:
 
 - Never commit `.env`, wallet keys, seed phrases, API secrets, or server secrets.
 - Never paste a wallet private key or seed phrase into ChatGPT.
-- Real-money trading is not authorized at this stage.
+- Broad real-money automation is not authorized. The only approved live scope is the separately gated single-order frozen-V3 canary after its exact deployment package merges and the operator supplies the explicit real-money acknowledgement.
 - Phase 12 Paper Execution remains money-disabled; paper fills must remain causal and reconciled to immutable signals.
 - Phase 13 Improvement Loop remains accepted; promotion requires frozen hypotheses plus permitted evidence, economic uncertainty, calibration guardrails, and deliberate decisions.
-- Phase 14 Live Readiness engineering is accepted, but the Master live gate remains closed.
-- `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0` remain required until every live-gate row passes. Explicit frozen-V3 authorization was recorded on 23 September 2026, but all other gate rows still apply.
+- Phase 14 Live Readiness is accepted and the complete Master live gate now passes for the frozen V3; Phase 15 remains limited to the one-attempt canary contract.
+- The existing global production environment remains `LIVE_TRADING_ENABLED=false` with zero money limits. Nonzero limits may exist only in the isolated Phase 15 canary environment and only at the frozen $5 envelope.
 - Do not bypass geographic/service restrictions with proxies, VPNs, tunneling, or relocation tricks.
 - A 10-minute recurring Polymarket BTC market is not assumed to exist; horizons remain configurable.
 
