@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15_v3_accelerated_readiness_production_read_only",
+  "generated_at": "2026-09-23T10:55:30.826590+00:00",
+  "source_main_sha": "ceeec0bded4bb6ae60291ee8f5f60db214eceb98",
+  "helper": "scripts/deploy/phase15_v3_accelerated_readiness_cloudshell.sh",
+  "helper_result": "PASS",
+  "phase15_candidate": true,
+  "statistical_gates": {
+    "walk_forward_results_stable_enough": "pass",
+    "sufficiently_large_live_paper_sample_with_uncertainty": "pass",
+    "positive_after_cost_profitability": "pass",
+    "calibration_acceptable": "pass",
+    "order_execution_and_reconciliation_tested": "pass"
+  },
+  "calibration_audit": {
+    "evaluation_count": 533,
+    "ece_10_bin": 0.03144019640262532,
+    "intercept": -0.09001576350042613,
+    "intercept_95pct_ci": {
+      "lower": -0.35298851177376006,
+      "upper": 0.19023844953087868
+    },
+    "slope": 1.054803400697569,
+    "slope_95pct_ci": {
+      "lower": 0.8813085772634305,
+      "upper": 1.2937796253992961
+    },
+    "bootstrap_resamples": 2000,
+    "bootstrap_seed": 15,
+    "valid_bootstrap_resamples": 2000
+  },
+  "v3": {
+    "evaluation_count": 533,
+    "calibrated_brier_mean": 0.10264404048189427,
+    "calibrated_log_loss_mean": 0.32581461083380353,
+    "settled_trade_count": 77,
+    "wins": 48,
+    "losses": 29,
+    "win_rate": 0.6233766233766234,
+    "win_rate_95pct_ci": {
+      "lower": 0.5117280371207936,
+      "upper": 0.7232998839134109,
+      "method": "wilson_95pct"
+    },
+    "realized_total_usd": "687.612927164917000000",
+    "realized_mean_usd": "8.930038015128792207792207792",
+    "mean_pnl_95pct_ci_usd": {
+      "lower": 1.746626049710839,
+      "upper": 18.521917124071315,
+      "method": "deterministic_bootstrap_percentile",
+      "resamples": 10000,
+      "seed": 14
+    },
+    "gross_profit_usd": "817.255241162530000000",
+    "gross_loss_usd": "129.642313997613000000",
+    "profit_factor": 6.303923587614901,
+    "max_drawdown_usd": "27.974134608836000000",
+    "max_losing_streak": 4,
+    "largest_winner_usd": "231.449325352641000000",
+    "largest_winner_share_of_total": 0.3365982752926491,
+    "pnl_excluding_largest_winner_usd": "456.163601812276000000",
+    "reconciliation_status": "OK",
+    "reconciliation_violation_count": 0,
+    "invalid_order_source_count": 0
+  },
+  "frozen_selection": {
+    "ordinary_fold_count": 5,
+    "ordinary_validation_economics_passed": true,
+    "ordinary_validation_gate": "min 8 validation trades/fold; >=4/5 nonnegative validation folds; positive aggregate validation P&L",
+    "holdout_after_cost_pnl": 1.654224,
+    "holdout_evidence_sha256": "a093de346cde6a98cf056bdbc3f7c901c3570aff611363cda996a04fa8e4d66a",
+    "selection_sha256": "a088c61b291a67866af1c565ee936d9761e6a2936b49f121f616081284dcd508"
+  },
+  "safety": {
+    "database_session_read_only": true,
+    "authenticated_trading_client_constructed": false,
+    "wallet_or_signing_material_read": false,
+    "real_order_submission_attempted": false,
+    "real_money_mutation_performed": false,
+    "production_checkout_mutation": false,
+    "production_files_created": false,
+    "service_or_timer_mutation": false,
+    "live_trading_enabled": false,
+    "phase15_activation_performed": false
+  },
+  "geography": {
+    "user_physical_network": {
+      "status": "pass",
+      "blocked": false,
+      "country": "NG",
+      "region": "LA",
+      "ip_address_persisted": false
+    },
+    "current_execution_host": {
+      "status": "fail",
+      "blocked": true,
+      "country": "US",
+      "region": "SC"
+    },
+    "overall_geographic_compliance": "fail_until_execution_host_unblocked"
+  },
+  "interpretation": "All frozen-V3 statistical live-readiness rows passed under rules frozen before the new calibration reliability diagnostics were read. User physical-network geography is unblocked. The current production execution host remains geographically blocked, so overall live activation remains prohibited until a genuinely non-restricted execution host is independently verified by the official direct Polymarket geoblock endpoint."
+}
