@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import re
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -170,3 +171,12 @@ def test_unsubmitted_reconciliation_embedded_python_is_syntax_valid() -> None:
     assert blocks
     for block in blocks:
         ast.parse(block)
+
+
+def test_unsubmitted_reconciliation_shell_syntax_is_valid() -> None:
+    subprocess.run(
+        ["bash", "-n", str(RECONCILE_UNSUBMITTED)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
