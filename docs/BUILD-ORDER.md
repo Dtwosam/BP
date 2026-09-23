@@ -407,7 +407,7 @@ Measure:
 
 Do not automatically increase stake.
 
-**Current status:** blocked. Do not begin Phase 15 until every Master Source of Truth live-gate item is `pass` and explicit real-money authorization exists.
+**Current status:** Phase 15 is open only for the one-order frozen-V3 canary. Every Master live-gate row is now `pass`, including direct user-location and Johannesburg execution-host geography, and explicit real-money authorization exists. Runtime live trading still remains OFF until the manual canary submission.
 
 **Accelerated V3 canary-readiness checkpoint (23 Sep 2026):** build and validate the read-only `phase15-v3-canary-readiness-v1` audit before any live activation work. Sample sufficiency is evaluated by the already-accepted no-magic-count uncertainty principle: the prospective after-cost mean-P&L 95% lower bound must be strictly positive. Walk-forward stability requires the already-frozen five-fold V3 ordinary validation economics gate, positive untouched V3 final-holdout economics, and positive prospective uncertainty. Calibration acceptance additionally requires prospective Brier/log loss no worse than the frozen pre-paper holdout and a newly frozen reliability audit whose intercept 95% interval contains 0 and slope 95% interval contains 1. These reliability diagnostics must not be read before the rule is frozen.
 
@@ -625,36 +625,13 @@ Current order: (1) do not rerun this rollout and preserve its evidence; (2) buil
 
 ## Immediate next action
 
-The accepted frozen V3 paper activation remains historical PASS evidence, and the current recorder/frozen-V3 runtime is **active after concurrent-partition-retirement rollout PASS** on deployed candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`.
+Execute only the frozen-V3 one-order canary contract in `docs/PHASE-15-V3-LIVE-CANARY.md`.
 
-The latest recovery PASS is `/var/lib/bp/evidence/phase14-recorder-v3-recovery-20260922T134508Z.json`. The accepted storage rollout evidence is `/var/lib/bp/evidence/phase14-concurrent-partition-retirement-rollout-20260922T140747Z.json`: one eligible partition retired, 35,983 dedupe rows removed, recorder/frozen-V3 identities stayed stable, zero detached leftovers remained, storage health returned `ok`, retention lag returned to `0.0h`, and the maintenance timer was restored active.
+1. **Bootstrap Johannesburg signer, no order.** Hidden local key input; root-only remote secret; pinned `polymarket-client==0.7.1`; kill switch engaged.
+2. **Prepare one new paper-derived V3 intent, no order.** Reuse the exact frozen paper order request, apply the existing live-risk engine, persist risk + intent before network submission, and retain the $5 strategy target under the $10 hard ceiling.
+3. **Review and arm, no order.** Explicit `PHASE15_ACCEPT_REAL_MONEY=yes`, activation ≤45 seconds, one submission attempt, kill switch removed only for that arm.
+4. **Manual one-shot submit.** Johannesburg rechecks geoblock and activation, atomically re-engages the kill switch before the SDK call, rejects >$10 notional, places the bounded limit BUY, then attempts cancellation after 2 seconds.
+5. **Record and stop.** Persist the sanitized result. Reconcile official order/fill state before any second order. No second order or stake increase is authorized.
 
-Proceed in this order:
+Keep the exact frozen V3 model/offset/edge policy unchanged. Continue V3 paper and V4 future collection in parallel. Do not alter V4's preregistered epoch or run V4 readiness before `2026-09-30T00:00:00Z`.
 
-1. Continue frozen V3 paper observation and the existing **V4 regime-aware feature collector**, which keeps **V4 regime-aware feature collection** unchanged. V4 Gate B v1 is now prospectively frozen: only markets in `[2026-09-23T00:00:00Z, 2026-09-30T00:00:00Z)` may enter future V4 selection. All earlier V4 rows remain coverage/engineering evidence only.
-2. Do **not** run V4 readiness or planning before `2026-09-30T00:00:00Z`. After epoch close, run only the outcome-blind read-only readiness command; if and only if it returns ready, write the deterministic feature-only no-clobber plan and stop. No labeled preparation or model fitting is authorized.
-3. Preserve rollout PASS and read-only observation PASS evidence and monitor normal hourly storage maintenance; do not rerun the concurrent-partition-retirement rollout unless a new incident creates a separate engineering/authorization boundary.
-4. Keep frozen V3 immutable and keep V4 label access/model fitting/policy selection/final-holdout access, automatic promotion, Phase 15, live trading, geographic bypass, and nonzero real-money limits blocked.
-
-The accepted observation PASS recorded 308 frozen-V3 predictions, 60 trade signals, 45 settled orders, and virtual cash `472.362970092036` from the frozen `100.00` starting balance. V4 coverage reached 373 markets / 1,492 rows with bull, bear, sideways/mixed, and unknown regimes represented; future-cutoff violations, Polymarket predictor-key violations, and regime-invariant violations were all zero. No training, policy selection, or automatic promotion occurred. These values are observation evidence only and must not become post-hoc tuning or acceptance cutoffs.
-
-The frozen V4 preregistration is `docs/superpowers/specs/2026-09-22-phase-14-v4-gate-b-preregistration.md`. The post-epoch research commands are:
-
-```bash
-python -m bp_engine.v4_research.cli readiness --as-of 2026-09-30T00:00:00Z
-python -m bp_engine.v4_research.cli plan --as-of 2026-09-30T00:00:00Z --output <plan.json>
-```
-
-Neither command is permitted before epoch close; the second is permitted only after readiness PASS. Both remain label-free. There is no V4 prepare/train/holdout command in this checkpoint.
-
-The current production-safe read-only observation command is run from a clean, current Cloud Shell `main` checkout:
-
-```bash
-bash scripts/deploy/phase14_observation_cloudshell.sh
-```
-
-The repo-native module command remains `python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env`, but the accepted deployed storage candidate predates that module. The Cloud Shell bridge therefore reads the immutable V3 and V4 runtime materializations plus deployed storage health without mutating the production checkout.
-
-The frozen V3 policy remains immutable: model SHA `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`, `v3-frozen-paper-v1`, `paper-execution-v3-frozen-v1`, 240-second timing, and `min_edge=0.075`. Keep $100 virtual starting cash, $5 virtual target notional, and **real money at zero**. Do not tune V3 from paper results.
-
-Keep all live-order paths disabled. No V3 refit, calibration change, threshold search, sizing change, Gate B action, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero real-money limit is authorized.
