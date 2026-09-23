@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.15.0 — 23 September 2026
+
+- Recorded the dedicated Johannesburg execution-host direct geoblock PASS: `blocked=false`, `ZA/GP`, with no trading software, wallet material, or live enablement present during the probe. User ordinary-network geography remains `blocked=false`, `NG/LA`; no user IP is persisted.
+- The complete Master live gate now passes for the exact frozen V3. Phase 15 opens only for the separately frozen `phase15-v3-single-order-canary-v1`; this does not authorize a broad live daemon or stake increase.
+- Added `live-execution-v3-canary-v1` and a canary request builder that reuses the exact frozen-V3 $5 order construction, 250 ms latency assumption, 2-second TTL, six-decimal share precision, 240-second prediction timing, `min_edge=0.075`, fee/slippage settings, and selected-book freshness.
+- Added an execution-only Johannesburg official-SDK boundary reached through restricted forced-command SSH. The US host retains prediction/risk/audit state but cannot hold the Polymarket private key or submit authenticated orders.
+- The canary is capped at one external submission attempt, $5 max trade/exposure/daily-loss envelope, one consecutive loss, and dual kill switches. The remote executor writes the attempt marker and engages its kill switch before the external SDK side effect, then attempts cancellation after two seconds if an order is accepted.
+- Added `scripts/deploy/phase15_v3_single_order_canary_cloudshell.sh`. Deployment requires explicit operator acknowledgement of the $5 real-money risk, prompts for the private key with echo disabled, installs with both kill switches engaged, revalidates Johannesburg geography/SDK/empty live ledger, and unlocks only as the final activation step. No production deployment or real order has occurred in this repository checkpoint.
+
 ## 0.14.179 — 23 September 2026
 
 - Recorded the successful production read-only accelerated V3 readiness audit from exact main `ceeec0bded4bb6ae60291ee8f5f60db214eceb98` at `docs/evidence/phase-15-v3-accelerated-readiness-production-20260923.json`.
