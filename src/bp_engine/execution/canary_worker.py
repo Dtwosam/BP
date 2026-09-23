@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import signal
@@ -66,6 +67,10 @@ def _expected_git_sha() -> str:
     if len(value) != 40:
         raise RuntimeError("BP_CANARY_EXPECTED_GIT_SHA is invalid")
     return value
+
+
+def _activation_sha(git_sha: str) -> str:
+    return hashlib.sha256(git_sha.encode("ascii")).hexdigest()
 
 
 def _remote_client() -> SshPolymarketTradingClient:
@@ -241,7 +246,7 @@ def main() -> int:
     expected_sha = _expected_git_sha()
     manifest = load_activation_manifest(
         settings.live_activation_manifest_path,
-        expected_git_sha=expected_sha,
+        expected_git_sha=_activation_sha(expected_sha),
         observed_at=datetime.now(UTC),
     )
     if kill_switch_engaged(settings.live_kill_switch_path):
@@ -264,7 +269,7 @@ def main() -> int:
         try:
             load_activation_manifest(
                 settings.live_activation_manifest_path,
-                expected_git_sha=expected_sha,
+                expected_git_sha=_activation_sha(expected_sha),
                 observed_at=observed_at,
             )
         except ActivationManifestError:
