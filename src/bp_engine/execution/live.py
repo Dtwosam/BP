@@ -468,22 +468,28 @@ def _account_snapshot(connection: Connection, *, observed_at: datetime) -> LiveA
     ).mappings().all()
     last_order_at = None
     exposure = Decimal("0")
+    submission_attempt_seen = False
+    unresolved_intent_seen = False
+    submission_attempt_events = ("accepted", "rejected", "submission_unknown")
+    terminal_events = (*submission_attempt_events, "closed_before_submission")
     for intent in intents:
         pre_submit_at = _stored_utc(intent["pre_submit_at"], "intent.pre_submit_at")
-        if last_order_at is None or pre_submit_at > last_order_at:
-            last_order_at = pre_submit_at
         outcome = connection.execute(
             select(schema.live_order_events.c.event_type)
             .where(
                 schema.live_order_events.c.intent_id == intent["intent_id"],
-                schema.live_order_events.c.event_type.in_(
-                    ("accepted", "rejected", "submission_unknown")
-                ),
+                schema.live_order_events.c.event_type.in_(terminal_events),
             )
             .order_by(schema.live_order_events.c.id.desc())
             .limit(1)
         ).scalar_one_or_none()
-        if outcome != "rejected":
+        if outcome in submission_attempt_events:
+            submission_attempt_seen = True
+            if last_order_at is None or pre_submit_at > last_order_at:
+                last_order_at = pre_submit_at
+        if outcome is None:
+            unresolved_intent_seen = True
+        if outcome not in ("rejected", "closed_before_submission"):
             exposure += _decimal(intent["size"], "intent.size") * _decimal(
                 intent["limit_price"], "intent.limit_price"
             )
@@ -523,7 +529,17 @@ def _account_snapshot(connection: Connection, *, observed_at: datetime) -> LiveA
         default=0,
     )
     critical_count = int(reconciliation["critical_count"])
-    if intents and not account_evidence:
+    pre_submission_close = (
+        evidence.get("reconciliation_kind") == "pre_submission_intent_close"
+        and evidence.get("submission_attempt_consumed") is False
+        and int(evidence.get("official_open_order_count") or 0) == 0
+    )
+    safe_pre_submission_close = (
+        pre_submission_close
+        and not submission_attempt_seen
+        and not unresolved_intent_seen
+    )
+    if intents and not account_evidence and not safe_pre_submission_close:
         critical_count = max(critical_count, 1)
     return LiveAccountSnapshot(
         total_exposure_usd=total_exposure,

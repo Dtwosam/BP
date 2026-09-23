@@ -1,0 +1,43 @@
+{
+  "observed_at": "2026-09-23T17:13:39.075718Z",
+  "status": "PREPARE_BLOCKED_AFTER_SUCCESSFUL_PRE_SUBMISSION_RECONCILIATION",
+  "prior_reconciled_intent_id": "live-intent-285a7c90b51c6ef511472407d81668d9",
+  "prior_reconciliation_event": "closed_before_submission",
+  "submission_attempt_consumed": false,
+  "prepare_result": "FAIL",
+  "prepare_reason": "no_eligible_v3_trade_within_wait_window",
+  "skipped_candidates": [
+    {
+      "paper_order_id": "248edf6bb2315d54f9c73731a7193c4c745bb0ddde00c957e35adbbb1b1262e6",
+      "prediction_id": "d6e69147e515db811fa1a8da88a238742ffc1b665cec3c72c25131e14d51720c",
+      "reasons": [
+        "liquidity_missing",
+        "cooldown_active",
+        "reconciliation_blocked"
+      ]
+    },
+    {
+      "paper_order_id": "fdbc42f6c4efeade0284e99d8a63aea029f577ae233702c5d82015a5f0c398d4",
+      "prediction_id": "1d7631a0bb0665c4b358a39d926cfc3f663aaafc321fe32a84d70901fe53a3e4",
+      "reasons": [
+        "liquidity_missing",
+        "cooldown_active",
+        "reconciliation_blocked"
+      ]
+    },
+    {
+      "paper_order_id": "f5637bc1ea0b969a16944476a975765773beb020b3ecd27a6d5184cce521847a",
+      "prediction_id": "f18dc3d7bd5bc47dc938b87964466c12d07f3bcc35aa037858c964c7d6bae4e6",
+      "reasons": [
+        "cooldown_active",
+        "reconciliation_blocked"
+      ]
+    }
+  ],
+  "diagnosis": {
+    "cooldown_active": "_account_snapshot treated every prepared intent pre_submit_at as last_order_at, even when no network submission occurred.",
+    "reconciliation_blocked": "_account_snapshot forced critical reconciliation when intents existed but the pre-submission reconciliation intentionally had no account_snapshot payload.",
+    "exposure": "closed_before_submission was not recognized as zero-exposure terminal state in _account_snapshot."
+  },
+  "fix_scope": "Treat closed_before_submission as a terminal no-network-attempt state for account snapshot only; preserve accepted/rejected/submission_unknown semantics."
+}
