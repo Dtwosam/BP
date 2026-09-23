@@ -554,3 +554,16 @@ The one-shot frozen-V3 read-only production reassessment completed on exact main
 This does not open the Master live gate. Sample sufficiency, calibration acceptance, and walk-forward stability remain `insufficient_evidence` under the current canonical rules. More importantly, the production VM's direct official Polymarket geoblock response returned `blocked=true` for `US/SC`, so geographic compliance is `fail`. Overall live gate therefore remains `fail` and Phase 15 is blocked.
 
 Preserve the evidence at `docs/evidence/phase-14-v3-live-gate-reassessment-production-20260923.json`. Do not rerun the one-shot reassessment absent a separately versioned reason, do not tune frozen V3 from this result, and do not use VPNs, proxies, tunnels, or relocation tricks to bypass geographic restrictions. Continue frozen V3 paper observation and V4 prospective collection unchanged.
+
+
+## D-059 — Freeze accelerated V3 statistical gate mapping before new reliability diagnostics
+**Date:** 23 Sep 2026  
+**Status:** Active
+
+To pursue the user's requested same-day controlled V3 canary without weakening the project's evidence discipline, freeze a separate read-only `phase15-v3-canary-readiness-v1` audit.
+
+Sample sufficiency reuses the pre-existing Phase 13 uncertainty rule rather than inventing a magic count: the prospective after-cost mean-P&L 95% lower bound must be strictly positive. Walk-forward stability requires the preregistered five-fold V3 ordinary validation economics gate, positive untouched V3 final-holdout economics, and positive prospective paper uncertainty.
+
+Calibration receives one new reliability test whose acceptance rule is fixed before the diagnostics are observed: prospective Brier/log loss no worse than the frozen V3 final holdout, calibration-intercept 95% interval containing 0, and calibration-slope 95% interval containing 1. ECE remains descriptive. A failed calibration audit cannot be repaired by weakening these criteria after the fact.
+
+This decision does not authorize live activation. Geographic compliance is independent: the user's ordinary physical connection and the eventual execution host must both be unblocked by the official Polymarket geoblock check without VPN/proxy/tunnel circumvention. Until the complete Master gate passes, wallet/signing access, authenticated client construction, live orders, Phase 15 production activation, and nonzero money remain blocked.

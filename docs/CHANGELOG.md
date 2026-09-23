@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.178 — 23 September 2026
+
+- Froze `phase15-v3-canary-readiness-v1` as a read-only same-day statistical follow-up for the exact frozen V3. No V3 refit, recalibration fit, threshold/timing/sizing change, live activation, wallet/signing access, authenticated trading client, or nonzero money is introduced.
+- Sample sufficiency now has a predeclared mapping to the already-accepted Phase 13 no-magic-count uncertainty principle: the prospective deterministic 95% lower confidence bound for mean realized after-cost P&L must be strictly positive.
+- Walk-forward stability is mapped to the frozen five-fold V3 ordinary validation economics gate, positive untouched final-holdout economics, and positive prospective uncertainty. The frozen selection's `trade_threshold` policy proves the preregistered ordinary validation economics gate passed because the V3 selection code would otherwise force `no_trade`.
+- Added a new calibration reliability audit whose acceptance rule is frozen before its intercept/slope diagnostics are read: prospective Brier/log loss must be no worse than the frozen holdout, the calibration-intercept bootstrap 95% interval must contain 0, and the calibration-slope interval must contain 1. Ten-bin ECE is descriptive only.
+- Added `scripts/deploy/phase15_v3_accelerated_readiness_cloudshell.sh`, a production-safe read-only bridge. Geography remains a separate hard gate: both the user's ordinary physical connection and the eventual execution host must be officially unblocked, with no VPN/proxy/tunnel circumvention.
+
 ## 0.14.177 — 23 September 2026
 
 - Recorded the one-shot frozen-V3 production read-only live-gate reassessment from exact main `ba98b3871e03895d04bb2b06d4be5350f6c17491` at `docs/evidence/phase-14-v3-live-gate-reassessment-production-20260923.json`.

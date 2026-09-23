@@ -79,6 +79,11 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
+**Same-day V3 canary readiness:** `phase15-v3-canary-readiness-v1` is now the only authorized statistical follow-up. Its acceptance rules are frozen before the new prospective calibration intercept/slope diagnostics are read. After the package merges green, run `bash scripts/deploy/phase15_v3_accelerated_readiness_cloudshell.sh` once from exact clean current `main`. The run is PostgreSQL read-only and cannot access wallet/signing material, construct an authenticated trading client, enable live trading, or change money limits.
+
+A statistical PASS still cannot override geography. Before any live canary, independently require an unblocked official Polymarket geoblock result from the user's ordinary physical network with VPN/proxy disabled and an unblocked direct geoblock result from the eventual execution host. Do not use infrastructure to disguise a restricted physical location.
+
+
 **23 September V3 live-gate reassessment:** the read-only production run is complete and preserved at `docs/evidence/phase-14-v3-live-gate-reassessment-production-20260923.json`. Frozen V3 now has 76 settled trades, 47 wins / 29 losses, +$682.252111761097 realized paper P&L, profit factor 6.262572772140266, max drawdown $27.974134608836, and a deterministic bootstrap 95% interval for mean realized P&L of +$1.6407501892525114 to +$18.945890261783955. `positive_after_cost_profitability=pass`, execution/reconciliation remains `pass`, and explicit user authorization is `pass`.
 
 The Master live gate nevertheless remains **closed**. The direct official Polymarket geoblock request from the production VM returned `blocked=true`, `country=US`, `region=SC`, so `geographic_compliance_eligible=fail`. `sufficiently_large_live_paper_sample_with_uncertainty`, `calibration_acceptable`, and `walk_forward_results_stable_enough` remain `insufficient_evidence` under the canonical rules. Do not rerun the one-shot reassessment absent a separately versioned reason; do not bypass geographic restrictions; keep live trading disabled and real-money limits zero.
