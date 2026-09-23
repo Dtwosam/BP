@@ -2,6 +2,16 @@
 
 ## 0.14.178 — 23 September 2026
 
+- Froze the separately versioned `phase15-v3-canary-readiness-v1` statistical acceptance contract before reading any new prospective calibration intercept/slope diagnostics.
+- The accelerated sample-sufficiency rule reuses the pre-existing Phase 13 no-magic-count uncertainty principle: the frozen-V3 prospective mean realized after-cost P&L 95% lower bound must be strictly positive; no after-the-fact trade-count threshold is introduced.
+- Walk-forward stability maps the already-frozen five-fold V3 Gate B validation economics gate, positive untouched final-holdout economics, and positive prospective paper uncertainty into one fail-closed row. No V3 refit, recalibration fit, timing change, threshold tuning, side/regime filter, or sizing change is permitted.
+- Calibration acceptance now has a predeclared prospective reliability audit: Brier/log loss must be no worse than the frozen pre-paper holdout and bootstrap 95% intervals for calibration intercept/slope must contain 0/1 respectively. ECE is descriptive only.
+- Added the read-only production bridge `scripts/deploy/phase15_v3_accelerated_readiness_cloudshell.sh`. It forces PostgreSQL read-only sessions, touches no production file/service/timer/checkout, reads no wallet/signing material, constructs no authenticated client, and submits no order.
+- User-provided direct official geoblock evidence from the ordinary physical network reports `blocked=false`, country `NG`, region `LA`; the IP address is intentionally not persisted. The latest production execution host remains blocked in `US/SC`, so geography is only a partial pass and live activation remains prohibited.
+- The next sequence is: merge green → run the accelerated readiness audit once → if statistical rows pass, move the execution host only to a genuinely non-restricted region and verify its direct official geoblock result → only then assess the complete Master gate for a tiny V3 live canary.
+
+## 0.14.178 — 23 September 2026
+
 - Froze `phase15-v3-canary-readiness-v1` as a read-only same-day statistical follow-up for the exact frozen V3. No V3 refit, recalibration fit, threshold/timing/sizing change, live activation, wallet/signing access, authenticated trading client, or nonzero money is introduced.
 - Sample sufficiency now has a predeclared mapping to the already-accepted Phase 13 no-magic-count uncertainty principle: the prospective deterministic 95% lower confidence bound for mean realized after-cost P&L must be strictly positive.
 - Walk-forward stability is mapped to the frozen five-fold V3 ordinary validation economics gate, positive untouched final-holdout economics, and positive prospective uncertainty. The frozen selection's `trade_threshold` policy proves the preregistered ordinary validation economics gate passed because the V3 selection code would otherwise force `no_trade`.

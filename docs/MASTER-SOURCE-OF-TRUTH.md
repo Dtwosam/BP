@@ -1577,3 +1577,20 @@ V4 Gate B preregistration v1 is now frozen before any V4 selection labels are re
 
 The consumed V3 final holdout is motivation only. Its numerical results must not be used to set V4 thresholds, side filters, model hyperparameters, calibration values, or acceptance criteria.
 
+
+
+## 23 Sep 2026 — Same-day frozen-V3 canary-readiness contract
+
+The project now has a separately versioned `phase15-v3-canary-readiness-v1` read-only statistical audit. Its rules were frozen before any new prospective calibration intercept/slope diagnostics were read. It does not mutate V3, does not authorize live trading, and does not alter the V4 future Gate B collection boundary.
+
+For **live-paper sample sufficiency**, retain the accepted Phase 13 principle that no fixed magic market/trade count is required. The row may pass only when the deterministic prospective frozen-V3 mean realized after-cost paper P&L 95% lower confidence bound is strictly positive.
+
+For **walk-forward stability**, the evidence stack is the pre-registered five-fold V3 Gate B ordinary validation economics gate, the untouched V3 final holdout, and the later prospective paper cohort. The V3 Gate B v2 contract required at least 8 validation trades per ordinary fold, at least 4/5 nonnegative validation folds, and positive aggregate validation P&L. Its implementation replaces the final edge policy with `no_trade` whenever that ordinary economics gate fails. The immutable frozen selection is instead `trade_threshold`, `min_edge=0.075`; therefore the pre-registered ordinary validation economics gate passed. The Master row may pass only if that fact, positive untouched-holdout after-cost P&L, and positive prospective mean-P&L uncertainty all hold.
+
+For **calibration acceptance**, the new reliability rule is frozen before reading the relevant diagnostics. Prospective calibrated Brier mean must be no worse than the frozen final-holdout Brier `0.10943703117284813`; prospective calibrated log-loss mean must be no worse than the frozen final-holdout log loss `0.35419212970900277`; and deterministic 2,000-resample, seed-15 bootstrap 95% intervals for calibration intercept and slope must contain `0` and `1` respectively. Ten-bin ECE is descriptive only. If this audit fails, do not weaken the rule.
+
+The production runner is `bash scripts/deploy/phase15_v3_accelerated_readiness_cloudshell.sh`. It is a PostgreSQL read-only observation bridge only. It creates no production file, changes no checkout, changes no service/timer, reads no wallet/signing material, creates no authenticated client, submits no order, and leaves `LIVE_TRADING_ENABLED=false` with real-money limits zero.
+
+Geographic eligibility is still a separate hard gate. User-provided direct official geoblock evidence from the ordinary physical network on 23 Sep 2026 reports `blocked=false`, country `NG`, region `LA`; no IP address is persisted in source truth. The latest production execution host direct check remains blocked from `US/SC`. Therefore geographic status is **partial pass only**. No VPN/proxy/tunnel or other location-circumvention path is permitted. Before any live canary, both the user's ordinary physical connection and the actual execution host must be directly unblocked.
+
+Until a fresh accelerated audit passes and execution-host geography is independently unblocked, the complete Master live gate remains blocked, Phase 15 production activation remains prohibited, and real-money limits remain zero.
