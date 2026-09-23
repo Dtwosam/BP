@@ -12,7 +12,7 @@ from typing import Any
 
 import polymarket
 
-CANARY_MAX_NOTIONAL_USD = Decimal("1.00")
+CANARY_MAX_NOTIONAL_USD = Decimal("10.00")
 CANARY_FEE_RATE = Decimal("0.07")
 CANARY_RECEIPT_PATH = "/var/lib/bp-exec/first-submit.json"
 CANARY_RESERVATION_PATH = "/var/lib/bp-exec/first-submit.reserved"
@@ -89,7 +89,7 @@ def _geoblock() -> dict[str, Any]:
     )
     request = urllib.request.Request(
         url,
-        headers={"User-Agent": "BP-phase15-one-dollar-canary/1"},
+        headers={"User-Agent": "BP-phase15-ten-dollar-canary/1"},
     )
     with urllib.request.urlopen(request, timeout=10) as response:
         if response.status != 200:
@@ -171,7 +171,7 @@ def _reserve_once(payload: dict[str, Any]) -> None:
     try:
         fd = os.open(path, flags, 0o600)
     except FileExistsError as exc:
-        raise RuntimeError("one-dollar canary submit already consumed") from exc
+        raise RuntimeError("ten-dollar canary submit already consumed") from exc
     with os.fdopen(fd, "w", encoding="utf-8") as handle:
         json.dump(payload, handle, sort_keys=True)
         handle.write("\n")
@@ -203,7 +203,7 @@ def _submit(payload: dict[str, Any], expected_git_sha: str) -> dict[str, Any]:
     fee = CANARY_FEE_RATE * price * (Decimal("1") - price) * size
     total_cost = notional + fee
     if total_cost > CANARY_MAX_NOTIONAL_USD:
-        raise RuntimeError("one-dollar canary total cost exceeded")
+        raise RuntimeError("ten-dollar canary total cost exceeded")
 
     reservation = {
         "reserved_at": datetime.now(UTC).isoformat(),
