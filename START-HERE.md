@@ -81,6 +81,8 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 **23 September V3 live-gate reassessment:** the user has explicitly authorized pursuing a controlled live transition for the exact frozen V3 while V4 collection continues unchanged. This records the human-authorization row only. The Master live gate remains closed; live trading stays disabled and real-money limits stay zero until a fresh V3-specific read-only reassessment, direct geographic eligibility check, and every other Master gate row pass. Do not refit/recalibrate V3, change its 240-second timing, change `min_edge=0.075`, alter paper sizing, bypass geographic restrictions, or disturb the frozen V4 Gate B cohort.
 
+The production-safe reassessment bridge is now implemented at `scripts/deploy/phase14_v3_live_gate_reassessment_cloudshell.sh` but has **not** been run. After it merges green, run it once from exact clean current `main`. It collects V3-only paper uncertainty/calibration/reconciliation plus the production VM's direct official Polymarket geoblock response using read-only PostgreSQL and no wallet/signing/order path. A bridge PASS is evidence collection only; review the complete Master live gate separately before any live/nonzero-money change.
+
 
 Frozen V3 paper activation remains a **historical production PASS**, and the current recorder/frozen-V3 runtime is **active after concurrent-partition-retirement rollout PASS** on deployed candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`. The maintenance timer is restored active.
 
