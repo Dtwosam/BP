@@ -13,6 +13,7 @@ from typing import Any
 import polymarket
 
 CANARY_MAX_NOTIONAL_USD = Decimal("1.00")
+CANARY_FEE_RATE = Decimal("0.07")
 CANARY_RECEIPT_PATH = "/var/lib/bp-exec/first-submit.json"
 CANARY_RESERVATION_PATH = "/var/lib/bp-exec/first-submit.reserved"
 CANARY_KILL_SWITCH_PATH = "/var/lib/bp-exec/KILL"
@@ -199,8 +200,10 @@ def _submit(payload: dict[str, Any], expected_git_sha: str) -> dict[str, Any]:
     if size <= 0:
         raise ValueError("size must be positive")
     notional = price * size
-    if notional > CANARY_MAX_NOTIONAL_USD:
-        raise RuntimeError("one-dollar canary notional exceeded")
+    fee = CANARY_FEE_RATE * price * (Decimal("1") - price) * size
+    total_cost = notional + fee
+    if total_cost > CANARY_MAX_NOTIONAL_USD:
+        raise RuntimeError("one-dollar canary total cost exceeded")
 
     reservation = {
         "reserved_at": datetime.now(UTC).isoformat(),
@@ -208,6 +211,8 @@ def _submit(payload: dict[str, Any], expected_git_sha: str) -> dict[str, Any]:
         "price": str(price),
         "size": str(size),
         "notional": str(notional),
+        "fee_cap_cost": str(fee),
+        "total_cost_cap": str(total_cost),
     }
     _reserve_once(reservation)
 
@@ -264,8 +269,6 @@ def _submit(payload: dict[str, Any], expected_git_sha: str) -> dict[str, Any]:
 
 
 def _cancel(payload: dict[str, Any]) -> dict[str, Any]:
-    if _kill_switch_engaged():
-        raise RuntimeError("canary kill switch is engaged")
     receipt_path = Path(CANARY_RECEIPT_PATH)
     if not receipt_path.is_file():
         raise RuntimeError("canary receipt is missing")
