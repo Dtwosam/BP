@@ -10,12 +10,12 @@ EVIDENCE = (
 )
 
 
-def test_phase15_v3_statistical_readiness_passes_but_geography_stays_closed() -> None:
+def test_phase15_v3_statistical_readiness_and_geography_pass_for_canary() -> None:
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     gate = state["phase_15_v3_canary_readiness"]
     master = state["phase_14_checkpoint"]["master_live_gate"]
 
-    assert state["source_of_truth_version"] == "0.14.179"
+    assert state["source_of_truth_version"] == "0.14.180"
     assert gate["status"] == (
         "PRODUCTION_READ_ONLY_PASS_STATISTICAL_GATES_PASS_EXECUTION_HOST_BLOCKED"
     )
@@ -60,7 +60,7 @@ def test_phase15_v3_statistical_readiness_passes_but_geography_stays_closed() ->
     assert master["calibration_acceptable"] == "pass"
     assert master["order_execution_and_reconciliation_tested"] == "pass"
     assert master["explicit_user_live_authorization"] == "pass"
-    assert master["geographic_compliance_eligible"] == "fail"
+    assert master["geographic_compliance_eligible"] == "pass"
 
     user_geo = gate["user_physical_network_geoblock"]
     assert user_geo["status"] == "pass"
@@ -72,9 +72,9 @@ def test_phase15_v3_statistical_readiness_passes_but_geography_stays_closed() ->
     assert candidate["provider"] == "gcp"
     assert candidate["zone"] == "africa-south1-a"
     assert candidate["machine_type"] == "e2-micro"
-    assert candidate["status"] == "NOT_PROVISIONED"
+    assert candidate["status"] == "PROBE_PASS_UNBLOCKED"
 
-    assert gate["phase15_permitted"] is False
+    assert gate["phase15_permitted"] is True
     assert gate["live_trading_enabled"] is False
     assert gate["max_trade_size_usd"] == 0
     assert gate["max_daily_loss_usd"] == 0
