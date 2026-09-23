@@ -73,6 +73,25 @@ def test_record_helper_only_persists_executor_result() -> None:
     assert "create_limit_order" not in text
 
 
+def test_prepare_binds_current_live_module_before_current_canary_module() -> None:
+    text = PREPARE.read_text(encoding="utf-8")
+    assert 'LIVE_SOURCE_B64=$(base64 -w0 "$ROOT/src/bp_engine/execution/live.py")' in text
+    assert "LIVE_SOURCE_B64='$LIVE_SOURCE_B64'" in text
+    assert 'types.ModuleType("bp_engine.execution.live")' in text
+    assert 'sys.modules[live_module.__name__]=live_module' in text
+    assert '<phase15_live_inline>' in text
+    assert 'InterlockDecision=live_module.InterlockDecision' in text
+
+    live_exec = text.index(
+        'exec(compile(live_source, "<phase15_live_inline>", "exec"), live_module.__dict__)'
+    )
+    canary_exec = text.index(
+        'exec(compile(source, "<phase15_canary_inline>", "exec"), module.__dict__)'
+    )
+    assert live_exec < canary_exec
+    assert "from bp_engine.execution.live import InterlockDecision" not in text
+
+
 def test_arm_binds_exact_prepared_request_and_executor() -> None:
     text = (ROOT / "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh").read_text(
         encoding="utf-8"
