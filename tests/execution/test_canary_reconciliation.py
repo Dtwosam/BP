@@ -55,6 +55,15 @@ def _safe_health() -> dict[str, object]:
     }
 
 
+def test_prepare_armability_floor_is_stricter_than_strategy_expiry_floor() -> None:
+    assert canary.CANARY_MIN_TIME_TO_EXPIRY_SECONDS == Decimal("15")
+    assert canary.CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS == Decimal("30")
+    assert (
+        canary.CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS
+        > canary.CANARY_MIN_TIME_TO_EXPIRY_SECONDS
+    )
+
+
 def test_closed_before_submission_does_not_consume_attempt() -> None:
     engine = _engine()
 
