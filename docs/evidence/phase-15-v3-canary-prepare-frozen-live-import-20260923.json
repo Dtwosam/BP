@@ -1,0 +1,34 @@
+{
+  "observed_at": "2026-09-23T17:51:37.764233Z",
+  "status": "PREPARE_FALSE_BLOCK_REPRODUCED_AFTER_ACCOUNT_SNAPSHOT_FIX",
+  "main_head_before_fix": "73ce2d14ea8473356989d3496ca34e4f7f58e26b",
+  "prepare_runtime_pythonpath": "/var/lib/bp/runtime/v3-paper-9d52eb753355365848a637ffa6663928664bf770/src",
+  "prepare_inline_sources_before_fix": [
+    "src/bp_engine/execution/canary.py"
+  ],
+  "stale_import": "bp_engine.execution.live from frozen runtime",
+  "observed_skips": [
+    {
+      "paper_order_id": "3be6e87fc2966785ab4c2149657571df6a7b248c0205008e81880f9256a05db1",
+      "prediction_id": "defd1a542c400df05940a0ef40cba29d9df5271dace0ab9ecdc3f62180e0859a",
+      "reasons": [
+        "liquidity_missing",
+        "cooldown_active",
+        "reconciliation_blocked"
+      ]
+    },
+    {
+      "paper_order_id": "518dcb7afcc5c5f3fa691db4b42df4e611565a40154ca62489826f5684aaa00e",
+      "prediction_id": "bde05f518c5e98cccdcbc907ea38ca4dc4f09fa704b6cbd66d63505225701792",
+      "reasons": [
+        "cooldown_active",
+        "reconciliation_blocked"
+      ]
+    }
+  ],
+  "root_cause": "prepare inline-loaded current canary.py but resolved bp_engine.execution.live from the frozen V3 runtime, so the merged account-snapshot correction was not executed.",
+  "fix": "Inline-load current src/bp_engine/execution/live.py as bp_engine.execution.live before inline-loading current canary.py, while all other dependencies remain pinned to the frozen runtime.",
+  "running_v3_service_mutated": false,
+  "live_order_submitted": false,
+  "submission_attempt_consumed": false
+}
