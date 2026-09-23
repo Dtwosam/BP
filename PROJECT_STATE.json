@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.175",
-  "updated_at": "2026-09-23T08:00:00Z",
+  "source_of_truth_version": "0.14.176",
+  "updated_at": "2026-09-23T09:00:00Z",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -657,10 +657,10 @@
     "Live trading"
   ],
   "next_actions": [
-    "Validate and merge the V3-only read-only live-gate reassessment. User authorization for a controlled frozen-V3 live transition is recorded, but it does not by itself open the Master live gate.",
-    "After merge, run a fresh read-only V3 live-gate reassessment and direct geographic eligibility check. Keep live trading disabled and real-money limits zero unless every Master live-gate row passes.",
+    "Validate and merge the V3 live-gate read-only Cloud Shell bridge. It must remain exact-main-bound, direct-geoblock-only, PostgreSQL read-only, and free of wallet/signing/order side effects.",
+    "After merge, run bash scripts/deploy/phase14_v3_live_gate_reassessment_cloudshell.sh once from exact clean current main and review the fresh V3-only evidence. This is evidence collection only and cannot itself enable live trading.",
     "Continue frozen V3 paper observation and the existing V4 regime-aware collector unchanged. V4 Gate B v1 remains limited to the frozen [2026-09-23T00:00:00Z, 2026-09-30T00:00:00Z) cohort; do not run readiness/planning before epoch close.",
-    "No V3 refit, recalibration, threshold/sizing change, V4 label/model/policy selection, automatic promotion, geographic bypass, or Phase 15 activation is authorized by this reassessment."
+    "Keep Phase 15, live trading, nonzero money, V3 refit/recalibration/threshold/timing/sizing changes, V4 labels/training/policy selection, automatic promotion, and geographic bypass blocked until a separate complete Master live-gate decision."
   ],
   "open_questions": [
     "Current/recurring availability of a 10m BTC Up/Down Polymarket market",
@@ -4071,7 +4071,7 @@
     "production_observation_v4_automatic_promotion": false
   },
   "phase_14_v3_live_gate_reassessment": {
-    "status": "ENGINEERING_IMPLEMENTED_NOT_PRODUCTION_RUN",
+    "status": "READ_ONLY_PRODUCTION_BRIDGE_IMPLEMENTED_NOT_RUN",
     "authorized_at": "2026-09-23T08:00:00Z",
     "authorization_scope": "Pursue a controlled live launch of the exact frozen V3 only if the complete Master live gate passes; keep V4 research collection running in parallel.",
     "explicit_user_live_authorization": "pass",
@@ -4109,6 +4109,17 @@
     "max_daily_loss_usd": 0,
     "production_run_performed": false,
     "real_money_mutation_performed": false,
-    "next_action": "Validate and merge the V3-only read-only reassessment tooling, then run a fresh production read-only reassessment including direct geographic eligibility and current risk/reconciliation evidence. Do not enable live trading or nonzero money unless every Master live-gate row passes."
+    "next_action": "Validate and merge the read-only Cloud Shell bridge, then run it once from exact clean current main to collect fresh V3-only paper uncertainty/calibration/reconciliation and a direct Polymarket geoblock result. Stop at evidence review; do not enable live trading or nonzero money.",
+    "production_bridge": "scripts/deploy/phase14_v3_live_gate_reassessment_cloudshell.sh",
+    "production_bridge_read_only": true,
+    "production_bridge_checkout_mutation": false,
+    "production_bridge_service_or_timer_mutation": false,
+    "production_bridge_filesystem_creation": false,
+    "production_bridge_wallet_or_signing_material_read": false,
+    "production_bridge_real_order_submission": false,
+    "production_bridge_direct_geoblock_url": "https://polymarket.com/api/geoblock",
+    "production_bridge_expected_deployed_head": "52b4355d6f077373b873f7a6f42bc37a20ddbc7b",
+    "production_bridge_expected_v3_runtime": "/var/lib/bp/runtime/v3-paper-9d52eb753355365848a637ffa6663928664bf770",
+    "production_bridge_expected_v4_runtime": "/var/lib/bp/runtime/v4-forward-36b02d0687194173ab5d3862d3b88c6c90607574"
   }
 }

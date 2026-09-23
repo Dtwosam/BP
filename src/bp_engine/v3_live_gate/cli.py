@@ -81,7 +81,15 @@ def build_database_report(
                 ).mappings()
             ]
             order_ids = tuple(str(row["paper_order_id"]) for row in orders)
-            prediction_ids = tuple(str(row["prediction_id"]) for row in orders)
+            v3_prediction_ids = tuple(
+                str(value)
+                for value in connection.scalars(
+                    select(schema.live_predictions.c.prediction_id).where(
+                        schema.live_predictions.c.prediction_version
+                        == V3_PAPER_PREDICTION_VERSION
+                    )
+                )
+            )
 
             settlements = (
                 []
@@ -97,13 +105,13 @@ def build_database_report(
             )
             evaluations = (
                 []
-                if not prediction_ids
+                if not v3_prediction_ids
                 else [
                     dict(row)
                     for row in connection.execute(
                         select(schema.live_prediction_evaluations).where(
                             schema.live_prediction_evaluations.c.prediction_id.in_(
-                                prediction_ids
+                                v3_prediction_ids
                             )
                         )
                     ).mappings()
