@@ -40,7 +40,7 @@ Expected boundary: `TRADING_ORDER_SUBMITTED=false`, `KILL_SWITCH_ENGAGED=true`. 
 bash scripts/deploy/phase15_v3_canary_prepare_cloudshell.sh
 ```
 
-The helper first verifies the official account has zero open orders and at least $5 collateral. It then waits for a **new** frozen-V3 trade signal, requires at least $5 of fresh displayed selected-side liquidity, applies the live-risk rules, persists the intent, and writes:
+The helper first verifies the official account has zero open orders and at least $5 collateral. It then waits for a **new** frozen-V3 trade signal, requires at least $5 of fresh displayed selected-side liquidity, applies the live-risk rules, and also requires at least **30 seconds remaining to market end before persisting an intent**. This 30-second prepare-time armability floor is an operational safety margin; the canonical live-risk minimum remains 15 seconds. Candidates inside the 30-second floor are skipped as `insufficient_arm_window` and create no live intent. Eligible candidates are persisted and written to:
 
 ```text
 /tmp/bp-phase15-v3-canary-prepared.json
