@@ -4339,7 +4339,7 @@
     "second_order_authorized": false,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "If a prepared intent becomes unarmable before any network submission, first reconcile it with the explicit unsubmitted-intent reconciliation helper; that closed-before-submission event does not consume the one network submission attempt. Then prepare one NEW frozen-V3 $5 intent with at least $5 displayed liquidity; explicitly arm the exact intent/request/executor hash with PHASE15_ACCEPT_REAL_MONEY=yes for at most 45 seconds; manually submit once; record the bound sanitized result; then stop for official reconciliation. No second network submission attempt is authorized.",
+    "next_action": "Prepare one NEW frozen-V3 $5 intent with at least $5 displayed liquidity. If prepare passes, arm immediately with PHASE15_ACCEPT_REAL_MONEY=yes; only if arm passes, manually execute the one permitted network submission exactly once, record the bound result, then stop for official reconciliation. The prior expired prepared intent was reconciled as closed_before_submission and consumed no network submission attempt.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
@@ -4366,7 +4366,17 @@
     "pre_submission_reconciliation_requires_activation_invalid": true,
     "pre_submission_reconciliation_requires_submission_not_ready": true,
     "pre_submission_reconciliation_requires_live_order_submitted_false": true,
-    "pre_submission_reconciliation_requires_zero_official_open_orders": true
+    "pre_submission_reconciliation_requires_zero_official_open_orders": true,
+    "last_unsubmitted_reconciliation": {
+      "status": "PASS",
+      "date": "2026-09-23",
+      "intent_id": "live-intent-285a7c90b51c6ef511472407d81668d9",
+      "event_type": "closed_before_submission",
+      "reconciliation_id": "live-reconciliation-95837c1ec56575861584f0b8c1cb3d42",
+      "submission_attempt_consumed": false,
+      "live_order_submitted": false,
+      "evidence": "docs/evidence/phase-15-v3-canary-unsubmitted-reconciliation-production-20260923.json"
+    }
   },
   "phase_15_v3_paper_hotpath_rollout": {
     "status": "PRODUCTION_PASS",

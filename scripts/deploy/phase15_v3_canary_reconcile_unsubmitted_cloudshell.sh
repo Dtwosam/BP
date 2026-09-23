@@ -31,8 +31,7 @@ command -v python3 >/dev/null 2>&1 || fail "python3_missing"
   fail "unsubmitted_reconciliation_not_explicitly_accepted"
 [[ -f "$PREPARED_FILE" ]] || fail "prepared_file_missing"
 
-python3 - "$ROOT/PROJECT_STATE.json" <<'PY' ||
-  fail "source_truth_not_authorized"
+if ! python3 - "$ROOT/PROJECT_STATE.json" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -48,6 +47,9 @@ assert gate["canary_order_submitted"] is False
 assert gate["second_order_authorized"] is False
 assert all(value == "pass" for value in master.values())
 PY
+then
+  fail "source_truth_not_authorized"
+fi
 
 INTENT_ID=$(python3 - "$PREPARED_FILE" <<'PY'
 import json
@@ -77,8 +79,7 @@ HEALTH=$(printf '%s' '{"action":"health"}' |
   gcloud compute ssh "$EXEC_VM"     --project="$PROJECT"     --zone="$EXEC_ZONE"     --quiet     --command='sudo /opt/bp-canary/executor.sh' 2>/dev/null) ||
   fail "executor_health_command_failed"
 
-python3 - "$HEALTH" "$EXECUTOR_SHA256" <<'PY' ||
-  fail "executor_not_safe_for_unsubmitted_reconciliation"
+if ! python3 - "$HEALTH" "$EXECUTOR_SHA256" <<'PY'
 import json
 import sys
 from decimal import Decimal
@@ -98,6 +99,9 @@ assert payload["activation_valid"] is False
 assert payload["submission_ready"] is False
 assert payload["live_order_submitted"] is False
 PY
+then
+  fail "executor_not_safe_for_unsubmitted_reconciliation"
+fi
 
 CANARY_SOURCE_B64=$(base64 -w0 "$ROOT/src/bp_engine/execution/canary.py")
 HEALTH_B64=$(printf '%s' "$HEALTH" | base64 -w0)
@@ -138,8 +142,7 @@ finally:
 PY
 ) || fail "unsubmitted_reconciliation_command_failed"
 
-python3 - "$RECONCILED" "$INTENT_ID" <<'PY' ||
-  fail "unsubmitted_reconciliation_result_invalid"
+if ! python3 - "$RECONCILED" "$INTENT_ID" <<'PY'
 import json
 import sys
 
@@ -149,6 +152,9 @@ assert payload["intent_id"] == sys.argv[2]
 assert payload["event_type"] == "closed_before_submission"
 assert payload["submission_attempt_consumed"] is False
 PY
+then
+  fail "unsubmitted_reconciliation_result_invalid"
+fi
 
 echo "$RECONCILED"
 echo "KILL_SWITCH_ENGAGED=true"
