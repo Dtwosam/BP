@@ -4,13 +4,18 @@ Research-first system for estimating short-duration BTC Polymarket Up/Down proba
 
 ## Current status
 
-**Phases 0–14 engineering:** complete.  
-**Current gate:** `PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED`.  
-**Trading mode:** `RESEARCH`. Live trading is disabled.
+**Phases 0–14:** complete.  
+**Current phase:** Phase 15 controlled live launch.  
+**Current state:** `PHASE_15_CANARY_AUTHORIZED_NOT_YET_SUBMITTED`.  
+**Runtime trading mode:** still `RESEARCH`; no real order has been submitted yet.
 
-Phase 14 — Live Readiness V1 — passed non-spending production host acceptance on exact candidate `5854e3003aa3340ce3733bf4532e204c1ec55836`. The accepted path imports the official `polymarket-client`, enforces fail-closed activation/geoblock/kill-switch/risk interlocks, reconciles synthetic/live-readiness state, exposes read-only diagnostics, and proved `REAL_ORDER_SIDE_EFFECTS=0` with real-money limits still zero.
+The complete Master live gate now passes for the **one-order frozen-V3 canary**. Statistical readiness passed under predeclared rules, explicit user authorization is recorded, the user's ordinary physical-network direct Polymarket geoblock check is unblocked (`NG/LA`), and the dedicated Johannesburg execution host `bp-v3-canary-exec` is directly unblocked (`ZA/GP`).
 
-The Master live gate is **not** satisfied. The frozen-V3 read-only reassessment completed on 23 September 2026 and moved `positive_after_cost_profitability` to `pass`, with 76 settled trades, +$682.252111761097 realized paper P&L, and a deterministic bootstrap 95% mean-P&L interval of +$1.6407501892525114 to +$18.945890261783955. Execution/reconciliation and explicit user authorization are also `pass`. However, the direct official Polymarket geoblock check from the production VM returned `blocked=true` for `US/SC`, so geographic compliance remains `fail`; sample sufficiency, calibration acceptance, and walk-forward stability remain `insufficient_evidence`. Phase 15 is therefore not permitted. The ~80% accuracy discussed for this project remains a research target, not an assumed or guaranteed capability.
+The canary does **not** increase V3 strategy sizing. The first live order keeps the existing **$5 target notional**. The user's **$10 per-market authorization is a hard ceiling**, with $10 maximum total exposure, $10 daily-loss stop, one-consecutive-loss stop, and one accepted-order maximum.
+
+Real-money submission is deliberately manual. Wallet bootstrap, canary preparation, and the arm step all submit **no order**. The Johannesburg kill switch is engaged by default; arming is short-lived and one-shot, and the executor re-engages the kill switch before its single SDK submission attempt. Reconciliation is mandatory before any second order.
+
+V3 remains frozen. V4 Gate B collection continues unchanged through its preregistered future epoch.
 
 ## Read before working
 
@@ -87,6 +92,6 @@ Production host acceptance returned:
 - `LIVE_GATE_ELIGIBLE=false`
 - `GEOBLOCK_BLOCKED=true`
 
-The original Master gate matrix is stored in `docs/evidence/phase-14-closeout-20260830.json`. The latest frozen-V3 reassessment is `docs/evidence/phase-14-v3-live-gate-reassessment-production-20260923.json`: profitability, execution/reconciliation, and explicit user authorization are now `pass`; walk-forward stability, paper-sample sufficiency, and calibration acceptance remain `insufficient_evidence`; geographic eligibility remains `fail`; overall live gate remains `fail`.
+The original Master gate matrix remains historical evidence at `docs/evidence/phase-14-closeout-20260830.json`. The latest statistical readiness evidence is `docs/evidence/phase-15-v3-accelerated-readiness-production-20260923.json`, and the Johannesburg host PASS is `docs/evidence/phase-15-v3-canary-host-geoblock-20260923.json`.
 
-The accelerated `phase15-v3-canary-readiness-v1` audit has now passed in production read-only mode. Walk-forward stability, sample sufficiency with uncertainty, profitability, calibration, execution/reconciliation, and explicit user authorization are all `pass`. The user’s ordinary physical-network geoblock check is also unblocked (`NG/LA`). The remaining blocker is execution-host geography: the current US host is blocked. The next authorized mutation is a dedicated Johannesburg (`africa-south1-a`) execution-only VM probe using the official direct Polymarket geoblock endpoint. No trading software or wallet material may be installed until that probe passes.
+The current operator contract is `docs/PHASE-15-V3-LIVE-CANARY.md`. No broad live rollout or automatic stake increase is authorized.

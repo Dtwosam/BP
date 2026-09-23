@@ -21,18 +21,13 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
-Phase 14 Live Readiness engineering remains research-only and the Master live gate remains blocked. Phase 15 is **not permitted**. Safety remains `LIVE_TRADING_ENABLED=false`, real trade-size and daily-loss limits remain zero, and automatic promotion remains false.
+Phase 15 is open **only for the one-order frozen-V3 live canary**. Source truth version is `0.14.180`. The Master live gate is fully `pass`, but the runtime remains money-disabled until the operator deliberately performs the manual submission step.
 
-The active research direction remains the separately versioned **BTC-first V3 challenger**:
+The first canary preserves V3's existing **$5 target notional** under the user's hard **$10 per-market ceiling**. Hard limits are $10 max trade, $10 total exposure, $10 daily loss, one consecutive loss, one accepted order, 2-second order TTL/cancel attempt, and no second-order authorization.
 
-```text
-feature_version = core-v3-btc-native
-label_version   = official-outcome-v1
-horizon_seconds = 300
-feature_offsets = 60, 120, 180, 240
-```
+The dedicated execution host is `bp-v3-canary-exec` in GCP `africa-south1-a` (Johannesburg). Its direct official Polymarket geoblock result is `blocked=false`, `ZA/GP`. Wallet/signing material is permitted only on that host, never on the existing US BP host, in Git, or in chat.
 
-V3 forecasting uses BTC-native Coinbase/Bybit state. Polymarket price/book data remains the downstream executable benchmark/price-to-beat and is not a V3 forecast predictor. Existing V1/V2 evidence remains immutable.
+Use `docs/PHASE-15-V3-LIVE-CANARY.md` as the operator runbook. The sequence is bootstrap (kill switch engaged, no order) → prepare one NEW V3 intent (no order) → review → explicit short-lived arm (no order) → **manual** one-shot submit → record result → stop and reconcile.
 
 ### Historical Gate A acceptance
 
@@ -79,44 +74,17 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
-**23 September accelerated V3 audit result:** the production read-only audit on exact main `ceeec0bded4bb6ae60291ee8f5f60db214eceb98` passed every statistical V3 live-readiness row under the frozen rules. Durable evidence is `docs/evidence/phase-15-v3-accelerated-readiness-production-20260923.json`. Current paper evidence is 77 settled trades (48W/29L), +$687.612927164917 realized after-cost P&L, and a deterministic mean-P&L 95% interval of +$1.746626049710839 to +$18.521917124071315. The prospective calibration audit also passed its predeclared intercept/slope rule.
-
-The only remaining Master blocker is execution-host geography. The user’s ordinary physical connection is unblocked (`NG/LA`), while the current US execution host remains blocked. The next authorized mutation is **only** `bash scripts/deploy/phase15_v3_canary_host_probe_cloudshell.sh`, which provisions a dedicated `e2-micro` in GCP `africa-south1-a` (Johannesburg), runs the official direct geoblock check, installs no trading software, reads no wallet material, and deletes itself automatically if blocked. It requires explicit billable-VM acknowledgement. Do not activate live trading yet.
-
-
-**Same-day V3 canary readiness:** `phase15-v3-canary-readiness-v1` is now the only authorized statistical follow-up. Its acceptance rules are frozen before the new prospective calibration intercept/slope diagnostics are read. After the package merges green, run `bash scripts/deploy/phase15_v3_accelerated_readiness_cloudshell.sh` once from exact clean current `main`. The run is PostgreSQL read-only and cannot access wallet/signing material, construct an authenticated trading client, enable live trading, or change money limits.
-
-A statistical PASS still cannot override geography. Before any live canary, independently require an unblocked official Polymarket geoblock result from the user's ordinary physical network with VPN/proxy disabled and an unblocked direct geoblock result from the eventual execution host. Do not use infrastructure to disguise a restricted physical location.
-
-
-**23 September V3 live-gate reassessment:** the read-only production run is complete and preserved at `docs/evidence/phase-14-v3-live-gate-reassessment-production-20260923.json`. Frozen V3 now has 76 settled trades, 47 wins / 29 losses, +$682.252111761097 realized paper P&L, profit factor 6.262572772140266, max drawdown $27.974134608836, and a deterministic bootstrap 95% interval for mean realized P&L of +$1.6407501892525114 to +$18.945890261783955. `positive_after_cost_profitability=pass`, execution/reconciliation remains `pass`, and explicit user authorization is `pass`.
-
-The Master live gate nevertheless remains **closed**. The direct official Polymarket geoblock request from the production VM returned `blocked=true`, `country=US`, `region=SC`, so `geographic_compliance_eligible=fail`. `sufficiently_large_live_paper_sample_with_uncertainty`, `calibration_acceptable`, and `walk_forward_results_stable_enough` remain `insufficient_evidence` under the canonical rules. Do not rerun the one-shot reassessment absent a separately versioned reason; do not bypass geographic restrictions; keep live trading disabled and real-money limits zero.
+1. Merge and deploy only the Phase 15 one-order canary engineering package after exact-head CI passes.
+2. Bootstrap the Johannesburg signer with `PHASE15_ACCEPT_WALLET_SETUP=yes`. The private key is entered only at the hidden Cloud Shell prompt. Bootstrap must end with the kill switch engaged and `TRADING_ORDER_SUBMITTED=false`.
+3. Prepare one **new** frozen-V3 paper-derived intent with `scripts/deploy/phase15_v3_canary_prepare_cloudshell.sh`. Historical paper trades are forbidden.
+4. Review the prepared side, $5 target, limit price, shares, and market end time.
+5. Arm explicitly with `PHASE15_ACCEPT_REAL_MONEY=yes`; the arm lasts at most 45 seconds and submits no order.
+6. The user manually submits exactly the prepared JSON to the Johannesburg executor, saves the sanitized JSON result, then runs the record helper.
+7. Stop. Official reconciliation is required before any second order; no second order is currently authorized.
+8. Continue frozen-V3 paper observation and V4 Gate B collection unchanged. Do not tune V3 or access V4 labels/training/policy selection early.
 
 
-Frozen V3 paper activation remains a **historical production PASS**, and the current recorder/frozen-V3 runtime is **active after concurrent-partition-retirement rollout PASS** on deployed candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`. The maintenance timer is restored active.
+**Preserved Phase 14 historical context:** frozen V3 paper activation remains a **historical production PASS** and the recorder/frozen-V3 runtime remains **active after concurrent-partition-retirement rollout PASS**. The frozen identities remain model `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`, prediction `v3-frozen-paper-v1`, execution `paper-execution-v3-frozen-v1`, and `min_edge=0.075`. That paper program used `real_money         = $0.00` and remains **prospective observation only** while the separately bounded Phase 15 canary is evaluated.
 
-The accepted frozen identity remains unchanged:
+The **frozen V4 Gate B v1 future cohort** and **V4 regime-aware** feature collection continue unchanged. **Do not rerun the storage rollout.** The historical Phase 14 instruction to **keep all promotion/live boundaries closed** remains the governing boundary for every path except the separately authorized one-attempt Phase 15 canary. The historical read-only observation helper remains `bash scripts/deploy/phase14_observation_cloudshell.sh`; using it does not authorize any live-order action.
 
-```text
-model_sha256       = 124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7
-prediction_version = v3-frozen-paper-v1
-execution_version  = paper-execution-v3-frozen-v1
-min_edge           = 0.075
-real_money         = $0.00
-```
-
-The latest recovery PASS is `/var/lib/bp/evidence/phase14-recorder-v3-recovery-20260922T134508Z.json`. The subsequent rollout PASS is `/var/lib/bp/evidence/phase14-concurrent-partition-retirement-rollout-20260922T140747Z.json`: maintenance retired exactly one eligible hourly partition, recorder PID `4016465` stayed stable with zero restarts, frozen predictor PID `4016471` and frozen execution PID `4016476` stayed active, post-maintenance storage health was `ok` with retention lag `0.0h`, and no detached-retirement leftovers remained.
-
-The immediate operational sequence is:
-
-1. **Collect the frozen V4 Gate B v1 future cohort.** Continue frozen-V3 paper observation and **V4 regime-aware feature collection** with the existing collector unchanged. This remains **prospective observation only**. Only V4 markets with `market_start_at >= 2026-09-23T00:00:00Z` and `< 2026-09-30T00:00:00Z` may enter future selection; earlier V4 rows are coverage/engineering evidence only.
-2. **Do not run V4 readiness or planning early.** After `2026-09-30T00:00:00Z`, run only outcome-blind read-only readiness. If and only if it passes, write the feature-only no-clobber plan and stop. Labeled preparation, training, policy selection, and final-holdout access remain blocked.
-3. **Preserve observation/storage evidence.** Continue using `bash scripts/deploy/phase14_observation_cloudshell.sh` only for read-only evidence collection. **Do not rerun the storage rollout.** Preserve the rollout PASS and monitor normal hourly maintenance.
-4. **Keep all promotion/live boundaries closed.** V3 refit/tuning, V4 label access/model fitting/policy selection/final-holdout access, automatic promotion, Phase 15, live trading, geographic bypass, and nonzero real-money limits remain unauthorized.
-
-The frozen V4 Gate B contract is `docs/superpowers/specs/2026-09-22-phase-14-v4-gate-b-preregistration.md`, with durable preregistration evidence at `docs/evidence/phase-14-v4-gate-b-preregistration-20260922.json`.
-
-The observation PASS recorded 308 frozen-V3 predictions, 60 trade signals, 45 settled orders, and virtual cash of `472.362970092036` from the frozen `100.00` starting balance. It also recorded 373 V4 markets / 1,492 rows with bull, bear, sideways/mixed, and unknown regimes represented, zero future-cutoff violations, zero Polymarket predictor keys, zero regime-invariant violations, no training, no policy selection, and no automatic promotion. These are observation facts only, not tuning inputs or a promotion decision.
-
-Do not refit V3, recalibrate it, change `min_edge=0.075`, alter paper sizing, tune from paper results, perform Gate B actions, automatically promote anything, enable a live-order path, enter Phase 15, bypass geographic restrictions, or change real-money limits.
