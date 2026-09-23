@@ -9,15 +9,22 @@ from typing import Any
 
 PAPER_EXECUTION_VERSION = "paper-execution-v1"
 V3_FROZEN_PAPER_EXECUTION_VERSION = "paper-execution-v3-frozen-v1"
+V3_LIVE_CANARY_EXECUTION_VERSION = "live-execution-v3-canary-v1"
 V3_FROZEN_PAPER_STARTING_CASH_USD = Decimal("100.00")
 V3_FROZEN_PAPER_TARGET_NOTIONAL_USD = Decimal("5.00")
 V3_FROZEN_PAPER_LATENCY_MS = 250
 V3_FROZEN_PAPER_ORDER_TTL_MS = 2000
 V3_FROZEN_PAPER_SHARE_PRECISION = 6
-_ALLOWED_EXECUTION_VERSIONS = frozenset(
+_PAPER_EXECUTION_VERSIONS = frozenset(
     {
         PAPER_EXECUTION_VERSION,
         V3_FROZEN_PAPER_EXECUTION_VERSION,
+    }
+)
+_ALLOWED_EXECUTION_VERSIONS = frozenset(
+    {
+        *_PAPER_EXECUTION_VERSIONS,
+        V3_LIVE_CANARY_EXECUTION_VERSION,
     }
 )
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -125,7 +132,7 @@ class PaperExecutionConfig:
             raise ValueError("order_ttl_ms must be greater than zero")
         if not 0 <= self.share_precision <= 18:
             raise ValueError("share_precision must be within [0, 18]")
-        if self.execution_version not in _ALLOWED_EXECUTION_VERSIONS:
+        if self.execution_version not in _PAPER_EXECUTION_VERSIONS:
             raise ValueError("unsupported paper execution_version")
         if self.prediction_version is not None:
             object.__setattr__(
