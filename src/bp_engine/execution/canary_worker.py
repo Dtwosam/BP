@@ -37,11 +37,11 @@ from bp_engine.live_readiness.repository import LiveReadinessRepository
 from bp_engine.storage import schema
 from bp_engine.v3_paper.service import V3_PAPER_PREDICTION_VERSION
 
-CANARY_POLICY_VERSION = "live-risk-v3-canary-v1"
-CANARY_TARGET_NOTIONAL_USD = Decimal("1.00")
-CANARY_MAX_TOTAL_EXPOSURE_USD = Decimal("1.00")
-CANARY_MAX_DAILY_LOSS_USD = Decimal("2.00")
-CANARY_MAX_CONSECUTIVE_LOSSES = 2
+CANARY_POLICY_VERSION = "live-risk-v3-canary-10usd-v1"
+CANARY_TARGET_NOTIONAL_USD = Decimal("10.00")
+CANARY_MAX_TOTAL_EXPOSURE_USD = Decimal("10.00")
+CANARY_MAX_DAILY_LOSS_USD = Decimal("10.00")
+CANARY_MAX_CONSECUTIVE_LOSSES = 1
 CANARY_MIN_EDGE = Decimal("0.075")
 CANARY_MAX_PREDICTION_AGE_SECONDS = Decimal("10")
 CANARY_MIN_TIME_TO_EXPIRY_SECONDS = Decimal("30")
@@ -96,9 +96,9 @@ def _remote_client() -> SshPolymarketTradingClient:
 
 def _assert_exact_canary_settings(settings: Settings) -> None:
     if settings.mode != TradingMode.LIVE:
-        raise RuntimeError("one-dollar canary requires MODE=live")
+        raise RuntimeError("ten-dollar canary requires MODE=live")
     if not settings.live_trading_enabled:
-        raise RuntimeError("one-dollar canary requires LIVE_TRADING_ENABLED=true")
+        raise RuntimeError("ten-dollar canary requires LIVE_TRADING_ENABLED=true")
     expected = {
         "max_trade_size_usd": CANARY_TARGET_NOTIONAL_USD,
         "max_total_exposure_usd": CANARY_MAX_TOTAL_EXPOSURE_USD,
@@ -106,11 +106,11 @@ def _assert_exact_canary_settings(settings: Settings) -> None:
     }
     for name, value in expected.items():
         if Decimal(str(getattr(settings, name))) != value:
-            raise RuntimeError(f"unexpected one-dollar canary setting: {name}")
+            raise RuntimeError(f"unexpected ten-dollar canary setting: {name}")
     if settings.max_consecutive_losses != CANARY_MAX_CONSECUTIVE_LOSSES:
-        raise RuntimeError("unexpected one-dollar canary consecutive-loss limit")
+        raise RuntimeError("unexpected ten-dollar canary consecutive-loss limit")
     if Decimal(str(settings.live_min_edge)) != CANARY_MIN_EDGE:
-        raise RuntimeError("unexpected one-dollar canary min edge")
+        raise RuntimeError("unexpected ten-dollar canary min edge")
 
 
 def _policy() -> LiveRiskPolicy:
@@ -139,7 +139,7 @@ def _seed_reconciliation(engine, repository: LiveReadinessRepository) -> None:
             ).scalar_one()
         )
         if intent_count:
-            raise RuntimeError("one-dollar canary live-order intent already exists")
+            raise RuntimeError("ten-dollar canary live-order intent already exists")
         latest = connection.execute(
             select(schema.live_reconciliation_runs)
             .order_by(
@@ -156,7 +156,7 @@ def _seed_reconciliation(engine, repository: LiveReadinessRepository) -> None:
             unresolved_count=0,
             critical_count=0,
             evidence={
-                "source": "phase15-v3-one-dollar-canary-initial-baseline",
+                "source": "phase15-v3-ten-dollar-canary-initial-baseline",
                 "official_order_count": 0,
                 "account_snapshot": {
                     "realized_daily_pnl_usd": "0",
@@ -249,7 +249,7 @@ def main() -> int:
         observed_at=datetime.now(UTC),
     )
     if kill_switch_engaged(settings.live_kill_switch_path):
-        raise RuntimeError("one-dollar canary kill switch is engaged")
+        raise RuntimeError("ten-dollar canary kill switch is engaged")
 
     engine = create_engine(settings.database_url, pool_pre_ping=True)
     repository = LiveReadinessRepository()
@@ -350,7 +350,7 @@ def main() -> int:
                 print(
                     json.dumps(
                         {
-                            "phase15_v3_one_dollar_canary": "submission_consumed",
+                            "phase15_v3_ten_dollar_canary": "submission_consumed",
                             "prediction_id": request.prediction_id,
                             "accepted": ack.accepted,
                             "order_id": ack.order_id,
