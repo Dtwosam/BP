@@ -9,7 +9,7 @@ from typing import Any
 
 PAPER_EXECUTION_VERSION = "paper-execution-v1"
 V3_FROZEN_PAPER_EXECUTION_VERSION = "paper-execution-v3-frozen-v1"
-V3_LIVE_CANARY_EXECUTION_VERSION = "live-execution-v3-canary-v1"
+V3_LIVE_CANARY_EXECUTION_VERSION = "live-execution-v3-canary-10usd-v1"
 V3_FROZEN_PAPER_STARTING_CASH_USD = Decimal("100.00")
 V3_FROZEN_PAPER_TARGET_NOTIONAL_USD = Decimal("5.00")
 V3_FROZEN_PAPER_LATENCY_MS = 250
