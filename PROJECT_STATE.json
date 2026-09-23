@@ -4,8 +4,8 @@
   "source_of_truth_version": "0.14.180",
   "updated_at": "2026-09-23",
   "current_phase": 15,
-  "current_phase_name": "controlled frozen-V3 live canary — deployment authorized, not activated",
-  "status": "PHASE_15_ONE_DOLLAR_CANARY_AUTHORIZED_NOT_ACTIVATED",
+  "current_phase_name": "controlled frozen-V3 ten-dollar live canary — code ready, not deployed",
+  "status": "PHASE_15_TEN_DOLLAR_CANARY_AUTHORIZED_NOT_ACTIVATED",
   "trading_mode": "RESEARCH",
   "live_trading_enabled": false,
   "verified_polymarket_horizons": [
@@ -657,8 +657,8 @@
     "Live trading"
   ],
   "next_actions": [
-    "Preserve the statistical readiness PASS and Johannesburg geoblock PASS. All Master live-gate rows are pass and Phase 15 one-dollar canary is eligible.",
-    "Validate and merge the exact frozen-V3 one-dollar canary code package: one live intent maximum, $1 trade/exposure cap, $2 daily-loss cap, existing live risk/reconciliation gateway, and Johannesburg-only SDK signer boundary.",
+    "Preserve the statistical readiness PASS and Johannesburg geoblock PASS. All Master live-gate rows are pass and Phase 15 ten-dollar canary is eligible.",
+    "Validate and merge the exact frozen-V3 ten-dollar canary code package: one live intent maximum, $1 trade/exposure cap, $2 daily-loss cap, existing live risk/reconciliation gateway, and Johannesburg-only SDK signer boundary.",
     "Do not put wallet/private-key material into GitHub, logs, chat, or automated deployment scripts. Credential provisioning and real-money activation remain an explicit external operator boundary; the repository package itself must stay non-spending until that boundary is crossed by the operator.",
     "Continue frozen V3 paper observation and V4 Gate B collection unchanged. Do not tune V3, disturb V4, broaden risk limits, or allow a second live intent before the first canary is reconciled and reviewed."
   ],
@@ -4187,7 +4187,7 @@
     "master_live_gate_mutation_scope": "Evidence-backed status refresh only; no activation or money change."
   },
   "phase_15_v3_canary_readiness": {
-    "status": "MASTER_LIVE_GATE_PASS_ONE_DOLLAR_CANARY_CODE_READY_NOT_DEPLOYED",
+    "status": "MASTER_LIVE_GATE_PASS_TEN_DOLLAR_CANARY_CODE_READY_NOT_DEPLOYED",
     "purpose": "Attempt a same-day, evidence-based frozen-V3 live-readiness decision without tuning V3 or bypassing geography.",
     "source_v3_model_sha256": "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7",
     "source_prediction_version": "v3-frozen-paper-v1",
@@ -4234,7 +4234,7 @@
     "live_trading_enabled": false,
     "max_trade_size_usd": 0,
     "max_daily_loss_usd": 0,
-    "next_action": "Validate and merge the fail-closed one-dollar canary code package. The repository must not automate wallet/private-key provisioning or the final real-money activation. After merge, perform only non-spending code/runtime verification; credential installation and live activation remain an explicit external operator boundary.",
+    "next_action": "Validate and merge the fail-closed ten-dollar canary code package. The first live market may risk at most $10 total including the executor fee cap, and only one live submission intent is authorized. Wallet/private-key provisioning and final real-money activation remain explicit external operator boundaries.",
     "user_physical_network_geoblock": {
       "status": "pass",
       "blocked": false,
@@ -4291,12 +4291,12 @@
       "status": "GEOBLOCK_PASS_RUNNING_NO_TRADING_SOFTWARE"
     },
     "canary_contract": {
-      "version": "phase15-v3-one-dollar-canary-v1",
+      "version": "phase15-v3-ten-dollar-canary-v1",
       "max_live_order_intents": 1,
-      "max_trade_size_usd": "1.00",
-      "max_total_exposure_usd": "1.00",
-      "max_daily_loss_usd": "2.00",
-      "max_consecutive_losses": 2,
+      "max_trade_size_usd": "10.00",
+      "max_total_exposure_usd": "10.00",
+      "max_daily_loss_usd": "10.00",
+      "max_consecutive_losses": 1,
       "min_edge": "0.075",
       "max_prediction_age_seconds": 10,
       "min_time_to_expiry_seconds": 30,
@@ -4308,7 +4308,8 @@
       "live_activation_automated": false,
       "wallet_or_private_key_in_repository": false,
       "execution_host_wallet_boundary": "Johannesburg only",
-      "real_order_submission_requires_external_operator_activation": true
+      "real_order_submission_requires_external_operator_activation": true,
+      "fee_inclusive_hard_cost_cap": true
     }
   }
 }
