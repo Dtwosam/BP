@@ -76,7 +76,9 @@ def build_accelerated_v3_readiness(
         },
         "calibration_rule": {
             "frozen_before_reliability_audit": True,
-            "reference": "frozen pre-paper V3 holdout plus prospective reliability regression",
+            "reference": (
+                "frozen pre-paper V3 holdout plus prospective reliability regression"
+            ),
             "max_brier": FROZEN_HOLDOUT_BRIER,
             "max_log_loss": FROZEN_HOLDOUT_LOG_LOSS,
             "ece_10_bin": "descriptive_only",
@@ -94,23 +96,39 @@ def build_accelerated_v3_readiness(
         "gates": {
             "walk_forward_results_stable_enough": _status(
                 walk_forward_pass,
-                "Frozen five-fold validation economics, untouched holdout economics, and prospective paper uncertainty must all be positive.",
+                (
+                    "Frozen five-fold validation economics, untouched holdout economics, "
+                    "and prospective paper uncertainty must all be positive."
+                ),
             ),
             "sufficiently_large_live_paper_sample_with_uncertainty": _status(
                 sample_pass,
-                "No magic count is introduced; the prospective mean after-cost P&L 95% lower bound must be strictly positive.",
+                (
+                    "No magic count is introduced; the prospective mean after-cost P&L "
+                    "95% lower bound must be strictly positive."
+                ),
             ),
             "positive_after_cost_profitability": _status(
                 bool(diagnostics["bootstrap_mean_lower_bound_positive"]),
-                "Prospective realized after-cost mean-P&L bootstrap lower bound must be positive.",
+                (
+                    "Prospective realized after-cost mean-P&L bootstrap lower bound "
+                    "must be positive."
+                ),
             ),
             "calibration_acceptable": _status(
                 calibration_pass,
-                "Prospective Brier/log loss must not degrade versus the frozen pre-paper holdout and the predeclared calibration intercept/slope confidence intervals must contain 0/1 respectively.",
+                (
+                    "Prospective Brier/log loss must not degrade versus the frozen "
+                    "pre-paper holdout and the predeclared calibration intercept/slope "
+                    "confidence intervals must contain 0/1 respectively."
+                ),
             ),
             "order_execution_and_reconciliation_tested": _status(
                 reconciliation_pass,
-                "Frozen V3 order/fill/settlement reconciliation must be OK with zero violations.",
+                (
+                    "Frozen V3 order/fill/settlement reconciliation must be OK with "
+                    "zero violations."
+                ),
             ),
         },
         "calibration_audit": dict(calibration_audit),
