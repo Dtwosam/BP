@@ -14,7 +14,7 @@ This runbook is for the **one-order** frozen-V3 canary only.
 
 ## Risk
 
-The first canary uses the existing **$5 strategy target**. The user's **$10** authorization is the hard per-market ceiling and also the maximum total exposure and daily loss ceiling. Only one accepted order is allowed.
+The first canary uses the existing **$5 strategy target**. The user's **$10** authorization is the hard per-market ceiling and also the maximum total exposure and daily loss ceiling. Exactly **one network submission attempt** is allowed, whether accepted, rejected, or ambiguous. Fresh selected-side displayed liquidity must be at least $5.
 
 ## Operator sequence
 
@@ -32,7 +32,7 @@ bash scripts/deploy/phase15_v3_canary_bootstrap_cloudshell.sh
 
 Enter the private key only at the hidden Cloud Shell prompt. Do not paste it into chat.
 
-Expected boundary: `TRADING_ORDER_SUBMITTED=false`, `KILL_SWITCH_ENGAGED=true`.
+Expected boundary: `TRADING_ORDER_SUBMITTED=false`, `KILL_SWITCH_ENGAGED=true`. Bootstrap health must also show zero official open orders and at least $5 collateral.
 
 ### 2. Prepare — no order
 
@@ -40,7 +40,7 @@ Expected boundary: `TRADING_ORDER_SUBMITTED=false`, `KILL_SWITCH_ENGAGED=true`.
 bash scripts/deploy/phase15_v3_canary_prepare_cloudshell.sh
 ```
 
-The helper waits for a **new** frozen-V3 trade signal, applies the live-risk rules, persists the intent, and writes:
+The helper first verifies the official account has zero open orders and at least $5 collateral. It then waits for a **new** frozen-V3 trade signal, requires at least $5 of fresh displayed selected-side liquidity, applies the live-risk rules, persists the intent, and writes:
 
 ```text
 /tmp/bp-phase15-v3-canary-prepared.json
@@ -57,7 +57,7 @@ PHASE15_ACCEPT_REAL_MONEY=yes \
 bash scripts/deploy/phase15_v3_canary_arm_cloudshell.sh
 ```
 
-The arm is valid for at most 45 seconds and only for the prepared request. It removes the kill switch but submits nothing.
+The arm is valid for at most 45 seconds and only for the exact prepared intent/request and exact executor SHA-256. It rechecks account cleanliness/collateral, removes the kill switch, but submits nothing.
 
 ### 4. Manual one-shot submission
 
@@ -83,7 +83,7 @@ Do not rerun the submission command if the result is missing, malformed, or ambi
 bash scripts/deploy/phase15_v3_canary_record_cloudshell.sh
 ```
 
-Then stop. Do not arm or submit another order.
+Then stop. Do not arm or submit again, even if the first network attempt was rejected or returned an ambiguous result.
 
 ## After the canary
 
