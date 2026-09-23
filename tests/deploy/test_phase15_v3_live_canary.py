@@ -11,7 +11,7 @@ BOOTSTRAP = ROOT / "scripts/deploy/phase15_v3_canary_bootstrap_cloudshell.sh"
 PREPARE = ROOT / "scripts/deploy/phase15_v3_canary_prepare_cloudshell.sh"
 RECORD = ROOT / "scripts/deploy/phase15_v3_canary_record_cloudshell.sh"
 HOTPATH_ROLLOUT = ROOT / "scripts/deploy/phase15_v3_paper_hotpath_rollout_cloudshell.sh"
-RECONCILE_UNSUBMITTED = ROOT / "scripts/deploy/phase15_v3_canary_reconcile_unsubmitted_cloudshell.sh"
+RECONCILE_UNSUBMITTED = (\n    ROOT / "scripts/deploy/phase15_v3_canary_reconcile_unsubmitted_cloudshell.sh"\n)
 
 
 def test_executor_is_ten_dollar_geoblock_checked_and_ttl_bounded() -> None:
