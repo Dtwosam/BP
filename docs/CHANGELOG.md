@@ -3,7 +3,7 @@
 ## 0.14.176 — 23 September 2026
 
 - Added `scripts/deploy/phase14_v3_live_gate_reassessment_cloudshell.sh`, an exact-main-bound read-only bridge for the accepted production host whose deployed checkout predates the new V3 reassessment module.
-- The bridge verifies the deployed checkout and frozen V3/V4 runtime identities, forces and verifies PostgreSQL read-only mode, dynamically uses the exact current-main V3 report code without creating production files, and reports V3-only uncertainty, profitability robustness, calibration, and reconciliation.
+- The bridge verifies the deployed checkout and frozen V3/V4 runtime identities, forces and verifies PostgreSQL read-only mode, dynamically uses the exact current-main V3 report code without creating production files, and reports V3-only uncertainty, profitability robustness, calibration, and reconciliation. Calibration is computed across all evaluated `v3-frozen-paper-v1` predictions, not only predictions that became paper orders.
 - The same run performs a direct request from the production VM to exactly `https://polymarket.com/api/geoblock`, reports current fail-closed runtime/interlock facts and live-ledger counts, never reads wallet/signing variables, never constructs an authenticated trading client, and never submits a real order.
 - A bridge PASS is evidence collection only. Phase 15 remains blocked, live trading remains disabled, money limits remain zero, the Master live gate is not mutated, frozen V3 is not tuned, and V4 Gate B v1 collection remains unchanged.
 
