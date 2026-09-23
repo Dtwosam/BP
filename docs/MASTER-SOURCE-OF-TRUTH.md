@@ -1615,23 +1615,23 @@ Explicit user live authorization remains `pass`. The user’s ordinary physical-
 The next authorized mutation is only the source-truth-bound Johannesburg candidate-host probe in `scripts/deploy/phase15_v3_canary_host_probe_cloudshell.sh`. It requires explicit billable-VM acknowledgement, may create only `bp-v3-canary-exec` in `africa-south1-a` as `e2-micro`, installs no trading software or wallet/signing material, and performs only the direct official Polymarket geoblock check. A blocked/error response requires deletion. An unblocked PASS is evidence for a later canary-deployment decision, not automatic live activation.
 
 
-## 23 Sep 2026 — Master live gate PASS; exact one-dollar frozen-V3 canary only
+## 23 Sep 2026 — Master live gate PASS; exact ten-dollar frozen-V3 canary only
 
 The dedicated execution-host probe completed from `bp-v3-canary-exec` in GCP `africa-south1-a` and returned the official direct Polymarket geoblock result `blocked=false`, country `ZA`, region `GP`. Durable evidence is `docs/evidence/phase-15-v3-canary-execution-host-geoblock-20260923.json`. The user's ordinary physical-network result is independently `blocked=false`, `NG/LA`, with the IP intentionally not persisted.
 
 Therefore `geographic_compliance_eligible=pass`. Together with the accelerated frozen-V3 audit, the full Master matrix is now `pass`: reproducibility, leakage controls, chronological splits, walk-forward stability, live-paper sample sufficiency with uncertainty, after-cost profitability, calibration, risk/kill-switch testing, execution/reconciliation, geographic compliance, and explicit user authorization.
 
-Phase 15 permission is **narrow**. The only authorized first live contract is `phase15-v3-one-dollar-canary-v1`:
+Phase 15 permission is **narrow**. The only authorized first live contract is `phase15-v3-ten-dollar-canary-v1`:
 
 - exact frozen model SHA `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`;
 - prediction version `v3-frozen-paper-v1`;
-- live execution version `live-execution-v3-canary-v1`;
+- live execution version `live-execution-v3-canary-10usd-v1`;
 - frozen 240-second decision timing and `min_edge=0.075`;
 - at most one live submission intent;
-- maximum trade size `1.00` USD;
-- maximum total exposure `1.00` USD;
-- maximum daily loss `2.00` USD;
-- maximum consecutive losses `2`;
+- maximum fee-inclusive total cost `10.00` USD;
+- maximum total exposure `10.00` USD;
+- maximum daily loss `10.00` USD;
+- maximum consecutive losses `1`;
 - maximum prediction age 10 seconds;
 - minimum time-to-expiry 30 seconds;
 - worker exit immediately after the first remote submission intent.
