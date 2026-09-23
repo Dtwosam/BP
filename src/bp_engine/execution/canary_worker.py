@@ -87,7 +87,7 @@ def _remote_client() -> SshPolymarketTradingClient:
         ),
         remote_command=os.environ.get(
             "BP_CANARY_EXECUTOR_COMMAND",
-            "/opt/bp-exec/venv/bin/python -m bp_engine.execution.canary_executor",
+            "/opt/bp-exec/venv/bin/python /opt/bp-exec/canary_executor.py",
         ),
     )
     assert_executor_files(config)
