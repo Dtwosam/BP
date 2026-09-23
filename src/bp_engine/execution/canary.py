@@ -43,6 +43,8 @@ CANARY_MAX_PREDICTION_AGE_SECONDS = Decimal("30")
 CANARY_MIN_TIME_TO_EXPIRY_SECONDS = Decimal("15")
 CANARY_COOLDOWN_SECONDS = Decimal("86400")
 CANARY_MAX_ACCEPTED_ORDERS = 1
+CANARY_MAX_SUBMISSION_ATTEMPTS = 1
+CANARY_TARGET_NOTIONAL_USD = Decimal("5")
 
 
 def canary_policy() -> LiveRiskPolicy:
@@ -68,7 +70,7 @@ def _utc(value: datetime, name: str) -> datetime:
     return value.astimezone(UTC)
 
 
-def _accepted_count(connection) -> int:
+def _event_count(connection, event_types: tuple[str, ...]) -> int:
     return int(
         connection.scalar(
             select(func.count())
@@ -81,11 +83,19 @@ def _accepted_count(connection) -> int:
             )
             .where(
                 schema.live_order_intents.c.policy_version == CANARY_POLICY_VERSION,
-                schema.live_order_events.c.event_type == "accepted",
+                schema.live_order_events.c.event_type.in_(event_types),
             )
         )
         or 0
     )
+
+
+def _accepted_count(connection) -> int:
+    return _event_count(connection, ("accepted",))
+
+
+def _submission_attempt_count(connection) -> int:
+    return _event_count(connection, ("accepted", "rejected", "submission_unknown"))
 
 
 def _ensure_initial_reconciliation(
@@ -93,7 +103,14 @@ def _ensure_initial_reconciliation(
     *,
     repository: LiveReadinessRepository,
     observed_at: datetime,
+    official_open_order_count: int,
+    collateral_balance_usd: Decimal,
 ) -> None:
+    if official_open_order_count != 0:
+        raise RuntimeError("official_open_orders_present")
+    if collateral_balance_usd < CANARY_TARGET_NOTIONAL_USD:
+        raise RuntimeError("insufficient_official_collateral")
+
     live_intent_count = int(
         connection.scalar(select(func.count()).select_from(schema.live_order_intents)) or 0
     )
@@ -115,7 +132,9 @@ def _ensure_initial_reconciliation(
         unresolved_count=0,
         critical_count=0,
         evidence={
-            "source": "phase15_v3_live_canary_initial_zero_order_baseline",
+            "source": "phase15_v3_live_canary_initial_verified_account_baseline",
+            "official_open_order_count": official_open_order_count,
+            "collateral_balance_usd": str(collateral_balance_usd),
             "account_snapshot": {
                 "total_exposure_usd": "0",
                 "realized_daily_pnl_usd": "0",
@@ -173,6 +192,8 @@ def prepare_next_canary(
     observed_at: datetime,
     interlock: InterlockDecision,
     api_healthy: bool,
+    official_open_order_count: int,
+    collateral_balance_usd: Decimal,
 ) -> dict[str, object]:
     activated = _utc(activated_at, "activated_at")
     observed = _utc(observed_at, "observed_at")
@@ -184,7 +205,17 @@ def prepare_next_canary(
             connection,
             repository=repository,
             observed_at=observed,
+            official_open_order_count=official_open_order_count,
+            collateral_balance_usd=collateral_balance_usd,
         )
+
+        attempt_count = _submission_attempt_count(connection)
+        if attempt_count >= CANARY_MAX_SUBMISSION_ATTEMPTS:
+            return {
+                "status": "stopped",
+                "reason": "canary_submission_attempt_limit_reached",
+                "submission_attempt_count": attempt_count,
+            }
 
         accepted_count = _accepted_count(connection)
         if accepted_count >= CANARY_MAX_ACCEPTED_ORDERS:
@@ -226,6 +257,8 @@ def prepare_next_canary(
         order, prediction = candidate
         draft = _draft_from_rows(order, prediction)
         request = draft.request
+        if request.target_notional_usd != CANARY_TARGET_NOTIONAL_USD:
+            raise RuntimeError("frozen paper order target changed")
         if request.target_notional_usd > CANARY_MAX_TRADE_SIZE_USD:
             raise RuntimeError("frozen paper order exceeds authorized canary ceiling")
         if not _source_request_matches(prediction, request):
@@ -284,6 +317,9 @@ def prepare_next_canary(
                 "requested_notional_usd": request.target_notional_usd,
                 "selected_liquidity_usd": selected_liquidity,
                 "api_healthy": api_healthy,
+                "official_open_order_count": official_open_order_count,
+                "collateral_balance_usd": collateral_balance_usd,
+                "staging_interlock": True,
                 "interlock_eligible": interlock.eligible,
                 "interlock_reasons": interlock.reasons,
             },
@@ -334,6 +370,7 @@ def prepare_next_canary(
             "max_total_exposure_usd": str(policy.max_total_exposure_usd),
             "max_daily_loss_usd": str(policy.max_daily_loss_usd),
             "max_consecutive_losses": policy.max_consecutive_losses,
+            "max_submission_attempts": CANARY_MAX_SUBMISSION_ATTEMPTS,
         },
     }
 
