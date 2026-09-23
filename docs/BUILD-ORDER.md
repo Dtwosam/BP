@@ -409,6 +409,11 @@ Do not automatically increase stake.
 
 **Current status:** blocked. Do not begin Phase 15 until every Master Source of Truth live-gate item is `pass` and explicit real-money authorization exists.
 
+**Accelerated V3 canary-readiness checkpoint (23 Sep 2026):** build and validate the read-only `phase15-v3-canary-readiness-v1` audit before any live activation work. Sample sufficiency is evaluated by the already-accepted no-magic-count uncertainty principle: the prospective after-cost mean-P&L 95% lower bound must be strictly positive. Walk-forward stability requires the already-frozen five-fold V3 ordinary validation economics gate, positive untouched V3 final-holdout economics, and positive prospective uncertainty. Calibration acceptance additionally requires prospective Brier/log loss no worse than the frozen pre-paper holdout and a newly frozen reliability audit whose intercept 95% interval contains 0 and slope 95% interval contains 1. These reliability diagnostics must not be read before the rule is frozen.
+
+The accelerated audit is evidence-only. Geographic eligibility is independent and mandatory: the user's ordinary physical connection and the eventual execution host must both be unblocked by the official direct Polymarket geoblock check, with no VPN/proxy/tunnel circumvention. Until then, Phase 15 activation, wallet/signing use, authenticated client construction, real orders, and nonzero money remain blocked.
+
+
 On 23 September 2026 the V3-specific read-only production reassessment completed on exact main `ba98b3871e03895d04bb2b06d4be5350f6c17491`. Durable evidence is `docs/evidence/phase-14-v3-live-gate-reassessment-production-20260923.json`. Profitability now passes because realized after-cost paper P&L is positive and the deterministic bootstrap 95% interval for mean P&L is entirely above zero; execution/reconciliation and explicit user authorization also pass. The direct official Polymarket geoblock check returned `blocked=true` for `US/SC`, so geographic compliance fails. Sample sufficiency, calibration acceptance, and walk-forward stability remain insufficient evidence under the existing canonical criteria. Overall Master live gate remains fail, Phase 15 remains blocked, and real-money limits stay zero. Preserve the one-shot evidence; do not rerun it or engineer around the geoblock.
 
 
