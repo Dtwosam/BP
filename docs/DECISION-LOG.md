@@ -597,3 +597,18 @@ The user’s ordinary physical-network check is unblocked (`NG/LA`) and the IP i
 The next authorized production mutation is limited to provisioning one dedicated execution-only candidate `bp-v3-canary-exec` in GCP `africa-south1-a` (Johannesburg), machine type `e2-micro`, after explicit acknowledgement that the VM may incur charges. The candidate must contain no trading software, wallet, private key, or live service during the probe. It may only call the official direct Polymarket geoblock endpoint. A blocked or invalid response requires automatic deletion and leaves the live gate closed. An unblocked response permits only the next separately reviewed canary-deployment package.
 
 No VPN, proxy, tunnel, or other mechanism may be used to disguise a restricted user or route blocked-host Polymarket traffic through the candidate. V3 paper and V4 collection continue unchanged.
+
+
+## D-060 — Permit exactly one frozen-V3 one-dollar live canary after all Master gates pass
+**Date:** 23 Sep 2026  
+**Status:** Active
+
+The dedicated Johannesburg execution-host probe returned `blocked=false`, `ZA/GP`, while the user's ordinary physical-network check remains `blocked=false`, `NG/LA`. Together with the previously completed accelerated frozen-V3 statistical audit, every Master live-gate row is now `pass`.
+
+Phase 15 is therefore permitted only for `phase15-v3-one-dollar-canary-v1`. The first live contract is capped at exactly one live submission intent, $1 maximum trade size, $1 maximum total exposure, $2 maximum daily loss, and two consecutive losses. The frozen V3 model SHA, calibration, 240-second timing, and `min_edge=0.075` are unchanged. The worker exits after the first remote submission intent and no second intent is authorized before reconciliation/review.
+
+Execution architecture remains split: the existing BP host owns prediction identity validation, risk decisions, duplicate protection, reconciliation, and durable live ledgers; the official SDK signer/submission boundary is isolated to the directly unblocked Johannesburg host. The Johannesburg executor has its own atomic first-submit reservation, providing a second one-shot brake independent of the US worker.
+
+Wallet/private-key material must never enter GitHub, chat, logs, or repository automation. The repository package remains non-spending by itself. Credential provisioning and final real-money activation are explicit operator boundaries outside GitHub automation.
+
+V3 paper observation and V4 Gate B collection continue unchanged. No V3 tuning, V4 early-label action, automatic promotion, broader risk limits, or second live intent is authorized by this decision.
