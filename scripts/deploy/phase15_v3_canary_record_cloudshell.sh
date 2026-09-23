@@ -25,6 +25,42 @@ REMOTE_MAIN=$(git ls-remote origin refs/heads/main | awk 'NR==1 {print $1}')
 [[ -f "$PREPARED_FILE" ]] || fail "prepared_file_missing"
 [[ -f "$RESULT_FILE" ]] || fail "result_file_missing"
 
+EXECUTOR_SHA256=$(python3 - "$ROOT/scripts/deploy/phase15_v3_canary_executor.py" <<'PY'
+import hashlib
+import sys
+from pathlib import Path
+print(hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest())
+PY
+)
+
+python3 - "$PREPARED_FILE" "$RESULT_FILE" "$EXECUTOR_SHA256" <<'PY' \
+  || fail "executor_result_binding_invalid"
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+prepared=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+result=json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+executor_sha256=sys.argv[3]
+request_sha256=hashlib.sha256(
+    json.dumps(
+        prepared["request"],
+        sort_keys=True,
+        separators=(",",":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+).hexdigest()
+
+for name in ("intent_id", "prediction_id", "paper_order_id", "authorization_id"):
+    assert str(result[name]) == str(prepared[name])
+assert result["request_sha256"] == request_sha256
+assert result["executor_sha256"] == executor_sha256
+assert result["geoblock"]["blocked"] is False
+assert result["geoblock"]["country"] == "ZA"
+assert result["account_preflight"]["open_order_count"] == 0
+PY
+
 INTENT_ID=$(python3 - "$PREPARED_FILE" <<'PY'
 import json
 import sys
