@@ -3,7 +3,7 @@
 ## 0.14.180 — 23 September 2026
 
 - Recorded the dedicated Johannesburg execution-host probe PASS at `docs/evidence/phase-15-v3-canary-execution-host-geoblock-20260923.json`: `blocked=false`, country `ZA`, region `GP`. The user's ordinary physical-network result remains `blocked=false`, `NG/LA`. The Master geographic-compliance row therefore advances to `pass`; all Master live-gate rows are now `pass`.
-- Opened Phase 15 only for `phase15-v3-one-dollar-canary-v1`: one live submission intent maximum, $1 maximum trade size, $1 maximum total exposure, $2 maximum daily loss, two consecutive losses, unchanged frozen V3 model/timing/calibration, and `min_edge=0.075`.
+- Opened Phase 15 only for `phase15-v3-ten-dollar-canary-v1`: one live submission intent maximum, $1 maximum trade size, $1 maximum total exposure, $2 maximum daily loss, two consecutive losses, unchanged frozen V3 model/timing/calibration, and `min_edge=0.075`.
 - Added a one-shot canary worker that reuses the existing live-risk/reconciliation gateway and the frozen V3 order-construction semantics. It exits after the first remote submission intent and attempts cancellation at the 2-second order TTL when accepted.
 - Added a minimal Johannesburg signer/executor and SSH transport. The US host sends only token/price/size/order-id data; wallet/private-key material stays on the execution host. The executor uses an atomic first-submit reservation so a crash/restart cannot authorize a second canary submission.
 - Repository automation remains non-spending: no wallet/private-key material is committed or automated, and final real-money activation remains an explicit external operator boundary.
