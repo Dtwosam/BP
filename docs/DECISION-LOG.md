@@ -597,3 +597,20 @@ The user’s ordinary physical-network check is unblocked (`NG/LA`) and the IP i
 The next authorized production mutation is limited to provisioning one dedicated execution-only candidate `bp-v3-canary-exec` in GCP `africa-south1-a` (Johannesburg), machine type `e2-micro`, after explicit acknowledgement that the VM may incur charges. The candidate must contain no trading software, wallet, private key, or live service during the probe. It may only call the official direct Polymarket geoblock endpoint. A blocked or invalid response requires automatic deletion and leaves the live gate closed. An unblocked response permits only the next separately reviewed canary-deployment package.
 
 No VPN, proxy, tunnel, or other mechanism may be used to disguise a restricted user or route blocked-host Polymarket traffic through the candidate. V3 paper and V4 collection continue unchanged.
+
+
+## D-060 — Open Phase 15 only for a one-order frozen-V3 canary
+**Date:** 23 Sep 2026  
+**Status:** Active
+
+The dedicated Johannesburg execution candidate passed the direct official Polymarket geoblock check (`blocked=false`, `ZA/GP`). The user's ordinary physical connection had already passed (`blocked=false`, `NG/LA`). Combined with the accelerated frozen-V3 statistical PASS, execution/reconciliation PASS, risk/kill-switch engineering PASS, and explicit user authorization, every Master live-gate row is now `pass`.
+
+Phase 15 opens only for one tightly bounded frozen-V3 canary. The user explicitly stated that up to **$10 per market** is acceptable risk. This is a hard ceiling, not a new strategy target. The first live order retains the exact frozen paper target of **$5**.
+
+The live policy is `v3-live-canary-v1`: $10 maximum trade, $10 maximum total exposure, $10 daily-loss stop, one consecutive-loss stop, one accepted order maximum, minimum edge 0.075, and a two-second resting-order TTL followed by cancellation of any remaining order.
+
+Only a NEW frozen-V3 paper order created after the canary activation timestamp may be prepared. Historical paper orders are forbidden. The existing US production host remains data/risk/audit only and may never hold wallet/private-key material or make an authenticated Polymarket order request. Signing and authenticated order submission occur only on `bp-v3-canary-exec` in Johannesburg.
+
+The operational sequence is intentionally split: bootstrap signer with the kill switch engaged and no order; prepare and durably persist one risk-approved intent with no order; explicitly arm for at most 45 seconds with `PHASE15_ACCEPT_REAL_MONEY=yes` and still no order; then the user manually submits only the prepared payload. The executor atomically re-engages its kill switch before the SDK submission attempt, making the arm one-shot. Ambiguous outcomes fail closed.
+
+No automated real-money submission is authorized. No second order is authorized. Official order/fill reconciliation is mandatory before any additional live action. A successful canary does not authorize stake growth. Frozen V3 and the preregistered V4 Gate B process remain unchanged.
