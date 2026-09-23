@@ -4188,7 +4188,7 @@
     "master_live_gate_mutation_scope": "Evidence-backed status refresh only; no activation or money change."
   },
   "phase_15_v3_canary_readiness": {
-    "status": "PRODUCTION_READ_ONLY_PASS_STATISTICAL_GATES_PASS_EXECUTION_HOST_BLOCKED",
+    "status": "PRODUCTION_READ_ONLY_PASS_MASTER_GATE_PASS_CANARY_AUTHORIZED",
     "purpose": "Attempt a same-day, evidence-based frozen-V3 live-readiness decision without tuning V3 or bypassing geography.",
     "source_v3_model_sha256": "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7",
     "source_prediction_version": "v3-frozen-paper-v1",
