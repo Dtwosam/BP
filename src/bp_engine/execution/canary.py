@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import asdict
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import func, select
 from sqlalchemy.engine import Engine
 
 from bp_engine.execution.live import (
@@ -19,7 +19,6 @@ from bp_engine.execution.live import (
     _source_request_matches,
     _stored_utc,
 )
-from bp_engine.execution.models import ExecutionOrderRequest
 from bp_engine.execution.service import _draft_from_rows
 from bp_engine.live_readiness.hashing import derive_id, semantic_sha256
 from bp_engine.live_readiness.models import LiveRiskContext, LiveRiskPolicy
