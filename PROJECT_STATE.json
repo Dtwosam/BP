@@ -1,8 +1,8 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.177",
-  "updated_at": "2026-09-23T09:43:08Z",
+  "source_of_truth_version": "0.14.178",
+  "updated_at": "2026-09-23",
   "current_phase": 14,
   "current_phase_name": "live readiness — engineering complete, live gate blocked",
   "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
@@ -657,10 +657,10 @@
     "Live trading"
   ],
   "next_actions": [
-    "Preserve the 23 September frozen-V3 read-only reassessment PASS at docs/evidence/phase-14-v3-live-gate-reassessment-production-20260923.json. Do not rerun the one-shot bridge absent a separately versioned reason.",
-    "Keep the Master live gate closed. V3 profitability and execution/reconciliation now pass, and explicit user authorization passes, but geographic compliance fails on the current production VM (direct official geoblock blocked=true, US/SC); sample sufficiency, calibration acceptance, and walk-forward stability remain insufficient evidence.",
-    "Continue frozen V3 paper observation and the existing V4 regime-aware collector unchanged. V4 Gate B v1 remains limited to the frozen [2026-09-23T00:00:00Z, 2026-09-30T00:00:00Z) cohort; do not run readiness/planning before epoch close.",
-    "Do not bypass geographic restrictions, refit/recalibrate/tune V3, change its threshold/timing/sizing, access V4 selection labels early, enable automatic promotion, enter Phase 15, or set nonzero real-money limits."
+    "Validate and merge the read-only accelerated frozen-V3 readiness audit. Its sample rule reuses the accepted Phase 13 uncertainty principle; its calibration intercept/slope acceptance rule is frozen before those new prospective diagnostics are read.",
+    "After merge, run the accelerated V3 audit once read-only. If it passes, refresh only the evidence-backed statistical Master live-gate rows; do not activate money yet.",
+    "Independently verify Polymarket geographic eligibility from the user's ordinary physical network with VPN/proxy disabled, and separately require the eventual execution host's direct official geoblock result to be unblocked. Never use VPN/proxy/tunneling to bypass a restricted physical location.",
+    "Continue frozen V3 paper observation and V4 Gate B collection unchanged. No V3 tuning, V4 early label/model actions, automatic promotion, Phase 15 production activation, or nonzero money until the complete gate passes."
   ],
   "open_questions": [
     "Current/recurring availability of a 10m BTC Up/Down Polymarket market",
@@ -4185,5 +4185,55 @@
     "geoblock_checked_at": "2026-09-23T09:43:05.145648+00:00",
     "overall_live_gate": "fail",
     "master_live_gate_mutation_scope": "Evidence-backed status refresh only; no activation or money change."
+  },
+  "phase_15_v3_canary_readiness": {
+    "status": "ACCELERATED_READINESS_ENGINEERING_NOT_RUN",
+    "purpose": "Attempt a same-day, evidence-based frozen-V3 live-readiness decision without tuning V3 or bypassing geography.",
+    "source_v3_model_sha256": "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7",
+    "source_prediction_version": "v3-frozen-paper-v1",
+    "source_selection_sha256": "a088c61b291a67866af1c565ee936d9761e6a2936b49f121f616081284dcd508",
+    "strategy_mutation_allowed": false,
+    "v3_refit_allowed": false,
+    "recalibration_fit_allowed": false,
+    "threshold_tuning_allowed": false,
+    "timing_change_allowed": false,
+    "paper_sizing_change_allowed": false,
+    "live_activation_performed": false,
+    "real_money_mutation_performed": false,
+    "statistical_rules_frozen_before_new_reliability_audit": true,
+    "sample_sufficiency_rule": {
+      "basis": "accepted Phase 13 no-magic-count uncertainty principle",
+      "fixed_minimum_trade_count": null,
+      "require_positive_prospective_mean_pnl_95pct_lower_bound": true
+    },
+    "walk_forward_rule": {
+      "ordinary_validation_source": "v3-gate-b-preregister-v2",
+      "ordinary_fold_count": 5,
+      "ordinary_validation_gate": "min 8 validation trades/fold; >=4/5 nonnegative validation folds; positive aggregate validation P&L",
+      "ordinary_validation_gate_must_have_passed": true,
+      "untouched_holdout_after_cost_pnl_must_be_positive": true,
+      "prospective_mean_pnl_95pct_lower_bound_must_be_positive": true
+    },
+    "calibration_rule": {
+      "frozen_holdout_brier_max": 0.10943703117284813,
+      "frozen_holdout_log_loss_max": 0.35419212970900277,
+      "ece_10_bin": "descriptive_only",
+      "prospective_calibration_intercept_95pct_ci_must_contain": 0,
+      "prospective_calibration_slope_95pct_ci_must_contain": 1,
+      "reliability_bootstrap_resamples": 2000,
+      "reliability_bootstrap_seed": 15
+    },
+    "accelerated_audit_module": "bp_engine.v3_live_gate.accelerated_cli",
+    "accelerated_audit_read_only": true,
+    "accelerated_audit_run_performed": false,
+    "geographic_gate_separate_and_mandatory": true,
+    "physical_location_geoblock_check_required": true,
+    "execution_host_geoblock_check_required": true,
+    "vpn_proxy_tunnel_bypass_allowed": false,
+    "phase15_permitted": false,
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "next_action": "Merge the read-only accelerated V3 audit, run it once against production, and independently verify the user's ordinary physical-network Polymarket geoblock result. Do not enable live trading unless every Master gate passes and both the user location and execution host are compliant."
   }
 }
