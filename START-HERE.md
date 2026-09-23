@@ -4,6 +4,8 @@
 
 The only authorized first-live contract is `phase15-v3-ten-dollar-canary-v1`: one live submission intent maximum, **$10 maximum total cost including the modeled fee**, $10 maximum concurrent exposure, $10 maximum daily loss, one consecutive loss, frozen `min_edge=0.075`, and worker exit immediately after the first remote submission intent. The existing BP host retains prediction identity, risk, duplicate protection, reconciliation, and ledger logic; authenticated Polymarket signing/submission is isolated to the directly unblocked Johannesburg execution host.
 
+The frozen V3 strategy identity remains `core-v3-btc-native` under the accepted successor research plan `v3-gate-b-preregister-v2`; the live canary changes only the execution/risk envelope, not the model or predictors.
+
 The repository remains non-spending by itself. Wallet/private-key material must not be committed, logged, pasted into chat, or embedded in repository deployment automation. Credential provisioning and the final real-money activation remain explicit operator boundaries. Frozen V3 paper observation and V4 Gate B collection continue unchanged.
 
 **Historical checkpoints below:**
