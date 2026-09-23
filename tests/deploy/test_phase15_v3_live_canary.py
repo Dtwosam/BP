@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ast
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -125,3 +127,11 @@ def test_hotpath_rollout_is_paper_only_fail_closed_and_steady_state_validated() 
         "PHASE15_ACCEPT_REAL_MONEY",
     ):
         assert forbidden not in text
+
+
+def test_hotpath_rollout_embedded_python_is_syntax_valid() -> None:
+    text = HOTPATH_ROLLOUT.read_text(encoding="utf-8")
+    blocks = re.findall(r"<<'PY'\\n(.*?)\\nPY(?:\\n|$)", text, flags=re.DOTALL)
+    assert blocks
+    for block in blocks:
+        ast.parse(block)
