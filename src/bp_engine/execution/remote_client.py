@@ -89,6 +89,7 @@ class RemoteSshPolymarketTradingClient:
             result.get("ok") is True
             and result.get("blocked") is False
             and result.get("private_key_configured") is True
+            and result.get("sdk_client_ready") is True
             and result.get("canary_attempted") is False
             and result.get("kill_switch_engaged") is False
         )
