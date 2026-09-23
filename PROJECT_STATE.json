@@ -657,12 +657,13 @@
     "Live trading"
   ],
   "next_actions": [
-    "Merge the Phase 15 one-order frozen-V3 canary package. The Master live gate passes, but no live order has been submitted and the Johannesburg kill switch remains engaged by default.",
-    "Run the Johannesburg wallet bootstrap. It installs the pinned official SDK and stores signing material only on the Johannesburg VM with the kill switch engaged; it submits no order.",
-    "Prepare one NEW frozen-V3 paper-derived canary intent. The first canary keeps the strategy target at $5 under the user's hard $10 per-market / $10 total-exposure / $10 daily-loss ceilings and one-consecutive-loss stop.",
-    "After reviewing the prepared payload, explicitly arm it for at most 45 seconds with PHASE15_ACCEPT_REAL_MONEY=yes. Arming submits no order. The executor consumes the arm and re-engages the kill switch before its single network submission attempt.",
-    "Manually submit only the prepared intent, record the sanitized result, then stop. Reconciliation is mandatory before any second order; no second order is currently authorized.",
-    "Continue V3 paper observation and V4 Gate B collection unchanged. No V3 tuning, V4 early-label/model actions, geographic circumvention, automatic promotion, or broad live rollout."
+    "Merge the hardened Phase 15 one-attempt frozen-V3 canary package. The Master live gate passes, but no live order has been submitted and the Johannesburg kill switch remains engaged by default.",
+    "Bootstrap the Johannesburg signer only through the hidden terminal prompt. The executor must verify blocked=false in ZA, zero official open orders, at least $5 collateral, and exact executor SHA; bootstrap submits no order.",
+    "Prepare one NEW frozen-V3 paper-derived $5 canary intent. Require at least $5 fresh displayed selected-side liquidity and persist live-risk evidence. Historical paper orders remain ineligible.",
+    "After reviewing the prepared payload, explicitly arm that exact intent/request/executor for at most 45 seconds with PHASE15_ACCEPT_REAL_MONEY=yes. Arming submits no order.",
+    "Manually submit exactly once. The executor rechecks geography/account state, atomically re-engages the kill switch before direct SDK post_order, attempts cancellation after two seconds, and echoes binding metadata. Missing or ambiguous output must never be retried.",
+    "Record only a result whose intent, authorization, request SHA, executor SHA, and ZA geoblock evidence match. Stop after that first submission attempt. Official reconciliation is mandatory before any later live action; no second attempt is currently authorized.",
+    "Continue V3 paper observation and V4 Gate B collection unchanged. No V3 tuning, V4 early-label/model actions, geographic circumvention, automatic promotion, stake growth, or broad live rollout."
   ],
   "open_questions": [
     "Current/recurring availability of a 10m BTC Up/Down Polymarket market",
@@ -4313,7 +4314,7 @@
     "max_accepted_orders": 1,
     "live_min_edge": 0.075,
     "live_min_probability": 0,
-    "live_min_liquidity_usd": 1,
+    "live_min_liquidity_usd": 5,
     "live_max_spread": 0.1,
     "live_max_prediction_age_seconds": 30,
     "live_min_time_to_expiry_seconds": 15,
@@ -4338,7 +4339,7 @@
     "second_order_authorized": false,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "After merge: bootstrap the Johannesburg wallet with the kill switch engaged; prepare one NEW frozen-V3 $5 intent; inspect it; explicitly arm it with PHASE15_ACCEPT_REAL_MONEY=yes for at most 45 seconds; manually pipe only that prepared JSON to the Johannesburg executor; record the sanitized result; then stop and reconcile before any second order.",
+    "next_action": "After merge: bootstrap the Johannesburg signer with the kill switch engaged and verify official account preflight (zero open orders, at least $5 collateral); prepare one NEW frozen-V3 $5 intent with at least $5 displayed liquidity; inspect it; explicitly arm the exact intent/request/executor hash with PHASE15_ACCEPT_REAL_MONEY=yes for at most 45 seconds; manually submit once; record the bound sanitized result; then stop for official reconciliation. No second submission attempt is authorized.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
@@ -4348,6 +4349,15 @@
     "executor_reengages_kill_before_submission": true,
     "arm_step_submits_order": false,
     "bootstrap_submits_order": false,
-    "prepare_step_submits_order": false
+    "prepare_step_submits_order": false,
+    "max_submission_attempts": 1,
+    "official_account_preflight_required": true,
+    "official_open_order_count_required": 0,
+    "minimum_collateral_balance_usd": 5,
+    "activation_binds_exact_intent": true,
+    "activation_binds_request_sha256": true,
+    "activation_binds_executor_sha256": true,
+    "executor_direct_post_order_no_sdk_recovery_retry": true,
+    "ambiguous_result_retry_allowed": false
   }
 }
