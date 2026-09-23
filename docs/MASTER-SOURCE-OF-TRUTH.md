@@ -194,6 +194,19 @@ Across all 519 evaluated frozen-V3 predictions, raw/calibrated Brier mean was `0
 
 The direct official Polymarket geoblock request from the production VM returned `blocked=true`, `country=US`, `region=SC` at `2026-09-23T09:43:05.145648Z`. Therefore `geographic_compliance_eligible=fail`. The overall Master live gate remains `fail`; Phase 15 remains blocked; live trading remains disabled; real-money limits remain zero. This result must not be bypassed with VPNs, proxies, tunnels, or relocation tricks. Preserve the one-shot evidence and do not rerun the reassessment absent a separately versioned reason.
 
+
+### 4.3.3 Accelerated frozen-V3 canary-readiness mapping — 23 September 2026
+
+The user has requested the shortest compliant path to a controlled live canary. The separately versioned `phase15-v3-canary-readiness-v1` audit may reassess only the three remaining statistical rows; it cannot enable trading.
+
+The sample-sufficiency rule reuses the Phase 13 principle that there is no magic count: prospective evidence is sufficient only when the deterministic 95% lower confidence bound for mean realized after-cost P&L is strictly above zero. No post-hoc round-number minimum is introduced.
+
+Walk-forward stability is mapped from three already-separated layers: the pre-registered five-fold V3 ordinary validation economics gate, the untouched V3 final holdout, and the prospective paper uncertainty interval. The frozen V3 implementation forces `no_trade` whenever the ordinary validation economics gate fails; because the immutable selected policy is `trade_threshold` at `min_edge=0.075`, that pre-registered ordinary economics gate necessarily passed.
+
+For calibration, the new reliability acceptance rule is frozen **before** calibration intercept/slope diagnostics are read. Prospective calibrated Brier and log loss must be no worse than the frozen V3 final-holdout values, and a deterministic bootstrap 95% interval for calibration intercept must contain 0 while the corresponding calibration-slope interval must contain 1. Ten-bin ECE is descriptive only. If this new audit fails, the rule may not be weakened after seeing the result.
+
+Geography remains independent and mandatory. A statistical PASS cannot override a blocked physical location or blocked execution host. Before any real order, the user's ordinary physical-network check with VPN/proxy disabled and the eventual execution host's direct official Polymarket geoblock check must both be unblocked. Infrastructure must not be used to disguise a restricted user location.
+
 ---
 
 # 5. System architecture
