@@ -43,5 +43,5 @@ def test_phase15_v3_canary_readiness_is_frozen_and_fail_closed() -> None:
     ).read_text(encoding="utf-8")
     assert "frozen before new prospective calibration-reliability diagnostics" in spec
     assert "No new round-number minimum is introduced" in spec
-    assert "intercept/slope diagnostics are read" in spec
+    assert "new reliability diagnostics have not yet been read" in spec
     assert "VPN, proxy, tunnel" in spec
