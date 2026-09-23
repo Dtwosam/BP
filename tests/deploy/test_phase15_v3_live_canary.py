@@ -10,6 +10,7 @@ BOOTSTRAP = ROOT / "scripts/deploy/phase15_v3_canary_bootstrap_cloudshell.sh"
 PREPARE = ROOT / "scripts/deploy/phase15_v3_canary_prepare_cloudshell.sh"
 RECORD = ROOT / "scripts/deploy/phase15_v3_canary_record_cloudshell.sh"
 HOTPATH_ROLLOUT = ROOT / "scripts/deploy/phase15_v3_paper_hotpath_rollout_cloudshell.sh"
+RECONCILE_UNSUBMITTED = ROOT / "scripts/deploy/phase15_v3_canary_reconcile_unsubmitted_cloudshell.sh"
 
 
 def test_executor_is_ten_dollar_geoblock_checked_and_ttl_bounded() -> None:
@@ -131,6 +132,40 @@ def test_hotpath_rollout_is_paper_only_fail_closed_and_steady_state_validated() 
 
 def test_hotpath_rollout_embedded_python_is_syntax_valid() -> None:
     text = HOTPATH_ROLLOUT.read_text(encoding="utf-8")
+    blocks = re.findall(r"<<'PY'\n(.*?)\nPY(?:\n|$)", text, flags=re.DOTALL)
+    assert blocks
+    for block in blocks:
+        ast.parse(block)
+
+
+def test_unsubmitted_reconciliation_is_fail_closed_and_never_submits() -> None:
+    text = RECONCILE_UNSUBMITTED.read_text(encoding="utf-8")
+    for marker in (
+        "PHASE15_ACCEPT_UNSUBMITTED_RECONCILIATION",
+        "prepared_intent_still_armable_or_invalid",
+        '"action":"health"',
+        'payload["kill_switch_engaged"] is True',
+        'payload["activation_valid"] is False',
+        'payload["submission_ready"] is False',
+        'payload["live_order_submitted"] is False',
+        "reconcile_unsubmitted_canary_intent",
+        "closed_before_submission",
+        "SUBMISSION_ATTEMPT_CONSUMED=false",
+        "PHASE15_V3_CANARY_RECONCILE_UNSUBMITTED=PASS",
+    ):
+        assert marker in text
+    for forbidden in (
+        "post_order",
+        "create_limit_order",
+        '{"action":"submit"}',
+        "PHASE15_ACCEPT_REAL_MONEY",
+        "POLYMARKET_PRIVATE_KEY",
+    ):
+        assert forbidden not in text
+
+
+def test_unsubmitted_reconciliation_embedded_python_is_syntax_valid() -> None:
+    text = RECONCILE_UNSUBMITTED.read_text(encoding="utf-8")
     blocks = re.findall(r"<<'PY'\n(.*?)\nPY(?:\n|$)", text, flags=re.DOTALL)
     assert blocks
     for block in blocks:
