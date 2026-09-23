@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from decimal import Decimal
-
 FROZEN_HOLDOUT_LOG_LOSS = 0.35419212970900277
 FROZEN_HOLDOUT_BRIER = 0.10943703117284813
 
