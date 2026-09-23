@@ -13,7 +13,7 @@ def test_v3_live_gate_reassessment_source_truth_stays_fail_closed() -> None:
     gate = state["phase_14_v3_live_gate_reassessment"]
     master = state["phase_14_checkpoint"]["master_live_gate"]
 
-    assert state["source_of_truth_version"] == "0.14.177"
+    assert state["source_of_truth_version"] == "0.14.178"
     assert gate["explicit_user_live_authorization"] == "pass"
     assert gate["prediction_version"] == "v3-frozen-paper-v1"
     assert gate["execution_version"] == "paper-execution-v3-frozen-v1"
