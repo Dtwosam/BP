@@ -1,0 +1,13 @@
+{
+  "date": "2026-09-23",
+  "status": "PASS",
+  "intent_id": "live-intent-e9d99bbf1351353dd4f2845c7ecc28ab",
+  "arm_result": "FAIL_PREPARED_PAYLOAD_NOT_AUTHORIZED",
+  "arm_failure_reason": "prepared payload freshness guard",
+  "activation_succeeded": false,
+  "live_order_submitted": false,
+  "submission_attempt_consumed": false,
+  "reconciliation_id": "live-reconciliation-eca9351801d8c6ed40d12b0235cafbd9",
+  "reconciliation_event": "closed_before_submission",
+  "kill_switch_engaged": true
+}

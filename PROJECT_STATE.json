@@ -4339,7 +4339,7 @@
     "second_order_authorized": false,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "After merging the prepare live-import-order fix, pull current main and rerun the no-order prepare helper. The helper must initialize bp_engine.execution before swapping in current live.py. If prepare passes, arm immediately; only if arm passes, execute the one permitted network submission exactly once, record it, and stop.",
+    "next_action": "Rerun the no-order prepare helper for one NEW frozen-V3 signal. If prepare passes, arm immediately; only if arm passes, execute the one permitted network submission exactly once, record the bound result, then stop for official reconciliation. The latest expired intent was reconciled as closed_before_submission and consumed no network submission attempt.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
@@ -4370,15 +4370,15 @@
     "last_unsubmitted_reconciliation": {
       "status": "PASS",
       "date": "2026-09-23",
-      "intent_id": "live-intent-285a7c90b51c6ef511472407d81668d9",
+      "intent_id": "live-intent-e9d99bbf1351353dd4f2845c7ecc28ab",
       "event_type": "closed_before_submission",
-      "reconciliation_id": "live-reconciliation-95837c1ec56575861584f0b8c1cb3d42",
+      "reconciliation_id": "live-reconciliation-eca9351801d8c6ed40d12b0235cafbd9",
       "submission_attempt_consumed": false,
       "live_order_submitted": false,
-      "evidence": "docs/evidence/phase-15-v3-canary-unsubmitted-reconciliation-production-20260923.json"
+      "evidence": "docs/evidence/phase-15-v3-canary-second-unsubmitted-reconciliation-20260923.json"
     },
     "post_reconciliation_account_snapshot_fix": {
-      "status": "ENGINEERING_READY_NOT_YET_PRODUCTION_VALIDATED",
+      "status": "PRODUCTION_PASS",
       "observed_at": "2026-09-23T17:13:39.075718Z",
       "evidence": "docs/evidence/phase-15-v3-canary-post-reconciliation-prepare-block-20260923.json",
       "root_causes": [
@@ -4392,10 +4392,10 @@
         "closed_before_submission does not set last_order_at or activate cooldown",
         "verified pre_submission_intent_close with no real attempt and no unresolved intent is reconciliation healthy"
       ],
-      "production_validation_pending": true
+      "production_validation_pending": false
     },
     "prepare_runtime_binding_fix": {
-      "status": "ENGINEERING_READY_NOT_YET_PRODUCTION_VALIDATED",
+      "status": "PRODUCTION_PASS",
       "observed_at": "2026-09-23T17:51:37.764233Z",
       "evidence": "docs/evidence/phase-15-v3-canary-prepare-frozen-live-import-20260923.json",
       "root_cause": "prepare loaded current canary.py against frozen-runtime bp_engine.execution.live, so current account-snapshot semantics were not active",
@@ -4403,10 +4403,10 @@
       "running_v3_service_mutated": false,
       "live_order_submitted": false,
       "submission_attempt_consumed": false,
-      "production_validation_pending": true
+      "production_validation_pending": false
     },
     "prepare_live_import_order_fix": {
-      "status": "ENGINEERING_READY_NOT_YET_PRODUCTION_VALIDATED",
+      "status": "PRODUCTION_PASS",
       "observed_at": "2026-09-23T18:29:42.744438Z",
       "evidence": "docs/evidence/phase-15-v3-canary-prepare-live-import-cycle-20260923.json",
       "root_cause": "current live.py was swapped into sys.modules before bp_engine.execution package initialization, causing package __init__ to import from a half-initialized live module",
@@ -4414,7 +4414,7 @@
       "no_canary_evaluation_completed": true,
       "live_order_submitted": false,
       "submission_attempt_consumed": false,
-      "production_validation_pending": true
+      "production_validation_pending": false
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {
