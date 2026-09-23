@@ -543,3 +543,14 @@ The user explicitly authorizes pursuing a controlled real-money transition for t
 This decision satisfies the human-authorization requirement but does **not** waive any other Master live-gate row. Before real-money activation, a fresh V3-specific read-only reassessment must cover uncertainty, after-cost P&L robustness, largest-winner sensitivity, calibration, drawdown/losing streak, risk/kill-switch readiness, reconciliation, and current direct geographic eligibility. Any failure or insufficient evidence keeps Phase 15 blocked. Geographic restrictions may not be bypassed.
 
 V3 refit, recalibration, threshold/timing/sizing changes, automatic promotion, and V4 Gate B label/training/policy actions remain outside this authorization. Live trading stays disabled and real-money limits remain zero until the complete gate passes.
+
+
+## D-058 — Keep frozen V3 live gate closed after positive paper economics because geography fails
+**Date:** 23 Sep 2026  
+**Status:** Active
+
+The one-shot frozen-V3 read-only production reassessment completed on exact main `ba98b3871e03895d04bb2b06d4be5350f6c17491`. The paper economics now satisfy the existing profitability rule: 76 settled trades produced +$682.252111761097 realized after-cost P&L, and the deterministic bootstrap 95% interval for mean P&L was entirely above zero. Execution/reconciliation remains clean and explicit user live authorization is present.
+
+This does not open the Master live gate. Sample sufficiency, calibration acceptance, and walk-forward stability remain `insufficient_evidence` under the current canonical rules. More importantly, the production VM's direct official Polymarket geoblock response returned `blocked=true` for `US/SC`, so geographic compliance is `fail`. Overall live gate therefore remains `fail` and Phase 15 is blocked.
+
+Preserve the evidence at `docs/evidence/phase-14-v3-live-gate-reassessment-production-20260923.json`. Do not rerun the one-shot reassessment absent a separately versioned reason, do not tune frozen V3 from this result, and do not use VPNs, proxies, tunnels, or relocation tricks to bypass geographic restrictions. Continue frozen V3 paper observation and V4 prospective collection unchanged.
