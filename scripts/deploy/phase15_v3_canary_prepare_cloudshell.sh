@@ -59,6 +59,8 @@ assert payload["geoblock"]["blocked"] is False
 assert payload["geoblock"]["country"] == "ZA"
 assert payload["private_key_configured"] is True
 assert payload["sdk_import_ok"] is True
+assert payload["kill_switch_engaged"] is True
+assert payload["submission_ready"] is False
 assert payload["live_order_submitted"] is False
 PY
 
