@@ -79,6 +79,11 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
+**23 September accelerated V3 audit result:** the production read-only audit on exact main `ceeec0bded4bb6ae60291ee8f5f60db214eceb98` passed every statistical V3 live-readiness row under the frozen rules. Durable evidence is `docs/evidence/phase-15-v3-accelerated-readiness-production-20260923.json`. Current paper evidence is 77 settled trades (48W/29L), +$687.612927164917 realized after-cost P&L, and a deterministic mean-P&L 95% interval of +$1.746626049710839 to +$18.521917124071315. The prospective calibration audit also passed its predeclared intercept/slope rule.
+
+The only remaining Master blocker is execution-host geography. The user’s ordinary physical connection is unblocked (`NG/LA`), while the current US execution host remains blocked. The next authorized mutation is **only** `bash scripts/deploy/phase15_v3_canary_host_probe_cloudshell.sh`, which provisions a dedicated `e2-micro` in GCP `africa-south1-a` (Johannesburg), runs the official direct geoblock check, installs no trading software, reads no wallet material, and deletes itself automatically if blocked. It requires explicit billable-VM acknowledgement. Do not activate live trading yet.
+
+
 **Same-day V3 canary readiness:** `phase15-v3-canary-readiness-v1` is now the only authorized statistical follow-up. Its acceptance rules are frozen before the new prospective calibration intercept/slope diagnostics are read. After the package merges green, run `bash scripts/deploy/phase15_v3_accelerated_readiness_cloudshell.sh` once from exact clean current `main`. The run is PostgreSQL read-only and cannot access wallet/signing material, construct an authenticated trading client, enable live trading, or change money limits.
 
 A statistical PASS still cannot override geography. Before any live canary, independently require an unblocked official Polymarket geoblock result from the user's ordinary physical network with VPN/proxy disabled and an unblocked direct geoblock result from the eventual execution host. Do not use infrastructure to disguise a restricted physical location.
