@@ -127,6 +127,11 @@ SH
 chown root:root /opt/bp-canary/executor.sh
 chmod 0755 /opt/bp-canary/executor.sh
 install -d -m 0700 /etc/bp-canary
+install -d -m 0700 /var/lib/bp-canary
+rm -f /etc/bp-canary/activation.json
+printf '%s\n' 'phase15-v3-live-canary bootstrap fail-closed' > /etc/bp-canary/KILL
+chown root:root /etc/bp-canary/KILL
+chmod 0600 /etc/bp-canary/KILL
 REMOTE
 
 REMOTE_UPLOAD="/tmp/bp-canary-live-env-$$.upload"
@@ -157,11 +162,16 @@ assert payload["geoblock"]["blocked"] is False
 assert payload["geoblock"]["country"] == "ZA"
 assert payload["private_key_configured"] is True
 assert payload["sdk_import_ok"] is True
+assert payload["activation_valid"] is False
+assert payload["kill_switch_engaged"] is True
+assert payload["submission_ready"] is False
 assert payload["live_order_submitted"] is False
 PY
 
 echo "$HEALTH"
 echo "TRADING_ORDER_SUBMITTED=false"
+echo "KILL_SWITCH_ENGAGED=true"
+echo "ACTIVATION_VALID=false"
 echo "MAX_TRADE_SIZE_USD=10"
 echo "MAX_ACCEPTED_ORDERS=1"
 echo "PHASE15_V3_CANARY_BOOTSTRAP=PASS"
