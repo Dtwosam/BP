@@ -62,7 +62,11 @@ GEOBLOCK_JSON=$(gcloud compute ssh "$VM" \
 import json
 import urllib.request
 url="https://polymarket.com/api/geoblock"
-with urllib.request.urlopen(url, timeout=10) as response:
+request = urllib.request.Request(
+    url,
+    headers={"User-Agent": "BP-phase15-geoblock-probe/1"},
+)
+with urllib.request.urlopen(request, timeout=10) as response:
     payload=json.loads(response.read().decode("utf-8"))
 print(json.dumps({"blocked":payload["blocked"],"country":payload["country"],"region":payload["region"]},sort_keys=True))
 PY')
