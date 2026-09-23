@@ -657,9 +657,9 @@
     "Live trading"
   ],
   "next_actions": [
-    "Preserve the statistical readiness PASS and Johannesburg geoblock PASS. All Master live-gate rows are pass and Phase 15 ten-dollar canary is eligible.",
-    "Validate and merge the exact frozen-V3 ten-dollar canary code package: one live intent maximum, $1 trade/exposure cap, $2 daily-loss cap, existing live risk/reconciliation gateway, and Johannesburg-only SDK signer boundary.",
-    "Do not put wallet/private-key material into GitHub, logs, chat, or automated deployment scripts. Credential provisioning and real-money activation remain an explicit external operator boundary; the repository package itself must stay non-spending until that boundary is crossed by the operator.",
+    "Preserve the statistical readiness PASS and Johannesburg geoblock PASS. All Master live-gate rows are pass and the Phase 15 ten-dollar canary is eligible.",
+    "Validate and merge the exact frozen-V3 ten-dollar canary code package: one live intent maximum, $10 fee-inclusive total-cost cap, $10 total exposure, $10 daily-loss cap, one consecutive loss, existing live risk/reconciliation gateway, and Johannesburg-only SDK signer boundary.",
+    "Do not put wallet/private-key material into GitHub, logs, chat, or automated deployment scripts. Credential provisioning and real-money activation remain explicit external operator boundaries; the repository package itself must stay non-spending until that boundary is crossed by the operator.",
     "Continue frozen V3 paper observation and V4 Gate B collection unchanged. Do not tune V3, disturb V4, broaden risk limits, or allow a second live intent before the first canary is reconciled and reviewed."
   ],
   "open_questions": [
