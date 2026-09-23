@@ -407,7 +407,7 @@ Measure:
 
 Do not automatically increase stake.
 
-**Current status:** Phase 15 one-dollar frozen-V3 canary is eligible; repository code remains non-spending and not deployed. Every Master live-gate row is `pass`, including the user's `NG/LA` direct geoblock result and the dedicated Johannesburg execution-host `ZA/GP` direct geoblock result.
+**Current status:** Phase 15 ten-dollar frozen-V3 canary is eligible; repository code remains non-spending and not deployed. Every Master live-gate row is `pass`, including the user's `NG/LA` direct geoblock result and the dedicated Johannesburg execution-host `ZA/GP` direct geoblock result.
 
 **Accelerated V3 canary-readiness checkpoint (23 Sep 2026):** build and validate the read-only `phase15-v3-canary-readiness-v1` audit before any live activation work. Sample sufficiency is evaluated by the already-accepted no-magic-count uncertainty principle: the prospective after-cost mean-P&L 95% lower bound must be strictly positive. Walk-forward stability requires the already-frozen five-fold V3 ordinary validation economics gate, positive untouched V3 final-holdout economics, and positive prospective uncertainty. Calibration acceptance additionally requires prospective Brier/log loss no worse than the frozen pre-paper holdout and a newly frozen reliability audit whose intercept 95% interval contains 0 and slope 95% interval contains 1. These reliability diagnostics must not be read before the rule is frozen.
 
