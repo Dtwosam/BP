@@ -18,8 +18,8 @@ from bp_engine.execution.live import (
     PolymarketLiveExecutionGateway,
 )
 from bp_engine.execution.models import (
-    PaperExecutionConfig,
     V3_LIVE_CANARY_EXECUTION_VERSION,
+    PaperExecutionConfig,
 )
 from bp_engine.execution.paper import PaperOrderDraft, build_paper_order
 from bp_engine.execution.remote_canary import (
