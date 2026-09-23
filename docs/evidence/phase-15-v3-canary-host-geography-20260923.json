@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15_v3_canary_execution_host_geography",
+  "observed_date": "2026-09-23",
+  "source_main_sha": "f11ebacaf3220c59d96360b19170d033898bbf44",
+  "project": "project-4397f2c0-7098-4c1c-abb",
+  "vm": "bp-v3-canary-exec",
+  "zone": "africa-south1-a",
+  "region": "africa-south1",
+  "machine_type": "e2-micro",
+  "direct_geoblock": {
+    "blocked": false,
+    "country": "ZA",
+    "region": "GP",
+    "direct_url": "https://polymarket.com/api/geoblock"
+  },
+  "safety_at_probe": {
+    "trading_software_installed": false,
+    "wallet_or_signing_material_present": false,
+    "live_trading_enabled": false
+  },
+  "helper_result": "PASS",
+  "interpretation": "The dedicated Johannesburg execution candidate is directly unblocked by the official Polymarket geoblock endpoint. Together with the separately recorded user physical-network blocked=false result from NG/LA, the geographic-compliance requirement is satisfied for the controlled canary architecture. The existing US production host remains ineligible for authenticated Polymarket order submission and must never submit real orders."
+}
