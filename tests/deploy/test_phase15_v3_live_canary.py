@@ -7,6 +7,7 @@ EXECUTOR = ROOT / "scripts/deploy/phase15_v3_canary_executor.py"
 BOOTSTRAP = ROOT / "scripts/deploy/phase15_v3_canary_bootstrap_cloudshell.sh"
 PREPARE = ROOT / "scripts/deploy/phase15_v3_canary_prepare_cloudshell.sh"
 RECORD = ROOT / "scripts/deploy/phase15_v3_canary_record_cloudshell.sh"
+HOTPATH_ROLLOUT = ROOT / "scripts/deploy/phase15_v3_paper_hotpath_rollout_cloudshell.sh"
 
 
 def test_executor_is_ten_dollar_geoblock_checked_and_ttl_bounded() -> None:
@@ -93,3 +94,34 @@ def test_record_requires_executor_result_binding() -> None:
         "account_preflight",
     ):
         assert marker in text
+
+
+def test_hotpath_rollout_is_paper_only_fail_closed_and_steady_state_validated() -> None:
+    text = HOTPATH_ROLLOUT.read_text(encoding="utf-8")
+    for marker in (
+        "PHASE15_ACCEPT_V3_PAPER_HOTPATH_ROLLOUT",
+        "authorized_fix_not_in_current_main",
+        "execution_service_changed_after_authorized_fix",
+        "EXPECTED_OLD_RUNTIME",
+        "runtime_diff_not_single_file",
+        "bp-v3-paper-execution.service",
+        "report_count >= 5",
+        "median_gap > 10",
+        "max_gap > 15",
+        "ROLLBACK=restoring_previous_v3_runtime",
+        "RECORDER_PID_PRESERVED=true",
+        "PREDICTOR_PID_PRESERVED=true",
+        "LIVE_TRADING_ENABLED=false",
+        "MAX_TRADE_SIZE_USD=0",
+        "MAX_DAILY_LOSS_USD=0",
+        "PHASE15_V3_PAPER_HOTPATH_ROLLOUT=PASS",
+    ):
+        assert marker in text
+    for forbidden in (
+        "phase15_v3_canary_executor.py",
+        "POLYMARKET_PRIVATE_KEY",
+        "post_order",
+        "create_limit_order",
+        "PHASE15_ACCEPT_REAL_MONEY",
+    ):
+        assert forbidden not in text
