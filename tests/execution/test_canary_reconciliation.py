@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import create_engine, select
 
 from bp_engine.execution import canary
+from bp_engine.execution.live import _account_snapshot
 from bp_engine.live_readiness.repository import LiveReadinessRepository
 from bp_engine.storage import schema
 
@@ -80,6 +81,58 @@ def test_closed_before_submission_does_not_consume_attempt() -> None:
         assert events == (canary.CANARY_PRE_SUBMISSION_CLOSED_EVENT,)
         assert canary._submission_attempt_count(connection) == 0
         assert canary.CANARY_PRE_SUBMISSION_CLOSED_EVENT in canary.CANARY_INTENT_TERMINAL_EVENTS
+
+
+def test_closed_before_submission_clears_exposure_cooldown_and_reconciliation() -> None:
+    engine = _engine()
+    canary.reconcile_unsubmitted_canary_intent(
+        engine=engine,
+        intent_id=INTENT_ID,
+        observed_at=BASE,
+        reason="prepared_market_no_longer_armable",
+        executor_health=_safe_health(),
+    )
+
+    with engine.connect() as connection:
+        account = _account_snapshot(connection, observed_at=BASE)
+
+    assert account.total_exposure_usd == Decimal("0")
+    assert account.last_order_at is None
+    assert account.unresolved_critical_reconciliation == 0
+
+
+def test_pre_submission_reconciliation_cannot_mask_real_attempt() -> None:
+    engine = _engine()
+    repository = LiveReadinessRepository()
+    with engine.begin() as connection:
+        repository.store_order_event(
+            connection,
+            event_key=f"{INTENT_ID}:rejected",
+            intent_id=INTENT_ID,
+            event_type="rejected",
+            observed_at=BASE,
+            external_order_id=None,
+            external_trade_id=None,
+            evidence={"phase": "test"},
+        )
+        repository.store_reconciliation_run(
+            connection,
+            observed_at=BASE,
+            unresolved_count=0,
+            critical_count=0,
+            evidence={
+                "reconciliation_kind": "pre_submission_intent_close",
+                "submission_attempt_consumed": False,
+                "official_open_order_count": 0,
+            },
+        )
+
+    with engine.connect() as connection:
+        account = _account_snapshot(connection, observed_at=BASE)
+
+    assert account.total_exposure_usd == Decimal("0")
+    assert account.last_order_at == BASE
+    assert account.unresolved_critical_reconciliation == 1
 
 
 def test_reconcile_unsubmitted_is_idempotent() -> None:
