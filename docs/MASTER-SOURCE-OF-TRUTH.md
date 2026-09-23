@@ -1613,3 +1613,54 @@ The run observed 77 settled frozen-V3 paper trades (48 wins / 29 losses), realiz
 Explicit user live authorization remains `pass`. The user’s ordinary physical-network official geoblock check is `blocked=false`, `NG/LA`; the IP address is not persisted. The current execution host remains `blocked=true`, `US/SC`. Therefore `geographic_compliance_eligible=fail`, overall live gate remains `fail`, Phase 15 production activation remains prohibited, and real-money limits remain zero.
 
 The next authorized mutation is only the source-truth-bound Johannesburg candidate-host probe in `scripts/deploy/phase15_v3_canary_host_probe_cloudshell.sh`. It requires explicit billable-VM acknowledgement, may create only `bp-v3-canary-exec` in `africa-south1-a` as `e2-micro`, installs no trading software or wallet/signing material, and performs only the direct official Polymarket geoblock check. A blocked/error response requires deletion. An unblocked PASS is evidence for a later canary-deployment decision, not automatic live activation.
+
+
+## 23 Sep 2026 — Master live gate PASS and one-order frozen-V3 canary authorization
+
+The dedicated execution candidate `bp-v3-canary-exec` in GCP `africa-south1-a` completed the direct official Polymarket geoblock probe with `blocked=false`, country `ZA`, region `GP`. Durable sanitized evidence is `docs/evidence/phase-15-v3-canary-host-geoblock-20260923.json`. The user's ordinary physical-network check separately remains `blocked=false`, `NG/LA`. No VPN, proxy, tunnel, or other geographic-circumvention path is permitted.
+
+The accelerated frozen-V3 statistical audit had already passed walk-forward stability, sample sufficiency with uncertainty, positive after-cost profitability, prospective calibration, and execution/reconciliation under rules frozen before the relevant diagnostics were read. Historical reproducibility, leakage controls, chronological splits, risk/kill-switch engineering, and explicit user authorization also pass. Therefore every Master live-gate row is now `pass`, and Phase 15 is permitted **only within the canary contract below**.
+
+### Frozen canary sizing and risk
+
+The user explicitly authorized risk of up to **$10 per market**. Treat `$10` as a hard ceiling, not a target. The exact frozen-V3 strategy keeps its existing `$5` target notional for the first canary.
+
+```text
+policy_version = v3-live-canary-v1
+strategy_target_notional_usd = 5
+max_trade_size_usd = 10
+max_total_exposure_usd = 10
+max_daily_loss_usd = 10
+max_consecutive_losses = 1
+max_accepted_orders = 1
+min_edge = 0.075
+min_liquidity_usd = 1
+max_spread = 0.10
+max_prediction_age_seconds = 30
+min_time_to_expiry_seconds = 15
+order_ttl_seconds = 2
+```
+
+This authorization does not change V3's model artifact, feature set, calibration fit, 240-second timing, `min_edge=0.075`, or paper sizing. It does not change V4.
+
+### Execution isolation
+
+The existing US BP host remains the recorder, database, prediction, paper-execution, risk, and audit host. It must never store the Polymarket private key and must never make an authenticated Polymarket order submission.
+
+The Johannesburg VM is execution-only. Wallet/signing material may exist only there as root-only runtime configuration and must never be committed, echoed, pasted into chat, or copied to the US host.
+
+Only NEW frozen-V3 paper orders created after a canary activation timestamp may be considered. Historical paper trades may not be replayed into real money.
+
+### Manual one-shot launch boundary
+
+Real-money submission is deliberately not automated.
+
+1. Wallet bootstrap may install the pinned official SDK and signer material on Johannesburg, but leaves `/etc/bp-canary/KILL` engaged and submits no order.
+2. Canary preparation reuses the exact frozen paper request, applies the existing live-risk engine, creates a zero-order reconciliation baseline if necessary, persists risk evidence and the live intent, and submits no order.
+3. Explicit arm requires `PHASE15_ACCEPT_REAL_MONEY=yes`, validates the prepared $5 request against the $10 ceilings and Master gate, writes a short-lived activation manifest valid for at most 45 seconds, and removes the kill switch. Arming submits no order.
+4. The user manually sends only the prepared payload to the Johannesburg executor. The executor rechecks direct geoblock and activation, independently enforces the $10 notional ceiling, and **atomically re-engages the kill switch before the SDK submission attempt**, consuming the arm. It then submits the bounded limit BUY and attempts cancellation after two seconds.
+5. The sanitized result must be recorded in the live ledger. Stop after the first accepted order.
+
+No second order is authorized. Official order/fill reconciliation is mandatory before a later decision can authorize another live action. Missing, malformed, or ambiguous submission/cancellation evidence fails closed and must never trigger a retry.
+
+A profitable first canary does not authorize automatic promotion, stake growth, V3 tuning, or any V4 change. V3 paper observation and V4 Gate B collection continue in parallel.
