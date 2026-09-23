@@ -50,7 +50,9 @@ def test_prepare_is_manual_review_only_and_writes_no_real_order() -> None:
     assert "executor_sha256" in text
     assert "NO_REAL_ORDER_SUBMITTED=true" in text
     assert "PHASE15_V3_CANARY_PREPARE=PASS" in text
-    assert "phase15_v3_canary_executor.py" not in text
+    assert "phase15_v3_canary_executor.py" in text
+    assert "hashlib.sha256" in text
+    assert '{"action":"submit"}' not in text
     assert "post_order" not in text
     assert "PHASE15_ACCEPT_REAL_MONEY" not in text
 
