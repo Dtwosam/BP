@@ -5,7 +5,7 @@ Research-first system for estimating short-duration BTC Polymarket Up/Down proba
 ## Current status
 
 **Phases 0–14 engineering:** complete.  
-**Current phase:** Phase 15 — controlled frozen-V3 one-dollar canary, code-ready and not deployed.  
+**Current phase:** Phase 15 — controlled frozen-V3 ten-dollar canary, code-ready and not deployed.  
 **Master live gate:** `PASS`.  
 **Trading state:** live trading remains disabled until an explicit operator activation boundary is crossed.
 
@@ -13,7 +13,7 @@ Phase 14 — Live Readiness V1 — passed non-spending production host acceptanc
 
 The Master live gate is now **satisfied for the exact frozen V3**. The accelerated prospective audit passed walk-forward stability, sample sufficiency with uncertainty, profitability, calibration, and execution/reconciliation. The user's ordinary network returned `blocked=false` in `NG/LA`, and the dedicated Johannesburg execution host returned `blocked=false` in `ZA/GP`. Durable host evidence is `docs/evidence/phase-15-v3-canary-execution-host-geoblock-20260923.json`.
 
-Phase 15 is limited to a one-shot canary contract: at most one live submission intent, $1 maximum trade size, $1 maximum concurrent exposure, $2 maximum daily loss, and two consecutive losses. The frozen model, timing, calibration, and `min_edge=0.075` remain unchanged. Credential provisioning and real-money activation are not automated in the repository.
+Phase 15 is limited to a one-shot canary contract: at most one live submission intent, $10 maximum fee-inclusive total cost, $10 maximum concurrent exposure, $10 maximum daily loss, and one consecutive loss. The frozen model, timing, calibration, and `min_edge=0.075` remain unchanged. Credential provisioning and real-money activation are not automated in the repository.
 
 ## Read before working
 
@@ -54,10 +54,10 @@ Expected health output includes:
 
 - Never commit `.env`, wallet keys, seed phrases, API secrets, or server secrets.
 - Never paste a wallet private key or seed phrase into ChatGPT.
-- The Master gate permits only the exact one-dollar frozen-V3 canary contract; broad live trading is not authorized.
+- The Master gate permits only the exact ten-dollar frozen-V3 canary contract; broad live trading is not authorized.
 - Phase 12 Paper Execution remains money-disabled; paper fills must remain causal and reconciled to immutable signals.
 - Phase 13 Improvement Loop remains accepted; promotion requires frozen hypotheses plus permitted evidence, economic uncertainty, calibration guardrails, and deliberate decisions.
-- Phase 14 Live Readiness engineering is accepted and the Master live gate now passes for the exact frozen-V3 one-dollar canary.
+- Phase 14 Live Readiness engineering is accepted and the Master live gate now passes for the exact frozen-V3 ten-dollar canary.
 - Repository automation remains non-spending: wallet/private-key provisioning and the final real-money activation are explicit operator boundaries outside GitHub automation.
 - Do not bypass geographic/service restrictions with proxies, VPNs, tunneling, or relocation tricks.
 - A 10-minute recurring Polymarket BTC market is not assumed to exist; horizons remain configurable.
