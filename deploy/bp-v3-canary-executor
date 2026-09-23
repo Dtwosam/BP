@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ENV_FILE=/etc/bp/bp-v3-canary-executor.env
+[[ -r "$ENV_FILE" ]] || {
+  printf '%s\n' '{"ok":false,"error":"executor_environment_missing"}'
+  exit 2
+}
+
+set -a
+# shellcheck disable=SC1090
+. "$ENV_FILE"
+set +a
+
+export PYTHONDONTWRITEBYTECODE=1
+export PYTHONPATH=/opt/bp-canary/current/src
+exec /opt/bp-canary/venv/bin/python \
+  /opt/bp-canary/current/scripts/run_phase15_v3_remote_executor.py
