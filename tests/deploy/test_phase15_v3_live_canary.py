@@ -169,8 +169,8 @@ def test_unsubmitted_reconciliation_is_fail_closed_and_never_submits() -> None:
 
 def test_unsubmitted_reconciliation_embedded_python_is_syntax_valid() -> None:
     text = RECONCILE_UNSUBMITTED.read_text(encoding="utf-8")
-    blocks = re.findall(r"<<'PY'\n(.*?)\nPY(?:\n|$)", text, flags=re.DOTALL)
-    assert blocks
+    blocks = re.findall(r"<<'PY'[^\\n]*\\n(.*?)\\nPY(?:\\n|$)", text, flags=re.DOTALL)
+    assert len(blocks) >= 6
     for block in blocks:
         ast.parse(block)
 
