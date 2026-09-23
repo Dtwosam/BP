@@ -56,12 +56,46 @@ assert Decimal(str(payload["policy"]["max_trade_size_usd"])) == Decimal("10")
 assert Decimal(str(payload["policy"]["max_total_exposure_usd"])) == Decimal("10")
 assert Decimal(str(payload["policy"]["max_daily_loss_usd"])) == Decimal("10")
 assert int(payload["policy"]["max_consecutive_losses"]) == 1
+assert int(payload["policy"]["max_submission_attempts"]) == 1
 assert Decimal(str(request["target_notional_usd"])) == Decimal("5")
 assert Decimal(str(request["limit_price"])) * Decimal(str(request["requested_shares"])) <= Decimal("10")
 
 market_end = datetime.fromisoformat(payload["market_end_at"]).astimezone(UTC)
 assert (market_end - datetime.now(UTC)).total_seconds() >= 20
 PY
+
+EXECUTOR_SHA256=$(python3 - "$ROOT/scripts/deploy/phase15_v3_canary_executor.py" <<'PY'
+import hashlib
+import sys
+from pathlib import Path
+print(hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest())
+PY
+)
+REQUEST_SHA256=$(python3 - "$PREPARED_FILE" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+payload=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+encoded=json.dumps(
+    payload["request"],
+    sort_keys=True,
+    separators=(",",":"),
+    ensure_ascii=True,
+).encode("utf-8")
+print(hashlib.sha256(encoded).hexdigest())
+PY
+)
+read -r INTENT_ID PREDICTION_ID PAPER_ORDER_ID < <(
+python3 - "$PREPARED_FILE" <<'PY'
+import json
+import sys
+from pathlib import Path
+payload=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+print(payload["intent_id"], payload["prediction_id"], payload["paper_order_id"])
+PY
+)
 
 AUTHORIZATION_ID=$(python3 - <<'PY'
 import secrets
@@ -101,7 +135,7 @@ cleanup() {
 trap cleanup EXIT
 umask 077
 MANIFEST="$TMP_DIR/activation.json"
-python3 - "$MANIFEST" "$LOCAL_HEAD" "$AUTHORIZATION_ID" "$ISSUED_AT" "$EXPIRES_AT" <<'PY'
+python3 - "$MANIFEST" "$LOCAL_HEAD" "$EXECUTOR_SHA256" "$AUTHORIZATION_ID" "$ISSUED_AT" "$EXPIRES_AT" "$INTENT_ID" "$PREDICTION_ID" "$PAPER_ORDER_ID" "$REQUEST_SHA256" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -109,9 +143,14 @@ from pathlib import Path
 payload={
     "authorized": True,
     "git_sha": sys.argv[2],
-    "authorization_id": sys.argv[3],
-    "issued_at": sys.argv[4],
-    "expires_at": sys.argv[5],
+    "executor_sha256": sys.argv[3],
+    "authorization_id": sys.argv[4],
+    "issued_at": sys.argv[5],
+    "expires_at": sys.argv[6],
+    "intent_id": sys.argv[7],
+    "prediction_id": sys.argv[8],
+    "paper_order_id": sys.argv[9],
+    "request_sha256": sys.argv[10],
     "source_prediction_version": "v3-frozen-paper-v1",
     "source_execution_version": "paper-execution-v3-frozen-v1",
     "max_trade_size_usd": "10",
@@ -144,13 +183,19 @@ ARMED=true
 
 HEALTH=$(printf '%s' '{"action":"health"}' |   gcloud compute ssh "$VM"     --project="$PROJECT"     --zone="$ZONE"     --quiet     --command='sudo /opt/bp-canary/executor.sh')   || fail "executor_health_command_failed"
 
-python3 - "$HEALTH" "$AUTHORIZATION_ID" <<'PY' || fail "executor_not_armed"
+python3 - "$HEALTH" "$AUTHORIZATION_ID" "$EXECUTOR_SHA256" <<'PY' || fail "executor_not_armed"
 import json
 import sys
+from decimal import Decimal
 payload=json.loads(sys.argv[1])
+expected_executor_sha256=sys.argv[3]
 assert payload["status"] == "ok"
 assert payload["geoblock"]["blocked"] is False
 assert payload["geoblock"]["country"] == "ZA"
+assert payload["executor_sha256"] == expected_executor_sha256
+assert payload["account"]["open_order_count"] == 0
+assert Decimal(str(payload["account"]["collateral_balance_usd"])) >= Decimal("5")
+assert payload["account"]["clean_for_canary"] is True
 assert payload["activation_valid"] is True
 assert payload["kill_switch_engaged"] is False
 assert payload["submission_ready"] is True
