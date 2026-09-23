@@ -24,6 +24,10 @@ def test_v3_live_gate_cloudshell_bridge_is_read_only_and_direct() -> None:
         '"live_gate_eligible": False',
         '"phase15_permitted": False',
         "PHASE14_V3_LIVE_GATE_REASSESSMENT=PASS",
+        "v3_prediction_ids",
+        "schema.live_predictions.c.prediction_version",
+        "import polymarket",
+        'python3 - "$ROOT/PROJECT_STATE.json"',
     ]
     for marker in required:
         assert marker in text
@@ -40,6 +44,8 @@ def test_v3_live_gate_cloudshell_bridge_is_read_only_and_direct() -> None:
         "git reset",
         "POLYMARKET_PRIVATE_KEY",
         "POLYMARKET_WALLET_ADDRESS",
+        'import polymarket_client',
+        '"$ROOT/.venv/bin/python" - "$ROOT/PROJECT_STATE.json"',
     ]
     for marker in forbidden:
         assert marker not in text
