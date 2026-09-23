@@ -657,10 +657,11 @@
     "Live trading"
   ],
   "next_actions": [
-    "Merge the Phase 15 one-order frozen-V3 canary package. The complete Master live gate now passes, but live trading remains disabled until the explicitly manual canary submission.",
-    "Run the Johannesburg wallet bootstrap. It may install polymarket-client==0.7.1 and store wallet/signing material only on the Johannesburg VM; it must submit no order.",
-    "Prepare one new frozen-V3 trade intent created after canary activation. The first canary retains the strategy's $5 target notional under the user's hard $10 per-market ceiling, $10 total exposure, $10 daily-loss stop, one consecutive-loss stop, and one accepted-order maximum.",
-    "Manually submit only that prepared intent from Cloud Shell to the Johannesburg executor, record its sanitized result in the US live ledger, then stop. Reconciliation is mandatory before any second live order.",
+    "Merge the Phase 15 one-order frozen-V3 canary package. The Master live gate passes, but no live order has been submitted and the Johannesburg kill switch remains engaged by default.",
+    "Run the Johannesburg wallet bootstrap. It installs the pinned official SDK and stores signing material only on the Johannesburg VM with the kill switch engaged; it submits no order.",
+    "Prepare one NEW frozen-V3 paper-derived canary intent. The first canary keeps the strategy target at $5 under the user's hard $10 per-market / $10 total-exposure / $10 daily-loss ceilings and one-consecutive-loss stop.",
+    "After reviewing the prepared payload, explicitly arm it for at most 45 seconds with PHASE15_ACCEPT_REAL_MONEY=yes. Arming submits no order. The executor consumes the arm and re-engages the kill switch before its single network submission attempt.",
+    "Manually submit only the prepared intent, record the sanitized result, then stop. Reconciliation is mandatory before any second order; no second order is currently authorized.",
     "Continue V3 paper observation and V4 Gate B collection unchanged. No V3 tuning, V4 early-label/model actions, geographic circumvention, automatic promotion, or broad live rollout."
   ],
   "open_questions": [
@@ -4337,6 +4338,16 @@
     "second_order_authorized": false,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "After merge: run wallet bootstrap (no order), then prepare one new frozen-V3 intent. Review the prepared request and manually submit it from Cloud Shell to the Johannesburg executor. Record the sanitized executor result. Stop after the first accepted order and reconcile before authorizing any second order."
+    "next_action": "After merge: bootstrap the Johannesburg wallet with the kill switch engaged; prepare one NEW frozen-V3 $5 intent; inspect it; explicitly arm it with PHASE15_ACCEPT_REAL_MONEY=yes for at most 45 seconds; manually pipe only that prepared JSON to the Johannesburg executor; record the sanitized result; then stop and reconcile before any second order.",
+    "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
+    "kill_switch_path": "/etc/bp-canary/KILL",
+    "kill_switch_default_engaged": true,
+    "activation_manifest_path": "/etc/bp-canary/activation.json",
+    "activation_max_seconds": 45,
+    "max_submission_attempts_per_arm": 1,
+    "executor_reengages_kill_before_submission": true,
+    "arm_step_submits_order": false,
+    "bootstrap_submits_order": false,
+    "prepare_step_submits_order": false
   }
 }
