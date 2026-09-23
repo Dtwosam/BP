@@ -20,6 +20,12 @@ def test_executor_is_ten_dollar_geoblock_checked_and_ttl_bounded() -> None:
         "create_limit_order",
         "post_order",
         "cancel_order",
+        "get_balance_allowance",
+        "list_open_orders",
+        "request_sha256_mismatch",
+        "activation_executor_sha256_mismatch",
+        "official_open_orders_present",
+        "insufficient_official_collateral",
     ):
         assert marker in text
     assert "print(private_key)" not in text
@@ -39,6 +45,9 @@ def test_bootstrap_never_submits_an_order() -> None:
 def test_prepare_is_manual_review_only_and_writes_no_real_order() -> None:
     text = PREPARE.read_text(encoding="utf-8")
     assert "prepare_next_canary" in text
+    assert "OFFICIAL_OPEN_ORDER_COUNT" in text
+    assert "COLLATERAL_BALANCE_USD" in text
+    assert "executor_sha256" in text
     assert "NO_REAL_ORDER_SUBMITTED=true" in text
     assert "PHASE15_V3_CANARY_PREPARE=PASS" in text
     assert "phase15_v3_canary_executor.py" not in text
@@ -52,3 +61,32 @@ def test_record_helper_only_persists_executor_result() -> None:
     assert "CANARY_RESULT_B64" in text
     assert "post_order" not in text
     assert "create_limit_order" not in text
+
+
+def test_arm_binds_exact_prepared_request_and_executor() -> None:
+    text = (ROOT / "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh").read_text(
+        encoding="utf-8"
+    )
+    for marker in (
+        "REQUEST_SHA256",
+        "EXECUTOR_SHA256",
+        '"intent_id": sys.argv[7]',
+        '"prediction_id": sys.argv[8]',
+        '"paper_order_id": sys.argv[9]',
+        '"request_sha256": sys.argv[10]',
+        '"max_submission_attempts": 1',
+        "PHASE15_ACCEPT_REAL_MONEY",
+    ):
+        assert marker in text
+
+
+def test_record_requires_executor_result_binding() -> None:
+    text = RECORD.read_text(encoding="utf-8")
+    for marker in (
+        "executor_result_binding_invalid",
+        "request_sha256",
+        "executor_sha256",
+        "authorization_id",
+        "account_preflight",
+    ):
+        assert marker in text
