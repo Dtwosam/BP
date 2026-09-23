@@ -50,19 +50,31 @@ PY
 
 HEALTH=$(printf '%s' '{"action":"health"}' |   gcloud compute ssh "$EXEC_VM"     --project="$PROJECT"     --zone="$EXEC_ZONE"     --quiet     --command='sudo /opt/bp-canary/executor.sh' 2>/dev/null)   || fail "executor_health_command_failed"
 
-python3 - "$HEALTH" <<'PY' || fail "executor_health_failed"
+read -r OFFICIAL_OPEN_ORDER_COUNT COLLATERAL_BALANCE_USD < <(
+python3 - "$HEALTH" "$LOCAL_HEAD" <<'PY'
 import json
 import sys
+from decimal import Decimal
 payload=json.loads(sys.argv[1])
+expected_sha=sys.argv[2]
 assert payload["status"] == "ok"
 assert payload["geoblock"]["blocked"] is False
 assert payload["geoblock"]["country"] == "ZA"
 assert payload["private_key_configured"] is True
 assert payload["sdk_import_ok"] is True
+assert payload["source_git_sha"] == expected_sha
+assert payload["account"]["open_order_count"] == 0
+assert Decimal(str(payload["account"]["collateral_balance_usd"])) >= Decimal("5")
+assert payload["account"]["clean_for_canary"] is True
 assert payload["kill_switch_engaged"] is True
 assert payload["submission_ready"] is False
 assert payload["live_order_submitted"] is False
+print(
+    payload["account"]["open_order_count"],
+    payload["account"]["collateral_balance_usd"],
+)
 PY
+) || fail "executor_health_failed"
 
 ACTIVATED_AT=$(python3 - <<'PY'
 from datetime import UTC, datetime
@@ -73,7 +85,7 @@ CANARY_SOURCE_B64=$(base64 -w0 "$ROOT/src/bp_engine/execution/canary.py")
 DEADLINE=$(( $(date +%s) + MAX_WAIT_SECONDS ))
 
 prepare_once() {
-  gcloud compute ssh "$US_VM"     --project="$PROJECT"     --zone="$US_ZONE"     --quiet     --command="sudo -u bp env PYTHONPATH='$V3_RUNTIME/src' MODE=research LIVE_TRADING_ENABLED=false MAX_TRADE_SIZE_USD=0 MAX_DAILY_LOSS_USD=0 CANARY_SOURCE_B64='$CANARY_SOURCE_B64' CANARY_ACTIVATED_AT='$ACTIVATED_AT' /opt/bp/.venv/bin/python -" <<'PY'
+  gcloud compute ssh "$US_VM"     --project="$PROJECT"     --zone="$US_ZONE"     --quiet     --command="sudo -u bp env PYTHONPATH='$V3_RUNTIME/src' MODE=research LIVE_TRADING_ENABLED=false MAX_TRADE_SIZE_USD=0 MAX_DAILY_LOSS_USD=0 CANARY_SOURCE_B64='$CANARY_SOURCE_B64' CANARY_ACTIVATED_AT='$ACTIVATED_AT' CANARY_OFFICIAL_OPEN_ORDER_COUNT='$OFFICIAL_OPEN_ORDER_COUNT' CANARY_COLLATERAL_BALANCE_USD='$COLLATERAL_BALANCE_USD' /opt/bp/.venv/bin/python -" <<'PY'
 import base64
 import json
 import os
@@ -98,6 +110,10 @@ try:
         observed_at=datetime.now(UTC),
         interlock=InterlockDecision(eligible=True, reasons=()),
         api_healthy=True,
+        official_open_order_count=int(os.environ["CANARY_OFFICIAL_OPEN_ORDER_COUNT"]),
+        collateral_balance_usd=module.Decimal(
+            os.environ["CANARY_COLLATERAL_BALANCE_USD"]
+        ),
     )
     print(json.dumps(report, sort_keys=True, default=str))
 finally:
