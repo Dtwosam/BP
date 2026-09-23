@@ -584,3 +584,16 @@ Calibration acceptance is frozen before reading the new reliability diagnostics:
 Geography remains an independent hard gate. User-provided direct official geoblock evidence from the ordinary physical network reports `blocked=false`, `NG/LA`; the IP is not persisted. The latest execution host remains blocked in `US/SC`. No VPN, proxy, tunnel, or other physical-location circumvention is allowed. Statistical PASS alone cannot authorize real money.
 
 The new production bridge is read-only and cannot access wallet/signing material, construct an authenticated trading client, create an activation manifest, enable live trading, or change nonzero money limits. V3 remains frozen and V4 collection continues unchanged until the complete Master live gate passes.
+
+
+## D-059 — Statistical V3 gate passes; isolate live execution to a directly unblocked host
+**Date:** 23 Sep 2026  
+**Status:** Active
+
+The separately frozen accelerated V3 readiness audit completed read-only and passed every statistical live-readiness row. The result is durable at `docs/evidence/phase-15-v3-accelerated-readiness-production-20260923.json`. This does not alter the frozen V3 strategy and does not by itself authorize real-money submission.
+
+The user’s ordinary physical-network check is unblocked (`NG/LA`) and the IP is intentionally not persisted. The current production host remains directly blocked from `US/SC`. Therefore the current host must never submit real orders.
+
+The next authorized production mutation is limited to provisioning one dedicated execution-only candidate `bp-v3-canary-exec` in GCP `africa-south1-a` (Johannesburg), machine type `e2-micro`, after explicit acknowledgement that the VM may incur charges. The candidate must contain no trading software, wallet, private key, or live service during the probe. It may only call the official direct Polymarket geoblock endpoint. A blocked or invalid response requires automatic deletion and leaves the live gate closed. An unblocked response permits only the next separately reviewed canary-deployment package.
+
+No VPN, proxy, tunnel, or other mechanism may be used to disguise a restricted user or route blocked-host Polymarket traffic through the candidate. V3 paper and V4 collection continue unchanged.
