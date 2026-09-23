@@ -39,6 +39,7 @@ def test_bootstrap_never_submits_an_order() -> None:
     assert "polymarket-client==0.7.1" in text
     assert "TRADING_ORDER_SUBMITTED=false" in text
     assert '{"action":"health"}' in text
+    assert '"User-Agent": "BP-phase15-geoblock-probe/1"' in text
     assert '{"action":"submit"}' not in text
 
 
