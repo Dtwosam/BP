@@ -48,21 +48,29 @@ assert gate["live_trading_enabled"] is False
 assert all(value == "pass" for value in master.values())
 PY
 
+EXECUTOR_SHA256=$(python3 - "$ROOT/scripts/deploy/phase15_v3_canary_executor.py" <<'PY'
+import hashlib
+import sys
+from pathlib import Path
+print(hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest())
+PY
+)
+
 HEALTH=$(printf '%s' '{"action":"health"}' |   gcloud compute ssh "$EXEC_VM"     --project="$PROJECT"     --zone="$EXEC_ZONE"     --quiet     --command='sudo /opt/bp-canary/executor.sh' 2>/dev/null)   || fail "executor_health_command_failed"
 
 read -r OFFICIAL_OPEN_ORDER_COUNT COLLATERAL_BALANCE_USD < <(
-python3 - "$HEALTH" "$LOCAL_HEAD" <<'PY'
+python3 - "$HEALTH" "$EXECUTOR_SHA256" <<'PY'
 import json
 import sys
 from decimal import Decimal
 payload=json.loads(sys.argv[1])
-expected_sha=sys.argv[2]
+expected_executor_sha256=sys.argv[2]
 assert payload["status"] == "ok"
 assert payload["geoblock"]["blocked"] is False
 assert payload["geoblock"]["country"] == "ZA"
 assert payload["private_key_configured"] is True
 assert payload["sdk_import_ok"] is True
-assert payload["source_git_sha"] == expected_sha
+assert payload["executor_sha256"] == expected_executor_sha256
 assert payload["account"]["open_order_count"] == 0
 assert Decimal(str(payload["account"]["collateral_balance_usd"])) >= Decimal("5")
 assert payload["account"]["clean_for_canary"] is True
