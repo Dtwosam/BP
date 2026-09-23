@@ -17,7 +17,7 @@ def test_phase15_v3_statistical_readiness_and_geography_pass_for_canary() -> Non
 
     assert state["source_of_truth_version"] == "0.14.180"
     assert gate["status"] == (
-        "PRODUCTION_READ_ONLY_PASS_STATISTICAL_GATES_PASS_EXECUTION_HOST_BLOCKED"
+        "PRODUCTION_READ_ONLY_PASS_MASTER_GATE_PASS_CANARY_AUTHORIZED"
     )
     assert gate["source_prediction_version"] == "v3-frozen-paper-v1"
     assert gate["source_v3_model_sha256"] == (
