@@ -43,6 +43,7 @@ max_total_exposure_usd = 10
 max_daily_loss_usd = 10
 max_consecutive_losses = 1
 max_accepted_orders = 1
+max_submission_attempts = 1
 min_edge = 0.075
 min_liquidity_usd = 5
 max_spread = 0.10
@@ -94,7 +95,9 @@ The preparation path on the US host reuses the exact frozen paper order request,
    - the user manually pipes only the prepared JSON to the Johannesburg executor;
    - the executor rechecks direct geoblock and the activation manifest;
    - before the SDK network submission it atomically re-engages the kill switch, consuming the one-shot arm;
-   - it independently rejects any notional above $10;
+   - it rechecks zero official open orders and at least $5 collateral immediately before submission;
+- it independently rejects any target other than the frozen $5 canary target or any notional above $10;
+- it verifies the exact intent/request/executor binding before consuming the arm;
    - it submits the bounded limit BUY and, after two seconds, attempts to cancel any unfilled remainder;
    - it returns sanitized JSON only.
 
@@ -107,7 +110,8 @@ The preparation path on the US host reuses the exact frozen paper order request,
 ## Hard boundaries
 
 - no automated real-money submission;
-- no second order is authorized;
+- exactly one network submission attempt is authorized, whether accepted, rejected, or ambiguous;
+- no second order/submission attempt is authorized;
 - no private key or wallet secret on the US host, in Git, or in chat;
 - no VPN/proxy/tunnel geographic circumvention;
 - no V3 tuning from live results;
