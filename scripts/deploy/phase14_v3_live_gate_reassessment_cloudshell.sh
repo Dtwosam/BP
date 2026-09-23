@@ -19,6 +19,7 @@ LOCAL_HEAD=$(git rev-parse HEAD)
 REMOTE_MAIN=$(git ls-remote origin refs/heads/main | awk 'NR==1 {print $1}')
 [[ "$LOCAL_HEAD" == "$REMOTE_MAIN" ]] || fail_local "local_main_not_current"
 command -v gcloud >/dev/null 2>&1 || fail_local "gcloud_missing"
+command -v python3 >/dev/null 2>&1 || fail_local "python3_missing"
 gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q . \
   || fail_local "gcloud_auth_missing"
 
@@ -130,6 +131,11 @@ from bp_engine.v3_paper.service import (
     V3_PAPER_EXECUTION_VERSION,
     V3_PAPER_PREDICTION_VERSION,
 )
+
+if V3_PAPER_EXECUTION_VERSION != "paper-execution-v3-frozen-v1":
+    raise SystemExit("unexpected V3 execution identity")
+if V3_PAPER_PREDICTION_VERSION != "v3-frozen-paper-v1":
+    raise SystemExit("unexpected V3 prediction identity")
 
 report_source = base64.b64decode(os.environ["REPORT_SOURCE_B64"]).decode("utf-8")
 namespace = {}
