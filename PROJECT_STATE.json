@@ -4339,7 +4339,7 @@
     "second_order_authorized": false,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "After merging the account-snapshot fix, pull current main and rerun the no-order prepare helper. Confirm cooldown_active and reconciliation_blocked no longer arise solely from the previously closed-before-submission intent. If prepare passes, proceed promptly to arm; only if arm passes, execute the one permitted network submission exactly once, then record and stop.",
+    "next_action": "After merging the prepare runtime-binding fix, pull current main and rerun the no-order prepare helper. Verify the previously closed-before-submission intent no longer causes cooldown_active or reconciliation_blocked. Liquidity-based skips remain valid market-state failures. If prepare passes, arm immediately; only if arm passes, execute the one permitted network submission exactly once, record it, and stop.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
@@ -4392,6 +4392,17 @@
         "closed_before_submission does not set last_order_at or activate cooldown",
         "verified pre_submission_intent_close with no real attempt and no unresolved intent is reconciliation healthy"
       ],
+      "production_validation_pending": true
+    },
+    "prepare_runtime_binding_fix": {
+      "status": "ENGINEERING_READY_NOT_YET_PRODUCTION_VALIDATED",
+      "observed_at": "2026-09-23T17:51:37.764233Z",
+      "evidence": "docs/evidence/phase-15-v3-canary-prepare-frozen-live-import-20260923.json",
+      "root_cause": "prepare loaded current canary.py against frozen-runtime bp_engine.execution.live, so current account-snapshot semantics were not active",
+      "fix": "inline current live.py as bp_engine.execution.live before inline current canary.py; keep remaining imports pinned to frozen V3 runtime",
+      "running_v3_service_mutated": false,
+      "live_order_submitted": false,
+      "submission_attempt_consumed": false,
       "production_validation_pending": true
     }
   },
