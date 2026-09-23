@@ -286,8 +286,7 @@ payload = {
     "executor_pid_after": int(executor_pid_after),
     "timing": json.loads(timing_raw),
 }
-Path(path).write_text(json.dumps(payload, indent=2, sort_keys=True) + "
-", encoding="utf-8")
+Path(path).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\\n", encoding="utf-8")
 PY
 
 chown bp:bp "$EVIDENCE"
