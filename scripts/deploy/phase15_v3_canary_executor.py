@@ -185,6 +185,8 @@ def _health() -> dict[str, object]:
         raise RuntimeError("private_key_missing")
     client = _client()
     account = _account_preflight(client)
+    if account["clean_for_canary"] is not True:
+        raise RuntimeError("account_not_clean_for_canary")
     activation_valid = False
     try:
         _activation()
