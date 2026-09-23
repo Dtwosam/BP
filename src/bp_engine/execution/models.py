@@ -9,6 +9,7 @@ from typing import Any
 
 PAPER_EXECUTION_VERSION = "paper-execution-v1"
 V3_FROZEN_PAPER_EXECUTION_VERSION = "paper-execution-v3-frozen-v1"
+V3_LIVE_CANARY_EXECUTION_VERSION = "live-execution-v3-canary-v1"
 V3_FROZEN_PAPER_STARTING_CASH_USD = Decimal("100.00")
 V3_FROZEN_PAPER_TARGET_NOTIONAL_USD = Decimal("5.00")
 V3_FROZEN_PAPER_LATENCY_MS = 250
@@ -18,6 +19,7 @@ _ALLOWED_EXECUTION_VERSIONS = frozenset(
     {
         PAPER_EXECUTION_VERSION,
         V3_FROZEN_PAPER_EXECUTION_VERSION,
+        V3_LIVE_CANARY_EXECUTION_VERSION,
     }
 )
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -126,7 +128,7 @@ class PaperExecutionConfig:
         if not 0 <= self.share_precision <= 18:
             raise ValueError("share_precision must be within [0, 18]")
         if self.execution_version not in _ALLOWED_EXECUTION_VERSIONS:
-            raise ValueError("unsupported paper execution_version")
+            raise ValueError("unsupported execution_version")
         if self.prediction_version is not None:
             object.__setattr__(
                 self,
@@ -217,7 +219,7 @@ class ExecutionOrderRequest:
         object.__setattr__(self, "arrival_at", arrival_at)
         object.__setattr__(self, "expires_at", expires_at)
         if self.execution_version not in _ALLOWED_EXECUTION_VERSIONS:
-            raise ValueError("unsupported paper execution_version")
+            raise ValueError("unsupported execution_version")
         object.__setattr__(
             self,
             "execution_config_sha256",
@@ -322,7 +324,7 @@ class PaperOrderRecord:
             _sha256(self.semantic_sha256, name="semantic_sha256"),
         )
         if self.execution_version not in _ALLOWED_EXECUTION_VERSIONS:
-            raise ValueError("unsupported paper execution_version")
+            raise ValueError("unsupported execution_version")
         object.__setattr__(self, "selected_side", _side(self.selected_side))
         object.__setattr__(
             self,
