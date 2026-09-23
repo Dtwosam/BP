@@ -18,7 +18,6 @@ MAX_NOTIONAL_USD = Decimal("10")
 TTL_SECONDS = 2
 ACTIVATION_PATH = Path("/etc/bp-canary/activation.json")
 KILL_SWITCH_PATH = Path("/etc/bp-canary/KILL")
-SOURCE_GIT_SHA_PATH = Path("/opt/bp-canary/source_git_sha")
 COLLATERAL_BASE_UNITS_PER_USD = Decimal("1000000")
 TARGET_NOTIONAL_USD = Decimal("5")
 
@@ -49,14 +48,11 @@ def _decimal(value: object, name: str) -> Decimal:
     return result
 
 
-def _source_git_sha() -> str:
+def _executor_sha256() -> str:
     try:
-        value = SOURCE_GIT_SHA_PATH.read_text(encoding="utf-8").strip().lower()
+        return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     except OSError as exc:
-        raise RuntimeError("source_git_sha_missing") from exc
-    if len(value) != 40 or any(char not in "0123456789abcdef" for char in value):
-        raise RuntimeError("source_git_sha_invalid")
-    return value
+        raise RuntimeError("executor_hash_failed") from exc
 
 
 def _request_sha256(request: dict[str, Any]) -> str:
@@ -118,8 +114,8 @@ def _activation() -> dict[str, object]:
         raise RuntimeError("activation_missing_or_invalid") from exc
     if payload.get("authorized") is not True:
         raise RuntimeError("activation_not_authorized")
-    if str(payload.get("git_sha") or "").lower() != _source_git_sha():
-        raise RuntimeError("activation_git_sha_mismatch")
+    if str(payload.get("executor_sha256") or "") != _executor_sha256():
+        raise RuntimeError("activation_executor_sha256_mismatch")
     if payload.get("source_prediction_version") != "v3-frozen-paper-v1":
         raise RuntimeError("activation_prediction_version_mismatch")
     if payload.get("source_execution_version") != "paper-execution-v3-frozen-v1":
@@ -199,7 +195,7 @@ def _health() -> dict[str, object]:
         "private_key_configured": True,
         "wallet_configured": wallet_configured,
         "sdk_import_ok": True,
-        "source_git_sha": _source_git_sha(),
+        "executor_sha256": _executor_sha256(),
         "account": account,
         "activation_valid": activation_valid,
         "kill_switch_engaged": _kill_switch_engaged(),
@@ -271,7 +267,7 @@ def _submit(payload: dict[str, Any]) -> dict[str, object]:
         "paper_order_id": str(payload["paper_order_id"]),
         "authorization_id": str(payload["authorization_id"]),
         "request_sha256": request_sha256,
-        "source_git_sha": _source_git_sha(),
+        "executor_sha256": _executor_sha256(),
         "account_preflight": account,
     }
 
