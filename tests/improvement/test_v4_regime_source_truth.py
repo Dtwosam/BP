@@ -154,7 +154,7 @@ def test_v4_collection_remains_active_during_frozen_v3_paper_activation() -> Non
     assert "## D-053 —" in decisions
     assert "## D-054 —" in decisions
     assert "## D-056 —" in decisions
-    assert "## 0.14.175 — 22 September 2026" in changelog
+    assert "## 0.14.174 — 22 September 2026" in changelog
     assert "## 0.14.145 — 20 September 2026" in changelog
     assert "automatic promotion" in master.lower()
     assert "live trading" in master.lower()
