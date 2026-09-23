@@ -10,6 +10,7 @@
 - Added separate fail-closed operator stages: wallet bootstrap (hidden input, no order, kill switch engaged), prepare (no order), explicit short-lived arm with `PHASE15_ACCEPT_REAL_MONEY=yes` (no order), manual submission, and result recording. Automated real-money submission is intentionally absent.
 - Wallet/signing material is allowed only on the Johannesburg VM and never on the existing US BP host, in Git, or in chat. No second submission attempt is authorized, including after rejection or ambiguous output; official reconciliation is mandatory first.
 - V3 strategy identity remains frozen and V4 Gate B collection remains unchanged.
+- Production frozen-V3 paper-executor hotpath rollout passed on 23 September 2026. The derived runtime `/var/lib/bp/runtime/v3-paper-hotpath-206c5d3128855c2322a7c3a1fc59e294d52ba6dc` produced five observed reports with steady-state gaps `8.239s`, `7.719s`, and `6.835s` (median `7.719s`, max `8.239s`), down from the prior ~20–30+ second cycle behavior. Recorder and predictor PIDs were preserved; live trading stayed disabled; trade/daily-loss limits stayed zero; no canary submission attempt was consumed. Durable sanitized evidence: `docs/evidence/phase-15-v3-paper-hotpath-rollout-production-20260923.json`.
 
 ## 0.14.179 — 23 September 2026
 

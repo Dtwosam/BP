@@ -1,0 +1,34 @@
+{
+  "observed_at": "2026-09-23T16:30:17Z",
+  "status": "PASS",
+  "authorized_fix_commit": "206c5d3128855c2322a7c3a1fc59e294d52ba6dc",
+  "rollout_helper_main_head": "562b2ea1343501aa7a62e4a3476a2d9791593ef6",
+  "scope": "frozen_v3_paper_executor_hotpath_only",
+  "old_runtime": "/var/lib/bp/runtime/v3-paper-9d52eb753355365848a637ffa6663928664bf770",
+  "new_runtime": "/var/lib/bp/runtime/v3-paper-hotpath-206c5d3128855c2322a7c3a1fc59e294d52ba6dc",
+  "host_evidence_file": "/var/lib/bp/evidence/phase15-v3-paper-hotpath-rollout-20260923T163017Z.json",
+  "timing": {
+    "report_count": 5,
+    "steady_cycle_gaps_seconds": [
+      8.239,
+      7.719,
+      6.835
+    ],
+    "median_steady_cycle_gap_seconds": 7.719,
+    "max_steady_cycle_gap_seconds": 8.239,
+    "latest_examined_predictions": 602,
+    "latest_existing_orders": 109,
+    "latest_skipped_predictions": 493
+  },
+  "safety": {
+    "recorder_pid_preserved": true,
+    "predictor_pid_preserved": true,
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "strategy_changed": false,
+    "risk_policy_changed": false,
+    "canary_submission_code_changed": false,
+    "canary_submission_attempt_consumed": false
+  }
+}
