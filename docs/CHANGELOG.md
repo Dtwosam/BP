@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.14.180 — 23 September 2026
+
+- Recorded the Johannesburg execution-host geoblock probe PASS at `docs/evidence/phase-15-v3-canary-host-geoblock-20260923.json`: direct official result `blocked=false`, `ZA/GP`. Together with the user's direct `NG/LA` physical-network PASS, geographic compliance advances to `pass`; every Master live-gate row is now `pass`.
+- Opened Phase 15 only for a **one-order frozen-V3 canary**. The user's explicit authorization is a hard **$10 per-market ceiling**, not a sizing target. The first canary preserves the existing frozen-V3 **$5 target notional**.
+- Frozen canary policy: $10 max trade, $10 max total exposure, $10 daily-loss stop, one consecutive-loss stop, one accepted-order maximum, `min_edge=0.075`, and 2-second limit-order TTL/cancel attempt.
+- Added `bp_engine.execution.canary` to reuse only NEW frozen-V3 paper orders created after canary activation, apply the existing live-risk engine, create an initial zero-order reconciliation baseline when required, and durably store the risk decision and intent before any possible live submission. Historical paper trades cannot be reused.
+- Added the Johannesburg execution-only signer `phase15_v3_canary_executor.py`. It independently rechecks direct geoblock, validates a short-lived activation manifest, enforces the $10 ceiling, consumes a one-shot arm by re-engaging the kill switch before the SDK call, submits the bounded limit BUY, and attempts cancellation after two seconds. Secrets are never returned.
+- Added separate fail-closed operator stages: wallet bootstrap (hidden input, no order, kill switch engaged), prepare (no order), explicit short-lived arm with `PHASE15_ACCEPT_REAL_MONEY=yes` (no order), manual submission, and result recording. Automated real-money submission is intentionally absent.
+- Wallet/signing material is allowed only on the Johannesburg VM and never on the existing US BP host, in Git, or in chat. No second order is authorized; official reconciliation is mandatory first.
+- V3 strategy identity remains frozen and V4 Gate B collection remains unchanged.
+
 ## 0.14.179 — 23 September 2026
 
 - Recorded the successful production read-only accelerated V3 readiness audit from exact main `ceeec0bded4bb6ae60291ee8f5f60db214eceb98` at `docs/evidence/phase-15-v3-accelerated-readiness-production-20260923.json`.
