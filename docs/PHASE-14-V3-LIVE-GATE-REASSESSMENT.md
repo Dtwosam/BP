@@ -24,7 +24,7 @@ The output includes:
 - realized paper P&L, deterministic bootstrap mean-P&L interval, profit factor;
 - maximum realized-P&L drawdown and losing streak;
 - largest-winner concentration and P&L with the largest winner removed;
-- V3-only calibration means;
+- V3-only calibration means across all evaluated frozen-V3 predictions, including no-trade predictions;
 - V3 order/fill/settlement reconciliation;
 - current RESEARCH/live-disabled/zero-money runtime state;
 - current live-order-ledger row counts where the schema is available;
