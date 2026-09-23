@@ -309,9 +309,14 @@ def run() -> int:
             if now >= request.expires_at:
                 continue
 
+            remote.set_order_deadline(request.expires_at)
             ack = gateway.submit_order(request)
             if not _intent_exists(engine=engine, prediction_id=prediction_id):
                 # Risk/interlock blocked before any external order intent existed.
+                continue
+            if not ack.accepted and ack.reason == "request_expired":
+                # The remote executor rejected before consuming the single
+                # external attempt. Wait for the next frozen-V3 signal.
                 continue
 
             _write_kill(
