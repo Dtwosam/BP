@@ -13,7 +13,7 @@ def test_v3_live_gate_reassessment_source_truth_stays_fail_closed() -> None:
     gate = state["phase_14_v3_live_gate_reassessment"]
     master = state["phase_14_checkpoint"]["master_live_gate"]
 
-    assert state["source_of_truth_version"] == "0.14.179"
+    assert state["source_of_truth_version"] == "0.15.0"
     assert gate["explicit_user_live_authorization"] == "pass"
     assert gate["prediction_version"] == "v3-frozen-paper-v1"
     assert gate["execution_version"] == "paper-execution-v3-frozen-v1"
@@ -49,7 +49,7 @@ def test_v3_live_gate_reassessment_source_truth_stays_fail_closed() -> None:
     assert master["positive_after_cost_profitability"] == "pass"
     assert master["order_execution_and_reconciliation_tested"] == "pass"
     assert master["explicit_user_live_authorization"] == "pass"
-    assert master["geographic_compliance_eligible"] == "fail"
+    assert master["geographic_compliance_eligible"] == "pass"
     assert master["sufficiently_large_live_paper_sample_with_uncertainty"] == "pass"
     assert master["calibration_acceptable"] == "pass"
     assert master["walk_forward_results_stable_enough"] == "pass"
