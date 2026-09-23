@@ -16,7 +16,7 @@ def test_phase15_v3_readiness_and_geography_pass_for_one_dollar_canary() -> None
     master = state["phase_14_checkpoint"]["master_live_gate"]
 
     assert state["source_of_truth_version"] == "0.14.180"
-    assert gate["status"] == "MASTER_LIVE_GATE_PASS_ONE_DOLLAR_CANARY_DEPLOYMENT_AUTHORIZED"
+    assert gate["status"] == "MASTER_LIVE_GATE_PASS_TEN_DOLLAR_CANARY_CODE_READY_NOT_DEPLOYED"
     assert gate["source_prediction_version"] == "v3-frozen-paper-v1"
     assert gate["source_v3_model_sha256"] == (
         "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7"
