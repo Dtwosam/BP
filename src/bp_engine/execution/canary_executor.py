@@ -34,8 +34,26 @@ def _decimal(value: object, name: str) -> Decimal:
     return number
 
 
+def _env_path() -> str:
+    return os.environ.get("BP_CANARY_ENV_FILE", "/etc/bp-exec/canary.env")
+
+
+def _load_runtime_environment() -> None:
+    path = Path(_env_path())
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key:
+            continue
+        os.environ.setdefault(key, value.strip())
+
+
 def _settings() -> Settings:
-    path = os.environ.get("BP_CANARY_ENV_FILE", "/etc/bp-exec/canary.env")
+    path = _env_path()
+    _load_runtime_environment()
     return Settings(_env_file=path)
 
 
