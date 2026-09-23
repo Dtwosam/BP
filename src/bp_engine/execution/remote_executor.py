@@ -109,6 +109,10 @@ def _base_guard(
     )
     if not metadata.private_key_configured:
         raise RuntimeError("private_key_not_configured")
+    try:
+        OfficialPolymarketTradingClient.create_from_environment(settings=settings)
+    except RuntimeError as exc:
+        raise RuntimeError("sdk_client_not_ready") from exc
 
     return {
         "authorization_id": authorization_id,
@@ -116,6 +120,7 @@ def _base_guard(
         "country": geoblock.country,
         "region": geoblock.region,
         "private_key_configured": True,
+        "sdk_client_ready": True,
         "wallet_configured": metadata.wallet_configured,
         "wallet_fingerprint": metadata.wallet_fingerprint,
     }
