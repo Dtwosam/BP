@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -77,19 +78,49 @@ def test_prepare_binds_current_live_module_before_current_canary_module() -> Non
     text = PREPARE.read_text(encoding="utf-8")
     assert 'LIVE_SOURCE_B64=$(base64 -w0 "$ROOT/src/bp_engine/execution/live.py")' in text
     assert "LIVE_SOURCE_B64='$LIVE_SOURCE_B64'" in text
+    assert "import bp_engine.execution as execution_package" in text
     assert 'types.ModuleType("bp_engine.execution.live")' in text
     assert 'sys.modules[live_module.__name__]=live_module' in text
+    assert "execution_package.live=live_module" in text
     assert '<phase15_live_inline>' in text
     assert 'InterlockDecision=live_module.InterlockDecision' in text
 
+    package_import = text.index("import bp_engine.execution as execution_package")
+    live_swap = text.index('sys.modules[live_module.__name__]=live_module')
     live_exec = text.index(
         'exec(compile(live_source, "<phase15_live_inline>", "exec"), live_module.__dict__)'
     )
     canary_exec = text.index(
         'exec(compile(source, "<phase15_canary_inline>", "exec"), module.__dict__)'
     )
-    assert live_exec < canary_exec
+    assert package_import < live_swap < live_exec < canary_exec
     assert "from bp_engine.execution.live import InterlockDecision" not in text
+
+
+def test_prepare_live_module_swap_executes_without_package_import_cycle() -> None:
+    script = """
+import sys
+import types
+from pathlib import Path
+
+import bp_engine.execution as execution_package
+
+source = Path("src/bp_engine/execution/live.py").read_text(encoding="utf-8")
+live_module = types.ModuleType("bp_engine.execution.live")
+live_module.__package__ = "bp_engine.execution"
+sys.modules[live_module.__name__] = live_module
+execution_package.live = live_module
+exec(compile(source, "<phase15_live_inline_test>", "exec"), live_module.__dict__)
+assert live_module.InterlockDecision.__name__ == "InterlockDecision"
+assert live_module._account_snapshot.__name__ == "_account_snapshot"
+"""
+    subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
 
 def test_arm_binds_exact_prepared_request_and_executor() -> None:
