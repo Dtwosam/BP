@@ -103,6 +103,10 @@ def build_v3_live_canary_request(
             f"frozen V3 signal cannot create canary order: {draft.reason}"
         )
     source = draft.request
+    if source.requested_shares < Decimal("5"):
+        raise V3LiveCanaryIntegrityError(
+            "frozen $5 request is below the canary minimum share size"
+        )
     canary_config = {
         "execution_version": V3_LIVE_CANARY_EXECUTION_VERSION,
         "source_execution_version": V3_FROZEN_PAPER_EXECUTION_VERSION,
