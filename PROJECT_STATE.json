@@ -1,11 +1,11 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.179",
-  "updated_at": "2026-09-23T10:55:30Z",
-  "current_phase": 14,
-  "current_phase_name": "live readiness — engineering complete, live gate blocked",
-  "status": "PHASE_14_ENGINEERING_COMPLETE_LIVE_GATE_BLOCKED",
+  "source_of_truth_version": "0.14.180",
+  "updated_at": "2026-09-23",
+  "current_phase": 15,
+  "current_phase_name": "controlled frozen-V3 live canary — deployment authorized, not activated",
+  "status": "PHASE_15_ONE_DOLLAR_CANARY_AUTHORIZED_NOT_ACTIVATED",
   "trading_mode": "RESEARCH",
   "live_trading_enabled": false,
   "verified_polymarket_horizons": [
@@ -657,10 +657,11 @@
     "Live trading"
   ],
   "next_actions": [
-    "Preserve the accelerated frozen-V3 readiness PASS at docs/evidence/phase-15-v3-accelerated-readiness-production-20260923.json. All statistical Master live-gate rows now pass under predeclared rules; do not rerun or weaken those rules.",
-    "Provision only the dedicated Johannesburg execution-host candidate (GCP africa-south1-a, e2-micro) and run the direct official Polymarket geoblock probe. Install no trading software, wallet/signing material, or production service during this probe.",
-    "If and only if the candidate host returns blocked=false, record that geography evidence and then build/deploy the exact frozen-V3 controlled live canary with tiny nonzero risk limits. The existing US host must never submit real orders.",
-    "Continue frozen V3 paper observation and V4 Gate B collection unchanged. No V3 tuning, V4 early label/model actions, automatic promotion, geographic circumvention, or broad live rollout."
+    "Preserve the statistical readiness PASS and Johannesburg geoblock PASS. All Master live-gate rows are now pass and Phase 15 one-dollar canary deployment is authorized.",
+    "Build and validate the exact frozen-V3 one-dollar canary package: remote Johannesburg signer/executor, private-network SSH transport, US-host risk/ledger worker, exact-SHA activation manifest, dual kill switches, and a one-intent hard stop.",
+    "Deploy the canary in non-spending mode first. Install software and wallet/signing material only on the Johannesburg execution host; keep both kill switches engaged and the live worker stopped while verifying direct geoblock, SDK health, SSH transport, exact frozen identity, and zero live-order ledger side effects.",
+    "Only after non-spending deployment PASS may the exact activation command remove the canary kill switches and start the one-shot worker. The canary is capped at one $1 live order, $1 total exposure, $2 daily loss, and two consecutive losses; the worker stops after the first remote submission intent.",
+    "Continue frozen V3 paper observation and V4 Gate B collection unchanged. Do not tune V3, disturb V4, broaden risk limits, or start a second live order until the first canary is reconciled and reviewed."
   ],
   "open_questions": [
     "Current/recurring availability of a 10m BTC Up/Down Polymarket market",
@@ -784,13 +785,13 @@
     "host_acceptance_verdict": "PASS",
     "services_active": true,
     "sdk_import_passed": true,
-    "geoblock_blocked": true,
+    "geoblock_blocked": false,
     "interlock_blocks_submission": true,
     "risk_rules_passed": true,
     "reconciliation_passed": true,
     "real_order_side_effects": 0,
-    "live_gate_eligible": false,
-    "phase15_permitted": false,
+    "live_gate_eligible": true,
+    "phase15_permitted": true,
     "disk_status_before": "ok",
     "disk_free_bytes_before": 152004771840,
     "live_trading_enabled": false,
@@ -808,10 +809,10 @@
       "calibration_acceptable": "pass",
       "risk_limits_and_kill_switch_tested": "pass",
       "order_execution_and_reconciliation_tested": "pass",
-      "geographic_compliance_eligible": "fail",
+      "geographic_compliance_eligible": "pass",
       "explicit_user_live_authorization": "pass"
     },
-    "overall_live_gate": "fail",
+    "overall_live_gate": "pass",
     "profitability_claim": false,
     "sanitized_evidence": "docs/evidence/phase-14-closeout-20260830.json",
     "latest_v3_live_gate_reassessment": {
@@ -4187,7 +4188,7 @@
     "master_live_gate_mutation_scope": "Evidence-backed status refresh only; no activation or money change."
   },
   "phase_15_v3_canary_readiness": {
-    "status": "PRODUCTION_READ_ONLY_PASS_STATISTICAL_GATES_PASS_EXECUTION_HOST_BLOCKED",
+    "status": "MASTER_LIVE_GATE_PASS_ONE_DOLLAR_CANARY_DEPLOYMENT_AUTHORIZED",
     "purpose": "Attempt a same-day, evidence-based frozen-V3 live-readiness decision without tuning V3 or bypassing geography.",
     "source_v3_model_sha256": "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7",
     "source_prediction_version": "v3-frozen-paper-v1",
@@ -4230,11 +4231,11 @@
     "physical_location_geoblock_check_required": true,
     "execution_host_geoblock_check_required": true,
     "vpn_proxy_tunnel_bypass_allowed": false,
-    "phase15_permitted": false,
+    "phase15_permitted": true,
     "live_trading_enabled": false,
     "max_trade_size_usd": 0,
     "max_daily_loss_usd": 0,
-    "next_action": "Provision the dedicated Johannesburg execution-only candidate with the exact source-truth-bound host-probe helper, run the official direct Polymarket geoblock check from that VM, and stop. If blocked=false, record the candidate host evidence and only then build/deploy the controlled V3 canary execution package. Do not install wallet/signing material or enable live trading during the host probe.",
+    "next_action": "Build, validate, and non-spending-deploy the one-dollar frozen-V3 canary package. Keep kill switches engaged and live disabled through deployment verification. Activation requires the exact source-truth-bound canary activation command and may submit at most one $1 live order before the worker stops.",
     "user_physical_network_geoblock": {
       "status": "pass",
       "blocked": false,
@@ -4246,13 +4247,14 @@
       "ip_address_persisted": false
     },
     "execution_host_geoblock": {
-      "status": "fail",
-      "blocked": true,
-      "country": "US",
-      "region": "SC",
-      "source": "latest production read-only live-gate reassessment"
+      "status": "pass",
+      "blocked": false,
+      "country": "ZA",
+      "region": "GP",
+      "source": "phase15 Johannesburg execution-host direct official geoblock probe",
+      "evidence": "docs/evidence/phase-15-v3-canary-execution-host-geoblock-20260923.json"
     },
-    "geographic_gate_status": "USER_LOCATION_PASS_CURRENT_HOST_FAIL_CANDIDATE_HOST_NOT_PROBED",
+    "geographic_gate_status": "PASS_USER_NG_EXECUTOR_ZA",
     "accelerated_audit_run_at": "2026-09-23T10:55:30.826590+00:00",
     "accelerated_audit_source_main_sha": "ceeec0bded4bb6ae60291ee8f5f60db214eceb98",
     "accelerated_audit_evidence": "docs/evidence/phase-15-v3-accelerated-readiness-production-20260923.json",
@@ -4284,9 +4286,25 @@
       "region": "africa-south1",
       "zone": "africa-south1-a",
       "location": "Johannesburg, South Africa",
-      "role": "execution-only geoblock probe first; no trading software or wallet material until direct official geoblock passes",
+      "role": "execution-only live canary host",
       "machine_type": "e2-micro",
-      "status": "NOT_PROVISIONED"
+      "vm_name": "bp-v3-canary-exec",
+      "status": "GEOBLOCK_PASS_RUNNING_NO_TRADING_SOFTWARE"
+    },
+    "canary_contract": {
+      "version": "phase15-v3-one-dollar-canary-v1",
+      "max_live_order_intents": 1,
+      "max_trade_size_usd": "1.00",
+      "max_total_exposure_usd": "1.00",
+      "max_daily_loss_usd": "2.00",
+      "max_consecutive_losses": 2,
+      "min_edge": "0.075",
+      "max_prediction_age_seconds": 10,
+      "min_time_to_expiry_seconds": 30,
+      "cooldown_seconds": 60,
+      "live_worker_stops_after_first_remote_submission_intent": true,
+      "strategy_identity_unchanged": true,
+      "paper_and_v4_continue": true
     }
   }
 }
