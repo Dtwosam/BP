@@ -1,0 +1,12 @@
+{
+  "date": "2026-09-23",
+  "status": "PASS",
+  "intent_id": "live-intent-285a7c90b51c6ef511472407d81668d9",
+  "event_type": "closed_before_submission",
+  "reconciliation_id": "live-reconciliation-95837c1ec56575861584f0b8c1cb3d42",
+  "submission_attempt_consumed": false,
+  "kill_switch_engaged": true,
+  "live_order_submitted": false,
+  "operator_helper_result": "PHASE15_V3_CANARY_RECONCILE_UNSUBMITTED=PASS",
+  "note": "The helper emitted three Python heredoc guard syntax errors due a shell/heredoc wiring bug, but the production reconciliation function itself independently validated the supplied executor health before storing the event. The helper bug is corrected in the same follow-up change and no network submission occurred."
+}
