@@ -37,9 +37,13 @@ def expected_calibration_error(
     ece = 0.0
     for index in range(bins):
         if index == bins - 1:
-            mask = (probabilities >= edges[index]) & (probabilities <= edges[index + 1])
+            mask = (probabilities >= edges[index]) & (
+                probabilities <= edges[index + 1]
+            )
         else:
-            mask = (probabilities >= edges[index]) & (probabilities < edges[index + 1])
+            mask = (probabilities >= edges[index]) & (
+                probabilities < edges[index + 1]
+            )
         count = int(mask.sum())
         if count == 0:
             continue
