@@ -17,8 +17,6 @@ from bp_engine.v3_live_gate.calibration_audit import (
 from bp_engine.v3_live_gate.cli import build_database_report
 from bp_engine.v3_paper.service import V3_PAPER_PREDICTION_VERSION
 
-_HOLDOUT_PNL = 1.654224
-
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
