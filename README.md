@@ -10,7 +10,7 @@ Research-first system for estimating short-duration BTC Polymarket Up/Down proba
 
 Phase 14 — Live Readiness V1 — passed non-spending production host acceptance on exact candidate `5854e3003aa3340ce3733bf4532e204c1ec55836`. The accepted path imports the official `polymarket-client`, enforces fail-closed activation/geoblock/kill-switch/risk interlocks, reconciles synthetic/live-readiness state, exposes read-only diagnostics, and proved `REAL_ORDER_SIDE_EFFECTS=0` with real-money limits still zero.
 
-The Master live gate is **not** satisfied. The production geoblock returned `GEOBLOCK_BLOCKED=true`; the prospective paper sample is still too small; positive after-cost profitability is not established; prospective calibration evidence is insufficient; and explicit real-money authorization has not been given. Phase 15 is therefore not permitted. The ~80% accuracy discussed for this project remains a research target, not an assumed or guaranteed capability.
+The Master live gate is **not** satisfied. The historical production geoblock returned `GEOBLOCK_BLOCKED=true`, and paper-sample uncertainty, profitability robustness, calibration, plus current geographic eligibility still require a fresh frozen-V3 reassessment. On 23 September 2026 the user explicitly authorized pursuing a controlled frozen-V3 live transition, so the human-authorization row is no longer the blocker; that authorization does not override the remaining gate. Phase 15 is therefore not permitted. The ~80% accuracy discussed for this project remains a research target, not an assumed or guaranteed capability.
 
 ## Read before working
 
@@ -55,7 +55,7 @@ Expected health output includes:
 - Phase 12 Paper Execution remains money-disabled; paper fills must remain causal and reconciled to immutable signals.
 - Phase 13 Improvement Loop remains accepted; promotion requires frozen hypotheses plus permitted evidence, economic uncertainty, calibration guardrails, and deliberate decisions.
 - Phase 14 Live Readiness engineering is accepted, but the Master live gate remains closed.
-- `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0` remain required until every live-gate row passes and real-money authorization is explicit.
+- `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0` remain required until every live-gate row passes. Explicit frozen-V3 authorization was recorded on 23 September 2026, but all other gate rows still apply.
 - Do not bypass geographic/service restrictions with proxies, VPNs, tunneling, or relocation tricks.
 - A 10-minute recurring Polymarket BTC market is not assumed to exist; horizons remain configurable.
 

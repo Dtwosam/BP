@@ -176,6 +176,14 @@ Real-money automation remains disabled until all of the following are true:
 
 There is no fixed “magic” sample count in this version of the spec. The analysis must include uncertainty/confidence intervals rather than relying on a round number alone.
 
+### 4.3.1 Frozen V3 controlled-live authorization — 23 September 2026
+
+The user has explicitly authorized **pursuing** a controlled real-money transition for the exact frozen V3 while V4 research collection continues in parallel. This satisfies only the explicit-human-authorization requirement; it does not itself enable trading or override any other live-gate requirement.
+
+Before any real order is allowed, a fresh V3-specific reassessment must isolate `v3-frozen-paper-v1` / `paper-execution-v3-frozen-v1` and report paper-sample uncertainty, after-cost profitability robustness including largest-winner sensitivity, calibration, drawdown/losing streak, and reconciliation. Current direct Polymarket geographic eligibility must also pass. Any failed or insufficient row keeps Phase 15 blocked. No proxy/VPN/restriction bypass is permitted.
+
+Until the complete gate passes, `LIVE_TRADING_ENABLED=false`, `MAX_TRADE_SIZE_USD=0`, and `MAX_DAILY_LOSS_USD=0` remain mandatory. The V3 model artifact, calibration, 240-second timing, `min_edge=0.075`, and paper sizing remain frozen; this authorization is not permission to tune them from paper results.
+
 ---
 
 # 5. System architecture

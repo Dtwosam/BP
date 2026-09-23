@@ -79,6 +79,9 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
+**23 September V3 live-gate reassessment:** the user has explicitly authorized pursuing a controlled live transition for the exact frozen V3 while V4 collection continues unchanged. This records the human-authorization row only. The Master live gate remains closed; live trading stays disabled and real-money limits stay zero until a fresh V3-specific read-only reassessment, direct geographic eligibility check, and every other Master gate row pass. Do not refit/recalibrate V3, change its 240-second timing, change `min_edge=0.075`, alter paper sizing, bypass geographic restrictions, or disturb the frozen V4 Gate B cohort.
+
+
 Frozen V3 paper activation remains a **historical production PASS**, and the current recorder/frozen-V3 runtime is **active after concurrent-partition-retirement rollout PASS** on deployed candidate `52b4355d6f077373b873f7a6f42bc37a20ddbc7b`. The maintenance timer is restored active.
 
 The accepted frozen identity remains unchanged:

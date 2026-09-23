@@ -533,3 +533,13 @@ The global candidate ladder is `training_prior`, `single_feature_btc_logistic`, 
 **Reason:** V4 must address regime dependence, side asymmetry, feature underuse, calibration, timing, coverage/quality, drawdown/losses, and execution availability without converting the consumed V3 holdout or the pre-epoch V4 observation cohort into tuning data. A future-only epoch and feature-only plan make the contamination boundary structural and auditable.
 
 **Boundary:** This decision authorizes continued feature collection plus outcome-blind readiness and feature-only/no-clobber planning after epoch close. It does not authorize V4 labels/outcomes for selection, model/calibration fitting, economic-policy selection, final-holdout access, paper activation, automatic promotion, Phase 15, live trading, geographic bypass, or nonzero money.
+
+## D-057 — Pursue frozen V3 controlled live transition only through the complete Master gate
+**Date:** 23 Sep 2026  
+**Status:** Active
+
+The user explicitly authorizes pursuing a controlled real-money transition for the exact frozen V3 while V4 research collection continues in parallel. The authorization applies only to the frozen model SHA `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`, prediction identity `v3-frozen-paper-v1`, execution identity `paper-execution-v3-frozen-v1`, 240-second timing, and `min_edge=0.075`.
+
+This decision satisfies the human-authorization requirement but does **not** waive any other Master live-gate row. Before real-money activation, a fresh V3-specific read-only reassessment must cover uncertainty, after-cost P&L robustness, largest-winner sensitivity, calibration, drawdown/losing streak, risk/kill-switch readiness, reconciliation, and current direct geographic eligibility. Any failure or insufficient evidence keeps Phase 15 blocked. Geographic restrictions may not be bypassed.
+
+V3 refit, recalibration, threshold/timing/sizing changes, automatic promotion, and V4 Gate B label/training/policy actions remain outside this authorization. Live trading stays disabled and real-money limits remain zero until the complete gate passes.

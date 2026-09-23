@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.175 — 23 September 2026
+
+- Recorded explicit user authorization to pursue a controlled live transition for the exact frozen V3 while V4 collection continues unchanged. This satisfies only the human-authorization row; the Master live gate remains closed, Phase 15 remains blocked, live trading remains disabled, and real-money limits remain zero.
+- Added `bp_engine.v3_live_gate`, a V3-identity-isolated read-only reassessment that reports settled-trade uncertainty, bootstrap mean-P&L interval, Wilson win-rate interval, profit factor, drawdown, losing streak, largest-winner concentration, P&L excluding the largest winner, prospective calibration, and V3 execution reconciliation.
+- The reassessment never mutates the Master gate or enables money. A fresh production read-only run plus direct geographic eligibility, risk/kill-switch, reconciliation, calibration/sample-sufficiency, and profitability review is still required before any controlled live launch.
+- Frozen V3 policy remains unchanged: model SHA `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`, 240-second timing, `min_edge=0.075`, no refit/recalibration/threshold/sizing change. V4 Gate B v1 collection remains unchanged.
+
 ## 0.14.174 — 22 September 2026
 
 - Froze `v4-gate-b-preregister-v1` before any V4 selection labels are read. The wholly future selection epoch is `[2026-09-23T00:00:00Z, 2026-09-30T00:00:00Z)`; all earlier V4 rows, including the 373-market / 1,492-row observation cohort, are structurally ineligible for model/policy selection.
