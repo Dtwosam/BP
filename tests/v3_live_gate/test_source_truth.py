@@ -25,6 +25,19 @@ def test_v3_live_gate_reassessment_source_truth_stays_fail_closed() -> None:
     assert gate["max_daily_loss_usd"] == 0
     assert gate["production_run_performed"] is False
     assert gate["real_money_mutation_performed"] is False
+    assert gate["status"] == "READ_ONLY_PRODUCTION_BRIDGE_IMPLEMENTED_NOT_RUN"
+    assert gate["production_bridge"] == (
+        "scripts/deploy/phase14_v3_live_gate_reassessment_cloudshell.sh"
+    )
+    assert gate["production_bridge_read_only"] is True
+    assert gate["production_bridge_checkout_mutation"] is False
+    assert gate["production_bridge_service_or_timer_mutation"] is False
+    assert gate["production_bridge_filesystem_creation"] is False
+    assert gate["production_bridge_wallet_or_signing_material_read"] is False
+    assert gate["production_bridge_real_order_submission"] is False
+    assert gate["production_bridge_direct_geoblock_url"] == (
+        "https://polymarket.com/api/geoblock"
+    )
 
     spec_path = (
         ROOT
