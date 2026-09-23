@@ -35,14 +35,17 @@ from pathlib import Path
 state = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 gate = state.get("phase_15_v3_live_canary") or {}
 assert state.get("source_of_truth_version") == "0.14.180"
-assert gate.get("status") == "ENGINEERING_READY_HOST_PASS_WALLET_NOT_CONFIGURED"
+assert gate.get("status") == "ENGINEERING_READY_HOST_PASS"
 assert gate.get("max_trade_size_usd") == 10
 assert gate.get("max_total_exposure_usd") == 10
 assert gate.get("max_daily_loss_usd") == 10
 assert gate.get("max_consecutive_losses") == 1
 assert gate.get("max_accepted_orders") == 1
 assert gate.get("live_trading_enabled") is False
-assert gate.get("wallet_configured") is False
+assert gate.get("wallet_configuration_status") == "runtime_required_not_source_controlled"
+assert gate.get("canary_order_submitted") is False
+assert gate.get("automated_real_money_submission") is False
+assert gate.get("manual_real_money_submission_required") is True
 PY
 
 INSTANCE_STATUS=$(gcloud compute instances describe "$VM" \
