@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from bp_engine.execution.remote_client import RemoteSshPolymarketTradingClient
@@ -37,6 +38,7 @@ def test_remote_client_uses_fixed_ssh_transport_and_normalizes_order() -> None:
         known_hosts_path="/var/lib/bp/live-canary/ssh/known_hosts",
         runner=runner,
     )
+    client.set_order_deadline(datetime(2026, 9, 23, 12, 0, 2, tzinfo=UTC))
     result = client.submit_limit_buy(
         token_id="token-1",
         price=Decimal("0.50"),
@@ -53,4 +55,5 @@ def test_remote_client_uses_fixed_ssh_transport_and_normalizes_order() -> None:
         "size": "9",
         "token_id": "token-1",
         "ttl_ms": 2000,
+        "expires_at": "2026-09-23T12:00:02+00:00",
     }
