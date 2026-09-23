@@ -460,44 +460,73 @@ class PaperExecutionService:
                 schema.paper_orders.c.id,
             )
         ).mappings().all()
+        if not orders:
+            return created, existing
+
+        order_ids = tuple(str(order["paper_order_id"]) for order in orders)
+        prediction_ids = tuple(str(order["prediction_id"]) for order in orders)
+        terminal_order_ids = set(
+            connection.execute(
+                select(schema.paper_order_terminal_events.c.paper_order_id).where(
+                    schema.paper_order_terminal_events.c.paper_order_id.in_(order_ids)
+                )
+            ).scalars()
+        )
+        if not terminal_order_ids:
+            return created, existing
+
+        evaluations = connection.execute(
+            select(schema.live_prediction_evaluations)
+            .where(
+                schema.live_prediction_evaluations.c.prediction_id.in_(prediction_ids),
+                schema.live_prediction_evaluations.c.evaluated_at <= now,
+            )
+            .order_by(
+                schema.live_prediction_evaluations.c.prediction_id,
+                schema.live_prediction_evaluations.c.evaluated_at.desc(),
+                schema.live_prediction_evaluations.c.id.desc(),
+            )
+        ).mappings().all()
+        latest_evaluation_by_prediction: dict[str, Mapping[str, Any]] = {}
+        for evaluation in evaluations:
+            latest_evaluation_by_prediction.setdefault(
+                str(evaluation["prediction_id"]),
+                evaluation,
+            )
+
+        settlement_keys = {
+            (str(row["paper_order_id"]), str(row["label_version"]))
+            for row in connection.execute(
+                select(
+                    schema.paper_settlements.c.paper_order_id,
+                    schema.paper_settlements.c.label_version,
+                ).where(schema.paper_settlements.c.paper_order_id.in_(order_ids))
+            ).mappings()
+        }
+        fills_by_order: dict[str, list[Mapping[str, Any]]] = {}
+        for fill in connection.execute(
+            select(schema.paper_fills)
+            .where(schema.paper_fills.c.paper_order_id.in_(order_ids))
+            .order_by(
+                schema.paper_fills.c.paper_order_id,
+                schema.paper_fills.c.fill_at,
+                schema.paper_fills.c.id,
+            )
+        ).mappings():
+            fills_by_order.setdefault(str(fill["paper_order_id"]), []).append(fill)
+
         for order in orders:
-            terminal = connection.execute(
-                select(schema.paper_order_terminal_events.c.id).where(
-                    schema.paper_order_terminal_events.c.paper_order_id == order["paper_order_id"]
-                )
-            ).scalar_one_or_none()
-            if terminal is None:
+            order_id = str(order["paper_order_id"])
+            if order_id not in terminal_order_ids:
                 continue
-            evaluation = connection.execute(
-                select(schema.live_prediction_evaluations)
-                .where(
-                    schema.live_prediction_evaluations.c.prediction_id == order["prediction_id"],
-                    schema.live_prediction_evaluations.c.evaluated_at <= now,
-                )
-                .order_by(
-                    schema.live_prediction_evaluations.c.evaluated_at.desc(),
-                    schema.live_prediction_evaluations.c.id.desc(),
-                )
-                .limit(1)
-            ).mappings().one_or_none()
+            evaluation = latest_evaluation_by_prediction.get(str(order["prediction_id"]))
             if evaluation is None:
                 continue
-            prior = connection.execute(
-                select(schema.paper_settlements.c.id).where(
-                    schema.paper_settlements.c.paper_order_id == order["paper_order_id"],
-                    schema.paper_settlements.c.label_version == evaluation["label_version"],
-                )
-            ).scalar_one_or_none()
-            if prior is not None:
+            settlement_key = (order_id, str(evaluation["label_version"]))
+            if settlement_key in settlement_keys:
                 existing += 1
                 continue
-            fills = tuple(
-                connection.execute(
-                    select(schema.paper_fills)
-                    .where(schema.paper_fills.c.paper_order_id == order["paper_order_id"])
-                    .order_by(schema.paper_fills.c.fill_at, schema.paper_fills.c.id)
-                ).mappings().all()
-            )
+            fills = tuple(fills_by_order.get(order_id, ()))
             if not fills:
                 continue
             result = self._repository.insert_settlement(
@@ -506,6 +535,7 @@ class PaperExecutionService:
             )
             created += int(result.created)
             existing += int(result.existing)
+            settlement_keys.add(settlement_key)
         return created, existing
 
     def run_once(self, *, now: datetime) -> PaperRunReport:
@@ -547,9 +577,40 @@ class PaperExecutionService:
                     schema.live_predictions.c.id,
                 )
             ).mappings().all()
+            prediction_ids = tuple(str(row["prediction_id"]) for row in predictions)
+            orders_by_prediction: dict[str, Mapping[str, Any]] = {}
+            terminal_order_ids: set[str] = set()
+            if prediction_ids:
+                existing_order_rows = connection.execute(
+                    select(schema.paper_orders).where(
+                        schema.paper_orders.c.prediction_id.in_(prediction_ids),
+                        schema.paper_orders.c.execution_version
+                        == self._config.execution_version,
+                    )
+                ).mappings().all()
+                orders_by_prediction = {
+                    str(row["prediction_id"]): row for row in existing_order_rows
+                }
+                order_ids = tuple(
+                    str(row["paper_order_id"]) for row in existing_order_rows
+                )
+                if order_ids:
+                    terminal_order_ids = set(
+                        connection.execute(
+                            select(
+                                schema.paper_order_terminal_events.c.paper_order_id
+                            ).where(
+                                schema.paper_order_terminal_events.c.paper_order_id.in_(
+                                    order_ids
+                                )
+                            )
+                        ).scalars()
+                    )
+
             for prediction in predictions:
                 examined += 1
-                order = self._order_for_prediction(connection, str(prediction["prediction_id"]))
+                prediction_id = str(prediction["prediction_id"])
+                order = orders_by_prediction.get(prediction_id)
                 if order is None:
                     draft_or_terminal = build_paper_order(
                         prediction,
@@ -565,14 +626,15 @@ class PaperExecutionService:
                     )
                     created_orders += int(order_result.created)
                     existing_orders += int(order_result.existing)
-                    order = self._order_for_prediction(
-                        connection,
-                        str(prediction["prediction_id"]),
-                    )
+                    order = self._order_for_prediction(connection, prediction_id)
                     if order is None:
                         raise RuntimeError("paper order insert did not become visible")
+                    orders_by_prediction[prediction_id] = order
                 else:
                     existing_orders += 1
+                    if str(order["paper_order_id"]) in terminal_order_ids:
+                        existing_terminals += 1
+                        continue
 
                 new_fills, old_fills, new_terminal, old_terminal = self._process_order(
                     connection,
@@ -584,7 +646,8 @@ class PaperExecutionService:
                 existing_fills += old_fills
                 created_terminals += new_terminal
                 existing_terminals += old_terminal
-                available_cash = self._current_cash(connection)
+                if new_fills:
+                    available_cash = self._current_cash(connection)
 
             second_created, second_existing = self._settle_ready(connection, now=current_now)
             created_settlements += second_created
