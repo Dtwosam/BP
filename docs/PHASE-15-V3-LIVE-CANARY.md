@@ -50,6 +50,28 @@ Expected boundary: `NO_REAL_ORDER_SUBMITTED=true`.
 
 Review the printed side, target notional, limit price, shares, and market end time.
 
+For a Cloud-Shell-independent wait, the separately authorized persistent prepare-only watcher may be used instead:
+
+```bash
+PHASE15_ACCEPT_PERSISTENT_PREPARE_WATCH=yes \
+PHASE15_CANARY_MAX_WAIT_SECONDS=7200 \
+bash scripts/deploy/phase15_v3_canary_prepare_watch_start_cloudshell.sh
+```
+
+This installs/starts a bounded sidecar on `bp-recorder`; it is not enabled across VM reboot and cannot arm or submit. While connected, follow it with:
+
+```bash
+bash scripts/deploy/phase15_v3_canary_prepare_watch_follow_cloudshell.sh
+```
+
+After any Cloud Shell reconnect, inspect/materialize the durable result with:
+
+```bash
+bash scripts/deploy/phase15_v3_canary_prepare_watch_status_cloudshell.sh
+```
+
+Only `PHASE15_V3_CANARY_PERSISTENT_PREPARE_STATUS=PASS` with `ARMABLE_NOW=true` may proceed to the existing manual arm step. A stale prepared intent, helper-head mismatch, or failure after intent persistence must not be armed and instead requires closed-before-submission reconciliation.
+
 ### 3. Arm — still no order
 
 ```bash
