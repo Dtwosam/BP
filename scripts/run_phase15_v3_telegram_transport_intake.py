@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import stat
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -28,10 +29,32 @@ def _parse_args() -> argparse.Namespace:
 
 
 def _load_json(path: Path) -> dict[str, Any]:
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise TransportError("transport envelope is not readable") from exc
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+        raise TransportError("transport envelope must be a regular non-symlink file")
+    if info.st_size <= 0 or info.st_size > 1_048_576:
+        raise TransportError("transport envelope size invalid")
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise TransportError("transport envelope must contain a JSON object")
     return payload
+
+
+def _ensure_private_directory(path: Path) -> None:
+    try:
+        path.mkdir(parents=True, mode=0o700)
+    except FileExistsError:
+        pass
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise TransportError("transport receipt directory is not accessible") from exc
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+        raise TransportError("transport receipt must be a non-symlink directory")
+    os.chmod(path, 0o700)
 
 
 def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
@@ -83,9 +106,10 @@ def main() -> int:
         state_dir=args.state_dir,
     )
 
-    receipt_dir = args.state_dir / "receipts" / str(claimed["claim_id"])
-    receipt_dir.mkdir(parents=True, exist_ok=True)
-    os.chmod(receipt_dir, 0o700)
+    receipts_root = args.state_dir / "receipts"
+    _ensure_private_directory(receipts_root)
+    receipt_dir = receipts_root / str(claimed["claim_id"])
+    _ensure_private_directory(receipt_dir)
     prepared_path = receipt_dir / "prepared.json"
     approval_path = receipt_dir / "approval.json"
     if prepared_path.exists() or approval_path.exists():
