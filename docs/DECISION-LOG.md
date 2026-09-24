@@ -647,6 +647,18 @@ The watcher may run only on the existing US recorder as a separate sidecar for a
 The watcher has no arm path and no authenticated order-submission path. Arm remains an explicit Cloud Shell action gated by `PHASE15_ACCEPT_REAL_MONEY=yes`; the single network submission remains manual and exactly once. The status helper may materialize a remote prepared payload only when at least 20 seconds remain to market end and the watcher-start commit is binding-equivalent to current `main` across the prepare runner, current live-risk/canary modules, sidecar unit, arm helper, and executor. Documentation/evidence-only commits do not invalidate an otherwise identical watcher. Any bound runtime/execution-file change fails closed into the existing closed-before-submission reconciliation path.
 
 
+
+## D-066 — Use an interactive Cloud Shell fast path instead of chat between canary gates
+**Date:** 24 Sep 2026  
+**Status:** Engineering ready; no live action performed by this decision
+
+The observed frozen-V3 canary window is short enough that routing candidate review, arm authorization, and submission authorization through a chat round trip can consume the armable window. The operator path therefore gains a single interactive Cloud Shell helper, `scripts/deploy/phase15_v3_canary_interactive_operator_cloudshell.sh`, that composes the existing prepare-watcher, arm, executor, record, and closed-before-submission reconciliation helpers.
+
+This is not unattended live automation. The helper requires an interactive terminal and literal local confirmations at each mutation boundary: `RECONCILE` for a stale unsubmitted intent, `START` for a new bounded prepare-only watcher, `ARM` for the exact displayed fresh $5 intent, and `SUBMIT` for the single network submission. The arm step still calls the existing `PHASE15_ACCEPT_REAL_MONEY=yes` helper and submits no order. The submission step is not reached unless the operator types `SUBMIT` after a successful arm.
+
+The helper performs at most one executor submission invocation, writes a local per-intent attempt marker before that invocation, re-engages the Johannesburg kill switch after the call as a belt-and-suspenders action, and never retries missing, malformed, ambiguous, or unbound output. A valid structured result is passed to the existing binding-checked record helper. The frozen model, 240-second timing, 0.075 edge, $5 target, $10 ceilings, two-second TTL/cancel, one-network-attempt rule, no-second-order rule, and manual-real-money-submission policy remain unchanged.
+
+
 ## D-064 — Retry only transient live-liquidity misses during Phase 15 prepare
 **Date:** 24 Sep 2026  
 **Status:** Production rollout authorized and active

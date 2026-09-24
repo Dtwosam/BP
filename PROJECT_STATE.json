@@ -2,7 +2,7 @@
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
   "source_of_truth_version": "0.14.180",
-  "updated_at": "2026-09-23",
+  "updated_at": "2026-09-24",
   "current_phase": 15,
   "current_phase_name": "controlled live launch — one-order frozen V3 canary",
   "status": "PHASE_15_CANARY_AUTHORIZED_NOT_YET_SUBMITTED",
@@ -4339,7 +4339,7 @@
     "second_order_authorized": false,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "The prior persistent watcher prepared one frozen-V3 $5 intent, which expired before arm/submission and was reconciled closed_before_submission without consuming the network attempt. PR #271 is engineering-ready; production rollout/restart onto the corrected canary binding requires explicit authorization before starting a fresh prepare-only watcher.",
+    "next_action": "Use the interactive Cloud Shell operator helper. It first requires local RECONCILE confirmation for the currently stale unsubmitted intent, then can START a bounded prepare-only watcher; on a fresh candidate the operator types ARM and, only after arm PASS, SUBMIT locally without a chat round trip. No second submission attempt is authorized.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
@@ -4550,6 +4550,36 @@
       "production_prepare_watcher_poll_seconds": 0.5,
       "production_evidence": "docs/evidence/phase-15-timing-latency-production-confirmation-20260924.json",
       "production_rollout_requires_explicit_authorization": false
+    },
+    "interactive_operator_helper": "scripts/deploy/phase15_v3_canary_interactive_operator_cloudshell.sh",
+    "interactive_operator_fastpath": {
+      "status": "ENGINEERING_READY",
+      "purpose": "Remove chat round-trip latency while preserving exact-step human authorization in Cloud Shell.",
+      "interactive_terminal_required": true,
+      "confirmations": [
+        "RECONCILE",
+        "START",
+        "ARM",
+        "SUBMIT"
+      ],
+      "automated_real_money_submission": false,
+      "max_executor_submission_invocations": 1,
+      "local_per_intent_attempt_marker": true,
+      "kill_switch_reengaged_after_submission_call": true,
+      "retry_on_missing_malformed_or_ambiguous_result": false,
+      "valid_result_recorded_via_existing_helper": true,
+      "frozen_strategy_changed": false,
+      "live_risk_changed": false,
+      "sizing_changed": false
+    },
+    "pending_unsubmitted_intent": {
+      "intent_id": "live-intent-49fc9d798c13720682ec54ed0cb540ec",
+      "observed_fresh_seconds_to_market_end": 47.659907,
+      "arm_helper_result": "prepared_payload_not_authorized",
+      "activation_created": false,
+      "live_order_submitted": false,
+      "reconciliation_status": "pending",
+      "note": "The arm helper failed during local prepared-payload authorization before any executor mutation. The intent must be closed_before_submission before a new watcher can persist another intent."
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {

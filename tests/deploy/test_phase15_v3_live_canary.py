@@ -26,6 +26,9 @@ PERSISTENT_PREPARE_STATUS = (
 PERSISTENT_PREPARE_FOLLOW = (
     ROOT / "scripts/deploy/phase15_v3_canary_prepare_watch_follow_cloudshell.sh"
 )
+INTERACTIVE_OPERATOR = (
+    ROOT / "scripts/deploy/phase15_v3_canary_interactive_operator_cloudshell.sh"
+)
 PERSISTENT_PREPARE_UNIT = ROOT / "deploy/bp-phase15-canary-prepare-watch.service"
 
 
@@ -458,3 +461,50 @@ def test_persistent_prepare_shell_helpers_have_valid_syntax() -> None:
             capture_output=True,
             text=True,
         )
+
+
+def test_interactive_operator_requires_local_confirmations_and_one_submit_call() -> None:
+    text = INTERACTIVE_OPERATOR.read_text(encoding="utf-8")
+    for marker in (
+        'confirm_exact "RECONCILE"',
+        'confirm_exact "START"',
+        'confirm_exact "ARM"',
+        'confirm_exact "SUBMIT"',
+        "PHASE15_ACCEPT_UNSUBMITTED_RECONCILIATION=yes",
+        "PHASE15_ACCEPT_PERSISTENT_PREPARE_WATCH=yes",
+        "PHASE15_ACCEPT_REAL_MONEY=yes",
+        "phase15_v3_canary_prepare_watch_follow_cloudshell.sh",
+        "phase15_v3_canary_arm_cloudshell.sh",
+        "phase15_v3_canary_record_cloudshell.sh",
+        "phase15_v3_canary_reconcile_unsubmitted_cloudshell.sh",
+        "DO_NOT_RETRY_IF_OUTPUT_IS_MISSING_OR_AMBIGUOUS=true",
+        "SUBMISSION_RESULT_AMBIGUOUS=true",
+        "local_submission_attempt_marker_already_exists",
+        "KILL_SWITCH_REENGAGED_REQUESTED=true",
+        "PHASE15_V3_CANARY_INTERACTIVE_OPERATOR=PASS",
+    ):
+        assert marker in text
+    assert text.count("--command='sudo /opt/bp-canary/executor.sh'") == 1
+    assert "post_order" not in text
+    assert "create_limit_order" not in text
+    assert "POLYMARKET_PRIVATE_KEY" not in text
+
+
+def test_interactive_operator_preserves_manual_submission_policy() -> None:
+    text = INTERACTIVE_OPERATOR.read_text(encoding="utf-8")
+    assert 'assert gate["manual_real_money_submission_required"] is True' in text
+    assert 'assert gate["automated_real_money_submission"] is False' in text
+    assert 'assert gate["max_submission_attempts"] == 1' in text
+    assert 'assert gate["canary_order_submitted"] is False' in text
+    assert 'assert gate["second_order_authorized"] is False' in text
+    assert 'assert remaining >= 20' in text
+    assert 'assert (market_end-datetime.now(UTC)).total_seconds() >= 10' in text
+
+
+def test_interactive_operator_shell_syntax_is_valid() -> None:
+    subprocess.run(
+        ["bash", "-n", str(INTERACTIVE_OPERATOR)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
