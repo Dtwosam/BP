@@ -74,7 +74,7 @@ def main() -> int:
         state_dir=args.state_dir,
     )
 
-    receipt_dir = args.state_dir / "receipts" / str(claimed["intent_id"])
+    receipt_dir = args.state_dir / "receipts" / str(claimed["claim_id"])
     receipt_dir.mkdir(parents=True, exist_ok=True)
     os.chmod(receipt_dir, 0o700)
     prepared_path = receipt_dir / "prepared.json"
