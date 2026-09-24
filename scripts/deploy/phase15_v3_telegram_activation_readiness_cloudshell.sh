@@ -45,6 +45,9 @@ payload = {
     "telegram_persistent_execution_transport_authorized": gate.get(
         "telegram_persistent_execution_transport_authorized", False
     ),
+    "telegram_pubsub_transport_authorized": gate.get(
+        "telegram_pubsub_transport_authorized", False
+    ),
 }
 print(json.dumps(payload, separators=(",", ":"), sort_keys=True))
 PY
@@ -113,6 +116,8 @@ if source["telegram_one_tap_submission_authorized"] is not True:
     blockers.append("telegram_one_tap_not_authorized")
 if source["telegram_persistent_execution_transport_authorized"] is not True:
     blockers.append("persistent_execution_transport_not_authorized")
+if source["telegram_pubsub_transport_authorized"] is not True:
+    blockers.append("telegram_pubsub_transport_not_authorized")
 if listener["active"] is not True:
     blockers.append("telegram_listener_not_active")
 if listener["enabled"] is not True:
