@@ -1665,3 +1665,12 @@ Real-money submission is deliberately not automated.
 Exactly one network submission attempt is authorized. No second order or retry is authorized. Official order/fill reconciliation is mandatory before a later decision can authorize another live action. Missing, malformed, or ambiguous submission/cancellation evidence fails closed and must never trigger a retry.
 
 A profitable first canary does not authorize automatic promotion, stake growth, V3 tuning, or any V4 change. V3 paper observation and V4 Gate B collection continue in parallel.
+
+
+### 24 Sep 2026 — Phase 15 transient live-risk retry correction (engineering only)
+
+Investigation of the paper-vs-live canary path found a separate retry-semantics defect in the current Phase 15 prepare logic. A new frozen-V3 paper order is evaluated against current live liquidity. That live liquidity is time-varying, but the current candidate selector treats any prior `v3-live-canary-v1` risk decision for a prediction as terminal. Therefore a first-poll `liquidity_missing` or `liquidity_below_minimum` result can permanently blacklist that otherwise valid paper trade even if fresh eligible depth appears a few seconds later while the prediction remains within the 30-second live freshness window.
+
+The engineering correction permits re-evaluation only when **every prior risk decision for that prediction failed solely for transient reasons**: `liquidity_missing`, `liquidity_below_minimum`, or `api_unhealthy`. Every risk decision remains append-only and auditable. Any eligible decision or any non-transient failure — including stale prediction, spread, expiry, cooldown, exposure/loss, reconciliation, interlock, signal, or immutable source-request failure — remains terminal and fail-closed. The live intent natural key remains one intent per prediction/policy, the $5 frozen request and 0.075 edge threshold remain unchanged, and the one-network-attempt authorization remains unchanged.
+
+This correction is **not deployed to production**. It changes `src/bp_engine/execution/canary.py`, which is a persistent-watcher binding path. The currently running watcher remains pinned to its authorized deployed release. Any production rollout/restart onto this corrected behavior requires a separate explicit production authorization and must preserve no-order prepare-only behavior.
