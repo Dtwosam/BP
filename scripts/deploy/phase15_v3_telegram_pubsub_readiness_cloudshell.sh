@@ -123,20 +123,27 @@ project_iam = json.loads(project_iam_raw)
 cloud_platform = "https://www.googleapis.com/auth/cloud-platform"
 
 
-def service_account(instance: dict[str, object], label: str) -> tuple[str | None, list[str]]:
+def service_account(
+    instance: dict[str, object],
+    *,
+    count_blocker: str,
+    invalid_blocker: str,
+    missing_blocker: str,
+    scope_blocker: str,
+) -> tuple[str | None, list[str]]:
     accounts = instance.get("serviceAccounts") or []
     if not isinstance(accounts, list) or len(accounts) != 1:
-        return None, [f"{label}_service_account_count_not_one"]
+        return None, [count_blocker]
     entry = accounts[0]
     if not isinstance(entry, dict):
-        return None, [f"{label}_service_account_invalid"]
+        return None, [invalid_blocker]
     email = str(entry.get("email") or "")
     scopes = entry.get("scopes") or []
     blockers: list[str] = []
     if not email:
-        blockers.append(f"{label}_service_account_missing")
+        blockers.append(missing_blocker)
     if not isinstance(scopes, list) or cloud_platform not in scopes:
-        blockers.append(f"{label}_cloud_platform_scope_missing")
+        blockers.append(scope_blocker)
     return email or None, blockers
 
 
@@ -168,8 +175,20 @@ def project_roles(policy: dict[str, object], member: str) -> list[str]:
 
 
 blockers: list[str] = []
-publisher_sa, publisher_blockers = service_account(us, "publisher_vm")
-subscriber_sa, subscriber_blockers = service_account(executor, "subscriber_vm")
+publisher_sa, publisher_blockers = service_account(
+    us,
+    count_blocker="publisher_vm_service_account_count_not_one",
+    invalid_blocker="publisher_vm_service_account_invalid",
+    missing_blocker="publisher_vm_service_account_missing",
+    scope_blocker="publisher_vm_cloud_platform_scope_missing",
+)
+subscriber_sa, subscriber_blockers = service_account(
+    executor,
+    count_blocker="subscriber_vm_service_account_count_not_one",
+    invalid_blocker="subscriber_vm_service_account_invalid",
+    missing_blocker="subscriber_vm_service_account_missing",
+    scope_blocker="subscriber_vm_cloud_platform_scope_missing",
+)
 blockers.extend(publisher_blockers)
 blockers.extend(subscriber_blockers)
 
