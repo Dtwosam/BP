@@ -12,7 +12,7 @@ from typing import Any
 from bp_engine.execution.telegram_transport import (
     TransportError,
     create_transport_envelope,
-    parse_transport_key,
+    load_transport_key_file,
 )
 
 
@@ -72,13 +72,20 @@ def main() -> int:
         if os.environ.get(forbidden):
             raise SystemExit(f"{forbidden} must not be present in transport outbox")
 
-    key = parse_transport_key(os.environ.get("BP_TELEGRAM_TRANSPORT_HMAC_KEY", ""))
+    key_path_raw = os.environ.get("BP_TELEGRAM_TRANSPORT_KEY_FILE", "").strip()
+    if not key_path_raw:
+        raise SystemExit("BP_TELEGRAM_TRANSPORT_KEY_FILE is required")
+    key_id = os.environ.get("BP_TELEGRAM_TRANSPORT_KEY_ID", "").strip()
+    if not key_id:
+        raise SystemExit("BP_TELEGRAM_TRANSPORT_KEY_ID is required")
+    key = load_transport_key_file(Path(key_path_raw))
     prepared = _load_json(args.prepared_path)
     approval = _load_json(args.approval_path)
     envelope = create_transport_envelope(
         prepared,
         approval=approval,
         key=key,
+        key_id=key_id,
         created_at=_utc_now(),
         nonce=secrets.token_urlsafe(18),
     )
@@ -95,6 +102,7 @@ def main() -> int:
         json.dumps(
             {
                 "status": "transport_envelope_written",
+                "key_id": envelope["key_id"],
                 "intent_id": envelope["intent_id"],
                 "request_sha256": envelope["request_sha256"],
                 "prepared_sha256": envelope["prepared_sha256"],
