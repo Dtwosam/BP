@@ -16,7 +16,7 @@ Environment=LIVE_TRADING_ENABLED=false
 Environment=MAX_TRADE_SIZE_USD=0
 Environment=MAX_DAILY_LOSS_USD=0
 Environment=PYTHONPATH=/opt/bp-telegram-transport/current/src
-UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS BP_TELEGRAM_BOT_TOKEN
+UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS BP_TELEGRAM_BOT_TOKEN GOOGLE_APPLICATION_CREDENTIALS HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy
 ExecStart=/opt/bp-telegram-transport/.venv/bin/python /opt/bp-telegram-transport/current/scripts/run_phase15_v3_telegram_pubsub_streaming_receive.py
 Restart=on-failure
 RestartSec=1s
