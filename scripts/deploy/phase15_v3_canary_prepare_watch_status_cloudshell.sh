@@ -128,9 +128,25 @@ print(status["helper_head"], status["intent_id"], status["market_end_at"])
 PY
 )
 
-if [[ "$HELPER_HEAD" != "$LOCAL_HEAD" ]]; then
+BINDING_PATHS=(
+  src/bp_engine/execution/live.py
+  src/bp_engine/execution/canary.py
+  scripts/run_phase15_v3_canary_prepare_watch.py
+  deploy/bp-phase15-canary-prepare-watch.service
+  scripts/deploy/phase15_v3_canary_arm_cloudshell.sh
+  scripts/deploy/phase15_v3_canary_executor.py
+)
+
+git cat-file -e "$HELPER_HEAD^{commit}" 2>/dev/null || {
   echo "ARMABLE_NOW=false"
-  echo "REASON=watcher_helper_head_not_current_main"
+  echo "REASON=watcher_helper_head_missing_locally"
+  echo "REQUIRES_CLOSED_BEFORE_SUBMISSION_RECONCILIATION=true"
+  exit 1
+}
+
+if ! git diff --quiet "$HELPER_HEAD" "$LOCAL_HEAD" -- "${BINDING_PATHS[@]}"; then
+  echo "ARMABLE_NOW=false"
+  echo "REASON=watcher_prepare_or_execution_binding_changed"
   echo "REQUIRES_CLOSED_BEFORE_SUBMISSION_RECONCILIATION=true"
   exit 1
 fi

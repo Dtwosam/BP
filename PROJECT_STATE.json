@@ -4443,14 +4443,23 @@
         "no wallet material on recorder",
         "localhost-only network access for the sidecar",
         "hard runtime cap of 2h5m",
-        "prepared payload materializes to Cloud Shell only while at least 20 seconds remain and helper head still equals current main"
+        "prepared payload materializes to Cloud Shell only while at least 20 seconds remain and watcher-start/current-main prepare+execution binding files are unchanged"
       ],
       "follow_helper": "scripts/deploy/phase15_v3_canary_prepare_watch_follow_cloudshell.sh",
       "production_started_at": "2026-09-24T09:46:48Z",
       "run_id": "phase15-prepare-watch-20260924T094648Z-11ec4a06",
       "remote_run_dir": "/var/lib/bp/phase15-canary-prepare-watch/runs/phase15-prepare-watch-20260924T094648Z-11ec4a06",
       "service_active": true,
-      "production_evidence": "docs/evidence/phase-15-persistent-prepare-watch-production-start-20260924.json"
+      "production_evidence": "docs/evidence/phase-15-persistent-prepare-watch-production-start-20260924.json",
+      "binding_paths": [
+        "src/bp_engine/execution/live.py",
+        "src/bp_engine/execution/canary.py",
+        "scripts/run_phase15_v3_canary_prepare_watch.py",
+        "deploy/bp-phase15-canary-prepare-watch.service",
+        "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
+        "scripts/deploy/phase15_v3_canary_executor.py"
+      ],
+      "binding_semantics": "Documentation/evidence-only main advances are allowed; any change to a bound prepare/runtime/arm/executor path fails closed."
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {

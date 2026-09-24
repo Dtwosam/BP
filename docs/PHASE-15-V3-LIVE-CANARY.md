@@ -70,7 +70,7 @@ After any Cloud Shell reconnect, inspect/materialize the durable result with:
 bash scripts/deploy/phase15_v3_canary_prepare_watch_status_cloudshell.sh
 ```
 
-Only `PHASE15_V3_CANARY_PERSISTENT_PREPARE_STATUS=PASS` with `ARMABLE_NOW=true` may proceed to the existing manual arm step. A stale prepared intent, helper-head mismatch, or failure after intent persistence must not be armed and instead requires closed-before-submission reconciliation.
+Only `PHASE15_V3_CANARY_PERSISTENT_PREPARE_STATUS=PASS` with `ARMABLE_NOW=true` may proceed to the existing manual arm step. A stale prepared intent, prepare/execution binding mismatch, or failure after intent persistence must not be armed and instead requires closed-before-submission reconciliation. Documentation/evidence-only `main` advances do not invalidate a watcher when the bound prepare/runtime/arm/executor files are unchanged.
 
 ### 3. Arm — still no order
 
