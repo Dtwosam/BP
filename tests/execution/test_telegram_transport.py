@@ -130,8 +130,6 @@ def test_transport_envelope_is_exact_bound_and_strips_telegram_identity() -> Non
         envelope,
         key=key,
         expected_key_id=KEY_ID,
-        origin_key=ORIGIN_KEY,
-        expected_origin_key_id=ORIGIN_KEY_ID,
         observed_at=now + timedelta(seconds=3),
     )
 
@@ -169,8 +167,6 @@ def test_transport_envelope_tampering_wrong_key_and_expiry_fail_closed() -> None
             unexpected,
             key=key,
             expected_key_id=KEY_ID,
-            origin_key=ORIGIN_KEY,
-            expected_origin_key_id=ORIGIN_KEY_ID,
             observed_at=now + timedelta(seconds=3),
         )
 
@@ -181,8 +177,6 @@ def test_transport_envelope_tampering_wrong_key_and_expiry_fail_closed() -> None
             origin_modified,
             key=key,
             expected_key_id=KEY_ID,
-            origin_key=ORIGIN_KEY,
-            expected_origin_key_id=ORIGIN_KEY_ID,
             observed_at=now + timedelta(seconds=3),
         )
 
@@ -193,8 +187,6 @@ def test_transport_envelope_tampering_wrong_key_and_expiry_fail_closed() -> None
             modified,
             key=key,
             expected_key_id=KEY_ID,
-            origin_key=ORIGIN_KEY,
-            expected_origin_key_id=ORIGIN_KEY_ID,
             observed_at=now + timedelta(seconds=3),
         )
 
@@ -220,8 +212,6 @@ def test_transport_envelope_tampering_wrong_key_and_expiry_fail_closed() -> None
             envelope,
             key=key,
             expected_key_id=KEY_ID,
-            origin_key=ORIGIN_KEY,
-            expected_origin_key_id=ORIGIN_KEY_ID,
             observed_at=expires,
         )
 
@@ -256,8 +246,6 @@ def test_transport_claim_is_one_shot_for_exact_order_even_with_new_nonce(tmp_pat
         first,
         key=key,
         expected_key_id=KEY_ID,
-        origin_key=ORIGIN_KEY,
-        expected_origin_key_id=ORIGIN_KEY_ID,
         observed_at=now + timedelta(seconds=4),
         state_dir=state_dir,
     )
@@ -275,8 +263,6 @@ def test_transport_claim_is_one_shot_for_exact_order_even_with_new_nonce(tmp_pat
             second,
             key=key,
             expected_key_id=KEY_ID,
-            origin_key=ORIGIN_KEY,
-            expected_origin_key_id=ORIGIN_KEY_ID,
             observed_at=now + timedelta(seconds=4),
             state_dir=state_dir,
         )
@@ -306,16 +292,12 @@ def test_transport_claim_rejects_symlink_state_directory(tmp_path) -> None:
             envelope,
             key=key,
             expected_key_id=KEY_ID,
-            origin_key=ORIGIN_KEY,
-            expected_origin_key_id=ORIGIN_KEY_ID,
             observed_at=now + timedelta(seconds=3),
             state_dir=link,
         )
 
 
-def test_transport_claim_rejects_forged_origin_before_consuming_claim(
-    tmp_path: Path,
-) -> None:
+def test_transport_claim_carries_but_does_not_authenticate_origin_hmac(tmp_path) -> None:
     now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
     prepared = _prepared(now)
     approval = _approval(prepared, now)
@@ -338,17 +320,14 @@ def test_transport_claim_rejects_forged_origin_before_consuming_claim(
     )
     state_dir = tmp_path / "claims"
 
-    with pytest.raises(
-        TransportError,
-        match="origin attestation authentication failed",
-    ):
-        claim_transport_envelope(
-            envelope,
-            key=transport_key,
-            expected_key_id=KEY_ID,
-            origin_key=ORIGIN_KEY,
-            expected_origin_key_id=ORIGIN_KEY_ID,
-            observed_at=now + timedelta(seconds=3),
-            state_dir=state_dir,
-        )
-    assert not state_dir.exists()
+    claimed = claim_transport_envelope(
+        envelope,
+        key=transport_key,
+        expected_key_id=KEY_ID,
+        observed_at=now + timedelta(seconds=3),
+        state_dir=state_dir,
+    )
+    assert claimed["origin_attestation"] == forged_origin
+    assert claimed["retry_allowed"] is False
+    assert Path(str(claimed["claim_path"])).is_file()
+
