@@ -262,7 +262,13 @@ def claim_pending_once(
                 state_dir=claim_dir,
             )
         except TransportError as exc:
-            if str(exc) == "transport key id mismatch":
+            if str(exc) in (
+                "transport key id mismatch",
+                (
+                    "origin attestation authentication failed: "
+                    "origin attestation key id mismatch"
+                ),
+            ):
                 results.append(
                     {
                         "status": "key_id_mismatch_retry_later",
