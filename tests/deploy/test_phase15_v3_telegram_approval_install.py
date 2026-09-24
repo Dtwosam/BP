@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 INSTALL = ROOT / "scripts/deploy/phase15_v3_telegram_approval_install_cloudshell.sh"
 STATUS = ROOT / "scripts/deploy/phase15_v3_telegram_approval_status_cloudshell.sh"
 READINESS = ROOT / "scripts/deploy/phase15_v3_telegram_activation_readiness_cloudshell.sh"
+DISABLE = ROOT / "scripts/deploy/phase15_v3_telegram_approval_disable_cloudshell.sh"
 RUNNER = ROOT / "scripts/run_phase15_v3_canary_telegram_approval.py"
 UNIT = ROOT / "deploy/bp-phase15-canary-telegram-approval.service"
 
@@ -207,3 +208,37 @@ def test_telegram_activation_readiness_shell_and_embedded_python_are_valid() -> 
     assert len(blocks) >= 3
     for block in blocks:
         ast.parse(block)
+
+
+def test_telegram_disable_revokes_token_but_preserves_audit_state() -> None:
+    text = DISABLE.read_text(encoding="utf-8")
+    for marker in (
+        "PHASE15_ACCEPT_TELEGRAM_APPROVAL_DISABLE",
+        "explicit_telegram_approval_disable_authorization_required",
+        'systemctl stop "$SERVICE"',
+        'systemctl disable "$SERVICE"',
+        'rm -f "$ENV_PATH"',
+        "BOT_TOKEN_FILE_PRESENT=false",
+        "APPROVAL_AUDIT_STATE_PRESERVED=true",
+        "CORE_SERVICE_PIDS_PRESERVED=true",
+        "NO_REAL_ORDER_SUBMITTED=true",
+    ):
+        assert marker in text
+    for forbidden in (
+        'rm -rf "$STATE_ROOT"',
+        "PHASE15_ACCEPT_REAL_MONEY",
+        "post_order",
+        "create_limit_order",
+        "sudo /opt/bp-canary/executor.sh",
+    ):
+        assert forbidden not in text
+
+
+def test_telegram_disable_shell_syntax_is_valid() -> None:
+    completed = subprocess.run(
+        ["bash", "-n", str(DISABLE)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
