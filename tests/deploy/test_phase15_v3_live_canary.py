@@ -12,6 +12,7 @@ BOOTSTRAP = ROOT / "scripts/deploy/phase15_v3_canary_bootstrap_cloudshell.sh"
 PREPARE = ROOT / "scripts/deploy/phase15_v3_canary_prepare_cloudshell.sh"
 RECORD = ROOT / "scripts/deploy/phase15_v3_canary_record_cloudshell.sh"
 HOTPATH_ROLLOUT = ROOT / "scripts/deploy/phase15_v3_paper_hotpath_rollout_cloudshell.sh"
+TIMING_LATENCY_ROLLOUT = ROOT / "scripts/deploy/phase15_v3_timing_latency_rollout_cloudshell.sh"
 RECONCILE_UNSUBMITTED = (
     ROOT / "scripts/deploy/phase15_v3_canary_reconcile_unsubmitted_cloudshell.sh"
 )
@@ -216,6 +217,52 @@ def test_hotpath_rollout_embedded_python_is_syntax_valid() -> None:
     assert blocks
     for block in blocks:
         ast.parse(block)
+
+
+def test_timing_latency_rollout_is_paper_only_fail_closed_and_reversible() -> None:
+    text = TIMING_LATENCY_ROLLOUT.read_text(encoding="utf-8")
+    for marker in (
+        "PHASE15_ACCEPT_V3_TIMING_LATENCY_ROLLOUT",
+        "authorized_timing_commit_not_in_current_main",
+        "timing_runtime_binding_changed_after_authorized_commit",
+        "EXPECTED_OLD_RUNTIME",
+        "v3-paper-timing-",
+        "runtime_diff_not_single_file",
+        "bp-v3-paper-execution.service",
+        "report_count >= 6",
+        "median_gap > 6",
+        "max_gap > 10",
+        "ROLLBACK=restoring_previous_v3_runtime",
+        "RECORDER_PID_PRESERVED=true",
+        "PREDICTOR_PID_PRESERVED=true",
+        "LIVE_TRADING_ENABLED=false",
+        "MAX_TRADE_SIZE_USD=0",
+        "MAX_DAILY_LOSS_USD=0",
+        "PHASE15_V3_TIMING_LATENCY_ROLLOUT=PASS",
+    ):
+        assert marker in text
+    for forbidden in (
+        "phase15_v3_canary_executor.py",
+        "POLYMARKET_PRIVATE_KEY",
+        "post_order",
+        "create_limit_order",
+        "PHASE15_ACCEPT_REAL_MONEY",
+    ):
+        assert forbidden not in text
+
+
+def test_timing_latency_rollout_embedded_python_and_shell_are_syntax_valid() -> None:
+    text = TIMING_LATENCY_ROLLOUT.read_text(encoding="utf-8")
+    blocks = re.findall(r"<<'PY'[^\n]*\n(.*?)\nPY(?:\n|$)", text, flags=re.DOTALL)
+    assert blocks
+    for block in blocks:
+        ast.parse(block)
+    subprocess.run(
+        ["bash", "-n", str(TIMING_LATENCY_ROLLOUT)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
 
 def test_unsubmitted_reconciliation_is_fail_closed_and_never_submits() -> None:
