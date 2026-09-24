@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import base64
 import hashlib
 import json
 import os
@@ -353,6 +352,7 @@ def main() -> int:
         max_messages=1,
         max_bytes=MAX_ENVELOPE_BYTES,
     )
+
     def callback(message: StreamingMessage) -> None:
         result = process_message(
             message,
