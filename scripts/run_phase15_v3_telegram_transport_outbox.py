@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import secrets
+import stat
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -29,10 +30,32 @@ def _parse_args() -> argparse.Namespace:
 
 
 def _load_json(path: Path) -> dict[str, Any]:
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise TransportError(f"{path.name} is not readable") from exc
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+        raise TransportError(f"{path.name} must be a regular non-symlink file")
+    if info.st_size <= 0 or info.st_size > 1_048_576:
+        raise TransportError(f"{path.name} size invalid")
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise TransportError(f"{path.name} must contain a JSON object")
     return payload
+
+
+def _ensure_private_directory(path: Path) -> None:
+    try:
+        path.mkdir(parents=True, mode=0o700)
+    except FileExistsError:
+        pass
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise TransportError("transport outbox directory is not accessible") from exc
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+        raise TransportError("transport outbox must be a non-symlink directory")
+    os.chmod(path, 0o700)
 
 
 def _write_once(path: Path, payload: dict[str, Any]) -> None:
@@ -41,11 +64,10 @@ def _write_once(path: Path, payload: dict[str, Any]) -> None:
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     except FileExistsError as exc:
         raise TransportError("transport envelope already exists for exact order") from exc
-    try:
-        os.write(fd, encoded.encode("utf-8"))
-        os.fsync(fd)
-    finally:
-        os.close(fd)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(encoded)
+        handle.flush()
+        os.fsync(handle.fileno())
 
 
 def _utc_now() -> datetime:
@@ -90,8 +112,7 @@ def main() -> int:
         nonce=secrets.token_urlsafe(18),
     )
 
-    args.outbox_dir.mkdir(parents=True, exist_ok=True)
-    os.chmod(args.outbox_dir, 0o700)
+    _ensure_private_directory(args.outbox_dir)
     identity = hashlib.sha256(
         f"{envelope['intent_id']}\0{envelope['request_sha256']}".encode("utf-8")
     ).hexdigest()
