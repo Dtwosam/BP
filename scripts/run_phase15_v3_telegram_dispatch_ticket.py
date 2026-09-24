@@ -43,6 +43,26 @@ def _load_private_json(path: Path, *, label: str) -> dict[str, Any]:
     return dict(payload)
 
 
+def _load_source_truth_json(path: Path) -> dict[str, Any]:
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise DispatchTicketError("project state is not readable") from exc
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+        raise DispatchTicketError("project state must be a regular non-symlink file")
+    if stat.S_IMODE(info.st_mode) not in (0o600, 0o640, 0o644):
+        raise DispatchTicketError("project state mode must be 0600, 0640, or 0644")
+    if info.st_size <= 0 or info.st_size > MAX_JSON_BYTES:
+        raise DispatchTicketError("project state size invalid")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise DispatchTicketError("project state JSON invalid") from exc
+    if not isinstance(payload, Mapping):
+        raise DispatchTicketError("project state must contain a JSON object")
+    return dict(payload)
+
+
 def _ensure_private_parent(path: Path) -> None:
     parent = path.parent
     try:
@@ -95,6 +115,8 @@ def _parse_args() -> argparse.Namespace:
     claim = sub.add_parser("claim")
     claim.add_argument("--ticket", type=Path, required=True)
     claim.add_argument("--pre-execution-report", type=Path, required=True)
+    claim.add_argument("--ready-verification", type=Path, required=True)
+    claim.add_argument("--project-state", type=Path, required=True)
     claim.add_argument("--state-dir", type=Path, required=True)
     return parser.parse_args()
 
@@ -157,9 +179,16 @@ def main() -> int:
                 args.pre_execution_report,
                 label="pre-execution report",
             )
+            ready = _load_private_json(
+                args.ready_verification,
+                label="ready verification",
+            )
+            state = _load_source_truth_json(args.project_state)
             result = claim_dispatch_ticket(
                 ticket,
                 pre_execution_report=report,
+                ready_verification=ready,
+                project_state=state,
                 observed_at=_utc_now(),
                 state_dir=args.state_dir,
             )
