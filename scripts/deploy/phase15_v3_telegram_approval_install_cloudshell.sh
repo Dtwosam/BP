@@ -30,8 +30,7 @@ command -v python3 >/dev/null 2>&1 || fail_local "python3_missing"
 gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q . ||
   fail_local "gcloud_auth_missing"
 
-python3 - "$ROOT/PROJECT_STATE.json" <<'PY' ||
-  fail_local "source_truth_not_safe_for_listener_install"
+if ! python3 - "$ROOT/PROJECT_STATE.json" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -43,6 +42,9 @@ assert gate["live_trading_enabled"] is False
 assert gate["automated_real_money_submission"] is False
 assert gate["second_order_authorized"] is False
 PY
+then
+  fail_local "source_truth_not_safe_for_listener_install"
+fi
 
 printf '%s\n' "Open the BP Telegram bot in a private chat and send /start first." >/dev/tty
 printf '%s' "Telegram bot token (hidden): " >/dev/tty
