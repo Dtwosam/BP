@@ -110,7 +110,17 @@ def create_transport_envelope(
         raise TransportError("transport window already closed")
 
     prepared_copy = json.loads(_canonical(prepared).decode("utf-8"))
-    approval_copy = json.loads(_canonical(approval).decode("utf-8"))
+    approval_source_sha256 = payload_sha256(approval)
+    approval_copy = {
+        "schema_version": int(approval.get("schema_version", 0)),
+        "status": str(approval.get("status") or ""),
+        "intent_id": str(approval.get("intent_id") or ""),
+        "prediction_id": str(approval.get("prediction_id") or ""),
+        "paper_order_id": str(approval.get("paper_order_id") or ""),
+        "request_sha256": str(approval.get("request_sha256") or ""),
+        "approved_at": str(approval.get("approved_at") or ""),
+        "expires_at": str(approval.get("expires_at") or ""),
+    }
     body: dict[str, Any] = {
         "schema_version": TRANSPORT_SCHEMA_VERSION,
         "purpose": TRANSPORT_PURPOSE,
@@ -120,6 +130,7 @@ def create_transport_envelope(
         "request_sha256": binding["request_sha256"],
         "prepared_sha256": payload_sha256(prepared_copy),
         "approval_sha256": payload_sha256(approval_copy),
+        "approval_source_sha256": approval_source_sha256,
         "transport_nonce": nonce,
         "created_at": created.isoformat(),
         "expires_at": expires.isoformat(),
@@ -198,6 +209,7 @@ def verify_transport_envelope(
         "request_sha256": binding["request_sha256"],
         "prepared_sha256": str(envelope["prepared_sha256"]),
         "approval_sha256": str(envelope["approval_sha256"]),
+        "approval_source_sha256": str(envelope.get("approval_source_sha256") or ""),
         "transport_nonce": str(envelope["transport_nonce"]),
         "created_at": created.isoformat(),
         "expires_at": expires.isoformat(),
@@ -222,10 +234,7 @@ def claim_transport_envelope(
     os.chmod(state_dir, 0o700)
 
     claim_key = hashlib.sha256(
-        (
-            f"{verified['intent_id']}\0{verified['request_sha256']}\0"
-            f"{verified['transport_nonce']}"
-        ).encode("utf-8")
+        f"{verified['intent_id']}\0{verified['request_sha256']}".encode("utf-8")
     ).hexdigest()
     claim_path = state_dir / f"{claim_key}.json"
     record = {
@@ -237,6 +246,7 @@ def claim_transport_envelope(
         "request_sha256": verified["request_sha256"],
         "prepared_sha256": verified["prepared_sha256"],
         "approval_sha256": verified["approval_sha256"],
+        "approval_source_sha256": verified["approval_source_sha256"],
         "transport_nonce": verified["transport_nonce"],
         "claimed_at": _utc(observed_at).isoformat(),
         "retry_allowed": False,
