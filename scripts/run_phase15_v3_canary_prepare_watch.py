@@ -84,7 +84,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--official-open-order-count", type=int, required=True)
     parser.add_argument("--collateral-balance-usd", required=True)
     parser.add_argument("--max-wait-seconds", type=int, default=7200)
-    parser.add_argument("--poll-seconds", type=float, default=2.0)
+    parser.add_argument("--poll-seconds", type=float, default=0.5)
     parser.add_argument("--live-source", required=True)
     parser.add_argument("--canary-source", required=True)
     return parser.parse_args()
