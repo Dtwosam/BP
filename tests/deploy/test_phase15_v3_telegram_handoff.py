@@ -4,7 +4,6 @@ import json
 import subprocess
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 HANDOFF = ROOT / "scripts" / "deploy" / "phase15_v3_canary_telegram_handoff.sh"
 SERVICE = ROOT / "deploy" / "bp-phase15-canary-telegram-approval.service"
