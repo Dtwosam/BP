@@ -10,10 +10,7 @@ from types import ModuleType
 import pytest
 
 from bp_engine.execution.telegram_approval import approval_record, new_pending
-from bp_engine.execution.telegram_transport import (
-    TransportError,
-    encode_transport_key,
-)
+from bp_engine.execution.telegram_transport import TransportError, encode_transport_key
 
 
 ROOT = Path(__file__).resolve().parents[2]
