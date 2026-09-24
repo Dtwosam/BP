@@ -100,8 +100,17 @@ def verify_ready_bundle(
     except OriginAttestationError as exc:
         raise ReadyVerificationError(str(exc)) from exc
 
+    transport_key_id = str(envelope.get("key_id") or "")
+    if not transport_key_id:
+        raise ReadyVerificationError("ready envelope transport key id missing")
+    if str(receipt.get("key_id") or "") != transport_key_id:
+        raise ReadyVerificationError("ready receipt transport key id mismatch")
+
+    origin_key_id = str(verified["key_id"])
+    if str(receipt.get("origin_key_id") or "") != origin_key_id:
+        raise ReadyVerificationError("ready receipt origin key id mismatch")
+
     expected = {
-        "key_id": verified["key_id"],
         "intent_id": verified["intent_id"],
         "prediction_id": verified["prediction_id"],
         "paper_order_id": verified["paper_order_id"],
@@ -119,6 +128,8 @@ def verify_ready_bundle(
 
     return {
         "status": "execution_ready_origin_verified",
+        "transport_key_id": transport_key_id,
+        "origin_key_id": origin_key_id,
         **expected,
         "origin_attested_at": verified["attested_at"],
         "origin_expires_at": verified["expires_at"],
