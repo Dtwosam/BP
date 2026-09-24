@@ -1,4 +1,5 @@
 # Changelog
+- Production observation: the authorized persistent Phase 15 prepare-only watcher caught a genuine frozen-V3 $5 paper order, persisted live intent `live-intent-9e6ab9296b6335bba263ee4c8389eac4`, and stopped with no real order submitted. The prepared market expired before manual arm/submission and was reconciled as `closed_before_submission` via `live-reconciliation-d47db6426a7af07b8873aefb70696509`; kill switch remained engaged and the single network submission attempt remains unused. Evidence: `docs/evidence/phase-15-v3-canary-third-unsubmitted-reconciliation-20260924.json`.
 - Engineering-only: corrected Phase 15 candidate retry semantics so transient `liquidity_missing`, `liquidity_below_minimum`, or `api_unhealthy` risk decisions do not permanently blacklist a still-fresh frozen-V3 paper candidate. Non-transient failures remain terminal; risk decisions remain append-only; no production rollout is authorized by this change.
 
 ## 0.14.180 — 23 September 2026
