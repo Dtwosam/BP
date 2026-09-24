@@ -342,7 +342,7 @@ def claim_transport_envelope(
     _ensure_private_directory(state_dir)
 
     claim_key = hashlib.sha256(
-        f"{verified['intent_id']}\0{verified['request_sha256']}".encode("utf-8")
+        f"{verified['intent_id']}\0{verified['request_sha256']}".encode()
     ).hexdigest()
     claim_path = state_dir / f"{claim_key}.json"
     record = {
