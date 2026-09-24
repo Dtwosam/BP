@@ -273,6 +273,8 @@ def test_persistent_prepare_runner_is_prepare_only_and_bounded() -> None:
         '"failed_after_intent_persisted"',
         '"requires_reconciliation": True',
         "wallet material must not be present on prepare watcher",
+        'parser.add_argument("--poll-seconds", type=float, default=0.5)',
+        '"timing": normalized.get("timing")',
     ):
         assert marker in text
     for forbidden in (
@@ -284,6 +286,21 @@ def test_persistent_prepare_runner_is_prepare_only_and_bounded() -> None:
     ):
         assert forbidden not in text
     ast.parse(text)
+
+
+def test_phase15_canary_prepared_report_exposes_latency_diagnostics() -> None:
+    text = (ROOT / "src/bp_engine/execution/canary.py").read_text(encoding="utf-8")
+    for marker in (
+        '"prediction_scheduled_at"',
+        '"prediction_recorded_at"',
+        '"paper_order_created_at"',
+        '"prepared_observed_at"',
+        '"prediction_lateness_seconds"',
+        '"paper_order_after_prediction_seconds"',
+        '"prepare_after_paper_order_seconds"',
+        '"seconds_to_market_end_at_prepare"',
+    ):
+        assert marker in text
 
 
 def test_persistent_prepare_unit_is_research_zero_money_localhost_only() -> None:
@@ -320,6 +337,7 @@ def test_persistent_prepare_start_requires_explicit_scope_and_health_only() -> N
         "NO_REAL_ORDER_SUBMITTED=true",
         "ARM_AUTOMATED=false",
         "SUBMISSION_AUTOMATED=false",
+        'POLL_SECONDS="${PHASE15_CANARY_POLL_SECONDS:-0.5}"',
     ):
         assert marker in text
     assert "deploy/bp-phase15-canary-prepare-watch.service" in text

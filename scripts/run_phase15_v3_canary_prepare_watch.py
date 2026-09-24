@@ -84,7 +84,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--official-open-order-count", type=int, required=True)
     parser.add_argument("--collateral-balance-usd", required=True)
     parser.add_argument("--max-wait-seconds", type=int, default=7200)
-    parser.add_argument("--poll-seconds", type=float, default=2.0)
+    parser.add_argument("--poll-seconds", type=float, default=0.5)
     parser.add_argument("--live-source", required=True)
     parser.add_argument("--canary-source", required=True)
     return parser.parse_args()
@@ -221,6 +221,7 @@ def main() -> int:
                     "prediction_id": normalized["prediction_id"],
                     "paper_order_id": normalized["paper_order_id"],
                     "market_end_at": normalized["market_end_at"],
+                    "timing": normalized.get("timing"),
                     "updated_at": _utc_now().isoformat(),
                 },
             )
@@ -239,6 +240,7 @@ def main() -> int:
                 "target_notional_usd": normalized["request"]["target_notional_usd"],
                 "limit_price": normalized["request"]["limit_price"],
                 "requested_shares": normalized["request"]["requested_shares"],
+                "timing": normalized.get("timing"),
                 "prepared_file": str(prepared_path),
                 "updated_at": _utc_now().isoformat(),
             }

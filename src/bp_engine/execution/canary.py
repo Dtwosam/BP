@@ -412,13 +412,41 @@ def prepare_next_canary(
             },
         )
 
+    prediction_scheduled_at = _stored_utc(
+        prediction["scheduled_at"], "prediction.scheduled_at"
+    )
+    prediction_recorded_at = _stored_utc(
+        prediction["recorded_at"], "prediction.recorded_at"
+    )
+    paper_order_created_at = _stored_utc(order["created_at"], "paper_order.created_at")
+    market_end_at = _stored_utc(prediction["market_end_at"], "market_end_at")
+    timing = {
+        "prediction_scheduled_at": prediction_scheduled_at.isoformat(),
+        "prediction_recorded_at": prediction_recorded_at.isoformat(),
+        "paper_order_created_at": paper_order_created_at.isoformat(),
+        "prepared_observed_at": observed.isoformat(),
+        "prediction_lateness_seconds": str(
+            (prediction_recorded_at - prediction_scheduled_at).total_seconds()
+        ),
+        "paper_order_after_prediction_seconds": str(
+            (paper_order_created_at - prediction_recorded_at).total_seconds()
+        ),
+        "prepare_after_paper_order_seconds": str(
+            (observed - paper_order_created_at).total_seconds()
+        ),
+        "seconds_to_market_end_at_prepare": str(
+            (market_end_at - observed).total_seconds()
+        ),
+    }
+
     return {
         "status": "prepared",
         "intent_id": str(intent_store.record["intent_id"]),
         "request_id": request_id,
         "prediction_id": request.prediction_id,
         "paper_order_id": str(order["paper_order_id"]),
-        "market_end_at": _stored_utc(prediction["market_end_at"], "market_end_at").isoformat(),
+        "market_end_at": market_end_at.isoformat(),
+        "timing": timing,
         "request": request.as_mapping(),
         "policy": {
             "policy_version": policy.policy_version,

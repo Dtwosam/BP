@@ -656,3 +656,14 @@ A Phase 15 frozen-V3 paper candidate may be re-evaluated while still fresh only 
 This fixes a mismatch where current live liquidity could recover after the first poll but the candidate was already blacklisted by the mere existence of a prior risk decision. It does not change the frozen V3 model, calibration, 240-second timing, 0.075 minimum edge, $5 target, live limits, wallet/signer boundary, arm requirements, or one-network-submission-attempt rule.
 
 The user explicitly authorized production rollout of main `562cb0eacae283a2916cbb9201d0bbead272d684` and restart of the prepare-only watcher. The rollout passed: run `phase15-prepare-watch-20260924T112126Z-562cb0ea` is active on `bp-recorder`, live trading remains disabled, no arm or real order has been attempted, and the one network submission attempt remains unused. Evidence: `docs/evidence/phase-15-transient-risk-retry-rollout-production-20260924.json`.
+
+## D-065 — Reduce avoidable Phase 15 canary latency without changing frozen V3 timing
+**Date:** 24 Sep 2026  
+**Status:** Engineering ready; production rollout not authorized
+
+Repeated prepared canary observations arrived with roughly 42–46 seconds remaining. This is principally a consequence of the immutable frozen-V3 timing: the selected offset is 240 seconds into a 300-second market, leaving at most 60 seconds from the scheduled prediction instant to market end. The canary must not move that prediction earlier because doing so would change the frozen strategy.
+
+The engineering hardening therefore changes only operational polling latency. The frozen-V3 paper executor poll is reduced from 5 seconds to 1 second, and the persistent prepare-only watcher default poll is reduced from 2 seconds to 0.5 seconds. Prepared reports now expose the prediction scheduled time, prediction recorded time, paper-order creation time, prepare observation time, and the derived delay segments so production evidence can show where the remaining window is spent.
+
+The model SHA, 240-second selected offset, 0.075 minimum edge, $5 target, paper execution assumptions, live-risk thresholds, 30-second prepare floor, 20-second arm-helper floor, 45-second maximum arm duration, kill-switch behavior, manual submission requirement, and one-network-submission-attempt rule are unchanged. This decision is engineering-only until a separately authorized production rollout validates the faster paper-executor cadence and prepare watcher under live production load.
+
