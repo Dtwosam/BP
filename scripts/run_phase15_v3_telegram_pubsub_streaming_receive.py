@@ -328,6 +328,7 @@ def main() -> int:
         "POLYMARKET_PRIVATE_KEY",
         "POLYMARKET_WALLET_ADDRESS",
         "BP_TELEGRAM_BOT_TOKEN",
+        "GOOGLE_APPLICATION_CREDENTIALS",
     ):
         if os.environ.get(forbidden):
             raise SystemExit(f"{forbidden} must not be present in StreamingPull receiver")
