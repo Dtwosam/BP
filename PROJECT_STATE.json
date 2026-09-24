@@ -4422,7 +4422,7 @@
     "prepare_min_arm_window_seconds": 30,
     "prepare_arm_window_reason": "Operational safety margin before arm; stricter than the 15-second live-risk expiry minimum and does not relax strategy/risk.",
     "persistent_prepare_watch": {
-      "status": "PRODUCTION_PREPARED_RECONCILED_INACTIVE",
+      "status": "PRODUCTION_ACTIVE",
       "authorization_date": "2026-09-24",
       "authorization_source": "User explicitly authorized a persistent prepare watcher.",
       "authorized": true,
@@ -4449,17 +4449,22 @@
         "prepared payload materializes to Cloud Shell only while at least 20 seconds remain and watcher-start/current-main prepare+execution binding files are unchanged"
       ],
       "follow_helper": "scripts/deploy/phase15_v3_canary_prepare_watch_follow_cloudshell.sh",
-      "production_started_at": "2026-09-24T09:46:48Z",
-      "run_id": "phase15-prepare-watch-20260924T094648Z-11ec4a06",
-      "remote_run_dir": "/var/lib/bp/phase15-canary-prepare-watch/runs/phase15-prepare-watch-20260924T094648Z-11ec4a06",
-      "service_active": false,
+      "production_started_at": "2026-09-24T11:21:26.338462Z",
+      "run_id": "phase15-prepare-watch-20260924T112126Z-562cb0ea",
+      "remote_run_dir": "/var/lib/bp/phase15-canary-prepare-watch/runs/phase15-prepare-watch-20260924T112126Z-562cb0ea",
+      "service_active": true,
+      "helper_head": "562cb0eacae283a2916cbb9201d0bbead272d684",
+      "last_status": "running",
+      "last_status_reason": "no_new_frozen_v3_trade_order",
+      "last_status_observed_at": "2026-09-24T11:27:17.449922Z",
       "prepared_intent_id": "live-intent-9e6ab9296b6335bba263ee4c8389eac4",
       "prepared_prediction_id": "a2d00304828642b6b879728df183f8834127972d820845cf3c903d95c458ddec",
       "prepared_paper_order_id": "2ee2f20ba45c3517d42ce20da48f76e525049f8ae8633c18d719f4342d76844e",
       "prepared_market_end_at": "2026-09-24T10:50:00+00:00",
       "prepared_intent_reconciled": true,
       "prepared_reconciliation_id": "live-reconciliation-d47db6426a7af07b8873aefb70696509",
-      "production_evidence": "docs/evidence/phase-15-persistent-prepare-watch-production-start-20260924.json",
+      "production_evidence": "docs/evidence/phase-15-transient-risk-retry-rollout-production-20260924.json",
+      "previous_production_evidence": "docs/evidence/phase-15-persistent-prepare-watch-production-start-20260924.json",
       "completion_evidence": "docs/evidence/phase-15-v3-canary-third-unsubmitted-reconciliation-20260924.json",
       "binding_paths": [
         "src/bp_engine/execution/live.py",
@@ -4472,7 +4477,7 @@
       "binding_semantics": "Documentation/evidence-only main advances are allowed; any change to a bound prepare/runtime/arm/executor path fails closed."
     },
     "transient_risk_retry_fix": {
-      "status": "ENGINEERING_IMPLEMENTED_NOT_DEPLOYED",
+      "status": "PRODUCTION_ACTIVE",
       "date": "2026-09-24",
       "root_cause": "Any prior v3-live-canary-v1 risk decision permanently excluded a paper candidate, even when the only failure was transient current liquidity or API health.",
       "retryable_reasons": [
@@ -4486,10 +4491,13 @@
       "min_edge_changed": false,
       "target_notional_changed": false,
       "submission_attempt_rule_changed": false,
-      "production_deployed": false,
-      "production_rollout_authorized": false,
-      "current_watcher_binding_compatible": false,
-      "production_transition_requires_explicit_authorization": true
+      "production_deployed": true,
+      "production_rollout_authorized": true,
+      "production_rollout_authorized_at": "2026-09-24",
+      "production_commit": "562cb0eacae283a2916cbb9201d0bbead272d684",
+      "current_watcher_binding_compatible": true,
+      "production_transition_requires_explicit_authorization": false,
+      "production_evidence": "docs/evidence/phase-15-transient-risk-retry-rollout-production-20260924.json"
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {
