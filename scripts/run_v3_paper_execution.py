@@ -19,7 +19,7 @@ if __name__ == "__main__":
                 "--share-precision",
                 "6",
                 "--poll-seconds",
-                "5",
+                "1",
             ]
         )
     )
