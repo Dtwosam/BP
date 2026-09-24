@@ -13,16 +13,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from bp_engine.execution.telegram_pubsub_delivery import (
-    ensure_private_directory,
-    load_envelope_file,
-    write_new_json,
-)
 from bp_engine.execution.telegram_transport import (
     TransportError,
     claim_transport_envelope,
     load_transport_key_file,
 )
+
+
+MAX_ENVELOPE_BYTES = 256 * 1024
 
 
 def _utc_now() -> datetime:
@@ -62,6 +60,49 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _ensure_private_directory(path: Path, *, label: str) -> None:
+    try:
+        path.mkdir(parents=True, mode=0o700)
+    except FileExistsError:
+        pass
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise TransportError(f"{label} is not accessible") from exc
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+        raise TransportError(f"{label} must be a non-symlink directory")
+    os.chmod(path, 0o700)
+
+
+def _validate_readonly_private_directory(path: Path, *, label: str) -> None:
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise TransportError(f"{label} is not accessible") from exc
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+        raise TransportError(f"{label} must be a non-symlink directory")
+    if stat.S_IMODE(info.st_mode) & 0o077:
+        raise TransportError(f"{label} must not grant group or other access")
+
+
+def _load_envelope_file(path: Path) -> dict[str, Any]:
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise TransportError("transport envelope file is not readable") from exc
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+        raise TransportError("transport envelope must be a regular non-symlink file")
+    if info.st_size <= 0 or info.st_size > MAX_ENVELOPE_BYTES:
+        raise TransportError("transport envelope file size invalid")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise TransportError("transport envelope JSON invalid") from exc
+    if not isinstance(payload, Mapping):
+        raise TransportError("transport envelope must contain a JSON object")
+    return dict(payload)
+
+
 def _write_private_json(path: Path, payload: Mapping[str, Any]) -> None:
     encoded = (
         json.dumps(
@@ -85,13 +126,14 @@ def _pending(
     processed_dir: Path,
     failure_dir: Path,
 ) -> list[Path]:
-    ensure_private_directory(inbox_dir, label="transport inbox directory")
-    ensure_private_directory(processed_dir, label="claim processed directory")
-    ensure_private_directory(failure_dir, label="claim failure directory")
+    _validate_readonly_private_directory(
+        inbox_dir,
+        label="transport inbox directory",
+    )
+    _ensure_private_directory(processed_dir, label="claim processed directory")
+    _ensure_private_directory(failure_dir, label="claim failure directory")
     result: list[Path] = []
     for path in sorted(inbox_dir.glob("*.json")):
-        if path.is_symlink():
-            continue
         if (processed_dir / path.name).exists() or (failure_dir / path.name).exists():
             continue
         result.append(path)
@@ -105,7 +147,7 @@ def _materialize_ready(
     envelope: Mapping[str, Any],
     observed_at: datetime,
 ) -> Path:
-    ensure_private_directory(ready_root, label="transport ready directory")
+    _ensure_private_directory(ready_root, label="transport ready directory")
     claim_id = str(claimed["claim_id"])
     if len(claim_id) != 64 or any(ch not in "0123456789abcdef" for ch in claim_id):
         raise TransportError("transport claim id invalid")
@@ -155,7 +197,7 @@ def _terminal_failure(
     observed_at: datetime,
     claim_consumed: bool,
 ) -> Path:
-    ensure_private_directory(failure_dir, label="claim failure directory")
+    _ensure_private_directory(failure_dir, label="claim failure directory")
     path = failure_dir / inbox_path.name
     if path.exists():
         return path
@@ -175,7 +217,7 @@ def _terminal_failure(
         payload["key_id"] = str(envelope.get("key_id") or "")
         payload["intent_id"] = str(envelope.get("intent_id") or "")
         payload["request_sha256"] = str(envelope.get("request_sha256") or "")
-    write_new_json(path, payload, label="claim failure receipt")
+    _write_private_json(path, payload)
     return path
 
 
@@ -191,14 +233,14 @@ def claim_pending_once(
     observed_at: datetime,
 ) -> list[dict[str, Any]]:
     key = load_transport_key_file(key_path)
-    ensure_private_directory(claim_dir, label="transport claim directory")
-    ensure_private_directory(ready_dir, label="transport ready directory")
+    _ensure_private_directory(claim_dir, label="transport claim directory")
+    _ensure_private_directory(ready_dir, label="transport ready directory")
     results: list[dict[str, Any]] = []
 
     for inbox_path in _pending(inbox_dir, processed_dir, failure_dir):
         envelope: dict[str, Any] | None = None
         try:
-            envelope = load_envelope_file(inbox_path)
+            envelope = _load_envelope_file(inbox_path)
             claimed = claim_transport_envelope(
                 envelope,
                 key=key,
@@ -280,7 +322,7 @@ def claim_pending_once(
         }
         processed_path = processed_dir / inbox_path.name
         try:
-            write_new_json(processed_path, processed, label="claim processed receipt")
+            _write_private_json(processed_path, processed)
         except TransportError as exc:
             failure_path = _terminal_failure(
                 failure_dir=failure_dir,
