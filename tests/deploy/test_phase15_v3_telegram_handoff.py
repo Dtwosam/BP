@@ -37,6 +37,7 @@ def test_telegram_handoff_requires_full_source_truth_and_dispatch_claim() -> Non
         'claim["retry_allowed"] is False',
         'claim["executor_invoked"] is False',
         'claim["real_order_submitted"] is False',
+        'assert now < expires_at',
         "DISPATCH_CLAIM_SHA256=",
         "dispatch_claim_changed_after_arm",
         'PHASE15_ACCEPT_REAL_MONEY=yes',
@@ -86,6 +87,7 @@ def test_systemd_service_does_not_configure_handoff_by_default() -> None:
 def test_dispatch_claim_is_revalidated_again_after_arm() -> None:
     text = HANDOFF.read_text(encoding="utf-8")
     assert text.count('"DISPATCH_CLAIM_FILE"') >= 3
+    assert text.count('claim["expires_at"]') >= 2
     assert text.count('claim["status"] == "dispatch_claimed"') >= 2
     assert text.count('claim["retry_allowed"] is False') >= 2
     assert text.count('claim["executor_invoked"] is False') >= 2
