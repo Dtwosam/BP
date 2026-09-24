@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import base64
 import json
 import os
 import sys
@@ -14,8 +13,8 @@ from typing import Any
 
 from sqlalchemy import create_engine
 
-from bp_engine.config import Settings
 import bp_engine.execution as execution_package
+from bp_engine.config import Settings
 
 
 def _utc_now() -> datetime:
