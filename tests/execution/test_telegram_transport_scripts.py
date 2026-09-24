@@ -10,6 +10,7 @@ from types import ModuleType
 import pytest
 
 from bp_engine.execution.telegram_approval import approval_record, new_pending
+from bp_engine.execution.telegram_origin_attestation import create_origin_attestation
 from bp_engine.execution.telegram_transport import TransportError, encode_transport_key
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -49,7 +50,7 @@ def _prepared(now: datetime) -> dict[str, object]:
     }
 
 
-def _write_inputs(tmp_path: Path, now: datetime) -> tuple[Path, Path]:
+def _write_inputs(tmp_path: Path, now: datetime) -> tuple[Path, Path, Path]:
     prepared = _prepared(now)
     pending = new_pending(
         prepared,
@@ -64,11 +65,23 @@ def _write_inputs(tmp_path: Path, now: datetime) -> tuple[Path, Path]:
         callback_query_id="callback-id",
         approved_at=now + timedelta(seconds=1),
     )
+    origin_attestation = create_origin_attestation(
+        prepared,
+        approval=approval,
+        key=bytes(range(32, 64)),
+        key_id="phase15-telegram-origin-v1",
+        attested_at=now + timedelta(seconds=2),
+    )
     prepared_path = tmp_path / "prepared.json"
     approval_path = tmp_path / "approval.json"
+    origin_attestation_path = tmp_path / "origin-attestation.json"
     prepared_path.write_text(json.dumps(prepared), encoding="utf-8")
     approval_path.write_text(json.dumps(approval), encoding="utf-8")
-    return prepared_path, approval_path
+    origin_attestation_path.write_text(
+        json.dumps(origin_attestation),
+        encoding="utf-8",
+    )
+    return prepared_path, approval_path, origin_attestation_path
 
 
 def _zero_money_env(monkeypatch, tmp_path: Path, key: str) -> Path:
@@ -94,7 +107,10 @@ def test_transport_scripts_loopback_without_network_or_executor(
     capsys,
 ) -> None:
     now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
-    prepared_path, approval_path = _write_inputs(tmp_path, now)
+    prepared_path, approval_path, origin_attestation_path = _write_inputs(
+        tmp_path,
+        now,
+    )
     key = encode_transport_key(bytes(range(32)))
     _zero_money_env(monkeypatch, tmp_path, key)
 
@@ -112,6 +128,7 @@ def test_transport_scripts_loopback_without_network_or_executor(
             str(OUTBOX_SCRIPT),
             str(prepared_path),
             str(approval_path),
+            str(origin_attestation_path),
             "--outbox-dir",
             str(outbox_dir),
         ],
@@ -152,9 +169,13 @@ def test_transport_scripts_loopback_without_network_or_executor(
     claimed_approval = json.loads(
         Path(intake_result["approval_path"]).read_text(encoding="utf-8")
     )
+    claimed_origin_attestation = json.loads(
+        Path(intake_result["origin_attestation_path"]).read_text(encoding="utf-8")
+    )
     assert claimed_prepared["intent_id"] == "live-intent-loopback"
     assert claimed_approval["intent_id"] == "live-intent-loopback"
     assert "telegram_user_id" not in claimed_approval
+    assert claimed_origin_attestation["intent_id"] == "live-intent-loopback"
 
     with pytest.raises(TransportError, match="already claimed"):
         intake.main()
@@ -165,7 +186,10 @@ def test_transport_outbox_rejects_disabled_or_secret_bearing_runtime(
     monkeypatch,
 ) -> None:
     now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
-    prepared_path, approval_path = _write_inputs(tmp_path, now)
+    prepared_path, approval_path, origin_attestation_path = _write_inputs(
+        tmp_path,
+        now,
+    )
     key = encode_transport_key(bytes(range(32)))
     _zero_money_env(monkeypatch, tmp_path, key)
     outbox = _load(OUTBOX_SCRIPT, "telegram_transport_outbox_guard_test")
@@ -177,6 +201,7 @@ def test_transport_outbox_rejects_disabled_or_secret_bearing_runtime(
             str(OUTBOX_SCRIPT),
             str(prepared_path),
             str(approval_path),
+            str(origin_attestation_path),
             "--outbox-dir",
             str(tmp_path / "outbox"),
         ],
