@@ -267,6 +267,8 @@ def test_transport_claim_is_one_shot_for_exact_order_even_with_new_nonce(tmp_pat
             second,
             key=key,
             expected_key_id=KEY_ID,
+            origin_key=ORIGIN_KEY,
+            expected_origin_key_id=ORIGIN_KEY_ID,
             observed_at=now + timedelta(seconds=4),
             state_dir=state_dir,
         )
@@ -296,6 +298,8 @@ def test_transport_claim_rejects_symlink_state_directory(tmp_path) -> None:
             envelope,
             key=key,
             expected_key_id=KEY_ID,
+            origin_key=ORIGIN_KEY,
+            expected_origin_key_id=ORIGIN_KEY_ID,
             observed_at=now + timedelta(seconds=3),
             state_dir=link,
         )
