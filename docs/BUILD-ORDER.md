@@ -640,3 +640,8 @@ Keep the exact frozen V3 model/offset/edge policy unchanged. Continue V3 paper a
 
 **V4 Gate B v1 is now prospectively frozen** and the **V4 regime-aware feature collector** / **V4 regime-aware feature collection** continue unchanged. **Do not rerun the concurrent-partition-retirement rollout.** Continue frozen V3 paper observation in parallel with the bounded live canary; the canary must not change the paper strategy or the V4 epoch.
 
+
+
+### Phase 15 transient retry follow-up — 24 September 2026
+
+Engineering follow-up identified that the current live-canary candidate selector permanently excludes a prediction after any prior risk decision, even when the only failure is time-varying live liquidity. The correction is to retry only transient live-liquidity/API failures while the same frozen prediction remains fresh, preserving every risk-decision row and keeping all immutable/safety failures terminal. Verify the correction through CI and targeted retry tests. **Do not deploy or restart the production persistent watcher onto the corrected binding without explicit production authorization.** The frozen V3 strategy, $5 paper/live request, 0.075 edge threshold, V4 epoch, and one-network-attempt boundary remain unchanged.
