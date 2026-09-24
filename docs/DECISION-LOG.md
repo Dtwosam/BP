@@ -648,6 +648,15 @@ The watcher has no arm path and no authenticated order-submission path. Arm rema
 
 
 
+## D-067 — Stop after the first accepted live canary and require official fill reconciliation
+**Date:** 24 Sep 2026  
+**Status:** Active
+
+The first frozen-V3 real-money canary was submitted exactly once under the existing Phase 15 policy. Intent `live-intent-6cdfcfd28d0eb52f1ee0762bfd351409` used the frozen $5 target and was accepted by the official SDK path as external order `0x7c85e5e8753a875dfd9fec8ffd45726164863648127351b21c2a8ba1819a28de`. The executor then reported successful cancellation after the two-second TTL and the result was durably recorded as event `accepted`.
+
+This consumes the one authorized network submission attempt. There is no retry and no second order authorization. Because an accepted order can fill before a later cancellation succeeds, the cancellation response is not treated as proof of zero fill. The project must reconcile official order/fill state and resulting exposure/P&L before any later live action is considered. This canary does not authorize automatic trading, larger sizing, V3 mutation, or V4 promotion.
+
+
 ## D-066 — Use an interactive Cloud Shell fast path instead of chat between canary gates
 **Date:** 24 Sep 2026  
 **Status:** Engineering ready; no live action performed by this decision
