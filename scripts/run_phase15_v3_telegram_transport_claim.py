@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import shutil
+import stat
 import tempfile
 from collections.abc import Mapping
 from datetime import UTC, datetime
@@ -17,6 +18,19 @@ from bp_engine.execution.telegram_transport import (
 )
 
 MAX_ENVELOPE_BYTES = 256 * 1024
+
+
+def _ensure_private_directory(path: Path) -> None:
+    try:
+        path.mkdir(parents=True, mode=0o700)
+    except FileExistsError:
+        pass
+    info = path.lstat()
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+        raise TransportError(
+            "transport materialize root must be a non-symlink directory"
+        )
+    os.chmod(path, 0o700)
 
 
 def _load_envelope(path: Path) -> dict[str, Any]:
@@ -49,11 +63,10 @@ def _write_file(path: Path, payload: Mapping[str, Any]) -> None:
         + "\n"
     ).encode()
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    try:
-        os.write(fd, encoded)
-        os.fsync(fd)
-    finally:
-        os.close(fd)
+    with os.fdopen(fd, "wb") as handle:
+        handle.write(encoded)
+        handle.flush()
+        os.fsync(handle.fileno())
 
 
 def _materialize_claim(
@@ -62,8 +75,7 @@ def _materialize_claim(
     envelope: Mapping[str, Any],
     materialize_root: Path,
 ) -> dict[str, Any]:
-    materialize_root.mkdir(parents=True, exist_ok=True)
-    os.chmod(materialize_root, 0o700)
+    _ensure_private_directory(materialize_root)
     claim_name = Path(str(verified["claim_path"])).stem
     final_dir = materialize_root / claim_name
     if final_dir.exists():
