@@ -171,23 +171,25 @@ bug cannot create a second executable claim for the same exact order merely by c
 envelope nonce. Claim state is persisted with exclusive creation and `retry_allowed=false`.
 
 Origin authentication is independent of transport authentication. The transport envelope
-carries the approval-origin attestation, but the execution-side claim path must verify that
-attestation with a separate origin key and exact origin key ID before it creates the
-application-level claim. A valid transport HMAC alone is therefore insufficient to consume an
-order authorization. A forged or wrong-key origin proof fails before any claim marker is
-created.
+carries the approval-origin attestation, but the `bp-transport` receiver and claim worker do
+not receive the origin key. They may authenticate transport delivery and consume the one-shot
+transport claim, but the resulting `claimed_ready` bundle is still not execution-authorized.
 
-The claim worker requires both:
+The separate read-only boundary
 
 ```text
-BP_TELEGRAM_TRANSPORT_KEY_FILE
-BP_TELEGRAM_TRANSPORT_KEY_ID
-BP_TELEGRAM_ORIGIN_KEY_FILE
-BP_TELEGRAM_ORIGIN_KEY_ID
+scripts/run_phase15_v3_telegram_execution_ready_verify.py
 ```
 
-The two key domains are deliberately separate. The claim-worker systemd unit additionally
-requires the origin key file to exist before startup.
+holds the origin-key trust domain. It requires the protected origin key file and exact origin
+key ID, verifies the origin-attestation HMAC against the materialized prepared/approval
+payloads, and cross-checks the ready receipt and envelope. Only a bundle that passes this step
+can be labelled `execution_ready_origin_verified`.
+
+This split is deliberate: a transport-key compromise alone cannot create an origin-verified
+execution-ready artifact, while the transport service never receives the origin secret. A
+forged or wrong-key origin proof fails at the separate pre-execution verifier. The verifier is
+read-only and contains no arm, executor, wallet, network, or order-submission path.
 
 The carrierless adapters are:
 
