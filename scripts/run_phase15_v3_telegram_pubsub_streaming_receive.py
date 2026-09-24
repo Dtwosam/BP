@@ -10,10 +10,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
+from google.auth import compute_engine
 from google.cloud import pubsub_v1
 
 from bp_engine.execution.telegram_pubsub import (
     MAX_ENVELOPE_BYTES,
+    PUBSUB_SCOPE,
     PubSubTransportError,
     envelope_attributes,
 )
@@ -347,7 +349,8 @@ def main() -> int:
     _ensure_private_directory(args.inbox_dir)
     _ensure_private_directory(args.rejection_dir)
 
-    subscriber = pubsub_v1.SubscriberClient()
+    credentials = compute_engine.Credentials(scopes=[PUBSUB_SCOPE])
+    subscriber = pubsub_v1.SubscriberClient(credentials=credentials)
     subscription_path = subscriber.subscription_path(project_id, subscription_id)
     flow_control = pubsub_v1.types.FlowControl(
         max_messages=1,
