@@ -17,7 +17,12 @@ def test_streaming_receiver_unit_is_unprivileged_zero_money_and_wallet_isolated(
         "Environment=LIVE_TRADING_ENABLED=false",
         "Environment=MAX_TRADE_SIZE_USD=0",
         "Environment=MAX_DAILY_LOSS_USD=0",
-        "UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS BP_TELEGRAM_BOT_TOKEN GOOGLE_APPLICATION_CREDENTIALS HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy",
+        (
+            "UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS "
+            "BP_TELEGRAM_BOT_TOKEN GOOGLE_APPLICATION_CREDENTIALS "
+            "HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY "
+            "http_proxy https_proxy all_proxy no_proxy"
+        ),
         "NoNewPrivileges=true",
         "ProtectSystem=strict",
         "CapabilityBoundingSet=",
