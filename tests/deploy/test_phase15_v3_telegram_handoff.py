@@ -84,7 +84,7 @@ def test_systemd_service_does_not_configure_handoff_by_default() -> None:
 
 def test_dispatch_claim_is_revalidated_again_after_arm() -> None:
     text = HANDOFF.read_text(encoding="utf-8")
-    assert text.count('"DISPATCH_CLAIM_FILE"') >= 3
+    assert text.count('$DISPATCH_CLAIM_FILE') >= 3
     assert text.count('claim["expires_at"]') >= 2
     assert text.count('claim["status"] == "dispatch_claimed"') >= 2
     assert text.count('claim["retry_allowed"] is False') >= 2
