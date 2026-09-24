@@ -328,6 +328,8 @@ def test_transport_claim_carries_but_does_not_authenticate_origin_hmac(tmp_path)
         state_dir=state_dir,
     )
     assert claimed["origin_attestation"] == forged_origin
-    assert claimed["retry_allowed"] is False
-    assert Path(str(claimed["claim_path"])).is_file()
+    claim_path = Path(str(claimed["claim_path"]))
+    assert claim_path.is_file()
+    record = json.loads(claim_path.read_text(encoding="utf-8"))
+    assert record["retry_allowed"] is False
 
