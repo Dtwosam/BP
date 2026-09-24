@@ -221,6 +221,7 @@ def main() -> int:
                     "prediction_id": normalized["prediction_id"],
                     "paper_order_id": normalized["paper_order_id"],
                     "market_end_at": normalized["market_end_at"],
+                    "timing": normalized.get("timing"),
                     "updated_at": _utc_now().isoformat(),
                 },
             )
@@ -239,6 +240,7 @@ def main() -> int:
                 "target_notional_usd": normalized["request"]["target_notional_usd"],
                 "limit_price": normalized["request"]["limit_price"],
                 "requested_shares": normalized["request"]["requested_shares"],
+                "timing": normalized.get("timing"),
                 "prepared_file": str(prepared_path),
                 "updated_at": _utc_now().isoformat(),
             }
