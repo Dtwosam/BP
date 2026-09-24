@@ -15,6 +15,17 @@ HOTPATH_ROLLOUT = ROOT / "scripts/deploy/phase15_v3_paper_hotpath_rollout_clouds
 RECONCILE_UNSUBMITTED = (
     ROOT / "scripts/deploy/phase15_v3_canary_reconcile_unsubmitted_cloudshell.sh"
 )
+PERSISTENT_PREPARE_RUNNER = ROOT / "scripts/run_phase15_v3_canary_prepare_watch.py"
+PERSISTENT_PREPARE_START = (
+    ROOT / "scripts/deploy/phase15_v3_canary_prepare_watch_start_cloudshell.sh"
+)
+PERSISTENT_PREPARE_STATUS = (
+    ROOT / "scripts/deploy/phase15_v3_canary_prepare_watch_status_cloudshell.sh"
+)
+PERSISTENT_PREPARE_FOLLOW = (
+    ROOT / "scripts/deploy/phase15_v3_canary_prepare_watch_follow_cloudshell.sh"
+)
+PERSISTENT_PREPARE_UNIT = ROOT / "deploy/bp-phase15-canary-prepare-watch.service"
 
 
 def test_executor_is_ten_dollar_geoblock_checked_and_ttl_bounded() -> None:
@@ -248,3 +259,122 @@ def test_unsubmitted_reconciliation_shell_syntax_is_valid() -> None:
         capture_output=True,
         text=True,
     )
+
+
+def test_persistent_prepare_runner_is_prepare_only_and_bounded() -> None:
+    text = PERSISTENT_PREPARE_RUNNER.read_text(encoding="utf-8")
+    for marker in (
+        "prepare_next_canary",
+        'prepared_payload["action"] = "submit"',
+        "max wait must be within 1..7200 seconds",
+        '"real_order_submitted": False',
+        '"arm_attempted": False',
+        '"submission_attempt_consumed": False',
+        '"failed_after_intent_persisted"',
+        '"requires_reconciliation": True',
+        "wallet material must not be present on prepare watcher",
+    ):
+        assert marker in text
+    for forbidden in (
+        "post_order",
+        "create_limit_order",
+        "cancel_order",
+        "gcloud",
+        "PHASE15_ACCEPT_REAL_MONEY",
+    ):
+        assert forbidden not in text
+    ast.parse(text)
+
+
+def test_persistent_prepare_unit_is_research_zero_money_localhost_only() -> None:
+    text = PERSISTENT_PREPARE_UNIT.read_text(encoding="utf-8")
+    for marker in (
+        "User=bp",
+        "Group=bp",
+        "Environment=MODE=research",
+        "Environment=LIVE_TRADING_ENABLED=false",
+        "Environment=MAX_TRADE_SIZE_USD=0",
+        "Environment=MAX_DAILY_LOSS_USD=0",
+        "RuntimeMaxSec=2h5min",
+        "NoNewPrivileges=true",
+        "ProtectSystem=full",
+        "ReadWritePaths=/var/lib/bp/phase15-canary-prepare-watch",
+        "IPAddressDeny=any",
+        "IPAddressAllow=localhost",
+    ):
+        assert marker in text
+    assert "ExecStart=" in text
+    assert "phase15_v3_canary_arm" not in text
+    assert "phase15_v3_canary_executor" not in text
+
+
+def test_persistent_prepare_start_requires_explicit_scope_and_health_only() -> None:
+    text = PERSISTENT_PREPARE_START.read_text(encoding="utf-8")
+    for marker in (
+        "PHASE15_ACCEPT_PERSISTENT_PREPARE_WATCH",
+        "explicit_persistent_prepare_authorization_required",
+        '{"action":"health"}',
+        "persistent_prepare_watch_already_active",
+        "bp-phase15-canary-prepare-watch.service",
+        "MAX_WAIT_SECONDS >= 1 && MAX_WAIT_SECONDS <= 7200",
+        "NO_REAL_ORDER_SUBMITTED=true",
+        "ARM_AUTOMATED=false",
+        "SUBMISSION_AUTOMATED=false",
+    ):
+        assert marker in text
+    for forbidden in (
+        '{"action":"submit"}',
+        "post_order",
+        "create_limit_order",
+        "PHASE15_ACCEPT_REAL_MONEY",
+        "systemctl enable",
+    ):
+        assert forbidden not in text
+
+
+def test_persistent_prepare_status_materializes_only_fresh_current_payload() -> None:
+    text = PERSISTENT_PREPARE_STATUS.read_text(encoding="utf-8")
+    for marker in (
+        "watcher_helper_head_not_current_main",
+        "float(sys.argv[1]) >= 20",
+        "REQUIRES_CLOSED_BEFORE_SUBMISSION_RECONCILIATION=true",
+        "prepared_payload_binding_invalid",
+        'assert payload["action"] == "submit"',
+        "ARMABLE_NOW=true",
+        "NO_REAL_ORDER_SUBMITTED=true",
+    ):
+        assert marker in text
+    for forbidden in (
+        "PHASE15_ACCEPT_REAL_MONEY",
+        "post_order",
+        "create_limit_order",
+        "phase15_v3_canary_arm_cloudshell.sh",
+    ):
+        assert forbidden not in text
+
+
+def test_persistent_prepare_follow_only_observes_then_delegates_to_status() -> None:
+    text = PERSISTENT_PREPARE_FOLLOW.read_text(encoding="utf-8")
+    assert "phase15_v3_canary_prepare_watch_status_cloudshell.sh" in text
+    assert "systemctl is-active --quiet bp-phase15-canary-prepare-watch.service" in text
+    for forbidden in (
+        "PHASE15_ACCEPT_REAL_MONEY",
+        "post_order",
+        "create_limit_order",
+        "phase15_v3_canary_arm_cloudshell.sh",
+    ):
+        assert forbidden not in text
+
+
+def test_persistent_prepare_shell_helpers_have_valid_syntax() -> None:
+    for path in (
+        PERSISTENT_PREPARE_START,
+        PERSISTENT_PREPARE_STATUS,
+        PERSISTENT_PREPARE_FOLLOW,
+    ):
+        subprocess.run(
+            ["bash", "-n", str(path)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
