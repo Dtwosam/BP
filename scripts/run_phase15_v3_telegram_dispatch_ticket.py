@@ -15,7 +15,6 @@ from bp_engine.execution.telegram_dispatch_ticket import (
     create_dispatch_ticket,
 )
 
-
 MAX_JSON_BYTES = 256 * 1024
 
 
