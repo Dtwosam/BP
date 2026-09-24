@@ -208,6 +208,26 @@ def verify_dispatch_ticket(
     return dict(ticket)
 
 
+
+def verify_dispatch_ticket_against_report(
+    ticket: Mapping[str, Any],
+    *,
+    pre_execution_report: Mapping[str, Any],
+    observed_at: datetime,
+) -> dict[str, Any]:
+    verified = verify_dispatch_ticket(ticket, observed_at=observed_at)
+    created_at = _parse_timestamp(verified, "created_at")
+    expected = create_dispatch_ticket(
+        pre_execution_report,
+        created_at=created_at,
+    )
+    if dict(verified) != expected:
+        raise DispatchTicketError(
+            "dispatch ticket does not match pre-execution authorization report"
+        )
+    return verified
+
+
 def _ensure_private_directory(path: Path, *, label: str) -> None:
     try:
         path.mkdir(parents=True, mode=0o700)
@@ -225,10 +245,15 @@ def _ensure_private_directory(path: Path, *, label: str) -> None:
 def claim_dispatch_ticket(
     ticket: Mapping[str, Any],
     *,
+    pre_execution_report: Mapping[str, Any],
     observed_at: datetime,
     state_dir: Path,
 ) -> dict[str, Any]:
-    verified = verify_dispatch_ticket(ticket, observed_at=observed_at)
+    verified = verify_dispatch_ticket_against_report(
+        ticket,
+        pre_execution_report=pre_execution_report,
+        observed_at=observed_at,
+    )
     _ensure_private_directory(state_dir, label="dispatch claim directory")
 
     claim_id = hashlib.sha256(
