@@ -206,7 +206,7 @@ def main() -> int:
         raise SystemExit("Telegram Pub/Sub publisher configuration incomplete")
 
     try:
-        with httpx.Client() as client:
+        with httpx.Client(trust_env=False) as client:
             result = publish_transport(
                 client=client,
                 envelope_path=args.envelope_path,
