@@ -13,6 +13,7 @@ Environment=MODE=research
 Environment=LIVE_TRADING_ENABLED=false
 Environment=MAX_TRADE_SIZE_USD=0
 Environment=MAX_DAILY_LOSS_USD=0
+Environment=BP_TELEGRAM_HANDOFF_ENABLED=no
 Environment=PYTHONPATH=/opt/bp-phase15-telegram-approval/current/src
 UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS
 ExecStart=/opt/bp/.venv/bin/python /opt/bp-phase15-telegram-approval/current/scripts/run_phase15_v3_canary_telegram_approval.py
