@@ -4502,6 +4502,29 @@
       "current_watcher_binding_compatible": true,
       "production_transition_requires_explicit_authorization": false,
       "production_evidence": "docs/evidence/phase-15-transient-risk-retry-rollout-production-20260924.json"
+    },
+    "timing_latency_hardening": {
+      "status": "ENGINEERING_READY_NOT_PRODUCTION",
+      "date": "2026-09-24",
+      "root_cause": "Frozen V3 predicts at 240 seconds into a 300-second market, so the theoretical maximum prepare window is only 60 seconds; paper-executor and prepare-watcher polling consume additional avoidable seconds.",
+      "market_horizon_seconds": 300,
+      "frozen_selected_offset_seconds": 240,
+      "theoretical_max_seconds_to_market_end": 60,
+      "paper_execution_poll_seconds_before": 5,
+      "paper_execution_poll_seconds_after": 1,
+      "prepare_watcher_poll_seconds_before": 2,
+      "prepare_watcher_poll_seconds_after": 0.5,
+      "timing_diagnostics_added": true,
+      "strategy_changed": false,
+      "model_changed": false,
+      "selected_offset_changed": false,
+      "min_edge_changed": false,
+      "target_notional_changed": false,
+      "live_risk_changed": false,
+      "arm_semantics_changed": false,
+      "submission_semantics_changed": false,
+      "production_deployed": false,
+      "production_rollout_requires_explicit_authorization": true
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {
