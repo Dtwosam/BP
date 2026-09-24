@@ -170,6 +170,25 @@ Replay identity is `(intent_id, request_sha256)`, not the transport nonce. An at
 bug cannot create a second executable claim for the same exact order merely by changing the
 envelope nonce. Claim state is persisted with exclusive creation and `retry_allowed=false`.
 
+Origin authentication is independent of transport authentication. The transport envelope
+carries the approval-origin attestation, but the execution-side claim path must verify that
+attestation with a separate origin key and exact origin key ID before it creates the
+application-level claim. A valid transport HMAC alone is therefore insufficient to consume an
+order authorization. A forged or wrong-key origin proof fails before any claim marker is
+created.
+
+The claim worker requires both:
+
+```text
+BP_TELEGRAM_TRANSPORT_KEY_FILE
+BP_TELEGRAM_TRANSPORT_KEY_ID
+BP_TELEGRAM_ORIGIN_KEY_FILE
+BP_TELEGRAM_ORIGIN_KEY_ID
+```
+
+The two key domains are deliberately separate. The claim-worker systemd unit additionally
+requires the origin key file to exist before startup.
+
 The carrierless adapters are:
 
 ```text
