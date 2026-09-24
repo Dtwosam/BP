@@ -17,6 +17,9 @@ PREPARED_FILE="$1"
 APPROVAL_FILE="$2"
 [[ -r "$PREPARED_FILE" ]] || fail "prepared_file_missing"
 [[ -r "$APPROVAL_FILE" ]] || fail "approval_file_missing"
+DISPATCH_CLAIM_FILE="${PHASE15_TELEGRAM_DISPATCH_CLAIM_FILE:-}"
+[[ -n "$DISPATCH_CLAIM_FILE" ]] || fail "dispatch_claim_file_not_configured"
+[[ -r "$DISPATCH_CLAIM_FILE" ]] || fail "dispatch_claim_file_missing"
 [[ "${PHASE15_ACCEPT_TELEGRAM_REAL_MONEY:-no}" == "yes" ]] ||
   fail "telegram_real_money_not_explicitly_accepted"
 
@@ -36,31 +39,102 @@ RECORD_HELPER="$ROOT/scripts/deploy/phase15_v3_canary_record_cloudshell.sh"
 [[ -x "$ARM_HELPER" || -f "$ARM_HELPER" ]] || fail "arm_helper_missing"
 [[ -x "$RECORD_HELPER" || -f "$RECORD_HELPER" ]] || fail "record_helper_missing"
 
-PYTHONPATH="$ROOT/src" python3 - "$ROOT/PROJECT_STATE.json" "$PREPARED_FILE" "$APPROVAL_FILE" <<'PY' ||
-  fail "telegram_handoff_not_authorized_by_source_truth"
+PYTHONPATH="$ROOT/src" python3 - "$ROOT/PROJECT_STATE.json" "$PREPARED_FILE" "$APPROVAL_FILE" "$DISPATCH_CLAIM_FILE" <<'PY' ||
+  fail "telegram_handoff_not_authorized_by_source_truth_or_dispatch_claim"
 import json
+import re
+import stat
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
 from bp_engine.execution.telegram_approval import validate_approved_handoff
+from bp_engine.execution.telegram_origin_attestation import (
+    execution_approval,
+    payload_sha256,
+)
+from bp_engine.execution.telegram_pre_execution import source_truth_sha256
 
 state = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 prepared = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
 approval = json.loads(Path(sys.argv[3]).read_text(encoding="utf-8"))
+claim_path = Path(sys.argv[4])
+info = claim_path.lstat()
+assert not stat.S_ISLNK(info.st_mode)
+assert stat.S_ISREG(info.st_mode)
+assert stat.S_IMODE(info.st_mode) in (0o600, 0o640)
+claim = json.loads(claim_path.read_text(encoding="utf-8"))
 gate = state["phase_15_v3_live_canary"]
 
-assert gate.get("telegram_one_tap_submission_authorized") is True
+assert state["live_trading_enabled"] is False
 assert gate["live_trading_enabled"] is False
+assert gate.get("second_order_authorized") is True
+assert gate.get("automated_real_money_submission") is True
+assert gate.get("manual_real_money_submission_required") is False
+assert gate.get("telegram_one_tap_submission_authorized") is True
+assert gate.get("telegram_persistent_execution_transport_authorized") is True
+assert gate.get("telegram_pubsub_transport_authorized") is True
+
+expected_claim_fields = {
+    "schema_version",
+    "status",
+    "dispatch_ticket_sha256",
+    "authorization_report_sha256",
+    "source_truth_sha256",
+    "transport_key_id",
+    "origin_key_id",
+    "intent_id",
+    "prediction_id",
+    "paper_order_id",
+    "request_sha256",
+    "prepared_sha256",
+    "approval_sha256",
+    "approval_source_sha256",
+    "origin_attestation_sha256",
+    "claimed_at",
+    "retry_allowed",
+    "executor_invoked",
+    "real_order_submitted",
+}
+assert set(claim) == expected_claim_fields
+assert claim["schema_version"] == 1
+assert claim["status"] == "dispatch_claimed"
+assert claim["retry_allowed"] is False
+assert claim["executor_invoked"] is False
+assert claim["real_order_submitted"] is False
+assert claim["source_truth_sha256"] == source_truth_sha256(state)
+
 binding = validate_approved_handoff(
     prepared,
     approval=approval,
     observed_at=datetime.now(UTC),
 )
-assert binding["intent_id"] == str(prepared["intent_id"])
-assert binding["request_sha256"] == str(approval["request_sha256"])
+for field in ("intent_id", "prediction_id", "paper_order_id", "request_sha256"):
+    assert str(claim[field]) == str(binding[field])
+assert claim["prepared_sha256"] == payload_sha256(prepared)
+assert claim["approval_sha256"] == payload_sha256(execution_approval(approval))
+assert claim["approval_source_sha256"] == payload_sha256(approval)
+
+for name in (
+    "dispatch_ticket_sha256",
+    "authorization_report_sha256",
+    "source_truth_sha256",
+    "request_sha256",
+    "prepared_sha256",
+    "approval_sha256",
+    "approval_source_sha256",
+    "origin_attestation_sha256",
+):
+    assert re.fullmatch(r"[0-9a-f]{64}", str(claim[name])) is not None
+assert str(claim["transport_key_id"])
+assert str(claim["origin_key_id"])
+
+claimed_at = datetime.fromisoformat(str(claim["claimed_at"])).astimezone(UTC)
+assert claimed_at <= datetime.now(UTC)
+PY
 PY
 
+DISPATCH_CLAIM_SHA256=$(sha256sum "$DISPATCH_CLAIM_FILE" | awk '{print $1}')
 STATE_DIR=$(dirname "$APPROVAL_FILE")
 SUBMISSION_MARKER="$STATE_DIR/submission-attempt.json"
 RESULT_FILE="$STATE_DIR/executor-result.json"
@@ -79,7 +153,10 @@ trap cleanup EXIT
 PHASE15_ACCEPT_REAL_MONEY=yes PHASE15_CANARY_PREPARED_FILE="$PREPARED_FILE"   bash "$ARM_HELPER" >/dev/null
 ARMED=true
 
-PYTHONPATH="$ROOT/src" python3 - "$PREPARED_FILE" "$APPROVAL_FILE" <<'PY' ||
+[[ "$(sha256sum "$DISPATCH_CLAIM_FILE" | awk '{print $1}')" == "$DISPATCH_CLAIM_SHA256" ]] ||
+  fail "dispatch_claim_changed_after_arm"
+
+PYTHONPATH="$ROOT/src" python3 - "$PREPARED_FILE" "$APPROVAL_FILE" "$DISPATCH_CLAIM_FILE" <<'PY' ||
   fail "approval_or_prepared_binding_changed_after_arm"
 import json
 import sys
@@ -90,11 +167,18 @@ from bp_engine.execution.telegram_approval import validate_approved_handoff
 
 prepared = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 approval = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
-validate_approved_handoff(
+claim = json.loads(Path(sys.argv[3]).read_text(encoding="utf-8"))
+binding = validate_approved_handoff(
     prepared,
     approval=approval,
     observed_at=datetime.now(UTC),
 )
+for field in ("intent_id", "prediction_id", "paper_order_id", "request_sha256"):
+    assert str(claim[field]) == str(binding[field])
+assert claim["status"] == "dispatch_claimed"
+assert claim["retry_allowed"] is False
+assert claim["executor_invoked"] is False
+assert claim["real_order_submitted"] is False
 assert str(prepared.get("authorization_id") or "").startswith("phase15-v3-canary-")
 PY
 
