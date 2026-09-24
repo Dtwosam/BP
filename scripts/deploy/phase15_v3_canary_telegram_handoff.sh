@@ -132,7 +132,6 @@ assert str(claim["origin_key_id"])
 claimed_at = datetime.fromisoformat(str(claim["claimed_at"])).astimezone(UTC)
 assert claimed_at <= datetime.now(UTC)
 PY
-PY
 
 DISPATCH_CLAIM_SHA256=$(sha256sum "$DISPATCH_CLAIM_FILE" | awk '{print $1}')
 STATE_DIR=$(dirname "$APPROVAL_FILE")
