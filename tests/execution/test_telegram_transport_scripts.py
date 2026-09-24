@@ -10,7 +10,10 @@ from types import ModuleType
 import pytest
 
 from bp_engine.execution.telegram_approval import approval_record, new_pending
-from bp_engine.execution.telegram_origin_attestation import create_origin_attestation
+from bp_engine.execution.telegram_origin_attestation import (
+    create_origin_attestation,
+    encode_origin_key,
+)
 from bp_engine.execution.telegram_transport import TransportError, encode_transport_key
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -89,14 +92,20 @@ def _zero_money_env(monkeypatch, tmp_path: Path, key: str) -> Path:
     key_path = tmp_path / "transport.key"
     key_path.write_text(key + "\n", encoding="utf-8")
     key_path.chmod(0o600)
+    origin_key_path = tmp_path / "origin.key"
+    origin_key_path.write_text(
+        encode_origin_key(bytes(range(32, 64))) + "\n",
+        encoding="utf-8",
+    )
+    origin_key_path.chmod(0o600)
     monkeypatch.setenv("MODE", "research")
     monkeypatch.setenv("LIVE_TRADING_ENABLED", "false")
     monkeypatch.setenv("MAX_TRADE_SIZE_USD", "0")
     monkeypatch.setenv("MAX_DAILY_LOSS_USD", "0")
     monkeypatch.setenv("BP_TELEGRAM_TRANSPORT_KEY_FILE", str(key_path))
     monkeypatch.setenv("BP_TELEGRAM_TRANSPORT_KEY_ID", KEY_ID)
-    monkeypatch.delenv("BP_TELEGRAM_ORIGIN_KEY_FILE", raising=False)
-    monkeypatch.delenv("BP_TELEGRAM_ORIGIN_KEY_ID", raising=False)
+    monkeypatch.setenv("BP_TELEGRAM_ORIGIN_KEY_FILE", str(origin_key_path))
+    monkeypatch.setenv("BP_TELEGRAM_ORIGIN_KEY_ID", ORIGIN_KEY_ID)
     monkeypatch.delenv("BP_TELEGRAM_TRANSPORT_HMAC_KEY", raising=False)
     monkeypatch.delenv("POLYMARKET_PRIVATE_KEY", raising=False)
     monkeypatch.delenv("POLYMARKET_WALLET_ADDRESS", raising=False)
