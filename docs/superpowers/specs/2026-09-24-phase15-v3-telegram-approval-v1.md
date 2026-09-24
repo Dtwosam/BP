@@ -145,8 +145,15 @@ chat ID, and callback query ID remain on `bp-recorder`; they are not sent to the
 host. A SHA-256 of the fuller local approval record is carried only as an audit link.
 
 The envelope uses a dedicated 256-bit HMAC-SHA256 transport key that is separate from both the
-Telegram bot token and the Polymarket signing key. It binds:
+Telegram bot token and the Polymarket signing key. The adapters load this secret only from a
+regular, non-symlink `0600` or `0640` key file; the raw key is not accepted through adapter
+environment. Every envelope also carries an explicit bounded `key_id`, and intake must be
+configured for that exact key ID before HMAC verification. This supports deliberate key
+rotation without "try every key" behavior.
 
+The envelope binds:
+
+- exact transport key ID;
 - exact intent, prediction, and paper-order identities;
 - exact request SHA-256;
 - exact prepared payload SHA-256;
@@ -171,11 +178,13 @@ scripts/run_phase15_v3_telegram_transport_intake.py
 ```
 
 The outbox requires an explicit enable flag, research/zero-money runtime, the dedicated
-transport key, and absence of Telegram/trading secrets in its child environment. It writes
+protected transport-key file plus exact key ID, and absence of Telegram/trading secrets in its
+child environment. It writes
 exactly one local envelope per exact order and performs no network send.
 
-The intake requires a separate explicit enable flag and the transport key. It verifies the
-HMAC, expiry, exact prepared/approval binding, claims the exact order once, and materializes
+The intake requires a separate explicit enable flag, the protected transport-key file, and the
+same exact key ID. It verifies the HMAC, expiry, exact prepared/approval binding, claims the
+exact order once, and materializes
 the prepared/approval receipt under a hashed claim path. It does not invoke the executor or
 submit an order.
 
