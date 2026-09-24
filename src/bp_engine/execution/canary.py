@@ -47,6 +47,9 @@ CANARY_MAX_ACCEPTED_ORDERS = 1
 CANARY_MAX_SUBMISSION_ATTEMPTS = 1
 CANARY_TARGET_NOTIONAL_USD = Decimal("5")
 CANARY_SUBMISSION_ATTEMPT_EVENTS = ("accepted", "rejected", "submission_unknown")
+CANARY_RETRYABLE_RISK_REASONS = frozenset(
+    {"liquidity_missing", "liquidity_below_minimum", "api_unhealthy"}
+)
 CANARY_PRE_SUBMISSION_CLOSED_EVENT = "closed_before_submission"
 CANARY_INTENT_TERMINAL_EVENTS = (
     *CANARY_SUBMISSION_ATTEMPT_EVENTS,
@@ -151,13 +154,36 @@ def _ensure_initial_reconciliation(
     )
 
 
+def _retryable_risk_reasons(reasons: object) -> bool:
+    if not isinstance(reasons, (list, tuple)):
+        return False
+    normalized = tuple(str(reason).strip() for reason in reasons if str(reason).strip())
+    return bool(normalized) and all(
+        reason in CANARY_RETRYABLE_RISK_REASONS for reason in normalized
+    )
+
+
 def _evaluated_prediction_ids(connection) -> set[str]:
+    """Return canary predictions that must not be reconsidered.
+
+    A prediction may be re-evaluated only when every prior canary risk decision
+    failed solely for transient live conditions. This preserves each risk
+    decision in the append-only ledger while allowing short-lived liquidity or
+    API-health misses to recover inside the prediction freshness window.
+    """
     rows = connection.execute(
-        select(schema.live_risk_decisions.c.prediction_id).where(
-            schema.live_risk_decisions.c.policy_version == CANARY_POLICY_VERSION
-        )
-    ).scalars()
-    return {str(value) for value in rows}
+        select(
+            schema.live_risk_decisions.c.prediction_id,
+            schema.live_risk_decisions.c.eligible,
+            schema.live_risk_decisions.c.reasons,
+        ).where(schema.live_risk_decisions.c.policy_version == CANARY_POLICY_VERSION)
+    ).mappings()
+    terminal: set[str] = set()
+    for row in rows:
+        prediction_id = str(row["prediction_id"])
+        if row["eligible"] is True or not _retryable_risk_reasons(row["reasons"]):
+            terminal.add(prediction_id)
+    return terminal
 
 
 def _candidate(
@@ -343,6 +369,7 @@ def prepare_next_canary(
                 "status": "skipped",
                 "reason": decision.reasons[0] if decision.reasons else "live_risk_blocked",
                 "reasons": decision.reasons,
+                "retryable": _retryable_risk_reasons(decision.reasons),
                 "prediction_id": request.prediction_id,
                 "paper_order_id": str(order["paper_order_id"]),
             }

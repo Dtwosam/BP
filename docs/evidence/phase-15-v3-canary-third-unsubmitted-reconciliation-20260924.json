@@ -1,0 +1,19 @@
+{
+  "date": "2026-09-24",
+  "status": "PASS",
+  "intent_id": "live-intent-9e6ab9296b6335bba263ee4c8389eac4",
+  "prediction_id": "a2d00304828642b6b879728df183f8834127972d820845cf3c903d95c458ddec",
+  "paper_order_id": "2ee2f20ba45c3517d42ce20da48f76e525049f8ae8633c18d719f4342d76844e",
+  "market_end_at": "2026-09-24T10:50:00+00:00",
+  "prepared_status": "prepared",
+  "prepared_armable_at_capture": true,
+  "arm_attempted": false,
+  "live_order_submitted": false,
+  "submission_attempt_consumed": false,
+  "reconciliation_id": "live-reconciliation-d47db6426a7af07b8873aefb70696509",
+  "reconciliation_event": "closed_before_submission",
+  "reconciliation_status": "reconciled",
+  "kill_switch_engaged": true,
+  "helper_result": "PHASE15_V3_CANARY_RECONCILE_UNSUBMITTED=PASS",
+  "interpretation": "Prepared frozen-V3 $5 canary intent expired before manual arm/submission and was safely closed before submission. The single authorized network submission attempt remains unused."
+}

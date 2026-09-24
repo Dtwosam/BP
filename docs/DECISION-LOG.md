@@ -645,3 +645,14 @@ The user explicitly authorized a persistent Phase 15 prepare watcher so Cloud Sh
 The watcher may run only on the existing US recorder as a separate sidecar for at most two hours per authorized start. It must run as user `bp` in research mode with live trading disabled and zero money limits, contain no wallet/private-key material, use localhost-only networking, and remain disabled across VM reboot. It may call the same current Phase 15 `prepare_next_canary` logic against the frozen V3 runtime and may persist at most the same risk evidence/live intent/prepared payload that the existing prepare helper would create.
 
 The watcher has no arm path and no authenticated order-submission path. Arm remains an explicit Cloud Shell action gated by `PHASE15_ACCEPT_REAL_MONEY=yes`; the single network submission remains manual and exactly once. The status helper may materialize a remote prepared payload only when at least 20 seconds remain to market end and the watcher-start commit is binding-equivalent to current `main` across the prepare runner, current live-risk/canary modules, sidecar unit, arm helper, and executor. Documentation/evidence-only commits do not invalidate an otherwise identical watcher. Any bound runtime/execution-file change fails closed into the existing closed-before-submission reconciliation path.
+
+
+## D-064 — Retry only transient live-liquidity misses during Phase 15 prepare
+**Date:** 24 Sep 2026  
+**Status:** Engineering only; production rollout not authorized
+
+A Phase 15 frozen-V3 paper candidate may be re-evaluated while still fresh only when all prior canary risk decisions failed exclusively for transient live conditions: `liquidity_missing`, `liquidity_below_minimum`, or `api_unhealthy`. The existing append-only risk decisions remain preserved. Any eligible decision or any non-transient failure permanently removes that prediction from further prepare consideration.
+
+This fixes a mismatch where current live liquidity could recover after the first poll but the candidate was already blacklisted by the mere existence of a prior risk decision. It does not change the frozen V3 model, calibration, 240-second timing, 0.075 minimum edge, $5 target, live limits, wallet/signer boundary, arm requirements, or one-network-submission-attempt rule.
+
+Because the correction changes a persistent-watcher binding path, it is not a production rollout authorization. The active watcher remains on its current pinned release until an explicitly authorized production transition.
