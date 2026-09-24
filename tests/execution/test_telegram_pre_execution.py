@@ -11,6 +11,7 @@ from bp_engine.execution.telegram_pre_execution import (
     PreExecutionError,
     evaluate_pre_execution_authorization,
     source_truth_sha256,
+    verify_pre_execution_snapshot,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -236,3 +237,78 @@ def test_pre_execution_report_hash_changes_when_ready_binding_changes() -> None:
         project_state=state,
     )
     assert first["authorization_report_sha256"] != second["authorization_report_sha256"]
+
+
+def test_pre_execution_snapshot_rejects_source_truth_drift() -> None:
+    state = _authorized_state()
+    ready = _ready()
+    snapshot = evaluate_pre_execution_authorization(
+        ready_verification=ready,
+        project_state=state,
+    )
+
+    changed = copy.deepcopy(state)
+    phase = changed["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    phase["second_order_authorized"] = False
+
+    with pytest.raises(PreExecutionError, match="stale or modified"):
+        verify_pre_execution_snapshot(
+            snapshot,
+            ready_verification=ready,
+            project_state=changed,
+            require_authorized=True,
+        )
+
+
+def test_pre_execution_snapshot_rejects_ready_binding_drift() -> None:
+    state = _authorized_state()
+    ready = _ready()
+    snapshot = evaluate_pre_execution_authorization(
+        ready_verification=ready,
+        project_state=state,
+    )
+    changed_ready = _ready()
+    changed_ready["origin_attestation_sha256"] = "8" * 64
+
+    with pytest.raises(PreExecutionError, match="stale or modified"):
+        verify_pre_execution_snapshot(
+            snapshot,
+            ready_verification=changed_ready,
+            project_state=state,
+            require_authorized=True,
+        )
+
+
+def test_pre_execution_snapshot_rejects_tampering_and_blocked_require_authorized() -> None:
+    state = _authorized_state()
+    ready = _ready()
+    snapshot = evaluate_pre_execution_authorization(
+        ready_verification=ready,
+        project_state=state,
+    )
+    tampered = dict(snapshot)
+    tampered["authorization_report_sha256"] = "0" * 64
+    with pytest.raises(PreExecutionError, match="stale or modified"):
+        verify_pre_execution_snapshot(
+            tampered,
+            ready_verification=ready,
+            project_state=state,
+            require_authorized=True,
+        )
+
+    blocked_state = copy.deepcopy(state)
+    phase = blocked_state["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    phase["telegram_one_tap_submission_authorized"] = False
+    blocked = evaluate_pre_execution_authorization(
+        ready_verification=ready,
+        project_state=blocked_state,
+    )
+    with pytest.raises(PreExecutionError, match="not authorized"):
+        verify_pre_execution_snapshot(
+            blocked,
+            ready_verification=ready,
+            project_state=blocked_state,
+            require_authorized=True,
+        )
