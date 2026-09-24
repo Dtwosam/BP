@@ -1,0 +1,23 @@
+{
+  "date": "2026-09-24",
+  "status": "PASS",
+  "authorized_main_commit": "562cb0eacae283a2916cbb9201d0bbead272d684",
+  "authorization_scope": "Production rollout of main 562cb0ea and restart of the prepare-only watcher; no arm or live submission authorized.",
+  "run_id": "phase15-prepare-watch-20260924T112126Z-562cb0ea",
+  "activated_at": "2026-09-24T11:21:26.338462+00:00",
+  "helper_head": "562cb0eacae283a2916cbb9201d0bbead272d684",
+  "remote_run_dir": "/var/lib/bp/phase15-canary-prepare-watch/runs/phase15-prepare-watch-20260924T112126Z-562cb0ea",
+  "service_active": true,
+  "watcher_status": "running",
+  "reason": "no_new_frozen_v3_trade_order",
+  "max_wait_seconds": 7200,
+  "live_trading_enabled": false,
+  "arm_attempted": false,
+  "real_order_submitted": false,
+  "submission_attempt_consumed": false,
+  "arm_automated": false,
+  "submission_automated": false,
+  "start_helper_result": "PHASE15_V3_CANARY_PERSISTENT_PREPARE_START=PASS",
+  "status_helper_result": "PHASE15_V3_CANARY_PERSISTENT_PREPARE_STATUS=RUNNING",
+  "production_validation_observed_at": "2026-09-24T11:27:17.449922+00:00"
+}
