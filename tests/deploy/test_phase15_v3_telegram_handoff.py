@@ -71,11 +71,9 @@ def test_dispatch_claim_and_submission_markers_precede_executor_call() -> None:
     )
     arm = text.index('bash "$ARM_HELPER"')
     dispatch_unchanged = text.index("dispatch_claim_changed_after_arm")
-    submission_marker = text.index(
-        'SUBMISSION_MARKER="$STATE_DIR/submission-attempt.json"'
-    )
+    submission_attempt = text.index('python3 - "$SUBMISSION_MARKER"')
     executor = text.index("--command='sudo /opt/bp-canary/executor.sh'")
-    assert dispatch_gate < arm < dispatch_unchanged < submission_marker < executor
+    assert dispatch_gate < arm < dispatch_unchanged < submission_attempt < executor
 
 
 def test_systemd_service_does_not_configure_handoff_by_default() -> None:
