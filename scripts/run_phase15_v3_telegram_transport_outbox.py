@@ -114,7 +114,7 @@ def main() -> int:
 
     _ensure_private_directory(args.outbox_dir)
     identity = hashlib.sha256(
-        f"{envelope['intent_id']}\0{envelope['request_sha256']}".encode("utf-8")
+        f"{envelope['intent_id']}\0{envelope['request_sha256']}".encode()
     ).hexdigest()
     envelope_path = args.outbox_dir / f"{identity}.json"
     _write_once(envelope_path, envelope)
