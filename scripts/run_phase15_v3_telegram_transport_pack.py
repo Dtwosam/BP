@@ -74,6 +74,7 @@ def pack_transport(
     *,
     prepared_path: Path,
     approval_path: Path,
+    origin_attestation_path: Path,
     key_path: Path,
     key_id: str,
     output_path: Path,
@@ -82,10 +83,12 @@ def pack_transport(
 ) -> dict[str, Any]:
     prepared = _load_json_file(prepared_path)
     approval = _load_json_file(approval_path)
+    origin_attestation = _load_json_file(origin_attestation_path)
     key = load_transport_key_file(key_path)
     envelope = create_transport_envelope(
         prepared,
         approval=approval,
+        origin_attestation=origin_attestation,
         key=key,
         key_id=key_id,
         created_at=created_at,
@@ -98,6 +101,7 @@ def pack_transport(
         "intent_id": envelope["intent_id"],
         "request_sha256": envelope["request_sha256"],
         "prepared_sha256": envelope["prepared_sha256"],
+        "origin_attestation_sha256": envelope["origin_attestation_sha256"],
         "expires_at": envelope["expires_at"],
         "output_path": str(output_path),
         "network_action_performed": False,
@@ -111,6 +115,7 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--prepared", type=Path, required=True)
     parser.add_argument("--approval", type=Path, required=True)
+    parser.add_argument("--origin-attestation", type=Path, required=True)
     parser.add_argument("--key-file", type=Path, required=True)
     parser.add_argument("--key-id", required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -123,6 +128,7 @@ def main() -> int:
         result = pack_transport(
             prepared_path=args.prepared,
             approval_path=args.approval,
+            origin_attestation_path=args.origin_attestation,
             key_path=args.key_file,
             key_id=args.key_id,
             output_path=args.output,
