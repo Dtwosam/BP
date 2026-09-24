@@ -17,10 +17,13 @@ from bp_engine.execution.telegram_transport import (
     claim_transport_envelope,
     create_transport_envelope,
     encode_transport_key,
+    load_transport_key_file,
     parse_transport_key,
     payload_sha256,
     verify_transport_envelope,
 )
+
+KEY_ID = "phase15-telegram-transport-v1"
 
 
 def _prepared(now: datetime) -> dict[str, object]:
@@ -73,6 +76,23 @@ def test_transport_key_round_trip_is_exact_and_strict() -> None:
         parse_transport_key("%%%not-base64%%%")
 
 
+def test_transport_key_file_rejects_weak_mode_and_symlink(tmp_path) -> None:
+    key_path = tmp_path / "transport.key"
+    key_path.write_text(encode_transport_key(bytes(range(32))) + "\n", encoding="utf-8")
+    key_path.chmod(0o600)
+    assert load_transport_key_file(key_path) == bytes(range(32))
+
+    key_path.chmod(0o644)
+    with pytest.raises(TransportError, match="mode"):
+        load_transport_key_file(key_path)
+
+    key_path.chmod(0o600)
+    link = tmp_path / "transport-link.key"
+    link.symlink_to(key_path)
+    with pytest.raises(TransportError, match="non-symlink"):
+        load_transport_key_file(link)
+
+
 def test_transport_envelope_is_exact_bound_and_strips_telegram_identity() -> None:
     now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
     prepared = _prepared(now)
@@ -83,15 +103,18 @@ def test_transport_envelope_is_exact_bound_and_strips_telegram_identity() -> Non
         prepared,
         approval=approval,
         key=key,
+        key_id=KEY_ID,
         created_at=now + timedelta(seconds=2),
         nonce="transport-nonce-1",
     )
     verified = verify_transport_envelope(
         envelope,
         key=key,
+        expected_key_id=KEY_ID,
         observed_at=now + timedelta(seconds=3),
     )
 
+    assert verified["key_id"] == KEY_ID
     assert verified["intent_id"] == prepared["intent_id"]
     assert verified["request_sha256"] == request_sha256(prepared)
     assert envelope["prepared_sha256"] == payload_sha256(prepared)
@@ -110,6 +133,7 @@ def test_transport_envelope_tampering_wrong_key_and_expiry_fail_closed() -> None
         prepared,
         approval=approval,
         key=key,
+        key_id=KEY_ID,
         created_at=now + timedelta(seconds=2),
         nonce="transport-nonce-1",
     )
@@ -120,6 +144,7 @@ def test_transport_envelope_tampering_wrong_key_and_expiry_fail_closed() -> None
         verify_transport_envelope(
             unexpected,
             key=key,
+            expected_key_id=KEY_ID,
             observed_at=now + timedelta(seconds=3),
         )
 
@@ -129,6 +154,7 @@ def test_transport_envelope_tampering_wrong_key_and_expiry_fail_closed() -> None
         verify_transport_envelope(
             modified,
             key=key,
+            expected_key_id=KEY_ID,
             observed_at=now + timedelta(seconds=3),
         )
 
@@ -136,6 +162,15 @@ def test_transport_envelope_tampering_wrong_key_and_expiry_fail_closed() -> None
         verify_transport_envelope(
             envelope,
             key=bytes(reversed(range(32))),
+            expected_key_id=KEY_ID,
+            observed_at=now + timedelta(seconds=3),
+        )
+
+    with pytest.raises(TransportError, match="key id mismatch"):
+        verify_transport_envelope(
+            envelope,
+            key=key,
+            expected_key_id="phase15-telegram-transport-v2",
             observed_at=now + timedelta(seconds=3),
         )
 
@@ -144,6 +179,7 @@ def test_transport_envelope_tampering_wrong_key_and_expiry_fail_closed() -> None
         verify_transport_envelope(
             envelope,
             key=key,
+            expected_key_id=KEY_ID,
             observed_at=expires,
         )
 
@@ -159,6 +195,7 @@ def test_transport_claim_is_one_shot_for_exact_order_even_with_new_nonce(tmp_pat
         prepared,
         approval=approval,
         key=key,
+        key_id=KEY_ID,
         created_at=now + timedelta(seconds=2),
         nonce="transport-nonce-1",
     )
@@ -166,6 +203,7 @@ def test_transport_claim_is_one_shot_for_exact_order_even_with_new_nonce(tmp_pat
         prepared,
         approval=approval,
         key=key,
+        key_id=KEY_ID,
         created_at=now + timedelta(seconds=3),
         nonce="transport-nonce-2",
     )
@@ -173,6 +211,7 @@ def test_transport_claim_is_one_shot_for_exact_order_even_with_new_nonce(tmp_pat
     claimed = claim_transport_envelope(
         first,
         key=key,
+        expected_key_id=KEY_ID,
         observed_at=now + timedelta(seconds=4),
         state_dir=state_dir,
     )
@@ -189,6 +228,7 @@ def test_transport_claim_is_one_shot_for_exact_order_even_with_new_nonce(tmp_pat
         claim_transport_envelope(
             second,
             key=key,
+            expected_key_id=KEY_ID,
             observed_at=now + timedelta(seconds=4),
             state_dir=state_dir,
         )
@@ -203,6 +243,7 @@ def test_transport_claim_rejects_symlink_state_directory(tmp_path) -> None:
         prepared,
         approval=approval,
         key=key,
+        key_id=KEY_ID,
         created_at=now + timedelta(seconds=2),
         nonce="transport-nonce-symlink",
     )
@@ -215,6 +256,7 @@ def test_transport_claim_rejects_symlink_state_directory(tmp_path) -> None:
         claim_transport_envelope(
             envelope,
             key=key,
+            expected_key_id=KEY_ID,
             observed_at=now + timedelta(seconds=3),
             state_dir=link,
         )
