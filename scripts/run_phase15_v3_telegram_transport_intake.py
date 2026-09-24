@@ -10,7 +10,7 @@ from typing import Any
 from bp_engine.execution.telegram_transport import (
     TransportError,
     claim_transport_envelope,
-    parse_transport_key,
+    load_transport_key_file,
 )
 
 
@@ -67,11 +67,18 @@ def main() -> int:
         if os.environ.get(forbidden):
             raise SystemExit(f"{forbidden} must not be present in transport intake")
 
-    key = parse_transport_key(os.environ.get("BP_TELEGRAM_TRANSPORT_HMAC_KEY", ""))
+    key_path_raw = os.environ.get("BP_TELEGRAM_TRANSPORT_KEY_FILE", "").strip()
+    if not key_path_raw:
+        raise SystemExit("BP_TELEGRAM_TRANSPORT_KEY_FILE is required")
+    key_id = os.environ.get("BP_TELEGRAM_TRANSPORT_KEY_ID", "").strip()
+    if not key_id:
+        raise SystemExit("BP_TELEGRAM_TRANSPORT_KEY_ID is required")
+    key = load_transport_key_file(Path(key_path_raw))
     envelope = _load_json(args.envelope_path)
     claimed = claim_transport_envelope(
         envelope,
         key=key,
+        expected_key_id=key_id,
         observed_at=_utc_now(),
         state_dir=args.state_dir,
     )
@@ -90,6 +97,7 @@ def main() -> int:
         json.dumps(
             {
                 "status": "transport_envelope_claimed",
+                "key_id": claimed["key_id"],
                 "intent_id": claimed["intent_id"],
                 "request_sha256": claimed["request_sha256"],
                 "prepared_sha256": claimed["prepared_sha256"],
