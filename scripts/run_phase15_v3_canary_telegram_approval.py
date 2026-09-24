@@ -280,7 +280,11 @@ def _dispatch_approved_handoff(
     else:
         result = {
             "schema_version": 1,
-            "status": "handoff_completed" if completed.returncode == 0 else "handoff_failed_no_retry",
+            "status": (
+                "handoff_completed"
+                if completed.returncode == 0
+                else "handoff_failed_no_retry"
+            ),
             "intent_id": binding["intent_id"],
             "request_sha256": binding["request_sha256"],
             "command_exit_code": completed.returncode,
