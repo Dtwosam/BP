@@ -268,11 +268,29 @@ Pub/Sub OAuth scope, require the Google metadata response flavor, and use HTTP c
 environment proxy inheritance disabled. It has no wallet/signing material and no
 executor/arm/submission code.
 
-The receiver uses its own VM-attached service account and one configured pull subscription.
-Its HTTP client likewise ignores environment proxy configuration. 
-It validates the Pub/Sub routing attributes, verifies the envelope HMAC and exact key ID,
-durably persists the exact envelope to a local execution-host inbox, and only then
-acknowledges the Pub/Sub delivery. It does not claim the order or invoke the executor.
+The unary REST receiver in
+`scripts/run_phase15_v3_telegram_pubsub_receive.py` remains a diagnostic/contract adapter.
+It is not the low-latency production candidate because the transport envelope is short-lived
+and continuous subscription delivery should use StreamingPull through the high-level client.
+
+The low-latency receiver candidate is:
+
+```text
+scripts/run_phase15_v3_telegram_pubsub_streaming_receive.py
+deploy/bp-phase15-telegram-pubsub-streaming-receiver.service
+```
+
+It uses `google-cloud-pubsub` StreamingPull with one outstanding message at a time. The
+callback validates routing attributes, HMAC, exact key ID, approval/request binding, and
+expiry. A valid envelope is durably persisted before ACK. An exact duplicate is revalidated
+and ACKed without creating another authorization. A malformed, tampered, or expired message
+is durably recorded as rejected before ACK so it cannot become a poison-message loop. Local
+key/config or durable-storage failures NACK so a legitimate message can survive host repair.
+
+The candidate service runs as a dedicated `bp-transport` account, keeps research/zero-money
+environment values, has no Linux capabilities, and makes `/etc/bp-canary` inaccessible.
+Therefore the receiver cannot read the Polymarket signing key, kill switch, or activation
+file and cannot invoke the executor.
 
 The intended IAM boundary is resource-level least privilege:
 
@@ -291,8 +309,9 @@ an order.
 A same-order inbox collision with different authenticated envelope bytes fails closed and is
 not overwritten. Network delivery success alone never arms or submits anything.
 
-No Pub/Sub topic, subscription, IAM role, VM service-account change, systemd unit, or production
-configuration has been created by this branch.
+No Pub/Sub topic, subscription, IAM role, VM service-account change, receiver service
+installation, service enablement, or production configuration has been performed by this
+branch. A hardened systemd unit definition exists only as an engineering artifact.
 
 The readiness gate treats both
 
