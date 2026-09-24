@@ -191,6 +191,25 @@ execution-ready artifact, while the transport service never receives the origin 
 forged or wrong-key origin proof fails at the separate pre-execution verifier. The verifier is
 read-only and contains no arm, executor, wallet, network, or order-submission path.
 
+
+After origin verification, BP applies a second read-only source-truth gate:
+
+```text
+scripts/run_phase15_v3_telegram_pre_execution_gate.py
+```
+
+It re-verifies the ready bundle, hashes the supplied `PROJECT_STATE.json`, and requires all
+relevant policy decisions to be explicit before it can report
+`pre_execution_authorized`: the first canary must be reconciled, no pending intent may
+exist, second-order authorization must be true, automated real-money submission must be
+authorized, manual-only submission must be lifted, and the Telegram one-tap, persistent
+transport, and Pub/Sub transport authorizations must all be true.
+
+The current source truth does not satisfy those requirements, so the gate reports
+`pre_execution_blocked`. The gate never arms, signs, submits, cancels, mutates source truth,
+or calls a network service; even its synthetic authorized result is only an authorization
+report for a later separately reviewed execution boundary.
+
 The carrierless adapters are:
 
 ```text
