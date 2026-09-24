@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import secrets
+import stat
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
@@ -16,6 +17,17 @@ from bp_engine.execution.telegram_transport import (
 )
 
 MAX_INPUT_BYTES = 128 * 1024
+
+
+def _ensure_private_directory(path: Path) -> None:
+    try:
+        path.mkdir(parents=True, mode=0o700)
+    except FileExistsError:
+        pass
+    info = path.lstat()
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+        raise TransportError("transport output directory must be a non-symlink directory")
+    os.chmod(path, 0o700)
 
 
 def _load_json_file(path: Path) -> dict[str, Any]:
@@ -37,7 +49,7 @@ def _load_json_file(path: Path) -> dict[str, Any]:
 
 
 def _write_new_json(path: Path, payload: Mapping[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    _ensure_private_directory(path.parent)
     encoded = (
         json.dumps(
             dict(payload),
@@ -52,11 +64,10 @@ def _write_new_json(path: Path, payload: Mapping[str, Any]) -> None:
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     except FileExistsError as exc:
         raise TransportError("transport envelope output already exists") from exc
-    try:
-        os.write(fd, encoded)
-        os.fsync(fd)
-    finally:
-        os.close(fd)
+    with os.fdopen(fd, "wb") as handle:
+        handle.write(encoded)
+        handle.flush()
+        os.fsync(handle.fileno())
 
 
 def pack_transport(
