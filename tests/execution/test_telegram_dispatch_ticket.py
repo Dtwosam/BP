@@ -119,6 +119,7 @@ def test_dispatch_ticket_claim_is_exact_one_shot_and_private(tmp_path: Path) -> 
     assert persisted["authorization_report_sha256"] == report[
         "authorization_report_sha256"
     ]
+    assert persisted["expires_at"] == ticket["expires_at"]
 
     with pytest.raises(DispatchTicketError, match="already claimed"):
         claim_dispatch_ticket(
