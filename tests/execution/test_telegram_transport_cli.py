@@ -243,3 +243,83 @@ def test_transport_boundary_scripts_have_no_network_or_order_execution() -> None
             "POLYMARKET_WALLET_ADDRESS",
         ):
             assert forbidden not in text
+
+
+def test_pack_rejects_symlink_output_directory(tmp_path: Path) -> None:
+    pack = _load_script(PACK_SCRIPT, "telegram_transport_pack_symlink")
+    now = datetime.now(UTC)
+    prepared = _prepared(now)
+    approval = _approval(prepared, now)
+    key = bytes(range(32))
+
+    prepared_path = tmp_path / "prepared.json"
+    approval_path = tmp_path / "approval.json"
+    key_path = tmp_path / "transport.key"
+    actual = tmp_path / "actual-output"
+    actual.mkdir()
+    output_parent = tmp_path / "output"
+    output_parent.symlink_to(actual, target_is_directory=True)
+    _write_json(prepared_path, prepared)
+    _write_json(approval_path, approval)
+    _write_key(key_path, key)
+
+    with pytest.raises(TransportError, match="non-symlink directory"):
+        pack.pack_transport(
+            prepared_path=prepared_path,
+            approval_path=approval_path,
+            key_path=key_path,
+            output_path=output_parent / "envelope.json",
+            created_at=now + timedelta(seconds=2),
+            nonce="transport-nonce-pack-symlink",
+        )
+
+
+def test_claim_rejects_symlink_materialize_root_after_consuming_claim(
+    tmp_path: Path,
+) -> None:
+    pack = _load_script(PACK_SCRIPT, "telegram_transport_pack_materialize_symlink")
+    claim = _load_script(CLAIM_SCRIPT, "telegram_transport_claim_materialize_symlink")
+    now = datetime.now(UTC)
+    prepared = _prepared(now)
+    approval = _approval(prepared, now)
+    key = bytes(range(32))
+
+    prepared_path = tmp_path / "prepared.json"
+    approval_path = tmp_path / "approval.json"
+    key_path = tmp_path / "transport.key"
+    envelope_path = tmp_path / "envelope.json"
+    claims = tmp_path / "claims"
+    actual = tmp_path / "actual-materialize"
+    actual.mkdir()
+    materialized = tmp_path / "materialized"
+    materialized.symlink_to(actual, target_is_directory=True)
+    _write_json(prepared_path, prepared)
+    _write_json(approval_path, approval)
+    _write_key(key_path, key)
+
+    pack.pack_transport(
+        prepared_path=prepared_path,
+        approval_path=approval_path,
+        key_path=key_path,
+        output_path=envelope_path,
+        created_at=now + timedelta(seconds=2),
+        nonce="transport-nonce-materialize-symlink",
+    )
+
+    with pytest.raises(TransportError, match="claim consumed"):
+        claim.claim_transport(
+            envelope_path=envelope_path,
+            key_path=key_path,
+            claim_state_dir=claims,
+            materialize_root=materialized,
+            observed_at=now + timedelta(seconds=3),
+        )
+
+    with pytest.raises(TransportError, match="already claimed"):
+        claim.claim_transport(
+            envelope_path=envelope_path,
+            key_path=key_path,
+            claim_state_dir=claims,
+            materialize_root=materialized,
+            observed_at=now + timedelta(seconds=4),
+        )
