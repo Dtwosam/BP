@@ -129,3 +129,21 @@ def evaluate_pre_execution_authorization(
             raise PreExecutionError(f"ready bundle {name} missing")
     report["authorization_report_sha256"] = hashlib.sha256(_canonical(report)).hexdigest()
     return report
+
+
+def verify_pre_execution_snapshot(
+    snapshot: Mapping[str, Any],
+    *,
+    ready_verification: Mapping[str, Any],
+    project_state: Mapping[str, Any],
+    require_authorized: bool = False,
+) -> dict[str, Any]:
+    fresh = evaluate_pre_execution_authorization(
+        ready_verification=ready_verification,
+        project_state=project_state,
+    )
+    if dict(snapshot) != fresh:
+        raise PreExecutionError("pre-execution snapshot is stale or modified")
+    if require_authorized and fresh["authorized"] is not True:
+        raise PreExecutionError("pre-execution snapshot is not authorized")
+    return fresh
