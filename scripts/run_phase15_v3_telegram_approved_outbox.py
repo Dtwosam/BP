@@ -107,8 +107,11 @@ def stage_approved_outbox(
 ) -> dict[str, Any]:
     prepared = _load_json(prepared_path, label="prepared file")
     approval = _load_json(approval_path, label="approval file")
-    origin_key = load_origin_key_file(origin_key_path)
-    transport_key = load_transport_key_file(transport_key_path)
+    try:
+        origin_key = load_origin_key_file(origin_key_path)
+        transport_key = load_transport_key_file(transport_key_path)
+    except (OriginAttestationError, TransportError) as exc:
+        raise ApprovedOutboxError(str(exc)) from exc
 
     if hmac.compare_digest(origin_key, transport_key):
         raise ApprovedOutboxError("origin and transport keys must use different material")
