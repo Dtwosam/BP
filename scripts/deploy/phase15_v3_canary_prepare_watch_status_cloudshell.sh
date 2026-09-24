@@ -142,17 +142,18 @@ end=datetime.fromisoformat(sys.argv[1]).astimezone(UTC)
 print((end-datetime.now(UTC)).total_seconds())
 PY
 )
-python3 - "$REMAINING" <<'PY' || {
+if ! python3 - "$REMAINING" <<'PY'
 import sys
 assert float(sys.argv[1]) >= 20
 PY
+then
   echo "ARMABLE_NOW=false"
   echo "INTENT_ID=$INTENT_ID"
   echo "SECONDS_TO_MARKET_END=$REMAINING"
   echo "REQUIRES_CLOSED_BEFORE_SUBMISSION_RECONCILIATION=true"
   echo "PHASE15_V3_CANARY_PERSISTENT_PREPARE_STATUS=PREPARED_BUT_STALE"
   exit 1
-}
+fi
 
 PREPARED_B64=$(python3 - "$REMOTE" <<'PY'
 import json,sys
