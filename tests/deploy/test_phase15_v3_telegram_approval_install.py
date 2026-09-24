@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 INSTALL = ROOT / "scripts/deploy/phase15_v3_telegram_approval_install_cloudshell.sh"
 STATUS = ROOT / "scripts/deploy/phase15_v3_telegram_approval_status_cloudshell.sh"
+READINESS = ROOT / "scripts/deploy/phase15_v3_telegram_activation_readiness_cloudshell.sh"
 RUNNER = ROOT / "scripts/run_phase15_v3_canary_telegram_approval.py"
 UNIT = ROOT / "deploy/bp-phase15-canary-telegram-approval.service"
 
@@ -158,6 +159,51 @@ def test_telegram_install_embedded_python_is_syntax_valid() -> None:
 def test_telegram_status_embedded_python_is_syntax_valid() -> None:
     text = STATUS.read_text(encoding="utf-8")
     blocks = re.findall(r"<<'PY'[^\n]*\n(.*?)\nPY(?:\n|$)", text, flags=re.DOTALL)
+    assert len(blocks) >= 3
+    for block in blocks:
+        ast.parse(block)
+
+
+def test_telegram_activation_readiness_is_strictly_read_only() -> None:
+    text = READINESS.read_text(encoding="utf-8")
+    for marker in (
+        '"second_order_authorized"',
+        '"automated_real_money_submission"',
+        '"telegram_one_tap_submission_authorized"',
+        '"telegram_persistent_execution_transport_authorized"',
+        "second_order_not_authorized",
+        "telegram_one_tap_not_authorized",
+        "persistent_execution_transport_not_authorized",
+        'printf \'%s\' \'{"action":"health"}\'',
+        "kill_switch_not_engaged",
+        "unexpected_submission_ready",
+        "TELEGRAM_ACTIVATION_READY=false",
+        "NO_MUTATION_PERFORMED=true",
+    ):
+        assert marker in text
+    for forbidden in (
+        "PHASE15_ACCEPT_REAL_MONEY",
+        "phase15_v3_canary_arm_cloudshell.sh",
+        "post_order",
+        "create_limit_order",
+        "systemctl restart",
+        "systemctl start",
+        "systemctl enable",
+        "rm -f /etc/bp-canary/KILL",
+    ):
+        assert forbidden not in text
+
+
+def test_telegram_activation_readiness_shell_and_embedded_python_are_valid() -> None:
+    completed = subprocess.run(
+        ["bash", "-n", str(READINESS)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    text = READINESS.read_text(encoding="utf-8")
+    blocks = re.findall(r"<<'PY'[^\\n]*\\n(.*?)\\nPY(?:\\n|$)", text, flags=re.DOTALL)
     assert len(blocks) >= 3
     for block in blocks:
         ast.parse(block)
