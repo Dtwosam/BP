@@ -293,14 +293,18 @@ def test_phase15_canary_prepared_report_exposes_latency_diagnostics() -> None:
     for marker in (
         '"prediction_scheduled_at"',
         '"prediction_recorded_at"',
-        '"paper_order_created_at"',
+        '"paper_order_submitted_at"',
         '"prepared_observed_at"',
         '"prediction_lateness_seconds"',
-        '"paper_order_after_prediction_seconds"',
-        '"prepare_after_paper_order_seconds"',
+        '"post_prediction_prepare_seconds"',
+        '"window_consumed_after_schedule_seconds"',
         '"seconds_to_market_end_at_prepare"',
+        '"paper_order_persistence_delay_observable": False',
     ):
         assert marker in text
+    assert '"paper_order_created_at"' not in text
+    assert '"paper_order_after_prediction_seconds"' not in text
+    assert '"prepare_after_paper_order_seconds"' not in text
 
 
 def test_persistent_prepare_unit_is_research_zero_money_localhost_only() -> None:
