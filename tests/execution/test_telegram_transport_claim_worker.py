@@ -85,6 +85,7 @@ def _write_key(path: Path, key: bytes) -> None:
 
 def _write_envelope(path: Path, envelope: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.chmod(0o700)
     path.write_text(json.dumps(envelope), encoding="utf-8")
     path.chmod(0o600)
 
