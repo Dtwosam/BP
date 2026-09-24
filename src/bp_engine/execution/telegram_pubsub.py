@@ -75,6 +75,8 @@ def metadata_access_token(client: httpx.Client) -> str:
         )
     except httpx.HTTPError as exc:
         raise PubSubTransportError("metadata token request failed") from exc
+    if response.headers.get("Metadata-Flavor") != "Google":
+        raise PubSubTransportError("metadata token response flavor invalid")
     payload = _json_response(response, "metadata token request")
     token = str(payload.get("access_token") or "")
     token_type = str(payload.get("token_type") or "").lower()
