@@ -277,6 +277,43 @@ def test_claim_worker_key_rotation_mismatch_waits_without_consuming(tmp_path: Pa
     assert list((tmp_path / "failures").glob("*.json")) == []
 
 
+def test_claim_worker_origin_key_rotation_mismatch_waits_without_consuming(
+    tmp_path: Path,
+) -> None:
+    worker = _load()
+    now = datetime.now(UTC)
+    envelope, key = _envelope(now)
+    key_path = tmp_path / "transport.key"
+    origin_key_path = tmp_path / "origin.key"
+    inbox = tmp_path / "inbox"
+    _write_key(key_path, key)
+    _write_origin_key(origin_key_path)
+    _write_envelope(inbox / "exact-order.json", envelope)
+
+    result = worker.claim_pending_once(
+        inbox_dir=inbox,
+        claim_dir=tmp_path / "claims",
+        ready_dir=tmp_path / "ready",
+        processed_dir=tmp_path / "processed",
+        failure_dir=tmp_path / "failures",
+        key_path=key_path,
+        expected_key_id=KEY_ID,
+        origin_key_path=origin_key_path,
+        expected_origin_key_id="phase15-telegram-origin-v2",
+        observed_at=now + timedelta(seconds=3),
+    )
+    assert result == [
+        {
+            "status": "key_id_mismatch_retry_later",
+            "inbox_name": "exact-order.json",
+            "executor_invoked": False,
+            "real_order_submitted": False,
+        }
+    ]
+    assert list((tmp_path / "claims").glob("*.json")) == []
+    assert list((tmp_path / "failures").glob("*.json")) == []
+
+
 def test_claim_worker_expired_envelope_is_terminal_without_claim(tmp_path: Path) -> None:
     worker = _load()
     now = datetime.now(UTC)
