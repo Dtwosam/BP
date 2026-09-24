@@ -272,6 +272,7 @@ def claim_transport_envelope(
 
     return {
         **verified,
+        "claim_id": claim_key,
         "claim_path": str(claim_path),
         "claim_sha256": hashlib.sha256(encoded.encode("utf-8")).hexdigest(),
     }
