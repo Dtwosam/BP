@@ -26,8 +26,8 @@ def _load() -> ModuleType:
     return module
 
 
-def _report(now: datetime) -> dict[str, object]:
-    ready = {
+def _ready(now: datetime) -> dict[str, object]:
+    return {
         "status": "execution_ready_origin_verified",
         "transport_key_id": "phase15-telegram-transport-v1",
         "origin_key_id": "phase15-telegram-origin-v1",
@@ -46,7 +46,10 @@ def _report(now: datetime) -> dict[str, object]:
         "executor_invoked": False,
         "real_order_submitted": False,
     }
-    state = {
+
+
+def _state() -> dict[str, object]:
+    return {
         "live_trading_enabled": False,
         "phase_15_v3_live_canary": {
             "live_trading_enabled": False,
@@ -65,9 +68,12 @@ def _report(now: datetime) -> dict[str, object]:
             },
         },
     }
+
+
+def _report(now: datetime) -> dict[str, object]:
     return evaluate_pre_execution_authorization(
-        ready_verification=ready,
-        project_state=state,
+        ready_verification=_ready(now),
+        project_state=_state(),
     )
 
 
@@ -99,7 +105,12 @@ def test_dispatch_cli_create_then_claim_is_offline_one_shot(
     module = _load()
     now = datetime(2026, 9, 24, 21, 0, 2, tzinfo=UTC)
     report_path = tmp_path / "pre-execution.json"
+    ready_path = tmp_path / "ready-verification.json"
+    state_path = tmp_path / "PROJECT_STATE.json"
     _write_private(report_path, _report(now))
+    _write_private(ready_path, _ready(now))
+    state_path.write_text(json.dumps(_state()), encoding="utf-8")
+    state_path.chmod(0o644)
     output_dir = tmp_path / "tickets"
     output_dir.mkdir(mode=0o700)
     ticket_path = output_dir / "dispatch.json"
@@ -137,6 +148,10 @@ def test_dispatch_cli_create_then_claim_is_offline_one_shot(
             str(ticket_path),
             "--pre-execution-report",
             str(report_path),
+            "--ready-verification",
+            str(ready_path),
+            "--project-state",
+            str(state_path),
             "--state-dir",
             str(state_dir),
         ],
@@ -244,3 +259,62 @@ def test_dispatch_cli_source_has_no_network_wallet_or_execution_path() -> None:
         "POLYMARKET_WALLET_ADDRESS=",
     ):
         assert forbidden not in text
+
+
+def test_dispatch_cli_rejects_current_source_truth_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = _load()
+    now = datetime(2026, 9, 24, 21, 0, 2, tzinfo=UTC)
+    ready = _ready(now)
+    state = _state()
+    report = evaluate_pre_execution_authorization(
+        ready_verification=ready,
+        project_state=state,
+    )
+    ticket = module.create_dispatch_ticket(
+        report,
+        created_at=now + timedelta(seconds=1),
+    )
+    report_path = tmp_path / "pre-execution.json"
+    ready_path = tmp_path / "ready-verification.json"
+    state_path = tmp_path / "PROJECT_STATE.json"
+    ticket_path = tmp_path / "dispatch.json"
+    _write_private(report_path, report)
+    _write_private(ready_path, ready)
+    _write_private(ticket_path, ticket)
+    changed_state = json.loads(json.dumps(state))
+    phase = changed_state["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    phase["second_order_authorized"] = False
+    state_path.write_text(json.dumps(changed_state), encoding="utf-8")
+    state_path.chmod(0o644)
+    _safe_env(monkeypatch)
+    monkeypatch.setattr(module, "_utc_now", lambda: now + timedelta(seconds=2))
+    state_dir = tmp_path / "claims"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            str(SCRIPT),
+            "claim",
+            "--ticket",
+            str(ticket_path),
+            "--pre-execution-report",
+            str(report_path),
+            "--ready-verification",
+            str(ready_path),
+            "--project-state",
+            str(state_path),
+            "--state-dir",
+            str(state_dir),
+        ],
+    )
+
+    assert module.main() == 1
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "failed_closed"
+    assert "stale or modified" in result["error"]
+    assert not state_dir.exists()
