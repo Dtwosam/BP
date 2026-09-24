@@ -309,6 +309,20 @@ def verify_transport_envelope(
     }
 
 
+def _ensure_private_directory(path: Path) -> None:
+    try:
+        path.mkdir(parents=True, mode=0o700)
+    except FileExistsError:
+        pass
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise TransportError("transport state directory is not accessible") from exc
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+        raise TransportError("transport state directory must be a non-symlink directory")
+    os.chmod(path, 0o700)
+
+
 def claim_transport_envelope(
     envelope: Mapping[str, Any],
     *,
@@ -323,8 +337,7 @@ def claim_transport_envelope(
         expected_key_id=expected_key_id,
         observed_at=observed_at,
     )
-    state_dir.mkdir(parents=True, exist_ok=True)
-    os.chmod(state_dir, 0o700)
+    _ensure_private_directory(state_dir)
 
     claim_key = hashlib.sha256(
         f"{verified['intent_id']}\0{verified['request_sha256']}".encode()
@@ -354,11 +367,10 @@ def claim_transport_envelope(
         )
     except FileExistsError as exc:
         raise TransportError("transport envelope already claimed") from exc
-    try:
-        os.write(fd, encoded.encode("utf-8"))
-        os.fsync(fd)
-    finally:
-        os.close(fd)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(encoded)
+        handle.flush()
+        os.fsync(handle.fileno())
 
     return {
         **verified,
