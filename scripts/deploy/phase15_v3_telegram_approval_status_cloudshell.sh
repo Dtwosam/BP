@@ -26,8 +26,9 @@ gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q . ||
 
 REMOTE=$(
   gcloud compute ssh "$US_VM"     --project="$PROJECT"     --zone="$US_ZONE"     --quiet     --command='sudo /opt/bp/.venv/bin/python -' <<'PY'
+import grp
 import json
-import os
+import pwd
 import stat
 import subprocess
 from pathlib import Path
@@ -55,8 +56,8 @@ def metadata(path: Path) -> dict[str, object]:
     info = path.stat()
     return {
         "exists": True,
-        "uid": info.st_uid,
-        "gid": info.st_gid,
+        "owner": pwd.getpwuid(info.st_uid).pw_name,
+        "group": grp.getgrgid(info.st_gid).gr_name,
         "mode": oct(stat.S_IMODE(info.st_mode)),
     }
 
@@ -139,8 +140,14 @@ assert payload["bot_token_set"] is True
 assert payload["telegram_user_id_set"] is True
 assert payload["telegram_chat_id_set"] is True
 assert payload["handoff_configured"] is False
+assert payload["unit"]["owner"] == "root"
+assert payload["unit"]["group"] == "root"
 assert payload["unit"]["mode"] == "0o644"
+assert payload["env"]["owner"] == "root"
+assert payload["env"]["group"] == "bp"
 assert payload["env"]["mode"] == "0o640"
+assert payload["state_root"]["owner"] == "bp"
+assert payload["state_root"]["group"] == "bp"
 assert payload["state_root"]["mode"] == "0o700"
 print(json.dumps(payload, indent=2, sort_keys=True))
 PY
