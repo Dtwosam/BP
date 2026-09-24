@@ -257,12 +257,15 @@ def test_telegram_transport_protocol_and_adapters_are_carrierless() -> None:
         "transport envelope already claimed",
         "retry_allowed",
         "claim_key = hashlib.sha256",
+        "load_transport_key_file",
+        '"key_id"',
     ):
         assert marker in transport
 
     for marker in (
         "BP_TELEGRAM_TRANSPORT_OUTBOX_ENABLED",
-        "BP_TELEGRAM_TRANSPORT_HMAC_KEY",
+        "BP_TELEGRAM_TRANSPORT_KEY_FILE",
+        "BP_TELEGRAM_TRANSPORT_KEY_ID",
         "network_send_attempted",
         "real_order_submitted",
     ):
@@ -270,12 +273,16 @@ def test_telegram_transport_protocol_and_adapters_are_carrierless() -> None:
 
     for marker in (
         "BP_TELEGRAM_TRANSPORT_INTAKE_ENABLED",
-        "BP_TELEGRAM_TRANSPORT_HMAC_KEY",
+        "BP_TELEGRAM_TRANSPORT_KEY_FILE",
+        "BP_TELEGRAM_TRANSPORT_KEY_ID",
         "executor_invoked",
         "real_order_submitted",
         'claimed["claim_id"]',
     ):
         assert marker in intake
+
+    assert "BP_TELEGRAM_TRANSPORT_HMAC_KEY" not in outbox
+    assert "BP_TELEGRAM_TRANSPORT_HMAC_KEY" not in intake
 
     combined = "\n".join((transport, outbox, intake))
     for forbidden in (
