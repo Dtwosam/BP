@@ -1,0 +1,58 @@
+{
+  "date": "2026-09-24",
+  "status": "SUBMITTED_AND_RECORDED_RECONCILIATION_PENDING",
+  "operator_main_commit": "217232afa6ae52a218027f20f90a957102390e7c",
+  "intent_id": "live-intent-6cdfcfd28d0eb52f1ee0762bfd351409",
+  "prediction_id": "b4b0c76809c3fc7d93688db166845fdb5aa141de6f1a68eccb2ef0d86df8de57",
+  "paper_order_id": "eea301c01d48d008a73f9311de87b11fff842a53f4161c2e3f23efbafa9dacec",
+  "authorization_id": "phase15-v3-canary-836931eb65b503b48071d29a",
+  "request_sha256": "016e1e92ba64fea931335fb5b7861f1a45a1b11df78867698be80f56c67e1b9e",
+  "executor_sha256": "d0e5c306af388311d43f0ece2378d5b34a74d81a36610b59f7b76859e7faecb7",
+  "selected_side": "down",
+  "limit_price": "0.720000000000000000",
+  "requested_shares": "6.810949000000000000",
+  "target_notional_usd": "5.000000000000000000",
+  "seconds_to_market_end_before_arm": "47.875994",
+  "activation_expires_at": "2026-09-24T17:19:50+00:00",
+  "arm_result": {
+    "pass": true,
+    "activation_valid": true,
+    "submission_ready": true,
+    "live_order_submitted": false,
+    "account_open_order_count": 0,
+    "collateral_balance_usd": "30",
+    "geoblock_country": "ZA",
+    "geoblock_region": "GP"
+  },
+  "submission_result": {
+    "accepted": true,
+    "status": "live",
+    "code": "accepted",
+    "external_order_id": "0x7c85e5e8753a875dfd9fec8ffd45726164863648127351b21c2a8ba1819a28de",
+    "ttl_seconds": 2,
+    "cancellation": {
+      "cancelled": true,
+      "status": "cancelled",
+      "message": ""
+    },
+    "submission_command_exit_code": 0
+  },
+  "record_result": {
+    "status": "recorded",
+    "event_type": "accepted",
+    "accepted": true,
+    "canary_complete": true
+  },
+  "safety": {
+    "exactly_one_network_submission_attempt_consumed": true,
+    "retry_authorized": false,
+    "second_order_authorized": false,
+    "executor_reengages_kill_switch_before_sdk_submission": true,
+    "interactive_helper_requested_post_call_kill_switch_reengagement": true
+  },
+  "reconciliation": {
+    "required": true,
+    "status": "PENDING",
+    "note": "Accepted plus cancellation does not establish whether any fill occurred before cancellation. Official order/fill reconciliation is required before any later live action."
+  }
+}
