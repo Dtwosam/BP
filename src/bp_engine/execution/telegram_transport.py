@@ -139,15 +139,26 @@ def _mac(body: Mapping[str, Any], key: bytes) -> str:
     return hmac.new(key, _canonical(body), hashlib.sha256).hexdigest()
 
 
+def _key_id(value: str) -> str:
+    normalized = value.strip()
+    if not normalized or len(normalized.encode("utf-8")) > 64:
+        raise TransportError("transport key id invalid")
+    if any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-" for ch in normalized):
+        raise TransportError("transport key id invalid")
+    return normalized
+
+
 def create_transport_envelope(
     prepared: Mapping[str, Any],
     *,
     approval: Mapping[str, Any],
     key: bytes,
+    key_id: str,
     created_at: datetime,
     nonce: str,
 ) -> dict[str, Any]:
     created = _utc(created_at)
+    normalized_key_id = _key_id(key_id)
     if not nonce or len(nonce.encode("utf-8")) > 80:
         raise TransportError("transport nonce invalid")
 
@@ -185,6 +196,8 @@ def create_transport_envelope(
     body: dict[str, Any] = {
         "schema_version": TRANSPORT_SCHEMA_VERSION,
         "purpose": TRANSPORT_PURPOSE,
+        "key_id": normalized_key_id,
+        "key_id": str(envelope["key_id"]),
         "intent_id": binding["intent_id"],
         "prediction_id": binding["prediction_id"],
         "paper_order_id": binding["paper_order_id"],
@@ -208,6 +221,7 @@ def verify_transport_envelope(
     envelope: Mapping[str, Any],
     *,
     key: bytes,
+    expected_key_id: str,
     observed_at: datetime,
 ) -> dict[str, Any]:
     observed = _utc(observed_at)
@@ -217,6 +231,8 @@ def verify_transport_envelope(
         raise TransportError("transport schema mismatch")
     if envelope.get("purpose") != TRANSPORT_PURPOSE:
         raise TransportError("transport purpose mismatch")
+    if str(envelope.get("key_id") or "") != _key_id(expected_key_id):
+        raise TransportError("transport key id mismatch")
 
     supplied_mac = str(envelope.get("hmac_sha256") or "")
     if len(supplied_mac) != 64:
@@ -297,12 +313,14 @@ def claim_transport_envelope(
     envelope: Mapping[str, Any],
     *,
     key: bytes,
+    expected_key_id: str,
     observed_at: datetime,
     state_dir: Path,
 ) -> dict[str, Any]:
     verified = verify_transport_envelope(
         envelope,
         key=key,
+        expected_key_id=expected_key_id,
         observed_at=observed_at,
     )
     state_dir.mkdir(parents=True, exist_ok=True)
@@ -315,6 +333,7 @@ def claim_transport_envelope(
     record = {
         "schema_version": 1,
         "status": "claimed",
+        "key_id": verified["key_id"],
         "intent_id": verified["intent_id"],
         "prediction_id": verified["prediction_id"],
         "paper_order_id": verified["paper_order_id"],
