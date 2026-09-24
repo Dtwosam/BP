@@ -5,7 +5,7 @@
   "updated_at": "2026-09-24",
   "current_phase": 15,
   "current_phase_name": "controlled live launch — one-order frozen V3 canary",
-  "status": "PHASE_15_FIRST_LIVE_CANARY_SUBMITTED_RECONCILIATION_REQUIRED",
+  "status": "PHASE_15_FIRST_LIVE_CANARY_RECONCILED_ZERO_FILL",
   "trading_mode": "RESEARCH",
   "live_trading_enabled": false,
   "verified_polymarket_horizons": [
@@ -4298,7 +4298,7 @@
     }
   },
   "phase_15_v3_live_canary": {
-    "status": "LIVE_CANARY_SUBMITTED_RECONCILIATION_REQUIRED",
+    "status": "LIVE_CANARY_RECONCILED_ZERO_FILL",
     "authorization_date": "2026-09-23",
     "authorization_source": "User explicitly authorized live V3 and stated they can risk up to $10 per market.",
     "phase15_canary_authorized": true,
@@ -4339,7 +4339,7 @@
     "second_order_authorized": false,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "Do not arm or submit again. Perform official read-only order/fill reconciliation for the first live canary, then record the reconciled fill/exposure/P&L state before any later live decision.",
+    "next_action": "No second live action is authorized. Review the zero-fill canary evidence: submission and cancellation paths are validated, but fill/slippage quality remains unobserved. Any additional live canary or automation requires a new explicit authorization and policy decision.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
@@ -4574,7 +4574,7 @@
     },
     "pending_unsubmitted_intent": null,
     "first_live_canary": {
-      "status": "SUBMITTED_AND_RECORDED_RECONCILIATION_PENDING",
+      "status": "RECONCILED_ZERO_FILL",
       "intent_id": "live-intent-6cdfcfd28d0eb52f1ee0762bfd351409",
       "prediction_id": "b4b0c76809c3fc7d93688db166845fdb5aa141de6f1a68eccb2ef0d86df8de57",
       "paper_order_id": "eea301c01d48d008a73f9311de87b11fff842a53f4161c2e3f23efbafa9dacec",
@@ -4591,8 +4591,21 @@
       "retry_authorized": false,
       "second_order_authorized": false,
       "official_order_fill_reconciliation_required": true,
-      "official_order_fill_reconciliation_status": "PENDING",
-      "evidence": "docs/evidence/phase-15-v3-first-live-canary-submission-20260924.json"
+      "official_order_fill_reconciliation_status": "PASS_ZERO_FILL",
+      "evidence": "docs/evidence/phase-15-v3-first-live-canary-submission-20260924.json",
+      "confirmed_filled_shares": 0,
+      "confirmed_filled_notional_usd": 0,
+      "confirmed_fill_fraction_of_requested": 0,
+      "exposure_usd": 0,
+      "realized_trade_pnl_usd": 0,
+      "fill_quality_observed": false,
+      "slippage_observed": false,
+      "submission_path_validated": true,
+      "cancellation_path_validated": true,
+      "zero_fill_reconciliation_evidence": "docs/evidence/phase-15-v3-first-live-canary-zero-fill-reconciliation-20260924.json",
+      "official_fill_probe_result": "PASS",
+      "official_fill_state": "zero_fill_observed",
+      "official_reconciliation_complete": true
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {
