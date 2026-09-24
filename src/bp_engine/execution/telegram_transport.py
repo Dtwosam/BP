@@ -54,7 +54,11 @@ def parse_transport_key(value: str) -> bytes:
         raise TransportError("transport key missing")
     try:
         padded = raw + "=" * (-len(raw) % 4)
-        key = base64.urlsafe_b64decode(padded.encode("ascii"))
+        key = base64.b64decode(
+            padded.encode("ascii"),
+            altchars=b"-_",
+            validate=True,
+        )
     except (ValueError, UnicodeEncodeError) as exc:
         raise TransportError("transport key is not valid base64url") from exc
     if len(key) != 32:
