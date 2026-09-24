@@ -19,6 +19,7 @@ from bp_engine.execution.telegram_transport import (
 ROOT = Path(__file__).resolve().parents[2]
 OUTBOX_SCRIPT = ROOT / "scripts" / "run_phase15_v3_telegram_transport_outbox.py"
 INTAKE_SCRIPT = ROOT / "scripts" / "run_phase15_v3_telegram_transport_intake.py"
+KEY_ID = "phase15-telegram-transport-v1"
 
 
 def _load(path: Path, name: str) -> ModuleType:
@@ -74,15 +75,21 @@ def _write_inputs(tmp_path: Path, now: datetime) -> tuple[Path, Path]:
     return prepared_path, approval_path
 
 
-def _zero_money_env(monkeypatch, key: str) -> None:
+def _zero_money_env(monkeypatch, tmp_path: Path, key: str) -> Path:
+    key_path = tmp_path / "transport.key"
+    key_path.write_text(key + "\n", encoding="utf-8")
+    key_path.chmod(0o600)
     monkeypatch.setenv("MODE", "research")
     monkeypatch.setenv("LIVE_TRADING_ENABLED", "false")
     monkeypatch.setenv("MAX_TRADE_SIZE_USD", "0")
     monkeypatch.setenv("MAX_DAILY_LOSS_USD", "0")
-    monkeypatch.setenv("BP_TELEGRAM_TRANSPORT_HMAC_KEY", key)
+    monkeypatch.setenv("BP_TELEGRAM_TRANSPORT_KEY_FILE", str(key_path))
+    monkeypatch.setenv("BP_TELEGRAM_TRANSPORT_KEY_ID", KEY_ID)
+    monkeypatch.delenv("BP_TELEGRAM_TRANSPORT_HMAC_KEY", raising=False)
     monkeypatch.delenv("POLYMARKET_PRIVATE_KEY", raising=False)
     monkeypatch.delenv("POLYMARKET_WALLET_ADDRESS", raising=False)
     monkeypatch.delenv("BP_TELEGRAM_BOT_TOKEN", raising=False)
+    return key_path
 
 
 def test_transport_scripts_loopback_without_network_or_executor(
@@ -93,7 +100,7 @@ def test_transport_scripts_loopback_without_network_or_executor(
     now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
     prepared_path, approval_path = _write_inputs(tmp_path, now)
     key = encode_transport_key(bytes(range(32)))
-    _zero_money_env(monkeypatch, key)
+    _zero_money_env(monkeypatch, tmp_path, key)
 
     outbox = _load(OUTBOX_SCRIPT, "telegram_transport_outbox_test")
     intake = _load(INTAKE_SCRIPT, "telegram_transport_intake_test")
@@ -115,6 +122,7 @@ def test_transport_scripts_loopback_without_network_or_executor(
     )
     assert outbox.main() == 0
     outbox_result = json.loads(capsys.readouterr().out)
+    assert outbox_result["key_id"] == KEY_ID
     assert outbox_result["network_send_attempted"] is False
     assert outbox_result["real_order_submitted"] is False
 
@@ -138,6 +146,7 @@ def test_transport_scripts_loopback_without_network_or_executor(
     )
     assert intake.main() == 0
     intake_result = json.loads(capsys.readouterr().out)
+    assert intake_result["key_id"] == KEY_ID
     assert intake_result["executor_invoked"] is False
     assert intake_result["real_order_submitted"] is False
 
@@ -162,7 +171,7 @@ def test_transport_outbox_rejects_disabled_or_secret_bearing_runtime(
     now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
     prepared_path, approval_path = _write_inputs(tmp_path, now)
     key = encode_transport_key(bytes(range(32)))
-    _zero_money_env(monkeypatch, key)
+    _zero_money_env(monkeypatch, tmp_path, key)
     outbox = _load(OUTBOX_SCRIPT, "telegram_transport_outbox_guard_test")
     monkeypatch.setattr(outbox, "_utc_now", lambda: now + timedelta(seconds=2))
     monkeypatch.setattr(
