@@ -55,7 +55,7 @@ def _json_response(response: httpx.Response, operation: str) -> dict[str, Any]:
         )
     try:
         payload = response.json()
-    except (ValueError, json.JSONDecodeError) as exc:
+    except ValueError as exc:
         raise PubSubTransportError(f"{operation} returned invalid JSON") from exc
     if not isinstance(payload, dict):
         raise PubSubTransportError(f"{operation} returned invalid payload")
