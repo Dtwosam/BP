@@ -82,6 +82,38 @@ def test_multiple_transient_misses_remain_retryable() -> None:
     assert prediction_id not in evaluated
 
 
+def test_api_unhealthy_is_retryable() -> None:
+    engine = _engine()
+    prediction_id = "p" * 64
+    with engine.begin() as connection:
+        _insert_decision(
+            connection,
+            prediction_id=prediction_id,
+            reasons=["api_unhealthy"],
+            created_at=BASE,
+            suffix="1",
+        )
+        evaluated = canary._evaluated_prediction_ids(connection)
+
+    assert prediction_id not in evaluated
+
+
+def test_combined_transient_reasons_remain_retryable() -> None:
+    engine = _engine()
+    prediction_id = "p" * 64
+    with engine.begin() as connection:
+        _insert_decision(
+            connection,
+            prediction_id=prediction_id,
+            reasons=["liquidity_missing", "api_unhealthy"],
+            created_at=BASE,
+            suffix="1",
+        )
+        evaluated = canary._evaluated_prediction_ids(connection)
+
+    assert prediction_id not in evaluated
+
+
 def test_permanent_reason_stops_future_retries() -> None:
     engine = _engine()
     prediction_id = "p" * 64
