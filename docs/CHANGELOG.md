@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.14.180 — 23 September 2026
+- Added the separately authorized Phase 15 persistent prepare-only watcher: a bounded two-hour sidecar on `bp-recorder` with research/live-disabled/zero-money safety, no wallet material, localhost-only network access, durable status/prepared state, and no arm/submission path. Cloud Shell status materializes a prepared payload only while it remains armable and the helper SHA still equals current `main`.
 
 - Recorded the Johannesburg execution-host geoblock probe PASS at `docs/evidence/phase-15-v3-canary-host-geoblock-20260923.json`: direct official result `blocked=false`, `ZA/GP`. Together with the user's direct `NG/LA` physical-network PASS, geographic compliance advances to `pass`; every Master live-gate row is now `pass`.
 - Opened Phase 15 only for a **one-order frozen-V3 canary**. The user's explicit authorization is a hard **$10 per-market ceiling**, not a sizing target. The first canary preserves the existing frozen-V3 **$5 target notional**.
