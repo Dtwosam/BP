@@ -634,3 +634,14 @@ The one-network-attempt rule from D-060 is unchanged: only `accepted`, `rejected
 The Phase 15 live-risk minimum time to expiry remains 15 seconds. Separately, the prepare step now requires at least 30 seconds remaining before it may persist a live intent. This is an operational safety margin above the arm helper's 20-second freshness requirement.
 
 A candidate that passes the strategy/live-risk checks but has less than 30 seconds remaining is recorded as evaluated and returned as `insufficient_arm_window`; no live intent is persisted. This tightens the canary workflow without changing model behavior, target notional, live-risk thresholds, or the one-network-attempt rule.
+
+
+## D-063 — Permit a bounded persistent prepare-only watcher
+**Date:** 24 Sep 2026  
+**Status:** Active
+
+The user explicitly authorized a persistent Phase 15 prepare watcher so Cloud Shell disconnects do not terminate the no-order waiting loop.
+
+The watcher may run only on the existing US recorder as a separate sidecar for at most two hours per authorized start. It must run as user `bp` in research mode with live trading disabled and zero money limits, contain no wallet/private-key material, use localhost-only networking, and remain disabled across VM reboot. It may call the same current Phase 15 `prepare_next_canary` logic against the frozen V3 runtime and may persist at most the same risk evidence/live intent/prepared payload that the existing prepare helper would create.
+
+The watcher has no arm path and no authenticated order-submission path. Arm remains an explicit Cloud Shell action gated by `PHASE15_ACCEPT_REAL_MONEY=yes`; the single network submission remains manual and exactly once. The status helper may materialize a remote prepared payload only when the watcher helper SHA still equals current `main` and at least 20 seconds remain to market end. Otherwise the intent must fail closed and use the existing closed-before-submission reconciliation path.
