@@ -25,6 +25,7 @@ TRANSPORT_ENVELOPE_FIELDS = frozenset(
     {
         "schema_version",
         "purpose",
+        "key_id",
         "intent_id",
         "prediction_id",
         "paper_order_id",
@@ -143,7 +144,8 @@ def _key_id(value: str) -> str:
     normalized = value.strip()
     if not normalized or len(normalized.encode("utf-8")) > 64:
         raise TransportError("transport key id invalid")
-    if any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-" for ch in normalized):
+    allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
+    if any(ch not in allowed for ch in normalized):
         raise TransportError("transport key id invalid")
     return normalized
 
@@ -197,7 +199,6 @@ def create_transport_envelope(
         "schema_version": TRANSPORT_SCHEMA_VERSION,
         "purpose": TRANSPORT_PURPOSE,
         "key_id": normalized_key_id,
-        "key_id": str(envelope["key_id"]),
         "intent_id": binding["intent_id"],
         "prediction_id": binding["prediction_id"],
         "paper_order_id": binding["paper_order_id"],
@@ -294,6 +295,7 @@ def verify_transport_envelope(
             raise TransportError(f"transport {name} invalid")
 
     return {
+        "key_id": str(envelope["key_id"]),
         "intent_id": binding["intent_id"],
         "prediction_id": binding["prediction_id"],
         "paper_order_id": binding["paper_order_id"],
@@ -340,7 +342,7 @@ def claim_transport_envelope(
     _ensure_private_directory(state_dir)
 
     claim_key = hashlib.sha256(
-        f"{verified['intent_id']}\0{verified['request_sha256']}".encode()
+        f"{verified['intent_id']}\0{verified['request_sha256']}".encode("utf-8")
     ).hexdigest()
     claim_path = state_dir / f"{claim_key}.json"
     record = {
