@@ -17,6 +17,11 @@ from bp_engine.execution.telegram_approval import (
     ApprovalError,
     validate_approved_handoff,
 )
+from bp_engine.execution.telegram_origin_attestation import (
+    ORIGIN_ATTESTATION_FIELDS,
+    ORIGIN_ATTESTATION_PURPOSE,
+    ORIGIN_ATTESTATION_SCHEMA_VERSION,
+)
 
 TRANSPORT_SCHEMA_VERSION = 1
 TRANSPORT_PURPOSE = "phase15-v3-telegram-execution-v1"
@@ -33,6 +38,8 @@ TRANSPORT_ENVELOPE_FIELDS = frozenset(
         "prepared_sha256",
         "approval_sha256",
         "approval_source_sha256",
+        "origin_attestation_sha256",
+        "origin_attestation",
         "transport_nonce",
         "created_at",
         "expires_at",
@@ -150,10 +157,61 @@ def _key_id(value: str) -> str:
     return normalized
 
 
+def _validate_origin_attestation_binding(
+    origin_attestation: Mapping[str, Any],
+    *,
+    prepared_sha256: str,
+    approval_sha256: str,
+    approval_source_sha256: str,
+    intent_id: str,
+    prediction_id: str,
+    paper_order_id: str,
+    request_sha256: str,
+) -> tuple[dict[str, Any], datetime, datetime]:
+    if set(origin_attestation) != ORIGIN_ATTESTATION_FIELDS:
+        raise TransportError("origin attestation fields mismatch")
+    if origin_attestation.get("schema_version") != ORIGIN_ATTESTATION_SCHEMA_VERSION:
+        raise TransportError("origin attestation schema mismatch")
+    if origin_attestation.get("purpose") != ORIGIN_ATTESTATION_PURPOSE:
+        raise TransportError("origin attestation purpose mismatch")
+
+    expected = {
+        "intent_id": intent_id,
+        "prediction_id": prediction_id,
+        "paper_order_id": paper_order_id,
+        "request_sha256": request_sha256,
+        "prepared_sha256": prepared_sha256,
+        "approval_sha256": approval_sha256,
+        "approval_source_sha256": approval_source_sha256,
+    }
+    for name, value in expected.items():
+        if str(origin_attestation.get(name) or "") != value:
+            raise TransportError(f"origin attestation {name} mismatch")
+
+    supplied_mac = str(origin_attestation.get("hmac_sha256") or "")
+    if re.fullmatch(r"[0-9a-f]{64}", supplied_mac) is None:
+        raise TransportError("origin attestation hmac invalid")
+    try:
+        attested_at = _utc(
+            datetime.fromisoformat(str(origin_attestation["attested_at"]))
+        )
+        expires_at = _utc(
+            datetime.fromisoformat(str(origin_attestation["expires_at"]))
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise TransportError("origin attestation timestamps invalid") from exc
+    if expires_at <= attested_at:
+        raise TransportError("origin attestation expiry invalid")
+
+    copied = json.loads(_canonical(origin_attestation).decode())
+    return copied, attested_at, expires_at
+
+
 def create_transport_envelope(
     prepared: Mapping[str, Any],
     *,
     approval: Mapping[str, Any],
+    origin_attestation: Mapping[str, Any],
     key: bytes,
     key_id: str,
     created_at: datetime,
@@ -183,7 +241,7 @@ def create_transport_envelope(
     if expires <= created:
         raise TransportError("transport window already closed")
 
-    prepared_copy = json.loads(_canonical(prepared).decode("utf-8"))
+    prepared_copy = json.loads(_canonical(prepared).decode())
     approval_source_sha256 = payload_sha256(approval)
     approval_copy = {
         "schema_version": int(approval.get("schema_version", 0)),
@@ -195,6 +253,26 @@ def create_transport_envelope(
         "approved_at": str(approval.get("approved_at") or ""),
         "expires_at": str(approval.get("expires_at") or ""),
     }
+    prepared_sha256 = payload_sha256(prepared_copy)
+    approval_sha256 = payload_sha256(approval_copy)
+    origin_copy, origin_attested_at, origin_expires_at = _validate_origin_attestation_binding(
+        origin_attestation,
+        prepared_sha256=prepared_sha256,
+        approval_sha256=approval_sha256,
+        approval_source_sha256=approval_source_sha256,
+        intent_id=str(binding["intent_id"]),
+        prediction_id=str(binding["prediction_id"]),
+        paper_order_id=str(binding["paper_order_id"]),
+        request_sha256=str(binding["request_sha256"]),
+    )
+    if origin_attested_at > created:
+        raise TransportError("transport predates origin attestation")
+    if created >= origin_expires_at:
+        raise TransportError("origin attestation expired before transport")
+    expires = min(expires, origin_expires_at)
+    if expires <= created:
+        raise TransportError("transport window already closed")
+
     body: dict[str, Any] = {
         "schema_version": TRANSPORT_SCHEMA_VERSION,
         "purpose": TRANSPORT_PURPOSE,
@@ -203,9 +281,11 @@ def create_transport_envelope(
         "prediction_id": binding["prediction_id"],
         "paper_order_id": binding["paper_order_id"],
         "request_sha256": binding["request_sha256"],
-        "prepared_sha256": payload_sha256(prepared_copy),
-        "approval_sha256": payload_sha256(approval_copy),
+        "prepared_sha256": prepared_sha256,
+        "approval_sha256": approval_sha256,
         "approval_source_sha256": approval_source_sha256,
+        "origin_attestation_sha256": payload_sha256(origin_copy),
+        "origin_attestation": origin_copy,
         "transport_nonce": nonce,
         "created_at": created.isoformat(),
         "expires_at": expires.isoformat(),
@@ -245,7 +325,12 @@ def verify_transport_envelope(
 
     prepared = envelope.get("prepared")
     approval = envelope.get("approval")
-    if not isinstance(prepared, Mapping) or not isinstance(approval, Mapping):
+    origin_attestation = envelope.get("origin_attestation")
+    if (
+        not isinstance(prepared, Mapping)
+        or not isinstance(approval, Mapping)
+        or not isinstance(origin_attestation, Mapping)
+    ):
         raise TransportError("transport payload missing")
     if set(approval) != TRANSPORT_APPROVAL_FIELDS:
         raise TransportError("transport approval fields mismatch")
@@ -254,6 +339,11 @@ def verify_transport_envelope(
         raise TransportError("prepared payload hash mismatch")
     if str(envelope.get("approval_sha256") or "") != payload_sha256(approval):
         raise TransportError("approval payload hash mismatch")
+    if (
+        str(envelope.get("origin_attestation_sha256") or "")
+        != payload_sha256(origin_attestation)
+    ):
+        raise TransportError("origin attestation hash mismatch")
 
     try:
         created = _utc(datetime.fromisoformat(str(envelope["created_at"])))
@@ -281,6 +371,23 @@ def verify_transport_envelope(
     for field in ("intent_id", "prediction_id", "paper_order_id", "request_sha256"):
         if str(envelope.get(field) or "") != str(binding[field]):
             raise TransportError(f"transport {field} mismatch")
+
+    origin_copy, origin_attested_at, origin_expires_at = _validate_origin_attestation_binding(
+        origin_attestation,
+        prepared_sha256=str(envelope["prepared_sha256"]),
+        approval_sha256=str(envelope["approval_sha256"]),
+        approval_source_sha256=str(envelope["approval_source_sha256"]),
+        intent_id=str(binding["intent_id"]),
+        prediction_id=str(binding["prediction_id"]),
+        paper_order_id=str(binding["paper_order_id"]),
+        request_sha256=str(binding["request_sha256"]),
+    )
+    if origin_attested_at > created:
+        raise TransportError("transport predates origin attestation")
+    if expires > origin_expires_at:
+        raise TransportError("transport outlives origin attestation")
+    if observed >= origin_expires_at:
+        raise TransportError("origin attestation expired")
     transport_nonce = str(envelope.get("transport_nonce") or "")
     if not transport_nonce or len(transport_nonce.encode()) > 80:
         raise TransportError("transport nonce invalid")
@@ -289,6 +396,7 @@ def verify_transport_envelope(
         "prepared_sha256",
         "approval_sha256",
         "approval_source_sha256",
+        "origin_attestation_sha256",
     ):
         value = str(envelope.get(name) or "")
         if re.fullmatch(r"[0-9a-f]{64}", value) is None:
@@ -303,6 +411,10 @@ def verify_transport_envelope(
         "prepared_sha256": str(envelope["prepared_sha256"]),
         "approval_sha256": str(envelope["approval_sha256"]),
         "approval_source_sha256": str(envelope.get("approval_source_sha256") or ""),
+        "origin_attestation_sha256": str(
+            envelope.get("origin_attestation_sha256") or ""
+        ),
+        "origin_attestation": origin_copy,
         "transport_nonce": transport_nonce,
         "created_at": created.isoformat(),
         "expires_at": expires.isoformat(),
@@ -356,6 +468,7 @@ def claim_transport_envelope(
         "prepared_sha256": verified["prepared_sha256"],
         "approval_sha256": verified["approval_sha256"],
         "approval_source_sha256": verified["approval_source_sha256"],
+        "origin_attestation_sha256": verified["origin_attestation_sha256"],
         "transport_nonce": verified["transport_nonce"],
         "claimed_at": _utc(observed_at).isoformat(),
         "retry_allowed": False,
