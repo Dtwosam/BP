@@ -114,6 +114,15 @@ def test_transport_envelope_tampering_wrong_key_and_expiry_fail_closed() -> None
         nonce="transport-nonce-1",
     )
 
+    unexpected = copy.deepcopy(envelope)
+    unexpected["unexpected_field"] = "not-allowed"
+    with pytest.raises(TransportError, match="envelope fields mismatch"):
+        verify_transport_envelope(
+            unexpected,
+            key=key,
+            observed_at=now + timedelta(seconds=3),
+        )
+
     modified = copy.deepcopy(envelope)
     modified["prepared"]["request"]["limit_price"] = "0.71"
     with pytest.raises(TransportError, match="hmac mismatch"):
@@ -182,4 +191,30 @@ def test_transport_claim_is_one_shot_for_exact_order_even_with_new_nonce(tmp_pat
             key=key,
             observed_at=now + timedelta(seconds=4),
             state_dir=state_dir,
+        )
+
+
+def test_transport_claim_rejects_symlink_state_directory(tmp_path) -> None:
+    now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
+    prepared = _prepared(now)
+    approval = _approval(prepared, now)
+    key = bytes(range(32))
+    envelope = create_transport_envelope(
+        prepared,
+        approval=approval,
+        key=key,
+        created_at=now + timedelta(seconds=2),
+        nonce="transport-nonce-symlink",
+    )
+    actual = tmp_path / "actual"
+    actual.mkdir()
+    link = tmp_path / "claims"
+    link.symlink_to(actual, target_is_directory=True)
+
+    with pytest.raises(TransportError, match="non-symlink directory"):
+        claim_transport_envelope(
+            envelope,
+            key=key,
+            observed_at=now + timedelta(seconds=3),
+            state_dir=link,
         )
