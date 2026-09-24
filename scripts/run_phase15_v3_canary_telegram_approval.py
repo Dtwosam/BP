@@ -155,8 +155,13 @@ def _expiry_record(pending: dict[str, Any]) -> dict[str, Any]:
 
 def _handoff_command() -> Path | None:
     raw = os.environ.get("BP_TELEGRAM_HANDOFF_COMMAND", "").strip()
+    enabled = os.environ.get("BP_TELEGRAM_HANDOFF_ENABLED", "no").strip().lower()
     if not raw:
+        if enabled == "yes":
+            raise SystemExit("BP_TELEGRAM_HANDOFF_COMMAND is required when handoff is enabled")
         return None
+    if enabled != "yes":
+        raise SystemExit("Telegram handoff command configured without explicit enable")
     command = Path(raw)
     if not command.is_absolute():
         raise SystemExit("BP_TELEGRAM_HANDOFF_COMMAND must be an absolute path")
@@ -412,6 +417,17 @@ def main() -> int:
     args = _parse_args()
     if not 0.1 <= args.poll_seconds <= 5:
         raise SystemExit("poll seconds must be within 0.1..5")
+    if os.environ.get("MODE") != "research":
+        raise SystemExit("MODE must be research")
+    if os.environ.get("LIVE_TRADING_ENABLED") != "false":
+        raise SystemExit("LIVE_TRADING_ENABLED must be false")
+    if os.environ.get("MAX_TRADE_SIZE_USD") != "0":
+        raise SystemExit("MAX_TRADE_SIZE_USD must be 0")
+    if os.environ.get("MAX_DAILY_LOSS_USD") != "0":
+        raise SystemExit("MAX_DAILY_LOSS_USD must be 0")
+    for secret_name in ("POLYMARKET_PRIVATE_KEY", "POLYMARKET_WALLET_ADDRESS"):
+        if os.environ.get(secret_name):
+            raise SystemExit(f"{secret_name} must not be present on Telegram listener")
 
     token = os.environ.get("BP_TELEGRAM_BOT_TOKEN", "").strip()
     if not token:
