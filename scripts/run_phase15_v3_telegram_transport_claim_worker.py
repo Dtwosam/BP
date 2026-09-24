@@ -323,7 +323,7 @@ def claim_pending_once(
         processed_path = processed_dir / inbox_path.name
         try:
             _write_private_json(processed_path, processed)
-        except TransportError as exc:
+        except (OSError, TransportError) as exc:
             failure_path = _terminal_failure(
                 failure_dir=failure_dir,
                 inbox_path=inbox_path,
