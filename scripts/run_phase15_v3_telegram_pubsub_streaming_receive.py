@@ -6,7 +6,6 @@ import hashlib
 import json
 import os
 import stat
-import threading
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
@@ -198,14 +197,54 @@ def process_message(
 ) -> dict[str, Any]:
     try:
         envelope = _decode_message(message)
+    except PubSubTransportError as exc:
+        try:
+            rejection_path = _write_rejection(
+                rejection_dir=rejection_dir,
+                message=message,
+                error=exc,
+                observed_at=observed_at,
+            )
+        except (OSError, TransportError):
+            message.nack()
+            return {
+                "status": "rejection_not_persisted_nacked",
+                "executor_invoked": False,
+                "real_order_submitted": False,
+            }
+        message.ack()
+        return {
+            "status": "invalid_acknowledged",
+            "rejection_path": str(rejection_path),
+            "executor_invoked": False,
+            "real_order_submitted": False,
+        }
+
+    try:
         key = load_transport_key_file(key_path)
+    except TransportError:
+        message.nack()
+        return {
+            "status": "local_key_unavailable_nacked",
+            "executor_invoked": False,
+            "real_order_submitted": False,
+        }
+
+    try:
         verified = verify_transport_envelope(
             envelope,
             key=key,
             expected_key_id=expected_key_id,
             observed_at=observed_at,
         )
-    except (PubSubTransportError, TransportError) as exc:
+    except TransportError as exc:
+        if str(exc) == "transport key id mismatch":
+            message.nack()
+            return {
+                "status": "key_id_mismatch_nacked",
+                "executor_invoked": False,
+                "real_order_submitted": False,
+            }
         try:
             rejection_path = _write_rejection(
                 rejection_dir=rejection_dir,
@@ -314,8 +353,6 @@ def main() -> int:
         max_messages=1,
         max_bytes=MAX_ENVELOPE_BYTES,
     )
-    stop_event = threading.Event()
-
     def callback(message: StreamingMessage) -> None:
         result = process_message(
             message,
@@ -331,14 +368,11 @@ def main() -> int:
         subscription_path,
         callback=callback,
         flow_control=flow_control,
-        await_callbacks_on_shutdown=True,
     )
     try:
         future.result()
     except KeyboardInterrupt:
-        stop_event.set()
         future.cancel()
-        future.result(timeout=10)
     finally:
         subscriber.close()
     return 0
