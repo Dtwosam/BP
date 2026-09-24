@@ -96,7 +96,7 @@ def _bundle(tmp_path: Path, now: datetime) -> tuple[Path, Path]:
     }
 
     ready = tmp_path / "ready"
-    ready.mkdir(mode=0o700)
+    ready.mkdir(parents=True, mode=0o700)
     payloads = {
         "prepared.json": prepared,
         "approval.json": envelope["approval"],
