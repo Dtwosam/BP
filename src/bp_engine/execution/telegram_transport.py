@@ -238,7 +238,7 @@ def claim_transport_envelope(
     os.chmod(state_dir, 0o700)
 
     claim_key = hashlib.sha256(
-        f"{verified['intent_id']}\0{verified['request_sha256']}".encode("utf-8")
+        f"{verified['intent_id']}\0{verified['request_sha256']}".encode()
     ).hexdigest()
     claim_path = state_dir / f"{claim_key}.json"
     record = {
