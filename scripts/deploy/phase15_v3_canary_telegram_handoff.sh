@@ -91,6 +91,7 @@ expected_claim_fields = {
     "approval_sha256",
     "approval_source_sha256",
     "origin_attestation_sha256",
+    "expires_at",
     "claimed_at",
     "retry_allowed",
     "executor_invoked",
@@ -129,8 +130,12 @@ for name in (
 assert str(claim["transport_key_id"])
 assert str(claim["origin_key_id"])
 
+now = datetime.now(UTC)
 claimed_at = datetime.fromisoformat(str(claim["claimed_at"])).astimezone(UTC)
-assert claimed_at <= datetime.now(UTC)
+expires_at = datetime.fromisoformat(str(claim["expires_at"])).astimezone(UTC)
+assert claimed_at <= now
+assert claimed_at < expires_at
+assert now < expires_at
 PY
 
 DISPATCH_CLAIM_SHA256=$(sha256sum "$DISPATCH_CLAIM_FILE" | awk '{print $1}')
@@ -178,6 +183,9 @@ assert claim["status"] == "dispatch_claimed"
 assert claim["retry_allowed"] is False
 assert claim["executor_invoked"] is False
 assert claim["real_order_submitted"] is False
+assert datetime.now(UTC) < datetime.fromisoformat(
+    str(claim["expires_at"])
+).astimezone(UTC)
 assert str(prepared.get("authorization_id") or "").startswith("phase15-v3-canary-")
 PY
 
