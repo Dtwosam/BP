@@ -103,6 +103,7 @@ def _materialize_claim(
             "approval_sha256": verified["approval_sha256"],
             "approval_source_sha256": verified["approval_source_sha256"],
             "origin_attestation_sha256": verified["origin_attestation_sha256"],
+            "origin_key_id": str(verified["origin_attestation"].get("key_id") or ""),
             "transport_nonce": verified["transport_nonce"],
             "transport_created_at": verified["created_at"],
             "transport_expires_at": verified["expires_at"],
