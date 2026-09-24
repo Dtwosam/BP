@@ -1,0 +1,46 @@
+[Unit]
+Description=BP Phase 15 Telegram transport one-shot claim worker
+After=bp-phase15-telegram-pubsub-streaming-receiver.service
+ConditionPathExists=/etc/bp-telegram-transport/claim.env
+ConditionPathExists=/etc/bp-telegram-transport/transport.key
+
+[Service]
+Type=simple
+User=bp-transport
+Group=bp-transport
+WorkingDirectory=/opt/bp-telegram-transport/current
+EnvironmentFile=/etc/bp-telegram-transport/claim.env
+Environment=MODE=research
+Environment=LIVE_TRADING_ENABLED=false
+Environment=MAX_TRADE_SIZE_USD=0
+Environment=MAX_DAILY_LOSS_USD=0
+Environment=PYTHONPATH=/opt/bp-telegram-transport/current/src
+UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS BP_TELEGRAM_BOT_TOKEN GOOGLE_APPLICATION_CREDENTIALS HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy
+ExecStart=/opt/bp-telegram-transport/.venv/bin/python /opt/bp-telegram-transport/current/scripts/run_phase15_v3_telegram_transport_claim_worker.py
+Restart=on-failure
+RestartSec=1s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+InaccessiblePaths=/etc/bp-canary
+ReadOnlyPaths=/opt/bp-telegram-transport /etc/bp-telegram-transport -/var/lib/bp-canary/telegram-transport-inbox
+ReadWritePaths=-/var/lib/bp-canary/telegram-transport-claims -/var/lib/bp-canary/telegram-transport-ready -/var/lib/bp-canary/telegram-transport-claim-processed -/var/lib/bp-canary/telegram-transport-claim-failures
+RestrictAddressFamilies=AF_UNIX
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-phase15-telegram-transport-claim
+
+[Install]
+WantedBy=multi-user.target
