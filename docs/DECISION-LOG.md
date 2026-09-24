@@ -650,11 +650,11 @@ The watcher has no arm path and no authenticated order-submission path. Arm rema
 
 ## D-067 — Stop after the first accepted live canary and require official fill reconciliation
 **Date:** 24 Sep 2026  
-**Status:** Active
+**Status:** Reconciled — zero fill
 
 The first frozen-V3 real-money canary was submitted exactly once under the existing Phase 15 policy. Intent `live-intent-6cdfcfd28d0eb52f1ee0762bfd351409` used the frozen $5 target and was accepted by the official SDK path as external order `0x7c85e5e8753a875dfd9fec8ffd45726164863648127351b21c2a8ba1819a28de`. The executor then reported successful cancellation after the two-second TTL and the result was durably recorded as event `accepted`.
 
-This consumes the one authorized network submission attempt. There is no retry and no second order authorization. Because an accepted order can fill before a later cancellation succeeds, the cancellation response is not treated as proof of zero fill. The project must reconcile official order/fill state and resulting exposure/P&L before any later live action is considered. This canary does not authorize automatic trading, larger sizing, V3 mutation, or V4 promotion.
+This consumes the one authorized network submission attempt. There is no retry and no second order authorization. Because an accepted order can fill before a later cancellation succeeds, the cancellation response was not treated as proof of zero fill. The subsequent official read-only reconciliation found zero open orders and no authenticated account trades matching the exact external order ID across two stable snapshots three seconds apart. Confirmed filled shares and matched notional are both zero, so live exposure and realized trade P&L from this canary are zero. The canary validates submission and bounded cancellation behavior, but does not validate fill-price/slippage quality because no fill occurred. It does not authorize automatic trading, another canary, larger sizing, V3 mutation, or V4 promotion.
 
 
 ## D-066 — Use an interactive Cloud Shell fast path instead of chat between canary gates
