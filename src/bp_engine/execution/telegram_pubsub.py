@@ -12,7 +12,6 @@ import httpx
 
 from bp_engine.execution.telegram_transport import (
     TRANSPORT_PURPOSE,
-    TransportError,
     payload_sha256,
 )
 
