@@ -305,6 +305,7 @@ def test_pack_rejects_symlink_output_directory(tmp_path: Path) -> None:
         pack.pack_transport(
             prepared_path=prepared_path,
             approval_path=approval_path,
+            origin_attestation_path=origin_attestation_path,
             key_path=key_path,
             key_id="test-key-v1",
             output_path=output_parent / "envelope.json",
