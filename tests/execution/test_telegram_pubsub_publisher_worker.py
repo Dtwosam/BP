@@ -9,6 +9,7 @@ from types import ModuleType
 import httpx
 
 from bp_engine.execution.telegram_approval import approval_record, new_pending
+from bp_engine.execution.telegram_origin_attestation import create_origin_attestation
 from bp_engine.execution.telegram_transport import (
     create_transport_envelope,
     encode_transport_key,
@@ -17,6 +18,7 @@ from bp_engine.execution.telegram_transport import (
 ROOT = Path(__file__).resolve().parents[2]
 WORKER = ROOT / "scripts" / "run_phase15_v3_telegram_pubsub_publish_worker.py"
 KEY_ID = "phase15-telegram-transport-v1"
+ORIGIN_KEY_ID = "phase15-telegram-origin-v1"
 
 
 def _load() -> ModuleType:
@@ -50,6 +52,20 @@ def _prepared(now: datetime) -> dict[str, object]:
     }
 
 
+def _origin_attestation(
+    prepared: dict[str, object],
+    approval: dict[str, object],
+    now: datetime,
+) -> dict[str, object]:
+    return create_origin_attestation(
+        prepared,
+        approval=approval,
+        key=bytes(range(32, 64)),
+        key_id=ORIGIN_KEY_ID,
+        attested_at=now + timedelta(seconds=2),
+    )
+
+
 def _envelope(now: datetime) -> tuple[dict[str, object], bytes]:
     prepared = _prepared(now)
     pending = new_pending(
@@ -69,6 +85,7 @@ def _envelope(now: datetime) -> tuple[dict[str, object], bytes]:
     envelope = create_transport_envelope(
         prepared,
         approval=approval,
+        origin_attestation=_origin_attestation(prepared, approval, now),
         key=key,
         key_id=KEY_ID,
         created_at=now + timedelta(seconds=2),
