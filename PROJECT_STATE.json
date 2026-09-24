@@ -4523,6 +4523,12 @@
       "live_risk_changed": false,
       "arm_semantics_changed": false,
       "submission_semantics_changed": false,
+      "rollout_helper": "scripts/deploy/phase15_v3_timing_latency_rollout_cloudshell.sh",
+      "rollout_scope": "frozen_v3_paper_execution_polling_only_then_separate_prepare_watcher_start",
+      "rollout_preserves_recorder_pid": true,
+      "rollout_preserves_predictor_pid": true,
+      "rollout_restarts_paper_executor_only": true,
+      "rollout_fail_closed_with_runtime_rollback": true,
       "production_deployed": false,
       "production_rollout_requires_explicit_authorization": true
     }
