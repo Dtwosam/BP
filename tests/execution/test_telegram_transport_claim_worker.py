@@ -142,7 +142,13 @@ def test_claim_worker_consumes_inbox_once_and_materializes_ready(tmp_path: Path)
     ready_path = Path(result["ready_path"])
     assert ready_path.is_dir()
     assert (os.stat(ready_path).st_mode & 0o777) == 0o700
-    for name in ("prepared.json", "approval.json", "envelope.json", "receipt.json"):
+    for name in (
+        "prepared.json",
+        "approval.json",
+        "origin-attestation.json",
+        "envelope.json",
+        "receipt.json",
+    ):
         assert (os.stat(ready_path / name).st_mode & 0o777) == 0o600
     ready_receipt = json.loads((ready_path / "receipt.json").read_text(encoding="utf-8"))
     assert ready_receipt["status"] == "claimed_ready"
