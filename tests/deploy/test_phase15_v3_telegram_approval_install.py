@@ -11,6 +11,9 @@ STATUS = ROOT / "scripts/deploy/phase15_v3_telegram_approval_status_cloudshell.s
 READINESS = ROOT / "scripts/deploy/phase15_v3_telegram_activation_readiness_cloudshell.sh"
 DISABLE = ROOT / "scripts/deploy/phase15_v3_telegram_approval_disable_cloudshell.sh"
 RUNNER = ROOT / "scripts/run_phase15_v3_canary_telegram_approval.py"
+OUTBOX = ROOT / "scripts/run_phase15_v3_telegram_transport_outbox.py"
+INTAKE = ROOT / "scripts/run_phase15_v3_telegram_transport_intake.py"
+TRANSPORT = ROOT / "src/bp_engine/execution/telegram_transport.py"
 UNIT = ROOT / "deploy/bp-phase15-canary-telegram-approval.service"
 
 
@@ -241,3 +244,54 @@ def test_telegram_disable_shell_syntax_is_valid() -> None:
         text=True,
     )
     assert completed.returncode == 0, completed.stderr
+
+
+def test_telegram_transport_protocol_and_adapters_are_carrierless() -> None:
+    transport = TRANSPORT.read_text(encoding="utf-8")
+    outbox = OUTBOX.read_text(encoding="utf-8")
+    intake = INTAKE.read_text(encoding="utf-8")
+
+    for marker in (
+        "TRANSPORT_MAX_LIFETIME_SECONDS = 15",
+        "hmac.compare_digest",
+        "transport envelope already claimed",
+        "retry_allowed",
+        "claim_key = hashlib.sha256",
+    ):
+        assert marker in transport
+
+    for marker in (
+        "BP_TELEGRAM_TRANSPORT_OUTBOX_ENABLED",
+        "BP_TELEGRAM_TRANSPORT_HMAC_KEY",
+        "network_send_attempted",
+        "real_order_submitted",
+    ):
+        assert marker in outbox
+
+    for marker in (
+        "BP_TELEGRAM_TRANSPORT_INTAKE_ENABLED",
+        "BP_TELEGRAM_TRANSPORT_HMAC_KEY",
+        "executor_invoked",
+        "real_order_submitted",
+        'claimed["claim_id"]',
+    ):
+        assert marker in intake
+
+    combined = "\n".join((transport, outbox, intake))
+    for forbidden in (
+        "gcloud",
+        "urlopen",
+        "httpx",
+        "requests.",
+        "post_order",
+        "create_limit_order",
+        "polymarket",
+        "PHASE15_ACCEPT_REAL_MONEY",
+        "sudo /opt/bp-canary/executor.sh",
+    ):
+        assert forbidden not in combined
+
+
+def test_telegram_transport_python_sources_are_syntax_valid() -> None:
+    for path in (TRANSPORT, OUTBOX, INTAKE):
+        ast.parse(path.read_text(encoding="utf-8"))
