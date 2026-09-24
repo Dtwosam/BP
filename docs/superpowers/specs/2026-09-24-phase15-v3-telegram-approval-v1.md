@@ -223,6 +223,35 @@ truth change, ready-bundle change, extra/modified report field, or blocked autho
 the snapshot stale and fails closed. This closes the authorization-check-to-execution TOCTOU
 gap without giving the pre-execution layer any execution capability.
 
+The offline dispatch layer is:
+
+```text
+src/bp_engine/execution/telegram_dispatch_ticket.py
+scripts/run_phase15_v3_telegram_dispatch_ticket.py
+```
+
+A dispatch ticket can be created only from a fully authorized pre-execution report. It binds
+the transport key ID, origin key ID, exact intent/order identities, request/prepared/approval
+hashes, origin-attestation hash/lifetime, source-truth hash, and
+`authorization_report_sha256`. The ticket itself performs no mutation, network action, arm,
+wallet access, or submission and expires no later than the origin authorization.
+
+The ticket is still not durable bearer permission. Before a dispatch claim is consumed, BP
+re-runs `verify_pre_execution_snapshot(..., require_authorized=True)` against the **current**
+origin-verified ready result and **current** source truth, reconstructs the expected ticket,
+and requires exact equality. Any source-truth drift, ready-bundle drift, report mutation, ticket
+mutation, blocker, or expiry fails before the claim directory is created.
+
+The dispatch claim is one-shot for the exact `(intent_id, request_sha256)` pair and is written
+with exclusive-create semantics. A duplicate claim fails closed. The claim record keeps
+`retry_allowed=false`, `executor_invoked=false`, and `real_order_submitted=false`.
+This layer deliberately stops before any arm/executor boundary.
+
+The CLI requires explicit enablement plus research/live-disabled/zero-money runtime and rejects
+wallet, Telegram-bot, or Google application credentials in its environment. Current source
+truth remains blocked, so it cannot produce a valid current-state dispatch claim for another
+live order.
+
 The carrierless adapters are:
 
 ```text
