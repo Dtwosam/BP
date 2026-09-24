@@ -90,6 +90,7 @@ def _materialize_claim(
         receipt = {
             "schema_version": 1,
             "status": "claimed_materialized",
+            "key_id": verified["key_id"],
             "intent_id": verified["intent_id"],
             "prediction_id": verified["prediction_id"],
             "paper_order_id": verified["paper_order_id"],
@@ -125,6 +126,7 @@ def claim_transport(
     *,
     envelope_path: Path,
     key_path: Path,
+    expected_key_id: str,
     claim_state_dir: Path,
     materialize_root: Path,
     observed_at: datetime,
@@ -134,6 +136,7 @@ def claim_transport(
     verified = claim_transport_envelope(
         envelope,
         key=key,
+        expected_key_id=expected_key_id,
         observed_at=observed_at,
         state_dir=claim_state_dir,
     )
@@ -158,6 +161,7 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--envelope", type=Path, required=True)
     parser.add_argument("--key-file", type=Path, required=True)
+    parser.add_argument("--key-id", required=True)
     parser.add_argument("--claim-state-dir", type=Path, required=True)
     parser.add_argument("--materialize-root", type=Path, required=True)
     return parser.parse_args()
@@ -169,6 +173,7 @@ def main() -> int:
         result = claim_transport(
             envelope_path=args.envelope,
             key_path=args.key_file,
+            expected_key_id=args.key_id,
             claim_state_dir=args.claim_state_dir,
             materialize_root=args.materialize_root,
             observed_at=datetime.now(UTC),
