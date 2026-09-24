@@ -262,10 +262,14 @@ src/bp_engine/execution/telegram_pubsub.py
 
 The publisher runs only against a prebuilt, locally reverified authenticated envelope. It
 obtains a short-lived OAuth bearer token from the Compute Engine metadata server, publishes
-the exact envelope bytes plus routing attributes to one configured topic, and records a local
-publish receipt. It has no wallet/signing material and no executor/arm/submission code.
+the exact authenticated envelope content plus routing attributes to one configured topic, and
+records a local publish receipt. Metadata-token requests are explicitly downscoped to the
+Pub/Sub OAuth scope, require the Google metadata response flavor, and use HTTP clients with
+environment proxy inheritance disabled. It has no wallet/signing material and no
+executor/arm/submission code.
 
 The receiver uses its own VM-attached service account and one configured pull subscription.
+Its HTTP client likewise ignores environment proxy configuration. 
 It validates the Pub/Sub routing attributes, verifies the envelope HMAC and exact key ID,
 durably persists the exact envelope to a local execution-host inbox, and only then
 acknowledges the Pub/Sub delivery. It does not claim the order or invoke the executor.
