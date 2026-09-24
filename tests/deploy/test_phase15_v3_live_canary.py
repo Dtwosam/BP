@@ -322,6 +322,9 @@ def test_persistent_prepare_start_requires_explicit_scope_and_health_only() -> N
         "SUBMISSION_AUTOMATED=false",
     ):
         assert marker in text
+    assert "deploy/bp-phase15-canary-prepare-watch.service" in text
+    assert "deploy/bp-phase15-v3-canary-prepare-watch.service" not in text
+    assert PERSISTENT_PREPARE_UNIT.exists()
     for forbidden in (
         '{"action":"submit"}',
         "post_order",
