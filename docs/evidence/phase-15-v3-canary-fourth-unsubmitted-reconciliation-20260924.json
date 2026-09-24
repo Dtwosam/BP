@@ -1,0 +1,23 @@
+{
+  "date": "2026-09-24",
+  "status": "PASS",
+  "intent_id": "live-intent-58b4e879fea6d65863692d12015daa3d",
+  "prediction_id": "7875873c17857b4b9b8d3a9de1e6c9a2198b996ae7e362f273358946cdfea81a",
+  "paper_order_id": "9f1bff40a0fb8d7375222ed5d91f9a7a110498fbf5bee816be9912eab66ac8ab",
+  "selected_side": "down",
+  "limit_price": "0.550000000000000000",
+  "requested_shares": "8.813290000000000000",
+  "target_notional_usd": "5.000000000000000000",
+  "market_end_at": "2026-09-24T11:50:00+00:00",
+  "prepared_observed_at": "2026-09-24T11:49:06.581820+00:00",
+  "armable_at_capture": true,
+  "arm_attempted": false,
+  "live_order_submitted": false,
+  "submission_attempt_consumed": false,
+  "reconciliation_id": "live-reconciliation-ca7771fe214d2e8c96caa3e9af22b371",
+  "reconciliation_event": "closed_before_submission",
+  "reconciliation_status": "reconciled",
+  "kill_switch_engaged": true,
+  "helper_result": "PHASE15_V3_CANARY_RECONCILE_UNSUBMITTED=PASS",
+  "interpretation": "The corrected persistent Phase 15 prepare-only watcher produced a valid $5 frozen-V3 live intent, but the market expired before manual arm/submission. The intent was closed before submission with the kill switch engaged, no real order submitted, and the single authorized network submission attempt still unused."
+}
