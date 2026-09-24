@@ -5,6 +5,8 @@ import hashlib
 import hmac
 import json
 import os
+import re
+import stat
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -19,6 +21,37 @@ from bp_engine.execution.telegram_approval import (
 TRANSPORT_SCHEMA_VERSION = 1
 TRANSPORT_PURPOSE = "phase15-v3-telegram-execution-v1"
 TRANSPORT_MAX_LIFETIME_SECONDS = 15
+TRANSPORT_ENVELOPE_FIELDS = frozenset(
+    {
+        "schema_version",
+        "purpose",
+        "intent_id",
+        "prediction_id",
+        "paper_order_id",
+        "request_sha256",
+        "prepared_sha256",
+        "approval_sha256",
+        "approval_source_sha256",
+        "transport_nonce",
+        "created_at",
+        "expires_at",
+        "prepared",
+        "approval",
+        "hmac_sha256",
+    }
+)
+TRANSPORT_APPROVAL_FIELDS = frozenset(
+    {
+        "schema_version",
+        "status",
+        "intent_id",
+        "prediction_id",
+        "paper_order_id",
+        "request_sha256",
+        "approved_at",
+        "expires_at",
+    }
+)
 
 
 class TransportError(RuntimeError):
@@ -74,6 +107,30 @@ def encode_transport_key(key: bytes) -> str:
 
 def generate_transport_key() -> str:
     return encode_transport_key(os.urandom(32))
+
+
+def load_transport_key_file(path: Path) -> bytes:
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise TransportError("transport key file is not readable") from exc
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+        raise TransportError("transport key file must be a regular non-symlink file")
+    mode = stat.S_IMODE(info.st_mode)
+    if mode not in (0o600, 0o640):
+        raise TransportError("transport key file mode must be 0600 or 0640")
+    if info.st_size <= 0 or info.st_size > 256:
+        raise TransportError("transport key file size invalid")
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise TransportError("transport key file is not readable") from exc
+    if "\x00" in raw:
+        raise TransportError("transport key file contains NUL")
+    stripped = raw.strip()
+    if not stripped or any(line.strip() for line in raw.splitlines()[1:]):
+        raise TransportError("transport key file must contain exactly one value")
+    return parse_transport_key(stripped)
 
 
 def _mac(body: Mapping[str, Any], key: bytes) -> str:
@@ -154,6 +211,8 @@ def verify_transport_envelope(
     observed_at: datetime,
 ) -> dict[str, Any]:
     observed = _utc(observed_at)
+    if set(envelope) != TRANSPORT_ENVELOPE_FIELDS:
+        raise TransportError("transport envelope fields mismatch")
     if envelope.get("schema_version") != TRANSPORT_SCHEMA_VERSION:
         raise TransportError("transport schema mismatch")
     if envelope.get("purpose") != TRANSPORT_PURPOSE:
@@ -171,6 +230,8 @@ def verify_transport_envelope(
     approval = envelope.get("approval")
     if not isinstance(prepared, Mapping) or not isinstance(approval, Mapping):
         raise TransportError("transport payload missing")
+    if set(approval) != TRANSPORT_APPROVAL_FIELDS:
+        raise TransportError("transport approval fields mismatch")
 
     if str(envelope.get("prepared_sha256") or "") != payload_sha256(prepared):
         raise TransportError("prepared payload hash mismatch")
@@ -203,8 +264,18 @@ def verify_transport_envelope(
     for field in ("intent_id", "prediction_id", "paper_order_id", "request_sha256"):
         if str(envelope.get(field) or "") != str(binding[field]):
             raise TransportError(f"transport {field} mismatch")
-    if not str(envelope.get("transport_nonce") or ""):
-        raise TransportError("transport nonce missing")
+    transport_nonce = str(envelope.get("transport_nonce") or "")
+    if not transport_nonce or len(transport_nonce.encode()) > 80:
+        raise TransportError("transport nonce invalid")
+    for name in (
+        "request_sha256",
+        "prepared_sha256",
+        "approval_sha256",
+        "approval_source_sha256",
+    ):
+        value = str(envelope.get(name) or "")
+        if re.fullmatch(r"[0-9a-f]{64}", value) is None:
+            raise TransportError(f"transport {name} invalid")
 
     return {
         "intent_id": binding["intent_id"],
@@ -214,7 +285,7 @@ def verify_transport_envelope(
         "prepared_sha256": str(envelope["prepared_sha256"]),
         "approval_sha256": str(envelope["approval_sha256"]),
         "approval_source_sha256": str(envelope.get("approval_source_sha256") or ""),
-        "transport_nonce": str(envelope["transport_nonce"]),
+        "transport_nonce": transport_nonce,
         "created_at": created.isoformat(),
         "expires_at": expires.isoformat(),
         "prepared": dict(prepared),
