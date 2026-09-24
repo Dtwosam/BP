@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
+import stat
 from collections.abc import Mapping
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from bp_engine.execution.telegram_pre_execution import (
@@ -203,3 +206,90 @@ def verify_dispatch_ticket(
         raise DispatchTicketError("dispatch ticket expired")
 
     return dict(ticket)
+
+
+def _ensure_private_directory(path: Path, *, label: str) -> None:
+    try:
+        path.mkdir(parents=True, mode=0o700)
+    except FileExistsError:
+        pass
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise DispatchTicketError(f"{label} is not accessible") from exc
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+        raise DispatchTicketError(f"{label} must be a non-symlink directory")
+    os.chmod(path, 0o700)
+
+
+def claim_dispatch_ticket(
+    ticket: Mapping[str, Any],
+    *,
+    observed_at: datetime,
+    state_dir: Path,
+) -> dict[str, Any]:
+    verified = verify_dispatch_ticket(ticket, observed_at=observed_at)
+    _ensure_private_directory(state_dir, label="dispatch claim directory")
+
+    claim_id = hashlib.sha256(
+        (
+            f"{verified['intent_id']}\0"
+            f"{verified['request_sha256']}\0"
+            f"{verified['authorization_report_sha256']}"
+        ).encode()
+    ).hexdigest()
+    claim_path = state_dir / f"{claim_id}.json"
+
+    record = {
+        "schema_version": 1,
+        "status": "dispatch_claimed",
+        "dispatch_ticket_sha256": str(verified["dispatch_ticket_sha256"]),
+        "authorization_report_sha256": str(
+            verified["authorization_report_sha256"]
+        ),
+        "source_truth_sha256": str(verified["source_truth_sha256"]),
+        "transport_key_id": str(verified["transport_key_id"]),
+        "origin_key_id": str(verified["origin_key_id"]),
+        "intent_id": str(verified["intent_id"]),
+        "prediction_id": str(verified["prediction_id"]),
+        "paper_order_id": str(verified["paper_order_id"]),
+        "request_sha256": str(verified["request_sha256"]),
+        "prepared_sha256": str(verified["prepared_sha256"]),
+        "approval_sha256": str(verified["approval_sha256"]),
+        "approval_source_sha256": str(verified["approval_source_sha256"]),
+        "origin_attestation_sha256": str(
+            verified["origin_attestation_sha256"]
+        ),
+        "claimed_at": _utc(observed_at).isoformat(),
+        "retry_allowed": False,
+        "executor_invoked": False,
+        "real_order_submitted": False,
+    }
+    encoded = json.dumps(
+        record,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ) + "\n"
+    try:
+        fd = os.open(
+            claim_path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+            0o600,
+        )
+    except FileExistsError as exc:
+        raise DispatchTicketError("dispatch ticket already claimed") from exc
+
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(encoded)
+        handle.flush()
+        os.fsync(handle.fileno())
+
+    return {
+        **record,
+        "claim_id": claim_id,
+        "claim_path": str(claim_path),
+        "claim_sha256": hashlib.sha256(encoded.encode()).hexdigest(),
+    }
+
