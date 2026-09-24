@@ -193,3 +193,34 @@ def test_transport_outbox_rejects_disabled_or_secret_bearing_runtime(
     monkeypatch.setenv("POLYMARKET_PRIVATE_KEY", "must-not-be-here")
     with pytest.raises(SystemExit, match="POLYMARKET_PRIVATE_KEY"):
         outbox.main()
+
+
+def test_transport_adapters_reject_symlink_inputs_and_output_dirs(
+    tmp_path,
+) -> None:
+    outbox = _load(OUTBOX_SCRIPT, "telegram_transport_outbox_symlink_test")
+    intake = _load(INTAKE_SCRIPT, "telegram_transport_intake_symlink_test")
+
+    real_json = tmp_path / "real.json"
+    real_json.write_text("{}\n", encoding="utf-8")
+    json_link = tmp_path / "linked.json"
+    json_link.symlink_to(real_json)
+
+    with pytest.raises(TransportError, match="non-symlink file"):
+        outbox._load_json(json_link)
+    with pytest.raises(TransportError, match="non-symlink file"):
+        intake._load_json(json_link)
+
+    actual_outbox = tmp_path / "actual-outbox"
+    actual_outbox.mkdir()
+    outbox_link = tmp_path / "outbox-link"
+    outbox_link.symlink_to(actual_outbox, target_is_directory=True)
+    with pytest.raises(TransportError, match="non-symlink directory"):
+        outbox._ensure_private_directory(outbox_link)
+
+    actual_receipts = tmp_path / "actual-receipts"
+    actual_receipts.mkdir()
+    receipts_link = tmp_path / "receipts-link"
+    receipts_link.symlink_to(actual_receipts, target_is_directory=True)
+    with pytest.raises(TransportError, match="non-symlink directory"):
+        intake._ensure_private_directory(receipts_link)
