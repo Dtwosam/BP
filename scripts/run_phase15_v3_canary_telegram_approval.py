@@ -230,6 +230,16 @@ def _dispatch_approved_handoff(
         _atomic_json(state_dir / "status.json", invalid)
         return invalid
 
+    handoff_prepared_path = state_dir / "handoff-prepared.json"
+    _atomic_json(handoff_prepared_path, prepared)
+    frozen_binding = validate_approved_handoff(
+        _load_json(handoff_prepared_path),
+        approval=approval,
+        observed_at=_utc_now(),
+    )
+    if frozen_binding["request_sha256"] != binding["request_sha256"]:
+        raise RuntimeError("handoff prepared snapshot changed")
+
     attempt = {
         "schema_version": 1,
         "status": "handoff_started",
@@ -250,7 +260,7 @@ def _dispatch_approved_handoff(
     environment["BP_APPROVED_REQUEST_SHA256"] = str(binding["request_sha256"])
     try:
         completed = subprocess.run(
-            [str(command), str(prepared_path), str(approval_path)],
+            [str(command), str(handoff_prepared_path), str(approval_path)],
             check=False,
             capture_output=True,
             text=True,
