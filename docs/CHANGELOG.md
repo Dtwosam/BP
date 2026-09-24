@@ -1,4 +1,5 @@
 # Changelog
+- Engineering-only: corrected Phase 15 candidate retry semantics so transient `liquidity_missing`, `liquidity_below_minimum`, or `api_unhealthy` risk decisions do not permanently blacklist a still-fresh frozen-V3 paper candidate. Non-transient failures remain terminal; risk decisions remain append-only; no production rollout is authorized by this change.
 
 ## 0.14.180 — 23 September 2026
 - Production start of the authorized Phase 15 persistent prepare-only watcher passed on `bp-recorder` at `2026-09-24T09:46:48Z`: service active, two-hour max wait, no real order submitted, arm automation false, submission automation false. Evidence: `docs/evidence/phase-15-persistent-prepare-watch-production-start-20260924.json`.
