@@ -8,7 +8,6 @@ from types import ModuleType
 
 from bp_engine.execution.telegram_approval import approval_record, new_pending
 
-
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "run_phase15_v3_canary_telegram_approval.py"
 
@@ -104,7 +103,8 @@ def test_approved_handoff_runs_once_and_restart_does_not_retry(tmp_path, monkeyp
     assert marker.read_text(encoding="utf-8").splitlines() == ["run"]
     handoff_prepared = state_dir / "handoff-prepared.json"
     assert handoff_prepared.is_file()
-    assert json.loads(handoff_prepared.read_text(encoding="utf-8"))["intent_id"] == "live-intent-123"
+    handoff_payload = json.loads(handoff_prepared.read_text(encoding="utf-8"))
+    assert handoff_payload["intent_id"] == "live-intent-123"
     assert (state_dir / "handoff-attempt.json").is_file()
     assert (state_dir / "handoff-result.json").is_file()
 
