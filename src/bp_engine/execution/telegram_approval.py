@@ -241,3 +241,49 @@ def approval_record(
         "approved_at": approved.isoformat(),
         "expires_at": str(pending["expires_at"]),
     }
+
+def validate_approved_handoff(
+    prepared: Mapping[str, Any],
+    *,
+    approval: Mapping[str, Any],
+    observed_at: datetime,
+) -> dict[str, Any]:
+    observed = _utc(observed_at)
+    if approval.get("status") != "approved":
+        raise ApprovalError("approval is not approved")
+
+    validated = validate_prepared(
+        prepared,
+        observed_at=observed,
+        minimum_seconds_remaining=SUBMIT_SAFETY_FLOOR_SECONDS,
+    )
+    for field in ("intent_id", "prediction_id", "paper_order_id"):
+        approved_value = str(approval.get(field) or "")
+        if approved_value != str(validated[field]):
+            raise ApprovalError(f"approved {field} mismatch")
+
+    approved_request_sha = str(approval.get("request_sha256") or "")
+    if approved_request_sha != str(validated["request_sha256"]):
+        raise ApprovalError("approved request changed")
+
+    try:
+        approved_at = _utc(datetime.fromisoformat(str(approval["approved_at"])))
+        expires_at = _utc(datetime.fromisoformat(str(approval["expires_at"])))
+    except (KeyError, ValueError, TypeError) as exc:
+        raise ApprovalError("approval timestamps invalid") from exc
+    if approved_at >= expires_at:
+        raise ApprovalError("approval timestamp invalid")
+    if approved_at > observed:
+        raise ApprovalError("approval timestamp is in the future")
+    if observed >= expires_at:
+        raise ApprovalError("approval expired")
+
+    return {
+        **validated,
+        "approved_at": approved_at.isoformat(),
+        "expires_at": expires_at.isoformat(),
+        "callback_query_id": str(approval.get("callback_query_id") or ""),
+        "telegram_user_id": int(approval.get("telegram_user_id", 0)),
+        "telegram_chat_id": int(approval.get("telegram_chat_id", 0)),
+    }
+
