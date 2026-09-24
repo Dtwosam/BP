@@ -12,6 +12,7 @@ from bp_engine.execution.telegram_approval import (
     new_pending,
     request_sha256,
 )
+from bp_engine.execution.telegram_origin_attestation import create_origin_attestation
 from bp_engine.execution.telegram_transport import (
     TransportError,
     claim_transport_envelope,
@@ -24,6 +25,7 @@ from bp_engine.execution.telegram_transport import (
 )
 
 KEY_ID = "phase15-telegram-transport-v1"
+ORIGIN_KEY_ID = "phase15-telegram-origin-v1"
 
 
 def _prepared(now: datetime) -> dict[str, object]:
@@ -65,6 +67,20 @@ def _approval(prepared: dict[str, object], now: datetime) -> dict[str, object]:
     )
 
 
+def _origin_attestation(
+    prepared: dict[str, object],
+    approval: dict[str, object],
+    now: datetime,
+) -> dict[str, object]:
+    return create_origin_attestation(
+        prepared,
+        approval=approval,
+        key=bytes(range(32, 64)),
+        key_id=ORIGIN_KEY_ID,
+        attested_at=now + timedelta(seconds=2),
+    )
+
+
 def test_transport_key_round_trip_is_exact_and_strict() -> None:
     key = bytes(range(32))
     encoded = encode_transport_key(key)
@@ -102,6 +118,7 @@ def test_transport_envelope_is_exact_bound_and_strips_telegram_identity() -> Non
     envelope = create_transport_envelope(
         prepared,
         approval=approval,
+        origin_attestation=_origin_attestation(prepared, approval, now),
         key=key,
         key_id=KEY_ID,
         created_at=now + timedelta(seconds=2),
@@ -119,6 +136,8 @@ def test_transport_envelope_is_exact_bound_and_strips_telegram_identity() -> Non
     assert verified["request_sha256"] == request_sha256(prepared)
     assert envelope["prepared_sha256"] == payload_sha256(prepared)
     assert envelope["approval_source_sha256"] == payload_sha256(approval)
+    assert verified["origin_attestation"] == envelope["origin_attestation"]
+    assert verified["origin_attestation_sha256"] == envelope["origin_attestation_sha256"]
     assert "telegram_user_id" not in envelope["approval"]
     assert "telegram_chat_id" not in envelope["approval"]
     assert "callback_query_id" not in envelope["approval"]
@@ -132,6 +151,7 @@ def test_transport_envelope_tampering_wrong_key_and_expiry_fail_closed() -> None
     envelope = create_transport_envelope(
         prepared,
         approval=approval,
+        origin_attestation=_origin_attestation(prepared, approval, now),
         key=key,
         key_id=KEY_ID,
         created_at=now + timedelta(seconds=2),
@@ -143,6 +163,16 @@ def test_transport_envelope_tampering_wrong_key_and_expiry_fail_closed() -> None
     with pytest.raises(TransportError, match="envelope fields mismatch"):
         verify_transport_envelope(
             unexpected,
+            key=key,
+            expected_key_id=KEY_ID,
+            observed_at=now + timedelta(seconds=3),
+        )
+
+    origin_modified = copy.deepcopy(envelope)
+    origin_modified["origin_attestation"]["intent_id"] = "forged-intent"
+    with pytest.raises(TransportError, match="hmac mismatch"):
+        verify_transport_envelope(
+            origin_modified,
             key=key,
             expected_key_id=KEY_ID,
             observed_at=now + timedelta(seconds=3),
@@ -194,6 +224,7 @@ def test_transport_claim_is_one_shot_for_exact_order_even_with_new_nonce(tmp_pat
     first = create_transport_envelope(
         prepared,
         approval=approval,
+        origin_attestation=_origin_attestation(prepared, approval, now),
         key=key,
         key_id=KEY_ID,
         created_at=now + timedelta(seconds=2),
@@ -202,6 +233,7 @@ def test_transport_claim_is_one_shot_for_exact_order_even_with_new_nonce(tmp_pat
     second = create_transport_envelope(
         prepared,
         approval=approval,
+        origin_attestation=_origin_attestation(prepared, approval, now),
         key=key,
         key_id=KEY_ID,
         created_at=now + timedelta(seconds=3),
@@ -242,6 +274,7 @@ def test_transport_claim_rejects_symlink_state_directory(tmp_path) -> None:
     envelope = create_transport_envelope(
         prepared,
         approval=approval,
+        origin_attestation=_origin_attestation(prepared, approval, now),
         key=key,
         key_id=KEY_ID,
         created_at=now + timedelta(seconds=2),
