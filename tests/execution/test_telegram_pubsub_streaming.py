@@ -9,6 +9,7 @@ from types import ModuleType
 from typing import Any
 
 from bp_engine.execution.telegram_approval import approval_record, new_pending
+from bp_engine.execution.telegram_origin_attestation import create_origin_attestation
 from bp_engine.execution.telegram_pubsub import envelope_attributes
 from bp_engine.execution.telegram_transport import (
     create_transport_envelope,
@@ -20,6 +21,7 @@ STREAMING_SCRIPT = (
     ROOT / "scripts" / "run_phase15_v3_telegram_pubsub_streaming_receive.py"
 )
 KEY_ID = "phase15-telegram-transport-v1"
+ORIGIN_KEY_ID = "phase15-telegram-origin-v1"
 
 
 class FakeMessage:
@@ -81,6 +83,20 @@ def _prepared(now: datetime) -> dict[str, object]:
     }
 
 
+def _origin_attestation(
+    prepared: dict[str, object],
+    approval: dict[str, object],
+    now: datetime,
+) -> dict[str, object]:
+    return create_origin_attestation(
+        prepared,
+        approval=approval,
+        key=bytes(range(32, 64)),
+        key_id=ORIGIN_KEY_ID,
+        attested_at=now + timedelta(seconds=2),
+    )
+
+
 def _envelope(now: datetime) -> tuple[dict[str, Any], bytes]:
     prepared = _prepared(now)
     pending = new_pending(
@@ -100,6 +116,7 @@ def _envelope(now: datetime) -> tuple[dict[str, Any], bytes]:
     envelope = create_transport_envelope(
         prepared,
         approval=approval,
+        origin_attestation=_origin_attestation(prepared, approval, now),
         key=key,
         key_id=KEY_ID,
         created_at=now + timedelta(seconds=2),
