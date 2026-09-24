@@ -124,6 +124,7 @@ def test_pack_then_claim_materializes_exact_sanitized_one_shot_payload(
         prepared_path=prepared_path,
         approval_path=approval_path,
         key_path=key_path,
+        key_id="test-key-v1",
         output_path=envelope_path,
         created_at=now + timedelta(seconds=2),
         nonce="transport-nonce-cli",
@@ -136,6 +137,7 @@ def test_pack_then_claim_materializes_exact_sanitized_one_shot_payload(
     result = claim.claim_transport(
         envelope_path=envelope_path,
         key_path=key_path,
+        expected_key_id="test-key-v1",
         claim_state_dir=claims,
         materialize_root=materialized,
         observed_at=now + timedelta(seconds=3),
@@ -166,6 +168,7 @@ def test_pack_then_claim_materializes_exact_sanitized_one_shot_payload(
         claim.claim_transport(
             envelope_path=envelope_path,
             key_path=key_path,
+            expected_key_id="test-key-v1",
             claim_state_dir=claims,
             materialize_root=materialized,
             observed_at=now + timedelta(seconds=4),
@@ -197,6 +200,7 @@ def test_claim_consumes_transport_before_materialization_and_never_retries(
         prepared_path=prepared_path,
         approval_path=approval_path,
         key_path=key_path,
+        key_id="test-key-v1",
         output_path=envelope_path,
         created_at=now + timedelta(seconds=2),
         nonce="transport-nonce-failure",
@@ -210,6 +214,7 @@ def test_claim_consumes_transport_before_materialization_and_never_retries(
         claim.claim_transport(
             envelope_path=envelope_path,
             key_path=key_path,
+            expected_key_id="test-key-v1",
             claim_state_dir=claims,
             materialize_root=materialized,
             observed_at=now + timedelta(seconds=3),
@@ -219,6 +224,7 @@ def test_claim_consumes_transport_before_materialization_and_never_retries(
         claim.claim_transport(
             envelope_path=envelope_path,
             key_path=key_path,
+            expected_key_id="test-key-v1",
             claim_state_dir=claims,
             materialize_root=materialized,
             observed_at=now + timedelta(seconds=4),
@@ -268,6 +274,7 @@ def test_pack_rejects_symlink_output_directory(tmp_path: Path) -> None:
             prepared_path=prepared_path,
             approval_path=approval_path,
             key_path=key_path,
+            key_id="test-key-v1",
             output_path=output_parent / "envelope.json",
             created_at=now + timedelta(seconds=2),
             nonce="transport-nonce-pack-symlink",
@@ -301,6 +308,7 @@ def test_claim_rejects_symlink_materialize_root_after_consuming_claim(
         prepared_path=prepared_path,
         approval_path=approval_path,
         key_path=key_path,
+        key_id="test-key-v1",
         output_path=envelope_path,
         created_at=now + timedelta(seconds=2),
         nonce="transport-nonce-materialize-symlink",
@@ -310,6 +318,7 @@ def test_claim_rejects_symlink_materialize_root_after_consuming_claim(
         claim.claim_transport(
             envelope_path=envelope_path,
             key_path=key_path,
+            expected_key_id="test-key-v1",
             claim_state_dir=claims,
             materialize_root=materialized,
             observed_at=now + timedelta(seconds=3),
@@ -319,6 +328,7 @@ def test_claim_rejects_symlink_materialize_root_after_consuming_claim(
         claim.claim_transport(
             envelope_path=envelope_path,
             key_path=key_path,
+            expected_key_id="test-key-v1",
             claim_state_dir=claims,
             materialize_root=materialized,
             observed_at=now + timedelta(seconds=4),
