@@ -1,0 +1,31 @@
+{
+  "date": "2026-09-24",
+  "status": "PASS",
+  "watcher_run_id": "phase15-prepare-watch-20260924T153537Z-aede7c4b",
+  "watcher_helper_head": "aede7c4b72614aa4f6471881ece6f2b222f27c54",
+  "intent_id": "live-intent-5c67f093c59fd096d82e8669f9ac8ede",
+  "prediction_id": "78a3e47ad16c647f5142a299d332ddc8bfd06e18328c3780176b3e963e104c9b",
+  "paper_order_id": "d85457eed5aea90d2f21ddb7ff9cff8ac786ad525c87933a864f2d8588806fcf",
+  "selected_side": "down",
+  "limit_price": "0.380000000000000000",
+  "requested_shares": "12.610594000000000000",
+  "target_notional_usd": "5.000000000000000000",
+  "market_end_at": "2026-09-24T15:50:00+00:00",
+  "prepared_observed_at": "2026-09-24T15:49:03.298346+00:00",
+  "seconds_to_market_end_at_prepare": "56.701654",
+  "window_consumed_after_schedule_seconds": "3.298346",
+  "status_check_result": "PREPARED_BUT_STALE",
+  "reconciliation": {
+    "event_type": "closed_before_submission",
+    "reconciliation_id": "live-reconciliation-10f13c5449219daaf7934630bcc2818a",
+    "status": "reconciled",
+    "submission_attempt_consumed": false
+  },
+  "safety": {
+    "kill_switch_engaged": true,
+    "live_order_submitted": false,
+    "arm_attempted": false,
+    "submission_attempt_consumed": false
+  },
+  "interpretation": "The timing hardening successfully prepared the candidate with 56.701654 seconds remaining, but the operator status check occurred after expiry. The stale prepared payload was recovered read-only from the recorder, validated against the exact intent/prediction/paper-order IDs, and reconciled as closed_before_submission. No arm or live order occurred and the one network submission attempt remains unused."
+}
