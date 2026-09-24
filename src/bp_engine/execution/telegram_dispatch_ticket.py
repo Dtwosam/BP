@@ -319,6 +319,7 @@ def claim_dispatch_ticket(
         "origin_attestation_sha256": str(
             verified["origin_attestation_sha256"]
         ),
+        "expires_at": str(verified["expires_at"]),
         "claimed_at": _utc(observed_at).isoformat(),
         "retry_allowed": False,
         "executor_invoked": False,
