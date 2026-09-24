@@ -60,8 +60,7 @@ HEALTH=$(printf '%s' '{"action":"health"}' |
   gcloud compute ssh "$VM"     --project="$PROJECT"     --zone="$ZONE"     --quiet     --command='sudo /opt/bp-canary/executor.sh') ||
   fail "executor_health_command_failed"
 
-python3 - "$HEALTH" "$EXECUTOR_SHA256" <<'PY' ||
-  fail "executor_not_safe_for_readonly_reconciliation"
+if ! python3 - "$HEALTH" "$EXECUTOR_SHA256" <<'PY'
 import json
 import sys
 
@@ -76,6 +75,9 @@ assert payload["account"]["clean_for_canary"] is True
 assert payload["kill_switch_engaged"] is True
 assert payload["submission_ready"] is False
 PY
+then
+  fail "executor_not_safe_for_readonly_reconciliation"
+fi
 
 SNAPSHOT=$(gcloud compute ssh "$VM"   --project="$PROJECT"   --zone="$ZONE"   --quiet   --command="sudo env CANARY_ORDER_ID='$ORDER_ID' CANARY_INTENT_ID='$INTENT_ID' CANARY_REQUESTED_SHARES='$REQUESTED_SHARES' bash -s" <<'REMOTE'
 set -Eeuo pipefail
@@ -233,8 +235,7 @@ PY
 REMOTE
 ) || fail "official_fill_probe_command_failed"
 
-python3 - "$SNAPSHOT" "$INTENT_ID" "$ORDER_ID" <<'PY' ||
-  fail "official_fill_probe_result_invalid"
+if ! python3 - "$SNAPSHOT" "$INTENT_ID" "$ORDER_ID" <<'PY'
 import json
 import sys
 
@@ -251,6 +252,9 @@ assert payload["fill_state"] in {
     "order_still_open",
 }
 PY
+then
+  fail "official_fill_probe_result_invalid"
+fi
 
 echo "$HEALTH"
 echo "$SNAPSHOT"
