@@ -182,6 +182,49 @@ submit an order.
 These adapters allow the full `APPROVE -> envelope -> verify -> claim` semantics to be tested
 locally before any carrier or cloud IAM change exists.
 
+## Authenticated transport envelope boundary
+
+The engineering branch now defines the payload contract that a future persistent transport
+must carry, without defining or enabling the network transport itself.
+
+`src/bp_engine/execution/telegram_transport.py` creates a short-lived HMAC-SHA256 envelope
+bound to the exact approved prepared order. The envelope includes the prepared payload,
+sanitized approval fields, exact identity/request hashes, a transport nonce, creation/expiry
+timestamps, and a purpose/schema version. Telegram user/chat IDs and callback-query IDs are
+not forwarded to the execution side.
+
+The transport key must be exactly 32 bytes encoded as base64url and may be loaded only from a
+regular non-symlink file with mode `0600` or `0640`. It is not accepted through a command
+line argument or environment variable by the boundary runners.
+
+The producer boundary is:
+
+```text
+scripts/run_phase15_v3_telegram_transport_pack.py
+```
+
+It reads the already-approved prepared/approval files plus a restricted key file and creates a
+new `0600` envelope file with create-exclusive semantics. It performs no network action.
+
+The receiver boundary is:
+
+```text
+scripts/run_phase15_v3_telegram_transport_claim.py
+```
+
+It verifies the exact schema, HMAC, hashes, approval validity, transport lifetime, and request
+binding; then atomically claims the exact `intent_id + request_sha256` in a `0700` claim
+state directory. A different transport nonce cannot make the same order claimable twice.
+
+After claim, the receiver materializes `prepared.json`, sanitized `approval.json`,
+`envelope.json`, and `receipt.json` as `0600` files under a `0700` directory. If
+materialization fails after the claim, the claim remains consumed and automatic retry is
+forbidden.
+
+These two runners contain no HTTP client, `gcloud`, Polymarket SDK/order call, wallet key, arm
+operation, or submission operation. A future authorized transport may carry the envelope
+between them, but that network mechanism remains a separate gate.
+
 ## Persistent execution transport is still a separate gate
 
 Existing BP live control uses authenticated Cloud Shell `gcloud compute ssh` commands. The
