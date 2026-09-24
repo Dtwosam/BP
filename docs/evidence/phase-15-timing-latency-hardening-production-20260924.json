@@ -1,0 +1,45 @@
+{
+  "date": "2026-09-24",
+  "status": "PASS",
+  "authorized_main_commit": "aede7c4b72614aa4f6471881ece6f2b222f27c54",
+  "authorization_scope": "Production rollout of Phase 15 timing-latency hardening plus restart of prepare-only watcher; no arm or live submission authorized.",
+  "paper_executor": {
+    "helper": "scripts/deploy/phase15_v3_timing_latency_rollout_cloudshell.sh",
+    "helper_result": "PHASE15_V3_TIMING_LATENCY_CLOUDSHELL=PASS",
+    "rollout_result": "PHASE15_V3_TIMING_LATENCY_ROLLOUT=ALREADY_CURRENT",
+    "runtime": "/var/lib/bp/runtime/v3-paper-timing-c1e8166c463dd0111098ca29e43cd8a106d11939",
+    "poll_seconds": 1,
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0
+  },
+  "prepare_watcher": {
+    "run_id": "phase15-prepare-watch-20260924T153537Z-aede7c4b",
+    "activated_at": "2026-09-24T15:35:37.565196+00:00",
+    "helper_head": "aede7c4b72614aa4f6471881ece6f2b222f27c54",
+    "remote_run_dir": "/var/lib/bp/phase15-canary-prepare-watch/runs/phase15-prepare-watch-20260924T153537Z-aede7c4b",
+    "poll_seconds": 0.5,
+    "service_active": true,
+    "status": "running",
+    "reason": "no_new_frozen_v3_trade_order",
+    "status_observed_at": "2026-09-24T15:38:43.308918+00:00",
+    "live_trading_enabled": false,
+    "arm_attempted": false,
+    "real_order_submitted": false,
+    "submission_attempt_consumed": false
+  },
+  "invariants": {
+    "frozen_v3_selected_offset_seconds": 240,
+    "market_horizon_seconds": 300,
+    "theoretical_max_seconds_to_market_end": 60,
+    "strategy_changed": false,
+    "model_changed": false,
+    "min_edge_changed": false,
+    "target_notional_changed": false,
+    "live_risk_changed": false,
+    "arm_semantics_changed": false,
+    "submission_semantics_changed": false,
+    "arm_automated": false,
+    "submission_automated": false
+  }
+}
