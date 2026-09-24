@@ -135,6 +135,53 @@ Current source truth does not contain that authorization, so the bridge fails be
 
 The bridge is intentionally not configured in the listener service or installer.
 
+## Carrier-independent transport protocol
+
+Before selecting a network carrier, BP defines the execution transport payload independently.
+
+`src/bp_engine/execution/telegram_transport.py` creates a canonical JSON envelope containing
+the exact prepared order and only the execution-relevant approval fields. Telegram user ID,
+chat ID, and callback query ID remain on `bp-recorder`; they are not sent to the execution
+host. A SHA-256 of the fuller local approval record is carried only as an audit link.
+
+The envelope uses a dedicated 256-bit HMAC-SHA256 transport key that is separate from both the
+Telegram bot token and the Polymarket signing key. It binds:
+
+- exact intent, prediction, and paper-order identities;
+- exact request SHA-256;
+- exact prepared payload SHA-256;
+- execution-relevant approval payload SHA-256;
+- local full-approval audit SHA-256;
+- one transport nonce;
+- creation and expiry timestamps;
+- a fixed Phase 15 transport purpose/version.
+
+Transport lifetime is capped at 15 seconds and cannot outlive either Telegram approval or the
+existing market-end submission safety floor.
+
+Replay identity is `(intent_id, request_sha256)`, not the transport nonce. An attacker or
+bug cannot create a second executable claim for the same exact order merely by changing the
+envelope nonce. Claim state is persisted with exclusive creation and `retry_allowed=false`.
+
+The carrierless adapters are:
+
+```text
+scripts/run_phase15_v3_telegram_transport_outbox.py
+scripts/run_phase15_v3_telegram_transport_intake.py
+```
+
+The outbox requires an explicit enable flag, research/zero-money runtime, the dedicated
+transport key, and absence of Telegram/trading secrets in its child environment. It writes
+exactly one local envelope per exact order and performs no network send.
+
+The intake requires a separate explicit enable flag and the transport key. It verifies the
+HMAC, expiry, exact prepared/approval binding, claims the exact order once, and materializes
+the prepared/approval receipt under a hashed claim path. It does not invoke the executor or
+submit an order.
+
+These adapters allow the full `APPROVE -> envelope -> verify -> claim` semantics to be tested
+locally before any carrier or cloud IAM change exists.
+
 ## Persistent execution transport is still a separate gate
 
 Existing BP live control uses authenticated Cloud Shell `gcloud compute ssh` commands. The
@@ -144,8 +191,14 @@ repository does not currently define an approved persistent control channel from
 The listener therefore must not silently depend on Cloud Shell credentials, user home files,
 or an undeclared host-to-host tunnel.
 
-Before one-tap execution can be enabled, a separate persistent transport design must be
-reviewed and explicitly authorized. The readiness gate treats
+Before one-tap execution can be enabled, a separate persistent carrier design must be
+reviewed and explicitly authorized. Any accepted carrier must move the authenticated envelope
+without rewriting it, preserve its short expiry, authenticate both endpoints using dedicated
+least-privilege credentials, provide durable delivery/audit evidence, and preserve the
+one-order no-retry semantics. Carrier retries may redeliver bytes, but executor claim logic
+must reject replay before any arm/submission action.
+
+The readiness gate treats
 
 ```text
 telegram_persistent_execution_transport_authorized
