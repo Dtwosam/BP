@@ -130,8 +130,6 @@ def test_transport_envelope_is_exact_bound_and_strips_telegram_identity() -> Non
         envelope,
         key=key,
         expected_key_id=KEY_ID,
-        origin_key=ORIGIN_KEY,
-        expected_origin_key_id=ORIGIN_KEY_ID,
         observed_at=now + timedelta(seconds=3),
     )
 
