@@ -74,13 +74,24 @@ def test_approved_handoff_runs_once_and_restart_does_not_retry(tmp_path, monkeyp
     prepared_path, approval_path = _write_bound_files(state_dir, now)
 
     marker = tmp_path / "invocations.txt"
+    environment_marker = tmp_path / "environment.json"
+    monkeypatch.setenv("BP_TELEGRAM_BOT_TOKEN", "test-token-must-not-propagate")
+    monkeypatch.setenv("POLYMARKET_PRIVATE_KEY", "test-key-must-not-propagate")
     command = tmp_path / "handoff.py"
     command.write_text(
         "#!/usr/bin/env python3\n"
+        "import json\n"
+        "import os\n"
         "from pathlib import Path\n"
         f"path = Path({str(marker)!r})\n"
+        f"env_path = Path({str(environment_marker)!r})\n"
         "with path.open('a', encoding='utf-8') as handle:\n"
-        "    handle.write('run\\n')\n",
+        "    handle.write('run\\n')\n"
+        "env_path.write_text(json.dumps({\n"
+        "    'bot_token_present': 'BP_TELEGRAM_BOT_TOKEN' in os.environ,\n"
+        "    'private_key_present': 'POLYMARKET_PRIVATE_KEY' in os.environ,\n"
+        "    'approved_intent': os.environ.get('BP_APPROVED_INTENT_ID'),\n"
+        "}), encoding='utf-8')\n",
         encoding="utf-8",
     )
     command.chmod(0o755)
@@ -101,6 +112,10 @@ def test_approved_handoff_runs_once_and_restart_does_not_retry(tmp_path, monkeyp
     assert first["status"] == "handoff_completed"
     assert second == first
     assert marker.read_text(encoding="utf-8").splitlines() == ["run"]
+    child_environment = json.loads(environment_marker.read_text(encoding="utf-8"))
+    assert child_environment["bot_token_present"] is False
+    assert child_environment["private_key_present"] is False
+    assert child_environment["approved_intent"] == "live-intent-123"
     handoff_prepared = state_dir / "handoff-prepared.json"
     assert handoff_prepared.is_file()
     handoff_payload = json.loads(handoff_prepared.read_text(encoding="utf-8"))
@@ -156,3 +171,22 @@ def test_approved_handoff_stays_inert_without_configured_command(tmp_path, monke
     assert result["status"] == "approved_handoff_not_configured"
     assert result["real_order_submitted"] is False
     assert not (state_dir / "handoff-attempt.json").exists()
+    assert (state_dir / "handoff-result.json").is_file()
+
+    command = tmp_path / "late-handoff.py"
+    marker = tmp_path / "late-invocation.txt"
+    command.write_text(
+        "#!/usr/bin/env python3\n"
+        "from pathlib import Path\n"
+        f"Path({str(marker)!r}).write_text('ran', encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+    command.chmod(0o755)
+    second = runner._dispatch_approved_handoff(
+        command=command,
+        prepared_path=prepared_path,
+        approval_path=approval_path,
+        state_dir=state_dir,
+    )
+    assert second == result
+    assert not marker.exists()
