@@ -22,6 +22,7 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Create a local BP Telegram transport envelope")
     parser.add_argument("prepared_path", type=Path)
     parser.add_argument("approval_path", type=Path)
+    parser.add_argument("origin_attestation_path", type=Path)
     parser.add_argument(
         "--outbox-dir",
         type=Path,
@@ -104,9 +105,11 @@ def main() -> int:
     key = load_transport_key_file(Path(key_path_raw))
     prepared = _load_json(args.prepared_path)
     approval = _load_json(args.approval_path)
+    origin_attestation = _load_json(args.origin_attestation_path)
     envelope = create_transport_envelope(
         prepared,
         approval=approval,
+        origin_attestation=origin_attestation,
         key=key,
         key_id=key_id,
         created_at=_utc_now(),
@@ -129,6 +132,7 @@ def main() -> int:
                 "request_sha256": envelope["request_sha256"],
                 "prepared_sha256": envelope["prepared_sha256"],
                 "approval_source_sha256": envelope["approval_source_sha256"],
+                "origin_attestation_sha256": envelope["origin_attestation_sha256"],
                 "expires_at": envelope["expires_at"],
                 "envelope_path": str(envelope_path),
                 "network_send_attempted": False,
