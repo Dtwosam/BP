@@ -13,6 +13,8 @@ from typing import Any
 from bp_engine.execution.telegram_pre_execution import (
     PRE_EXECUTION_PURPOSE,
     PRE_EXECUTION_SCHEMA_VERSION,
+    PreExecutionError,
+    verify_pre_execution_snapshot,
 )
 
 DISPATCH_TICKET_SCHEMA_VERSION = 1
@@ -246,12 +248,26 @@ def claim_dispatch_ticket(
     ticket: Mapping[str, Any],
     *,
     pre_execution_report: Mapping[str, Any],
+    ready_verification: Mapping[str, Any],
+    project_state: Mapping[str, Any],
     observed_at: datetime,
     state_dir: Path,
 ) -> dict[str, Any]:
+    try:
+        current_report = verify_pre_execution_snapshot(
+            pre_execution_report,
+            ready_verification=ready_verification,
+            project_state=project_state,
+            require_authorized=True,
+        )
+    except PreExecutionError as exc:
+        raise DispatchTicketError(
+            f"pre-execution snapshot invalid: {exc}"
+        ) from exc
+
     verified = verify_dispatch_ticket_against_report(
         ticket,
-        pre_execution_report=pre_execution_report,
+        pre_execution_report=current_report,
         observed_at=observed_at,
     )
     _ensure_private_directory(state_dir, label="dispatch claim directory")
