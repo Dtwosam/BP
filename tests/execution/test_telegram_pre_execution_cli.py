@@ -25,12 +25,18 @@ def _load() -> ModuleType:
 def _ready() -> dict[str, object]:
     return {
         "status": "execution_ready_origin_verified",
+        "transport_key_id": "phase15-telegram-transport-v1",
+        "origin_key_id": "phase15-telegram-origin-v1",
         "intent_id": "live-intent-pre-exec-cli",
         "prediction_id": "prediction-pre-exec-cli",
         "paper_order_id": "paper-pre-exec-cli",
         "request_sha256": "1" * 64,
         "prepared_sha256": "2" * 64,
-        "origin_attestation_sha256": "3" * 64,
+        "approval_sha256": "3" * 64,
+        "approval_source_sha256": "4" * 64,
+        "origin_attestation_sha256": "5" * 64,
+        "origin_attested_at": "2026-09-24T21:00:02+00:00",
+        "origin_expires_at": "2026-09-24T21:00:15+00:00",
         "retry_allowed": False,
         "network_action_performed": False,
         "executor_invoked": False,
@@ -132,6 +138,9 @@ def test_pre_execution_gate_main_can_only_report_synthetic_authorized_state(
     assert result["status"] == "pre_execution_authorized"
     assert result["authorized"] is True
     assert result["blockers"] == []
+    assert result["transport_key_id"] == "phase15-telegram-transport-v1"
+    assert result["origin_key_id"] == "phase15-telegram-origin-v1"
+    assert len(result["authorization_report_sha256"]) == 64
     assert result["mutation_performed"] is False
     assert result["executor_invoked"] is False
     assert result["real_order_submitted"] is False
