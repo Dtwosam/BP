@@ -4339,7 +4339,7 @@
     "second_order_authorized": false,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "After merging the persistent prepare-watch implementation, install/start the explicitly authorized prepare-only sidecar from current main. It may persist one prepared canary intent but cannot arm or submit. Use the status helper after reconnect; only a fresh status PASS may be handed to the existing manual arm helper.",
+    "next_action": "Monitor the active persistent prepare-only watcher. Use the follow helper while connected or the status helper after reconnect. Only a fresh persistent-prepare status PASS with ARMABLE_NOW=true may proceed to the existing manual arm helper; otherwise fail closed and reconcile any persisted stale intent before another prepare.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
@@ -4419,7 +4419,7 @@
     "prepare_min_arm_window_seconds": 30,
     "prepare_arm_window_reason": "Operational safety margin before arm; stricter than the 15-second live-risk expiry minimum and does not relax strategy/risk.",
     "persistent_prepare_watch": {
-      "status": "ENGINEERING_READY_NOT_DEPLOYED",
+      "status": "PRODUCTION_ACTIVE",
       "authorization_date": "2026-09-24",
       "authorization_source": "User explicitly authorized a persistent prepare watcher.",
       "authorized": true,
@@ -4445,7 +4445,12 @@
         "hard runtime cap of 2h5m",
         "prepared payload materializes to Cloud Shell only while at least 20 seconds remain and helper head still equals current main"
       ],
-      "follow_helper": "scripts/deploy/phase15_v3_canary_prepare_watch_follow_cloudshell.sh"
+      "follow_helper": "scripts/deploy/phase15_v3_canary_prepare_watch_follow_cloudshell.sh",
+      "production_started_at": "2026-09-24T09:46:48Z",
+      "run_id": "phase15-prepare-watch-20260924T094648Z-11ec4a06",
+      "remote_run_dir": "/var/lib/bp/phase15-canary-prepare-watch/runs/phase15-prepare-watch-20260924T094648Z-11ec4a06",
+      "service_active": true,
+      "production_evidence": "docs/evidence/phase-15-persistent-prepare-watch-production-start-20260924.json"
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {

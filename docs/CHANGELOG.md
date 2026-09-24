@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.14.180 — 23 September 2026
+- Production start of the authorized Phase 15 persistent prepare-only watcher passed on `bp-recorder` at `2026-09-24T09:46:48Z`: service active, two-hour max wait, no real order submitted, arm automation false, submission automation false. Evidence: `docs/evidence/phase-15-persistent-prepare-watch-production-start-20260924.json`.
 - Added the separately authorized Phase 15 persistent prepare-only watcher: a bounded two-hour sidecar on `bp-recorder` with research/live-disabled/zero-money safety, no wallet material, localhost-only network access, durable status/prepared state, and no arm/submission path. Cloud Shell status materializes a prepared payload only while it remains armable and the helper SHA still equals current `main`.
 
 - Recorded the Johannesburg execution-host geoblock probe PASS at `docs/evidence/phase-15-v3-canary-host-geoblock-20260923.json`: direct official result `blocked=false`, `ZA/GP`. Together with the user's direct `NG/LA` physical-network PASS, geographic compliance advances to `pass`; every Master live-gate row is now `pass`.

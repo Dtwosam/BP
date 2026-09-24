@@ -1,0 +1,13 @@
+{
+  "recorded_at": "2026-09-24T09:46:48Z",
+  "status": "PASS",
+  "helper_main_head": "11ec4a06d9da2980a6ec8e0f17a17e9d7301a367",
+  "run_id": "phase15-prepare-watch-20260924T094648Z-11ec4a06",
+  "remote_run_dir": "/var/lib/bp/phase15-canary-prepare-watch/runs/phase15-prepare-watch-20260924T094648Z-11ec4a06",
+  "service_active": true,
+  "no_real_order_submitted": true,
+  "arm_automated": false,
+  "submission_automated": false,
+  "max_wait_seconds": 7200,
+  "enabled_across_vm_reboot": false
+}
