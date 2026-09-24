@@ -217,6 +217,7 @@ def _dispatch_approved_handoff(
             "updated_at": _utc_now().isoformat(),
             "real_order_submitted": False,
         }
+        _atomic_json(result_path, disabled)
         _atomic_json(state_dir / "status.json", disabled)
         return disabled
     if not command.is_file() or not os.access(command, os.X_OK):
@@ -227,6 +228,7 @@ def _dispatch_approved_handoff(
             "updated_at": _utc_now().isoformat(),
             "real_order_submitted": False,
         }
+        _atomic_json(result_path, invalid)
         _atomic_json(state_dir / "status.json", invalid)
         return invalid
 
@@ -256,6 +258,12 @@ def _dispatch_approved_handoff(
     _atomic_json(state_dir / "status.json", attempt)
 
     environment = os.environ.copy()
+    for secret_name in (
+        "BP_TELEGRAM_BOT_TOKEN",
+        "POLYMARKET_PRIVATE_KEY",
+        "POLYMARKET_WALLET_ADDRESS",
+    ):
+        environment.pop(secret_name, None)
     environment["BP_APPROVED_INTENT_ID"] = str(binding["intent_id"])
     environment["BP_APPROVED_REQUEST_SHA256"] = str(binding["request_sha256"])
     try:
