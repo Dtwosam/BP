@@ -5,21 +5,22 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 HOST_EVIDENCE = ROOT / "docs/evidence/phase-15-v3-canary-host-geoblock-20260923.json"
+LIVE_CANARY_EVIDENCE = ROOT / "docs/evidence/phase-15-v3-first-live-canary-submission-20260924.json"
 
 
-def test_phase15_one_order_canary_is_authorized_but_not_yet_submitted() -> None:
+def test_phase15_first_live_canary_is_submitted_and_reconciliation_is_required() -> None:
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     gate = state["phase_15_v3_live_canary"]
     master = state["phase_14_checkpoint"]["master_live_gate"]
 
     assert state["source_of_truth_version"] == "0.14.180"
     assert state["current_phase"] == 15
-    assert state["status"] == "PHASE_15_CANARY_AUTHORIZED_NOT_YET_SUBMITTED"
+    assert state["status"] == "PHASE_15_FIRST_LIVE_CANARY_SUBMITTED_RECONCILIATION_REQUIRED"
     assert all(value == "pass" for value in master.values())
     assert state["phase_14_checkpoint"]["overall_live_gate"] == "pass"
     assert state["phase_14_checkpoint"]["phase15_permitted"] is True
 
-    assert gate["status"] == "ENGINEERING_READY_HOST_PASS"
+    assert gate["status"] == "LIVE_CANARY_SUBMITTED_RECONCILIATION_REQUIRED"
     assert gate["phase15_canary_authorized"] is True
     assert gate["source_prediction_version"] == "v3-frozen-paper-v1"
     assert gate["source_execution_version"] == "paper-execution-v3-frozen-v1"
@@ -61,9 +62,33 @@ def test_phase15_one_order_canary_is_authorized_but_not_yet_submitted() -> None:
     assert gate["automated_real_money_submission"] is False
     assert gate["manual_real_money_submission_required"] is True
     assert gate["live_trading_enabled"] is False
-    assert gate["canary_order_submitted"] is False
+    assert gate["canary_order_submitted"] is True
     assert gate["reconciliation_required_before_second_order"] is True
     assert gate["second_order_authorized"] is False
+    first = gate["first_live_canary"]
+    assert first["status"] == "SUBMITTED_AND_RECORDED_RECONCILIATION_PENDING"
+    assert first["intent_id"] == "live-intent-6cdfcfd28d0eb52f1ee0762bfd351409"
+    assert first["external_order_id"] == (
+        "0x7c85e5e8753a875dfd9fec8ffd45726164863648127351b21c2a8ba1819a28de"
+    )
+    assert first["target_notional_usd"] == 5
+    assert first["executor_result"] == "accepted"
+    assert first["cancellation_result"] == "cancelled"
+    assert first["network_submission_attempt_consumed"] is True
+    assert first["retry_authorized"] is False
+    assert first["second_order_authorized"] is False
+    assert first["official_order_fill_reconciliation_required"] is True
+    assert first["official_order_fill_reconciliation_status"] == "PENDING"
+
+    live_evidence = json.loads(LIVE_CANARY_EVIDENCE.read_text(encoding="utf-8"))
+    assert live_evidence["status"] == "SUBMITTED_AND_RECORDED_RECONCILIATION_PENDING"
+    assert live_evidence["submission_result"]["accepted"] is True
+    assert live_evidence["submission_result"]["cancellation"]["cancelled"] is True
+    assert live_evidence["record_result"]["event_type"] == "accepted"
+    assert live_evidence["safety"]["exactly_one_network_submission_attempt_consumed"] is True
+    assert live_evidence["safety"]["retry_authorized"] is False
+    assert live_evidence["reconciliation"]["required"] is True
+    assert live_evidence["reconciliation"]["status"] == "PENDING"
 
     evidence = json.loads(HOST_EVIDENCE.read_text(encoding="utf-8"))
     assert evidence["helper_result"] == "PASS"
