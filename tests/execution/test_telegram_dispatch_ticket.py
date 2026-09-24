@@ -19,7 +19,6 @@ from bp_engine.execution.telegram_pre_execution import (
     evaluate_pre_execution_authorization,
 )
 
-
 MODULE = (
     Path(__file__).resolve().parents[2]
     / "src"
