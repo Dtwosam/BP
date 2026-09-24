@@ -3,7 +3,6 @@ Description=BP Phase 15 Telegram transport one-shot claim worker
 After=bp-phase15-telegram-pubsub-streaming-receiver.service
 ConditionPathExists=/etc/bp-telegram-transport/claim.env
 ConditionPathExists=/etc/bp-telegram-transport/transport.key
-ConditionPathExists=/etc/bp-telegram-transport/origin.key
 ConditionPathIsDirectory=/var/lib/bp-canary/telegram-transport-inbox
 ConditionPathIsDirectory=/var/lib/bp-canary/telegram-transport-claims
 ConditionPathIsDirectory=/var/lib/bp-canary/telegram-transport-ready
