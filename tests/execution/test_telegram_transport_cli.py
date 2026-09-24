@@ -10,7 +10,10 @@ from types import ModuleType
 import pytest
 
 from bp_engine.execution.telegram_approval import approval_record, new_pending
-from bp_engine.execution.telegram_origin_attestation import create_origin_attestation
+from bp_engine.execution.telegram_origin_attestation import (
+    create_origin_attestation,
+    encode_origin_key,
+)
 from bp_engine.execution.telegram_transport import (
     TransportError,
     encode_transport_key,
@@ -21,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PACK_SCRIPT = ROOT / "scripts" / "run_phase15_v3_telegram_transport_pack.py"
 CLAIM_SCRIPT = ROOT / "scripts" / "run_phase15_v3_telegram_transport_claim.py"
 ORIGIN_KEY_ID = "phase15-telegram-origin-v1"
+ORIGIN_KEY = bytes(range(32, 64))
 
 
 def _load_script(path: Path, name: str) -> ModuleType:
@@ -78,7 +82,7 @@ def _origin_attestation(
     return create_origin_attestation(
         prepared,
         approval=approval,
-        key=bytes(range(32, 64)),
+        key=ORIGIN_KEY,
         key_id=ORIGIN_KEY_ID,
         attested_at=now + timedelta(seconds=2),
     )
@@ -92,6 +96,11 @@ def _write_json(path: Path, payload: dict[str, object]) -> None:
 def _write_key(path: Path, key: bytes, mode: int = 0o600) -> None:
     path.write_text(encode_transport_key(key) + "\n", encoding="utf-8")
     path.chmod(mode)
+
+
+def _write_origin_key(path: Path) -> None:
+    path.write_text(encode_origin_key(ORIGIN_KEY) + "\n", encoding="utf-8")
+    path.chmod(0o600)
 
 
 def test_transport_key_file_requires_restricted_regular_non_symlink_file(
@@ -131,6 +140,7 @@ def test_pack_then_claim_materializes_exact_sanitized_one_shot_payload(
     approval_path = tmp_path / "approval.json"
     origin_attestation_path = tmp_path / "origin-attestation.json"
     key_path = tmp_path / "transport.key"
+    origin_key_path = tmp_path / "origin.key"
     envelope_path = tmp_path / "envelope.json"
     claims = tmp_path / "claims"
     materialized = tmp_path / "materialized"
@@ -138,6 +148,7 @@ def test_pack_then_claim_materializes_exact_sanitized_one_shot_payload(
     _write_json(approval_path, approval)
     _write_json(origin_attestation_path, origin_attestation)
     _write_key(key_path, key)
+    _write_origin_key(origin_key_path)
 
     packed = pack.pack_transport(
         prepared_path=prepared_path,
@@ -158,6 +169,8 @@ def test_pack_then_claim_materializes_exact_sanitized_one_shot_payload(
         envelope_path=envelope_path,
         key_path=key_path,
         expected_key_id="test-key-v1",
+        origin_key_path=origin_key_path,
+        expected_origin_key_id=ORIGIN_KEY_ID,
         claim_state_dir=claims,
         materialize_root=materialized,
         observed_at=now + timedelta(seconds=3),
@@ -195,6 +208,8 @@ def test_pack_then_claim_materializes_exact_sanitized_one_shot_payload(
             envelope_path=envelope_path,
             key_path=key_path,
             expected_key_id="test-key-v1",
+            origin_key_path=origin_key_path,
+            expected_origin_key_id=ORIGIN_KEY_ID,
             claim_state_dir=claims,
             materialize_root=materialized,
             observed_at=now + timedelta(seconds=4),
@@ -217,6 +232,7 @@ def test_claim_consumes_transport_before_materialization_and_never_retries(
     approval_path = tmp_path / "approval.json"
     origin_attestation_path = tmp_path / "origin-attestation.json"
     key_path = tmp_path / "transport.key"
+    origin_key_path = tmp_path / "origin.key"
     envelope_path = tmp_path / "envelope.json"
     claims = tmp_path / "claims"
     materialized = tmp_path / "materialized"
@@ -224,6 +240,7 @@ def test_claim_consumes_transport_before_materialization_and_never_retries(
     _write_json(approval_path, approval)
     _write_json(origin_attestation_path, origin_attestation)
     _write_key(key_path, key)
+    _write_origin_key(origin_key_path)
 
     pack.pack_transport(
         prepared_path=prepared_path,
@@ -245,6 +262,8 @@ def test_claim_consumes_transport_before_materialization_and_never_retries(
             envelope_path=envelope_path,
             key_path=key_path,
             expected_key_id="test-key-v1",
+            origin_key_path=origin_key_path,
+            expected_origin_key_id=ORIGIN_KEY_ID,
             claim_state_dir=claims,
             materialize_root=materialized,
             observed_at=now + timedelta(seconds=3),
@@ -255,6 +274,8 @@ def test_claim_consumes_transport_before_materialization_and_never_retries(
             envelope_path=envelope_path,
             key_path=key_path,
             expected_key_id="test-key-v1",
+            origin_key_path=origin_key_path,
+            expected_origin_key_id=ORIGIN_KEY_ID,
             claim_state_dir=claims,
             materialize_root=materialized,
             observed_at=now + timedelta(seconds=4),
@@ -330,6 +351,7 @@ def test_claim_rejects_symlink_materialize_root_after_consuming_claim(
     approval_path = tmp_path / "approval.json"
     origin_attestation_path = tmp_path / "origin-attestation.json"
     key_path = tmp_path / "transport.key"
+    origin_key_path = tmp_path / "origin.key"
     envelope_path = tmp_path / "envelope.json"
     claims = tmp_path / "claims"
     actual = tmp_path / "actual-materialize"
@@ -340,6 +362,7 @@ def test_claim_rejects_symlink_materialize_root_after_consuming_claim(
     _write_json(approval_path, approval)
     _write_json(origin_attestation_path, origin_attestation)
     _write_key(key_path, key)
+    _write_origin_key(origin_key_path)
 
     pack.pack_transport(
         prepared_path=prepared_path,
@@ -357,6 +380,8 @@ def test_claim_rejects_symlink_materialize_root_after_consuming_claim(
             envelope_path=envelope_path,
             key_path=key_path,
             expected_key_id="test-key-v1",
+            origin_key_path=origin_key_path,
+            expected_origin_key_id=ORIGIN_KEY_ID,
             claim_state_dir=claims,
             materialize_root=materialized,
             observed_at=now + timedelta(seconds=3),
@@ -367,6 +392,8 @@ def test_claim_rejects_symlink_materialize_root_after_consuming_claim(
             envelope_path=envelope_path,
             key_path=key_path,
             expected_key_id="test-key-v1",
+            origin_key_path=origin_key_path,
+            expected_origin_key_id=ORIGIN_KEY_ID,
             claim_state_dir=claims,
             materialize_root=materialized,
             observed_at=now + timedelta(seconds=4),
