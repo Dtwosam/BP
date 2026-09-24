@@ -508,3 +508,10 @@ def test_interactive_operator_shell_syntax_is_valid() -> None:
         capture_output=True,
         text=True,
     )
+
+
+def test_interactive_operator_prompt_is_nounset_safe_and_displays_side() -> None:
+    text = INTERACTIVE_OPERATOR.read_text(encoding="utf-8")
+    assert 'displayed USD 5 intent' in text
+    assert 'displayed $5 intent' not in text
+    assert '(payload.get("request") or {}).get("selected_side")' in text

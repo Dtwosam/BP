@@ -184,7 +184,7 @@ market_end=datetime.fromisoformat(payload["market_end_at"]).astimezone(UTC)
 remaining=(market_end-datetime.now(UTC)).total_seconds()
 assert remaining >= 20
 print(payload["intent_id"])
-print(payload.get("selected_side") or "")
+print((payload.get("request") or {}).get("selected_side") or payload.get("selected_side") or "")
 print(request["limit_price"])
 print(request["requested_shares"])
 print(f"{remaining:.6f}")
@@ -204,7 +204,7 @@ echo "CANDIDATE_REQUESTED_SHARES=$REQUESTED_SHARES"
 echo "CANDIDATE_TARGET_NOTIONAL_USD=5"
 echo "CANDIDATE_SECONDS_TO_MARKET_END=$SECONDS_REMAINING"
 
-confirm_exact "ARM"   "Type ARM to arm exactly the displayed $5 intent. Arming submits no order:"
+confirm_exact "ARM"   "Type ARM to arm exactly the displayed USD 5 intent. Arming submits no order:"
 
 arm_output=$(mktemp)
 if ! PHASE15_ACCEPT_REAL_MONEY=yes bash "$ARM_HELPER" | tee "$arm_output"; then
