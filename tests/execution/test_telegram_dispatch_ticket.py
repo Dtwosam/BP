@@ -92,6 +92,8 @@ def test_dispatch_ticket_claim_is_exact_one_shot_and_private(tmp_path: Path) -> 
     verified = verify_dispatch_ticket_against_report(
         ticket,
         pre_execution_report=report,
+        ready_verification=_ready(now),
+        project_state=_authorized_state(),
         observed_at=now + timedelta(seconds=2),
     )
     assert verified == ticket
@@ -100,6 +102,8 @@ def test_dispatch_ticket_claim_is_exact_one_shot_and_private(tmp_path: Path) -> 
     claimed = claim_dispatch_ticket(
         ticket,
         pre_execution_report=report,
+        ready_verification=_ready(now),
+        project_state=_authorized_state(),
         observed_at=now + timedelta(seconds=2),
         state_dir=state_dir,
     )
@@ -121,6 +125,8 @@ def test_dispatch_ticket_claim_is_exact_one_shot_and_private(tmp_path: Path) -> 
         claim_dispatch_ticket(
             ticket,
             pre_execution_report=report,
+            ready_verification=_ready(now),
+            project_state=_authorized_state(),
             observed_at=now + timedelta(seconds=3),
             state_dir=state_dir,
         )
@@ -142,6 +148,8 @@ def test_dispatch_claim_rejects_ticket_or_report_mutation_before_consumption(
         claim_dispatch_ticket(
             changed_ticket,
             pre_execution_report=report,
+            ready_verification=_ready(now),
+            project_state=_authorized_state(),
             observed_at=now + timedelta(seconds=2),
             state_dir=tmp_path / "ticket-mutation",
         )
@@ -151,11 +159,13 @@ def test_dispatch_claim_rejects_ticket_or_report_mutation_before_consumption(
     changed_report["request_sha256"] = "8" * 64
     with pytest.raises(
         DispatchTicketError,
-        match="authorization report hash mismatch",
+        match="stale or modified",
     ):
         claim_dispatch_ticket(
             ticket,
             pre_execution_report=changed_report,
+            ready_verification=_ready(now),
+            project_state=_authorized_state(),
             observed_at=now + timedelta(seconds=2),
             state_dir=tmp_path / "report-mutation",
         )
@@ -181,6 +191,8 @@ def test_dispatch_ticket_expiry_and_symlink_state_fail_closed(tmp_path: Path) ->
         claim_dispatch_ticket(
             ticket,
             pre_execution_report=report,
+            ready_verification=_ready(now),
+            project_state=_authorized_state(),
             observed_at=now + timedelta(seconds=2),
             state_dir=link,
         )
@@ -219,3 +231,65 @@ def test_dispatch_ticket_module_has_no_network_wallet_or_execution_path() -> Non
         "POLYMARKET_WALLET_ADDRESS",
     ):
         assert forbidden not in text
+
+
+def test_dispatch_claim_rejects_current_source_truth_drift_before_consumption(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 9, 24, 21, 0, 2, tzinfo=UTC)
+    ready = _ready(now)
+    state = _authorized_state()
+    report = evaluate_pre_execution_authorization(
+        ready_verification=ready,
+        project_state=state,
+    )
+    ticket = create_dispatch_ticket(
+        report,
+        created_at=now + timedelta(seconds=1),
+    )
+    changed_state = copy.deepcopy(state)
+    phase = changed_state["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    phase["second_order_authorized"] = False
+    state_dir = tmp_path / "source-truth-drift"
+
+    with pytest.raises(DispatchTicketError, match="stale or modified"):
+        claim_dispatch_ticket(
+            ticket,
+            pre_execution_report=report,
+            ready_verification=ready,
+            project_state=changed_state,
+            observed_at=now + timedelta(seconds=2),
+            state_dir=state_dir,
+        )
+    assert not state_dir.exists()
+
+
+def test_dispatch_claim_rejects_current_ready_drift_before_consumption(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 9, 24, 21, 0, 2, tzinfo=UTC)
+    ready = _ready(now)
+    state = _authorized_state()
+    report = evaluate_pre_execution_authorization(
+        ready_verification=ready,
+        project_state=state,
+    )
+    ticket = create_dispatch_ticket(
+        report,
+        created_at=now + timedelta(seconds=1),
+    )
+    changed_ready = dict(ready)
+    changed_ready["request_sha256"] = "7" * 64
+    state_dir = tmp_path / "ready-drift"
+
+    with pytest.raises(DispatchTicketError, match="stale or modified"):
+        claim_dispatch_ticket(
+            ticket,
+            pre_execution_report=report,
+            ready_verification=changed_ready,
+            project_state=state,
+            observed_at=now + timedelta(seconds=2),
+            state_dir=state_dir,
+        )
+    assert not state_dir.exists()
