@@ -89,14 +89,22 @@ def evaluate_pre_execution_authorization(
         "authorized": not blockers,
         "blockers": blockers,
         "source_truth_sha256": source_truth_sha256(project_state),
+        "transport_key_id": str(ready_verification.get("transport_key_id") or ""),
+        "origin_key_id": str(ready_verification.get("origin_key_id") or ""),
         "intent_id": str(ready_verification.get("intent_id") or ""),
         "prediction_id": str(ready_verification.get("prediction_id") or ""),
         "paper_order_id": str(ready_verification.get("paper_order_id") or ""),
         "request_sha256": str(ready_verification.get("request_sha256") or ""),
         "prepared_sha256": str(ready_verification.get("prepared_sha256") or ""),
+        "approval_sha256": str(ready_verification.get("approval_sha256") or ""),
+        "approval_source_sha256": str(
+            ready_verification.get("approval_source_sha256") or ""
+        ),
         "origin_attestation_sha256": str(
             ready_verification.get("origin_attestation_sha256") or ""
         ),
+        "origin_attested_at": str(ready_verification.get("origin_attested_at") or ""),
+        "origin_expires_at": str(ready_verification.get("origin_expires_at") or ""),
         "retry_allowed": False,
         "mutation_performed": False,
         "network_action_performed": False,
@@ -104,13 +112,20 @@ def evaluate_pre_execution_authorization(
         "real_order_submitted": False,
     }
     for name in (
+        "transport_key_id",
+        "origin_key_id",
         "intent_id",
         "prediction_id",
         "paper_order_id",
         "request_sha256",
         "prepared_sha256",
+        "approval_sha256",
+        "approval_source_sha256",
         "origin_attestation_sha256",
+        "origin_attested_at",
+        "origin_expires_at",
     ):
         if not report[name]:
             raise PreExecutionError(f"ready bundle {name} missing")
+    report["authorization_report_sha256"] = hashlib.sha256(_canonical(report)).hexdigest()
     return report
