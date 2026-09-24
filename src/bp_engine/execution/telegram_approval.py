@@ -3,9 +3,10 @@ from __future__ import annotations
 import hashlib
 import json
 import secrets
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
-from typing import Any, Mapping
+from typing import Any
 
 POLICY_VERSION = "v3-live-canary-v1"
 TARGET_NOTIONAL_USD = Decimal("5")
