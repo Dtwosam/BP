@@ -15,12 +15,12 @@ def test_phase15_first_live_canary_is_submitted_and_reconciliation_is_required()
 
     assert state["source_of_truth_version"] == "0.14.180"
     assert state["current_phase"] == 15
-    assert state["status"] == "PHASE_15_FIRST_LIVE_CANARY_SUBMITTED_RECONCILIATION_REQUIRED"
+    assert state["status"] == "PHASE_15_FIRST_LIVE_CANARY_RECONCILED_ZERO_FILL"
     assert all(value == "pass" for value in master.values())
     assert state["phase_14_checkpoint"]["overall_live_gate"] == "pass"
     assert state["phase_14_checkpoint"]["phase15_permitted"] is True
 
-    assert gate["status"] == "LIVE_CANARY_SUBMITTED_RECONCILIATION_REQUIRED"
+    assert gate["status"] == "LIVE_CANARY_RECONCILED_ZERO_FILL"
     assert gate["phase15_canary_authorized"] is True
     assert gate["source_prediction_version"] == "v3-frozen-paper-v1"
     assert gate["source_execution_version"] == "paper-execution-v3-frozen-v1"
@@ -66,7 +66,7 @@ def test_phase15_first_live_canary_is_submitted_and_reconciliation_is_required()
     assert gate["reconciliation_required_before_second_order"] is True
     assert gate["second_order_authorized"] is False
     first = gate["first_live_canary"]
-    assert first["status"] == "SUBMITTED_AND_RECORDED_RECONCILIATION_PENDING"
+    assert first["status"] == "RECONCILED_ZERO_FILL"
     assert first["intent_id"] == "live-intent-6cdfcfd28d0eb52f1ee0762bfd351409"
     assert first["external_order_id"] == (
         "0x7c85e5e8753a875dfd9fec8ffd45726164863648127351b21c2a8ba1819a28de"
@@ -78,7 +78,19 @@ def test_phase15_first_live_canary_is_submitted_and_reconciliation_is_required()
     assert first["retry_authorized"] is False
     assert first["second_order_authorized"] is False
     assert first["official_order_fill_reconciliation_required"] is True
-    assert first["official_order_fill_reconciliation_status"] == "PENDING"
+    assert first["official_order_fill_reconciliation_status"] == "PASS_ZERO_FILL"
+    assert first["confirmed_filled_shares"] == 0
+    assert first["confirmed_filled_notional_usd"] == 0
+    assert first["confirmed_fill_fraction_of_requested"] == 0
+    assert first["exposure_usd"] == 0
+    assert first["realized_trade_pnl_usd"] == 0
+    assert first["fill_quality_observed"] is False
+    assert first["slippage_observed"] is False
+    assert first["submission_path_validated"] is True
+    assert first["cancellation_path_validated"] is True
+    assert first["official_fill_probe_result"] == "PASS"
+    assert first["official_fill_state"] == "zero_fill_observed"
+    assert first["official_reconciliation_complete"] is True
 
     live_evidence = json.loads(LIVE_CANARY_EVIDENCE.read_text(encoding="utf-8"))
     assert live_evidence["status"] == "SUBMITTED_AND_RECORDED_RECONCILIATION_PENDING"
