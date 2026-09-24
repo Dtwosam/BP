@@ -628,7 +628,7 @@ Current order: (1) do not rerun this rollout and preserve its evidence; (2) buil
 Execute only the frozen-V3 one-order canary contract in `docs/PHASE-15-V3-LIVE-CANARY.md`.
 
 1. **Bootstrap Johannesburg signer, no order.** Hidden local key input; root-only remote secret; pinned `polymarket-client==0.7.1`; kill switch engaged.
-2. **Prepare one new paper-derived V3 intent, no order.** Reuse the exact frozen paper order request, apply the existing live-risk engine, persist risk + intent before network submission, and retain the $5 strategy target under the $10 hard ceiling.
+2. **Prepare one new paper-derived V3 intent, no order.** Reuse the exact frozen paper order request, apply the existing live-risk engine, persist risk + intent before network submission, and retain the $5 strategy target under the $10 hard ceiling. The separately authorized persistent prepare-only sidecar on `bp-recorder` may perform only this bounded wait/prepare step for at most two hours; it cannot arm or submit, is not enabled across VM reboot, and its payload may proceed only through the fresh-current status gate in the Phase 15 runbook.
 3. **Review and arm, no order.** Explicit `PHASE15_ACCEPT_REAL_MONEY=yes`, activation ≤45 seconds, one submission attempt, kill switch removed only for that arm.
 4. **Manual one-shot submit.** Johannesburg rechecks geoblock and activation, atomically re-engages the kill switch before the SDK call, rejects >$10 notional, places the bounded limit BUY, then attempts cancellation after 2 seconds.
 5. **Record and stop.** Persist the sanitized result. Reconcile official order/fill state before any second order. No second order or stake increase is authorized.
