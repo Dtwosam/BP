@@ -1,0 +1,37 @@
+[Unit]
+Description=BP Phase 15 persistent prepare-only canary watch
+Requires=bp-postgres.service
+After=bp-postgres.service
+ConditionPathIsDirectory=/opt/bp-phase15-canary-prepare-watch/current
+
+[Service]
+Type=simple
+User=bp
+Group=bp
+WorkingDirectory=/opt/bp-phase15-canary-prepare-watch/current
+EnvironmentFile=/etc/bp/bp.env
+EnvironmentFile=/etc/bp/bp-prospective-runtime-safety.env
+EnvironmentFile=/var/lib/bp/phase15-canary-prepare-watch/current.env
+Environment=MODE=research
+Environment=LIVE_TRADING_ENABLED=false
+Environment=MAX_TRADE_SIZE_USD=0
+Environment=MAX_DAILY_LOSS_USD=0
+Environment=PYTHONPATH=/var/lib/bp/runtime/v3-paper-9d52eb753355365848a637ffa6663928664bf770/src
+ExecStart=/opt/bp/.venv/bin/python /opt/bp-phase15-canary-prepare-watch/current/scripts/run_phase15_v3_canary_prepare_watch.py --env-file /etc/bp/bp.env --state-dir ${BP_PHASE15_PREPARE_RUN_DIR} --run-id ${BP_PHASE15_PREPARE_RUN_ID} --helper-head ${BP_PHASE15_PREPARE_HELPER_HEAD} --activated-at ${BP_PHASE15_PREPARE_ACTIVATED_AT} --official-open-order-count ${BP_PHASE15_PREPARE_OFFICIAL_OPEN_ORDER_COUNT} --collateral-balance-usd ${BP_PHASE15_PREPARE_COLLATERAL_BALANCE_USD} --max-wait-seconds ${BP_PHASE15_PREPARE_MAX_WAIT_SECONDS} --poll-seconds ${BP_PHASE15_PREPARE_POLL_SECONDS} --live-source /opt/bp-phase15-canary-prepare-watch/current/src/bp_engine/execution/live.py --canary-source /opt/bp-phase15-canary-prepare-watch/current/src/bp_engine/execution/canary.py
+UMask=0077
+RuntimeMaxSec=2h5min
+TimeoutStopSec=10s
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=full
+ReadOnlyPaths=/opt/bp-phase15-canary-prepare-watch
+ReadWritePaths=/var/lib/bp/phase15-canary-prepare-watch
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-phase15-canary-prepare-watch
