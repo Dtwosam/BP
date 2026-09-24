@@ -258,7 +258,7 @@ def main() -> int:
         raise SystemExit("Telegram Pub/Sub receiver configuration incomplete")
 
     try:
-        with httpx.Client() as client:
+        with httpx.Client(trust_env=False) as client:
             result = receive_transport(
                 client=client,
                 key_path=Path(key_path_raw),
