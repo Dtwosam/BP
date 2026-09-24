@@ -4444,7 +4444,8 @@
         "localhost-only network access for the sidecar",
         "hard runtime cap of 2h5m",
         "prepared payload materializes to Cloud Shell only while at least 20 seconds remain and helper head still equals current main"
-      ]
+      ],
+      "follow_helper": "scripts/deploy/phase15_v3_canary_prepare_watch_follow_cloudshell.sh"
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {
