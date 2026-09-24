@@ -115,7 +115,6 @@ def _write_envelope(path: Path, envelope: dict[str, object]) -> None:
     path.write_text(json.dumps(envelope), encoding="utf-8")
     path.chmod(0o600)
 
-
 def test_claim_worker_consumes_inbox_once_and_materializes_ready(tmp_path: Path) -> None:
     worker = _load()
     now = datetime.now(UTC)
@@ -184,7 +183,6 @@ def test_claim_worker_consumes_inbox_once_and_materializes_ready(tmp_path: Path)
     )
     assert second == []
 
-
 def test_claim_worker_materialization_failure_consumes_claim_without_retry(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -241,7 +239,6 @@ def test_claim_worker_materialization_failure_consumes_claim_without_retry(
     )
     assert second == []
 
-
 def test_claim_worker_key_rotation_mismatch_waits_without_consuming(tmp_path: Path) -> None:
     worker = _load()
     now = datetime.now(UTC)
@@ -276,7 +273,6 @@ def test_claim_worker_key_rotation_mismatch_waits_without_consuming(tmp_path: Pa
     assert list((tmp_path / "claims").glob("*.json")) == []
     assert list((tmp_path / "failures").glob("*.json")) == []
 
-
 def test_claim_worker_expired_envelope_is_terminal_without_claim(tmp_path: Path) -> None:
     worker = _load()
     now = datetime.now(UTC)
@@ -308,7 +304,6 @@ def test_claim_worker_expired_envelope_is_terminal_without_claim(tmp_path: Path)
     )
     assert failure["claim_consumed"] is False
     assert failure["retry_allowed"] is False
-
 
 
 def test_claim_worker_rejects_forged_origin_before_claim(tmp_path: Path) -> None:
@@ -373,13 +368,13 @@ def test_claim_worker_rejects_forged_origin_before_claim(tmp_path: Path) -> None
     assert failure["claim_consumed"] is False
 
 
-
 def test_claim_worker_source_has_no_network_or_execution_path() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     compile(text, str(SCRIPT), "exec")
     for marker in (
         "BP_TELEGRAM_TRANSPORT_CLAIM_WORKER_ENABLED",
         "claim_transport_envelope",
+        "load_origin_key_file",
         "BP_TELEGRAM_ORIGIN_KEY_FILE",
         "BP_TELEGRAM_ORIGIN_KEY_ID",
         "claimed_ready",
@@ -402,7 +397,6 @@ def test_claim_worker_source_has_no_network_or_execution_path() -> None:
         "phase15_v3_canary_executor",
         "PHASE15_ACCEPT_REAL_MONEY",
         "POLYMARKET_PRIVATE_KEY=",
-        "load_origin_key_file",
         "POLYMARKET_WALLET_ADDRESS=",
     ):
         assert forbidden not in text
