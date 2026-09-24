@@ -13,6 +13,7 @@ def test_transport_claim_unit_is_unprivileged_offline_and_wallet_isolated() -> N
         "User=bp-transport",
         "Group=bp-transport",
         "EnvironmentFile=/etc/bp-telegram-transport/claim.env",
+        "ConditionPathExists=/etc/bp-telegram-transport/origin.key",
         "ConditionPathIsDirectory=/var/lib/bp-canary/telegram-transport-inbox",
         "ConditionPathIsDirectory=/var/lib/bp-canary/telegram-transport-claims",
         "ConditionPathIsDirectory=/var/lib/bp-canary/telegram-transport-ready",
@@ -46,7 +47,6 @@ def test_transport_claim_unit_is_unprivileged_offline_and_wallet_isolated() -> N
     for forbidden in (
         "AF_INET",
         "AF_INET6",
-        "/etc/bp-telegram-transport/origin.key",
         "/etc/bp-canary/live.env",
         "/opt/bp-canary/executor.sh",
         "PHASE15_ACCEPT_REAL_MONEY",
