@@ -15,7 +15,9 @@ from bp_engine.execution.telegram_transport import (
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Validate and claim a BP Telegram transport envelope")
+    parser = argparse.ArgumentParser(
+        description="Validate and claim a BP Telegram transport envelope"
+    )
     parser.add_argument("envelope_path", type=Path)
     parser.add_argument(
         "--state-dir",
