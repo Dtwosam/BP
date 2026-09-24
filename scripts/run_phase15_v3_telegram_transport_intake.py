@@ -112,10 +112,16 @@ def main() -> int:
     _ensure_private_directory(receipt_dir)
     prepared_path = receipt_dir / "prepared.json"
     approval_path = receipt_dir / "approval.json"
-    if prepared_path.exists() or approval_path.exists():
+    origin_attestation_path = receipt_dir / "origin-attestation.json"
+    if (
+        prepared_path.exists()
+        or approval_path.exists()
+        or origin_attestation_path.exists()
+    ):
         raise TransportError("transport receipt payload already exists")
     _atomic_json(prepared_path, claimed["prepared"])
     _atomic_json(approval_path, claimed["approval"])
+    _atomic_json(origin_attestation_path, claimed["origin_attestation"])
 
     print(
         json.dumps(
@@ -126,9 +132,11 @@ def main() -> int:
                 "request_sha256": claimed["request_sha256"],
                 "prepared_sha256": claimed["prepared_sha256"],
                 "approval_source_sha256": claimed["approval_source_sha256"],
+                "origin_attestation_sha256": claimed["origin_attestation_sha256"],
                 "claim_sha256": claimed["claim_sha256"],
                 "prepared_path": str(prepared_path),
                 "approval_path": str(approval_path),
+                "origin_attestation_path": str(origin_attestation_path),
                 "executor_invoked": False,
                 "real_order_submitted": False,
             },
