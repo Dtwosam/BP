@@ -13,7 +13,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from bp_engine.execution.telegram_origin_attestation import load_origin_key_file
 from bp_engine.execution.telegram_transport import (
     TransportError,
     claim_transport_envelope,
@@ -173,7 +172,7 @@ def _materialize_ready(
             "origin_attestation_sha256": str(
                 claimed["origin_attestation_sha256"]
             ),
-            "origin_key_id": str(claimed["origin_key_id"]),
+            "origin_key_id": str(claimed["origin_attestation"].get("key_id") or ""),
             "claim_sha256": str(claimed["claim_sha256"]),
             "ready_at": observed_at.astimezone(UTC).isoformat(),
             "retry_allowed": False,
@@ -238,12 +237,9 @@ def claim_pending_once(
     failure_dir: Path,
     key_path: Path,
     expected_key_id: str,
-    origin_key_path: Path,
-    expected_origin_key_id: str,
     observed_at: datetime,
 ) -> list[dict[str, Any]]:
     key = load_transport_key_file(key_path)
-    origin_key = load_origin_key_file(origin_key_path)
     _ensure_private_directory(claim_dir, label="transport claim directory")
     _ensure_private_directory(ready_dir, label="transport ready directory")
     results: list[dict[str, Any]] = []
@@ -256,8 +252,6 @@ def claim_pending_once(
                 envelope,
                 key=key,
                 expected_key_id=expected_key_id,
-                origin_key=origin_key,
-                expected_origin_key_id=expected_origin_key_id,
                 observed_at=observed_at,
                 state_dir=claim_dir,
             )
@@ -392,14 +386,10 @@ def main() -> int:
 
     key_path_raw = os.environ.get("BP_TELEGRAM_TRANSPORT_KEY_FILE", "").strip()
     key_id = os.environ.get("BP_TELEGRAM_TRANSPORT_KEY_ID", "").strip()
-    origin_key_path_raw = os.environ.get("BP_TELEGRAM_ORIGIN_KEY_FILE", "").strip()
-    origin_key_id = os.environ.get("BP_TELEGRAM_ORIGIN_KEY_ID", "").strip()
-    if not key_path_raw or not key_id or not origin_key_path_raw or not origin_key_id:
+    if not key_path_raw or not key_id:
         raise SystemExit("Telegram transport claim worker configuration incomplete")
     key_path = Path(key_path_raw)
-    origin_key_path = Path(origin_key_path_raw)
     load_transport_key_file(key_path)
-    load_origin_key_file(origin_key_path)
 
     while True:
         results = claim_pending_once(
@@ -410,8 +400,6 @@ def main() -> int:
             failure_dir=args.failure_dir,
             key_path=key_path,
             expected_key_id=key_id,
-            origin_key_path=origin_key_path,
-            expected_origin_key_id=origin_key_id,
             observed_at=_utc_now(),
         )
         for result in results:
