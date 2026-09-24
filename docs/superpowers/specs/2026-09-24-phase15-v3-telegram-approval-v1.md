@@ -243,9 +243,19 @@ and requires exact equality. Any source-truth drift, ready-bundle drift, report 
 mutation, blocker, or expiry fails before the claim directory is created.
 
 The dispatch claim is one-shot for the exact `(intent_id, request_sha256)` pair and is written
-with exclusive-create semantics. A duplicate claim fails closed. The claim record keeps
-`retry_allowed=false`, `executor_invoked=false`, and `real_order_submitted=false`.
-This layer deliberately stops before any arm/executor boundary.
+with exclusive-create semantics. A duplicate claim fails closed. The claim preserves the
+dispatch-ticket expiry rather than converting short-lived authorization into durable
+permission. The claim record keeps `retry_allowed=false`, `executor_invoked=false`, and
+`real_order_submitted=false`. This layer deliberately stops before any arm/executor boundary.
+
+The existing engineering-only Telegram handoff refuses to proceed without that dispatch claim.
+Before its existing arm boundary it requires the complete future source-truth authorization
+set, exact dispatch-claim fields, the current source-truth hash, exact
+prepared/approval/request binding, and an unexpired dispatch claim. It snapshots the dispatch
+claim bytes and checks them again after arm before any existing submission boundary. Current
+source truth does not satisfy those authorizations, and the listener service does not
+configure the handoff, so this remains inert engineering code rather than an enabled execution
+path.
 
 The CLI requires explicit enablement plus research/live-disabled/zero-money runtime and rejects
 wallet, Telegram-bot, or Google application credentials in its environment. Current source
