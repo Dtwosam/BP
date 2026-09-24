@@ -121,6 +121,8 @@ def test_v3_paper_runner_pins_every_execution_assumption() -> None:
     ):
         assert value in content
 
+    assert '"--poll-seconds",\n                "1",' in content
+
 
 def test_v3_paper_cycle_query_count_does_not_scale_with_skipped_history() -> None:
     engine = create_engine("sqlite://")
