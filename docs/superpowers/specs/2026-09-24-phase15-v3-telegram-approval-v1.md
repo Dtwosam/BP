@@ -92,6 +92,16 @@ scripts/deploy/phase15_v3_telegram_approval_status_cloudshell.sh
 
 It reports service/binding/permission health without printing the bot token or Telegram IDs.
 
+The emergency listener/token disable helper is:
+
+```text
+scripts/deploy/phase15_v3_telegram_approval_disable_cloudshell.sh
+```
+
+It requires explicit disable authorization, stops/disables only the Telegram listener, removes
+the bot-token environment file, preserves per-intent approval audit state, and verifies that
+the recorder, V3 predictor, and V3 paper executor PIDs did not change.
+
 ## Handoff state machine
 
 An approved intent is revalidated immediately before handoff and copied to an immutable
