@@ -210,6 +210,19 @@ The current source truth does not satisfy those requirements, so the gate report
 or calls a network service; even its synthetic authorized result is only an authorization
 report for a later separately reviewed execution boundary.
 
+
+The authorization report binds the transport key ID, origin key ID, exact intent/order
+identities, request/prepared/approval hashes, origin-attestation hash and lifetime, plus a
+SHA-256 of the complete source-truth document. The report itself is then canonically hashed as
+`authorization_report_sha256`.
+
+That report is not durable permission. Immediately before any future execution boundary may
+use it, BP must call the pure `verify_pre_execution_snapshot(..., require_authorized=True)`
+revalidator with the current origin-verified ready result and current source truth. Any source
+truth change, ready-bundle change, extra/modified report field, or blocked authorization makes
+the snapshot stale and fails closed. This closes the authorization-check-to-execution TOCTOU
+gap without giving the pre-execution layer any execution capability.
+
 The carrierless adapters are:
 
 ```text
