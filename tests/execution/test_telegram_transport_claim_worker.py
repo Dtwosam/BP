@@ -10,10 +10,7 @@ from types import ModuleType
 import pytest
 
 from bp_engine.execution.telegram_approval import approval_record, new_pending
-from bp_engine.execution.telegram_origin_attestation import (
-    create_origin_attestation,
-    encode_origin_key,
-)
+from bp_engine.execution.telegram_origin_attestation import create_origin_attestation
 from bp_engine.execution.telegram_transport import (
     create_transport_envelope,
     encode_transport_key,
@@ -103,14 +100,6 @@ def _write_key(path: Path, key: bytes) -> None:
     path.chmod(0o600)
 
 
-def _write_origin_key(path: Path) -> None:
-    path.write_text(
-        encode_origin_key(bytes(range(32, 64))) + "\n",
-        encoding="utf-8",
-    )
-    path.chmod(0o600)
-
-
 def _write_envelope(path: Path, envelope: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.parent.chmod(0o700)
@@ -123,11 +112,9 @@ def test_claim_worker_consumes_inbox_once_and_materializes_ready(tmp_path: Path)
     now = datetime.now(UTC)
     envelope, key = _envelope(now)
     key_path = tmp_path / "transport.key"
-    origin_key_path = tmp_path / "origin.key"
     inbox = tmp_path / "inbox"
     envelope_path = inbox / "exact-order.json"
     _write_key(key_path, key)
-    _write_origin_key(origin_key_path)
     _write_envelope(envelope_path, envelope)
 
     claim_dir = tmp_path / "claims"
@@ -143,8 +130,6 @@ def test_claim_worker_consumes_inbox_once_and_materializes_ready(tmp_path: Path)
         failure_dir=failure_dir,
         key_path=key_path,
         expected_key_id=KEY_ID,
-        origin_key_path=origin_key_path,
-        expected_origin_key_id=ORIGIN_KEY_ID,
         observed_at=now + timedelta(seconds=3),
     )
 
@@ -180,8 +165,6 @@ def test_claim_worker_consumes_inbox_once_and_materializes_ready(tmp_path: Path)
         failure_dir=failure_dir,
         key_path=key_path,
         expected_key_id=KEY_ID,
-        origin_key_path=origin_key_path,
-        expected_origin_key_id=ORIGIN_KEY_ID,
         observed_at=now + timedelta(seconds=4),
     )
     assert second == []
@@ -195,11 +178,9 @@ def test_claim_worker_materialization_failure_consumes_claim_without_retry(
     now = datetime.now(UTC)
     envelope, key = _envelope(now)
     key_path = tmp_path / "transport.key"
-    origin_key_path = tmp_path / "origin.key"
     inbox = tmp_path / "inbox"
     envelope_path = inbox / "exact-order.json"
     _write_key(key_path, key)
-    _write_origin_key(origin_key_path)
     _write_envelope(envelope_path, envelope)
 
     def fail_materialization(**_: object) -> Path:
@@ -216,8 +197,6 @@ def test_claim_worker_materialization_failure_consumes_claim_without_retry(
         failure_dir=tmp_path / "failures",
         key_path=key_path,
         expected_key_id=KEY_ID,
-        origin_key_path=origin_key_path,
-        expected_origin_key_id=ORIGIN_KEY_ID,
         observed_at=now + timedelta(seconds=3),
     )
     assert first[0]["status"] == "claim_consumed_materialization_failed"
@@ -237,8 +216,6 @@ def test_claim_worker_materialization_failure_consumes_claim_without_retry(
         failure_dir=tmp_path / "failures",
         key_path=key_path,
         expected_key_id=KEY_ID,
-        origin_key_path=origin_key_path,
-        expected_origin_key_id=ORIGIN_KEY_ID,
         observed_at=now + timedelta(seconds=4),
     )
     assert second == []
@@ -249,10 +226,8 @@ def test_claim_worker_key_rotation_mismatch_waits_without_consuming(tmp_path: Pa
     now = datetime.now(UTC)
     envelope, key = _envelope(now)
     key_path = tmp_path / "transport.key"
-    origin_key_path = tmp_path / "origin.key"
     inbox = tmp_path / "inbox"
     _write_key(key_path, key)
-    _write_origin_key(origin_key_path)
     _write_envelope(inbox / "exact-order.json", envelope)
 
     result = worker.claim_pending_once(
@@ -263,8 +238,6 @@ def test_claim_worker_key_rotation_mismatch_waits_without_consuming(tmp_path: Pa
         failure_dir=tmp_path / "failures",
         key_path=key_path,
         expected_key_id="next-key-v2",
-        origin_key_path=origin_key_path,
-        expected_origin_key_id=ORIGIN_KEY_ID,
         observed_at=now + timedelta(seconds=3),
     )
     assert result == [
@@ -284,10 +257,8 @@ def test_claim_worker_expired_envelope_is_terminal_without_claim(tmp_path: Path)
     now = datetime.now(UTC)
     envelope, key = _envelope(now)
     key_path = tmp_path / "transport.key"
-    origin_key_path = tmp_path / "origin.key"
     inbox = tmp_path / "inbox"
     _write_key(key_path, key)
-    _write_origin_key(origin_key_path)
     _write_envelope(inbox / "exact-order.json", envelope)
     observed_at = datetime.fromisoformat(str(envelope["expires_at"]))
 
@@ -299,8 +270,6 @@ def test_claim_worker_expired_envelope_is_terminal_without_claim(tmp_path: Path)
         failure_dir=tmp_path / "failures",
         key_path=key_path,
         expected_key_id=KEY_ID,
-        origin_key_path=origin_key_path,
-        expected_origin_key_id=ORIGIN_KEY_ID,
         observed_at=observed_at,
     )
     assert result[0]["status"] == "terminal_unclaimable_envelope"
@@ -338,6 +307,8 @@ def test_claim_worker_source_has_no_network_or_execution_path() -> None:
         "phase15_v3_canary_executor",
         "PHASE15_ACCEPT_REAL_MONEY",
         "POLYMARKET_PRIVATE_KEY=",
+        "load_origin_key_file",
+        "BP_TELEGRAM_ORIGIN_KEY",
         "POLYMARKET_WALLET_ADDRESS=",
     ):
         assert forbidden not in text
