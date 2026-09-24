@@ -293,3 +293,59 @@ def test_dispatch_claim_rejects_current_ready_drift_before_consumption(
             state_dir=state_dir,
         )
     assert not state_dir.exists()
+
+
+def test_dispatch_claim_rejects_second_report_for_same_exact_order(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 9, 24, 21, 0, 2, tzinfo=UTC)
+    ready = _ready(now)
+    first_state = _authorized_state()
+    first_report = evaluate_pre_execution_authorization(
+        ready_verification=ready,
+        project_state=first_state,
+    )
+    first_ticket = create_dispatch_ticket(
+        first_report,
+        created_at=now + timedelta(seconds=1),
+    )
+    state_dir = tmp_path / "claims"
+    first_claim = claim_dispatch_ticket(
+        first_ticket,
+        pre_execution_report=first_report,
+        ready_verification=ready,
+        project_state=first_state,
+        observed_at=now + timedelta(seconds=2),
+        state_dir=state_dir,
+    )
+
+    second_state = copy.deepcopy(first_state)
+    second_state["unrelated_audit_marker"] = "source-truth-changed"
+    second_report = evaluate_pre_execution_authorization(
+        ready_verification=ready,
+        project_state=second_state,
+    )
+    assert second_report["authorized"] is True
+    assert (
+        second_report["authorization_report_sha256"]
+        != first_report["authorization_report_sha256"]
+    )
+    second_ticket = create_dispatch_ticket(
+        second_report,
+        created_at=now + timedelta(seconds=3),
+    )
+
+    with pytest.raises(DispatchTicketError, match="already claimed"):
+        claim_dispatch_ticket(
+            second_ticket,
+            pre_execution_report=second_report,
+            ready_verification=ready,
+            project_state=second_state,
+            observed_at=now + timedelta(seconds=4),
+            state_dir=state_dir,
+        )
+
+    expected_claim_id = first_claim["claim_id"]
+    persisted = list(state_dir.glob("*.json"))
+    assert len(persisted) == 1
+    assert persisted[0].stem == expected_claim_id
