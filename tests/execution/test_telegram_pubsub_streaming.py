@@ -254,7 +254,8 @@ def test_streaming_receiver_source_has_no_executor_or_order_path() -> None:
     text = STREAMING_SCRIPT.read_text(encoding="utf-8")
     compile(text, str(STREAMING_SCRIPT), "exec")
     for marker in (
-        "SubscriberClient",
+        "compute_engine.Credentials",
+        "SubscriberClient(credentials=credentials)",
         "subscriber.subscribe",
         "FlowControl",
         "max_messages=1",
