@@ -19,7 +19,6 @@ from bp_engine.execution.telegram_transport import (
     load_transport_key_file,
 )
 
-
 MAX_ENVELOPE_BYTES = 256 * 1024
 
 
