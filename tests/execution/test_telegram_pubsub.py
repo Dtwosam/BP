@@ -115,6 +115,22 @@ def test_metadata_token_uses_compute_metadata_server_and_pubsub_scope() -> None:
         assert metadata_access_token(client) == "metadata-access-token"
 
 
+def test_metadata_token_rejects_missing_google_response_flavor() -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "access_token": "must-not-be-trusted",
+                "expires_in": 3599,
+                "token_type": "Bearer",
+            },
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(PubSubTransportError, match="response flavor invalid"):
+            metadata_access_token(client)
+
+
 def test_pubsub_publish_encodes_exact_envelope_and_routing_attributes() -> None:
     now = datetime(2026, 9, 24, 21, 30, tzinfo=UTC)
     envelope, _ = _envelope(now)
@@ -345,6 +361,13 @@ def test_pubsub_publish_then_receive_is_durable_idempotent_and_executor_free(
     assert ack_calls == 2
     stored = json.loads(Path(received["envelope_path"]).read_text(encoding="utf-8"))
     assert stored == envelope
+
+
+def test_pubsub_entrypoints_disable_environment_proxy_inheritance() -> None:
+    for path in (PUBLISH_SCRIPT, RECEIVE_SCRIPT):
+        text = path.read_text(encoding="utf-8")
+        assert "httpx.Client(trust_env=False)" in text
+        assert "httpx.Client()" not in text
 
 
 def test_pubsub_runtime_sources_do_not_invoke_trading_or_gcloud() -> None:
