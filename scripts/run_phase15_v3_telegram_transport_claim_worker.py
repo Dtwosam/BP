@@ -169,6 +169,9 @@ def _materialize_ready(
             "prepared_sha256": str(claimed["prepared_sha256"]),
             "approval_sha256": str(claimed["approval_sha256"]),
             "approval_source_sha256": str(claimed["approval_source_sha256"]),
+            "origin_attestation_sha256": str(
+                claimed["origin_attestation_sha256"]
+            ),
             "claim_sha256": str(claimed["claim_sha256"]),
             "ready_at": observed_at.astimezone(UTC).isoformat(),
             "retry_allowed": False,
@@ -177,6 +180,10 @@ def _materialize_ready(
         }
         _write_private_json(stage / "prepared.json", claimed["prepared"])
         _write_private_json(stage / "approval.json", claimed["approval"])
+        _write_private_json(
+            stage / "origin-attestation.json",
+            claimed["origin_attestation"],
+        )
         _write_private_json(stage / "envelope.json", envelope)
         _write_private_json(stage / "receipt.json", receipt)
         os.rename(stage, final_dir)
