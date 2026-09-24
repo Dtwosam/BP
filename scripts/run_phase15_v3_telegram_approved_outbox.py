@@ -16,12 +16,16 @@ from bp_engine.execution.telegram_origin_attestation import (
     OriginAttestationError,
     create_origin_attestation,
     load_origin_key_file,
+)
+from bp_engine.execution.telegram_origin_attestation import (
     payload_sha256 as origin_payload_sha256,
 )
 from bp_engine.execution.telegram_transport import (
     TransportError,
     create_transport_envelope,
     load_transport_key_file,
+)
+from bp_engine.execution.telegram_transport import (
     payload_sha256 as transport_payload_sha256,
 )
 
