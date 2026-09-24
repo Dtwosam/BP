@@ -1668,6 +1668,12 @@ Exactly one network submission attempt is authorized. No second order or retry i
 
 A profitable first canary does not authorize automatic promotion, stake growth, V3 tuning, or any V4 change. V3 paper observation and V4 Gate B collection continue in parallel.
 
+### 24 Sep 2026 — First frozen-V3 live canary submitted; reconciliation required
+
+The first real-money frozen-V3 canary was armed and submitted exactly once through the interactive Cloud Shell operator path. Intent `live-intent-6cdfcfd28d0eb52f1ee0762bfd351409` was side `down`, limit `0.72`, requested shares `6.810949`, with the frozen $5 target. Arm health passed with the Johannesburg account clean, $30 collateral, zero open orders, ZA/GP geoblock unblocked, valid activation, and submission ready. The executor returned `accepted=true` for external order `0x7c85e5e8753a875dfd9fec8ffd45726164863648127351b21c2a8ba1819a28de`, then reported the order cancelled after the two-second TTL. The bound result was recorded as an `accepted` event.
+
+The one authorized network submission attempt is consumed. No retry or second order is authorized. The accepted response plus successful cancellation does **not** establish whether zero, partial, or full fill occurred before cancellation. Official order/fill reconciliation is therefore mandatory before any later live decision, sizing change, or automation discussion. Evidence: `docs/evidence/phase-15-v3-first-live-canary-submission-20260924.json`.
+
 
 ### 24 Sep 2026 — Phase 15 transient live-risk retry correction (production active)
 
