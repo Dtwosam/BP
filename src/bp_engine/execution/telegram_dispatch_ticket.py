@@ -275,8 +275,7 @@ def claim_dispatch_ticket(
     claim_id = hashlib.sha256(
         (
             f"{verified['intent_id']}\0"
-            f"{verified['request_sha256']}\0"
-            f"{verified['authorization_report_sha256']}"
+            f"{verified['request_sha256']}"
         ).encode()
     ).hexdigest()
     claim_path = state_dir / f"{claim_id}.json"
