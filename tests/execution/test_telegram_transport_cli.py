@@ -10,6 +10,7 @@ from types import ModuleType
 import pytest
 
 from bp_engine.execution.telegram_approval import approval_record, new_pending
+from bp_engine.execution.telegram_origin_attestation import create_origin_attestation
 from bp_engine.execution.telegram_transport import (
     TransportError,
     encode_transport_key,
@@ -68,6 +69,20 @@ def _approval(prepared: dict[str, object], now: datetime) -> dict[str, object]:
     )
 
 
+def _origin_attestation(
+    prepared: dict[str, object],
+    approval: dict[str, object],
+    now: datetime,
+) -> dict[str, object]:
+    return create_origin_attestation(
+        prepared,
+        approval=approval,
+        key=bytes(range(32, 64)),
+        key_id="phase15-telegram-origin-v1",
+        attested_at=now + timedelta(seconds=2),
+    )
+
+
 def _write_json(path: Path, payload: dict[str, object]) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
     path.chmod(0o600)
@@ -108,21 +123,25 @@ def test_pack_then_claim_materializes_exact_sanitized_one_shot_payload(
     now = datetime.now(UTC)
     prepared = _prepared(now)
     approval = _approval(prepared, now)
+    origin_attestation = _origin_attestation(prepared, approval, now)
     key = bytes(range(32))
 
     prepared_path = tmp_path / "prepared.json"
     approval_path = tmp_path / "approval.json"
+    origin_attestation_path = tmp_path / "origin-attestation.json"
     key_path = tmp_path / "transport.key"
     envelope_path = tmp_path / "envelope.json"
     claims = tmp_path / "claims"
     materialized = tmp_path / "materialized"
     _write_json(prepared_path, prepared)
     _write_json(approval_path, approval)
+    _write_json(origin_attestation_path, origin_attestation)
     _write_key(key_path, key)
 
     packed = pack.pack_transport(
         prepared_path=prepared_path,
         approval_path=approval_path,
+        origin_attestation_path=origin_attestation_path,
         key_path=key_path,
         key_id="test-key-v1",
         output_path=envelope_path,
@@ -149,7 +168,13 @@ def test_pack_then_claim_materializes_exact_sanitized_one_shot_payload(
 
     output_dir = Path(result["materialized_dir"])
     assert (os.stat(output_dir).st_mode & 0o777) == 0o700
-    for name in ("prepared.json", "approval.json", "envelope.json", "receipt.json"):
+    for name in (
+        "prepared.json",
+        "approval.json",
+        "origin-attestation.json",
+        "envelope.json",
+        "receipt.json",
+    ):
         assert (os.stat(output_dir / name).st_mode & 0o777) == 0o600
 
     materialized_prepared = json.loads(
@@ -184,21 +209,25 @@ def test_claim_consumes_transport_before_materialization_and_never_retries(
     now = datetime.now(UTC)
     prepared = _prepared(now)
     approval = _approval(prepared, now)
+    origin_attestation = _origin_attestation(prepared, approval, now)
     key = bytes(range(32))
 
     prepared_path = tmp_path / "prepared.json"
     approval_path = tmp_path / "approval.json"
+    origin_attestation_path = tmp_path / "origin-attestation.json"
     key_path = tmp_path / "transport.key"
     envelope_path = tmp_path / "envelope.json"
     claims = tmp_path / "claims"
     materialized = tmp_path / "materialized"
     _write_json(prepared_path, prepared)
     _write_json(approval_path, approval)
+    _write_json(origin_attestation_path, origin_attestation)
     _write_key(key_path, key)
 
     pack.pack_transport(
         prepared_path=prepared_path,
         approval_path=approval_path,
+        origin_attestation_path=origin_attestation_path,
         key_path=key_path,
         key_id="test-key-v1",
         output_path=envelope_path,
@@ -256,10 +285,12 @@ def test_pack_rejects_symlink_output_directory(tmp_path: Path) -> None:
     now = datetime.now(UTC)
     prepared = _prepared(now)
     approval = _approval(prepared, now)
+    origin_attestation = _origin_attestation(prepared, approval, now)
     key = bytes(range(32))
 
     prepared_path = tmp_path / "prepared.json"
     approval_path = tmp_path / "approval.json"
+    origin_attestation_path = tmp_path / "origin-attestation.json"
     key_path = tmp_path / "transport.key"
     actual = tmp_path / "actual-output"
     actual.mkdir()
@@ -267,6 +298,7 @@ def test_pack_rejects_symlink_output_directory(tmp_path: Path) -> None:
     output_parent.symlink_to(actual, target_is_directory=True)
     _write_json(prepared_path, prepared)
     _write_json(approval_path, approval)
+    _write_json(origin_attestation_path, origin_attestation)
     _write_key(key_path, key)
 
     with pytest.raises(TransportError, match="non-symlink directory"):
@@ -289,10 +321,12 @@ def test_claim_rejects_symlink_materialize_root_after_consuming_claim(
     now = datetime.now(UTC)
     prepared = _prepared(now)
     approval = _approval(prepared, now)
+    origin_attestation = _origin_attestation(prepared, approval, now)
     key = bytes(range(32))
 
     prepared_path = tmp_path / "prepared.json"
     approval_path = tmp_path / "approval.json"
+    origin_attestation_path = tmp_path / "origin-attestation.json"
     key_path = tmp_path / "transport.key"
     envelope_path = tmp_path / "envelope.json"
     claims = tmp_path / "claims"
@@ -302,11 +336,13 @@ def test_claim_rejects_symlink_materialize_root_after_consuming_claim(
     materialized.symlink_to(actual, target_is_directory=True)
     _write_json(prepared_path, prepared)
     _write_json(approval_path, approval)
+    _write_json(origin_attestation_path, origin_attestation)
     _write_key(key_path, key)
 
     pack.pack_transport(
         prepared_path=prepared_path,
         approval_path=approval_path,
+        origin_attestation_path=origin_attestation_path,
         key_path=key_path,
         key_id="test-key-v1",
         output_path=envelope_path,
