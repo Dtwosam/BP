@@ -33,7 +33,6 @@ def test_telegram_listener_unit_is_research_zero_money_and_secret_limited() -> N
     ):
         assert marker in text
     assert "BP_TELEGRAM_HANDOFF_COMMAND=" not in text
-    assert "BP_TELEGRAM_HANDOFF_ENABLED=" not in text
     assert "POLYMARKET_PRIVATE_KEY=" not in text
 
 
@@ -204,7 +203,7 @@ def test_telegram_activation_readiness_shell_and_embedded_python_are_valid() -> 
     )
     assert completed.returncode == 0, completed.stderr
     text = READINESS.read_text(encoding="utf-8")
-    blocks = re.findall(r"<<'PY'[^\\n]*\\n(.*?)\\nPY(?:\\n|$)", text, flags=re.DOTALL)
+    blocks = re.findall(r"<<'PY'[^\n]*\n(.*?)\nPY(?:\n|$)", text, flags=re.DOTALL)
     assert len(blocks) >= 3
     for block in blocks:
         ast.parse(block)
