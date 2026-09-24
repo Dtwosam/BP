@@ -109,7 +109,7 @@ trap cleanup EXIT
 
 git archive --format=tar.gz --output="$ARCHIVE" "$LOCAL_HEAD" \
   scripts/run_phase15_v3_canary_prepare_watch.py \
-  deploy/bp-phase15-v3-canary-prepare-watch.service \
+  deploy/bp-phase15-canary-prepare-watch.service \
   src/bp_engine/execution/live.py \
   src/bp_engine/execution/canary.py
 ARCHIVE_SHA256=$(sha256sum "$ARCHIVE" | awk '{print $1}')
@@ -202,7 +202,7 @@ if [[ ! -d "$RELEASE" ]]; then
 fi
 for path in \
   scripts/run_phase15_v3_canary_prepare_watch.py \
-  deploy/bp-phase15-v3-canary-prepare-watch.service \
+  deploy/bp-phase15-canary-prepare-watch.service \
   src/bp_engine/execution/live.py \
   src/bp_engine/execution/canary.py
 do
