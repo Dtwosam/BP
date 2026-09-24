@@ -292,6 +292,30 @@ environment values, has no Linux capabilities, and makes `/etc/bp-canary` inacce
 Therefore the receiver cannot read the Polymarket signing key, kill switch, or activation
 file and cannot invoke the executor.
 
+The post-receive claim candidate is:
+
+```text
+scripts/run_phase15_v3_telegram_transport_claim_worker.py
+deploy/bp-phase15-telegram-transport-claim-worker.service
+```
+
+It is intentionally a separate offline process. It reads only verified inbox envelopes,
+revalidates the HMAC/key ID/expiry, atomically consumes the application-level
+`(intent_id, request_sha256)` claim, and materializes a `0700` ready directory containing
+`0600` prepared, approval, envelope, and receipt files. It writes a processed receipt so the
+same inbox object is not reconsidered.
+
+If materialization or processed-receipt persistence fails after the claim is consumed, the
+worker records a terminal no-retry failure. It never recreates the claim or treats a carrier
+redelivery as a second authorization. An expired or otherwise invalid inbox envelope is
+terminalized without creating a claim. A key-ID mismatch is left pending for deliberate key
+rotation rather than being consumed under the wrong key.
+
+The claim worker also runs as `bp-transport`, has no network address family beyond
+`AF_UNIX`, cannot access `/etc/bp-canary`, and contains no arm, executor, order, wallet, or
+Cloud API path. A ready artifact is therefore still only authenticated pre-execution material;
+it is not permission to submit money.
+
 The intended IAM boundary is resource-level least privilege:
 
 - the recorder-side service account may publish only to the dedicated Telegram transport topic;
