@@ -11,6 +11,7 @@ from bp_engine.execution.telegram_approval import (
     callback_data,
     new_pending,
     request_sha256,
+    validate_approved_handoff,
     validate_callback,
     validate_prepared,
 )
@@ -157,3 +158,75 @@ def test_expired_and_changed_target_fail_closed() -> None:
     request["target_notional_usd"] = "6"
     with pytest.raises(ApprovalError, match="target notional changed"):
         validate_prepared(prepared, observed_at=now)
+
+
+def test_handoff_revalidates_exact_prepared_request() -> None:
+    now = datetime(2026, 9, 24, 20, 0, tzinfo=UTC)
+    prepared = _prepared(now)
+    pending = new_pending(
+        prepared,
+        telegram_user_id=111,
+        telegram_chat_id=222,
+        created_at=now,
+        nonce="nonce123",
+    )
+    approval = approval_record(
+        action="approve",
+        pending=pending,
+        callback_query_id="cb-1",
+        approved_at=now + timedelta(seconds=1),
+    )
+    binding = validate_approved_handoff(
+        prepared,
+        approval=approval,
+        observed_at=now + timedelta(seconds=2),
+    )
+    assert binding["intent_id"] == prepared["intent_id"]
+    assert binding["request_sha256"] == request_sha256(prepared)
+
+    request = prepared["request"]
+    assert isinstance(request, dict)
+    request["limit_price"] = "0.71"
+    with pytest.raises(ApprovalError, match="approved request changed"):
+        validate_approved_handoff(
+            prepared,
+            approval=approval,
+            observed_at=now + timedelta(seconds=2),
+        )
+
+
+def test_handoff_rejects_skip_and_expired_approval() -> None:
+    now = datetime(2026, 9, 24, 20, 0, tzinfo=UTC)
+    prepared = _prepared(now)
+    pending = new_pending(
+        prepared,
+        telegram_user_id=111,
+        telegram_chat_id=222,
+        created_at=now,
+        nonce="nonce123",
+    )
+    skipped = approval_record(
+        action="skip",
+        pending=pending,
+        callback_query_id="cb-1",
+        approved_at=now + timedelta(seconds=1),
+    )
+    with pytest.raises(ApprovalError, match="not approved"):
+        validate_approved_handoff(
+            prepared,
+            approval=skipped,
+            observed_at=now + timedelta(seconds=2),
+        )
+
+    approved = approval_record(
+        action="approve",
+        pending=pending,
+        callback_query_id="cb-2",
+        approved_at=now + timedelta(seconds=1),
+    )
+    with pytest.raises(ApprovalError, match="expired"):
+        validate_approved_handoff(
+            prepared,
+            approval=approved,
+            observed_at=datetime.fromisoformat(str(approved["expires_at"])),
+        )
