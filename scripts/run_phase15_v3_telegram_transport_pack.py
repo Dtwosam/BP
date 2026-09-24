@@ -75,6 +75,7 @@ def pack_transport(
     prepared_path: Path,
     approval_path: Path,
     key_path: Path,
+    key_id: str,
     output_path: Path,
     created_at: datetime,
     nonce: str,
@@ -86,12 +87,14 @@ def pack_transport(
         prepared,
         approval=approval,
         key=key,
+        key_id=key_id,
         created_at=created_at,
         nonce=nonce,
     )
     _write_new_json(output_path, envelope)
     return {
         "status": "packed",
+        "key_id": envelope["key_id"],
         "intent_id": envelope["intent_id"],
         "request_sha256": envelope["request_sha256"],
         "prepared_sha256": envelope["prepared_sha256"],
@@ -109,6 +112,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--prepared", type=Path, required=True)
     parser.add_argument("--approval", type=Path, required=True)
     parser.add_argument("--key-file", type=Path, required=True)
+    parser.add_argument("--key-id", required=True)
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()
 
@@ -120,6 +124,7 @@ def main() -> int:
             prepared_path=args.prepared,
             approval_path=args.approval,
             key_path=args.key_file,
+            key_id=args.key_id,
             output_path=args.output,
             created_at=datetime.now(UTC),
             nonce=secrets.token_urlsafe(24),
