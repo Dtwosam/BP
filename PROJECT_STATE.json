@@ -4515,6 +4515,8 @@
       "prepare_watcher_poll_seconds_before": 2,
       "prepare_watcher_poll_seconds_after": 0.5,
       "timing_diagnostics_added": true,
+      "timing_diagnostics_semantics": "Prediction scheduled/recorded timestamps and prepare observation provide prediction lateness plus combined post-prediction-to-prepare latency. Paper-order timestamps are semantic signal timestamps, so paper-executor persistence delay and watcher pickup delay are not claimed as separately observable.",
+      "paper_order_persistence_delay_directly_observable": false,
       "strategy_changed": false,
       "model_changed": false,
       "selected_offset_changed": false,

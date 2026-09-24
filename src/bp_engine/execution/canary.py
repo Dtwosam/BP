@@ -418,25 +418,31 @@ def prepare_next_canary(
     prediction_recorded_at = _stored_utc(
         prediction["recorded_at"], "prediction.recorded_at"
     )
-    paper_order_created_at = _stored_utc(order["created_at"], "paper_order.created_at")
+    paper_order_submitted_at = _stored_utc(
+        order["submitted_at"], "paper_order.submitted_at"
+    )
     market_end_at = _stored_utc(prediction["market_end_at"], "market_end_at")
     timing = {
         "prediction_scheduled_at": prediction_scheduled_at.isoformat(),
         "prediction_recorded_at": prediction_recorded_at.isoformat(),
-        "paper_order_created_at": paper_order_created_at.isoformat(),
+        "paper_order_submitted_at": paper_order_submitted_at.isoformat(),
         "prepared_observed_at": observed.isoformat(),
         "prediction_lateness_seconds": str(
             (prediction_recorded_at - prediction_scheduled_at).total_seconds()
         ),
-        "paper_order_after_prediction_seconds": str(
-            (paper_order_created_at - prediction_recorded_at).total_seconds()
+        "post_prediction_prepare_seconds": str(
+            (observed - prediction_recorded_at).total_seconds()
         ),
-        "prepare_after_paper_order_seconds": str(
-            (observed - paper_order_created_at).total_seconds()
+        "window_consumed_after_schedule_seconds": str(
+            (observed - prediction_scheduled_at).total_seconds()
         ),
         "seconds_to_market_end_at_prepare": str(
             (market_end_at - observed).total_seconds()
         ),
+        # Paper-order timestamps intentionally mirror the source signal time,
+        # not the physical database insert time. Do not pretend to split the
+        # downstream delay into executor-persist and watcher-pickup segments.
+        "paper_order_persistence_delay_observable": False,
     }
 
     return {
