@@ -210,7 +210,6 @@ def verify_dispatch_ticket(
     return dict(ticket)
 
 
-
 def verify_dispatch_ticket_against_report(
     ticket: Mapping[str, Any],
     *,
