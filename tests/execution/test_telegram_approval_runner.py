@@ -102,6 +102,9 @@ def test_approved_handoff_runs_once_and_restart_does_not_retry(tmp_path, monkeyp
     assert first["status"] == "handoff_completed"
     assert second == first
     assert marker.read_text(encoding="utf-8").splitlines() == ["run"]
+    handoff_prepared = state_dir / "handoff-prepared.json"
+    assert handoff_prepared.is_file()
+    assert json.loads(handoff_prepared.read_text(encoding="utf-8"))["intent_id"] == "live-intent-123"
     assert (state_dir / "handoff-attempt.json").is_file()
     assert (state_dir / "handoff-result.json").is_file()
 
