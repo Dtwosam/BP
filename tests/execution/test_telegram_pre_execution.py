@@ -21,12 +21,18 @@ MODULE = ROOT / "src" / "bp_engine" / "execution" / "telegram_pre_execution.py"
 def _ready() -> dict[str, object]:
     return {
         "status": "execution_ready_origin_verified",
+        "transport_key_id": "phase15-telegram-transport-v1",
+        "origin_key_id": "phase15-telegram-origin-v1",
         "intent_id": "live-intent-pre-exec",
         "prediction_id": "prediction-pre-exec",
         "paper_order_id": "paper-pre-exec",
         "request_sha256": "1" * 64,
         "prepared_sha256": "2" * 64,
-        "origin_attestation_sha256": "3" * 64,
+        "approval_sha256": "3" * 64,
+        "approval_source_sha256": "4" * 64,
+        "origin_attestation_sha256": "5" * 64,
+        "origin_attested_at": "2026-09-24T21:00:02+00:00",
+        "origin_expires_at": "2026-09-24T21:00:15+00:00",
         "retry_allowed": False,
         "network_action_performed": False,
         "executor_invoked": False,
@@ -162,6 +168,9 @@ def test_pre_execution_authorizes_only_fully_explicit_synthetic_state() -> None:
     assert result["authorized"] is True
     assert result["blockers"] == []
     assert result["source_truth_sha256"] == source_truth_sha256(state)
+    assert result["transport_key_id"] == "phase15-telegram-transport-v1"
+    assert result["origin_key_id"] == "phase15-telegram-origin-v1"
+    assert len(result["authorization_report_sha256"]) == 64
     assert result["mutation_performed"] is False
     assert result["executor_invoked"] is False
     assert result["real_order_submitted"] is False
@@ -212,3 +221,18 @@ def test_pre_execution_module_has_no_network_wallet_or_execution_path() -> None:
         "POLYMARKET_WALLET_ADDRESS",
     ):
         assert forbidden not in text
+
+
+def test_pre_execution_report_hash_changes_when_ready_binding_changes() -> None:
+    state = _authorized_state()
+    first = evaluate_pre_execution_authorization(
+        ready_verification=_ready(),
+        project_state=state,
+    )
+    changed_ready = _ready()
+    changed_ready["request_sha256"] = "9" * 64
+    second = evaluate_pre_execution_authorization(
+        ready_verification=changed_ready,
+        project_state=state,
+    )
+    assert first["authorization_report_sha256"] != second["authorization_report_sha256"]
