@@ -4460,6 +4460,26 @@
         "scripts/deploy/phase15_v3_canary_executor.py"
       ],
       "binding_semantics": "Documentation/evidence-only main advances are allowed; any change to a bound prepare/runtime/arm/executor path fails closed."
+    },
+    "transient_risk_retry_fix": {
+      "status": "ENGINEERING_IMPLEMENTED_NOT_DEPLOYED",
+      "date": "2026-09-24",
+      "root_cause": "Any prior v3-live-canary-v1 risk decision permanently excluded a paper candidate, even when the only failure was transient current liquidity or API health.",
+      "retryable_reasons": [
+        "liquidity_missing",
+        "liquidity_below_minimum",
+        "api_unhealthy"
+      ],
+      "terminal_semantics": "Any eligible decision or any non-transient risk reason permanently stops further evaluation for that prediction.",
+      "preserves_append_only_risk_decisions": true,
+      "strategy_changed": false,
+      "min_edge_changed": false,
+      "target_notional_changed": false,
+      "submission_attempt_rule_changed": false,
+      "production_deployed": false,
+      "production_rollout_authorized": false,
+      "current_watcher_binding_compatible": false,
+      "production_transition_requires_explicit_authorization": true
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {
