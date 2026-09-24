@@ -227,14 +227,30 @@ The transport key must be exactly 32 bytes encoded as base64url and may be loade
 regular non-symlink file with mode `0600` or `0640`. It is not accepted through a command
 line argument or environment variable by the boundary runners.
 
-The producer boundary is:
+The recorder-side approved staging boundary is:
+
+```text
+scripts/run_phase15_v3_telegram_approved_outbox.py
+```
+
+It is the safe future handoff target for the Telegram listener. The listener already injects
+the exact approved `BP_APPROVED_INTENT_ID` and `BP_APPROVED_REQUEST_SHA256`; the staging
+command requires those values to match the prepared request before it writes anything. It
+uses a dedicated origin-attestation key and a separate transport key, rejects identical key
+material or key IDs, creates the origin proof, embeds that proof into the transport-HMAC-bound
+envelope, and writes the immutable envelope into the local outbox with create-exclusive
+`0600` semantics. It performs no Pub/Sub call, arm operation, executor invocation, or order
+submission.
+
+The lower-level producer boundary remains:
 
 ```text
 scripts/run_phase15_v3_telegram_transport_pack.py
 ```
 
-It reads the already-approved prepared/approval files plus a restricted key file and creates a
-new `0600` envelope file with create-exclusive semantics. It performs no network action.
+It requires an already-created origin attestation plus the approved prepared/approval files
+and restricted transport key. It creates a new `0600` envelope file with create-exclusive
+semantics and performs no network action.
 
 The receiver boundary is:
 
@@ -247,9 +263,21 @@ binding; then atomically claims the exact `intent_id + request_sha256` in a `070
 state directory. A different transport nonce cannot make the same order claimable twice.
 
 After claim, the receiver materializes `prepared.json`, sanitized `approval.json`,
-`envelope.json`, and `receipt.json` as `0600` files under a `0700` directory. If
-materialization fails after the claim, the claim remains consumed and automatic retry is
-forbidden.
+`origin-attestation.json`, `envelope.json`, and `receipt.json` as `0600` files under a
+`0700` directory. The claim path authenticates both the transport HMAC and the separate
+origin attestation before consuming the exact order. If materialization fails after the
+claim, the claim remains consumed and automatic retry is forbidden.
+
+The read-only execution-side verifier is:
+
+```text
+scripts/run_phase15_v3_telegram_execution_ready_verify.py
+```
+
+It re-verifies the origin attestation against the exact ready prepared/approval payload,
+checks the claim receipt and envelope hashes/identities, and keeps the transport key ID and
+origin key ID distinct. It has no network, wallet, arm, cancellation, or order-submission
+path. Passing this verifier is still not authorization to execute.
 
 These two runners contain no HTTP client, `gcloud`, Polymarket SDK/order call, wallet key, arm
 operation, or submission operation. A future authorized transport may carry the envelope
@@ -321,10 +349,11 @@ deploy/bp-phase15-telegram-transport-claim-worker.service
 ```
 
 It is intentionally a separate offline process. It reads only verified inbox envelopes,
-revalidates the HMAC/key ID/expiry, atomically consumes the application-level
+revalidates the transport HMAC/key ID/expiry and the embedded origin attestation using the
+configured origin key, atomically consumes the application-level
 `(intent_id, request_sha256)` claim, and materializes a `0700` ready directory containing
-`0600` prepared, approval, envelope, and receipt files. It writes a processed receipt so the
-same inbox object is not reconsidered.
+`0600` prepared, approval, origin-attestation, envelope, and receipt files. It writes a
+processed receipt so the same inbox object is not reconsidered.
 
 If materialization or processed-receipt persistence fails after the claim is consumed, the
 worker records a terminal no-retry failure. It never recreates the claim or treats a carrier
