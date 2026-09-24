@@ -172,6 +172,7 @@ def _materialize_ready(
             "origin_attestation_sha256": str(
                 claimed["origin_attestation_sha256"]
             ),
+            "origin_key_id": str(claimed["origin_attestation"].get("key_id") or ""),
             "claim_sha256": str(claimed["claim_sha256"]),
             "ready_at": observed_at.astimezone(UTC).isoformat(),
             "retry_allowed": False,
