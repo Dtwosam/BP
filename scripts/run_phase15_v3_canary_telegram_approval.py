@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -16,6 +18,7 @@ from bp_engine.execution.telegram_approval import (
     build_prompt,
     callback_data,
     new_pending,
+    validate_approved_handoff,
     validate_callback,
     validate_prepared,
 )
@@ -150,6 +153,137 @@ def _expiry_record(pending: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _handoff_command() -> Path | None:
+    raw = os.environ.get("BP_TELEGRAM_HANDOFF_COMMAND", "").strip()
+    if not raw:
+        return None
+    command = Path(raw)
+    if not command.is_absolute():
+        raise SystemExit("BP_TELEGRAM_HANDOFF_COMMAND must be an absolute path")
+    return command
+
+
+def _load_json(path: Path) -> dict[str, Any]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"{path.name} must contain a JSON object")
+    return payload
+
+
+def _text_sha256(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _dispatch_approved_handoff(
+    *,
+    command: Path | None,
+    prepared_path: Path,
+    approval_path: Path,
+    state_dir: Path,
+) -> dict[str, Any]:
+    approval = _load_json(approval_path)
+    if approval.get("status") != "approved":
+        return {"status": "not_approved", "intent_id": approval.get("intent_id")}
+
+    prepared = _load_json(prepared_path)
+    binding = validate_approved_handoff(
+        prepared,
+        approval=approval,
+        observed_at=_utc_now(),
+    )
+    result_path = state_dir / "handoff-result.json"
+    if result_path.is_file():
+        return _load_json(result_path)
+
+    attempt_path = state_dir / "handoff-attempt.json"
+    if attempt_path.is_file():
+        ambiguous = {
+            "schema_version": 1,
+            "status": "handoff_ambiguous_no_retry",
+            "intent_id": binding["intent_id"],
+            "request_sha256": binding["request_sha256"],
+            "updated_at": _utc_now().isoformat(),
+            "retry_allowed": False,
+        }
+        _atomic_json(result_path, ambiguous)
+        _atomic_json(state_dir / "status.json", ambiguous)
+        return ambiguous
+
+    if command is None:
+        disabled = {
+            "status": "approved_handoff_not_configured",
+            "intent_id": binding["intent_id"],
+            "request_sha256": binding["request_sha256"],
+            "updated_at": _utc_now().isoformat(),
+            "real_order_submitted": False,
+        }
+        _atomic_json(state_dir / "status.json", disabled)
+        return disabled
+    if not command.is_file() or not os.access(command, os.X_OK):
+        invalid = {
+            "status": "handoff_command_invalid",
+            "intent_id": binding["intent_id"],
+            "request_sha256": binding["request_sha256"],
+            "updated_at": _utc_now().isoformat(),
+            "real_order_submitted": False,
+        }
+        _atomic_json(state_dir / "status.json", invalid)
+        return invalid
+
+    attempt = {
+        "schema_version": 1,
+        "status": "handoff_started",
+        "intent_id": binding["intent_id"],
+        "prediction_id": binding["prediction_id"],
+        "paper_order_id": binding["paper_order_id"],
+        "request_sha256": binding["request_sha256"],
+        "approved_at": binding["approved_at"],
+        "started_at": _utc_now().isoformat(),
+        "command": str(command),
+        "retry_allowed": False,
+    }
+    _atomic_json(attempt_path, attempt)
+    _atomic_json(state_dir / "status.json", attempt)
+
+    environment = os.environ.copy()
+    environment["BP_APPROVED_INTENT_ID"] = str(binding["intent_id"])
+    environment["BP_APPROVED_REQUEST_SHA256"] = str(binding["request_sha256"])
+    try:
+        completed = subprocess.run(
+            [str(command), str(prepared_path), str(approval_path)],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env=environment,
+        )
+    except Exception as exc:
+        result = {
+            "schema_version": 1,
+            "status": "handoff_ambiguous_no_retry",
+            "intent_id": binding["intent_id"],
+            "request_sha256": binding["request_sha256"],
+            "error_type": type(exc).__name__,
+            "completed_at": _utc_now().isoformat(),
+            "retry_allowed": False,
+        }
+    else:
+        result = {
+            "schema_version": 1,
+            "status": "handoff_completed" if completed.returncode == 0 else "handoff_failed_no_retry",
+            "intent_id": binding["intent_id"],
+            "request_sha256": binding["request_sha256"],
+            "command_exit_code": completed.returncode,
+            "stdout_sha256": _text_sha256(completed.stdout),
+            "stderr_sha256": _text_sha256(completed.stderr),
+            "completed_at": _utc_now().isoformat(),
+            "retry_allowed": False,
+        }
+    _atomic_json(result_path, result)
+    _atomic_json(state_dir / "status.json", result)
+    return result
+
+
 def _wait_for_decision(
     *,
     token: str,
@@ -272,6 +406,7 @@ def main() -> int:
     approval_root = Path(args.approval_state_root)
     approval_root.mkdir(parents=True, exist_ok=True)
     os.chmod(approval_root, 0o700)
+    handoff_command = _handoff_command()
 
     while True:
         run_dir = _current_run(prepare_root)
@@ -294,6 +429,27 @@ def main() -> int:
         state_dir = approval_root / intent_id
         approval_path = state_dir / "approval.json"
         if approval_path.is_file():
+            try:
+                existing_approval = _load_json(approval_path)
+                if existing_approval.get("status") == "approved":
+                    handoff = _dispatch_approved_handoff(
+                        command=handoff_command,
+                        prepared_path=prepared_path,
+                        approval_path=approval_path,
+                        state_dir=state_dir,
+                    )
+                    print(json.dumps(handoff, sort_keys=True), flush=True)
+            except (ApprovalError, json.JSONDecodeError, OSError, RuntimeError) as exc:
+                _atomic_json(
+                    state_dir / "status.json",
+                    {
+                        "status": "handoff_validation_failed",
+                        "intent_id": intent_id,
+                        "error_type": type(exc).__name__,
+                        "updated_at": _utc_now().isoformat(),
+                        "real_order_submitted": False,
+                    },
+                )
             time.sleep(args.poll_seconds)
             continue
 
@@ -343,6 +499,14 @@ def main() -> int:
             state_dir=state_dir,
         )
         print(json.dumps(record, sort_keys=True), flush=True)
+        if record.get("status") == "approved":
+            handoff = _dispatch_approved_handoff(
+                command=handoff_command,
+                prepared_path=prepared_path,
+                approval_path=approval_path,
+                state_dir=state_dir,
+            )
+            print(json.dumps(handoff, sort_keys=True), flush=True)
 
 
 if __name__ == "__main__":
