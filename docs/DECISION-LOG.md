@@ -649,10 +649,10 @@ The watcher has no arm path and no authenticated order-submission path. Arm rema
 
 ## D-064 — Retry only transient live-liquidity misses during Phase 15 prepare
 **Date:** 24 Sep 2026  
-**Status:** Engineering only; production rollout not authorized
+**Status:** Production rollout authorized and active
 
 A Phase 15 frozen-V3 paper candidate may be re-evaluated while still fresh only when all prior canary risk decisions failed exclusively for transient live conditions: `liquidity_missing`, `liquidity_below_minimum`, or `api_unhealthy`. The existing append-only risk decisions remain preserved. Any eligible decision or any non-transient failure permanently removes that prediction from further prepare consideration.
 
 This fixes a mismatch where current live liquidity could recover after the first poll but the candidate was already blacklisted by the mere existence of a prior risk decision. It does not change the frozen V3 model, calibration, 240-second timing, 0.075 minimum edge, $5 target, live limits, wallet/signer boundary, arm requirements, or one-network-submission-attempt rule.
 
-Because the correction changes a persistent-watcher binding path, it is not a production rollout authorization. The active watcher remains on its current pinned release until an explicitly authorized production transition.
+The user explicitly authorized production rollout of main `562cb0eacae283a2916cbb9201d0bbead272d684` and restart of the prepare-only watcher. The rollout passed: run `phase15-prepare-watch-20260924T112126Z-562cb0ea` is active on `bp-recorder`, live trading remains disabled, no arm or real order has been attempted, and the one network submission attempt remains unused. Evidence: `docs/evidence/phase-15-transient-risk-retry-rollout-production-20260924.json`.
