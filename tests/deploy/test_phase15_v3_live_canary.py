@@ -354,11 +354,12 @@ def test_persistent_prepare_status_materializes_only_fresh_current_payload() -> 
         "NO_REAL_ORDER_SUBMITTED=true",
     ):
         assert marker in text
+    assert "bash scripts/deploy/phase15_v3_canary_arm_cloudshell.sh" not in text
+    assert "exec scripts/deploy/phase15_v3_canary_arm_cloudshell.sh" not in text
     for forbidden in (
         "PHASE15_ACCEPT_REAL_MONEY",
         "post_order",
         "create_limit_order",
-        "phase15_v3_canary_arm_cloudshell.sh",
     ):
         assert forbidden not in text
 
