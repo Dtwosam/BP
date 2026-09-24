@@ -381,11 +381,14 @@ deploy/bp-phase15-telegram-transport-claim-worker.service
 ```
 
 It is intentionally a separate offline process. It reads only verified inbox envelopes,
-revalidates the transport HMAC/key ID/expiry and the embedded origin attestation using the
-configured origin key, atomically consumes the application-level
-`(intent_id, request_sha256)` claim, and materializes a `0700` ready directory containing
-`0600` prepared, approval, origin-attestation, envelope, and receipt files. It writes a
-processed receipt so the same inbox object is not reconsidered.
+revalidates the transport HMAC/key ID/expiry and exact embedded origin-attestation
+binding, atomically consumes the application-level `(intent_id, request_sha256)` claim,
+and materializes a `0700` ready directory containing `0600` prepared, approval,
+origin-attestation, envelope, and receipt files. It does **not** receive the protected
+origin secret and therefore does not authenticate the origin-attestation HMAC at this
+transport stage. That independent HMAC check remains exclusively in the separate
+`execution_ready_origin_verified` boundary described above. It writes a processed receipt
+so the same inbox object is not reconsidered.
 
 If materialization or processed-receipt persistence fails after the claim is consumed, the
 worker records a terminal no-retry failure. It never recreates the claim or treats a carrier
