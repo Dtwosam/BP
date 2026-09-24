@@ -26,6 +26,7 @@ from bp_engine.execution.telegram_transport import (
 
 KEY_ID = "phase15-telegram-transport-v1"
 ORIGIN_KEY_ID = "phase15-telegram-origin-v1"
+ORIGIN_KEY = bytes(range(32, 64))
 
 
 def _prepared(now: datetime) -> dict[str, object]:
@@ -75,7 +76,7 @@ def _origin_attestation(
     return create_origin_attestation(
         prepared,
         approval=approval,
-        key=bytes(range(32, 64)),
+        key=ORIGIN_KEY,
         key_id=ORIGIN_KEY_ID,
         attested_at=now + timedelta(seconds=2),
     )
@@ -244,6 +245,8 @@ def test_transport_claim_is_one_shot_for_exact_order_even_with_new_nonce(tmp_pat
         first,
         key=key,
         expected_key_id=KEY_ID,
+        origin_key=ORIGIN_KEY,
+        expected_origin_key_id=ORIGIN_KEY_ID,
         observed_at=now + timedelta(seconds=4),
         state_dir=state_dir,
     )
@@ -261,6 +264,8 @@ def test_transport_claim_is_one_shot_for_exact_order_even_with_new_nonce(tmp_pat
             second,
             key=key,
             expected_key_id=KEY_ID,
+            origin_key=ORIGIN_KEY,
+            expected_origin_key_id=ORIGIN_KEY_ID,
             observed_at=now + timedelta(seconds=4),
             state_dir=state_dir,
         )
@@ -290,6 +295,44 @@ def test_transport_claim_rejects_symlink_state_directory(tmp_path) -> None:
             envelope,
             key=key,
             expected_key_id=KEY_ID,
+            origin_key=ORIGIN_KEY,
+            expected_origin_key_id=ORIGIN_KEY_ID,
             observed_at=now + timedelta(seconds=3),
             state_dir=link,
         )
+
+
+def test_transport_claim_rejects_forged_origin_hmac_before_claim(tmp_path) -> None:
+    now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
+    prepared = _prepared(now)
+    approval = _approval(prepared, now)
+    forged_origin = create_origin_attestation(
+        prepared,
+        approval=approval,
+        key=bytes(range(64, 96)),
+        key_id=ORIGIN_KEY_ID,
+        attested_at=now + timedelta(seconds=2),
+    )
+    transport_key = bytes(range(32))
+    envelope = create_transport_envelope(
+        prepared,
+        approval=approval,
+        origin_attestation=forged_origin,
+        key=transport_key,
+        key_id=KEY_ID,
+        created_at=now + timedelta(seconds=2),
+        nonce="transport-forged-origin",
+    )
+    state_dir = tmp_path / "claims"
+
+    with pytest.raises(TransportError, match="origin attestation authentication failed"):
+        claim_transport_envelope(
+            envelope,
+            key=transport_key,
+            expected_key_id=KEY_ID,
+            origin_key=ORIGIN_KEY,
+            expected_origin_key_id=ORIGIN_KEY_ID,
+            observed_at=now + timedelta(seconds=3),
+            state_dir=state_dir,
+        )
+    assert not state_dir.exists() or list(state_dir.iterdir()) == []
