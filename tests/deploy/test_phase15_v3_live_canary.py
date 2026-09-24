@@ -338,7 +338,14 @@ def test_persistent_prepare_start_requires_explicit_scope_and_health_only() -> N
 def test_persistent_prepare_status_materializes_only_fresh_current_payload() -> None:
     text = PERSISTENT_PREPARE_STATUS.read_text(encoding="utf-8")
     for marker in (
-        "watcher_helper_head_not_current_main",
+        "watcher_prepare_or_execution_binding_changed",
+        'git diff --quiet "$HELPER_HEAD" "$LOCAL_HEAD"',
+        "src/bp_engine/execution/live.py",
+        "src/bp_engine/execution/canary.py",
+        "scripts/run_phase15_v3_canary_prepare_watch.py",
+        "deploy/bp-phase15-canary-prepare-watch.service",
+        "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
+        "scripts/deploy/phase15_v3_canary_executor.py",
         "float(sys.argv[1]) >= 20",
         "REQUIRES_CLOSED_BEFORE_SUBMISSION_RECONCILIATION=true",
         "prepared_payload_binding_invalid",
