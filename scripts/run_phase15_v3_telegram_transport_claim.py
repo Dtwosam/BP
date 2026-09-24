@@ -86,6 +86,10 @@ def _materialize_claim(
     try:
         _write_file(staging / "prepared.json", verified["prepared"])
         _write_file(staging / "approval.json", verified["approval"])
+        _write_file(
+            staging / "origin-attestation.json",
+            verified["origin_attestation"],
+        )
         _write_file(staging / "envelope.json", envelope)
         receipt = {
             "schema_version": 1,
@@ -98,6 +102,7 @@ def _materialize_claim(
             "prepared_sha256": verified["prepared_sha256"],
             "approval_sha256": verified["approval_sha256"],
             "approval_source_sha256": verified["approval_source_sha256"],
+            "origin_attestation_sha256": verified["origin_attestation_sha256"],
             "transport_nonce": verified["transport_nonce"],
             "transport_created_at": verified["created_at"],
             "transport_expires_at": verified["expires_at"],
@@ -117,6 +122,7 @@ def _materialize_claim(
         "materialized_dir": str(final_dir),
         "prepared_path": str(final_dir / "prepared.json"),
         "approval_path": str(final_dir / "approval.json"),
+        "origin_attestation_path": str(final_dir / "origin-attestation.json"),
         "envelope_path": str(final_dir / "envelope.json"),
         "receipt_path": str(final_dir / "receipt.json"),
     }
