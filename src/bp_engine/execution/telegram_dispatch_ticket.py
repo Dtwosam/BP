@@ -215,11 +215,31 @@ def verify_dispatch_ticket_against_report(
     *,
     pre_execution_report: Mapping[str, Any],
     observed_at: datetime,
+    ready_verification: Mapping[str, Any] | None = None,
+    project_state: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     verified = verify_dispatch_ticket(ticket, observed_at=observed_at)
+    report = pre_execution_report
+    if (ready_verification is None) != (project_state is None):
+        raise DispatchTicketError(
+            "current ready verification and project state must be supplied together"
+        )
+    if ready_verification is not None and project_state is not None:
+        try:
+            report = verify_pre_execution_snapshot(
+                pre_execution_report,
+                ready_verification=ready_verification,
+                project_state=project_state,
+                require_authorized=True,
+            )
+        except PreExecutionError as exc:
+            raise DispatchTicketError(
+                f"pre-execution snapshot invalid: {exc}"
+            ) from exc
+
     created_at = _parse_timestamp(verified, "created_at")
     expected = create_dispatch_ticket(
-        pre_execution_report,
+        report,
         created_at=created_at,
     )
     if dict(verified) != expected:
