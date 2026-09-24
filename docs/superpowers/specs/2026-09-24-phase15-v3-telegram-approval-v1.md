@@ -250,13 +250,54 @@ least-privilege credentials, provide durable delivery/audit evidence, and preser
 one-order no-retry semantics. Carrier retries may redeliver bytes, but executor claim logic
 must reject replay before any arm/submission action.
 
-The readiness gate treats
+### Pub/Sub carrier candidate
+
+The engineering candidate now includes a transport-only Google Cloud Pub/Sub carrier:
+
+```text
+scripts/run_phase15_v3_telegram_pubsub_publish.py
+scripts/run_phase15_v3_telegram_pubsub_receive.py
+src/bp_engine/execution/telegram_pubsub.py
+```
+
+The publisher runs only against a prebuilt, locally reverified authenticated envelope. It
+obtains a short-lived OAuth bearer token from the Compute Engine metadata server, publishes
+the exact envelope bytes plus routing attributes to one configured topic, and records a local
+publish receipt. It has no wallet/signing material and no executor/arm/submission code.
+
+The receiver uses its own VM-attached service account and one configured pull subscription.
+It validates the Pub/Sub routing attributes, verifies the envelope HMAC and exact key ID,
+durably persists the exact envelope to a local execution-host inbox, and only then
+acknowledges the Pub/Sub delivery. It does not claim the order or invoke the executor.
+
+The intended IAM boundary is resource-level least privilege:
+
+- the recorder-side service account may publish only to the dedicated Telegram transport topic;
+- the execution-host transport service account may consume only the dedicated subscription;
+- neither role grants topic/subscription administration;
+- no long-lived Google service-account JSON key is stored by BP;
+- no inbound listener, SSH tunnel, VPN, proxy, or public execution endpoint is introduced.
+
+Pub/Sub is at-least-once delivery. That is acceptable only because BP's application-level
+execution claim remains keyed to `(intent_id, request_sha256)`. A lost publish response may
+cause the same immutable envelope to be published again; a lost acknowledgement may cause the
+same message to be delivered again. Both are transport duplicates, not authorization to retry
+an order.
+
+A same-order inbox collision with different authenticated envelope bytes fails closed and is
+not overwritten. Network delivery success alone never arms or submits anything.
+
+No Pub/Sub topic, subscription, IAM role, VM service-account change, systemd unit, or production
+configuration has been created by this branch.
+
+The readiness gate treats both
 
 ```text
 telegram_persistent_execution_transport_authorized
+telegram_pubsub_transport_authorized
 ```
 
-as false unless source truth explicitly sets it true.
+as false unless source truth explicitly sets them true.
 
 The read-only readiness helper is:
 
