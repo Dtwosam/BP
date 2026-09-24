@@ -1,0 +1,41 @@
+{
+  "date": "2026-09-24",
+  "status": "PASS_ZERO_FILL",
+  "source_main_commit": "5103c02bb07c540f12e180751627851f814022b6",
+  "intent_id": "live-intent-6cdfcfd28d0eb52f1ee0762bfd351409",
+  "external_order_id": "0x7c85e5e8753a875dfd9fec8ffd45726164863648127351b21c2a8ba1819a28de",
+  "official_probe": {
+    "sdk_version": "0.7.1",
+    "read_only": true,
+    "snapshot_stable_across_3_seconds": true,
+    "open_order_count": 0,
+    "order_still_open": false,
+    "matching_trade_count": 0,
+    "matching_trades": [],
+    "observed_matched_shares": "0",
+    "observed_matched_notional_usd": "0",
+    "confirmed_filled_shares": "0",
+    "confirmed_filled_notional_usd": "0",
+    "confirmed_fill_fraction_of_requested": "0",
+    "fill_state": "zero_fill_observed",
+    "official_reconciliation_complete": true
+  },
+  "safety": {
+    "kill_switch_engaged": true,
+    "activation_valid": false,
+    "submission_ready": false,
+    "live_order_submitted": false,
+    "network_submission_attempt_consumed": true,
+    "second_order_authorized": false,
+    "no_order_mutation_performed": true
+  },
+  "interpretation": {
+    "exposure_usd": "0",
+    "realized_trade_pnl_usd": "0",
+    "fill_quality_observed": false,
+    "slippage_observed": false,
+    "submission_path_validated": true,
+    "cancellation_path_validated": true,
+    "note": "The first live canary was accepted and cancelled successfully but received no fill. This validates the live submission/cancel path and fail-closed controls, but does not supply execution-price/slippage or fill-quality evidence. No second live action is authorized by this reconciliation."
+  }
+}
