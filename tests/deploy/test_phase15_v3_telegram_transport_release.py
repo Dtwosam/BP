@@ -120,6 +120,14 @@ def test_transport_release_is_deterministic_secret_free_and_verifiable(
             "scripts/run_phase15_v3_telegram_execution_authorization_worker.py"
             in names
         )
+        assert (
+            "scripts/run_phase15_v3_telegram_execution_package_verify.py"
+            in names
+        )
+        assert (
+            "src/bp_engine/execution/telegram_execution_package.py"
+            in names
+        )
         assert "deploy/phase15-telegram-transport-runtime-requirements.txt" in names
         requirements = archive.extractfile(
             "deploy/phase15-telegram-transport-runtime-requirements.txt"
