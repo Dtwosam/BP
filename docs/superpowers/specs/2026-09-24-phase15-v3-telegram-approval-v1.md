@@ -816,3 +816,36 @@ merge an exact green release, stage it, provision separate transport/origin keys
 least-privilege Pub/Sub IAM, configure and activate the services, and pass fresh
 safe-idle/geography/account checks. Current source truth authorizes only the second live canary;
 no third order or broader autonomous rollout is authorized.
+
+
+## Fail-closed production activation
+
+The production activation transaction is implemented by:
+
+```text
+scripts/deploy/phase15_v3_telegram_transport_activate_cloudshell.sh
+```
+
+It requires literal `PHASE15_ACCEPT_TELEGRAM_TRANSPORT_ACTIVATION=yes`, a clean
+checkout exactly matching current `origin/main`, the authorized second-canary
+source-truth state, and a PASS from the inactive/secret-free transport stage
+status helper before any mutation.
+
+The helper refuses default/shared/broadly privileged VM service accounts,
+creates or reuses only the named Pub/Sub topic and subscription, grants only
+resource-scoped `roles/pubsub.publisher` and `roles/pubsub.subscriber`,
+generates separate random origin and transport HMAC material without printing
+it, installs host-local files with least-privilege ownership, rechecks the
+Johannesburg executor in kill-engaged safe-idle state, and requires the
+read-only activation plan to report zero blockers.
+
+Services start in dependency order on Johannesburg before the US publisher and
+the Telegram listener handoff are activated. Activation itself never creates a
+submit payload or invokes an order. A fresh private Telegram APPROVE remains
+mandatory before the privileged consumer can receive a short-lived exact-order
+package.
+
+If activation fails after services begin, the helper stops/disables the live
+transport services and writes the Johannesburg kill switch before returning a
+failure. Secrets/resources are left for explicit forensic rollback rather than
+being silently deleted after an ambiguous partial mutation.
