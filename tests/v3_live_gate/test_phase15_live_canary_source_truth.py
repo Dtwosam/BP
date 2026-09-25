@@ -129,3 +129,20 @@ def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -
     assert evidence["direct_geoblock"]["country"] == "ZA"
     assert evidence["safety"]["trading_software_installed"] is False
     assert evidence["safety"]["wallet_or_signing_material_present"] is False
+
+def test_phase15_telegram_transport_activation_is_authorized_but_not_an_order() -> None:
+    state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
+    gate = state["phase_15_v3_live_canary"]
+    stage = gate["telegram_transport_stage"]
+    activation = gate["telegram_transport_activation_authorization"]
+
+    assert stage["status"] == "PRODUCTION_STAGED_INACTIVE"
+    assert stage["activation_authorized"] is True
+    assert activation["status"] == "AUTHORIZED_NOT_ACTIVATED"
+    assert activation["does_not_submit_real_order"] is True
+    assert activation["fresh_private_telegram_approval_still_required_for_second_canary"] is True
+    assert activation["global_second_canary_attempt_marker_still_one_shot"] is True
+    assert activation["official_reconciliation_required_before_any_third_order"] is True
+    assert activation["broad_autonomous_live_rollout_authorized"] is False
+    assert state["live_trading_enabled"] is False
+    assert gate["live_trading_enabled"] is False
