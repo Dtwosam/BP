@@ -431,14 +431,14 @@ if executor.get("bp_transport_user_exists") is not True:
     blockers.append("bp_transport_user_missing")
 if executor.get("bp_transport_primary_group") != "bp-transport":
     blockers.append("bp_transport_primary_group_invalid")
-for name in (
-    "receiver_env_present",
-    "claim_env_present",
-    "transport_key_present",
-    "origin_key_present",
+for name, blocker in (
+    ("receiver_env_present", "executor_receiver_env_present"),
+    ("claim_env_present", "executor_claim_env_present"),
+    ("transport_key_present", "executor_transport_key_present"),
+    ("origin_key_present", "executor_origin_key_present"),
 ):
     if executor.get(name) is not False:
-        blockers.append(f"executor_{name}")
+        blockers.append(blocker)
 for service_name, state in (executor.get("services") or {}).items():
     if state.get("active") is not False:
         blockers.append(f"transport_service_active:{service_name}")
