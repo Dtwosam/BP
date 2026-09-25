@@ -445,6 +445,7 @@ report = {
     },
     "key_files": key_files,
     "environment_files": env_files,
+    "activation_helper": "scripts/deploy/phase15_v3_telegram_transport_activate_cloudshell.sh",
     "service_activation_order_after_all_future_authorizations": [
         "bp-phase15-telegram-pubsub-streaming-receiver.service",
         "bp-phase15-telegram-transport-claim-worker.service",
