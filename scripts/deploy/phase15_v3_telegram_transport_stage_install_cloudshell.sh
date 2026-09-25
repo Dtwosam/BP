@@ -378,17 +378,23 @@ SERVICES=(
   bp-phase15-telegram-transport-claim-worker.service
   bp-phase15-telegram-execution-authorization-worker.service
 )
-STATE_DIRS=(
+TRANSPORT_STATE_DIRS=(
   /var/lib/bp-canary/telegram-transport-inbox
   /var/lib/bp-canary/telegram-transport-rejections
   /var/lib/bp-canary/telegram-transport-claims
   /var/lib/bp-canary/telegram-transport-ready
   /var/lib/bp-canary/telegram-transport-claim-processed
   /var/lib/bp-canary/telegram-transport-claim-failures
+)
+AUTH_STATE_DIRS=(
   /var/lib/bp-canary/telegram-dispatch-claims
   /var/lib/bp-canary/telegram-execution-authorized
   /var/lib/bp-canary/telegram-execution-auth-processed
   /var/lib/bp-canary/telegram-execution-auth-failures
+)
+STATE_DIRS=(
+  "${TRANSPORT_STATE_DIRS[@]}"
+  "${AUTH_STATE_DIRS[@]}"
 )
 CREATED_USER=false
 CREATED_GROUP=false
@@ -531,8 +537,11 @@ PY
 
 ln -s "$RELEASE" "$CURRENT"
 install -d -o root -g bp-transport -m 0750 "$CONFIG"
-for dir in "${STATE_DIRS[@]}"; do
+for dir in "${TRANSPORT_STATE_DIRS[@]}"; do
   install -d -o bp-transport -g bp-transport -m 0700 "$dir"
+done
+for dir in "${AUTH_STATE_DIRS[@]}"; do
+  install -d -o root -g root -m 0700 "$dir"
 done
 for service in "${SERVICES[@]}"; do
   install -o root -g root -m 0644     "$RELEASE/deploy/$service"     "/etc/systemd/system/$service"
