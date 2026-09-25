@@ -72,11 +72,12 @@ rollback_recorder() {
 set -Eeuo pipefail
 ROOT=/opt/bp-telegram-transport
 META=$ROOT/STAGE-METADATA.json
+OWNER=/var/lib/bp/phase15-canary-telegram-transport-stage-owner.json
 STATE=/var/lib/bp/phase15-canary-telegram-transport
 SERVICE=bp-phase15-telegram-pubsub-publisher.service
 SERVICE_PATH=/etc/systemd/system/$SERVICE
-[[ -f "$META" ]] || exit 0
-python3 - "$META" "$BP_STAGE_ID" <<'PY'
+[[ -f "$OWNER" ]] || exit 0
+python3 - "$OWNER" "$BP_STAGE_ID" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -89,6 +90,7 @@ systemctl stop "$SERVICE" >/dev/null 2>&1 || true
 systemctl disable "$SERVICE" >/dev/null 2>&1 || true
 rm -f "$SERVICE_PATH"
 rm -rf "$STATE" "$ROOT"
+rm -f "$OWNER"
 systemctl daemon-reload
 REMOTE
 }
@@ -99,14 +101,15 @@ rollback_executor() {
 set -Eeuo pipefail
 ROOT=/opt/bp-telegram-transport
 META=$ROOT/STAGE-METADATA.json
+OWNER=/var/lib/bp-canary/telegram-transport-stage-owner.json
 CONFIG=/etc/bp-telegram-transport
 SERVICES=(
   bp-phase15-telegram-pubsub-streaming-receiver.service
   bp-phase15-telegram-transport-claim-worker.service
 )
-[[ -f "$META" ]] || exit 0
+[[ -f "$OWNER" ]] || exit 0
 readarray -t CREATED_FLAGS < <(
-  python3 - "$META" "$BP_STAGE_ID" <<'PY'
+  python3 - "$OWNER" "$BP_STAGE_ID" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -126,6 +129,7 @@ for service in "${SERVICES[@]}"; do
   rm -f "/etc/systemd/system/$service"
 done
 rm -rf   /var/lib/bp-canary/telegram-transport-inbox   /var/lib/bp-canary/telegram-transport-rejections   /var/lib/bp-canary/telegram-transport-claims   /var/lib/bp-canary/telegram-transport-ready   /var/lib/bp-canary/telegram-transport-claim-processed   /var/lib/bp-canary/telegram-transport-claim-failures   "$CONFIG"   "$ROOT"
+rm -f "$OWNER"
 systemctl daemon-reload
 if [[ "$CREATED_USER" == "true" ]]; then
   userdel bp-transport >/dev/null 2>&1 || true
@@ -183,6 +187,7 @@ RELEASE=$RELEASES/$HEAD
 CURRENT=$ROOT/current
 VENV=$ROOT/.venv
 META=$ROOT/STAGE-METADATA.json
+OWNER=/var/lib/bp/phase15-canary-telegram-transport-stage-owner.json
 STATE=/var/lib/bp/phase15-canary-telegram-transport
 SERVICE=bp-phase15-telegram-pubsub-publisher.service
 SERVICE_PATH=/etc/systemd/system/$SERVICE
@@ -205,6 +210,7 @@ cleanup() {
   systemctl disable "$SERVICE" >/dev/null 2>&1 || true
   rm -f "$SERVICE_PATH"
   rm -rf "$STATE" "$ROOT"
+  rm -f "$OWNER"
   systemctl daemon-reload >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -221,6 +227,7 @@ python3 -m venv --help >/dev/null 2>&1 || fail "python_venv_unavailable"
 
 [[ ! -e "$ROOT" && ! -L "$ROOT" ]] || fail "transport_root_already_exists"
 [[ ! -e "$STATE" && ! -L "$STATE" ]] || fail "transport_state_already_exists"
+[[ ! -e "$OWNER" && ! -L "$OWNER" ]] || fail "stage_owner_already_exists"
 [[ ! -e "$SERVICE_PATH" && ! -L "$SERVICE_PATH" ]] ||
   fail "publisher_unit_file_already_exists"
 [[ ! -e "$ENV_PATH" && ! -L "$ENV_PATH" ]] ||
@@ -235,6 +242,30 @@ done
 RECORDER_PID_BEFORE=$(systemctl show -p MainPID --value bp-recorder.service)
 PREDICTOR_PID_BEFORE=$(systemctl show -p MainPID --value bp-v3-frozen-predictor.service)
 PAPER_PID_BEFORE=$(systemctl show -p MainPID --value bp-v3-paper-execution.service)
+
+python3 - "$OWNER" "$STAGE_ID" "$HEAD" "$ARCHIVE_SHA256" <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+payload = {
+    "schema_version": 1,
+    "stage_id": sys.argv[2],
+    "role": "publisher",
+    "release_head": sys.argv[3],
+    "archive_sha256": sys.argv[4],
+    "created_bp_transport_user": False,
+    "created_bp_transport_group": False,
+}
+fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as handle:
+    json.dump(payload, handle, sort_keys=True, separators=(",", ":"))
+    handle.write("\n")
+    handle.flush()
+    os.fsync(handle.fileno())
+PY
 
 install -d -o root -g root -m 0755 "$RELEASES"
 install -d -o root -g root -m 0755 "$RELEASE"
@@ -289,6 +320,7 @@ payload = {
     "role": "publisher",
     "release_head": sys.argv[3],
     "archive_sha256": sys.argv[4],
+    "stage_complete": True,
     "services_started": False,
     "services_enabled": False,
     "environment_files_created": False,
@@ -333,6 +365,7 @@ RELEASE=$RELEASES/$HEAD
 CURRENT=$ROOT/current
 VENV=$ROOT/.venv
 META=$ROOT/STAGE-METADATA.json
+OWNER=/var/lib/bp-canary/telegram-transport-stage-owner.json
 CONFIG=/etc/bp-telegram-transport
 SERVICES=(
   bp-phase15-telegram-pubsub-streaming-receiver.service
@@ -370,6 +403,7 @@ cleanup() {
     rm -rf "$dir"
   done
   rm -rf "$CONFIG" "$ROOT"
+  rm -f "$OWNER"
   systemctl daemon-reload >/dev/null 2>&1 || true
   if [[ "$CREATED_USER" == "true" ]]; then
     userdel bp-transport >/dev/null 2>&1 || true
@@ -391,6 +425,7 @@ python3 -m venv --help >/dev/null 2>&1 || fail "python_venv_unavailable"
 
 [[ ! -e "$ROOT" && ! -L "$ROOT" ]] || fail "transport_root_already_exists"
 [[ ! -e "$CONFIG" && ! -L "$CONFIG" ]] || fail "transport_config_already_exists"
+[[ ! -e "$OWNER" && ! -L "$OWNER" ]] || fail "stage_owner_already_exists"
 for service in "${SERVICES[@]}"; do
   [[ ! -e "/etc/systemd/system/$service" ]] ||
     fail "transport_unit_file_already_exists:$service"
@@ -407,12 +442,10 @@ if id bp-transport >/dev/null 2>&1; then
   [[ "$(id -gn bp-transport)" == "bp-transport" ]] ||
     fail "bp_transport_primary_group_invalid"
 else
+  CREATED_USER=true
   if ! getent group bp-transport >/dev/null 2>&1; then
-    groupadd --system bp-transport
     CREATED_GROUP=true
   fi
-  useradd     --system     --gid bp-transport     --home-dir /nonexistent     --shell /usr/sbin/nologin     --no-create-home     bp-transport
-  CREATED_USER=true
 fi
 
 health() {
@@ -434,6 +467,37 @@ geoblock = payload.get("geoblock") or {}
 assert geoblock.get("blocked") is False
 assert geoblock.get("country") == "ZA"
 PY
+
+python3 -   "$OWNER"   "$STAGE_ID"   "$HEAD"   "$ARCHIVE_SHA256"   "$CREATED_USER"   "$CREATED_GROUP" <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+payload = {
+    "schema_version": 1,
+    "stage_id": sys.argv[2],
+    "role": "executor",
+    "release_head": sys.argv[3],
+    "archive_sha256": sys.argv[4],
+    "created_bp_transport_user": sys.argv[5] == "true",
+    "created_bp_transport_group": sys.argv[6] == "true",
+}
+fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as handle:
+    json.dump(payload, handle, sort_keys=True, separators=(",", ":"))
+    handle.write("\n")
+    handle.flush()
+    os.fsync(handle.fileno())
+PY
+
+if [[ "$CREATED_GROUP" == "true" ]]; then
+  groupadd --system bp-transport
+fi
+if [[ "$CREATED_USER" == "true" ]]; then
+  useradd     --system     --gid bp-transport     --home-dir /nonexistent     --shell /usr/sbin/nologin     --no-create-home     bp-transport
+fi
 
 install -d -o root -g root -m 0755 "$RELEASES"
 install -d -o root -g root -m 0755 "$RELEASE"
@@ -509,6 +573,7 @@ payload = {
     "archive_sha256": sys.argv[4],
     "created_bp_transport_user": sys.argv[5] == "true",
     "created_bp_transport_group": sys.argv[6] == "true",
+    "stage_complete": True,
     "services_started": False,
     "services_enabled": False,
     "environment_files_created": False,
