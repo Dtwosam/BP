@@ -84,6 +84,15 @@ def test_systemd_service_does_not_configure_handoff_by_default() -> None:
     assert "PHASE15_TELEGRAM_DISPATCH_CLAIM_FILE=" not in text
 
 
+def test_outer_handoff_safe_stop_is_eligible_before_arm_call() -> None:
+    text = HANDOFF.read_text(encoding="utf-8")
+    trap = text.index("trap cleanup EXIT")
+    armed = text.index("ARMED=true", trap)
+    arm_call = text.index('bash "$ARM_HELPER"', armed)
+    assert trap < armed < arm_call
+    assert "telegram-handoff-safe-stop" in text
+
+
 def test_dispatch_claim_is_revalidated_again_after_arm() -> None:
     text = HANDOFF.read_text(encoding="utf-8")
     assert text.count('$DISPATCH_CLAIM_FILE') >= 3
