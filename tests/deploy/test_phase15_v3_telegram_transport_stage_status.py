@@ -39,7 +39,9 @@ def test_transport_stage_status_binds_both_hosts_to_one_stage_and_release() -> N
         "telegram-transport-stage-owner.json",
         "stage_id_mismatch",
         "archive_sha256_mismatch",
-        "release_head_not_current",
+        "staged_release_binding_changed_after_stage",
+        "STAGED_RELEASE_HEAD",
+        "RELEASE_BINDING_PATHS",
         "publisher_unit_hash_mismatch",
         "approved_outbox_handoff_invalid",
         "transport_unit_hash_mismatch",
@@ -144,3 +146,17 @@ def test_transport_stage_status_accepts_active_remain_after_exit_oneshot_pid_zer
         "if not pid_valid and not active_oneshot:",
     ):
         assert marker in text
+
+def test_transport_stage_status_allows_only_release_binding_compatible_main_advances() -> None:
+    text = STATUS.read_text(encoding="utf-8")
+    for marker in (
+        "STAGED_RELEASE_HEAD",
+        "RELEASE_BINDING_PATHS",
+        "phase15_v3_telegram_transport_build_release.py",
+        'git diff --quiet "$STAGED_RELEASE_HEAD" "$LOCAL_HEAD"',
+        "staged_release_binding_changed_after_stage",
+        '"stage_binding_current": stage_binding_current',
+        '"current_head": head',
+    ):
+        assert marker in text
+    assert "release_head_not_current" not in text

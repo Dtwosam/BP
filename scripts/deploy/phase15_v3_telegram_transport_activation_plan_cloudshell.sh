@@ -70,6 +70,16 @@ print(json.dumps(
         "telegram_pubsub_transport_authorized": gate.get(
             "telegram_pubsub_transport_authorized", False
         ),
+        "telegram_transport_activation_authorized": (
+            (gate.get("telegram_transport_activation_authorization") or {}).get(
+                "status"
+            )
+            == "AUTHORIZED_NOT_ACTIVATED"
+            and (gate.get("telegram_transport_stage") or {}).get(
+                "activation_authorized"
+            )
+            is True
+        ),
     },
     separators=(",", ":"),
     sort_keys=True,
@@ -287,6 +297,7 @@ required_source_truth = {
     "telegram_one_tap_submission_authorized": True,
     "telegram_persistent_execution_transport_authorized": True,
     "telegram_pubsub_transport_authorized": True,
+    "telegram_transport_activation_authorized": True,
 }
 for key, expected in required_source_truth.items():
     if source.get(key) != expected:

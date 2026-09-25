@@ -173,3 +173,8 @@ def test_activation_plan_is_strictly_read_only() -> None:
         "NO_MUTATION_PERFORMED=true",
     ):
         assert marker in text
+
+def test_activation_plan_requires_durable_transport_activation_authorization() -> None:
+    text = PLAN.read_text(encoding="utf-8")
+    assert '"telegram_transport_activation_authorized"' in text
+    assert '"telegram_transport_activation_authorized": True' in text

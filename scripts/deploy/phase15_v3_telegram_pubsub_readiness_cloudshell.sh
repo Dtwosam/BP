@@ -50,6 +50,16 @@ print(json.dumps(
         "telegram_pubsub_transport_authorized": gate.get(
             "telegram_pubsub_transport_authorized", False
         ),
+        "telegram_transport_activation_authorized": (
+            (gate.get("telegram_transport_activation_authorization") or {}).get(
+                "status"
+            )
+            == "AUTHORIZED_NOT_ACTIVATED"
+            and (gate.get("telegram_transport_stage") or {}).get(
+                "activation_authorized"
+            )
+            is True
+        ),
     },
     separators=(",", ":"),
     sort_keys=True,
@@ -257,6 +267,8 @@ if source["telegram_persistent_execution_transport_authorized"] is not True:
     blockers.append("persistent_execution_transport_not_authorized")
 if source["telegram_pubsub_transport_authorized"] is not True:
     blockers.append("telegram_pubsub_transport_not_authorized")
+if source["telegram_transport_activation_authorized"] is not True:
+    blockers.append("telegram_transport_activation_not_authorized")
 
 report = {
     "ready": not blockers,

@@ -57,6 +57,8 @@ state = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 gate = state["phase_15_v3_live_canary"]
 first = gate.get("first_live_canary") or {}
 second = gate.get("second_live_canary_authorization") or {}
+stage = gate.get("telegram_transport_stage") or {}
+activation = gate.get("telegram_transport_activation_authorization") or {}
 
 assert state["live_trading_enabled"] is False
 assert gate["live_trading_enabled"] is False
@@ -71,6 +73,12 @@ assert gate["manual_real_money_submission_required"] is False
 assert gate["telegram_one_tap_submission_authorized"] is True
 assert gate["telegram_persistent_execution_transport_authorized"] is True
 assert gate["telegram_pubsub_transport_authorized"] is True
+assert stage.get("status") == "PRODUCTION_STAGED_INACTIVE"
+assert stage.get("activation_authorized") is True
+assert activation.get("status") == "AUTHORIZED_NOT_ACTIVATED"
+assert activation.get("does_not_submit_real_order") is True
+assert activation.get("fresh_private_telegram_approval_still_required_for_second_canary") is True
+assert activation.get("broad_autonomous_live_rollout_authorized") is False
 assert second.get("status") == "AUTHORIZED_NOT_SUBMITTED"
 assert second.get("strategy_target_notional_usd") == 5
 assert second.get("hard_max_trade_size_usd") == 10

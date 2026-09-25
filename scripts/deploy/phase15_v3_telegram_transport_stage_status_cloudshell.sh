@@ -372,7 +372,56 @@ PY
 REMOTE
 ) || fail "executor_stage_status_probe_failed"
 
-python3 -   "$SOURCE_JSON"   "$RECORDER_JSON"   "$EXECUTOR_JSON"   "$LOCAL_HEAD" <<'PY'
+STAGED_RELEASE_HEAD=$(
+  python3 - "$RECORDER_JSON" "$EXECUTOR_JSON" <<'PY'
+import json
+import sys
+
+recorder = json.loads(sys.argv[1])
+executor = json.loads(sys.argv[2])
+heads = {
+    str(payload.get("release_head") or "")
+    for payload in (
+        recorder.get("metadata"),
+        recorder.get("owner"),
+        executor.get("metadata"),
+        executor.get("owner"),
+    )
+    if isinstance(payload, dict)
+}
+if len(heads) != 1 or "" in heads:
+    raise SystemExit("staged release head missing or inconsistent")
+print(next(iter(heads)))
+PY
+) || fail "staged_release_head_resolution_failed"
+[[ "$STAGED_RELEASE_HEAD" =~ ^[0-9a-f]{40}$ ]] || fail "staged_release_head_invalid"
+git cat-file -e "$STAGED_RELEASE_HEAD^{commit}" 2>/dev/null ||
+  fail "staged_release_head_missing_locally"
+
+readarray -t RELEASE_BINDING_PATHS < <(
+  python3 - "$ROOT/scripts/deploy/phase15_v3_telegram_transport_build_release.py" <<'PY'
+import importlib.util
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+spec = importlib.util.spec_from_file_location("phase15_transport_release", path)
+if spec is None or spec.loader is None:
+    raise SystemExit("release module load failed")
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+for value in module.RELEASE_FILES:
+    print(value)
+PY
+) || fail "release_binding_paths_read_failed"
+[[ "${#RELEASE_BINDING_PATHS[@]}" -gt 0 ]] || fail "release_binding_paths_empty"
+
+STAGE_BINDING_CURRENT=false
+if git diff --quiet "$STAGED_RELEASE_HEAD" "$LOCAL_HEAD" -- "${RELEASE_BINDING_PATHS[@]}"; then
+  STAGE_BINDING_CURRENT=true
+fi
+
+python3 -   "$SOURCE_JSON"   "$RECORDER_JSON"   "$EXECUTOR_JSON"   "$LOCAL_HEAD"   "$STAGED_RELEASE_HEAD"   "$STAGE_BINDING_CURRENT" <<'PY'
 import json
 import sys
 
@@ -380,6 +429,8 @@ source = json.loads(sys.argv[1])
 recorder = json.loads(sys.argv[2])
 executor = json.loads(sys.argv[3])
 head = sys.argv[4]
+staged_release_head = sys.argv[5]
+stage_binding_current = sys.argv[6] == "true"
 blockers: list[str] = []
 
 for key, expected in (
@@ -411,10 +462,13 @@ for name, payload, role in (
         continue
     if payload.get("role") != role:
         blockers.append(f"{name}_role_mismatch")
-    if payload.get("release_head") != head:
-        blockers.append(f"{name}_release_head_not_current")
+    if payload.get("release_head") != staged_release_head:
+        blockers.append(f"{name}_release_head_mismatch")
     if name.endswith("metadata") and payload.get("stage_complete") is not True:
         blockers.append(f"{name}_not_complete")
+
+if not stage_binding_current:
+    blockers.append("staged_release_binding_changed_after_stage")
 
 stage_ids = {
     str(payload.get("stage_id") or "")
@@ -545,7 +599,9 @@ report = {
     "stage_ready_for_later_configuration_review": not blockers,
     "blockers": blockers,
     "stage_id": next(iter(stage_ids)) if len(stage_ids) == 1 else None,
-    "release_head": head,
+    "release_head": staged_release_head,
+    "current_head": head,
+    "stage_binding_current": stage_binding_current,
     "source_truth": source,
     "publisher_service_active": service.get("active"),
     "executor_services_active": {

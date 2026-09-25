@@ -152,3 +152,19 @@ def test_transport_activate_never_contains_order_submission_logic() -> None:
         "'action':'submit'",
     ):
         assert forbidden not in text
+
+def test_transport_activate_requires_durable_activation_authorization() -> None:
+    text = ACTIVATE.read_text(encoding="utf-8")
+    for marker in (
+        'stage.get("status") == "PRODUCTION_STAGED_INACTIVE"',
+        'stage.get("activation_authorized") is True',
+        'activation.get("status") == "AUTHORIZED_NOT_ACTIVATED"',
+        'activation.get("does_not_submit_real_order") is True',
+        (
+            'activation.get('
+            '"fresh_private_telegram_approval_still_required_for_second_canary"'
+            ') is True'
+        ),
+        'activation.get("broad_autonomous_live_rollout_authorized") is False',
+    ):
+        assert marker in text

@@ -4339,7 +4339,7 @@
     "second_order_authorized": true,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "Telegram transport is production-staged and verified inactive on both hosts. Do not activate yet. A separate explicit transport-activation authorization is required before any VM service-account/scope remediation, Pub/Sub/IAM/key provisioning, or service start/enable. After separately authorized activation passes, wait for exactly one fresh private Telegram APPROVE of a new frozen-V3 $5 intent; the global second-canary attempt marker still permits at most one executor invocation, and official reconciliation remains mandatory before any third live action.",
+    "next_action": "Transport activation is explicitly authorized but not yet complete. First re-run binding-aware staged-transport status and read-only Pub/Sub/VM identity readiness. Remediate only the reviewed dedicated VM service-account/cloud-platform-scope prerequisites, then run the fail-closed transport activation helper. Activation itself must submit no order and must leave the Johannesburg executor safe-idle with the kill switch engaged. After activation PASS, wait for exactly one fresh private Telegram APPROVE of a new frozen-V3 $5 intent; the global second-canary attempt marker permits at most one executor invocation, and official reconciliation remains mandatory before any third live action.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
@@ -4659,8 +4659,20 @@
       "pubsub_resources_changed": false,
       "live_trading_enabled": false,
       "real_order_submitted": false,
-      "activation_authorized": false,
+      "activation_authorized": true,
       "evidence": "docs/evidence/phase-15-v3-telegram-transport-stage-production-20260925.json"
+    },
+    "telegram_transport_activation_authorization": {
+      "status": "AUTHORIZED_NOT_ACTIVATED",
+      "authorization_date": "2026-09-25",
+      "authorization_source": "User explicitly authorized transport activation.",
+      "scope": "Activate the already-staged Phase 15 private Telegram transport only, including required VM service-account/scope remediation, Pub/Sub topic/subscription provisioning, resource-scoped IAM, transport/origin key provisioning, environment-file installation, and transport/listener service start or restart.",
+      "does_not_submit_real_order": true,
+      "fresh_private_telegram_approval_still_required_for_second_canary": true,
+      "global_second_canary_attempt_marker_still_one_shot": true,
+      "official_reconciliation_required_before_any_third_order": true,
+      "broad_autonomous_live_rollout_authorized": false,
+      "activation_helper": "scripts/deploy/phase15_v3_telegram_transport_activate_cloudshell.sh"
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {
