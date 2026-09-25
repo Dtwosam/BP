@@ -21,13 +21,13 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
-Phase 15 is open **only for the one-order frozen-V3 live canary**. Source truth version is `0.14.180`. The Master live gate is fully `pass`, but the runtime remains money-disabled until the operator deliberately performs the manual submission step.
+Phase 15 now authorizes **exactly one additional frozen-V3 live canary through the private Telegram approval path**. Source truth version remains `0.14.180`; the first canary is reconciled at zero fill and its submission attempt remains consumed.
 
-The first canary preserves V3's existing **$5 target notional** under the user's hard **$10 per-market ceiling**. Hard limits are $10 max trade, $10 total exposure, $10 daily loss, one consecutive loss, one accepted order, 2-second order TTL/cancel attempt, and no second-order authorization.
+The second canary preserves the frozen V3 **$5 target notional** under the existing hard **$10 per-market ceiling**. Hard limits remain $10 max trade, $10 total exposure, $10 daily loss, one consecutive loss, one accepted order per arm, one network submission attempt for this authorization, and a 2-second order TTL/cancel attempt. No stake growth, V3 tuning, V4 mutation, or broad autonomous live rollout is authorized.
 
-The dedicated execution host is `bp-v3-canary-exec` in GCP `africa-south1-a` (Johannesburg). Its direct official Polymarket geoblock result is `blocked=false`, `ZA/GP`. Wallet/signing material is permitted only on that host, never on the existing US BP host, in Git, or in chat.
+The dedicated execution host is `bp-v3-canary-exec` in GCP `africa-south1-a` (Johannesburg). Its latest recorded direct official Polymarket geoblock result is `blocked=false`, `ZA/GP`. Wallet/signing material is permitted only on that host, never on the existing US BP host, in Git, or in chat.
 
-Use `docs/PHASE-15-V3-LIVE-CANARY.md` as the operator runbook. The sequence is bootstrap (kill switch engaged, no order) → prepare one NEW V3 intent (no order) → review → explicit short-lived arm (no order) → **manual** one-shot submit → record result → stop and reconcile.
+The authorized path is: fresh NEW frozen-V3 intent → private Telegram APPROVE → short-lived source-truth attestation → authenticated Pub/Sub transport → one-shot Johannesburg claim → execution-package verification → exact executor handoff verification → one executor invocation → stop and officially reconcile before any third live action. Global `LIVE_TRADING_ENABLED` remains false so unrelated execution paths stay closed.
 
 ### Historical Gate A acceptance
 
