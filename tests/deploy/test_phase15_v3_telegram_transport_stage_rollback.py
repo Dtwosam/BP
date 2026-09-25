@@ -43,15 +43,15 @@ def test_transport_stage_rollback_requires_explicit_stage_identity_and_safe_sour
         'assert source["live_trading_enabled"] is False',
         'assert source["phase15_live_trading_enabled"] is False',
         'assert source["canary_order_submitted"] is True',
-        'assert source["second_order_authorized"] is False',
-        'assert source["automated_real_money_submission"] is False',
-        'assert source["manual_real_money_submission_required"] is True',
-        'assert source["telegram_one_tap_submission_authorized"] is False',
+        'assert source["second_order_authorized"] is True',
+        'assert source["automated_real_money_submission"] is True',
+        'assert source["manual_real_money_submission_required"] is False',
+        'assert source["telegram_one_tap_submission_authorized"] is True',
         (
             'assert source["telegram_persistent_execution_transport_authorized"] '
-            "is False"
+            "is True"
         ),
-        'assert source["telegram_pubsub_transport_authorized"] is False',
+        'assert source["telegram_pubsub_transport_authorized"] is True',
     ):
         assert marker in text
 
@@ -66,6 +66,9 @@ def test_transport_stage_rollback_refuses_activated_or_configured_transport() ->
         "executor_service_active",
         "executor_service_enabled",
         "executor_secret_or_env_present",
+        "bp-phase15-telegram-privileged-handoff.service",
+        "/var/lib/bp-canary/telegram-live-handoff",
+        "privileged-handoff.env",
         "stage_rollback_preconditions_failed",
     ):
         assert marker in text
