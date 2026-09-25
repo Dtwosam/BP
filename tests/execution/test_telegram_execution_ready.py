@@ -45,7 +45,13 @@ def _prepared(now: datetime) -> dict[str, object]:
     }
 
 
-def _bundle(tmp_path: Path, now: datetime) -> tuple[Path, Path]:
+def _bundle(
+    tmp_path: Path,
+    now: datetime,
+    *,
+    signing_key: bytes | None = None,
+    verification_key: bytes | None = None,
+) -> tuple[Path, Path]:
     prepared = _prepared(now)
     pending = new_pending(
         prepared,
@@ -60,7 +66,7 @@ def _bundle(tmp_path: Path, now: datetime) -> tuple[Path, Path]:
         callback_query_id="callback-id",
         approved_at=now + timedelta(seconds=1),
     )
-    origin_key = bytes(range(32, 64))
+    origin_key = signing_key or bytes(range(32, 64))
     origin = create_origin_attestation(
         prepared,
         approval=approval,
@@ -110,7 +116,8 @@ def _bundle(tmp_path: Path, now: datetime) -> tuple[Path, Path]:
         path.chmod(0o600)
 
     key_path = tmp_path / "origin.key"
-    key_path.write_text(encode_origin_key(origin_key) + "\n", encoding="utf-8")
+    key_file_value = verification_key or origin_key
+    key_path.write_text(encode_origin_key(key_file_value) + "\n", encoding="utf-8")
     key_path.chmod(0o600)
     return ready, key_path
 
@@ -133,6 +140,26 @@ def test_ready_module_verifies_exact_bundle_and_distinct_key_ids(tmp_path: Path)
     assert result["network_action_performed"] is False
     assert result["executor_invoked"] is False
     assert result["real_order_submitted"] is False
+
+
+def test_ready_module_rejects_forged_origin_hmac_with_expected_key_id(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
+    ready, key_path = _bundle(
+        tmp_path,
+        now,
+        signing_key=bytes(range(64, 96)),
+        verification_key=bytes(range(32, 64)),
+    )
+
+    with pytest.raises(ReadyVerificationError, match="hmac mismatch"):
+        verify_ready_bundle(
+            ready_dir=ready,
+            origin_key_path=key_path,
+            expected_origin_key_id=ORIGIN_KEY_ID,
+            observed_at=now + timedelta(seconds=3),
+        )
 
 
 def test_ready_module_rejects_wrong_origin_key_and_receipt_key_ids(tmp_path: Path) -> None:
