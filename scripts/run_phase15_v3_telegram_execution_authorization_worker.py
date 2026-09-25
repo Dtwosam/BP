@@ -357,7 +357,21 @@ def authorize_ready_once(
             "status": "execution_authorized_handoff_ready",
             "ready_name": identity,
             "intent_id": str(claim["intent_id"]),
+            "prediction_id": str(claim["prediction_id"]),
+            "paper_order_id": str(claim["paper_order_id"]),
             "request_sha256": str(claim["request_sha256"]),
+            "prepared_sha256": str(claim["prepared_sha256"]),
+            "approval_sha256": str(claim["approval_sha256"]),
+            "approval_source_sha256": str(
+                claim["approval_source_sha256"]
+            ),
+            "origin_attestation_sha256": str(
+                claim["origin_attestation_sha256"]
+            ),
+            "source_truth_sha256": str(claim["source_truth_sha256"]),
+            "authorization_report_sha256": str(
+                claim["authorization_report_sha256"]
+            ),
             "dispatch_ticket_sha256": str(
                 claim["dispatch_ticket_sha256"]
             ),
