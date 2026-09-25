@@ -19,6 +19,7 @@ from bp_engine.execution.telegram_privileged_handoff import (
 MAX_JSON_BYTES = 256 * 1024
 ACTIVATION_MAX_SECONDS = 45
 MARKET_END_SAFETY_SECONDS = 10
+SECOND_CANARY_ATTEMPT_BASENAME = "second-canary.attempt.json"
 
 
 class PrivilegedConsumerError(RuntimeError):
@@ -232,11 +233,24 @@ def execute_authorized_package_once(
     result_path = state_root / f"{identity}.result.json"
     failure_path = state_root / f"{identity}.failure.json"
     payload_path = state_root / f"{identity}.submit.json"
+    authorization_slot_path = state_root / SECOND_CANARY_ATTEMPT_BASENAME
 
+    if authorization_slot_path.exists():
+        return {
+            "status": "already_terminal",
+            "terminal_reason": "second_canary_authorization_consumed",
+            "package_identity": identity,
+            "authorization_slot_consumed": True,
+            "retry_allowed": False,
+            "executor_invoked": False,
+            "real_order_submitted": False,
+        }
     if result_path.exists() or failure_path.exists() or attempt_path.exists():
         return {
             "status": "already_terminal",
+            "terminal_reason": "package_already_terminal",
             "package_identity": identity,
+            "authorization_slot_consumed": False,
             "retry_allowed": False,
             "executor_invoked": attempt_path.exists(),
             "real_order_submitted": False,
@@ -244,6 +258,7 @@ def execute_authorized_package_once(
 
     armed = False
     attempt_started = False
+    authorization_slot_consumed = False
     authorization_id = ""
     contract: dict[str, Any] | None = None
     try:
@@ -351,16 +366,24 @@ def execute_authorized_package_once(
             if str(fresh_contract.get(name) or "") != str(contract.get(name) or ""):
                 raise PrivilegedConsumerError(f"fresh handoff contract {name} mismatch")
 
-        attempt = {
+        started_at = _utc(now_fn()).isoformat()
+        authorization_slot = {
             "schema_version": 1,
-            "status": "executor_invocation_starting",
+            "status": "second_canary_network_attempt_starting",
             "package_identity": identity,
             "intent_id": str(contract["intent_id"]),
             "request_sha256": str(contract["request_sha256"]),
             "authorization_id": authorization_id,
             "executor_sha256": expected_executor_sha256,
-            "started_at": _utc(now_fn()).isoformat(),
+            "started_at": started_at,
             "retry_allowed": False,
+        }
+        _write_exclusive_json(authorization_slot_path, authorization_slot)
+        authorization_slot_consumed = True
+
+        attempt = {
+            **authorization_slot,
+            "status": "executor_invocation_starting",
         }
         _write_exclusive_json(attempt_path, attempt)
         attempt_started = True
@@ -397,6 +420,7 @@ def execute_authorized_package_once(
             "cancellation": result.get("cancellation"),
             "completed_at": _utc(now_fn()).isoformat(),
             "network_submission_attempt_consumed": True,
+            "authorization_slot_consumed": True,
             "retry_allowed": False,
             "executor_invoked": True,
             "official_reconciliation_required": True,
@@ -420,10 +444,11 @@ def execute_authorized_package_once(
             "authorization_id": authorization_id,
             "error": str(exc),
             "attempt_started": attempt_started,
-            "network_submission_attempt_consumed": attempt_started,
+            "authorization_slot_consumed": authorization_slot_consumed,
+            "network_submission_attempt_consumed": authorization_slot_consumed,
             "retry_allowed": False,
             "executor_invoked": attempt_started,
-            "official_reconciliation_required": attempt_started,
+            "official_reconciliation_required": authorization_slot_consumed,
             "real_order_submitted": False,
         }
         try:
