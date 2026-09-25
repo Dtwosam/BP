@@ -233,6 +233,7 @@ CONFIG = Path("/etc/bp-telegram-transport")
 SERVICES = (
     "bp-phase15-telegram-pubsub-streaming-receiver.service",
     "bp-phase15-telegram-transport-claim-worker.service",
+    "bp-phase15-telegram-execution-authorization-worker.service",
 )
 STATE_DIRS = (
     Path("/var/lib/bp-canary/telegram-transport-inbox"),
@@ -241,6 +242,10 @@ STATE_DIRS = (
     Path("/var/lib/bp-canary/telegram-transport-ready"),
     Path("/var/lib/bp-canary/telegram-transport-claim-processed"),
     Path("/var/lib/bp-canary/telegram-transport-claim-failures"),
+    Path("/var/lib/bp-canary/telegram-dispatch-claims"),
+    Path("/var/lib/bp-canary/telegram-execution-authorized"),
+    Path("/var/lib/bp-canary/telegram-execution-auth-processed"),
+    Path("/var/lib/bp-canary/telegram-execution-auth-failures"),
 )
 
 
@@ -342,6 +347,9 @@ print(json.dumps(
         "bp_transport_primary_group": group if group_rc == 0 else "",
         "receiver_env_present": (CONFIG / "receiver.env").exists(),
         "claim_env_present": (CONFIG / "claim.env").exists(),
+        "execution_auth_env_present": (
+            CONFIG / "execution-auth.env"
+        ).exists(),
         "transport_key_present": (CONFIG / "transport.key").exists(),
         "origin_key_present": (CONFIG / "origin.key").exists(),
         "executor_health": health,
@@ -458,6 +466,7 @@ if executor.get("bp_transport_primary_group") != "bp-transport":
 for name, blocker in (
     ("receiver_env_present", "executor_receiver_env_present"),
     ("claim_env_present", "executor_claim_env_present"),
+    ("execution_auth_env_present", "executor_execution_auth_env_present"),
     ("transport_key_present", "executor_transport_key_present"),
     ("origin_key_present", "executor_origin_key_present"),
 ):
@@ -520,6 +529,7 @@ report = {
             recorder.get("env_present") is True,
             executor.get("receiver_env_present") is True,
             executor.get("claim_env_present") is True,
+            executor.get("execution_auth_env_present") is True,
         )
     ),
     "key_files_present": any(
