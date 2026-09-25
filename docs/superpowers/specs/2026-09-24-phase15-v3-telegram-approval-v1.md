@@ -512,27 +512,35 @@ order.
 
 ### Read-only transport install preflight
 
-The engineering candidate also includes a Cloud Shell install preflight:
+The engineering candidate also includes separate Cloud Shell install preflights for both
+ends of the carrier:
 
 ```text
+scripts/deploy/phase15_v3_telegram_transport_publisher_install_preflight_cloudshell.sh
 scripts/deploy/phase15_v3_telegram_transport_install_preflight_cloudshell.sh
 ```
 
-It is not an installer. Before any production mutation, it requires a clean checkout exactly
-at current `origin/main`, verifies the deterministic transport release against that exact
-commit, and proves from current source truth that global/Phase-15 live trading remains off,
+They are not installers. Before any production mutation, both require a clean checkout exactly
+at current `origin/main`, verify the same deterministic transport release against that exact
+commit, and prove from current source truth that global/Phase-15 live trading remains off,
 the first canary has already been submitted, no second order is authorized, automated
 submission is off, manual submission is still required, and all Telegram execution-transport
 authorization flags remain false.
 
-Only after those local checks pass does it perform read-only Cloud Shell probes against the
-Johannesburg executor VM. It verifies the target VM identity/zone, service-account shape and
-cloud-platform scope, Python/systemd availability, minimum root free space, absence of an
-existing transport install, presence of the existing executor and kill switch, and an
-executor `health` response showing safe idle state: kill switch engaged, no valid activation,
-submission not ready, no live order submitted, and direct ZA geoblock eligibility.
+The recorder-side publisher preflight then read-only verifies the `bp-recorder` VM identity,
+service-account shape/cloud-platform scope, active core research services and stable PIDs,
+Python/systemd availability, minimum root free space, absence of an existing transport
+publisher install, and absence of the canary wallet path on the US host. The independent
+Telegram approval sidecar may exist and is not treated as the transport release root.
 
-The preflight performs no `scp`, package installation, user/group creation, archive
+The Johannesburg preflight read-only verifies the executor VM identity/zone, service-account
+shape and cloud-platform scope, Python/systemd availability, minimum root free space, absence
+of an existing receiver/claim transport install, presence of the existing executor and kill
+switch, and an executor `health` response showing safe idle state: kill switch engaged, no
+valid activation, submission not ready, no live order submitted, and direct ZA geoblock
+eligibility.
+
+Both preflights perform no `scp`, package installation, user/group creation, archive
 extraction, filesystem mutation, IAM change, Pub/Sub creation, systemd start/enable/restart,
 arm, cancellation, or order submission. PASS means only that the verified release and host
 shape are suitable for a separately authorized install review.
