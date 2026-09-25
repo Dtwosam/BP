@@ -186,6 +186,8 @@ RELEASES=$ROOT/releases
 RELEASE=$RELEASES/$HEAD
 CURRENT=$ROOT/current
 VENV=$ROOT/.venv
+BIN=$ROOT/bin
+HANDOFF=$BIN/approved-outbox-handoff
 META=$ROOT/STAGE-METADATA.json
 OWNER=/var/lib/bp/phase15-canary-telegram-transport-stage-owner.json
 STATE=/var/lib/bp/phase15-canary-telegram-transport
@@ -271,7 +273,7 @@ install -d -o root -g root -m 0755 "$RELEASES"
 install -d -o root -g root -m 0755 "$RELEASE"
 tar -xzf "$ARCHIVE" -C "$RELEASE"
 
-for required in   RELEASE-MANIFEST.json   deploy/bp-phase15-telegram-pubsub-publisher.service   deploy/phase15-telegram-transport-runtime-requirements.txt   scripts/run_phase15_v3_telegram_pubsub_publish_worker.py
+for required in   RELEASE-MANIFEST.json   deploy/bp-phase15-telegram-pubsub-publisher.service   deploy/phase15-telegram-approved-outbox-handoff.sh   deploy/phase15-telegram-transport-runtime-requirements.txt   scripts/run_phase15_v3_telegram_pubsub_publish_worker.py
 do
   [[ -f "$RELEASE/$required" ]] || fail "release_required_path_missing:$required"
 done
@@ -286,6 +288,8 @@ assert version("httpx") == "0.28.1"
 assert version("google-cloud-pubsub") == "2.41.0"
 PY
 
+install -d -o root -g root -m 0755 "$BIN"
+install -o root -g bp -m 0750   "$RELEASE/deploy/phase15-telegram-approved-outbox-handoff.sh"   "$HANDOFF"
 ln -s "$RELEASE" "$CURRENT"
 install -d -o bp -g bp -m 0700 "$STATE"
 install -o root -g root -m 0644   "$RELEASE/deploy/$SERVICE"   "$SERVICE_PATH"
@@ -346,6 +350,7 @@ echo "SERVICES_STARTED=false"
 echo "SERVICES_ENABLED=false"
 echo "ENVIRONMENT_FILES_CREATED=false"
 echo "KEY_FILES_CREATED=false"
+echo "APPROVED_OUTBOX_HANDOFF_STAGED=true"
 echo "CORE_SERVICE_PIDS_PRESERVED=true"
 REMOTE
 )
