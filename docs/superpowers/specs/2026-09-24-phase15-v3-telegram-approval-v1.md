@@ -661,8 +661,24 @@ consumer may require `authorized=true` and fail closed otherwise.
 
 Creating or verifying this proof performs no network access, executor invocation, cloud
 mutation, service activation, or order submission. The code is included in the deterministic
-transport release, but the proof is not yet carried by the transport envelope and no
-persistent consumer uses it yet. Those remain subsequent engineering boundaries.
+transport release.
+
+The approved-outbox path now emits transport **schema v2** only after the current recorder
+`PROJECT_STATE.json` produces an authenticated blocker-free source-truth snapshot. V2 carries
+that exact signed proof inside the transport HMAC. The receiver/claim boundary validates only
+its exact structure, order/hash binding, authorization flag, blocker emptiness, and lifetime;
+it still cannot read the origin key. The claim worker materializes the proof as a private
+`source-truth-authorization.json` ready artifact. The execution-ready verifier, which owns
+the origin key, then authenticates both the origin attestation and source-truth HMAC and emits
+`execution_ready_source_truth_verified` only for a valid authorized proof.
+
+Legacy schema-v1 transport remains supported by generic/offline tooling and continues to yield
+`execution_ready_origin_verified`; it is not sufficient for the future persistent execution
+consumer. Current source truth has `second_order_authorized=false`, so the real approved-outbox
+path fails closed before writing a v2 envelope today.
+
+No persistent Johannesburg consumer uses the v2 ready result yet. That remains the next
+engineering boundary.
 
 ### Read-only transport activation plan
 
@@ -691,8 +707,8 @@ claim a verified ready bundle, but BP does not yet have a persistent Johannesbur
 that owns the final chain:
 
 ```text
-origin-HMAC verification
--> fresh PROJECT_STATE authorization evaluation
+origin-HMAC + signed source-truth verification
+-> require execution_ready_source_truth_verified
 -> one-shot dispatch ticket creation/claim
 -> exact prepared/approval/dispatch binding
 -> Johannesburg executor handoff
