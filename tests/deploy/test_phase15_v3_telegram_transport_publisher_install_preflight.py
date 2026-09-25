@@ -60,9 +60,16 @@ def test_publisher_install_preflight_checks_clean_recorder_install_surface() -> 
         "recorder_vm_zone_mismatch",
         "publisher_service_account_count_not_one",
         "publisher_cloud_platform_scope_missing",
+        'activation_blockers.append("publisher_cloud_platform_scope_missing")',
+        '"activation_ready": not blockers and not activation_blockers',
+        '"activation_blockers": activation_blockers',
         "bp_user_missing",
         "core_service_not_active",
         "core_service_pid_invalid",
+        '"type": service_type if type_rc == 0 else ""',
+        '"remain_after_exit": remain_after_exit if remain_rc == 0 else ""',
+        'state.get("type") == "oneshot"',
+        'state.get("remain_after_exit") == "yes"',
         "existing_publisher_unit_active",
         "existing_publisher_unit_enabled",
         "existing_transport_root_present",
@@ -128,3 +135,23 @@ def test_publisher_install_preflight_reports_no_mutation_contract() -> None:
         '"real_order_submitted": False',
     ):
         assert marker in text
+
+
+def test_publisher_install_preflight_keeps_cloud_scope_for_activation_only() -> None:
+    text = PREFLIGHT.read_text(encoding="utf-8")
+    assert 'activation_blockers.append("publisher_cloud_platform_scope_missing")' in text
+    assert (
+        re.search(
+            r'(?m)^\\s*blockers\\.append\\("publisher_cloud_platform_scope_missing"\\)$',
+            text,
+        )
+        is None
+    )
+    assert '"activation_ready": not blockers and not activation_blockers' in text
+
+
+def test_publisher_install_preflight_accepts_active_remain_after_exit_oneshot_pid_zero() -> None:
+    text = PREFLIGHT.read_text(encoding="utf-8")
+    assert 'state.get("type") == "oneshot"' in text
+    assert 'state.get("remain_after_exit") == "yes"' in text
+    assert "if not pid_valid and not active_oneshot:" in text

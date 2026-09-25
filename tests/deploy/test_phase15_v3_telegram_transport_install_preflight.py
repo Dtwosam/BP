@@ -59,6 +59,9 @@ def test_transport_install_preflight_checks_safe_idle_and_clean_install_shape() 
         "executor_vm_zone_mismatch",
         "executor_service_account_count_not_one",
         "executor_cloud_platform_scope_missing",
+        'activation_blockers.append("executor_cloud_platform_scope_missing")',
+        '"activation_ready": not blockers and not activation_blockers',
+        '"activation_blockers": activation_blockers',
         "existing_transport_unit_active",
         "existing_transport_unit_enabled",
         "existing_transport_root_present",
@@ -128,3 +131,16 @@ def test_transport_install_preflight_health_action_is_read_only() -> None:
     assert '"service_enabled": False' in text
     assert '"service_started": False' in text
     assert '"real_order_submitted": False' in text
+
+
+def test_transport_install_preflight_keeps_cloud_scope_for_activation_only() -> None:
+    text = PREFLIGHT.read_text(encoding="utf-8")
+    assert 'activation_blockers.append("executor_cloud_platform_scope_missing")' in text
+    assert (
+        re.search(
+            r'(?m)^\\s*blockers\\.append\\("executor_cloud_platform_scope_missing"\\)$',
+            text,
+        )
+        is None
+    )
+    assert '"activation_ready": not blockers and not activation_blockers' in text

@@ -153,9 +153,15 @@ core_state: dict[str, dict[str, object]] = {}
 for unit in core_units:
     active_rc, active = command("systemctl", "is-active", unit)
     pid_rc, pid = command("systemctl", "show", "-p", "MainPID", "--value", unit)
+    type_rc, service_type = command("systemctl", "show", "-p", "Type", "--value", unit)
+    remain_rc, remain_after_exit = command(
+        "systemctl", "show", "-p", "RemainAfterExit", "--value", unit
+    )
     core_state[unit] = {
         "active": active_rc == 0 and active == "active",
         "main_pid": pid if pid_rc == 0 else "",
+        "type": service_type if type_rc == 0 else "",
+        "remain_after_exit": remain_after_exit if remain_rc == 0 else "",
     }
 
 publisher = "bp-phase15-telegram-pubsub-publisher.service"
@@ -209,6 +215,7 @@ instance = json.loads(instance_raw)
 host = json.loads(host_raw)
 
 blockers: list[str] = []
+activation_blockers: list[str] = []
 
 if str(instance.get("name") or "") != expected_vm:
     blockers.append("recorder_vm_name_mismatch")
@@ -228,7 +235,7 @@ else:
         not isinstance(scopes, list)
         or "https://www.googleapis.com/auth/cloud-platform" not in scopes
     ):
-        blockers.append("publisher_cloud_platform_scope_missing")
+        activation_blockers.append("publisher_cloud_platform_scope_missing")
 
 if host["bp_user_exists"] is not True:
     blockers.append("bp_user_missing")
@@ -242,7 +249,13 @@ if int(host["free_bytes_root"]) < 100 * 1024 * 1024:
 for unit, state in host["core_units"].items():
     if state["active"] is not True:
         blockers.append(f"core_service_not_active:{unit}")
-    if not str(state["main_pid"]).isdigit() or int(state["main_pid"]) <= 0:
+    pid_valid = str(state["main_pid"]).isdigit() and int(state["main_pid"]) > 0
+    active_oneshot = (
+        state["active"] is True
+        and state.get("type") == "oneshot"
+        and state.get("remain_after_exit") == "yes"
+    )
+    if not pid_valid and not active_oneshot:
         blockers.append(f"core_service_pid_invalid:{unit}")
 
 if host["publisher_unit"]["active"] is True:
@@ -265,6 +278,8 @@ if host["canary_wallet_root"]["exists"] is True:
 report = {
     "ready_for_publisher_install_review": not blockers,
     "blockers": blockers,
+    "activation_ready": not blockers and not activation_blockers,
+    "activation_blockers": activation_blockers,
     "release": {
         "commit_sha": verified["commit_sha"],
         "manifest_sha256": verified["manifest_sha256"],

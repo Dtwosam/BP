@@ -530,22 +530,29 @@ the first canary has already been submitted and reconciled, and the narrow secon
 Telegram authorization fields match the reviewed one-shot execution contract.
 
 The recorder-side publisher preflight then read-only verifies the `bp-recorder` VM identity,
-service-account shape/cloud-platform scope, active core research services and stable PIDs,
+service-account shape, active core research services and stable runtime state,
 Python/systemd availability, minimum root free space, absence of an existing transport
-publisher install, and absence of the canary wallet path on the US host. The independent
+publisher install, and absence of the canary wallet path on the US host. Active
+`Type=oneshot` units with `RemainAfterExit=yes` are valid without a live `MainPID`.
+Missing `cloud-platform` scope is reported as an activation blocker rather than a stage
+blocker because stage-only installation performs no Pub/Sub API call. The independent
 Telegram approval sidecar may exist and is not treated as the transport release root.
 
 The Johannesburg preflight read-only verifies the executor VM identity/zone, service-account
-shape and cloud-platform scope, Python/systemd availability, minimum root free space, absence
-of an existing receiver/claim/execution-authorization transport install, presence of the
-existing executor and kill switch, and an executor `health` response showing safe idle
+shape, Python/systemd availability, minimum root free space, absence of an existing
+receiver/claim/execution-authorization transport install, presence of the existing executor
+and kill switch, and an executor `health` response showing safe idle
 state: kill switch engaged, no valid activation, submission not ready, no live order
 submitted, and direct ZA geoblock eligibility.
 
 Both preflights perform no `scp`, package installation, user/group creation, archive
 extraction, filesystem mutation, IAM change, Pub/Sub creation, systemd start/enable/restart,
 arm, cancellation, or order submission. PASS means only that the verified release and host
-shape are suitable for a separately authorized install review.
+shape are suitable for a separately authorized install review. They may report
+`cloud-platform` scope absence in `activation_blockers` while still passing stage-only
+review. Production activation remains fail-closed: the activation helper independently
+requires `cloud-platform` scope on both VM service accounts before creating transport
+resources, changing IAM, provisioning runtime secrets, or starting services.
 
 ### Transactional transport staging lifecycle
 
