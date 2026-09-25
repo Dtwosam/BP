@@ -17,7 +17,6 @@ from bp_engine.execution.telegram_pre_execution import (
     source_truth_sha256,
     verify_pre_execution_snapshot,
 )
-
 from bp_engine.execution.telegram_source_truth_authorization import (
     payload_sha256 as source_truth_payload_sha256,
 )
