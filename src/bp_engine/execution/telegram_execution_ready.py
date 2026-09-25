@@ -13,6 +13,13 @@ from bp_engine.execution.telegram_origin_attestation import (
     payload_sha256,
     verify_origin_attestation,
 )
+from bp_engine.execution.telegram_source_truth_authorization import (
+    SourceTruthAuthorizationError,
+    verify_source_truth_authorization,
+)
+from bp_engine.execution.telegram_transport import (
+    AUTHORIZED_TRANSPORT_SCHEMA_VERSION,
+)
 
 MAX_READY_FILE_BYTES = 256 * 1024
 READY_FILES = (
@@ -22,6 +29,7 @@ READY_FILES = (
     "envelope.json",
     "receipt.json",
 )
+SOURCE_TRUTH_READY_FILE = "source-truth-authorization.json"
 
 
 class ReadyVerificationError(RuntimeError):
@@ -71,6 +79,13 @@ def verify_ready_bundle(
     origin_attestation = payloads["origin-attestation.json"]
     envelope = payloads["envelope.json"]
     receipt = payloads["receipt.json"]
+    transport_schema_version = envelope.get("schema_version")
+    source_truth_authorization: dict[str, Any] | None = None
+    if transport_schema_version == AUTHORIZED_TRANSPORT_SCHEMA_VERSION:
+        source_truth_authorization = _load_ready_file(
+            ready_dir,
+            SOURCE_TRUTH_READY_FILE,
+        )
 
     if receipt.get("status") != "claimed_ready":
         raise ReadyVerificationError("ready receipt status invalid")
@@ -87,6 +102,17 @@ def verify_ready_bundle(
     if dict(envelope_origin) != origin_attestation:
         raise ReadyVerificationError("ready origin attestation differs from envelope")
 
+    if transport_schema_version == AUTHORIZED_TRANSPORT_SCHEMA_VERSION:
+        envelope_source_truth = envelope.get("source_truth_authorization")
+        if not isinstance(envelope_source_truth, Mapping):
+            raise ReadyVerificationError(
+                "envelope source truth authorization missing"
+            )
+        if dict(envelope_source_truth) != source_truth_authorization:
+            raise ReadyVerificationError(
+                "ready source truth authorization differs from envelope"
+            )
+
     try:
         origin_key = load_origin_key_file(origin_key_path)
         verified = verify_origin_attestation(
@@ -99,6 +125,23 @@ def verify_ready_bundle(
         )
     except OriginAttestationError as exc:
         raise ReadyVerificationError(str(exc)) from exc
+
+    source_truth_verified: dict[str, Any] | None = None
+    if transport_schema_version == AUTHORIZED_TRANSPORT_SCHEMA_VERSION:
+        assert source_truth_authorization is not None
+        try:
+            source_truth_verified = verify_source_truth_authorization(
+                source_truth_authorization,
+                prepared=prepared,
+                approval=approval,
+                origin_attestation=origin_attestation,
+                key=origin_key,
+                expected_key_id=expected_origin_key_id,
+                observed_at=observed_at,
+                require_authorized=True,
+            )
+        except SourceTruthAuthorizationError as exc:
+            raise ReadyVerificationError(str(exc)) from exc
 
     transport_key_id = str(envelope.get("key_id") or "")
     if not transport_key_id:
@@ -120,14 +163,28 @@ def verify_ready_bundle(
         "approval_source_sha256": verified["approval_source_sha256"],
         "origin_attestation_sha256": payload_sha256(origin_attestation),
     }
+    if source_truth_verified is not None:
+        expected["source_truth_authorization_sha256"] = payload_sha256(
+            source_truth_authorization
+        )
+        expected["project_state_sha256"] = str(
+            source_truth_verified["project_state_sha256"]
+        )
+        expected["authorization_snapshot_sha256"] = str(
+            source_truth_verified["authorization_snapshot_sha256"]
+        )
     for name, value in expected.items():
         if str(receipt.get(name) or "") != str(value):
             raise ReadyVerificationError(f"ready receipt {name} mismatch")
         if name in envelope and str(envelope.get(name) or "") != str(value):
             raise ReadyVerificationError(f"ready envelope {name} mismatch")
 
-    return {
-        "status": "execution_ready_origin_verified",
+    result = {
+        "status": (
+            "execution_ready_source_truth_verified"
+            if source_truth_verified is not None
+            else "execution_ready_origin_verified"
+        ),
         "transport_key_id": transport_key_id,
         "origin_key_id": origin_key_id,
         **expected,
@@ -139,3 +196,15 @@ def verify_ready_bundle(
         "executor_invoked": False,
         "real_order_submitted": False,
     }
+    if source_truth_verified is not None:
+        result["source_truth_attested_at"] = source_truth_verified[
+            "attested_at"
+        ]
+        result["source_truth_expires_at"] = source_truth_verified[
+            "expires_at"
+        ]
+        result["source_truth_authorized"] = source_truth_verified[
+            "authorized"
+        ]
+        result["source_truth_blockers"] = source_truth_verified["blockers"]
+    return result
