@@ -104,6 +104,15 @@ def test_transport_release_is_deterministic_secret_free_and_verifiable(
     with tarfile.open(first, mode="r:gz") as archive:
         names = set(archive.getnames())
         assert "RELEASE-MANIFEST.json" in names
+        assert "deploy/phase15-telegram-transport-runtime-requirements.txt" in names
+        requirements = archive.extractfile(
+            "deploy/phase15-telegram-transport-runtime-requirements.txt"
+        )
+        assert requirements is not None
+        assert requirements.read().decode("utf-8").splitlines() == [
+            "httpx==0.28.1",
+            "google-cloud-pubsub==2.41.0",
+        ]
         assert not any(name.endswith((".env", ".key", ".pem", ".p12", ".pfx")) for name in names)
         assert "PROJECT_STATE.json" not in names
 
