@@ -175,8 +175,6 @@ def test_full_safe_origin_transport_claim_verify_chain(tmp_path: Path) -> None:
         failure_dir=tmp_path / "failures",
         key_path=transport_key_path,
         expected_key_id=TRANSPORT_KEY_ID,
-        origin_key_path=origin_key_path,
-        expected_origin_key_id=ORIGIN_KEY_ID,
         observed_at=now + timedelta(seconds=3),
     )
     assert claimed[0]["status"] == "claimed_ready"
@@ -185,8 +183,6 @@ def test_full_safe_origin_transport_claim_verify_chain(tmp_path: Path) -> None:
 
     verified = verifier.verify_ready_bundle(
         ready_dir=ready_dir,
-        origin_key_path=origin_key_path,
-        expected_origin_key_id=ORIGIN_KEY_ID,
         observed_at=now + timedelta(seconds=4),
     )
     assert verified["status"] == "execution_ready_origin_verified"
@@ -247,8 +243,6 @@ def test_ready_verifier_rejects_post_claim_prepared_mutation(tmp_path: Path) -> 
         failure_dir=tmp_path / "failures",
         key_path=transport_key_path,
         expected_key_id=TRANSPORT_KEY_ID,
-        origin_key_path=origin_key_path,
-        expected_origin_key_id=ORIGIN_KEY_ID,
         observed_at=now + timedelta(seconds=3),
     )
     ready_dir = Path(claimed[0]["ready_path"])
