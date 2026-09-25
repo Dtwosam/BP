@@ -168,50 +168,80 @@ def _materialize_handoff(
             "approval payload changed after ready verification"
         )
 
-    receipt = {
-        "schema_version": 1,
-        "status": "execution_authorized_handoff_ready",
-        "intent_id": str(dispatch_claim["intent_id"]),
-        "prediction_id": str(dispatch_claim["prediction_id"]),
-        "paper_order_id": str(dispatch_claim["paper_order_id"]),
-        "request_sha256": str(dispatch_claim["request_sha256"]),
-        "prepared_sha256": str(dispatch_claim["prepared_sha256"]),
-        "approval_sha256": str(dispatch_claim["approval_sha256"]),
-        "approval_source_sha256": str(
-            dispatch_claim["approval_source_sha256"]
-        ),
-        "origin_attestation_sha256": str(
-            dispatch_claim["origin_attestation_sha256"]
-        ),
-        "source_truth_sha256": str(dispatch_claim["source_truth_sha256"]),
-        "authorization_report_sha256": str(
-            dispatch_claim["authorization_report_sha256"]
-        ),
-        "dispatch_ticket_sha256": str(
-            dispatch_claim["dispatch_ticket_sha256"]
-        ),
-        "dispatch_claim_sha256": str(dispatch_claim["claim_sha256"]),
-        "expires_at": str(dispatch_claim["expires_at"]),
-        "authorized_at": observed_at.astimezone(UTC).isoformat(),
-        "retry_allowed": False,
-        "handoff_invoked": False,
-        "executor_invoked": False,
-        "real_order_submitted": False,
-    }
+    payloads = (
+        ("prepared.json", prepared),
+        ("approval.json", approval),
+        ("ready-verification.json", ready_verification),
+        ("pre-execution.json", pre_execution_report),
+        ("dispatch-ticket.json", dispatch_ticket),
+        ("dispatch-claim.json", dispatch_claim),
+    )
 
     published = False
     try:
         temporary_dir.mkdir(mode=0o700)
-        for name, payload in (
-            ("prepared.json", prepared),
-            ("approval.json", approval),
-            ("ready-verification.json", ready_verification),
-            ("pre-execution.json", pre_execution_report),
-            ("dispatch-ticket.json", dispatch_ticket),
-            ("dispatch-claim.json", dispatch_claim),
-            ("receipt.json", receipt),
-        ):
-            _write_private_json(temporary_dir / name, payload)
+        manifest_files: dict[str, dict[str, Any]] = {}
+        for name, payload in payloads:
+            path = temporary_dir / name
+            _write_private_json(path, payload)
+            encoded = path.read_bytes()
+            manifest_files[name] = {
+                "sha256": hashlib.sha256(encoded).hexdigest(),
+                "size_bytes": len(encoded),
+            }
+
+        manifest = {
+            "schema_version": 1,
+            "status": "execution_authorization_package_manifest",
+            "intent_id": str(dispatch_claim["intent_id"]),
+            "request_sha256": str(dispatch_claim["request_sha256"]),
+            "expires_at": str(dispatch_claim["expires_at"]),
+            "files": manifest_files,
+            "retry_allowed": False,
+            "handoff_invoked": False,
+            "executor_invoked": False,
+            "real_order_submitted": False,
+        }
+        manifest_sha256 = payload_sha256(manifest)
+        _write_private_json(
+            temporary_dir / "package-manifest.json",
+            manifest,
+        )
+
+        receipt = {
+            "schema_version": 1,
+            "status": "execution_authorized_handoff_ready",
+            "intent_id": str(dispatch_claim["intent_id"]),
+            "prediction_id": str(dispatch_claim["prediction_id"]),
+            "paper_order_id": str(dispatch_claim["paper_order_id"]),
+            "request_sha256": str(dispatch_claim["request_sha256"]),
+            "prepared_sha256": str(dispatch_claim["prepared_sha256"]),
+            "approval_sha256": str(dispatch_claim["approval_sha256"]),
+            "approval_source_sha256": str(
+                dispatch_claim["approval_source_sha256"]
+            ),
+            "origin_attestation_sha256": str(
+                dispatch_claim["origin_attestation_sha256"]
+            ),
+            "source_truth_sha256": str(
+                dispatch_claim["source_truth_sha256"]
+            ),
+            "authorization_report_sha256": str(
+                dispatch_claim["authorization_report_sha256"]
+            ),
+            "dispatch_ticket_sha256": str(
+                dispatch_claim["dispatch_ticket_sha256"]
+            ),
+            "dispatch_claim_sha256": str(dispatch_claim["claim_sha256"]),
+            "package_manifest_sha256": manifest_sha256,
+            "expires_at": str(dispatch_claim["expires_at"]),
+            "authorized_at": observed_at.astimezone(UTC).isoformat(),
+            "retry_allowed": False,
+            "handoff_invoked": False,
+            "executor_invoked": False,
+            "real_order_submitted": False,
+        }
+        _write_private_json(temporary_dir / "receipt.json", receipt)
 
         directory_fd = os.open(
             temporary_dir,
