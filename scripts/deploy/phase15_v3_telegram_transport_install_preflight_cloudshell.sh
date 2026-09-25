@@ -198,6 +198,7 @@ host = json.loads(host_raw)
 executor = json.loads(executor_raw)
 
 blockers: list[str] = []
+activation_blockers: list[str] = []
 
 if str(instance.get("name") or "") != expected_vm:
     blockers.append("executor_vm_name_mismatch")
@@ -217,7 +218,7 @@ else:
         not isinstance(scopes, list)
         or "https://www.googleapis.com/auth/cloud-platform" not in scopes
     ):
-        blockers.append("executor_cloud_platform_scope_missing")
+        activation_blockers.append("executor_cloud_platform_scope_missing")
 
 if host["python3_present"] is not True:
     blockers.append("executor_python3_missing")
@@ -262,6 +263,8 @@ if geoblock.get("blocked") is not False or geoblock.get("country") != "ZA":
 report = {
     "ready_for_install_review": not blockers,
     "blockers": blockers,
+    "activation_ready": not blockers and not activation_blockers,
+    "activation_blockers": activation_blockers,
     "release": {
         "commit_sha": verified["commit_sha"],
         "manifest_sha256": verified["manifest_sha256"],
