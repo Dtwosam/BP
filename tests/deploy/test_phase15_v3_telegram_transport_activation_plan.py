@@ -54,12 +54,14 @@ def test_activation_plan_spells_out_secret_free_runtime_configuration() -> None:
         "/etc/bp/telegram-approval-handoff.env",
         "/etc/bp-telegram-transport/receiver.env",
         "/etc/bp-telegram-transport/claim.env",
+        "/etc/bp-telegram-transport/execution-auth.env",
         "/etc/bp-telegram-transport/transport.key",
         "/etc/bp-telegram-transport/origin.key",
         "/opt/bp-telegram-transport/bin/approved-outbox-handoff",
         "BP_TELEGRAM_PUBSUB_PUBLISH_WORKER_ENABLED",
         "BP_TELEGRAM_PUBSUB_STREAMING_RECEIVE_ENABLED",
         "BP_TELEGRAM_TRANSPORT_CLAIM_WORKER_ENABLED",
+        "BP_TELEGRAM_EXECUTION_AUTH_WORKER_ENABLED",
         "BP_TELEGRAM_HANDOFF_ENABLED",
         "BP_TELEGRAM_APPROVED_OUTBOX_ENABLED",
         "BP_TELEGRAM_PROJECT_STATE_FILE",
@@ -81,14 +83,18 @@ def test_activation_plan_requires_future_live_authorizations_but_never_grants_th
         '"telegram_one_tap_submission_authorized": True',
         '"telegram_persistent_execution_transport_authorized": True',
         '"telegram_pubsub_transport_authorized": True',
-        "persistent_execution_authorization_consumer_not_defined",
-        '"defined": False',
+        "privileged_execution_handoff_not_defined",
+        '"defined": True',
+        '"network_enabled": False',
+        '"handoff_invoked": False',
+        '"executor_invoked": False',
+        '"real_order_submitted": False',
         "TELEGRAM_TRANSPORT_ACTIVATION_PERMITTED=false",
     ):
         assert marker in text
 
 
-def test_activation_plan_documents_missing_persistent_execution_chain() -> None:
+def test_activation_plan_documents_authorization_consumer_and_remaining_handoff_gap() -> None:
     text = PLAN.read_text(encoding="utf-8")
     for marker in (
         "execution-ready origin HMAC verification",
@@ -96,8 +102,11 @@ def test_activation_plan_documents_missing_persistent_execution_chain() -> None:
         "fresh PROJECT_STATE authorization evaluation at recorder approval time",
         "one-shot dispatch ticket creation/claim",
         "exact prepared/approval/dispatch binding",
-        "Johannesburg executor handoff",
-        "persistent execution authorization consumer implemented and reviewed",
+        "immutable Johannesburg handoff package materialization",
+        "privileged local executor handoff consumer implemented and reviewed",
+        "bp-phase15-telegram-execution-authorization-worker.service",
+        "run_phase15_v3_telegram_execution_authorization_worker.py",
+        '"remaining_gap": "privileged_execution_handoff_not_defined"',
     ):
         assert marker in text
 
