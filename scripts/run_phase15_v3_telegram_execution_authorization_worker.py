@@ -145,12 +145,15 @@ def _materialize_handoff(
         ).encode()
     ).hexdigest()
     handoff_dir = handoff_root / identity
-    try:
-        handoff_dir.mkdir(mode=0o700)
-    except FileExistsError as exc:
+    temporary_dir = handoff_root / f".{identity}.tmp"
+    if handoff_dir.exists() or handoff_dir.is_symlink():
         raise ExecutionAuthorizationWorkerError(
             "authorized handoff already exists"
-        ) from exc
+        )
+    if temporary_dir.exists() or temporary_dir.is_symlink():
+        raise ExecutionAuthorizationWorkerError(
+            "authorized handoff temporary path already exists"
+        )
 
     if payload_sha256(prepared) != str(
         ready_verification["prepared_sha256"]
@@ -196,16 +199,47 @@ def _materialize_handoff(
         "real_order_submitted": False,
     }
 
-    for name, payload in (
-        ("prepared.json", prepared),
-        ("approval.json", approval),
-        ("ready-verification.json", ready_verification),
-        ("pre-execution.json", pre_execution_report),
-        ("dispatch-ticket.json", dispatch_ticket),
-        ("dispatch-claim.json", dispatch_claim),
-        ("receipt.json", receipt),
-    ):
-        _write_private_json(handoff_dir / name, payload)
+    try:
+        temporary_dir.mkdir(mode=0o700)
+        for name, payload in (
+            ("prepared.json", prepared),
+            ("approval.json", approval),
+            ("ready-verification.json", ready_verification),
+            ("pre-execution.json", pre_execution_report),
+            ("dispatch-ticket.json", dispatch_ticket),
+            ("dispatch-claim.json", dispatch_claim),
+            ("receipt.json", receipt),
+        ):
+            _write_private_json(temporary_dir / name, payload)
+
+        directory_fd = os.open(
+            temporary_dir,
+            os.O_RDONLY | os.O_DIRECTORY,
+        )
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+        os.rename(temporary_dir, handoff_dir)
+
+        root_fd = os.open(
+            handoff_root,
+            os.O_RDONLY | os.O_DIRECTORY,
+        )
+        try:
+            os.fsync(root_fd)
+        finally:
+            os.close(root_fd)
+    except Exception:
+        try:
+            if temporary_dir.is_dir() and not temporary_dir.is_symlink():
+                for path in temporary_dir.iterdir():
+                    if path.is_file() and not path.is_symlink():
+                        path.unlink()
+                temporary_dir.rmdir()
+        except OSError:
+            pass
+        raise
     return handoff_dir
 
 
