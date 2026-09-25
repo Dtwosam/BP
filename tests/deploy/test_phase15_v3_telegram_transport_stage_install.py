@@ -114,6 +114,10 @@ def test_transport_stage_install_rollback_is_bound_to_its_own_stage() -> None:
     text = INSTALL.read_text(encoding="utf-8")
     for marker in (
         "STAGE-METADATA.json",
+        "phase15-canary-telegram-transport-stage-owner.json",
+        "telegram-transport-stage-owner.json",
+        "stage_owner_already_exists",
+        '"stage_complete": True',
         'assert payload["stage_id"] == sys.argv[2]',
         'assert payload["role"] == "publisher"',
         'assert payload["role"] == "executor"',
