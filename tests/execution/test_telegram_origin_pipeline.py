@@ -183,6 +183,8 @@ def test_full_safe_origin_transport_claim_verify_chain(tmp_path: Path) -> None:
 
     verified = verifier.verify_ready_bundle(
         ready_dir=ready_dir,
+        origin_key_path=origin_key_path,
+        expected_origin_key_id=ORIGIN_KEY_ID,
         observed_at=now + timedelta(seconds=4),
     )
     assert verified["status"] == "execution_ready_origin_verified"
