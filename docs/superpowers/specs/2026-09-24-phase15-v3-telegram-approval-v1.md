@@ -635,6 +635,35 @@ putting handoff settings in the bot-token environment file. That future file mus
 separate origin/transport key paths and IDs plus the staged adapter path. No such file or key
 is created by the current branch.
 
+### Short-lived signed source-truth authorization
+
+The missing persistent Johannesburg consumer cannot safely treat a release-carried
+`PROJECT_STATE.json` as fresh authorization. BP therefore now has a separate offline
+source-truth proof:
+
+```text
+src/bp_engine/execution/telegram_source_truth_authorization.py
+scripts/run_phase15_v3_telegram_source_truth_attest.py
+```
+
+The recorder-side attester reads the current project state plus the exact prepared,
+approval, and origin-attestation artifacts. It reuses the existing pre-execution source-truth
+policy rather than defining a second set of gates, binds that minimal policy snapshot to the
+same intent/request/prepared/approval/origin hashes, and authenticates it with a distinct
+HMAC domain using the independent origin key.
+
+The source-truth proof has a maximum lifetime of 15 seconds and may never outlive the
+underlying origin attestation. It carries the full `PROJECT_STATE.json` SHA-256 for audit,
+but only the minimal authorization snapshot needed by the execution policy; Telegram identity
+and callback metadata are not included. Current source truth therefore produces an
+authenticated **blocked** snapshot with the existing second-order/automation blockers. A
+consumer may require `authorized=true` and fail closed otherwise.
+
+Creating or verifying this proof performs no network access, executor invocation, cloud
+mutation, service activation, or order submission. The code is included in the deterministic
+transport release, but the proof is not yet carried by the transport envelope and no
+persistent consumer uses it yet. Those remain subsequent engineering boundaries.
+
 ### Read-only transport activation plan
 
 The remaining carrier configuration can be inspected without applying it:
