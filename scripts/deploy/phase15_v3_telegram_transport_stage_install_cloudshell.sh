@@ -105,7 +105,7 @@ SERVICES=(
   bp-phase15-telegram-transport-claim-worker.service
 )
 [[ -f "$META" ]] || exit 0
-CREATED_USER=$(
+readarray -t CREATED_FLAGS < <(
   python3 - "$META" "$BP_STAGE_ID" <<'PY'
 import json
 import sys
@@ -115,8 +115,11 @@ payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert payload["stage_id"] == sys.argv[2]
 assert payload["role"] == "executor"
 print("true" if payload.get("created_bp_transport_user") is True else "false")
+print("true" if payload.get("created_bp_transport_group") is True else "false")
 PY
 )
+CREATED_USER="${CREATED_FLAGS[0]}"
+CREATED_GROUP="${CREATED_FLAGS[1]}"
 for service in "${SERVICES[@]}"; do
   systemctl stop "$service" >/dev/null 2>&1 || true
   systemctl disable "$service" >/dev/null 2>&1 || true
@@ -126,6 +129,8 @@ rm -rf   /var/lib/bp-canary/telegram-transport-inbox   /var/lib/bp-canary/telegr
 systemctl daemon-reload
 if [[ "$CREATED_USER" == "true" ]]; then
   userdel bp-transport >/dev/null 2>&1 || true
+fi
+if [[ "$CREATED_GROUP" == "true" ]]; then
   groupdel bp-transport >/dev/null 2>&1 || true
 fi
 REMOTE
@@ -241,7 +246,7 @@ do
 done
 
 python3 -m venv "$VENV"
-PIP_DISABLE_PIP_VERSION_CHECK=1   "$VENV/bin/pip" install --no-input   -r "$RELEASE/deploy/phase15-telegram-transport-runtime-requirements.txt"
+PIP_DISABLE_PIP_VERSION_CHECK=1   "$VENV/bin/pip" install --no-input --only-binary=:all:   -r "$RELEASE/deploy/phase15-telegram-transport-runtime-requirements.txt"
 "$VENV/bin/pip" check
 "$VENV/bin/python" - <<'PY'
 from importlib.metadata import version
@@ -440,7 +445,7 @@ do
 done
 
 python3 -m venv "$VENV"
-PIP_DISABLE_PIP_VERSION_CHECK=1   "$VENV/bin/pip" install --no-input   -r "$RELEASE/deploy/phase15-telegram-transport-runtime-requirements.txt"
+PIP_DISABLE_PIP_VERSION_CHECK=1   "$VENV/bin/pip" install --no-input --only-binary=:all:   -r "$RELEASE/deploy/phase15-telegram-transport-runtime-requirements.txt"
 "$VENV/bin/pip" check
 "$VENV/bin/python" - <<'PY'
 from importlib.metadata import version
@@ -489,7 +494,7 @@ for payload in (before, after):
     assert geoblock.get("country") == "ZA"
 PY
 
-python3 -   "$META"   "$STAGE_ID"   "$HEAD"   "$ARCHIVE_SHA256"   "$CREATED_USER" <<'PY'
+python3 -   "$META"   "$STAGE_ID"   "$HEAD"   "$ARCHIVE_SHA256"   "$CREATED_USER"   "$CREATED_GROUP" <<'PY'
 import json
 import os
 import sys
@@ -503,6 +508,7 @@ payload = {
     "release_head": sys.argv[3],
     "archive_sha256": sys.argv[4],
     "created_bp_transport_user": sys.argv[5] == "true",
+    "created_bp_transport_group": sys.argv[6] == "true",
     "services_started": False,
     "services_enabled": False,
     "environment_files_created": False,
