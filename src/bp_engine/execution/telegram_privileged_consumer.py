@@ -8,6 +8,7 @@ import stat
 import subprocess
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -164,6 +165,12 @@ def _require_safe_health(payload: Mapping[str, Any], *, armed: bool) -> None:
         raise PrivilegedConsumerError("executor account is not clean for canary")
     if int(account.get("open_order_count", -1)) != 0:
         raise PrivilegedConsumerError("executor account has open orders")
+    try:
+        collateral = Decimal(str(account.get("collateral_balance_usd")))
+    except Exception as exc:
+        raise PrivilegedConsumerError("executor collateral is invalid") from exc
+    if collateral < Decimal("5"):
+        raise PrivilegedConsumerError("executor collateral is below canary minimum")
     if armed:
         if payload.get("activation_valid") is not True:
             raise PrivilegedConsumerError("executor activation is not valid")
@@ -174,6 +181,8 @@ def _require_safe_health(payload: Mapping[str, Any], *, armed: bool) -> None:
     else:
         if payload.get("kill_switch_engaged") is not True:
             raise PrivilegedConsumerError("executor is not safely idle")
+        if payload.get("activation_valid") is not False:
+            raise PrivilegedConsumerError("stale executor activation is still valid")
         if payload.get("submission_ready") is not False:
             raise PrivilegedConsumerError("executor unexpectedly submission ready")
 
