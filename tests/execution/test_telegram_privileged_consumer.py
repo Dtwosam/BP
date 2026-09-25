@@ -91,7 +91,11 @@ def test_privileged_consumer_invokes_executor_once_and_reengages_kill(
                 {
                     "status": "ok",
                     "geoblock": {"blocked": False, "country": "ZA", "region": "GP"},
-                    "account": {"clean_for_canary": True, "open_order_count": 0},
+                    "account": {
+                        "clean_for_canary": True,
+                        "open_order_count": 0,
+                        "collateral_balance_usd": "25.00",
+                    },
                     "activation_valid": health_count == 2,
                     "kill_switch_engaged": health_count == 1,
                     "submission_ready": health_count == 2,
