@@ -378,6 +378,7 @@ SERVICES=(
   bp-phase15-telegram-pubsub-streaming-receiver.service
   bp-phase15-telegram-transport-claim-worker.service
   bp-phase15-telegram-execution-authorization-worker.service
+  bp-phase15-telegram-privileged-handoff.service
 )
 TRANSPORT_STATE_DIRS=(
   /var/lib/bp-canary/telegram-transport-inbox
@@ -547,6 +548,8 @@ for dir in "${AUTH_STATE_DIRS[@]}"; do
 done
 for service in "${SERVICES[@]}"; do
   install -o root -g root -m 0644     "$RELEASE/deploy/$service"     "/etc/systemd/system/$service"
+  cmp -s "$RELEASE/deploy/$service" "/etc/systemd/system/$service" ||
+    fail "transport_unit_install_hash_mismatch:$service"
 done
 systemctl daemon-reload
 

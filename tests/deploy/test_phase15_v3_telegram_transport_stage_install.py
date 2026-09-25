@@ -212,3 +212,17 @@ def test_transport_stage_install_preserves_live_runtime_boundaries() -> None:
         "EXECUTOR_SAFE_IDLE_PRESERVED=true",
     ):
         assert marker in text
+
+def test_transport_stage_install_stages_all_executor_units_and_verifies_bytes() -> None:
+    text = INSTALL.read_text(encoding="utf-8")
+    executor_start = text.index("EXECUTOR_SCRIPT=$(cat <<'REMOTE'")
+    executor_text = text[executor_start:]
+    services_block = """SERVICES=(
+  bp-phase15-telegram-pubsub-streaming-receiver.service
+  bp-phase15-telegram-transport-claim-worker.service
+  bp-phase15-telegram-execution-authorization-worker.service
+  bp-phase15-telegram-privileged-handoff.service
+)"""
+    assert services_block in executor_text
+    assert 'cmp -s "$RELEASE/deploy/$service" "/etc/systemd/system/$service"' in executor_text
+    assert 'fail "transport_unit_install_hash_mismatch:$service"' in executor_text

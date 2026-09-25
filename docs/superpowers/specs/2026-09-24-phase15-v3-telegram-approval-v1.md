@@ -571,8 +571,10 @@ software/runtime files; it is not transport activation or live-order authorizati
 The stage installer copies the same archive to both hosts, verifies its SHA-256 again remotely,
 creates a dedicated transport virtual environment from the release-carried direct dependency
 pins using binary wheels only, verifies `httpx==0.28.1` and
-`google-cloud-pubsub==2.41.0`, installs only the appropriate systemd unit files, and creates
-the transport state directories. The recorder publisher remains owned by `bp`; the
+`google-cloud-pubsub==2.41.0`, installs all appropriate systemd unit files, verifies every
+installed unit byte-for-byte against the staged release before commit, and creates the
+transport state directories. The executor stage includes receiver, claim,
+execution-authorization, and privileged-handoff units. The recorder publisher remains owned by `bp`; the
 Johannesburg receiver/claim services use the dedicated `bp-transport` system account, while
 the offline execution-authorization worker is root-owned only so it can read the root-only
 origin key. Its systemd sandbox has no network family beyond `AF_UNIX`, no wallet/executor
@@ -601,7 +603,8 @@ scripts/deploy/phase15_v3_telegram_transport_stage_status_cloudshell.sh
 That verifier requires both hosts to bind to one stage ID and archive SHA, the staged release
 head to equal current `main`, installed unit hashes to match release bytes, the pinned direct
 runtime versions to match, all transport services to remain inactive/disabled, all runtime
-env/key files to remain absent, recorder core services to remain healthy, current source
+env/key files to remain absent, recorder core services to remain healthy (including active
+`Type=oneshot`/`RemainAfterExit=yes` units whose `MainPID` is legitimately zero), current source
 truth to remain no-second-order/live-disabled, and the Johannesburg executor to remain
 safe-idle and directly eligible in ZA. It performs no mutation.
 
