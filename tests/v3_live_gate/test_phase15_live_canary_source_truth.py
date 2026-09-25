@@ -147,16 +147,25 @@ def test_phase15_telegram_transport_activation_is_authorized_but_not_an_order() 
     assert state["live_trading_enabled"] is False
     assert gate["live_trading_enabled"] is False
 
-def test_phase15_telegram_approval_listener_first_install_is_authorized_not_installed() -> None:
+def test_phase15_telegram_approval_listener_first_install_is_verified_pass() -> None:
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     gate = state["phase_15_v3_live_canary"]
     listener = gate["telegram_approval_listener_install_authorization"]
 
-    assert listener["status"] == "AUTHORIZED_NOT_INSTALLED"
+    assert listener["status"] == "INSTALLED_PASS"
     assert listener["target_host"] == "bp-recorder"
     assert listener["installation_type"] == "FIRST_INSTALL"
-    assert listener["requires_interactive_secret_entry"] is True
+    assert listener["deployed_head"] == "13b3f358543ef7a26c31bea65ec57b68f9ebf45f"
+    assert listener["service_active"] is True
+    assert listener["service_enabled"] is True
+    assert listener["listener_binding_current"] is True
+    assert listener["handoff_configured"] is False
+    assert listener["handoff_env_present"] is False
+    assert listener["journal_error_line_count_last_15m"] == 0
+    assert listener["no_real_order_submitted"] is True
     assert listener["stores_bot_token_in_git"] is False
-    assert listener["handoff_configured_during_install"] is False
     assert listener["live_trading_enabled_during_install"] is False
     assert listener["real_order_submission_authorized_by_install"] is False
+    assert listener["sanitized_evidence"] == (
+        "docs/evidence/phase-15-v3-telegram-approval-listener-install-20260925.json"
+    )
