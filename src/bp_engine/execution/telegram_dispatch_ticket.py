@@ -37,6 +37,13 @@ BOUND_FIELDS = (
     "authorization_report_sha256",
 )
 
+SIGNED_SOURCE_TRUTH_BOUND_FIELDS = (
+    "source_truth_authorization_sha256",
+    "authorization_snapshot_sha256",
+    "source_truth_attested_at",
+    "source_truth_expires_at",
+)
+
 
 class DispatchTicketError(RuntimeError):
     pass
@@ -144,13 +151,66 @@ def create_dispatch_ticket(
     if created >= origin_expires_at:
         raise DispatchTicketError("dispatch ticket origin authorization expired")
 
+    source_truth_bound: dict[str, str] = {}
+    supplied_source_truth_fields = [
+        name in pre_execution_report
+        for name in SIGNED_SOURCE_TRUTH_BOUND_FIELDS
+    ]
+    expires_at = origin_expires_at
+    if any(supplied_source_truth_fields):
+        if not all(supplied_source_truth_fields):
+            raise DispatchTicketError(
+                "pre-execution signed source truth binding incomplete"
+            )
+        for name in (
+            "source_truth_authorization_sha256",
+            "authorization_snapshot_sha256",
+        ):
+            value = str(pre_execution_report.get(name) or "")
+            if re.fullmatch(r"[0-9a-f]{64}", value) is None:
+                raise DispatchTicketError(f"pre-execution {name} invalid")
+            source_truth_bound[name] = value
+
+        source_truth_attested_at = _parse_timestamp(
+            pre_execution_report,
+            "source_truth_attested_at",
+        )
+        source_truth_expires_at = _parse_timestamp(
+            pre_execution_report,
+            "source_truth_expires_at",
+        )
+        if source_truth_expires_at <= source_truth_attested_at:
+            raise DispatchTicketError(
+                "source truth authorization expiry invalid"
+            )
+        if source_truth_expires_at > origin_expires_at:
+            raise DispatchTicketError(
+                "source truth authorization outlives origin attestation"
+            )
+        if created < source_truth_attested_at:
+            raise DispatchTicketError(
+                "dispatch ticket predates source truth authorization"
+            )
+        if created >= source_truth_expires_at:
+            raise DispatchTicketError(
+                "dispatch ticket source truth authorization expired"
+            )
+        source_truth_bound["source_truth_attested_at"] = (
+            source_truth_attested_at.isoformat()
+        )
+        source_truth_bound["source_truth_expires_at"] = (
+            source_truth_expires_at.isoformat()
+        )
+        expires_at = min(origin_expires_at, source_truth_expires_at)
+
     body: dict[str, Any] = {
         "schema_version": DISPATCH_TICKET_SCHEMA_VERSION,
         "purpose": DISPATCH_TICKET_PURPOSE,
         "status": "dispatch_ticket_prepared",
         **bound,
+        **source_truth_bound,
         "created_at": created.isoformat(),
-        "expires_at": origin_expires_at.isoformat(),
+        "expires_at": expires_at.isoformat(),
         "retry_allowed": False,
         "mutation_performed": False,
         "network_action_performed": False,
@@ -198,6 +258,25 @@ def verify_dispatch_ticket(
         if not str(ticket.get(name) or ""):
             raise DispatchTicketError(f"dispatch ticket {name} missing")
 
+    signed_source_truth_present = [
+        name in ticket
+        for name in SIGNED_SOURCE_TRUTH_BOUND_FIELDS
+    ]
+    if any(signed_source_truth_present):
+        if not all(signed_source_truth_present):
+            raise DispatchTicketError(
+                "dispatch ticket signed source truth binding incomplete"
+            )
+        for name in (
+            "source_truth_authorization_sha256",
+            "authorization_snapshot_sha256",
+        ):
+            if re.fullmatch(
+                r"[0-9a-f]{64}",
+                str(ticket.get(name) or ""),
+            ) is None:
+                raise DispatchTicketError(f"dispatch ticket {name} invalid")
+
     created = _parse_timestamp(ticket, "created_at")
     expires = _parse_timestamp(ticket, "expires_at")
     if expires <= created:
@@ -206,6 +285,27 @@ def verify_dispatch_ticket(
         raise DispatchTicketError("dispatch ticket is from the future")
     if observed >= expires:
         raise DispatchTicketError("dispatch ticket expired")
+    if all(signed_source_truth_present):
+        source_truth_attested = _parse_timestamp(
+            ticket,
+            "source_truth_attested_at",
+        )
+        source_truth_expires = _parse_timestamp(
+            ticket,
+            "source_truth_expires_at",
+        )
+        if source_truth_expires <= source_truth_attested:
+            raise DispatchTicketError(
+                "dispatch ticket source truth expiry invalid"
+            )
+        if created < source_truth_attested:
+            raise DispatchTicketError(
+                "dispatch ticket predates source truth authorization"
+            )
+        if expires > source_truth_expires:
+            raise DispatchTicketError(
+                "dispatch ticket outlives source truth authorization"
+            )
 
     return dict(ticket)
 
@@ -220,11 +320,11 @@ def verify_dispatch_ticket_against_report(
 ) -> dict[str, Any]:
     verified = verify_dispatch_ticket(ticket, observed_at=observed_at)
     report = pre_execution_report
-    if (ready_verification is None) != (project_state is None):
+    if ready_verification is None and project_state is not None:
         raise DispatchTicketError(
-            "current ready verification and project state must be supplied together"
+            "project state requires current ready verification"
         )
-    if ready_verification is not None and project_state is not None:
+    if ready_verification is not None:
         try:
             report = verify_pre_execution_snapshot(
                 pre_execution_report,
@@ -268,7 +368,7 @@ def claim_dispatch_ticket(
     *,
     pre_execution_report: Mapping[str, Any],
     ready_verification: Mapping[str, Any],
-    project_state: Mapping[str, Any],
+    project_state: Mapping[str, Any] | None,
     observed_at: datetime,
     state_dir: Path,
 ) -> dict[str, Any]:
