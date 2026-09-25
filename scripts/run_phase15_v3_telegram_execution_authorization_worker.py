@@ -20,6 +20,11 @@ from bp_engine.execution.telegram_execution_ready import (
     ReadyVerificationError,
     verify_ready_bundle,
 )
+from bp_engine.execution.telegram_execution_package import (
+    ExecutionPackageError,
+    PACKAGE_FILES,
+    verify_execution_authorization_package,
+)
 from bp_engine.execution.telegram_origin_attestation import payload_sha256
 from bp_engine.execution.telegram_pre_execution import (
     PreExecutionError,
@@ -281,6 +286,32 @@ def _materialize_handoff(
     return handoff_dir, manifest_sha256
 
 
+def _remove_unpublished_handoff(path: Path) -> None:
+    try:
+        info = path.lstat()
+    except OSError:
+        return
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+        return
+    try:
+        children = tuple(path.iterdir())
+    except OSError:
+        return
+    if any(
+        child.is_symlink()
+        or not child.is_file()
+        or child.name not in PACKAGE_FILES
+        for child in children
+    ):
+        return
+    try:
+        for child in children:
+            child.unlink()
+        path.rmdir()
+    except OSError:
+        return
+
+
 def authorize_ready_once(
     *,
     ready_dir: Path,
@@ -306,6 +337,8 @@ def authorize_ready_once(
         }
 
     dispatch_claim_consumed = False
+    handoff_dir: Path | None = None
+    pending_processed_path = processed_dir / f".{identity}.tmp"
     try:
         ready = verify_ready_bundle(
             ready_dir=ready_dir,
@@ -384,14 +417,62 @@ def authorize_ready_once(
             "executor_invoked": False,
             "real_order_submitted": False,
         }
-        _write_private_json(processed_path, result)
+        _write_private_json(pending_processed_path, result)
+        verified_package = verify_execution_authorization_package(
+            package_dir=handoff_dir,
+            processed_receipt_path=pending_processed_path,
+            observed_at=observed_at,
+            expected_owner_uid=os.geteuid(),
+        )
+        if (
+            verified_package.get("status")
+            != "execution_authorization_package_verified"
+        ):
+            raise ExecutionAuthorizationWorkerError(
+                "execution authorization package verification failed"
+            )
+        for name in (
+            "intent_id",
+            "prediction_id",
+            "paper_order_id",
+            "request_sha256",
+            "source_truth_sha256",
+            "authorization_report_sha256",
+            "dispatch_ticket_sha256",
+            "dispatch_claim_sha256",
+            "package_manifest_sha256",
+            "expires_at",
+        ):
+            if str(verified_package.get(name) or "") != str(
+                result.get(name) or ""
+            ):
+                raise ExecutionAuthorizationWorkerError(
+                    f"execution package verification {name} mismatch"
+                )
+
+        os.rename(pending_processed_path, processed_path)
+        processed_fd = os.open(
+            processed_dir,
+            os.O_RDONLY | os.O_DIRECTORY,
+        )
+        try:
+            os.fsync(processed_fd)
+        finally:
+            os.close(processed_fd)
         return result
     except (
         ReadyVerificationError,
         PreExecutionError,
         DispatchTicketError,
+        ExecutionPackageError,
         ExecutionAuthorizationWorkerError,
     ) as exc:
+        try:
+            pending_processed_path.unlink()
+        except FileNotFoundError:
+            pass
+        if handoff_dir is not None and not processed_path.exists():
+            _remove_unpublished_handoff(handoff_dir)
         failure = {
             "schema_version": 1,
             "status": "execution_authorization_failed_closed",
