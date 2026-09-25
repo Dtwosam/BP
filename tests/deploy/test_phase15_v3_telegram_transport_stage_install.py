@@ -149,6 +149,18 @@ def test_transport_stage_install_rolls_back_ambiguous_remote_attempts() -> None:
         assert marker in text
 
 
+def test_transport_stage_install_rolls_back_if_main_moves_mid_transaction() -> None:
+    text = INSTALL.read_text(encoding="utf-8")
+    executor_attempt = text.index("EXEC_STAGED=true")
+    main_recheck = text.index(
+        "REMOTE_MAIN_AFTER=$(git ls-remote origin refs/heads/main",
+        executor_attempt,
+    )
+    final_commit = text.index("COMMITTED=true", main_recheck)
+    assert executor_attempt < main_recheck < final_commit
+    assert "remote_main_changed_during_stage" in text
+
+
 def test_transport_stage_install_preserves_live_runtime_boundaries() -> None:
     text = INSTALL.read_text(encoding="utf-8")
     for marker in (
