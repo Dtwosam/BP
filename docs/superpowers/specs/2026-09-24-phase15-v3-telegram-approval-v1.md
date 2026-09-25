@@ -335,9 +335,11 @@ state directory. A different transport nonce cannot make the same order claimabl
 
 After claim, the receiver materializes `prepared.json`, sanitized `approval.json`,
 `origin-attestation.json`, `envelope.json`, and `receipt.json` as `0600` files under a
-`0700` directory. The claim path authenticates both the transport HMAC and the separate
-origin attestation before consuming the exact order. If materialization fails after the
-claim, the claim remains consumed and automatic retry is forbidden.
+`0700` directory. The claim path authenticates the transport HMAC and exact embedded
+origin-attestation binding before consuming the exact order, but it does not receive the
+origin HMAC key. The separate execution-ready verifier authenticates that origin HMAC before
+the bundle can be labelled `execution_ready_origin_verified`. If materialization fails after
+the claim, the claim remains consumed and automatic retry is forbidden.
 
 The read-only execution-side verifier is:
 
@@ -494,7 +496,9 @@ The builder accepts only an exact source-file whitelist covering the transport s
 workers, and trust-chain modules. It requires a clean Git working tree, binds the release to
 the exact commit SHA, normalizes archive ownership/mode/timestamps, and emits a manifest with
 the SHA-256 and size of every member. Rebuilding the same commit must produce byte-identical
-archive bytes.
+archive bytes. The recorder-side Pub/Sub publisher and Johannesburg receiver/claim worker all
+execute from the same versioned `/opt/bp-telegram-transport/current` release tree, keeping the
+carrier independently deployable and rollbackable from the Telegram approval listener.
 
 The release archive deliberately contains no `PROJECT_STATE.json`, `.env` files, HMAC key
 files, service-account credentials, wallet material, or other runtime secrets. The independent
