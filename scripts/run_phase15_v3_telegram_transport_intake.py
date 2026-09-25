@@ -8,7 +8,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from bp_engine.execution.telegram_origin_attestation import load_origin_key_file
 from bp_engine.execution.telegram_transport import (
     TransportError,
     claim_transport_envelope,
@@ -97,19 +96,12 @@ def main() -> int:
     key_id = os.environ.get("BP_TELEGRAM_TRANSPORT_KEY_ID", "").strip()
     if not key_id:
         raise SystemExit("BP_TELEGRAM_TRANSPORT_KEY_ID is required")
-    origin_key_path_raw = os.environ.get("BP_TELEGRAM_ORIGIN_KEY_FILE", "").strip()
-    origin_key_id = os.environ.get("BP_TELEGRAM_ORIGIN_KEY_ID", "").strip()
-    if not origin_key_path_raw or not origin_key_id:
-        raise SystemExit("Telegram origin attestation configuration incomplete")
     key = load_transport_key_file(Path(key_path_raw))
-    origin_key = load_origin_key_file(Path(origin_key_path_raw))
     envelope = _load_json(args.envelope_path)
     claimed = claim_transport_envelope(
         envelope,
         key=key,
         expected_key_id=key_id,
-        origin_key=origin_key,
-        expected_origin_key_id=origin_key_id,
         observed_at=_utc_now(),
         state_dir=args.state_dir,
     )
