@@ -4339,7 +4339,7 @@
     "second_order_authorized": true,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "Complete and review the privileged Johannesburg Telegram handoff consumer, merge and stage the exact green release, provision least-privilege transport/origin keys and Pub/Sub IAM, then permit exactly one fresh Telegram-approved frozen-V3 $5 canary submission under the existing $10 hard risk caps. Reconcile that order officially before any third live action.",
+    "next_action": "Merge the exact green Telegram/live branch, install the current-main private Telegram listener with handoff still disabled, build and stage the deterministic transport release on both hosts, run the fail-closed transport activation transaction, then wait for exactly one fresh private Telegram APPROVE of a new frozen-V3 $5 intent. The global second-canary attempt marker permits at most one executor invocation. Official reconciliation is mandatory before any third live action.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
@@ -4633,7 +4633,9 @@
       "stake_growth_authorized": false,
       "v3_strategy_mutation_authorized": false,
       "v4_mutation_authorized": false,
-      "broad_autonomous_live_rollout_authorized": false
+      "broad_autonomous_live_rollout_authorized": false,
+      "global_attempt_marker_path": "/var/lib/bp-canary/telegram-live-handoff/second-canary.attempt.json",
+      "global_attempt_marker_is_one_shot": true
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {
