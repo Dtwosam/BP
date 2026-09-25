@@ -208,11 +208,11 @@ if zone and zone.rsplit("/", 1)[-1] != expected_zone:
 
 service_accounts = instance.get("serviceAccounts") or []
 if not isinstance(service_accounts, list) or len(service_accounts) != 1:
-    blockers.append("executor_service_account_count_not_one")
+    activation_blockers.append("executor_service_account_count_not_one")
 else:
     account = service_accounts[0]
     if not isinstance(account, dict) or not str(account.get("email") or ""):
-        blockers.append("executor_service_account_missing")
+        activation_blockers.append("executor_service_account_missing")
     scopes = account.get("scopes") if isinstance(account, dict) else None
     if (
         not isinstance(scopes, list)

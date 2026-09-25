@@ -144,3 +144,19 @@ def test_transport_install_preflight_keeps_cloud_scope_for_activation_only() -> 
         is None
     )
     assert '"activation_ready": not blockers and not activation_blockers' in text
+
+
+def test_transport_install_preflight_keeps_service_account_shape_for_activation_only() -> None:
+    text = PREFLIGHT.read_text(encoding="utf-8")
+    for marker in (
+        "executor_service_account_count_not_one",
+        "executor_service_account_missing",
+    ):
+        assert f'activation_blockers.append("{marker}")' in text
+        assert (
+            re.search(
+                rf'(?m)^\s*blockers\.append\("{marker}"\)$',
+                text,
+            )
+            is None
+        )
