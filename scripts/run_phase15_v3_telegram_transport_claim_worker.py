@@ -185,6 +185,21 @@ def _materialize_ready(
             stage / "origin-attestation.json",
             claimed["origin_attestation"],
         )
+        if "source_truth_authorization" in claimed:
+            source_truth = claimed["source_truth_authorization"]
+            receipt["source_truth_authorization_sha256"] = str(
+                claimed["source_truth_authorization_sha256"]
+            )
+            receipt["project_state_sha256"] = str(
+                source_truth.get("project_state_sha256") or ""
+            )
+            receipt["authorization_snapshot_sha256"] = str(
+                source_truth.get("authorization_snapshot_sha256") or ""
+            )
+            _write_private_json(
+                stage / "source-truth-authorization.json",
+                source_truth,
+            )
         _write_private_json(stage / "envelope.json", envelope)
         _write_private_json(stage / "receipt.json", receipt)
         os.rename(stage, final_dir)
