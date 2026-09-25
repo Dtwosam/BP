@@ -56,6 +56,7 @@ def test_activation_plan_spells_out_secret_free_runtime_configuration() -> None:
         "/etc/bp-telegram-transport/claim.env",
         "/etc/bp-telegram-transport/execution-auth.env",
         "/etc/bp-telegram-transport/privileged-handoff.env",
+        "phase15_v3_telegram_transport_activate_cloudshell.sh",
         "/etc/bp-telegram-transport/transport.key",
         "/etc/bp-telegram-transport/origin.key",
         "/opt/bp-telegram-transport/bin/approved-outbox-handoff",
