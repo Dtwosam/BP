@@ -487,14 +487,23 @@ if executor.get("runtime_versions") != {
     "google-cloud-pubsub": "2.41.0",
 }:
     blockers.append("executor_runtime_versions_mismatch")
+root_authorization_state_dirs = {
+    "/var/lib/bp-canary/telegram-dispatch-claims",
+    "/var/lib/bp-canary/telegram-execution-authorized",
+    "/var/lib/bp-canary/telegram-execution-auth-processed",
+    "/var/lib/bp-canary/telegram-execution-auth-failures",
+}
 for path, info in (executor.get("state_dirs") or {}).items():
+    expected_owner = (
+        "root" if path in root_authorization_state_dirs else "bp-transport"
+    )
     if (
         info.get("exists") is not True
         or info.get("is_dir") is not True
         or info.get("is_symlink") is True
         or info.get("mode") != "0o700"
-        or info.get("owner") != "bp-transport"
-        or info.get("group") != "bp-transport"
+        or info.get("owner") != expected_owner
+        or info.get("group") != expected_owner
     ):
         blockers.append(f"executor_state_dir_invalid:{path}")
 
