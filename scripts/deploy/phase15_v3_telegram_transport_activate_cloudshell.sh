@@ -70,6 +70,21 @@ PHASE15_ACCEPT_TELEGRAM_TRANSPORT_STAGE_STATUS=yes   bash "$ROOT/scripts/deploy/
 grep -q '^TELEGRAM_TRANSPORT_STAGE_READY=true$'   /tmp/bp-phase15-telegram-stage-status.txt ||
   fail "transport_stage_not_ready"
 
+EXPECTED_EXECUTOR_SHA256=$(python3 - "$ROOT/scripts/deploy/phase15_v3_canary_executor.py" <<'PY'
+import hashlib
+import sys
+from pathlib import Path
+print(hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest())
+PY
+) || fail "expected_executor_sha256_failed"
+[[ "$EXPECTED_EXECUTOR_SHA256" =~ ^[0-9a-f]{64}$ ]] ||
+  fail "expected_executor_sha256_invalid"
+
+INSTALLED_EXECUTOR_SHA256=$(gcloud compute ssh "$EXEC_VM"   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet   --command="sudo sha256sum /opt/bp-canary/executor.py | awk '{print \\$1}'") ||
+  fail "installed_executor_sha256_failed"
+[[ "$INSTALLED_EXECUTOR_SHA256" == "$EXPECTED_EXECUTOR_SHA256" ]] ||
+  fail "installed_executor_not_exact_current_main"
+
 PROJECT_NUMBER=$(gcloud projects describe "$PROJECT" --format='value(projectNumber)') ||
   fail "project_number_lookup_failed"
 [[ "$PROJECT_NUMBER" =~ ^[0-9]+$ ]] || fail "project_number_invalid"
