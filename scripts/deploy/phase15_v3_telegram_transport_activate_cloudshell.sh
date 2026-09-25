@@ -348,8 +348,7 @@ rm -f /tmp/bp-telegram-transport.key /tmp/bp-telegram-origin.key /tmp/bp-telegra
 HEALTH_BEFORE=$(gcloud compute ssh "$EXEC_VM"   --project="$PROJECT"   --zone="$EXEC_ZONE"   --quiet   --command="printf '%s' '{\"action\":\"health\"}' | sudo /opt/bp-canary/executor.sh") ||
   fail "executor_safe_idle_probe_failed"
 
-python3 - "$HEALTH_BEFORE" <<'PY' ||
-  fail "executor_not_safe_idle_before_activation"
+if ! python3 - "$HEALTH_BEFORE" <<'PY'
 import json
 import sys
 
@@ -366,6 +365,9 @@ account = payload.get("account") or {}
 assert account.get("clean_for_canary") is True
 assert int(account.get("open_order_count", -1)) == 0
 PY
+then
+  fail "executor_not_safe_idle_before_activation"
+fi
 
 BP_TELEGRAM_TRANSPORT_KEY_ID="$TRANSPORT_KEY_ID" BP_TELEGRAM_ORIGIN_KEY_ID="$ORIGIN_KEY_ID"   bash "$ROOT/scripts/deploy/phase15_v3_telegram_transport_activation_plan_cloudshell.sh"   >"$TMP_DIR/activation-plan.txt" ||
   fail "activation_plan_failed"
@@ -398,8 +400,7 @@ sudo systemctl is-active --quiet bp-phase15-canary-telegram-approval.service
 HEALTH_AFTER=$(gcloud compute ssh "$EXEC_VM"   --project="$PROJECT"   --zone="$EXEC_ZONE"   --quiet   --command="printf '%s' '{\"action\":\"health\"}' | sudo /opt/bp-canary/executor.sh") ||
   fail "executor_post_activation_probe_failed"
 
-python3 - "$HEALTH_AFTER" <<'PY' ||
-  fail "executor_not_safe_idle_after_activation"
+if ! python3 - "$HEALTH_AFTER" <<'PY'
 import json
 import sys
 
@@ -416,6 +417,9 @@ account = payload.get("account") or {}
 assert account.get("clean_for_canary") is True
 assert int(account.get("open_order_count", -1)) == 0
 PY
+then
+  fail "executor_not_safe_idle_after_activation"
+fi
 
 trap - EXIT
 rm -rf "$TMP_DIR"
