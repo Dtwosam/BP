@@ -11,8 +11,10 @@ from typing import Any
 from bp_engine.execution.telegram_origin_attestation import (
     OriginAttestationError,
     execution_approval,
-    payload_sha256 as origin_payload_sha256,
     verify_origin_attestation,
+)
+from bp_engine.execution.telegram_origin_attestation import (
+    payload_sha256 as origin_payload_sha256,
 )
 from bp_engine.execution.telegram_pre_execution import (
     PROJECT_STATE_AUTHORIZATION_SNAPSHOT_FIELDS,
