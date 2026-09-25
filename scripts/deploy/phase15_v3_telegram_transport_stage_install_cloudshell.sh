@@ -520,7 +520,7 @@ install -d -o root -g root -m 0755 "$RELEASES"
 install -d -o root -g root -m 0755 "$RELEASE"
 tar -xzf "$ARCHIVE" -C "$RELEASE"
 
-for required in   RELEASE-MANIFEST.json   deploy/bp-phase15-telegram-pubsub-streaming-receiver.service   deploy/bp-phase15-telegram-transport-claim-worker.service   deploy/bp-phase15-telegram-execution-authorization-worker.service   deploy/phase15-telegram-transport-runtime-requirements.txt   scripts/run_phase15_v3_telegram_pubsub_streaming_receive.py   scripts/run_phase15_v3_telegram_transport_claim_worker.py   scripts/run_phase15_v3_telegram_execution_ready_verify.py   scripts/run_phase15_v3_telegram_execution_authorization_worker.py
+for required in   RELEASE-MANIFEST.json   deploy/bp-phase15-telegram-pubsub-streaming-receiver.service   deploy/bp-phase15-telegram-transport-claim-worker.service   deploy/bp-phase15-telegram-execution-authorization-worker.service   deploy/phase15-telegram-transport-runtime-requirements.txt   scripts/run_phase15_v3_telegram_pubsub_streaming_receive.py   scripts/run_phase15_v3_telegram_transport_claim_worker.py   scripts/run_phase15_v3_telegram_execution_ready_verify.py   scripts/run_phase15_v3_telegram_execution_authorization_worker.py   scripts/run_phase15_v3_telegram_execution_package_verify.py   src/bp_engine/execution/telegram_execution_package.py
 do
   [[ -f "$RELEASE/$required" ]] || fail "release_required_path_missing:$required"
 done
