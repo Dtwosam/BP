@@ -618,6 +618,10 @@ EXEC_STAGED=true
 gcloud compute ssh "$EXEC_VM"   --project="$PROJECT"   --zone="$EXEC_ZONE"   --quiet   --command="printf '%s' '$EXECUTOR_B64' | base64 -d | sudo env BP_RELEASE_HEAD=$HEAD_Q BP_RELEASE_ARCHIVE=$ARCHIVE_Q BP_RELEASE_ARCHIVE_SHA256=$ARCHIVE_SHA_Q BP_STAGE_ID=$STAGE_ID_Q bash" ||
   fail "executor_stage_failed"
 
+REMOTE_MAIN_AFTER=$(git ls-remote origin refs/heads/main | awk 'NR==1 {print $1}')
+[[ "$REMOTE_MAIN_AFTER" == "$LOCAL_HEAD" ]] ||
+  fail "remote_main_changed_during_stage"
+
 COMMITTED=true
 trap - EXIT
 rm -f "$PUBLISHER_PREFLIGHT" "$EXEC_PREFLIGHT"
