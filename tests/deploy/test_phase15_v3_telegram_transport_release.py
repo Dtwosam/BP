@@ -105,6 +105,13 @@ def test_transport_release_is_deterministic_secret_free_and_verifiable(
         names = set(archive.getnames())
         assert "RELEASE-MANIFEST.json" in names
         assert "deploy/phase15-telegram-approved-outbox-handoff.sh" in names
+        assert (
+            "scripts/run_phase15_v3_telegram_source_truth_attest.py" in names
+        )
+        assert (
+            "src/bp_engine/execution/telegram_source_truth_authorization.py"
+            in names
+        )
         assert "deploy/phase15-telegram-transport-runtime-requirements.txt" in names
         requirements = archive.extractfile(
             "deploy/phase15-telegram-transport-runtime-requirements.txt"
