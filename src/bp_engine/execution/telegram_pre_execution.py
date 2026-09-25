@@ -287,17 +287,147 @@ def evaluate_pre_execution_authorization(
     return report
 
 
+def evaluate_signed_pre_execution_authorization(
+    *,
+    ready_verification: Mapping[str, Any],
+) -> dict[str, Any]:
+    if (
+        ready_verification.get("status")
+        != "execution_ready_source_truth_verified"
+    ):
+        raise PreExecutionError(
+            "ready bundle has not passed source truth verification"
+        )
+    if ready_verification.get("retry_allowed") is not False:
+        raise PreExecutionError("ready bundle retry policy invalid")
+    if ready_verification.get("executor_invoked") is not False:
+        raise PreExecutionError("ready bundle executor state invalid")
+    if ready_verification.get("real_order_submitted") is not False:
+        raise PreExecutionError("ready bundle money state invalid")
+    if ready_verification.get("source_truth_authorized") is not True:
+        raise PreExecutionError(
+            "ready source truth authorization is not authorized"
+        )
+    if ready_verification.get("source_truth_blockers") != []:
+        raise PreExecutionError(
+            "ready source truth authorization contains blockers"
+        )
+
+    source_truth_hash = str(
+        ready_verification.get("project_state_sha256") or ""
+    )
+    snapshot_hash = str(
+        ready_verification.get("authorization_snapshot_sha256") or ""
+    )
+    source_truth_authorization_hash = str(
+        ready_verification.get("source_truth_authorization_sha256") or ""
+    )
+    for label, value in (
+        ("project state", source_truth_hash),
+        ("authorization snapshot", snapshot_hash),
+        ("authorization", source_truth_authorization_hash),
+    ):
+        if re.fullmatch(r"[0-9a-f]{64}", value) is None:
+            raise PreExecutionError(
+                f"ready source truth {label} hash invalid"
+            )
+
+    source_truth_attested_at = str(
+        ready_verification.get("source_truth_attested_at") or ""
+    )
+    source_truth_expires_at = str(
+        ready_verification.get("source_truth_expires_at") or ""
+    )
+    if not source_truth_attested_at or not source_truth_expires_at:
+        raise PreExecutionError(
+            "ready source truth authorization timestamps missing"
+        )
+
+    report = {
+        "schema_version": PRE_EXECUTION_SCHEMA_VERSION,
+        "purpose": PRE_EXECUTION_PURPOSE,
+        "status": "pre_execution_authorized",
+        "authorized": True,
+        "blockers": [],
+        "source_truth_sha256": source_truth_hash,
+        "transport_key_id": str(
+            ready_verification.get("transport_key_id") or ""
+        ),
+        "origin_key_id": str(ready_verification.get("origin_key_id") or ""),
+        "intent_id": str(ready_verification.get("intent_id") or ""),
+        "prediction_id": str(ready_verification.get("prediction_id") or ""),
+        "paper_order_id": str(ready_verification.get("paper_order_id") or ""),
+        "request_sha256": str(
+            ready_verification.get("request_sha256") or ""
+        ),
+        "prepared_sha256": str(
+            ready_verification.get("prepared_sha256") or ""
+        ),
+        "approval_sha256": str(
+            ready_verification.get("approval_sha256") or ""
+        ),
+        "approval_source_sha256": str(
+            ready_verification.get("approval_source_sha256") or ""
+        ),
+        "origin_attestation_sha256": str(
+            ready_verification.get("origin_attestation_sha256") or ""
+        ),
+        "origin_attested_at": str(
+            ready_verification.get("origin_attested_at") or ""
+        ),
+        "origin_expires_at": str(
+            ready_verification.get("origin_expires_at") or ""
+        ),
+        "source_truth_authorization_sha256": (
+            source_truth_authorization_hash
+        ),
+        "authorization_snapshot_sha256": snapshot_hash,
+        "source_truth_attested_at": source_truth_attested_at,
+        "source_truth_expires_at": source_truth_expires_at,
+        "retry_allowed": False,
+        "mutation_performed": False,
+        "network_action_performed": False,
+        "executor_invoked": False,
+        "real_order_submitted": False,
+    }
+    for name in (
+        "transport_key_id",
+        "origin_key_id",
+        "intent_id",
+        "prediction_id",
+        "paper_order_id",
+        "request_sha256",
+        "prepared_sha256",
+        "approval_sha256",
+        "approval_source_sha256",
+        "origin_attestation_sha256",
+        "origin_attested_at",
+        "origin_expires_at",
+    ):
+        if not report[name]:
+            raise PreExecutionError(f"ready bundle {name} missing")
+    report["authorization_report_sha256"] = hashlib.sha256(
+        _canonical(report)
+    ).hexdigest()
+    return report
+
+
 def verify_pre_execution_snapshot(
     snapshot: Mapping[str, Any],
     *,
     ready_verification: Mapping[str, Any],
-    project_state: Mapping[str, Any],
+    project_state: Mapping[str, Any] | None,
     require_authorized: bool = False,
 ) -> dict[str, Any]:
-    fresh = evaluate_pre_execution_authorization(
-        ready_verification=ready_verification,
-        project_state=project_state,
-    )
+    if project_state is None:
+        fresh = evaluate_signed_pre_execution_authorization(
+            ready_verification=ready_verification,
+        )
+    else:
+        fresh = evaluate_pre_execution_authorization(
+            ready_verification=ready_verification,
+            project_state=project_state,
+        )
     if dict(snapshot) != fresh:
         raise PreExecutionError("pre-execution snapshot is stale or modified")
     if require_authorized and fresh["authorized"] is not True:
