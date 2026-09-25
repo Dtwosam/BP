@@ -157,18 +157,8 @@ def test_publisher_install_preflight_keeps_service_account_shape_for_activation_
         "publisher_service_account_missing",
     ):
         assert f'activation_blockers.append("{marker}")' in text
-        assert (
-            re.search(
-                rf'(?m)^\s*blockers\.append\("{marker}"\)
-    text = PREFLIGHT.read_text(encoding="utf-8")
-    assert 'state.get("type") == "oneshot"' in text
-    assert 'state.get("remain_after_exit") == "yes"' in text
-    assert "if not pid_valid and not active_oneshot:" in text
-,
-                text,
-            )
-            is None
-        )
+        pattern = rf'(?m)^\s*blockers\.append\("{marker}"\)$'
+        assert re.search(pattern, text) is None
 
 
 def test_publisher_install_preflight_accepts_active_remain_after_exit_oneshot_pid_zero() -> None:
