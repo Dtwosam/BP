@@ -331,6 +331,28 @@ def verify_execution_authorization_package(
     ):
         raise ExecutionPackageError("approval payload hash mismatch")
 
+    request = prepared.get("request")
+    if not isinstance(request, Mapping):
+        raise ExecutionPackageError("prepared request missing")
+    if payload_sha256(request) != str(
+        fresh_pre_execution["request_sha256"]
+    ):
+        raise ExecutionPackageError("prepared request hash mismatch")
+    for name in ("intent_id", "prediction_id", "paper_order_id"):
+        if str(prepared.get(name) or "") != str(
+            fresh_pre_execution[name]
+        ):
+            raise ExecutionPackageError(
+                f"prepared {name} binding mismatch"
+            )
+    for name in ("intent_id", "request_sha256"):
+        if str(approval.get(name) or "") != str(
+            fresh_pre_execution[name]
+        ):
+            raise ExecutionPackageError(
+                f"approval {name} binding mismatch"
+            )
+
     identity = hashlib.sha256(
         (
             f"{fresh_pre_execution['intent_id']}\0"
