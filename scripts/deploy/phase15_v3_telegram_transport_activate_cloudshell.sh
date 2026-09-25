@@ -345,7 +345,7 @@ sudo install -o root -g root -m 0600 /tmp/bp-telegram-privileged-handoff.env /et
 rm -f /tmp/bp-telegram-transport.key /tmp/bp-telegram-origin.key /tmp/bp-telegram-receiver.env /tmp/bp-telegram-claim.env /tmp/bp-telegram-execution-auth.env /tmp/bp-telegram-privileged-handoff.env
 ' || fail "executor_configuration_install_failed"
 
-HEALTH_BEFORE=$(gcloud compute ssh "$EXEC_VM"   --project="$PROJECT"   --zone="$EXEC_ZONE"   --quiet   --command="printf '%s' '{"action":"health"}' | sudo /opt/bp-canary/executor.sh") ||
+HEALTH_BEFORE=$(gcloud compute ssh "$EXEC_VM"   --project="$PROJECT"   --zone="$EXEC_ZONE"   --quiet   --command="printf '%s' '{\"action\":\"health\"}' | sudo /opt/bp-canary/executor.sh") ||
   fail "executor_safe_idle_probe_failed"
 
 python3 - "$HEALTH_BEFORE" <<'PY' ||
@@ -395,7 +395,7 @@ sudo systemctl restart bp-phase15-canary-telegram-approval.service
 sudo systemctl is-active --quiet bp-phase15-canary-telegram-approval.service
 ' || fail "publisher_or_listener_activation_failed"
 
-HEALTH_AFTER=$(gcloud compute ssh "$EXEC_VM"   --project="$PROJECT"   --zone="$EXEC_ZONE"   --quiet   --command="printf '%s' '{"action":"health"}' | sudo /opt/bp-canary/executor.sh") ||
+HEALTH_AFTER=$(gcloud compute ssh "$EXEC_VM"   --project="$PROJECT"   --zone="$EXEC_ZONE"   --quiet   --command="printf '%s' '{\"action\":\"health\"}' | sudo /opt/bp-canary/executor.sh") ||
   fail "executor_post_activation_probe_failed"
 
 python3 - "$HEALTH_AFTER" <<'PY' ||
