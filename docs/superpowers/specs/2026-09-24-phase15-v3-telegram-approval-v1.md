@@ -787,3 +787,31 @@ transport activation can be considered complete. The planner always reports
 
 No Telegram listener, handoff command, transport, source-truth authorization, or new
 real-money order has been deployed by this engineering branch.
+
+
+## Read-only privileged handoff contract
+
+The engineering candidate now defines the last non-executing boundary immediately before a
+future privileged local consumer:
+
+```text
+scripts/run_phase15_v3_telegram_privileged_handoff_verify.py
+src/bp_engine/execution/telegram_privileged_handoff.py
+```
+
+The verifier first re-runs the complete execution-authorization package verification, then
+opens the exact expected executor file read-only with no-follow semantics, requires root
+ownership for the production form, rejects group/other-writable executor bytes, and requires
+an exact caller-supplied SHA-256 match. Its output binds the intent/order/request,
+source-truth authorization, dispatch claim, package manifest, authorization expiry, package
+identity, and executor SHA-256 into one read-only handoff-contract report.
+
+This verifier cannot create an activation manifest or authorization ID, alter the kill switch,
+materialize an executor submit payload, access wallet or Telegram secrets, invoke the
+executor, call a network service, or submit/cancel an order. Passing it is therefore only a
+mandatory precondition for a future separately implemented and reviewed privileged consumer;
+it is not execution authorization by itself and does not change current source truth.
+
+The remaining engineering and authorization boundary is still the privileged execution
+handoff itself. Current source truth continues to prohibit a second live order and automated
+real-money submission.
