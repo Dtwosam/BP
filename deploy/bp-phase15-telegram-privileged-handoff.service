@@ -20,6 +20,7 @@ Environment=PYTHONDONTWRITEBYTECODE=1
 Environment=PYTHONUNBUFFERED=1
 UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS BP_TELEGRAM_BOT_TOKEN GOOGLE_APPLICATION_CREDENTIALS HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy
 ExecStart=/opt/bp-telegram-transport/.venv/bin/python /opt/bp-telegram-transport/current/scripts/run_phase15_v3_telegram_privileged_handoff_worker.py
+ExecStopPost=/bin/sh -c 'umask 077; printf "%s\\n" telegram-privileged-service-stop > /etc/bp-canary/KILL'
 Restart=on-failure
 RestartSec=1s
 UMask=0077
