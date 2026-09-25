@@ -42,14 +42,13 @@ cleanup() {
   status=$?
   if [[ "$status" -ne 0 && "$MUTATION_STARTED" == "true" ]]; then
     gcloud compute ssh "$EXEC_VM"       --project="$PROJECT"       --zone="$EXEC_ZONE"       --quiet       --command="sudo systemctl stop bp-phase15-telegram-privileged-handoff.service bp-phase15-telegram-execution-authorization-worker.service bp-phase15-telegram-transport-claim-worker.service bp-phase15-telegram-pubsub-streaming-receiver.service >/dev/null 2>&1 || true; sudo systemctl disable bp-phase15-telegram-privileged-handoff.service bp-phase15-telegram-execution-authorization-worker.service bp-phase15-telegram-transport-claim-worker.service bp-phase15-telegram-pubsub-streaming-receiver.service >/dev/null 2>&1 || true; sudo rm -f /etc/bp-telegram-transport/receiver.env /etc/bp-telegram-transport/claim.env /etc/bp-telegram-transport/execution-auth.env /etc/bp-telegram-transport/privileged-handoff.env /etc/bp-telegram-transport/transport.key /etc/bp-telegram-transport/origin.key; sudo sh -c 'umask 077; printf %s\\n activation-failure-safe-stop > /etc/bp-canary/KILL'"       >/dev/null 2>&1 || true
-    gcloud compute ssh "$US_VM"       --project="$PROJECT"       --zone="$US_ZONE"       --quiet       --command="sudo systemctl stop bp-phase15-telegram-pubsub-publisher.service >/dev/null 2>&1 || true; sudo systemctl disable bp-phase15-telegram-pubsub-publisher.service >/dev/null 2>&1 || true; sudo rm -f /etc/bp/telegram-pubsub-publisher.env /etc/bp/telegram-approval-handoff.env /etc/bp-telegram-transport/transport.key /etc/bp-telegram-transport/origin.key /etc/bp-telegram-transport/project-state.json; sudo systemctl restart bp-phase15-canary-telegram-approval.service >/dev/null 2>&1 || true"       >/dev/null 2>&1 || true
+    gcloud compute ssh "$US_VM"       --project="$PROJECT"       --zone="$US_ZONE"       --quiet       --command="sudo systemctl stop bp-phase15-telegram-pubsub-publisher.service >/dev/null 2>&1 || true; sudo systemctl disable bp-phase15-telegram-pubsub-publisher.service >/dev/null 2>&1 || true; sudo rm -f /etc/bp/telegram-pubsub-publisher.env; sudo rm -f /etc/bp/telegram-approval-handoff.env; sudo rm -f /etc/bp-telegram-transport/transport.key /etc/bp-telegram-transport/origin.key /etc/bp-telegram-transport/project-state.json; sudo systemctl restart bp-phase15-canary-telegram-approval.service >/dev/null 2>&1 || true"       >/dev/null 2>&1 || true
   fi
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
 
-python3 - "$ROOT/PROJECT_STATE.json" <<'PY' ||
-  fail "source_truth_not_authorized_for_second_telegram_canary"
+if ! python3 - "$ROOT/PROJECT_STATE.json" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -82,6 +81,9 @@ assert second.get("requires_fresh_telegram_approval") is True
 assert second.get("requires_official_reconciliation_before_any_third_order") is True
 assert second.get("broad_autonomous_live_rollout_authorized") is False
 PY
+then
+  fail "source_truth_not_authorized_for_second_telegram_canary"
+fi
 
 bash "$ROOT/scripts/deploy/phase15_v3_telegram_approval_status_cloudshell.sh"   >"$TMP_DIR/listener-status.txt" ||
   fail "telegram_listener_status_not_pass"
