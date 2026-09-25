@@ -133,3 +133,14 @@ def test_transport_stage_status_is_strictly_read_only() -> None:
         "NO_MUTATION_PERFORMED=true",
     ):
         assert marker in text
+
+def test_transport_stage_status_accepts_active_remain_after_exit_oneshot_pid_zero() -> None:
+    text = STATUS.read_text(encoding="utf-8")
+    for marker in (
+        '"type": service_type if type_code == 0 else ""',
+        '"remain_after_exit": remain_after_exit if remain_code == 0 else ""',
+        'state.get("type") == "oneshot"',
+        'state.get("remain_after_exit") == "yes"',
+        "if not pid_valid and not active_oneshot:",
+    ):
+        assert marker in text
