@@ -318,6 +318,41 @@ def test_execution_authorization_worker_consumed_claim_never_retries(
     assert second[0]["status"] == "already_terminal"
 
 
+def test_execution_authorization_worker_never_publishes_partial_handoff(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load()
+    now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
+    ready_root, key_path = _ready_bundle(tmp_path, now)
+    original_write = module._write_private_json
+
+    def fail_mid_package(
+        path: Path,
+        payload: dict[str, object],
+    ) -> None:
+        if path.parent.name.startswith(".") and path.name == "pre-execution.json":
+            raise module.ExecutionAuthorizationWorkerError(
+                "simulated-mid-package-write-failure"
+            )
+        original_write(path, payload)
+
+    monkeypatch.setattr(module, "_write_private_json", fail_mid_package)
+    result = _run_once(
+        module,
+        tmp_path=tmp_path,
+        ready_root=ready_root,
+        key_path=key_path,
+        observed_at=now + timedelta(seconds=4),
+    )
+
+    assert result[0]["status"] == "execution_authorization_failed_closed"
+    assert result[0]["dispatch_claim_consumed"] is True
+    authorized = tmp_path / "authorized"
+    assert list(authorized.iterdir()) == []
+    assert list((tmp_path / "failures").glob("*.json"))
+
+
 def test_execution_authorization_worker_rejects_legacy_ready_bundle(
     tmp_path: Path,
 ) -> None:
