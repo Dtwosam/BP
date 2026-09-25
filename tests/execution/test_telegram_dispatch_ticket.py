@@ -17,6 +17,11 @@ from bp_engine.execution.telegram_dispatch_ticket import (
 )
 from bp_engine.execution.telegram_pre_execution import (
     evaluate_pre_execution_authorization,
+    project_state_authorization_snapshot,
+    source_truth_sha256,
+)
+from bp_engine.execution.telegram_source_truth_authorization import (
+    payload_sha256 as source_truth_payload_sha256,
 )
 
 MODULE = (
@@ -52,6 +57,7 @@ def _ready(now: datetime) -> dict[str, object]:
 
 def _authorized_state() -> dict[str, object]:
     return {
+        "source_of_truth_version": "synthetic-dispatch-v2",
         "live_trading_enabled": False,
         "phase_15_v3_live_canary": {
             "live_trading_enabled": False,
@@ -70,6 +76,32 @@ def _authorized_state() -> dict[str, object]:
             },
         },
     }
+
+
+def _ready_v2(
+    now: datetime,
+    state: dict[str, object],
+) -> dict[str, object]:
+    ready = _ready(now)
+    ready.update(
+        {
+            "status": "execution_ready_source_truth_verified",
+            "source_truth_authorization_sha256": "6" * 64,
+            "project_state_sha256": source_truth_sha256(state),
+            "authorization_snapshot_sha256": source_truth_payload_sha256(
+                project_state_authorization_snapshot(state)
+            ),
+            "source_truth_attested_at": (
+                now + timedelta(seconds=1)
+            ).isoformat(),
+            "source_truth_expires_at": (
+                now + timedelta(seconds=14)
+            ).isoformat(),
+            "source_truth_authorized": True,
+            "source_truth_blockers": [],
+        }
+    )
+    return ready
 
 
 def _report(now: datetime) -> dict[str, object]:
@@ -130,6 +162,108 @@ def test_dispatch_ticket_claim_is_exact_one_shot_and_private(tmp_path: Path) -> 
             observed_at=now + timedelta(seconds=3),
             state_dir=state_dir,
         )
+
+
+def test_dispatch_claim_accepts_exact_source_truth_v2_chain(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 9, 24, 21, 0, 2, tzinfo=UTC)
+    state = _authorized_state()
+    ready = _ready_v2(now, state)
+    report = evaluate_pre_execution_authorization(
+        ready_verification=ready,
+        project_state=state,
+    )
+    ticket = create_dispatch_ticket(
+        report,
+        created_at=now + timedelta(seconds=2),
+    )
+
+    claimed = claim_dispatch_ticket(
+        ticket,
+        pre_execution_report=report,
+        ready_verification=ready,
+        project_state=state,
+        observed_at=now + timedelta(seconds=3),
+        state_dir=tmp_path / "v2-claims",
+    )
+
+    assert claimed["status"] == "dispatch_claimed"
+    assert claimed["authorization_report_sha256"] == report[
+        "authorization_report_sha256"
+    ]
+    assert report["source_truth_authorization_sha256"] == (
+        ready["source_truth_authorization_sha256"]
+    )
+    assert report["source_truth_sha256"] == ready["project_state_sha256"]
+    assert claimed["retry_allowed"] is False
+    assert claimed["executor_invoked"] is False
+    assert claimed["real_order_submitted"] is False
+
+
+def test_dispatch_claim_rejects_source_truth_v2_proof_drift_before_consumption(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 9, 24, 21, 0, 2, tzinfo=UTC)
+    state = _authorized_state()
+    ready = _ready_v2(now, state)
+    report = evaluate_pre_execution_authorization(
+        ready_verification=ready,
+        project_state=state,
+    )
+    ticket = create_dispatch_ticket(
+        report,
+        created_at=now + timedelta(seconds=2),
+    )
+    changed_ready = copy.deepcopy(ready)
+    changed_ready["source_truth_authorization_sha256"] = "7" * 64
+    state_dir = tmp_path / "v2-proof-drift"
+
+    with pytest.raises(DispatchTicketError, match="stale or modified"):
+        claim_dispatch_ticket(
+            ticket,
+            pre_execution_report=report,
+            ready_verification=changed_ready,
+            project_state=state,
+            observed_at=now + timedelta(seconds=3),
+            state_dir=state_dir,
+        )
+    assert not state_dir.exists()
+
+
+def test_dispatch_claim_rejects_source_truth_v2_state_drift_before_consumption(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 9, 24, 21, 0, 2, tzinfo=UTC)
+    state = _authorized_state()
+    ready = _ready_v2(now, state)
+    report = evaluate_pre_execution_authorization(
+        ready_verification=ready,
+        project_state=state,
+    )
+    ticket = create_dispatch_ticket(
+        report,
+        created_at=now + timedelta(seconds=2),
+    )
+    changed_state = copy.deepcopy(state)
+    phase = changed_state["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    phase["second_order_authorized"] = False
+    state_dir = tmp_path / "v2-state-drift"
+
+    with pytest.raises(
+        DispatchTicketError,
+        match="project state hash mismatch",
+    ):
+        claim_dispatch_ticket(
+            ticket,
+            pre_execution_report=report,
+            ready_verification=ready,
+            project_state=changed_state,
+            observed_at=now + timedelta(seconds=3),
+            state_dir=state_dir,
+        )
+    assert not state_dir.exists()
 
 
 def test_dispatch_claim_rejects_ticket_or_report_mutation_before_consumption(
