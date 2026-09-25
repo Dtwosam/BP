@@ -172,14 +172,19 @@ def test_transport_stage_install_separates_transport_and_authorization_state() -
         "/var/lib/bp-canary/telegram-execution-authorized",
         "/var/lib/bp-canary/telegram-execution-auth-processed",
         "/var/lib/bp-canary/telegram-execution-auth-failures",
+        "/var/lib/bp-canary/telegram-live-handoff",
         'install -d -o bp-transport -g bp-transport -m 0700 "$dir"',
         'install -d -o root -g root -m 0700 "$dir"',
         "bp-phase15-telegram-execution-authorization-worker.service",
+        "bp-phase15-telegram-privileged-handoff.service",
         "run_phase15_v3_telegram_execution_package_verify.py",
         "run_phase15_v3_telegram_privileged_handoff_verify.py",
         "src/bp_engine/execution/telegram_execution_package.py",
         "src/bp_engine/execution/telegram_privileged_handoff.py",
+        "run_phase15_v3_telegram_privileged_handoff_worker.py",
+        "src/bp_engine/execution/telegram_privileged_consumer.py",
         "EXECUTION_AUTHORIZATION_WORKER_STAGED=true",
+        "PRIVILEGED_HANDOFF_WORKER_STAGED=true",
     ):
         assert marker in text
 
