@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+from pathlib import Path
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -245,8 +246,6 @@ def test_transport_claim_is_one_shot_for_exact_order_even_with_new_nonce(tmp_pat
         first,
         key=key,
         expected_key_id=KEY_ID,
-        origin_key=ORIGIN_KEY,
-        expected_origin_key_id=ORIGIN_KEY_ID,
         observed_at=now + timedelta(seconds=4),
         state_dir=state_dir,
     )
@@ -302,7 +301,7 @@ def test_transport_claim_rejects_symlink_state_directory(tmp_path) -> None:
         )
 
 
-def test_transport_claim_rejects_forged_origin_before_consuming_claim(
+def test_transport_claim_carries_origin_proof_without_origin_secret(
     tmp_path,
 ) -> None:
     now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
@@ -327,17 +326,15 @@ def test_transport_claim_rejects_forged_origin_before_consuming_claim(
     )
     state_dir = tmp_path / "claims"
 
-    with pytest.raises(
-        TransportError,
-        match="origin attestation authentication failed: origin attestation hmac mismatch",
-    ):
-        claim_transport_envelope(
-            envelope,
-            key=transport_key,
-            expected_key_id=KEY_ID,
-            origin_key=ORIGIN_KEY,
-            expected_origin_key_id=ORIGIN_KEY_ID,
-            observed_at=now + timedelta(seconds=3),
-            state_dir=state_dir,
-        )
-    assert not state_dir.exists()
+    claimed = claim_transport_envelope(
+        envelope,
+        key=transport_key,
+        expected_key_id=KEY_ID,
+        observed_at=now + timedelta(seconds=3),
+        state_dir=state_dir,
+    )
+
+    assert claimed["origin_key_id"] == ORIGIN_KEY_ID
+    assert claimed["origin_attestation"] == forged_origin
+    assert Path(claimed["claim_path"]).is_file()
+
