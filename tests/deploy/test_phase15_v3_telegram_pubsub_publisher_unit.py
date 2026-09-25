@@ -27,7 +27,10 @@ def test_pubsub_publisher_unit_is_zero_money_and_secret_isolated() -> None:
         "ProtectSystem=strict",
         "CapabilityBoundingSet=",
         "AmbientCapabilities=",
-        "ReadOnlyPaths=/opt/bp-phase15-telegram-approval",
+        "WorkingDirectory=/opt/bp-telegram-transport/current",
+        "Environment=PYTHONPATH=/opt/bp-telegram-transport/current/src",
+        "ExecStart=/opt/bp-telegram-transport/.venv/bin/python /opt/bp-telegram-transport/current/scripts/run_phase15_v3_telegram_pubsub_publish_worker.py",
+        "ReadOnlyPaths=/opt/bp-telegram-transport",
         "ReadWritePaths=/var/lib/bp/phase15-canary-telegram-transport",
     ):
         assert marker in text
@@ -38,6 +41,7 @@ def test_pubsub_publisher_unit_is_zero_money_and_secret_isolated() -> None:
         "PHASE15_ACCEPT_REAL_MONEY",
         "POLYMARKET_PRIVATE_KEY=",
         "POLYMARKET_WALLET_ADDRESS=",
+        "/opt/bp-phase15-telegram-approval",
     ):
         assert forbidden not in text
 
