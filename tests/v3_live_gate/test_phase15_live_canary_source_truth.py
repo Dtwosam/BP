@@ -73,6 +73,10 @@ def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -
     assert second["strategy_target_notional_usd"] == 5
     assert second["hard_max_trade_size_usd"] == 10
     assert second["max_network_submission_attempts"] == 1
+    assert second["global_attempt_marker_is_one_shot"] is True
+    assert second["global_attempt_marker_path"] == (
+        "/var/lib/bp-canary/telegram-live-handoff/second-canary.attempt.json"
+    )
     assert second["requires_fresh_telegram_approval"] is True
     assert second["requires_execution_package_verifier_pass"] is True
     assert second["requires_privileged_handoff_contract_verifier_pass"] is True
