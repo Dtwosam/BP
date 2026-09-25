@@ -137,7 +137,7 @@ def _materialize_handoff(
     dispatch_ticket: Mapping[str, Any],
     dispatch_claim: Mapping[str, Any],
     observed_at: datetime,
-) -> Path:
+) -> tuple[Path, str]:
     identity = hashlib.sha256(
         (
             f"{dispatch_claim['intent_id']}\0"
@@ -278,7 +278,7 @@ def _materialize_handoff(
         except OSError:
             pass
         raise
-    return handoff_dir
+    return handoff_dir, manifest_sha256
 
 
 def authorize_ready_once(
@@ -342,7 +342,7 @@ def authorize_ready_once(
             ready_dir / "approval.json",
             label="ready approval payload",
         )
-        handoff_dir = _materialize_handoff(
+        handoff_dir, manifest_sha256 = _materialize_handoff(
             handoff_root=handoff_root,
             prepared=prepared,
             approval=approval,
@@ -362,6 +362,7 @@ def authorize_ready_once(
                 claim["dispatch_ticket_sha256"]
             ),
             "dispatch_claim_sha256": str(claim["claim_sha256"]),
+            "package_manifest_sha256": manifest_sha256,
             "expires_at": str(claim["expires_at"]),
             "handoff_dir": str(handoff_dir),
             "retry_allowed": False,
