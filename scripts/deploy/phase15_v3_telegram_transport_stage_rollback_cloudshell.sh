@@ -69,12 +69,12 @@ source = json.loads(sys.argv[1])
 assert source["live_trading_enabled"] is False
 assert source["phase15_live_trading_enabled"] is False
 assert source["canary_order_submitted"] is True
-assert source["second_order_authorized"] is False
-assert source["automated_real_money_submission"] is False
-assert source["manual_real_money_submission_required"] is True
-assert source["telegram_one_tap_submission_authorized"] is False
-assert source["telegram_persistent_execution_transport_authorized"] is False
-assert source["telegram_pubsub_transport_authorized"] is False
+assert source["second_order_authorized"] is True
+assert source["automated_real_money_submission"] is True
+assert source["manual_real_money_submission_required"] is False
+assert source["telegram_one_tap_submission_authorized"] is True
+assert source["telegram_persistent_execution_transport_authorized"] is True
+assert source["telegram_pubsub_transport_authorized"] is True
 PY
 
 command -v gcloud >/dev/null 2>&1 || fail "gcloud_missing"
@@ -164,6 +164,7 @@ SERVICES = (
     "bp-phase15-telegram-pubsub-streaming-receiver.service",
     "bp-phase15-telegram-transport-claim-worker.service",
     "bp-phase15-telegram-execution-authorization-worker.service",
+    "bp-phase15-telegram-privileged-handoff.service",
 )
 STATE_DIRS = (
     Path("/var/lib/bp-canary/telegram-transport-inbox"),
@@ -176,6 +177,7 @@ STATE_DIRS = (
     Path("/var/lib/bp-canary/telegram-execution-authorized"),
     Path("/var/lib/bp-canary/telegram-execution-auth-processed"),
     Path("/var/lib/bp-canary/telegram-execution-auth-failures"),
+    Path("/var/lib/bp-canary/telegram-live-handoff"),
 )
 
 
@@ -211,6 +213,7 @@ secret_paths = (
     CONFIG / "receiver.env",
     CONFIG / "claim.env",
     CONFIG / "execution-auth.env",
+    CONFIG / "privileged-handoff.env",
     CONFIG / "transport.key",
     CONFIG / "origin.key",
 )
@@ -376,6 +379,8 @@ CONFIG=/etc/bp-telegram-transport
 SERVICES=(
   bp-phase15-telegram-pubsub-streaming-receiver.service
   bp-phase15-telegram-transport-claim-worker.service
+  bp-phase15-telegram-execution-authorization-worker.service
+  bp-phase15-telegram-privileged-handoff.service
 )
 STATE_DIRS=(
   /var/lib/bp-canary/telegram-transport-inbox
@@ -384,6 +389,11 @@ STATE_DIRS=(
   /var/lib/bp-canary/telegram-transport-ready
   /var/lib/bp-canary/telegram-transport-claim-processed
   /var/lib/bp-canary/telegram-transport-claim-failures
+  /var/lib/bp-canary/telegram-dispatch-claims
+  /var/lib/bp-canary/telegram-execution-authorized
+  /var/lib/bp-canary/telegram-execution-auth-processed
+  /var/lib/bp-canary/telegram-execution-auth-failures
+  /var/lib/bp-canary/telegram-live-handoff
 )
 
 readarray -t FLAGS < <(
@@ -414,7 +424,7 @@ for service in "${SERVICES[@]}"; do
   ! systemctl is-enabled --quiet "$service" 2>/dev/null ||
     { echo "executor transport service enabled" >&2; exit 1; }
 done
-for secret in   "$CONFIG/receiver.env"   "$CONFIG/claim.env"   "$CONFIG/transport.key"   "$CONFIG/origin.key"
+for secret in   "$CONFIG/receiver.env"   "$CONFIG/claim.env"   "$CONFIG/execution-auth.env"   "$CONFIG/privileged-handoff.env"   "$CONFIG/transport.key"   "$CONFIG/origin.key"
 do
   [[ ! -e "$secret" && ! -L "$secret" ]] ||
     { echo "executor transport secret/config present" >&2; exit 1; }
