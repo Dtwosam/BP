@@ -26,6 +26,7 @@ def test_approved_outbox_handoff_is_transport_local_and_fail_closed() -> None:
         "/opt/bp-telegram-transport/current/src",
         "BP_TELEGRAM_HANDOFF_ENABLED",
         "BP_TELEGRAM_APPROVED_OUTBOX_ENABLED",
+        "BP_TELEGRAM_PROJECT_STATE_FILE",
         "BP_TELEGRAM_ORIGIN_KEY_FILE",
         "BP_TELEGRAM_ORIGIN_KEY_ID",
         "BP_TELEGRAM_TRANSPORT_KEY_FILE",
