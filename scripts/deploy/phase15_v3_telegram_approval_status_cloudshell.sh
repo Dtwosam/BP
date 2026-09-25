@@ -36,6 +36,7 @@ from pathlib import Path
 service = "bp-phase15-canary-telegram-approval.service"
 current = Path("/opt/bp-phase15-telegram-approval/current")
 env_path = Path("/etc/bp/telegram-approval.env")
+handoff_env_path = Path("/etc/bp/telegram-approval-handoff.env")
 state_root = Path("/var/lib/bp/phase15-canary-telegram-approval")
 unit_path = Path("/etc/systemd/system") / service
 
@@ -117,6 +118,7 @@ payload = {
     "telegram_user_id_set": user_id_set,
     "telegram_chat_id_set": chat_id_set,
     "handoff_configured": handoff_configured,
+    "handoff_env_present": handoff_env_path.exists() or handoff_env_path.is_symlink(),
     "journal_error_line_count_last_15m": len(journal_error_lines),
 }
 print(json.dumps(payload, separators=(",", ":"), sort_keys=True))
@@ -140,6 +142,7 @@ assert payload["bot_token_set"] is True
 assert payload["telegram_user_id_set"] is True
 assert payload["telegram_chat_id_set"] is True
 assert payload["handoff_configured"] is False
+assert payload["handoff_env_present"] is False
 assert payload["unit"]["owner"] == "root"
 assert payload["unit"]["group"] == "root"
 assert payload["unit"]["mode"] == "0o644"
