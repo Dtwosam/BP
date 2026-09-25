@@ -11,7 +11,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from bp_engine.execution.telegram_origin_attestation import load_origin_key_file
 from bp_engine.execution.telegram_transport import (
     TransportError,
     claim_transport_envelope,
@@ -135,21 +134,16 @@ def claim_transport(
     envelope_path: Path,
     key_path: Path,
     expected_key_id: str,
-    origin_key_path: Path,
-    expected_origin_key_id: str,
     claim_state_dir: Path,
     materialize_root: Path,
     observed_at: datetime,
 ) -> dict[str, Any]:
     envelope = _load_envelope(envelope_path)
     key = load_transport_key_file(key_path)
-    origin_key = load_origin_key_file(origin_key_path)
     verified = claim_transport_envelope(
         envelope,
         key=key,
         expected_key_id=expected_key_id,
-        origin_key=origin_key,
-        expected_origin_key_id=expected_origin_key_id,
         observed_at=observed_at,
         state_dir=claim_state_dir,
     )
@@ -175,8 +169,6 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--envelope", type=Path, required=True)
     parser.add_argument("--key-file", type=Path, required=True)
     parser.add_argument("--key-id", required=True)
-    parser.add_argument("--origin-key-file", type=Path, required=True)
-    parser.add_argument("--origin-key-id", required=True)
     parser.add_argument("--claim-state-dir", type=Path, required=True)
     parser.add_argument("--materialize-root", type=Path, required=True)
     return parser.parse_args()
@@ -189,8 +181,6 @@ def main() -> int:
             envelope_path=args.envelope,
             key_path=args.key_file,
             expected_key_id=args.key_id,
-            origin_key_path=args.origin_key_file,
-            expected_origin_key_id=args.origin_key_id,
             claim_state_dir=args.claim_state_dir,
             materialize_root=args.materialize_root,
             observed_at=datetime.now(UTC),
