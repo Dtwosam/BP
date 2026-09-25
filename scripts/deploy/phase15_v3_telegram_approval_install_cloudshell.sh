@@ -39,8 +39,19 @@ state = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 gate = state["phase_15_v3_live_canary"]
 assert state["live_trading_enabled"] is False
 assert gate["live_trading_enabled"] is False
-assert gate["automated_real_money_submission"] is False
-assert gate["second_order_authorized"] is False
+assert gate["canary_order_submitted"] is True
+assert gate["second_order_authorized"] is True
+assert gate["automated_real_money_submission"] is True
+assert gate["manual_real_money_submission_required"] is False
+assert gate["telegram_one_tap_submission_authorized"] is True
+assert gate["telegram_persistent_execution_transport_authorized"] is True
+assert gate["telegram_pubsub_transport_authorized"] is True
+second = gate.get("second_live_canary_authorization") or {}
+assert second.get("status") == "AUTHORIZED_NOT_SUBMITTED"
+assert second.get("strategy_target_notional_usd") == 5
+assert second.get("hard_max_trade_size_usd") == 10
+assert second.get("max_network_submission_attempts") == 1
+assert second.get("broad_autonomous_live_rollout_authorized") is False
 PY
 then
   fail_local "source_truth_not_safe_for_listener_install"
