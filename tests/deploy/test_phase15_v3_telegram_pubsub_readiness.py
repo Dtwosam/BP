@@ -65,3 +65,8 @@ def test_pubsub_readiness_shell_and_embedded_python_are_valid() -> None:
     assert len(blocks) >= 2
     for block in blocks:
         ast.parse(block)
+
+def test_pubsub_readiness_requires_transport_activation_authorization() -> None:
+    text = READINESS.read_text(encoding="utf-8")
+    assert '"telegram_transport_activation_authorized"' in text
+    assert "telegram_transport_activation_not_authorized" in text
