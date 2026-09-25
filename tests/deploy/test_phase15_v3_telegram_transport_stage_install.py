@@ -131,6 +131,24 @@ def test_transport_stage_install_rollback_is_bound_to_its_own_stage() -> None:
         assert marker in text
 
 
+def test_transport_stage_install_rolls_back_ambiguous_remote_attempts() -> None:
+    text = INSTALL.read_text(encoding="utf-8")
+    recorder_flag = text.index("RECORDER_STAGED=true")
+    recorder_ssh = text.index('gcloud compute ssh "$US_VM"', recorder_flag)
+    executor_flag = text.index("EXEC_STAGED=true")
+    executor_ssh = text.index('gcloud compute ssh "$EXEC_VM"', executor_flag)
+    assert recorder_flag < recorder_ssh
+    assert executor_flag < executor_ssh
+
+    for marker in (
+        '[[ -f "$OWNER" ]] || exit 0',
+        'assert payload["stage_id"] == sys.argv[2]',
+        'assert payload["role"] == "publisher"',
+        'assert payload["role"] == "executor"',
+    ):
+        assert marker in text
+
+
 def test_transport_stage_install_preserves_live_runtime_boundaries() -> None:
     text = INSTALL.read_text(encoding="utf-8")
     for marker in (
