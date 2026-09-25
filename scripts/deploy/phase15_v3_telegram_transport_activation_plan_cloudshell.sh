@@ -320,7 +320,7 @@ env_files = {
             "BP_TELEGRAM_HANDOFF_ENABLED": "yes",
             "BP_TELEGRAM_HANDOFF_COMMAND": listener_handoff_path,
             "BP_TELEGRAM_APPROVED_OUTBOX_ENABLED": "yes",
-            "BP_TELEGRAM_PROJECT_STATE_FILE": "/opt/bp/PROJECT_STATE.json",
+            "BP_TELEGRAM_PROJECT_STATE_FILE": "/etc/bp-telegram-transport/project-state.json",
             "BP_TELEGRAM_ORIGIN_KEY_FILE": origin_key_path,
             "BP_TELEGRAM_ORIGIN_KEY_ID": origin_key_id or "<required>",
             "BP_TELEGRAM_TRANSPORT_KEY_FILE": transport_key_path,
@@ -503,7 +503,7 @@ report = {
         "implemented_chain": [
             "execution-ready origin HMAC verification",
             "short-lived signed source-truth authorization verification",
-            "fresh PROJECT_STATE authorization evaluation at recorder approval time",
+            "fresh exact-main source-truth snapshot authorization evaluation at recorder approval time",
             "one-shot dispatch ticket creation/claim",
             "exact prepared/approval/dispatch binding",
             "immutable Johannesburg handoff package materialization",
