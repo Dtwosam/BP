@@ -1,0 +1,39 @@
+[Unit]
+Description=BP Phase 15 Telegram per-intent approval channel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bp
+Group=bp
+WorkingDirectory=/opt/bp-phase15-telegram-approval/current
+EnvironmentFile=/etc/bp/telegram-approval.env
+Environment=MODE=research
+Environment=LIVE_TRADING_ENABLED=false
+Environment=MAX_TRADE_SIZE_USD=0
+Environment=MAX_DAILY_LOSS_USD=0
+Environment=BP_TELEGRAM_HANDOFF_ENABLED=no
+EnvironmentFile=-/etc/bp/telegram-approval-handoff.env
+Environment=PYTHONPATH=/opt/bp-phase15-telegram-approval/current/src
+UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS
+ExecStart=/opt/bp/.venv/bin/python /opt/bp-phase15-telegram-approval/current/scripts/run_phase15_v3_canary_telegram_approval.py
+Restart=on-failure
+RestartSec=2s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=full
+ReadOnlyPaths=-/var/lib/bp/phase15-canary-prepare-watch
+ReadWritePaths=/var/lib/bp/phase15-canary-telegram-approval
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+MemoryDenyWriteExecute=true
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-phase15-telegram-approval
+
+[Install]
+WantedBy=multi-user.target

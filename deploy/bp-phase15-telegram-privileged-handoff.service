@@ -1,0 +1,47 @@
+[Unit]
+Description=BP Phase 15 Telegram privileged live handoff
+After=bp-phase15-telegram-execution-authorization-worker.service
+ConditionPathExists=/etc/bp-telegram-transport/privileged-handoff.env
+ConditionPathExists=/opt/bp-canary/executor.py
+ConditionPathExists=/opt/bp-canary/executor.sh
+ConditionPathExists=/etc/bp-canary/live.env
+ConditionPathIsDirectory=/var/lib/bp-canary/telegram-execution-authorized
+ConditionPathIsDirectory=/var/lib/bp-canary/telegram-execution-auth-processed
+ConditionPathIsDirectory=/var/lib/bp-canary/telegram-live-handoff
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/bp-telegram-transport/current
+EnvironmentFile=/etc/bp-telegram-transport/privileged-handoff.env
+Environment=PYTHONPATH=/opt/bp-telegram-transport/current/src
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS BP_TELEGRAM_BOT_TOKEN GOOGLE_APPLICATION_CREDENTIALS HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy
+ExecStart=/opt/bp-telegram-transport/.venv/bin/python /opt/bp-telegram-transport/current/scripts/run_phase15_v3_telegram_privileged_handoff_worker.py
+ExecStopPost=/bin/sh -c 'umask 077; printf "%s\\n" telegram-privileged-service-stop > /etc/bp-canary/KILL'
+Restart=on-failure
+RestartSec=1s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadOnlyPaths=/opt/bp-telegram-transport /opt/bp-canary /etc/bp-canary/live.env /var/lib/bp-canary/telegram-execution-authorized /var/lib/bp-canary/telegram-execution-auth-processed
+ReadWritePaths=/etc/bp-canary /var/lib/bp-canary/telegram-live-handoff
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-phase15-telegram-privileged-handoff
+
+[Install]
+WantedBy=multi-user.target

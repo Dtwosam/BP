@@ -1,0 +1,47 @@
+[Unit]
+Description=BP Phase 15 Telegram Pub/Sub transport publisher
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/bp/telegram-pubsub-publisher.env
+ConditionPathExists=/etc/bp-telegram-transport/transport.key
+
+[Service]
+Type=simple
+User=bp
+Group=bp
+WorkingDirectory=/opt/bp-telegram-transport/current
+EnvironmentFile=/etc/bp/telegram-pubsub-publisher.env
+Environment=MODE=research
+Environment=LIVE_TRADING_ENABLED=false
+Environment=MAX_TRADE_SIZE_USD=0
+Environment=MAX_DAILY_LOSS_USD=0
+Environment=PYTHONPATH=/opt/bp-telegram-transport/current/src
+UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS BP_TELEGRAM_BOT_TOKEN GOOGLE_APPLICATION_CREDENTIALS HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy
+ExecStart=/opt/bp-telegram-transport/.venv/bin/python /opt/bp-telegram-transport/current/scripts/run_phase15_v3_telegram_pubsub_publish_worker.py
+Restart=on-failure
+RestartSec=1s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+InaccessiblePaths=-/etc/bp-telegram-transport/origin.key
+ReadOnlyPaths=/opt/bp-telegram-transport /etc/bp/telegram-pubsub-publisher.env /etc/bp-telegram-transport/transport.key
+ReadWritePaths=/var/lib/bp/phase15-canary-telegram-transport
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-phase15-telegram-pubsub-publisher
+
+[Install]
+WantedBy=multi-user.target

@@ -8,19 +8,19 @@ HOST_EVIDENCE = ROOT / "docs/evidence/phase-15-v3-canary-host-geoblock-20260923.
 LIVE_CANARY_EVIDENCE = ROOT / "docs/evidence/phase-15-v3-first-live-canary-submission-20260924.json"
 
 
-def test_phase15_first_live_canary_is_submitted_and_reconciliation_is_required() -> None:
+def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -> None:
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     gate = state["phase_15_v3_live_canary"]
     master = state["phase_14_checkpoint"]["master_live_gate"]
 
     assert state["source_of_truth_version"] == "0.14.180"
     assert state["current_phase"] == 15
-    assert state["status"] == "PHASE_15_FIRST_LIVE_CANARY_RECONCILED_ZERO_FILL"
+    assert state["status"] == "PHASE_15_SECOND_LIVE_CANARY_TELEGRAM_AUTHORIZED_NOT_SUBMITTED"
     assert all(value == "pass" for value in master.values())
     assert state["phase_14_checkpoint"]["overall_live_gate"] == "pass"
     assert state["phase_14_checkpoint"]["phase15_permitted"] is True
 
-    assert gate["status"] == "LIVE_CANARY_RECONCILED_ZERO_FILL"
+    assert gate["status"] == "SECOND_LIVE_CANARY_TELEGRAM_AUTHORIZED_NOT_SUBMITTED"
     assert gate["phase15_canary_authorized"] is True
     assert gate["source_prediction_version"] == "v3-frozen-paper-v1"
     assert gate["source_execution_version"] == "paper-execution-v3-frozen-v1"
@@ -59,12 +59,33 @@ def test_phase15_first_live_canary_is_submitted_and_reconciliation_is_required()
     assert gate["order_ttl_seconds"] == 2
     assert gate["historical_trade_reuse_allowed"] is False
     assert gate["wallet_material_allowed_on_us_host"] is False
-    assert gate["automated_real_money_submission"] is False
-    assert gate["manual_real_money_submission_required"] is True
+    assert gate["automated_real_money_submission"] is True
+    assert gate["manual_real_money_submission_required"] is False
     assert gate["live_trading_enabled"] is False
     assert gate["canary_order_submitted"] is True
     assert gate["reconciliation_required_before_second_order"] is True
-    assert gate["second_order_authorized"] is False
+    assert gate["second_order_authorized"] is True
+    assert gate["telegram_one_tap_submission_authorized"] is True
+    assert gate["telegram_persistent_execution_transport_authorized"] is True
+    assert gate["telegram_pubsub_transport_authorized"] is True
+    second = gate["second_live_canary_authorization"]
+    assert second["status"] == "AUTHORIZED_NOT_SUBMITTED"
+    assert second["strategy_target_notional_usd"] == 5
+    assert second["hard_max_trade_size_usd"] == 10
+    assert second["max_network_submission_attempts"] == 1
+    assert second["global_attempt_marker_is_one_shot"] is True
+    assert second["global_attempt_marker_path"] == (
+        "/var/lib/bp-canary/telegram-live-handoff/second-canary.attempt.json"
+    )
+    assert second["requires_fresh_telegram_approval"] is True
+    assert second["requires_execution_package_verifier_pass"] is True
+    assert second["requires_privileged_handoff_contract_verifier_pass"] is True
+    assert second["requires_official_reconciliation_before_any_third_order"] is True
+    assert second["retry_on_missing_malformed_or_ambiguous_result"] is False
+    assert second["stake_growth_authorized"] is False
+    assert second["v3_strategy_mutation_authorized"] is False
+    assert second["v4_mutation_authorized"] is False
+    assert second["broad_autonomous_live_rollout_authorized"] is False
     first = gate["first_live_canary"]
     assert first["status"] == "RECONCILED_ZERO_FILL"
     assert first["intent_id"] == "live-intent-6cdfcfd28d0eb52f1ee0762bfd351409"

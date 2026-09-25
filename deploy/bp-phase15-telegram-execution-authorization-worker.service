@@ -1,0 +1,51 @@
+[Unit]
+Description=BP Phase 15 Telegram execution authorization worker
+After=bp-phase15-telegram-transport-claim-worker.service
+ConditionPathExists=/etc/bp-telegram-transport/execution-auth.env
+ConditionPathExists=/etc/bp-telegram-transport/origin.key
+ConditionPathIsDirectory=/var/lib/bp-canary/telegram-transport-ready
+ConditionPathIsDirectory=/var/lib/bp-canary/telegram-dispatch-claims
+ConditionPathIsDirectory=/var/lib/bp-canary/telegram-execution-authorized
+ConditionPathIsDirectory=/var/lib/bp-canary/telegram-execution-auth-processed
+ConditionPathIsDirectory=/var/lib/bp-canary/telegram-execution-auth-failures
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/bp-telegram-transport/current
+EnvironmentFile=/etc/bp-telegram-transport/execution-auth.env
+Environment=MODE=research
+Environment=LIVE_TRADING_ENABLED=false
+Environment=MAX_TRADE_SIZE_USD=0
+Environment=MAX_DAILY_LOSS_USD=0
+Environment=PYTHONPATH=/opt/bp-telegram-transport/current/src
+UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS BP_TELEGRAM_BOT_TOKEN GOOGLE_APPLICATION_CREDENTIALS HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy
+ExecStart=/opt/bp-telegram-transport/.venv/bin/python /opt/bp-telegram-transport/current/scripts/run_phase15_v3_telegram_execution_authorization_worker.py
+Restart=on-failure
+RestartSec=1s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+InaccessiblePaths=/etc/bp-canary /opt/bp-canary /etc/bp -/etc/bp-telegram-transport/transport.key
+ReadOnlyPaths=/opt/bp-telegram-transport /etc/bp-telegram-transport/execution-auth.env /etc/bp-telegram-transport/origin.key /var/lib/bp-canary/telegram-transport-ready
+ReadWritePaths=/var/lib/bp-canary/telegram-dispatch-claims /var/lib/bp-canary/telegram-execution-authorized /var/lib/bp-canary/telegram-execution-auth-processed /var/lib/bp-canary/telegram-execution-auth-failures
+RestrictAddressFamilies=AF_UNIX
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-phase15-telegram-execution-auth
+
+[Install]
+WantedBy=multi-user.target
