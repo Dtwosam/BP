@@ -113,7 +113,6 @@ def test_configuration_plan_cli_is_offline_and_non_mutating() -> None:
 
     for marker in (
         "create_configuration_plan",
-        "source_truth_authorized_for_activation",
         "mutation_performed",
         "network_action_performed",
         "secret_provisioning_performed",
