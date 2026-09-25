@@ -16,14 +16,14 @@ from bp_engine.execution.telegram_dispatch_ticket import (
     claim_dispatch_ticket,
     create_dispatch_ticket,
 )
-from bp_engine.execution.telegram_execution_ready import (
-    ReadyVerificationError,
-    verify_ready_bundle,
-)
 from bp_engine.execution.telegram_execution_package import (
     ExecutionPackageError,
     PACKAGE_FILES,
     verify_execution_authorization_package,
+)
+from bp_engine.execution.telegram_execution_ready import (
+    ReadyVerificationError,
+    verify_ready_bundle,
 )
 from bp_engine.execution.telegram_origin_attestation import payload_sha256
 from bp_engine.execution.telegram_pre_execution import (
