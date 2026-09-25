@@ -849,3 +849,4 @@ If activation fails after services begin, the helper stops/disables the live
 transport services and writes the Johannesburg kill switch before returning a
 failure. Secrets/resources are left for explicit forensic rollback rather than
 being silently deleted after an ambiguous partial mutation.
+\nThe activation transaction installs the exact current-main `PROJECT_STATE.json` as `/etc/bp-telegram-transport/project-state.json` with root:`bp` read-only permissions for the approval process, verifies its SHA-256 after installation, and points `BP_TELEGRAM_PROJECT_STATE_FILE` at that immutable activation snapshot rather than the recorder checkout.\n
