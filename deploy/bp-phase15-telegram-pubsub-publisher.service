@@ -9,15 +9,15 @@ ConditionPathExists=/etc/bp-telegram-transport/transport.key
 Type=simple
 User=bp
 Group=bp
-WorkingDirectory=/opt/bp-phase15-telegram-approval/current
+WorkingDirectory=/opt/bp-telegram-transport/current
 EnvironmentFile=/etc/bp/telegram-pubsub-publisher.env
 Environment=MODE=research
 Environment=LIVE_TRADING_ENABLED=false
 Environment=MAX_TRADE_SIZE_USD=0
 Environment=MAX_DAILY_LOSS_USD=0
-Environment=PYTHONPATH=/opt/bp-phase15-telegram-approval/current/src
+Environment=PYTHONPATH=/opt/bp-telegram-transport/current/src
 UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS BP_TELEGRAM_BOT_TOKEN GOOGLE_APPLICATION_CREDENTIALS HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy
-ExecStart=/opt/bp/.venv/bin/python /opt/bp-phase15-telegram-approval/current/scripts/run_phase15_v3_telegram_pubsub_publish_worker.py
+ExecStart=/opt/bp-telegram-transport/.venv/bin/python /opt/bp-telegram-transport/current/scripts/run_phase15_v3_telegram_pubsub_publish_worker.py
 Restart=on-failure
 RestartSec=1s
 UMask=0077
@@ -35,7 +35,7 @@ RestrictSUIDSGID=true
 LockPersonality=true
 CapabilityBoundingSet=
 AmbientCapabilities=
-ReadOnlyPaths=/opt/bp-phase15-telegram-approval /etc/bp/telegram-pubsub-publisher.env /etc/bp-telegram-transport
+ReadOnlyPaths=/opt/bp-telegram-transport /etc/bp/telegram-pubsub-publisher.env /etc/bp-telegram-transport
 ReadWritePaths=/var/lib/bp/phase15-canary-telegram-transport
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 StandardOutput=journal
