@@ -23,7 +23,7 @@ def test_privileged_consumer_invokes_executor_once_and_reengages_kill(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    package = tmp_path / "a" * 64
+    package = tmp_path / ("a" * 64)
     package.mkdir()
     prepared = {
         "action": "submit",
