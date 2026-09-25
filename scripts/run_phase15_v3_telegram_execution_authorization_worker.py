@@ -461,6 +461,7 @@ def authorize_ready_once(
             os.close(processed_fd)
         return result
     except (
+        OSError,
         ReadyVerificationError,
         PreExecutionError,
         DispatchTicketError,
@@ -469,7 +470,7 @@ def authorize_ready_once(
     ) as exc:
         try:
             pending_processed_path.unlink()
-        except FileNotFoundError:
+        except OSError:
             pass
         if handoff_dir is not None and not processed_path.exists():
             _remove_unpublished_handoff(handoff_dir)
