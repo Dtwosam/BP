@@ -451,6 +451,7 @@ report = {
         "resource-scoped Pub/Sub IAM provisioning",
         "privileged local executor handoff consumer implemented and reviewed",
         "read-only execution authorization package verifier PASS immediately before handoff",
+        "read-only privileged handoff contract verifier PASS against the exact executor bytes",
         "explicit source-truth authorization for second order and Telegram automation",
         "independent safe-idle/geoblock/account checks immediately before any live execution",
     ],
@@ -468,6 +469,13 @@ report = {
         "package_verifier_module": (
             "src/bp_engine/execution/telegram_execution_package.py"
         ),
+        "privileged_handoff_contract_verifier": (
+            "scripts/run_phase15_v3_telegram_privileged_handoff_verify.py"
+        ),
+        "privileged_handoff_contract_module": (
+            "src/bp_engine/execution/telegram_privileged_handoff.py"
+        ),
+        "privileged_handoff_contract_defined": True,
         "origin_key_only": True,
         "network_enabled": False,
         "handoff_invoked": False,
@@ -481,6 +489,7 @@ report = {
             "exact prepared/approval/dispatch binding",
             "immutable Johannesburg handoff package materialization",
             "read-only full package verification before privileged handoff",
+            "read-only exact executor identity and handoff contract verification",
         ],
         "remaining_gap": "privileged_execution_handoff_not_defined",
     },
