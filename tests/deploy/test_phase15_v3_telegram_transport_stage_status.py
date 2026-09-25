@@ -60,6 +60,7 @@ def test_transport_stage_status_requires_inactive_secret_free_stage() -> None:
         "publisher_service_enabled",
         "executor_receiver_env_present",
         "executor_claim_env_present",
+        "executor_execution_auth_env_present",
         "executor_transport_key_present",
         "executor_origin_key_present",
         "transport_service_active",
