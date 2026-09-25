@@ -500,9 +500,10 @@ The builder accepts only an exact source-file whitelist covering the transport s
 workers, and trust-chain modules. It requires a clean Git working tree, binds the release to
 the exact commit SHA, normalizes archive ownership/mode/timestamps, and emits a manifest with
 the SHA-256 and size of every member. Rebuilding the same commit must produce byte-identical
-archive bytes. The recorder-side Pub/Sub publisher and Johannesburg receiver/claim worker all
-execute from the same versioned `/opt/bp-telegram-transport/current` release tree, keeping the
-carrier independently deployable and rollbackable from the Telegram approval listener.
+archive bytes. The recorder-side Pub/Sub publisher and Johannesburg receiver/claim plus
+execution-authorization workers all execute from the same versioned
+`/opt/bp-telegram-transport/current` release tree, keeping the carrier independently
+deployable and rollbackable from the Telegram approval listener.
 
 The release archive deliberately contains no `PROJECT_STATE.json`, `.env` files, HMAC key
 files, service-account credentials, wallet material, or other runtime secrets. The independent
@@ -539,10 +540,10 @@ Telegram approval sidecar may exist and is not treated as the transport release 
 
 The Johannesburg preflight read-only verifies the executor VM identity/zone, service-account
 shape and cloud-platform scope, Python/systemd availability, minimum root free space, absence
-of an existing receiver/claim transport install, presence of the existing executor and kill
-switch, and an executor `health` response showing safe idle state: kill switch engaged, no
-valid activation, submission not ready, no live order submitted, and direct ZA geoblock
-eligibility.
+of an existing receiver/claim/execution-authorization transport install, presence of the
+existing executor and kill switch, and an executor `health` response showing safe idle
+state: kill switch engaged, no valid activation, submission not ready, no live order
+submitted, and direct ZA geoblock eligibility.
 
 Both preflights perform no `scp`, package installation, user/group creation, archive
 extraction, filesystem mutation, IAM change, Pub/Sub creation, systemd start/enable/restart,
@@ -567,7 +568,10 @@ creates a dedicated transport virtual environment from the release-carried direc
 pins using binary wheels only, verifies `httpx==0.28.1` and
 `google-cloud-pubsub==2.41.0`, installs only the appropriate systemd unit files, and creates
 the transport state directories. The recorder publisher remains owned by `bp`; the
-Johannesburg receiver/claim services use the dedicated `bp-transport` system account.
+Johannesburg receiver/claim services use the dedicated `bp-transport` system account, while
+the offline execution-authorization worker is root-owned only so it can read the root-only
+origin key. Its systemd sandbox has no network family beyond `AF_UNIX`, no wallet/executor
+path, no transport-key access, and no Linux capabilities.
 
 Before each host's first stage mutation, the installer writes a durable stage-owner record
 binding the random stage ID, role, release head, archive SHA-256, and any planned
@@ -576,12 +580,12 @@ This ownership record lets local rollback safely identify partial work even if S
 mid-stage. A two-host failure rolls back any already-completed side using that exact stage
 identity.
 
-Staging deliberately creates **no** publisher/receiver/claim environment files, transport
-key, origin key, Pub/Sub topic/subscription, IAM binding, activation, wallet material, or
-handoff configuration. It performs `systemctl daemon-reload` only; all transport services
-must remain disabled and inactive. Recorder/predictor/paper PIDs are preserved, and the
-Johannesburg executor must remain safe-idle with the kill switch engaged before and after
-staging.
+Staging deliberately creates **no** publisher/receiver/claim/execution-authorization
+environment files, transport key, origin key, Pub/Sub topic/subscription, IAM binding,
+activation, wallet material, or execution handoff configuration. It performs
+`systemctl daemon-reload` only; all transport services must remain disabled and inactive.
+Recorder/predictor/paper PIDs are preserved, and the Johannesburg executor must remain
+safe-idle with the kill switch engaged before and after staging.
 
 The stage can be inspected read-only with:
 
@@ -604,7 +608,8 @@ scripts/deploy/phase15_v3_telegram_transport_stage_rollback_cloudshell.sh
 
 Rollback requires `PHASE15_ACCEPT_TELEGRAM_TRANSPORT_STAGE_ROLLBACK=yes` plus the exact
 `PHASE15_TELEGRAM_TRANSPORT_STAGE_ID`. It probes both hosts before deletion and refuses if
-any transport service is active/enabled or if any publisher/receiver/claim env file,
+any transport service is active/enabled or if any
+publisher/receiver/claim/execution-authorization env file,
 transport key, or origin key exists. It revalidates owner+metadata immediately before removal,
 preserves recorder core PIDs and Johannesburg safe-idle health, and can finish a prior partial
 rollback by treating an already-clean side as absent. It does not remove keys/env because
@@ -677,8 +682,32 @@ Legacy schema-v1 transport remains supported by generic/offline tooling and cont
 consumer. Current source truth has `second_order_authorized=false`, so the real approved-outbox
 path fails closed before writing a v2 envelope today.
 
-No persistent Johannesburg consumer uses the v2 ready result yet. That remains the next
-engineering boundary.
+The persistent Johannesburg authorization consumer is now implemented as:
+
+```text
+scripts/run_phase15_v3_telegram_execution_authorization_worker.py
+deploy/bp-phase15-telegram-execution-authorization-worker.service
+```
+
+It is deliberately **not** an executor consumer. It is offline-only, owns only the root-only
+origin-key verification boundary, and requires `execution_ready_source_truth_verified`.
+It derives a pre-execution report directly from the already authenticated short-lived
+source-truth proof, creates and atomically consumes the exact one-shot dispatch claim, and
+materializes a private immutable handoff package containing the prepared order, sanitized
+approval, ready verification, pre-execution report, dispatch ticket, dispatch claim, and
+terminal receipt.
+
+The v2 dispatch ticket is also bound to the signed source-truth proof hashes/timestamps and
+may never outlive that proof. If the dispatch claim has been consumed and handoff-package
+materialization then fails, the failure is terminal and automatic retry is forbidden. The
+worker has no network access, no transport key, no `/etc/bp-canary` access, no wallet
+material, no arm/executor command, and records `handoff_invoked=false`,
+`executor_invoked=false`, and `real_order_submitted=false`.
+
+The remaining engineering boundary is therefore narrower: a separately reviewed privileged
+local consumer would have to consume one completed immutable authorization package and invoke
+the existing Johannesburg arm/submission handoff. That component is not defined by this
+branch and remains a separate explicit production/live-money authorization boundary.
 
 ### Read-only transport activation plan
 
@@ -695,27 +724,29 @@ subscriber service accounts, checks for dedicated identities and `cloud-platform
 reports whether the resource-scoped publisher/subscriber IAM bindings already exist, and
 flags broad project-level roles.
 
-The plan outputs the exact future publisher, receiver, claim-worker, and listener-handoff
-environment-file shapes; key-file paths, ownership and modes; required resource-scoped IAM;
-service activation order; and source-truth values that would have to be explicitly authorized.
+The plan outputs the exact future publisher, receiver, claim-worker,
+execution-authorization-worker, and listener-handoff environment-file shapes; key-file paths,
+ownership and modes; required resource-scoped IAM; service activation order; and source-truth
+values that would have to be explicitly authorized.
 It never generates or emits key material, writes environment files, changes IAM, creates
 Pub/Sub resources, starts/enables services, invokes the executor, or submits an order.
 
-The plan is deliberately hard-blocked by
-`persistent_execution_authorization_consumer_not_defined`. The carrier can deliver and
-claim a verified ready bundle, but BP does not yet have a persistent Johannesburg service
-that owns the final chain:
+The plan now recognizes the offline persistent authorization consumer and is deliberately
+hard-blocked by `privileged_execution_handoff_not_defined`. The implemented persistent
+chain stops before execution:
 
 ```text
 origin-HMAC + signed source-truth verification
 -> require execution_ready_source_truth_verified
 -> one-shot dispatch ticket creation/claim
 -> exact prepared/approval/dispatch binding
--> Johannesburg executor handoff
+-> immutable Johannesburg authorization package
 ```
 
-That missing consumer must be designed and reviewed before transport activation can be
-considered complete. The planner always reports
+A separate privileged local handoff consumer would still be required to cross from that
+immutable package into the existing arm/submission path. That remaining component must be
+designed and reviewed under a separate explicit authorization before transport activation can
+be considered complete. The planner always reports
 `TELEGRAM_TRANSPORT_ACTIVATION_PERMITTED=false`.
 
 ## Safety invariants
