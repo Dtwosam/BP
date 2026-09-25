@@ -501,9 +501,9 @@ workers, and trust-chain modules. It requires a clean Git working tree, binds th
 the exact commit SHA, normalizes archive ownership/mode/timestamps, and emits a manifest with
 the SHA-256 and size of every member. Rebuilding the same commit must produce byte-identical
 archive bytes. The recorder-side Pub/Sub publisher and Johannesburg receiver/claim plus
-execution-authorization workers all execute from the same versioned
-`/opt/bp-telegram-transport/current` release tree, keeping the carrier independently
-deployable and rollbackable from the Telegram approval listener.
+execution-authorization workers and the read-only execution-package verifier all execute
+from the same versioned `/opt/bp-telegram-transport/current` release tree, keeping the
+carrier independently deployable and rollbackable from the Telegram approval listener.
 
 The release archive deliberately contains no `PROJECT_STATE.json`, `.env` files, HMAC key
 files, service-account credentials, wallet material, or other runtime secrets. The independent
@@ -704,10 +704,26 @@ worker has no network access, no transport key, no `/etc/bp-canary` access, no w
 material, no arm/executor command, and records `handoff_invoked=false`,
 `executor_invoked=false`, and `real_order_submitted=false`.
 
+The immutable package now also has an independent read-only verifier:
+
+```text
+src/bp_engine/execution/telegram_execution_package.py
+scripts/run_phase15_v3_telegram_execution_package_verify.py
+```
+
+The verifier requires the exact root-owned `0700` package directory and root-owned `0600`
+processed receipt, rejects extra or missing files, checks the package manifest hashes and
+sizes, recomputes the pre-execution authorization from the signed v2 ready result, re-verifies
+the dispatch ticket against that authorization, validates the one-shot dispatch-claim hash,
+and rechecks the exact intent/request/prepared/approval/origin/source-truth/report/ticket
+bindings. It also enforces the package's short-lived expiry. The verifier is read-only and has
+no network, wallet, arm, executor, or order-submission path.
+
 The remaining engineering boundary is therefore narrower: a separately reviewed privileged
-local consumer would have to consume one completed immutable authorization package and invoke
-the existing Johannesburg arm/submission handoff. That component is not defined by this
-branch and remains a separate explicit production/live-money authorization boundary.
+local consumer would have to require a fresh PASS from that verifier for one completed
+immutable authorization package and only then invoke the existing Johannesburg arm/submission
+handoff. That component is not defined by this branch and remains a separate explicit
+production/live-money authorization boundary.
 
 ### Read-only transport activation plan
 
@@ -744,9 +760,11 @@ origin-HMAC + signed source-truth verification
 ```
 
 A separate privileged local handoff consumer would still be required to cross from that
-immutable package into the existing arm/submission path. That remaining component must be
-designed and reviewed under a separate explicit authorization before transport activation can
-be considered complete. The planner always reports
+immutable package into the existing arm/submission path. Any such consumer must require a
+fresh PASS from `run_phase15_v3_telegram_execution_package_verify.py` immediately before
+handoff while the signed source-truth/dispatch authorization remains unexpired. That remaining
+component must be designed and reviewed under a separate explicit authorization before
+transport activation can be considered complete. The planner always reports
 `TELEGRAM_TRANSPORT_ACTIVATION_PERMITTED=false`.
 
 ## Safety invariants
