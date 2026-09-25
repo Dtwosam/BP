@@ -17,6 +17,7 @@ from bp_engine.execution.telegram_dispatch_ticket import (
 )
 from bp_engine.execution.telegram_pre_execution import (
     evaluate_pre_execution_authorization,
+    evaluate_signed_pre_execution_authorization,
     project_state_authorization_snapshot,
     source_truth_sha256,
 )
@@ -170,20 +171,27 @@ def test_dispatch_claim_accepts_exact_source_truth_v2_chain(
     now = datetime(2026, 9, 24, 21, 0, 2, tzinfo=UTC)
     state = _authorized_state()
     ready = _ready_v2(now, state)
-    report = evaluate_pre_execution_authorization(
+    report = evaluate_signed_pre_execution_authorization(
         ready_verification=ready,
-        project_state=state,
     )
     ticket = create_dispatch_ticket(
         report,
         created_at=now + timedelta(seconds=2),
     )
 
+    assert ticket["source_truth_authorization_sha256"] == ready[
+        "source_truth_authorization_sha256"
+    ]
+    assert ticket["authorization_snapshot_sha256"] == ready[
+        "authorization_snapshot_sha256"
+    ]
+    assert ticket["expires_at"] == ready["source_truth_expires_at"]
+
     claimed = claim_dispatch_ticket(
         ticket,
         pre_execution_report=report,
         ready_verification=ready,
-        project_state=state,
+        project_state=None,
         observed_at=now + timedelta(seconds=3),
         state_dir=tmp_path / "v2-claims",
     )
@@ -196,6 +204,7 @@ def test_dispatch_claim_accepts_exact_source_truth_v2_chain(
         ready["source_truth_authorization_sha256"]
     )
     assert report["source_truth_sha256"] == ready["project_state_sha256"]
+    assert claimed["expires_at"] == ready["source_truth_expires_at"]
     assert claimed["retry_allowed"] is False
     assert claimed["executor_invoked"] is False
     assert claimed["real_order_submitted"] is False
@@ -207,9 +216,8 @@ def test_dispatch_claim_rejects_source_truth_v2_proof_drift_before_consumption(
     now = datetime(2026, 9, 24, 21, 0, 2, tzinfo=UTC)
     state = _authorized_state()
     ready = _ready_v2(now, state)
-    report = evaluate_pre_execution_authorization(
+    report = evaluate_signed_pre_execution_authorization(
         ready_verification=ready,
-        project_state=state,
     )
     ticket = create_dispatch_ticket(
         report,
@@ -224,11 +232,34 @@ def test_dispatch_claim_rejects_source_truth_v2_proof_drift_before_consumption(
             ticket,
             pre_execution_report=report,
             ready_verification=changed_ready,
-            project_state=state,
+            project_state=None,
             observed_at=now + timedelta(seconds=3),
             state_dir=state_dir,
         )
     assert not state_dir.exists()
+
+
+def test_dispatch_ticket_v2_cannot_outlive_source_truth_authorization() -> None:
+    now = datetime(2026, 9, 24, 21, 0, 2, tzinfo=UTC)
+    state = _authorized_state()
+    ready = _ready_v2(now, state)
+    report = evaluate_signed_pre_execution_authorization(
+        ready_verification=ready,
+    )
+    ticket = create_dispatch_ticket(
+        report,
+        created_at=now + timedelta(seconds=2),
+    )
+    source_truth_expires = datetime.fromisoformat(
+        str(ready["source_truth_expires_at"])
+    )
+
+    assert ticket["expires_at"] == ready["source_truth_expires_at"]
+    with pytest.raises(DispatchTicketError, match="expired"):
+        verify_dispatch_ticket(
+            ticket,
+            observed_at=source_truth_expires,
+        )
 
 
 def test_dispatch_claim_rejects_source_truth_v2_state_drift_before_consumption(
