@@ -22,8 +22,17 @@ from bp_engine.execution.telegram_origin_attestation import (
     ORIGIN_ATTESTATION_PURPOSE,
     ORIGIN_ATTESTATION_SCHEMA_VERSION,
 )
+from bp_engine.execution.telegram_pre_execution import (
+    PROJECT_STATE_AUTHORIZATION_SNAPSHOT_FIELDS,
+)
+from bp_engine.execution.telegram_source_truth_authorization import (
+    SOURCE_TRUTH_AUTHORIZATION_FIELDS,
+    SOURCE_TRUTH_AUTHORIZATION_PURPOSE,
+    SOURCE_TRUTH_AUTHORIZATION_SCHEMA_VERSION,
+)
 
 TRANSPORT_SCHEMA_VERSION = 1
+AUTHORIZED_TRANSPORT_SCHEMA_VERSION = 2
 TRANSPORT_PURPOSE = "phase15-v3-telegram-execution-v1"
 TRANSPORT_MAX_LIFETIME_SECONDS = 15
 TRANSPORT_ENVELOPE_FIELDS = frozenset(
@@ -46,6 +55,13 @@ TRANSPORT_ENVELOPE_FIELDS = frozenset(
         "prepared",
         "approval",
         "hmac_sha256",
+    }
+)
+AUTHORIZED_TRANSPORT_ENVELOPE_FIELDS = frozenset(
+    set(TRANSPORT_ENVELOPE_FIELDS)
+    | {
+        "source_truth_authorization_sha256",
+        "source_truth_authorization",
     }
 )
 TRANSPORT_APPROVAL_FIELDS = frozenset(
@@ -215,6 +231,103 @@ def _validate_origin_attestation_binding(
     return copied, attested_at, expires_at
 
 
+def _validate_source_truth_authorization_binding(
+    authorization: Mapping[str, Any],
+    *,
+    origin_attestation_sha256: str,
+    origin_key_id: str,
+    origin_attested_at: datetime,
+    origin_expires_at: datetime,
+    prepared_sha256: str,
+    approval_sha256: str,
+    approval_source_sha256: str,
+    intent_id: str,
+    prediction_id: str,
+    paper_order_id: str,
+    request_sha256: str,
+) -> tuple[dict[str, Any], datetime, datetime]:
+    if set(authorization) != SOURCE_TRUTH_AUTHORIZATION_FIELDS:
+        raise TransportError("source truth authorization fields mismatch")
+    if (
+        authorization.get("schema_version")
+        != SOURCE_TRUTH_AUTHORIZATION_SCHEMA_VERSION
+    ):
+        raise TransportError("source truth authorization schema mismatch")
+    if authorization.get("purpose") != SOURCE_TRUTH_AUTHORIZATION_PURPOSE:
+        raise TransportError("source truth authorization purpose mismatch")
+    if str(authorization.get("key_id") or "") != origin_key_id:
+        raise TransportError("source truth authorization key id mismatch")
+    if authorization.get("authorized") is not True:
+        raise TransportError("source truth authorization is blocked")
+    if authorization.get("blockers") != []:
+        raise TransportError("source truth authorization contains blockers")
+
+    snapshot = authorization.get("authorization_snapshot")
+    if not isinstance(snapshot, Mapping):
+        raise TransportError("source truth authorization snapshot missing")
+    if set(snapshot) != PROJECT_STATE_AUTHORIZATION_SNAPSHOT_FIELDS:
+        raise TransportError("source truth authorization snapshot fields mismatch")
+    if (
+        str(authorization.get("authorization_snapshot_sha256") or "")
+        != payload_sha256(snapshot)
+    ):
+        raise TransportError("source truth authorization snapshot hash mismatch")
+
+    expected = {
+        "intent_id": intent_id,
+        "prediction_id": prediction_id,
+        "paper_order_id": paper_order_id,
+        "request_sha256": request_sha256,
+        "prepared_sha256": prepared_sha256,
+        "approval_sha256": approval_sha256,
+        "approval_source_sha256": approval_source_sha256,
+        "origin_attestation_sha256": origin_attestation_sha256,
+        "origin_attested_at": origin_attested_at.isoformat(),
+    }
+    for name, value in expected.items():
+        if str(authorization.get(name) or "") != value:
+            raise TransportError(f"source truth authorization {name} mismatch")
+
+    for name in (
+        "project_state_sha256",
+        "authorization_snapshot_sha256",
+        "request_sha256",
+        "prepared_sha256",
+        "approval_sha256",
+        "approval_source_sha256",
+        "origin_attestation_sha256",
+        "hmac_sha256",
+    ):
+        value = str(authorization.get(name) or "")
+        if re.fullmatch(r"[0-9a-f]{64}", value) is None:
+            raise TransportError(f"source truth authorization {name} invalid")
+
+    try:
+        attested_at = _utc(
+            datetime.fromisoformat(str(authorization["attested_at"]))
+        )
+        expires_at = _utc(
+            datetime.fromisoformat(str(authorization["expires_at"]))
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise TransportError(
+            "source truth authorization timestamps invalid"
+        ) from exc
+    if attested_at < origin_attested_at:
+        raise TransportError(
+            "source truth authorization predates origin attestation"
+        )
+    if expires_at <= attested_at:
+        raise TransportError("source truth authorization expiry invalid")
+    if expires_at > origin_expires_at:
+        raise TransportError(
+            "source truth authorization outlives origin attestation"
+        )
+
+    copied = json.loads(_canonical(authorization).decode())
+    return copied, attested_at, expires_at
+
+
 def create_transport_envelope(
     prepared: Mapping[str, Any],
     *,
@@ -306,6 +419,70 @@ def create_transport_envelope(
     }
 
 
+def create_authorized_transport_envelope(
+    prepared: Mapping[str, Any],
+    *,
+    approval: Mapping[str, Any],
+    origin_attestation: Mapping[str, Any],
+    source_truth_authorization: Mapping[str, Any],
+    key: bytes,
+    key_id: str,
+    created_at: datetime,
+    nonce: str,
+) -> dict[str, Any]:
+    base = create_transport_envelope(
+        prepared,
+        approval=approval,
+        origin_attestation=origin_attestation,
+        key=key,
+        key_id=key_id,
+        created_at=created_at,
+        nonce=nonce,
+    )
+    created = _utc(created_at)
+    origin_attested_at = _utc(
+        datetime.fromisoformat(str(origin_attestation["attested_at"]))
+    )
+    origin_expires_at = _utc(
+        datetime.fromisoformat(str(origin_attestation["expires_at"]))
+    )
+    source_copy, source_attested_at, source_expires_at = (
+        _validate_source_truth_authorization_binding(
+            source_truth_authorization,
+            origin_attestation_sha256=str(base["origin_attestation_sha256"]),
+            origin_key_id=str(origin_attestation["key_id"]),
+            origin_attested_at=origin_attested_at,
+            origin_expires_at=origin_expires_at,
+            prepared_sha256=str(base["prepared_sha256"]),
+            approval_sha256=str(base["approval_sha256"]),
+            approval_source_sha256=str(base["approval_source_sha256"]),
+            intent_id=str(base["intent_id"]),
+            prediction_id=str(base["prediction_id"]),
+            paper_order_id=str(base["paper_order_id"]),
+            request_sha256=str(base["request_sha256"]),
+        )
+    )
+    if source_attested_at > created:
+        raise TransportError("transport predates source truth authorization")
+    if created >= source_expires_at:
+        raise TransportError("source truth authorization expired before transport")
+
+    body = {
+        name: value
+        for name, value in base.items()
+        if name != "hmac_sha256"
+    }
+    body["schema_version"] = AUTHORIZED_TRANSPORT_SCHEMA_VERSION
+    body["source_truth_authorization_sha256"] = payload_sha256(source_copy)
+    body["source_truth_authorization"] = source_copy
+    base_expires = _utc(datetime.fromisoformat(str(body["expires_at"])))
+    body["expires_at"] = min(base_expires, source_expires_at).isoformat()
+    return {
+        **body,
+        "hmac_sha256": _mac(body, key),
+    }
+
+
 def verify_transport_envelope(
     envelope: Mapping[str, Any],
     *,
@@ -314,10 +491,15 @@ def verify_transport_envelope(
     observed_at: datetime,
 ) -> dict[str, Any]:
     observed = _utc(observed_at)
-    if set(envelope) != TRANSPORT_ENVELOPE_FIELDS:
-        raise TransportError("transport envelope fields mismatch")
-    if envelope.get("schema_version") != TRANSPORT_SCHEMA_VERSION:
+    schema_version = envelope.get("schema_version")
+    if schema_version == TRANSPORT_SCHEMA_VERSION:
+        expected_fields = TRANSPORT_ENVELOPE_FIELDS
+    elif schema_version == AUTHORIZED_TRANSPORT_SCHEMA_VERSION:
+        expected_fields = AUTHORIZED_TRANSPORT_ENVELOPE_FIELDS
+    else:
         raise TransportError("transport schema mismatch")
+    if set(envelope) != expected_fields:
+        raise TransportError("transport envelope fields mismatch")
     if envelope.get("purpose") != TRANSPORT_PURPOSE:
         raise TransportError("transport purpose mismatch")
     if str(envelope.get("key_id") or "") != _key_id(expected_key_id):
@@ -334,12 +516,18 @@ def verify_transport_envelope(
     prepared = envelope.get("prepared")
     approval = envelope.get("approval")
     origin_attestation = envelope.get("origin_attestation")
+    source_truth_authorization = envelope.get("source_truth_authorization")
     if (
         not isinstance(prepared, Mapping)
         or not isinstance(approval, Mapping)
         or not isinstance(origin_attestation, Mapping)
     ):
         raise TransportError("transport payload missing")
+    if (
+        schema_version == AUTHORIZED_TRANSPORT_SCHEMA_VERSION
+        and not isinstance(source_truth_authorization, Mapping)
+    ):
+        raise TransportError("source truth authorization payload missing")
     if set(approval) != TRANSPORT_APPROVAL_FIELDS:
         raise TransportError("transport approval fields mismatch")
 
@@ -352,6 +540,12 @@ def verify_transport_envelope(
         != payload_sha256(origin_attestation)
     ):
         raise TransportError("origin attestation hash mismatch")
+    if (
+        schema_version == AUTHORIZED_TRANSPORT_SCHEMA_VERSION
+        and str(envelope.get("source_truth_authorization_sha256") or "")
+        != payload_sha256(source_truth_authorization)
+    ):
+        raise TransportError("source truth authorization hash mismatch")
 
     try:
         created = _utc(datetime.fromisoformat(str(envelope["created_at"])))
@@ -396,6 +590,41 @@ def verify_transport_envelope(
         raise TransportError("transport outlives origin attestation")
     if observed >= origin_expires_at:
         raise TransportError("origin attestation expired")
+
+    source_copy: dict[str, Any] | None = None
+    if schema_version == AUTHORIZED_TRANSPORT_SCHEMA_VERSION:
+        assert isinstance(source_truth_authorization, Mapping)
+        source_copy, source_attested_at, source_expires_at = (
+            _validate_source_truth_authorization_binding(
+                source_truth_authorization,
+                origin_attestation_sha256=str(
+                    envelope["origin_attestation_sha256"]
+                ),
+                origin_key_id=str(origin_copy["key_id"]),
+                origin_attested_at=origin_attested_at,
+                origin_expires_at=origin_expires_at,
+                prepared_sha256=str(envelope["prepared_sha256"]),
+                approval_sha256=str(envelope["approval_sha256"]),
+                approval_source_sha256=str(
+                    envelope["approval_source_sha256"]
+                ),
+                intent_id=str(binding["intent_id"]),
+                prediction_id=str(binding["prediction_id"]),
+                paper_order_id=str(binding["paper_order_id"]),
+                request_sha256=str(binding["request_sha256"]),
+            )
+        )
+        if source_attested_at > created:
+            raise TransportError(
+                "transport predates source truth authorization"
+            )
+        if expires > source_expires_at:
+            raise TransportError(
+                "transport outlives source truth authorization"
+            )
+        if observed >= source_expires_at:
+            raise TransportError("source truth authorization expired")
+
     transport_nonce = str(envelope.get("transport_nonce") or "")
     if not transport_nonce or len(transport_nonce.encode()) > 80:
         raise TransportError("transport nonce invalid")
@@ -409,6 +638,12 @@ def verify_transport_envelope(
         value = str(envelope.get(name) or "")
         if re.fullmatch(r"[0-9a-f]{64}", value) is None:
             raise TransportError(f"transport {name} invalid")
+    if schema_version == AUTHORIZED_TRANSPORT_SCHEMA_VERSION:
+        value = str(envelope.get("source_truth_authorization_sha256") or "")
+        if re.fullmatch(r"[0-9a-f]{64}", value) is None:
+            raise TransportError(
+                "transport source_truth_authorization_sha256 invalid"
+            )
 
     return {
         "key_id": str(envelope["key_id"]),
@@ -429,8 +664,17 @@ def verify_transport_envelope(
         "expires_at": expires.isoformat(),
         "prepared": dict(prepared),
         "approval": dict(approval),
+        **(
+            {
+                "source_truth_authorization_sha256": str(
+                    envelope["source_truth_authorization_sha256"]
+                ),
+                "source_truth_authorization": source_copy,
+            }
+            if source_copy is not None
+            else {}
+        ),
     }
-
 
 
 def _ensure_private_directory(path: Path) -> None:
@@ -484,6 +728,10 @@ def claim_transport_envelope(
         "claimed_at": _utc(observed_at).isoformat(),
         "retry_allowed": False,
     }
+    if "source_truth_authorization_sha256" in verified:
+        record["source_truth_authorization_sha256"] = verified[
+            "source_truth_authorization_sha256"
+        ]
     encoded = json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
     try:
         fd = os.open(
