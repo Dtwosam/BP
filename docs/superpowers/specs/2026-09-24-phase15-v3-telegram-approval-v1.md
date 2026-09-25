@@ -1,22 +1,21 @@
 # Phase 15 — V3 Telegram Approval v1
 
 **Date:** 24 September 2026  
-**Status:** engineering candidate; listener and handoff code only; not deployed; no new live authorization
+**Status:** engineering candidate; full one-shot Telegram execution chain implemented; second canary authorized; not deployed
 
 ## Current source-truth boundary
 
-The first frozen-V3 real-money canary has already consumed the single authorized network
-submission attempt and has been reconciled as zero fill. Current source truth keeps global live
-trading disabled and does not authorize a second order.
+The first frozen-V3 real-money canary consumed its original network submission attempt and was
+officially reconciled as zero fill. On 25 September 2026 the user explicitly authorized exactly
+one additional frozen-V3 canary through this private Telegram path. Global and Phase-15
+`LIVE_TRADING_ENABLED` remain false; this is an exact-order authorization rather than a
+general live-mode switch.
 
-This Telegram work does not change that boundary. In particular, it does not set or imply:
-
-- `second_order_authorized = true`;
-- `automated_real_money_submission = true`;
-- `telegram_one_tap_submission_authorized = true`;
-- `telegram_persistent_execution_transport_authorized = true`.
-
-Missing Telegram authorization fields are interpreted as false by the readiness gate.
+Current source truth explicitly sets the second-order, automated-submission, Telegram one-tap,
+persistent transport, and Pub/Sub transport authorization fields required by the short-lived
+signed pre-execution gate. The authorization remains bounded to one fresh $5 frozen-V3 canary
+under the existing $10 hard risk caps and requires official reconciliation before any third
+live action.
 
 ## Objective
 
@@ -131,7 +130,7 @@ The bridge additionally requires a future source-truth flag:
 telegram_one_tap_submission_authorized = true
 ```
 
-Current source truth does not contain that authorization, so the bridge fails before arming.
+Current source truth now contains that narrow authorization for the second canary, but the bridge remains inert until the reviewed transport/runtime is staged, configured, and activated.
 
 The bridge is intentionally not configured in the listener service or installer.
 
@@ -205,10 +204,10 @@ exist, second-order authorization must be true, automated real-money submission 
 authorized, manual-only submission must be lifted, and the Telegram one-tap, persistent
 transport, and Pub/Sub transport authorizations must all be true.
 
-The current source truth does not satisfy those requirements, so the gate reports
-`pre_execution_blocked`. The gate never arms, signs, submits, cancels, mutates source truth,
-or calls a network service; even its synthetic authorized result is only an authorization
-report for a later separately reviewed execution boundary.
+Current source truth now satisfies those policy requirements for exactly the authorized second
+canary. The gate itself still never arms, signs, submits, cancels, mutates source truth, or
+calls a network service; it only creates the short-lived authorization report that later
+layers must independently verify.
 
 
 The authorization report binds the transport key ID, origin key ID, exact intent/order
@@ -253,14 +252,13 @@ Before its existing arm boundary it requires the complete future source-truth au
 set, exact dispatch-claim fields, the current source-truth hash, exact
 prepared/approval/request binding, and an unexpired dispatch claim. It snapshots the dispatch
 claim bytes and checks them again after arm before any existing submission boundary. Current
-source truth does not satisfy those authorizations, and the listener service does not
-configure the handoff, so this remains inert engineering code rather than an enabled execution
-path.
+source truth now satisfies those narrow authorizations for the second canary, but the listener
+and transport remain inert until staged configuration and activation complete.
 
 The CLI requires explicit enablement plus research/live-disabled/zero-money runtime and rejects
 wallet, Telegram-bot, or Google application credentials in its environment. Current source
-truth remains blocked, so it cannot produce a valid current-state dispatch claim for another
-live order.
+truth may now produce a valid short-lived dispatch claim only after the exact Telegram approval
+and signed source-truth checks pass.
 
 The carrierless adapters are:
 
@@ -528,9 +526,8 @@ scripts/deploy/phase15_v3_telegram_transport_install_preflight_cloudshell.sh
 They are not installers. Before any production mutation, both require a clean checkout exactly
 at current `origin/main`, verify the same deterministic transport release against that exact
 commit, and prove from current source truth that global/Phase-15 live trading remains off,
-the first canary has already been submitted, no second order is authorized, automated
-submission is off, manual submission is still required, and all Telegram execution-transport
-authorization flags remain false.
+the first canary has already been submitted and reconciled, and the narrow second-canary
+Telegram authorization fields match the reviewed one-shot execution contract.
 
 The recorder-side publisher preflight then read-only verifies the `bp-recorder` VM identity,
 service-account shape/cloud-platform scope, active core research services and stable PIDs,
@@ -679,8 +676,9 @@ the origin key, then authenticates both the origin attestation and source-truth 
 
 Legacy schema-v1 transport remains supported by generic/offline tooling and continues to yield
 `execution_ready_origin_verified`; it is not sufficient for the future persistent execution
-consumer. Current source truth has `second_order_authorized=false`, so the real approved-outbox
-path fails closed before writing a v2 envelope today.
+consumer. Current source truth now has `second_order_authorized=true` only for the bounded
+second canary, so a real approved-outbox v2 envelope can be created only after a fresh exact
+Telegram approval passes every source-truth and expiry check.
 
 The persistent Johannesburg authorization consumer is now implemented as:
 
@@ -719,11 +717,11 @@ and rechecks the exact intent/request/prepared/approval/origin/source-truth/repo
 bindings. It also enforces the package's short-lived expiry. The verifier is read-only and has
 no network, wallet, arm, executor, or order-submission path.
 
-The remaining engineering boundary is therefore narrower: a separately reviewed privileged
-local consumer would have to require a fresh PASS from that verifier for one completed
-immutable authorization package and only then invoke the existing Johannesburg arm/submission
-handoff. That component is not defined by this branch and remains a separate explicit
-production/live-money authorization boundary.
+The privileged local consumer is now implemented. It requires a fresh PASS from the package
+and handoff-contract verifiers for one immutable authorization package and then invokes the
+existing Johannesburg executor exactly once. It does not duplicate Polymarket signing/order
+logic, creates a durable attempt marker before invocation, treats ambiguity as terminal, and
+re-engages the kill switch after the attempt and on service exit.
 
 ### Read-only transport activation plan
 
@@ -747,9 +745,8 @@ values that would have to be explicitly authorized.
 It never generates or emits key material, writes environment files, changes IAM, creates
 Pub/Sub resources, starts/enables services, invokes the executor, or submits an order.
 
-The plan now recognizes the offline persistent authorization consumer and is deliberately
-hard-blocked by `privileged_execution_handoff_not_defined`. The implemented persistent
-chain stops before execution:
+The plan now recognizes both the offline persistent authorization consumer and the privileged
+one-shot handoff consumer. The implemented chain reaches the existing executor:
 
 ```text
 origin-HMAC + signed source-truth verification
@@ -757,19 +754,21 @@ origin-HMAC + signed source-truth verification
 -> one-shot dispatch ticket creation/claim
 -> exact prepared/approval/dispatch binding
 -> immutable Johannesburg authorization package
+-> full package + exact executor-SHA verification
+-> durable one-shot attempt marker
+-> existing executor invocation
+-> kill-switch re-engagement + local result receipt
 ```
 
-A separate privileged local handoff consumer would still be required to cross from that
-immutable package into the existing arm/submission path. Any such consumer must require a
-fresh PASS from `run_phase15_v3_telegram_execution_package_verify.py` immediately before
-handoff while the signed source-truth/dispatch authorization remains unexpired. That remaining
-component must be designed and reviewed under a separate explicit authorization before
-transport activation can be considered complete. The planner always reports
-`TELEGRAM_TRANSPORT_ACTIVATION_PERMITTED=false`.
+The remaining blockers are deployment/runtime prerequisites: exact green release/stage hashes,
+separate origin/transport keys, least-privilege Pub/Sub identities/IAM, environment files,
+service activation, and fresh Johannesburg safe-idle/geography/account checks. The read-only
+planner itself always reports `TELEGRAM_TRANSPORT_ACTIVATION_PERMITTED=false` because it never
+performs those mutations.
 
 ## Safety invariants
 
-- no second order without new explicit source-truth authorization;
+- no third order without new explicit source-truth authorization after official reconciliation of the second;
 - no bot token, wallet key, or wallet address in Git or chat;
 - private Telegram chat only;
 - exact intent/request binding only;
@@ -812,6 +811,8 @@ executor, call a network service, or submit/cancel an order. Passing it is there
 mandatory precondition for a future separately implemented and reviewed privileged consumer;
 it is not execution authorization by itself and does not change current source truth.
 
-The remaining engineering and authorization boundary is still the privileged execution
-handoff itself. Current source truth continues to prohibit a second live order and automated
-real-money submission.
+The privileged execution handoff is now implemented. The remaining boundary is operational:
+merge an exact green release, stage it, provision separate transport/origin keys and
+least-privilege Pub/Sub IAM, configure and activate the services, and pass fresh
+safe-idle/geography/account checks. Current source truth authorizes only the second live canary;
+no third order or broader autonomous rollout is authorized.
