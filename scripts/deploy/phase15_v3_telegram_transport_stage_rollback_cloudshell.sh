@@ -309,9 +309,10 @@ if exe_present:
         blockers.append("executor_secret_or_env_present")
 
 if isinstance(rec_meta, dict) and isinstance(exe_meta, dict):
-    for field in ("release_head", "archive_sha256"):
-        if rec_meta.get(field) != exe_meta.get(field):
-            blockers.append(f"cross_host_{field}_mismatch")
+    if rec_meta.get("release_head") != exe_meta.get("release_head"):
+        blockers.append("cross_host_release_head_mismatch")
+    if rec_meta.get("archive_sha256") != exe_meta.get("archive_sha256"):
+        blockers.append("cross_host_archive_sha256_mismatch")
 
 health = executor.get("executor_health") or {}
 if exe_present:
