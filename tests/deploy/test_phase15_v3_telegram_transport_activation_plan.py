@@ -106,6 +106,10 @@ def test_activation_plan_documents_authorization_consumer_and_remaining_handoff_
         "privileged local executor handoff consumer implemented and reviewed",
         "bp-phase15-telegram-execution-authorization-worker.service",
         "run_phase15_v3_telegram_execution_authorization_worker.py",
+        "run_phase15_v3_telegram_execution_package_verify.py",
+        "src/bp_engine/execution/telegram_execution_package.py",
+        "read-only full package verification before privileged handoff",
+        "read-only execution authorization package verifier PASS immediately before handoff",
         '"remaining_gap": "privileged_execution_handoff_not_defined"',
     ):
         assert marker in text
