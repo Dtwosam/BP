@@ -435,6 +435,9 @@ def execute_authorized_package_once(
         PrivilegedHandoffContractError,
         PrivilegedConsumerError,
     ) as exc:
+        authorization_slot_consumed = (
+            authorization_slot_consumed or authorization_slot_path.exists()
+        )
         failure = {
             "schema_version": 1,
             "status": "privileged_handoff_failed_closed",
