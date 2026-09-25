@@ -20,9 +20,13 @@ from bp_engine.execution.telegram_origin_attestation import (
 from bp_engine.execution.telegram_origin_attestation import (
     payload_sha256 as origin_payload_sha256,
 )
+from bp_engine.execution.telegram_source_truth_authorization import (
+    SourceTruthAuthorizationError,
+    create_source_truth_authorization,
+)
 from bp_engine.execution.telegram_transport import (
     TransportError,
-    create_transport_envelope,
+    create_authorized_transport_envelope,
     load_transport_key_file,
 )
 from bp_engine.execution.telegram_transport import (
@@ -30,6 +34,7 @@ from bp_engine.execution.telegram_transport import (
 )
 
 MAX_INPUT_BYTES = 256 * 1024
+MAX_PROJECT_STATE_BYTES = 2 * 1024 * 1024
 
 
 class ApprovedOutboxError(RuntimeError):
@@ -57,6 +62,32 @@ def _load_json(path: Path, *, label: str) -> dict[str, Any]:
         raise ApprovedOutboxError(f"{label} JSON invalid") from exc
     if not isinstance(payload, Mapping):
         raise ApprovedOutboxError(f"{label} must contain a JSON object")
+    return dict(payload)
+
+
+def _load_project_state(path: Path) -> dict[str, Any]:
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise ApprovedOutboxError("project state is not readable") from exc
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+        raise ApprovedOutboxError(
+            "project state must be a regular non-symlink file"
+        )
+    if stat.S_IMODE(info.st_mode) not in (0o600, 0o640, 0o644):
+        raise ApprovedOutboxError(
+            "project state mode must be 0600, 0640, or 0644"
+        )
+    if info.st_size <= 0 or info.st_size > MAX_PROJECT_STATE_BYTES:
+        raise ApprovedOutboxError("project state size invalid")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ApprovedOutboxError("project state JSON invalid") from exc
+    if not isinstance(payload, Mapping):
+        raise ApprovedOutboxError(
+            "project state must contain a JSON object"
+        )
     return dict(payload)
 
 
@@ -99,6 +130,7 @@ def stage_approved_outbox(
     *,
     prepared_path: Path,
     approval_path: Path,
+    project_state_path: Path,
     origin_key_path: Path,
     origin_key_id: str,
     transport_key_path: Path,
@@ -111,6 +143,7 @@ def stage_approved_outbox(
 ) -> dict[str, Any]:
     prepared = _load_json(prepared_path, label="prepared file")
     approval = _load_json(approval_path, label="approval file")
+    project_state = _load_project_state(project_state_path)
     try:
         origin_key = load_origin_key_file(origin_key_path)
         transport_key = load_transport_key_file(transport_key_path)
@@ -130,16 +163,30 @@ def stage_approved_outbox(
             key_id=origin_key_id,
             attested_at=observed_at,
         )
-        envelope = create_transport_envelope(
+        source_truth_authorization = create_source_truth_authorization(
+            project_state,
+            prepared=prepared,
+            approval=approval,
+            origin_attestation=origin_attestation,
+            key=origin_key,
+            key_id=origin_key_id,
+            attested_at=observed_at,
+        )
+        envelope = create_authorized_transport_envelope(
             prepared,
             approval=approval,
             origin_attestation=origin_attestation,
+            source_truth_authorization=source_truth_authorization,
             key=transport_key,
             key_id=transport_key_id,
             created_at=observed_at,
             nonce=nonce,
         )
-    except (OriginAttestationError, TransportError) as exc:
+    except (
+        OriginAttestationError,
+        SourceTruthAuthorizationError,
+        TransportError,
+    ) as exc:
         raise ApprovedOutboxError(str(exc)) from exc
 
     if str(envelope["intent_id"]) != expected_intent_id:
@@ -152,12 +199,18 @@ def stage_approved_outbox(
     _private_directory(outbox_dir, label="transport outbox directory")
 
     origin_path = state_dir / "origin-attestation.json"
+    source_truth_path = state_dir / "source-truth-authorization.json"
     identity = hashlib.sha256(
         f"{envelope['intent_id']}\0{envelope['request_sha256']}".encode()
     ).hexdigest()
     envelope_path = outbox_dir / f"{identity}.json"
 
     _write_once(origin_path, origin_attestation, label="origin attestation")
+    _write_once(
+        source_truth_path,
+        source_truth_authorization,
+        label="source truth authorization",
+    )
     _write_once(envelope_path, envelope, label="transport envelope")
 
     return {
@@ -168,8 +221,15 @@ def stage_approved_outbox(
         "origin_key_id": str(origin_attestation["key_id"]),
         "transport_key_id": str(envelope["key_id"]),
         "origin_attestation_sha256": origin_payload_sha256(origin_attestation),
+        "source_truth_authorization_sha256": transport_payload_sha256(
+            source_truth_authorization
+        ),
+        "project_state_sha256": str(
+            source_truth_authorization["project_state_sha256"]
+        ),
         "envelope_sha256": transport_payload_sha256(envelope),
         "origin_attestation_path": str(origin_path),
+        "source_truth_authorization_path": str(source_truth_path),
         "envelope_path": str(envelope_path),
         "expires_at": str(envelope["expires_at"]),
         "retry_allowed": False,
@@ -217,6 +277,9 @@ def main() -> int:
         if os.environ.get(forbidden):
             raise SystemExit(f"{forbidden} must not be present in approved outbox staging")
 
+    project_state_path_raw = os.environ.get(
+        "BP_TELEGRAM_PROJECT_STATE_FILE", ""
+    ).strip()
     origin_key_path_raw = os.environ.get("BP_TELEGRAM_ORIGIN_KEY_FILE", "").strip()
     origin_key_id = os.environ.get("BP_TELEGRAM_ORIGIN_KEY_ID", "").strip()
     transport_key_path_raw = os.environ.get(
@@ -229,6 +292,7 @@ def main() -> int:
     ).strip()
     if not all(
         (
+            project_state_path_raw,
             origin_key_path_raw,
             origin_key_id,
             transport_key_path_raw,
@@ -251,6 +315,7 @@ def main() -> int:
         result = stage_approved_outbox(
             prepared_path=args.prepared_path,
             approval_path=args.approval_path,
+            project_state_path=Path(project_state_path_raw),
             origin_key_path=origin_key_path,
             origin_key_id=origin_key_id,
             transport_key_path=transport_key_path,
