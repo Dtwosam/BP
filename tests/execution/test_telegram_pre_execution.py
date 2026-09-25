@@ -11,6 +11,7 @@ from bp_engine.execution.telegram_pre_execution import (
     PreExecutionError,
     authorization_snapshot_blockers,
     evaluate_pre_execution_authorization,
+    evaluate_signed_pre_execution_authorization,
     project_state_authorization_blockers,
     project_state_authorization_snapshot,
     source_truth_sha256,
@@ -183,6 +184,69 @@ def test_pre_execution_requires_every_explicit_gate(
     )
     assert result["authorized"] is False
     assert blocker in result["blockers"]
+
+
+def test_signed_pre_execution_uses_verified_v2_proof_without_local_state() -> None:
+    state = _authorized_state()
+    ready = _ready_v2(state)
+
+    result = evaluate_signed_pre_execution_authorization(
+        ready_verification=ready,
+    )
+
+    assert result["status"] == "pre_execution_authorized"
+    assert result["authorized"] is True
+    assert result["blockers"] == []
+    assert result["source_truth_sha256"] == ready["project_state_sha256"]
+    assert result["source_truth_authorization_sha256"] == ready[
+        "source_truth_authorization_sha256"
+    ]
+    assert result["authorization_snapshot_sha256"] == ready[
+        "authorization_snapshot_sha256"
+    ]
+    assert result["source_truth_expires_at"] == ready[
+        "source_truth_expires_at"
+    ]
+    assert result["retry_allowed"] is False
+    assert result["executor_invoked"] is False
+    assert result["real_order_submitted"] is False
+
+
+def test_signed_pre_execution_rejects_legacy_or_blocked_ready_state() -> None:
+    with pytest.raises(
+        PreExecutionError,
+        match="source truth verification",
+    ):
+        evaluate_signed_pre_execution_authorization(
+            ready_verification=_ready(),
+        )
+
+    state = _authorized_state()
+    blocked = _ready_v2(state)
+    blocked["source_truth_authorized"] = False
+    blocked["source_truth_blockers"] = ["second_order_not_authorized"]
+    with pytest.raises(PreExecutionError, match="is not authorized"):
+        evaluate_signed_pre_execution_authorization(
+            ready_verification=blocked,
+        )
+
+
+def test_signed_pre_execution_snapshot_rejects_proof_drift_without_local_state() -> None:
+    state = _authorized_state()
+    ready = _ready_v2(state)
+    snapshot = evaluate_signed_pre_execution_authorization(
+        ready_verification=ready,
+    )
+    changed = copy.deepcopy(ready)
+    changed["source_truth_authorization_sha256"] = "7" * 64
+
+    with pytest.raises(PreExecutionError, match="stale or modified"):
+        verify_pre_execution_snapshot(
+            snapshot,
+            ready_verification=changed,
+            project_state=None,
+            require_authorized=True,
+        )
 
 
 def test_pre_execution_accepts_source_truth_v2_only_when_current_state_matches() -> None:
