@@ -555,6 +555,18 @@ service-account count/identity issues or `cloud-platform` scope absence in
 requires `cloud-platform` scope on both VM service accounts before creating transport
 resources, changing IAM, provisioning runtime secrets, or starting services.
 
+When the staged hosts do not satisfy that identity policy, the reviewed remediation helper
+`scripts/deploy/phase15_v3_telegram_transport_identity_remediation_cloudshell.sh` is the
+only supported production path. It requires the same durable transport-activation
+authorization, current `main`, stage-status PASS, and current inactive listener binding.
+It creates/reuses two distinct user-managed service accounts with no project-level workload
+roles, performs the Compute Engine stop → set-service-account/`cloud-platform` scope →
+start sequence, and verifies recorder core-service recovery plus Johannesburg safe-idle and
+inactive/disabled transport services after restart. On a post-mutation failure it attempts
+to restore the original VM service-account/scope configuration. It does not create Pub/Sub
+resources, grant Pub/Sub IAM, write transport keys/env files, activate transport services,
+remove the kill switch, invoke the executor, or submit an order.
+
 ### Transactional transport staging lifecycle
 
 The next engineering boundary is an explicitly authorized **stage-only** installer:
