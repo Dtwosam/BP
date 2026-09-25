@@ -267,6 +267,48 @@ def test_ready_module_verifies_exact_bundle_and_distinct_key_ids(tmp_path: Path)
     assert result["real_order_submitted"] is False
 
 
+def test_ready_module_verifies_v2_source_truth_authorization(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
+    ready, key_path = _bundle_v2(tmp_path, now)
+
+    result = verify_ready_bundle(
+        ready_dir=ready,
+        origin_key_path=key_path,
+        expected_origin_key_id=ORIGIN_KEY_ID,
+        observed_at=now + timedelta(seconds=4),
+    )
+
+    assert result["status"] == "execution_ready_source_truth_verified"
+    assert result["source_truth_authorized"] is True
+    assert result["source_truth_blockers"] == []
+    assert len(result["project_state_sha256"]) == 64
+    assert len(result["authorization_snapshot_sha256"]) == 64
+    assert result["retry_allowed"] is False
+    assert result["executor_invoked"] is False
+    assert result["real_order_submitted"] is False
+
+
+def test_ready_module_rejects_changed_v2_source_truth_mac(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
+    ready, key_path = _bundle_v2(
+        tmp_path,
+        now,
+        alter_source_mac=True,
+    )
+
+    with pytest.raises(ReadyVerificationError, match="hmac mismatch"):
+        verify_ready_bundle(
+            ready_dir=ready,
+            origin_key_path=key_path,
+            expected_origin_key_id=ORIGIN_KEY_ID,
+            observed_at=now + timedelta(seconds=4),
+        )
+
+
 def test_ready_module_rejects_forged_origin_hmac_with_expected_key_id(
     tmp_path: Path,
 ) -> None:
