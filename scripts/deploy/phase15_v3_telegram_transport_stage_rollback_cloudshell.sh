@@ -463,11 +463,17 @@ rm -rf "$CONFIG" "$ROOT"
 rm -f "$OWNER"
 systemctl daemon-reload
 
-if [[ "$CREATED_USER" == "true" ]]; then
+if [[ "$CREATED_USER" == "true" ]] && id bp-transport >/dev/null 2>&1; then
   userdel bp-transport
 fi
-if [[ "$CREATED_GROUP" == "true" ]]; then
+if [[ "$CREATED_GROUP" == "true" ]] && getent group bp-transport >/dev/null 2>&1; then
   groupdel bp-transport
+fi
+if [[ "$CREATED_USER" == "true" ]]; then
+  ! id bp-transport >/dev/null 2>&1
+fi
+if [[ "$CREATED_GROUP" == "true" ]]; then
+  ! getent group bp-transport >/dev/null 2>&1
 fi
 
 HEALTH_AFTER=$(printf '%s' '{"action":"health"}' | /opt/bp-canary/executor.sh)

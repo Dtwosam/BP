@@ -146,3 +146,17 @@ def test_transport_stage_rollback_has_no_live_or_cloud_resource_mutation_path() 
         "NO_REAL_ORDER_SUBMITTED=true",
     ):
         assert marker in text
+
+def test_transport_stage_rollback_user_group_cleanup_is_idempotent() -> None:
+    text = ROLLBACK.read_text(encoding="utf-8")
+    assert (
+        '[[ "$CREATED_USER" == "true" ]] && id bp-transport >/dev/null 2>&1'
+        in text
+    )
+    assert (
+        '[[ "$CREATED_GROUP" == "true" ]] && '
+        'getent group bp-transport >/dev/null 2>&1'
+        in text
+    )
+    assert '! id bp-transport >/dev/null 2>&1' in text
+    assert '! getent group bp-transport >/dev/null 2>&1' in text
