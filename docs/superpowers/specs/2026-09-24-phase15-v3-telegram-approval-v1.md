@@ -388,7 +388,8 @@ the exact authenticated envelope content plus routing attributes to one configur
 records a local publish receipt. Metadata-token requests are explicitly downscoped to the
 Pub/Sub OAuth scope, require the Google metadata response flavor, and use HTTP clients with
 environment proxy inheritance disabled. It has no wallet/signing material and no
-executor/arm/submission code.
+executor/arm/submission code. Its systemd sandbox exposes only the transport key/config needed
+for publishing and explicitly makes the independent `origin.key` inaccessible.
 
 The unary REST receiver in
 `scripts/run_phase15_v3_telegram_pubsub_receive.py` remains a diagnostic/contract adapter.
@@ -410,9 +411,11 @@ is durably recorded as rejected before ACK so it cannot become a poison-message 
 key/config or durable-storage failures NACK so a legitimate message can survive host repair.
 
 The candidate service runs as a dedicated `bp-transport` account, keeps research/zero-money
-environment values, has no Linux capabilities, and makes `/etc/bp-canary` inaccessible.
-Therefore the receiver cannot read the Polymarket signing key, kill switch, or activation
-file and cannot invoke the executor.
+environment values, has no Linux capabilities, and makes `/etc/bp-canary` plus the
+independent `origin.key` inaccessible. It can read only its receiver config and transport
+key from the transport config directory. Therefore the receiver cannot read the Polymarket
+signing key, approval-origin secret, kill switch, or activation file and cannot invoke the
+executor.
 
 The post-receive claim candidate is:
 
@@ -438,9 +441,10 @@ terminalized without creating a claim. A key-ID mismatch is left pending for del
 rotation rather than being consumed under the wrong key.
 
 The claim worker also runs as `bp-transport`, has no network address family beyond
-`AF_UNIX`, cannot access `/etc/bp-canary`, and contains no arm, executor, order, wallet, or
-Cloud API path. A ready artifact is therefore still only authenticated pre-execution material;
-it is not permission to submit money.
+`AF_UNIX`, cannot access `/etc/bp-canary` or `origin.key`, and can read only its claim
+config plus transport key. It contains no arm, executor, order, wallet, or Cloud API path. A
+ready artifact is therefore still only authenticated pre-execution material; it is not
+permission to submit money.
 
 The intended IAM boundary is resource-level least privilege:
 
