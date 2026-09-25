@@ -612,6 +612,67 @@ their presence makes this stage-only rollback fail closed.
 
 None of these staging helpers has been run against production by this branch.
 
+### Approval-to-authenticated-outbox adapter
+
+The transport release also carries a small executable handoff adapter:
+
+```text
+deploy/phase15-telegram-approved-outbox-handoff.sh
+```
+
+The recorder stage installer places it at
+`/opt/bp-telegram-transport/bin/approved-outbox-handoff` as `root:bp 0750`, and the
+read-only stage-status verifier binds its installed SHA-256 to the exact release bytes. The
+adapter can only invoke the release-pinned Python approved-outbox producer. It contains no
+Cloud API, Pub/Sub publish, wallet, arm, executor, cancellation, or order-submission path.
+
+The listener unit keeps `BP_TELEGRAM_HANDOFF_ENABLED=no` as its built-in default and may
+read a separate optional `/etc/bp/telegram-approval-handoff.env`. Normal listener install
+requires that optional file to be absent, listener status fails if it appears unexpectedly,
+and emergency listener disable removes it. A future separately reviewed configuration can
+therefore connect one exact APPROVE callback to the local authenticated outbox without
+putting handoff settings in the bot-token environment file. That future file must provide
+separate origin/transport key paths and IDs plus the staged adapter path. No such file or key
+is created by the current branch.
+
+### Read-only transport activation plan
+
+The remaining carrier configuration can be inspected without applying it:
+
+```text
+scripts/deploy/phase15_v3_telegram_transport_activation_plan_cloudshell.sh
+```
+
+The planner requires a clean checkout exactly at current `origin/main`, reads current
+source truth, and performs only read-only Google Cloud describes/IAM reads. It reuses the
+established topic/subscription IDs, resolves the actual recorder publisher and Johannesburg
+subscriber service accounts, checks for dedicated identities and `cloud-platform` scope,
+reports whether the resource-scoped publisher/subscriber IAM bindings already exist, and
+flags broad project-level roles.
+
+The plan outputs the exact future publisher, receiver, claim-worker, and listener-handoff
+environment-file shapes; key-file paths, ownership and modes; required resource-scoped IAM;
+service activation order; and source-truth values that would have to be explicitly authorized.
+It never generates or emits key material, writes environment files, changes IAM, creates
+Pub/Sub resources, starts/enables services, invokes the executor, or submits an order.
+
+The plan is deliberately hard-blocked by
+`persistent_execution_authorization_consumer_not_defined`. The carrier can deliver and
+claim a verified ready bundle, but BP does not yet have a persistent Johannesburg service
+that owns the final chain:
+
+```text
+origin-HMAC verification
+-> fresh PROJECT_STATE authorization evaluation
+-> one-shot dispatch ticket creation/claim
+-> exact prepared/approval/dispatch binding
+-> Johannesburg executor handoff
+```
+
+That missing consumer must be designed and reviewed before transport activation can be
+considered complete. The planner always reports
+`TELEGRAM_TRANSPORT_ACTIVATION_PERMITTED=false`.
+
 ## Safety invariants
 
 - no second order without new explicit source-truth authorization;
