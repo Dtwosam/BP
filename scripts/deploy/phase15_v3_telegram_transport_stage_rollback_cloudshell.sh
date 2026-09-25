@@ -163,6 +163,7 @@ CONFIG = Path("/etc/bp-telegram-transport")
 SERVICES = (
     "bp-phase15-telegram-pubsub-streaming-receiver.service",
     "bp-phase15-telegram-transport-claim-worker.service",
+    "bp-phase15-telegram-execution-authorization-worker.service",
 )
 STATE_DIRS = (
     Path("/var/lib/bp-canary/telegram-transport-inbox"),
@@ -171,6 +172,10 @@ STATE_DIRS = (
     Path("/var/lib/bp-canary/telegram-transport-ready"),
     Path("/var/lib/bp-canary/telegram-transport-claim-processed"),
     Path("/var/lib/bp-canary/telegram-transport-claim-failures"),
+    Path("/var/lib/bp-canary/telegram-dispatch-claims"),
+    Path("/var/lib/bp-canary/telegram-execution-authorized"),
+    Path("/var/lib/bp-canary/telegram-execution-auth-processed"),
+    Path("/var/lib/bp-canary/telegram-execution-auth-failures"),
 )
 
 
@@ -205,6 +210,7 @@ for service in SERVICES:
 secret_paths = (
     CONFIG / "receiver.env",
     CONFIG / "claim.env",
+    CONFIG / "execution-auth.env",
     CONFIG / "transport.key",
     CONFIG / "origin.key",
 )
