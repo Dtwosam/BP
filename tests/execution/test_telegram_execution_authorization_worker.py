@@ -372,6 +372,41 @@ def test_execution_authorization_worker_never_publishes_partial_handoff(
     assert list((tmp_path / "failures").glob("*.json"))
 
 
+def test_execution_authorization_worker_rejects_unverified_package_before_success(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load()
+    now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
+    ready_root, key_path = _ready_bundle(tmp_path, now)
+
+    def fail_verify(**_: object) -> dict[str, object]:
+        raise module.ExecutionPackageError(
+            "simulated-package-verification-failure"
+        )
+
+    monkeypatch.setattr(
+        module,
+        "verify_execution_authorization_package",
+        fail_verify,
+    )
+    result = _run_once(
+        module,
+        tmp_path=tmp_path,
+        ready_root=ready_root,
+        key_path=key_path,
+        observed_at=now + timedelta(seconds=4),
+    )
+
+    assert result[0]["status"] == "execution_authorization_failed_closed"
+    assert result[0]["dispatch_claim_consumed"] is True
+    assert result[0]["retry_allowed"] is False
+    assert list((tmp_path / "authorized").iterdir()) == []
+    assert list((tmp_path / "processed").glob("*.json")) == []
+    assert list((tmp_path / "processed").glob(".*.tmp")) == []
+    assert list((tmp_path / "failures").glob("*.json"))
+
+
 def test_execution_authorization_worker_rejects_legacy_ready_bundle(
     tmp_path: Path,
 ) -> None:
