@@ -15,7 +15,11 @@ from bp_engine.execution.telegram_origin_attestation import (
     create_origin_attestation,
     encode_origin_key,
 )
+from bp_engine.execution.telegram_source_truth_authorization import (
+    create_source_truth_authorization,
+)
 from bp_engine.execution.telegram_transport import (
+    create_authorized_transport_envelope,
     create_transport_envelope,
     encode_transport_key,
 )
@@ -73,6 +77,29 @@ def _approval(prepared: dict[str, object], now: datetime) -> dict[str, object]:
         callback_query_id="callback-id",
         approved_at=now + timedelta(seconds=1),
     )
+
+
+def _authorized_state() -> dict[str, object]:
+    return {
+        "source_of_truth_version": "synthetic-origin-pipeline-v2",
+        "live_trading_enabled": False,
+        "phase_15_v3_live_canary": {
+            "live_trading_enabled": False,
+            "phase15_canary_authorized": True,
+            "canary_order_submitted": True,
+            "pending_unsubmitted_intent": None,
+            "v3_strategy_mutation_performed": False,
+            "second_order_authorized": True,
+            "automated_real_money_submission": True,
+            "manual_real_money_submission_required": False,
+            "telegram_one_tap_submission_authorized": True,
+            "telegram_persistent_execution_transport_authorized": True,
+            "telegram_pubsub_transport_authorized": True,
+            "first_live_canary": {
+                "official_reconciliation_complete": True,
+            },
+        },
+    }
 
 
 def _write_json(path: Path, payload: dict[str, object]) -> None:
@@ -205,6 +232,81 @@ def test_full_safe_origin_transport_claim_verify_chain(tmp_path: Path) -> None:
             expected_origin_key_id=ORIGIN_KEY_ID,
             observed_at=now + timedelta(seconds=4),
         )
+
+
+def test_full_source_truth_transport_v2_chain(tmp_path: Path) -> None:
+    claim_worker = _load(CLAIM_WORKER, "telegram_source_truth_pipeline_claim")
+    verifier = _load(VERIFY_SCRIPT, "telegram_source_truth_pipeline_verify")
+    now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
+    prepared = _prepared(now)
+    approval = _approval(prepared, now)
+    origin_key = bytes(range(32, 64))
+    transport_key = bytes(range(32))
+    origin_attestation = create_origin_attestation(
+        prepared,
+        approval=approval,
+        key=origin_key,
+        key_id=ORIGIN_KEY_ID,
+        attested_at=now + timedelta(seconds=2),
+    )
+    source_truth = create_source_truth_authorization(
+        _authorized_state(),
+        prepared=prepared,
+        approval=approval,
+        origin_attestation=origin_attestation,
+        key=origin_key,
+        key_id=ORIGIN_KEY_ID,
+        attested_at=now + timedelta(seconds=3),
+    )
+    envelope = create_authorized_transport_envelope(
+        prepared,
+        approval=approval,
+        origin_attestation=origin_attestation,
+        source_truth_authorization=source_truth,
+        key=transport_key,
+        key_id=TRANSPORT_KEY_ID,
+        created_at=now + timedelta(seconds=3),
+        nonce="source-truth-pipeline-v2",
+    )
+
+    inbox = tmp_path / "inbox-v2"
+    transport_key_path = tmp_path / "transport-v2.key"
+    origin_key_path = tmp_path / "origin-v2.key"
+    _write_json(inbox / "exact-order-v2.json", envelope)
+    _write_key(transport_key_path, encode_transport_key(transport_key))
+    _write_key(origin_key_path, encode_origin_key(origin_key))
+
+    claimed = claim_worker.claim_pending_once(
+        inbox_dir=inbox,
+        claim_dir=tmp_path / "claims-v2",
+        ready_dir=tmp_path / "ready-v2",
+        processed_dir=tmp_path / "processed-v2",
+        failure_dir=tmp_path / "failures-v2",
+        key_path=transport_key_path,
+        expected_key_id=TRANSPORT_KEY_ID,
+        observed_at=now + timedelta(seconds=4),
+    )
+    assert claimed[0]["status"] == "claimed_ready"
+    ready_dir = Path(claimed[0]["ready_path"])
+    assert (ready_dir / "source-truth-authorization.json").is_file()
+
+    verified = verifier.verify_ready_bundle(
+        ready_dir=ready_dir,
+        origin_key_path=origin_key_path,
+        expected_origin_key_id=ORIGIN_KEY_ID,
+        observed_at=now + timedelta(seconds=5),
+    )
+    assert verified["status"] == "execution_ready_source_truth_verified"
+    assert verified["intent_id"] == prepared["intent_id"]
+    assert verified["source_truth_authorized"] is True
+    assert verified["source_truth_blockers"] == []
+    assert verified["project_state_sha256"] == source_truth[
+        "project_state_sha256"
+    ]
+    assert verified["retry_allowed"] is False
+    assert verified["network_action_performed"] is False
+    assert verified["executor_invoked"] is False
+    assert verified["real_order_submitted"] is False
 
 
 def test_ready_verifier_rejects_post_claim_prepared_mutation(tmp_path: Path) -> None:
