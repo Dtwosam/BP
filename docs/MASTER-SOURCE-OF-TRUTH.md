@@ -207,6 +207,20 @@ For calibration, the new reliability acceptance rule is frozen **before** calibr
 
 Geography remains independent and mandatory. A statistical PASS cannot override a blocked physical location or blocked execution host. Before any real order, the user's ordinary physical-network check with VPN/proxy disabled and the eventual execution host's direct official Polymarket geoblock check must both be unblocked. Infrastructure must not be used to disguise a restricted user location.
 
+### 4.3.4 Second frozen-V3 Telegram canary authorization — 25 September 2026
+
+After the first real-money canary was officially reconciled at zero fill, the user explicitly requested that V3 continue to live trading. That authorization is accepted only in the following narrow form: **exactly one additional frozen-V3 canary may be submitted through the private Telegram approval path**. It is not authorization for unrestricted autonomous trading.
+
+The second-canary policy preserves the already-frozen strategy and risk envelope: prediction version `v3-frozen-paper-v1`, execution version `paper-execution-v3-frozen-v1`, 240-second decision offset, `min_edge=0.075`, **$5 target notional**, **$10 maximum trade**, **$10 maximum total exposure**, **$10 daily-loss stop**, one consecutive-loss stop, one network submission attempt for this authorization, and the existing 2-second limit-order TTL/cancel attempt. No stake growth, V3 refit/recalibration/threshold change, side or regime filter, V4 mutation, or broad autonomous rollout is authorized.
+
+Global and Phase-15 `LIVE_TRADING_ENABLED` remain false. The permitted live path is instead bound to the exact short-lived order through explicit source-truth authorization fields: `second_order_authorized=true`, `automated_real_money_submission=true`, `manual_real_money_submission_required=false`, `telegram_one_tap_submission_authorized=true`, `telegram_persistent_execution_transport_authorized=true`, and `telegram_pubsub_transport_authorized=true`. Those fields authorize only the reviewed Telegram pipeline; unrelated execution paths remain blocked.
+
+Before the order can reach the existing Johannesburg executor, all of the following must pass for the same exact intent/request: fresh private Telegram APPROVE, origin attestation, signed source-truth authorization, authenticated transport verification, one-shot claim, pre-execution authorization, dispatch-ticket/claim verification, immutable execution-package verification, and the read-only privileged-handoff contract bound to the exact expected executor SHA-256. Immediately before submission, the Johannesburg path must independently recheck direct official geoblock eligibility, official account state, collateral, zero open orders, activation expiry, request/executor binding, and kill-switch semantics.
+
+Missing, stale, malformed, mismatched, expired, rejected, or ambiguous state fails closed and must not be retried automatically. Official order/fill reconciliation is mandatory after this second canary before any third live action can be authorized.
+
+---
+
 ---
 
 # 5. System architecture
