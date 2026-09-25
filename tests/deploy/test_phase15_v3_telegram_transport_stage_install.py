@@ -176,7 +176,9 @@ def test_transport_stage_install_separates_transport_and_authorization_state() -
         'install -d -o root -g root -m 0700 "$dir"',
         "bp-phase15-telegram-execution-authorization-worker.service",
         "run_phase15_v3_telegram_execution_package_verify.py",
+        "run_phase15_v3_telegram_privileged_handoff_verify.py",
         "src/bp_engine/execution/telegram_execution_package.py",
+        "src/bp_engine/execution/telegram_privileged_handoff.py",
         "EXECUTION_AUTHORIZATION_WORKER_STAGED=true",
     ):
         assert marker in text
