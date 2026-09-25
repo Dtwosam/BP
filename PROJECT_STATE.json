@@ -4339,7 +4339,7 @@
     "second_order_authorized": true,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "The Phase 15 Telegram approval listener is installed and verified PASS on bp-recorder at current runtime bindings with handoff disabled and no real order submitted. Under the existing transport-activation authorization, run the guarded VM identity remediation. After identity remediation PASS, rerun read-only Pub/Sub readiness; if only activation-owned topic/subscription/resource-IAM blockers remain, run the fail-closed transport activation helper. Activation itself must submit no order and must leave the Johannesburg executor safe-idle with the kill switch engaged. After activation PASS, wait for exactly one fresh private Telegram APPROVE of a new frozen-V3 $5 intent; the global second-canary attempt marker permits at most one executor invocation, and official reconciliation remains mandatory before any third live action.",
+    "next_action": "Enable the explicitly authorized iap.googleapis.com service on project-4397f2c0-7098-4c1c-abb solely to restore IAP SSH access, then verify read-only SSH to bp-recorder and bp-v3-canary-exec from the authenticated local Mac. Do not change firewall rules. Once read-only SSH works, run the guarded VM identity remediation under the existing transport-activation authorization. After identity remediation PASS, rerun read-only Pub/Sub readiness; if only activation-owned topic/subscription/resource-IAM blockers remain, run the fail-closed transport activation helper. Activation itself must submit no order and must leave the Johannesburg executor safe-idle with the kill switch engaged. After activation PASS, wait for exactly one fresh private Telegram APPROVE of a new frozen-V3 $5 intent; the global second-canary attempt marker permits at most one executor invocation, and official reconciliation remains mandatory before any third live action.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
@@ -4696,6 +4696,18 @@
       "journal_error_line_count_last_15m": 0,
       "no_real_order_submitted": true,
       "sanitized_evidence": "docs/evidence/phase-15-v3-telegram-approval-listener-install-20260925.json"
+    },
+    "iap_ssh_access_authorization": {
+      "status": "AUTHORIZED_NOT_ENABLED",
+      "authorization_date": "2026-09-25",
+      "authorization_source": "User explicitly authorized enabling iap.googleapis.com solely to restore IAP SSH access after Cloud Shell became unavailable.",
+      "project_id": "project-4397f2c0-7098-4c1c-abb",
+      "service": "iap.googleapis.com",
+      "scope": "Enable only the Identity-Aware Proxy API required for IAP TCP tunneling/SSH access to the existing production VMs.",
+      "does_not_authorize_firewall_change": true,
+      "does_not_authorize_vm_mutation": true,
+      "does_not_authorize_transport_activation": true,
+      "does_not_authorize_order_submission": true
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {
