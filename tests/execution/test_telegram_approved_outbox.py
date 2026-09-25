@@ -280,11 +280,11 @@ def test_approved_outbox_rejects_same_key_material(tmp_path: Path) -> None:
         )
 
 
-def test_approved_outbox_current_source_truth_blocks_before_write(
+def test_approved_outbox_current_source_truth_stages_authorized_v2_once(
     tmp_path: Path,
 ) -> None:
     module = _load()
-    now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
+    now = datetime(2026, 9, 25, 12, 0, tzinfo=UTC)
     (
         prepared,
         prepared_path,
@@ -295,30 +295,29 @@ def test_approved_outbox_current_source_truth_blocks_before_write(
     ) = _inputs(tmp_path, now)
     outbox = tmp_path / "outbox"
 
-    with pytest.raises(
-        module.ApprovedOutboxError,
-        match="source truth authorization is blocked",
-    ):
-        module.stage_approved_outbox(
-            prepared_path=prepared_path,
-            approval_path=approval_path,
-            project_state_path=ROOT / "PROJECT_STATE.json",
-            origin_key_path=origin_key_path,
-            origin_key_id=ORIGIN_KEY_ID,
-            transport_key_path=transport_key_path,
-            transport_key_id=TRANSPORT_KEY_ID,
-            outbox_dir=outbox,
-            expected_intent_id=str(prepared["intent_id"]),
-            expected_request_sha256=request_sha256(prepared),
-            observed_at=now + timedelta(seconds=2),
-            nonce="approved-outbox-current-blocked",
-        )
+    result = module.stage_approved_outbox(
+        prepared_path=prepared_path,
+        approval_path=approval_path,
+        project_state_path=ROOT / "PROJECT_STATE.json",
+        origin_key_path=origin_key_path,
+        origin_key_id=ORIGIN_KEY_ID,
+        transport_key_path=transport_key_path,
+        transport_key_id=TRANSPORT_KEY_ID,
+        outbox_dir=outbox,
+        expected_intent_id=str(prepared["intent_id"]),
+        expected_request_sha256=request_sha256(prepared),
+        observed_at=now + timedelta(seconds=2),
+        nonce="approved-outbox-current-authorized",
+    )
 
-    assert not (approval_path.parent / "origin-attestation.json").exists()
-    assert not (
-        approval_path.parent / "source-truth-authorization.json"
-    ).exists()
-    assert not outbox.exists()
+    assert result["status"] == "approved_outbox_staged"
+    assert result["retry_allowed"] is False
+    assert result["network_send_attempted"] is False
+    assert result["executor_invoked"] is False
+    assert result["real_order_submitted"] is False
+    assert Path(result["origin_attestation_path"]).is_file()
+    assert Path(result["source_truth_authorization_path"]).is_file()
+    assert Path(result["envelope_path"]).is_file()
 
 
 def test_approved_outbox_source_has_no_network_or_order_path() -> None:
