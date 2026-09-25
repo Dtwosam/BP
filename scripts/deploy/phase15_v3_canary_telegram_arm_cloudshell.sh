@@ -323,8 +323,8 @@ PY
 REMOTE_UPLOAD="/tmp/bp-canary-telegram-activation-$$.json"
 gcloud compute scp "$MANIFEST" "$VM:$REMOTE_UPLOAD"   --project="$PROJECT"   --zone="$ZONE"   --quiet >/dev/null
 
-gcloud compute ssh "$VM"   --project="$PROJECT"   --zone="$ZONE"   --quiet   --command="sudo install -o root -g root -m 0600 '$REMOTE_UPLOAD' /etc/bp-canary/activation.json && rm -f '$REMOTE_UPLOAD' && sudo rm -f /etc/bp-canary/KILL"
 ARMED=true
+gcloud compute ssh "$VM"   --project="$PROJECT"   --zone="$ZONE"   --quiet   --command="sudo install -o root -g root -m 0600 '$REMOTE_UPLOAD' /etc/bp-canary/activation.json && rm -f '$REMOTE_UPLOAD' && sudo rm -f /etc/bp-canary/KILL"
 
 HEALTH=$(
   printf '%s' '{"action":"health"}' |
