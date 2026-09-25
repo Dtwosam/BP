@@ -17,8 +17,8 @@ from bp_engine.execution.telegram_dispatch_ticket import (
     create_dispatch_ticket,
 )
 from bp_engine.execution.telegram_execution_package import (
-    ExecutionPackageError,
     PACKAGE_FILES,
+    ExecutionPackageError,
     verify_execution_authorization_package,
 )
 from bp_engine.execution.telegram_execution_ready import (
