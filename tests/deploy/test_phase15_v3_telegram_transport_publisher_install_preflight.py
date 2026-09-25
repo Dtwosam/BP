@@ -140,7 +140,18 @@ def test_publisher_install_preflight_reports_no_mutation_contract() -> None:
 def test_publisher_install_preflight_keeps_cloud_scope_for_activation_only() -> None:
     text = PREFLIGHT.read_text(encoding="utf-8")
     assert 'activation_blockers.append("publisher_cloud_platform_scope_missing")' in text
-    assert 'blockers.append("publisher_cloud_platform_scope_missing")' not in text
+    assert re.search(
+        r'(?m)^\\s*blockers\\.append\\("publisher_cloud_platform_scope_missing"\\)    assert '"activation_ready": not blockers and not activation_blockers' in text
+
+
+def test_publisher_install_preflight_accepts_active_remain_after_exit_oneshot_pid_zero() -> None:
+    text = PREFLIGHT.read_text(encoding="utf-8")
+    assert 'state.get("type") == "oneshot"' in text
+    assert 'state.get("remain_after_exit") == "yes"' in text
+    assert "if not pid_valid and not active_oneshot:" in text
+,
+        text,
+    ) is None
     assert '"activation_ready": not blockers and not activation_blockers' in text
 
 
