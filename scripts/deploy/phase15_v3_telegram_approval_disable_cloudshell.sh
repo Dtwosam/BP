@@ -32,6 +32,7 @@ set -Eeuo pipefail
 
 SERVICE=bp-phase15-canary-telegram-approval.service
 ENV_PATH=/etc/bp/telegram-approval.env
+HANDOFF_ENV_PATH=/etc/bp/telegram-approval-handoff.env
 STATE_ROOT=/var/lib/bp/phase15-canary-telegram-approval
 
 fail() {
@@ -49,13 +50,14 @@ PAPER_PID_BEFORE=$(systemctl show -p MainPID --value bp-v3-paper-execution.servi
 
 systemctl stop "$SERVICE" >/dev/null 2>&1 || true
 systemctl disable "$SERVICE" >/dev/null 2>&1 || true
-rm -f "$ENV_PATH"
+rm -f "$ENV_PATH" "$HANDOFF_ENV_PATH"
 
 [[ "$(systemctl is-active "$SERVICE" 2>/dev/null || true)" != "active" ]] ||
   fail "telegram_service_still_active"
 [[ "$(systemctl is-enabled "$SERVICE" 2>/dev/null || true)" != "enabled" ]] ||
   fail "telegram_service_still_enabled"
 [[ ! -e "$ENV_PATH" ]] || fail "telegram_env_still_present"
+[[ ! -e "$HANDOFF_ENV_PATH" ]] || fail "telegram_handoff_env_still_present"
 [[ -d "$STATE_ROOT" ]] || true
 
 RECORDER_PID_AFTER=$(systemctl show -p MainPID --value bp-recorder.service)
@@ -68,6 +70,7 @@ PAPER_PID_AFTER=$(systemctl show -p MainPID --value bp-v3-paper-execution.servic
 echo "SERVICE_ACTIVE=false"
 echo "SERVICE_ENABLED=false"
 echo "BOT_TOKEN_FILE_PRESENT=false"
+echo "HANDOFF_ENV_PRESENT=false"
 echo "APPROVAL_AUDIT_STATE_PRESERVED=true"
 echo "CORE_SERVICE_PIDS_PRESERVED=true"
 echo "NO_REAL_ORDER_SUBMITTED=true"
