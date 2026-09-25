@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ast
-import re
 import subprocess
 from pathlib import Path
 
@@ -19,7 +18,21 @@ def test_telegram_arm_shell_and_embedded_python_are_valid() -> None:
     assert completed.returncode == 0, completed.stderr
 
     text = ARM.read_text(encoding="utf-8")
-    blocks = re.findall(r"<<'PY'[^\n]*\n(.*?)\nPY(?:\n|$)", text, flags=re.DOTALL)
+    lines = text.splitlines()
+    blocks: list[str] = []
+    for index, line in enumerate(lines):
+        if "<<'PY'" not in line:
+            continue
+        start = index + 1
+        if line.rstrip().endswith("||"):
+            assert lines[start].lstrip().startswith("fail ")
+            start += 1
+        end = start
+        while end < len(lines) and lines[end] != "PY":
+            end += 1
+        assert end < len(lines), f"unterminated Python heredoc at line {index + 1}"
+        blocks.append("\n".join(lines[start:end]))
+
     assert len(blocks) >= 7
     for block in blocks:
         ast.parse(block)
