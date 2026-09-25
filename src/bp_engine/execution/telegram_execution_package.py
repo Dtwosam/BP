@@ -259,9 +259,22 @@ def verify_execution_authorization_package(
             "approval_sha256",
             "approval_source_sha256",
             "origin_attestation_sha256",
-            "source_truth_sha256",
         ),
     )
+    _require_same(
+        fresh_pre_execution,
+        verified_ticket,
+        claim,
+        receipt,
+        processed,
+        fields=("source_truth_sha256",),
+    )
+    if str(ready.get("project_state_sha256") or "") != str(
+        fresh_pre_execution["source_truth_sha256"]
+    ):
+        raise ExecutionPackageError(
+            "ready source truth project state hash mismatch"
+        )
     _require_same(
         fresh_pre_execution,
         verified_ticket,
@@ -276,6 +289,13 @@ def verify_execution_authorization_package(
         receipt,
         processed,
         fields=("dispatch_ticket_sha256", "expires_at"),
+    )
+    _require_same(
+        manifest,
+        verified_ticket,
+        receipt,
+        processed,
+        fields=("intent_id", "request_sha256", "expires_at"),
     )
     if str(receipt.get("dispatch_claim_sha256") or "") != str(
         claim.get("claim_sha256") or ""
