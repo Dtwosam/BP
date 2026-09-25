@@ -703,3 +703,14 @@ The authorized Telegram path may set the second-order, automated-submission, one
 Execution still requires one fresh private Telegram APPROVE bound to the exact intent/request, short-lived signed source-truth authorization, authenticated transport, one-shot dispatch claim, immutable execution-package verification, exact executor SHA-256 handoff verification, and fresh Johannesburg geography/account/safe-idle checks. Missing or ambiguous executor output is terminal and must not be automatically retried.
 
 Official reconciliation is mandatory after the second canary. No third order is authorized by this decision.
+
+## D-069 — Authorize activation of the staged Phase-15 Telegram transport
+**Date:** 25 Sep 2026  
+**Status:** Active
+
+**Decision:** The user explicitly authorized **transport activation** for the already-staged private Phase-15 Telegram pipeline. This authorization covers only the reviewed activation prerequisites and transport runtime: dedicated VM service-account/access-scope remediation where required, Pub/Sub topic/subscription provisioning, resource-scoped publisher/subscriber IAM, separate transport/origin key generation and installation, runtime environment-file installation, transport service start/enable, and the Telegram listener restart needed to enable the reviewed local handoff.
+
+Activation is not an order-submission authorization by itself. Global and Phase-15 `LIVE_TRADING_ENABLED` remain false, the Johannesburg kill switch must remain engaged, and activation must end with the executor safe-idle, no active short-lived canary activation, zero submission readiness, zero reported live order, and a clean official account state. The activation helper must fail closed on source-truth drift, staged-release binding drift, listener/runtime drift, VM identity-policy violations, unsafe geography/account state, or partial service activation.
+
+After activation PASS, the system must wait for one **fresh private Telegram APPROVE** bound to a new exact frozen-V3 $5 intent/request before the separately authorized second canary can invoke the executor. The existing one-shot global second-canary attempt marker and mandatory official reconciliation before any third live action remain unchanged.
+
