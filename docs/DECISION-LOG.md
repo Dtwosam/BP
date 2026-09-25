@@ -690,3 +690,16 @@ The model SHA, 240-second selected offset, 0.075 minimum edge, $5 target, paper 
 
 The user explicitly authorized rollout from main `aede7c4b72614aa4f6471881ece6f2b222f27c54`, including the paper-executor timing rollout and restart of the prepare-only watcher, with no arm or live submission. Production confirmation shows runtime `/var/lib/bp/runtime/v3-paper-timing-c1e8166c463dd0111098ca29e43cd8a106d11939` already current under the 1-second paper-executor cadence. The new watcher run `phase15-prepare-watch-20260924T153537Z-aede7c4b` is active with the 0.5-second cadence, live trading disabled, no arm attempted, no live order submitted, and the single submission attempt unused. Evidence: `docs/evidence/phase-15-timing-latency-production-confirmation-20260924.json`.
 
+
+
+## D-068 — Authorize exactly one second frozen-V3 canary through Telegram
+**Date:** 25 Sep 2026  
+**Status:** Active
+
+**Decision:** After reviewing the first canary's official zero-fill reconciliation and the continuing frozen-V3 paper evidence, the user explicitly authorized proceeding with live V3 trading. The authorization is deliberately narrowed to **one additional frozen-V3 network submission attempt** through the private Telegram approval/transport path. The strategy remains frozen at `v3-frozen-paper-v1` / `paper-execution-v3-frozen-v1`, 240-second timing, `min_edge=0.075`, $5 target notional, $10 max trade, $10 max total exposure, $10 daily-loss stop, one consecutive-loss stop, and 2-second TTL/cancel semantics.
+
+The authorized Telegram path may set the second-order, automated-submission, one-tap, persistent-transport, and Pub/Sub source-truth gates required by the cryptographic pre-execution verifier while keeping global and Phase-15 `LIVE_TRADING_ENABLED=false`. This is not a general live-mode switch and does not authorize any other execution path, stake growth, V3 tuning, V4 mutation, or unlimited autonomous trading.
+
+Execution still requires one fresh private Telegram APPROVE bound to the exact intent/request, short-lived signed source-truth authorization, authenticated transport, one-shot dispatch claim, immutable execution-package verification, exact executor SHA-256 handoff verification, and fresh Johannesburg geography/account/safe-idle checks. Missing or ambiguous executor output is terminal and must not be automatically retried.
+
+Official reconciliation is mandatory after the second canary. No third order is authorized by this decision.
