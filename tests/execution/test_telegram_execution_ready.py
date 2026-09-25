@@ -151,6 +151,102 @@ def _bundle(
     return ready, key_path
 
 
+def _bundle_v2(
+    tmp_path: Path,
+    now: datetime,
+    *,
+    alter_source_mac: bool = False,
+) -> tuple[Path, Path]:
+    prepared = _prepared(now)
+    pending = new_pending(
+        prepared,
+        telegram_user_id=111,
+        telegram_chat_id=111,
+        created_at=now,
+        nonce="ready-v2-approval",
+    )
+    approval = approval_record(
+        action="approve",
+        pending=pending,
+        callback_query_id="ready-v2-callback",
+        approved_at=now + timedelta(seconds=1),
+    )
+    origin_key = bytes(range(32, 64))
+    origin = create_origin_attestation(
+        prepared,
+        approval=approval,
+        key=origin_key,
+        key_id=ORIGIN_KEY_ID,
+        attested_at=now + timedelta(seconds=2),
+    )
+    source_truth = create_source_truth_authorization(
+        _authorized_state(),
+        prepared=prepared,
+        approval=approval,
+        origin_attestation=origin,
+        key=origin_key,
+        key_id=ORIGIN_KEY_ID,
+        attested_at=now + timedelta(seconds=3),
+    )
+    if alter_source_mac:
+        source_truth["hmac_sha256"] = "0" * 64
+    envelope = create_authorized_transport_envelope(
+        prepared,
+        approval=approval,
+        origin_attestation=origin,
+        source_truth_authorization=source_truth,
+        key=bytes(range(32)),
+        key_id=TRANSPORT_KEY_ID,
+        created_at=now + timedelta(seconds=3),
+        nonce="ready-v2-transport",
+    )
+    receipt = {
+        "schema_version": 1,
+        "status": "claimed_ready",
+        "key_id": TRANSPORT_KEY_ID,
+        "origin_key_id": ORIGIN_KEY_ID,
+        "intent_id": envelope["intent_id"],
+        "prediction_id": envelope["prediction_id"],
+        "paper_order_id": envelope["paper_order_id"],
+        "request_sha256": envelope["request_sha256"],
+        "prepared_sha256": envelope["prepared_sha256"],
+        "approval_sha256": envelope["approval_sha256"],
+        "approval_source_sha256": envelope["approval_source_sha256"],
+        "origin_attestation_sha256": envelope["origin_attestation_sha256"],
+        "source_truth_authorization_sha256": envelope[
+            "source_truth_authorization_sha256"
+        ],
+        "project_state_sha256": source_truth["project_state_sha256"],
+        "authorization_snapshot_sha256": source_truth[
+            "authorization_snapshot_sha256"
+        ],
+        "retry_allowed": False,
+        "executor_invoked": False,
+        "real_order_submitted": False,
+    }
+    ready = tmp_path / "ready-v2"
+    ready.mkdir(parents=True, mode=0o700)
+    payloads = {
+        "prepared.json": prepared,
+        "approval.json": envelope["approval"],
+        "origin-attestation.json": origin,
+        "source-truth-authorization.json": source_truth,
+        "envelope.json": envelope,
+        "receipt.json": receipt,
+    }
+    for name, payload in payloads.items():
+        file_path = ready / name
+        file_path.write_text(json.dumps(payload), encoding="utf-8")
+        file_path.chmod(0o600)
+    key_path = tmp_path / "origin-v2.key"
+    key_path.write_text(
+        encode_origin_key(origin_key) + "\n",
+        encoding="utf-8",
+    )
+    key_path.chmod(0o600)
+    return ready, key_path
+
+
 def test_ready_module_verifies_exact_bundle_and_distinct_key_ids(tmp_path: Path) -> None:
     now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
     ready, key_path = _bundle(tmp_path, now)
