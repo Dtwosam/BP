@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -151,7 +152,11 @@ def evaluate_pre_execution_authorization(
     ready_verification: Mapping[str, Any],
     project_state: Mapping[str, Any],
 ) -> dict[str, Any]:
-    if ready_verification.get("status") != "execution_ready_origin_verified":
+    ready_status = str(ready_verification.get("status") or "")
+    if ready_status not in {
+        "execution_ready_origin_verified",
+        "execution_ready_source_truth_verified",
+    }:
         raise PreExecutionError("ready bundle has not passed origin verification")
     if ready_verification.get("retry_allowed") is not False:
         raise PreExecutionError("ready bundle retry policy invalid")
@@ -161,6 +166,76 @@ def evaluate_pre_execution_authorization(
         raise PreExecutionError("ready bundle money state invalid")
 
     blockers = project_state_authorization_blockers(project_state)
+    current_source_truth_sha256 = source_truth_sha256(project_state)
+
+    v2_binding: dict[str, Any] = {}
+    if ready_status == "execution_ready_source_truth_verified":
+        if ready_verification.get("source_truth_authorized") is not True:
+            raise PreExecutionError(
+                "ready source truth authorization is not authorized"
+            )
+        if ready_verification.get("source_truth_blockers") != []:
+            raise PreExecutionError(
+                "ready source truth authorization contains blockers"
+            )
+        signed_project_state_sha256 = str(
+            ready_verification.get("project_state_sha256") or ""
+        )
+        if re.fullmatch(r"[0-9a-f]{64}", signed_project_state_sha256) is None:
+            raise PreExecutionError(
+                "ready source truth project state hash invalid"
+            )
+        if signed_project_state_sha256 != current_source_truth_sha256:
+            raise PreExecutionError(
+                "ready source truth project state hash mismatch"
+            )
+
+        current_snapshot_sha256 = hashlib.sha256(
+            _canonical(project_state_authorization_snapshot(project_state))
+        ).hexdigest()
+        signed_snapshot_sha256 = str(
+            ready_verification.get("authorization_snapshot_sha256") or ""
+        )
+        if signed_snapshot_sha256 != current_snapshot_sha256:
+            raise PreExecutionError(
+                "ready source truth authorization snapshot hash mismatch"
+            )
+
+        source_truth_authorization_sha256 = str(
+            ready_verification.get("source_truth_authorization_sha256") or ""
+        )
+        if (
+            re.fullmatch(
+                r"[0-9a-f]{64}",
+                source_truth_authorization_sha256,
+            )
+            is None
+        ):
+            raise PreExecutionError(
+                "ready source truth authorization hash invalid"
+            )
+        source_truth_attested_at = str(
+            ready_verification.get("source_truth_attested_at") or ""
+        )
+        source_truth_expires_at = str(
+            ready_verification.get("source_truth_expires_at") or ""
+        )
+        if not source_truth_attested_at or not source_truth_expires_at:
+            raise PreExecutionError(
+                "ready source truth authorization timestamps missing"
+            )
+        if blockers:
+            raise PreExecutionError(
+                "current source truth no longer authorizes execution"
+            )
+        v2_binding = {
+            "source_truth_authorization_sha256": (
+                source_truth_authorization_sha256
+            ),
+            "authorization_snapshot_sha256": signed_snapshot_sha256,
+            "source_truth_attested_at": source_truth_attested_at,
+            "source_truth_expires_at": source_truth_expires_at,
+        }
 
     report = {
         "schema_version": PRE_EXECUTION_SCHEMA_VERSION,
@@ -168,7 +243,7 @@ def evaluate_pre_execution_authorization(
         "status": "pre_execution_authorized" if not blockers else "pre_execution_blocked",
         "authorized": not blockers,
         "blockers": blockers,
-        "source_truth_sha256": source_truth_sha256(project_state),
+        "source_truth_sha256": current_source_truth_sha256,
         "transport_key_id": str(ready_verification.get("transport_key_id") or ""),
         "origin_key_id": str(ready_verification.get("origin_key_id") or ""),
         "intent_id": str(ready_verification.get("intent_id") or ""),
@@ -185,6 +260,7 @@ def evaluate_pre_execution_authorization(
         ),
         "origin_attested_at": str(ready_verification.get("origin_attested_at") or ""),
         "origin_expires_at": str(ready_verification.get("origin_expires_at") or ""),
+        **v2_binding,
         "retry_allowed": False,
         "mutation_performed": False,
         "network_action_performed": False,
