@@ -169,3 +169,16 @@ def test_phase15_telegram_approval_listener_first_install_is_verified_pass() -> 
     assert listener["sanitized_evidence"] == (
         "docs/evidence/phase-15-v3-telegram-approval-listener-install-20260925.json"
     )
+
+def test_phase15_iap_ssh_api_enablement_is_narrowly_authorized() -> None:
+    state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
+    gate = state["phase_15_v3_live_canary"]
+    iap = gate["iap_ssh_access_authorization"]
+
+    assert iap["status"] == "AUTHORIZED_NOT_ENABLED"
+    assert iap["project_id"] == "project-4397f2c0-7098-4c1c-abb"
+    assert iap["service"] == "iap.googleapis.com"
+    assert iap["does_not_authorize_firewall_change"] is True
+    assert iap["does_not_authorize_vm_mutation"] is True
+    assert iap["does_not_authorize_transport_activation"] is True
+    assert iap["does_not_authorize_order_submission"] is True
