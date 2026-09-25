@@ -175,7 +175,7 @@ def test_phase15_iap_ssh_api_enablement_is_narrowly_authorized() -> None:
     gate = state["phase_15_v3_live_canary"]
     iap = gate["iap_ssh_access_authorization"]
 
-    assert iap["status"] == "AUTHORIZED_NOT_ENABLED"
+    assert iap["status"] == "ENABLED_PASS"\n    assert iap["enabled_verified"] is True\n    assert iap["ssh_restored"] is False
     assert iap["project_id"] == "project-4397f2c0-7098-4c1c-abb"
     assert iap["service"] == "iap.googleapis.com"
     assert iap["does_not_authorize_firewall_change"] is True
