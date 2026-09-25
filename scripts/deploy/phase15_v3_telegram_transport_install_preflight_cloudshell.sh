@@ -139,6 +139,7 @@ def path_info(path: str) -> dict[str, object]:
 transport_units = [
     "bp-phase15-telegram-pubsub-streaming-receiver.service",
     "bp-phase15-telegram-transport-claim-worker.service",
+    "bp-phase15-telegram-execution-authorization-worker.service",
 ]
 unit_state: dict[str, dict[str, object]] = {}
 for unit in transport_units:
