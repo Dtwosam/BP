@@ -34,7 +34,7 @@ REMOTE_MAIN=$(git ls-remote origin refs/heads/main | awk 'NR==1 {print $1}')
 command -v gcloud >/dev/null 2>&1 || fail "gcloud_missing"
 command -v python3 >/dev/null 2>&1 || fail "python3_missing"
 
-ARM_HELPER="$ROOT/scripts/deploy/phase15_v3_canary_arm_cloudshell.sh"
+ARM_HELPER="$ROOT/scripts/deploy/phase15_v3_canary_telegram_arm_cloudshell.sh"
 RECORD_HELPER="$ROOT/scripts/deploy/phase15_v3_canary_record_cloudshell.sh"
 [[ -x "$ARM_HELPER" || -f "$ARM_HELPER" ]] || fail "arm_helper_missing"
 [[ -x "$RECORD_HELPER" || -f "$RECORD_HELPER" ]] || fail "record_helper_missing"
@@ -154,7 +154,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-PHASE15_ACCEPT_REAL_MONEY=yes PHASE15_CANARY_PREPARED_FILE="$PREPARED_FILE"   bash "$ARM_HELPER" >/dev/null
+PHASE15_ACCEPT_TELEGRAM_REAL_MONEY=yes \
+PHASE15_CANARY_PREPARED_FILE="$PREPARED_FILE" \
+PHASE15_TELEGRAM_APPROVAL_FILE="$APPROVAL_FILE" \
+PHASE15_TELEGRAM_DISPATCH_CLAIM_FILE="$DISPATCH_CLAIM_FILE" \
+  bash "$ARM_HELPER" >/dev/null
 ARMED=true
 
 [[ "$(sha256sum "$DISPATCH_CLAIM_FILE" | awk '{print $1}')" == "$DISPATCH_CLAIM_SHA256" ]] ||
