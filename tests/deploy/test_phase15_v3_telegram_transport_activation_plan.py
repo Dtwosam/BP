@@ -62,6 +62,7 @@ def test_activation_plan_spells_out_secret_free_runtime_configuration() -> None:
         "BP_TELEGRAM_TRANSPORT_CLAIM_WORKER_ENABLED",
         "BP_TELEGRAM_HANDOFF_ENABLED",
         "BP_TELEGRAM_APPROVED_OUTBOX_ENABLED",
+        "BP_TELEGRAM_PROJECT_STATE_FILE",
         "BP_TELEGRAM_ORIGIN_KEY_FILE",
         "BP_TELEGRAM_TRANSPORT_KEY_FILE",
         '"secret_material_generated": False',
@@ -91,7 +92,8 @@ def test_activation_plan_documents_missing_persistent_execution_chain() -> None:
     text = PLAN.read_text(encoding="utf-8")
     for marker in (
         "execution-ready origin HMAC verification",
-        "fresh PROJECT_STATE authorization evaluation",
+        "short-lived signed source-truth authorization verification",
+        "fresh PROJECT_STATE authorization evaluation at recorder approval time",
         "one-shot dispatch ticket creation/claim",
         "exact prepared/approval/dispatch binding",
         "Johannesburg executor handoff",
