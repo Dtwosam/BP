@@ -480,6 +480,32 @@ It checks source-truth authorization, listener health, and the Johannesburg exec
 idle state. It performs no arm, kill-switch removal, order submission, cancellation, or state
 mutation.
 
+### Deterministic transport release boundary
+
+The engineering candidate also includes a secret-free release builder and independent
+verifier:
+
+```text
+scripts/deploy/phase15_v3_telegram_transport_build_release.py
+scripts/deploy/phase15_v3_telegram_transport_verify_release.py
+```
+
+The builder accepts only an exact source-file whitelist covering the transport services,
+workers, and trust-chain modules. It requires a clean Git working tree, binds the release to
+the exact commit SHA, normalizes archive ownership/mode/timestamps, and emits a manifest with
+the SHA-256 and size of every member. Rebuilding the same commit must produce byte-identical
+archive bytes.
+
+The release archive deliberately contains no `PROJECT_STATE.json`, `.env` files, HMAC key
+files, service-account credentials, wallet material, or other runtime secrets. The independent
+verifier refuses extra or duplicate paths, links, path traversal, changed bytes, metadata
+drift, manifest tampering, a wrong expected commit, or secret-bearing file types. Verification
+does not extract the archive to the host and performs no network or production mutation.
+
+This is a packaging boundary only. It does not install either service, create a Pub/Sub
+resource, alter IAM, provision a key, enable a unit, arm the executor, or authorize a live
+order.
+
 ## Safety invariants
 
 - no second order without new explicit source-truth authorization;
