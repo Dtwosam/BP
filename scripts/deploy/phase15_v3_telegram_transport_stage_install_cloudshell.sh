@@ -556,7 +556,7 @@ for service in "${SERVICES[@]}"; do
   systemctl is-enabled --quiet "$service" 2>/dev/null &&
     fail "transport_service_enabled_during_stage:$service" || true
 done
-for secret in   "$CONFIG/receiver.env"   "$CONFIG/claim.env"   "$CONFIG/execution-auth.env"   "$CONFIG/transport.key"   "$CONFIG/origin.key"
+for secret in   "$CONFIG/receiver.env"   "$CONFIG/claim.env"   "$CONFIG/execution-auth.env"   "$CONFIG/privileged-handoff.env"   "$CONFIG/transport.key"   "$CONFIG/origin.key"
 do
   [[ ! -e "$secret" && ! -L "$secret" ]] ||
     fail "secret_or_env_created_during_stage:$secret"
