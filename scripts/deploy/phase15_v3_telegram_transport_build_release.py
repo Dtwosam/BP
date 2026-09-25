@@ -19,6 +19,7 @@ RELEASE_FILES = (
     "deploy/bp-phase15-telegram-pubsub-publisher.service",
     "deploy/bp-phase15-telegram-pubsub-streaming-receiver.service",
     "deploy/bp-phase15-telegram-transport-claim-worker.service",
+    "deploy/phase15-telegram-approved-outbox-handoff.sh",
     "deploy/phase15-telegram-transport-runtime-requirements.txt",
     "scripts/run_phase15_v3_telegram_pubsub_publish_worker.py",
     "scripts/run_phase15_v3_telegram_pubsub_streaming_receive.py",
