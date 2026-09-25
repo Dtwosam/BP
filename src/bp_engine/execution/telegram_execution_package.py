@@ -46,7 +46,12 @@ def _utc(value: datetime) -> datetime:
     return value.astimezone(UTC)
 
 
-def _load_json(path: Path, *, label: str) -> dict[str, Any]:
+def _load_json(
+    path: Path,
+    *,
+    label: str,
+    expected_owner_uid: int,
+) -> dict[str, Any]:
     try:
         info = path.lstat()
     except OSError as exc:
@@ -57,6 +62,8 @@ def _load_json(path: Path, *, label: str) -> dict[str, Any]:
         )
     if stat.S_IMODE(info.st_mode) != 0o600:
         raise ExecutionPackageError(f"{label} mode must be 0600")
+    if info.st_uid != expected_owner_uid:
+        raise ExecutionPackageError(f"{label} owner uid mismatch")
     if info.st_size <= 0 or info.st_size > MAX_JSON_BYTES:
         raise ExecutionPackageError(f"{label} size invalid")
     try:
@@ -111,6 +118,7 @@ def verify_execution_authorization_package(
     package_dir: Path,
     processed_receipt_path: Path,
     observed_at: datetime,
+    expected_owner_uid: int = 0,
 ) -> dict[str, Any]:
     observed = _utc(observed_at)
     try:
@@ -130,6 +138,10 @@ def verify_execution_authorization_package(
         raise ExecutionPackageError(
             "authorization package directory mode must be 0700"
         )
+    if directory_info.st_uid != expected_owner_uid:
+        raise ExecutionPackageError(
+            "authorization package directory owner uid mismatch"
+        )
 
     names = {path.name for path in package_dir.iterdir()}
     if names != PACKAGE_FILES:
@@ -141,6 +153,7 @@ def verify_execution_authorization_package(
         name: _load_json(
             package_dir / name,
             label=f"authorization package {name}",
+            expected_owner_uid=expected_owner_uid,
         )
         for name in PACKAGE_FILES
     }
@@ -155,6 +168,7 @@ def verify_execution_authorization_package(
     processed = _load_json(
         processed_receipt_path,
         label="execution authorization processed receipt",
+        expected_owner_uid=expected_owner_uid,
     )
 
     if manifest.get("schema_version") != PACKAGE_SCHEMA_VERSION:
