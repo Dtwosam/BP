@@ -724,3 +724,11 @@ The user explicitly authorized the **first installation** of the Phase-15 Telegr
 
 After listener installation and read-only listener-status PASS, the activation sequence proceeds to the separately reviewed VM identity remediation, then read-only Pub/Sub readiness, then the already-authorized transport activation. A fresh private Telegram APPROVE for a new exact frozen-V3 $5 intent remains mandatory before the second canary can invoke the executor.
 
+## D-071 — Authorize IAP API enablement solely for SSH access
+**Date:** 25 Sep 2026  
+**Status:** Active
+
+**Decision:** After Cloud Shell became unavailable, the user moved the reviewed Phase-15 activation workflow to a locally authenticated Mac. Read-only SSH troubleshooting showed the recorder's IAP network path to port 22 as reachable in both directions, while the project-level Identity-Aware Proxy API was disabled. The troubleshooting flow had also enabled the Network Management API to perform that read-only connectivity test.
+
+The user explicitly authorized enabling only `iap.googleapis.com` on `project-4397f2c0-7098-4c1c-abb` to restore IAP SSH access. This authorization does not cover firewall changes, VM mutation, transport activation, kill-switch changes, executor invocation, or order submission. After enablement, access must be revalidated with read-only SSH to both production VMs before the separately authorized VM identity remediation resumes.
+
