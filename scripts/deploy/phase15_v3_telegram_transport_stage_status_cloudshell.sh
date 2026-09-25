@@ -234,6 +234,7 @@ SERVICES = (
     "bp-phase15-telegram-pubsub-streaming-receiver.service",
     "bp-phase15-telegram-transport-claim-worker.service",
     "bp-phase15-telegram-execution-authorization-worker.service",
+    "bp-phase15-telegram-privileged-handoff.service",
 )
 STATE_DIRS = (
     Path("/var/lib/bp-canary/telegram-transport-inbox"),
@@ -246,6 +247,7 @@ STATE_DIRS = (
     Path("/var/lib/bp-canary/telegram-execution-authorized"),
     Path("/var/lib/bp-canary/telegram-execution-auth-processed"),
     Path("/var/lib/bp-canary/telegram-execution-auth-failures"),
+    Path("/var/lib/bp-canary/telegram-live-handoff"),
 )
 
 
@@ -350,6 +352,9 @@ print(json.dumps(
         "execution_auth_env_present": (
             CONFIG / "execution-auth.env"
         ).exists(),
+        "privileged_handoff_env_present": (
+            CONFIG / "privileged-handoff.env"
+        ).exists(),
         "transport_key_present": (CONFIG / "transport.key").exists(),
         "origin_key_present": (CONFIG / "origin.key").exists(),
         "executor_health": health,
@@ -375,12 +380,12 @@ for key, expected in (
     ("live_trading_enabled", False),
     ("phase15_live_trading_enabled", False),
     ("canary_order_submitted", True),
-    ("second_order_authorized", False),
-    ("automated_real_money_submission", False),
-    ("manual_real_money_submission_required", True),
-    ("telegram_one_tap_submission_authorized", False),
-    ("telegram_persistent_execution_transport_authorized", False),
-    ("telegram_pubsub_transport_authorized", False),
+    ("second_order_authorized", True),
+    ("automated_real_money_submission", True),
+    ("manual_real_money_submission_required", False),
+    ("telegram_one_tap_submission_authorized", True),
+    ("telegram_persistent_execution_transport_authorized", True),
+    ("telegram_pubsub_transport_authorized", True),
 ):
     if source.get(key) is not expected:
         blockers.append(f"source_truth_{key}_unexpected")
@@ -467,6 +472,7 @@ for name, blocker in (
     ("receiver_env_present", "executor_receiver_env_present"),
     ("claim_env_present", "executor_claim_env_present"),
     ("execution_auth_env_present", "executor_execution_auth_env_present"),
+    ("privileged_handoff_env_present", "executor_privileged_handoff_env_present"),
     ("transport_key_present", "executor_transport_key_present"),
     ("origin_key_present", "executor_origin_key_present"),
 ):
@@ -492,6 +498,7 @@ root_authorization_state_dirs = {
     "/var/lib/bp-canary/telegram-execution-authorized",
     "/var/lib/bp-canary/telegram-execution-auth-processed",
     "/var/lib/bp-canary/telegram-execution-auth-failures",
+    "/var/lib/bp-canary/telegram-live-handoff",
 }
 for path, info in (executor.get("state_dirs") or {}).items():
     expected_owner = (
