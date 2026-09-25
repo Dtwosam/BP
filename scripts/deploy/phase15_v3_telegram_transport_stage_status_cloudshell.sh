@@ -147,9 +147,15 @@ for unit in (
 ):
     active_code, active_text = run("systemctl", "is-active", unit)
     pid_code, pid_text = run("systemctl", "show", "-p", "MainPID", "--value", unit)
+    type_code, service_type = run("systemctl", "show", "-p", "Type", "--value", unit)
+    remain_code, remain_after_exit = run(
+        "systemctl", "show", "-p", "RemainAfterExit", "--value", unit
+    )
     core[unit] = {
         "active": active_code == 0 and active_text == "active",
         "main_pid": pid_text if pid_code == 0 else "",
+        "type": service_type if type_code == 0 else "",
+        "remain_after_exit": remain_after_exit if remain_code == 0 else "",
     }
 
 versions: dict[str, str] = {}
@@ -461,7 +467,13 @@ for unit, state in (recorder.get("core") or {}).items():
     if state.get("active") is not True:
         blockers.append(f"core_service_not_active:{unit}")
     pid = str(state.get("main_pid") or "")
-    if not pid.isdigit() or int(pid) <= 0:
+    pid_valid = pid.isdigit() and int(pid) > 0
+    active_oneshot = (
+        state.get("active") is True
+        and state.get("type") == "oneshot"
+        and state.get("remain_after_exit") == "yes"
+    )
+    if not pid_valid and not active_oneshot:
         blockers.append(f"core_service_pid_invalid:{unit}")
 
 if executor.get("bp_transport_user_exists") is not True:
