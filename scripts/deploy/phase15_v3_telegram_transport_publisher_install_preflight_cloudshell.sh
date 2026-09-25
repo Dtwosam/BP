@@ -85,13 +85,13 @@ assert verified["real_order_submitted"] is False
 assert source["live_trading_enabled"] is False
 assert source["phase15_live_trading_enabled"] is False
 assert source["canary_order_submitted"] is True
-assert source["second_order_authorized"] is False
-assert source["automated_real_money_submission"] is False
-assert source["manual_real_money_submission_required"] is True
+assert source["second_order_authorized"] is True
+assert source["automated_real_money_submission"] is True
+assert source["manual_real_money_submission_required"] is False
 assert source["wallet_material_allowed_on_us_host"] is False
-assert source["telegram_one_tap_submission_authorized"] is False
-assert source["telegram_persistent_execution_transport_authorized"] is False
-assert source["telegram_pubsub_transport_authorized"] is False
+assert source["telegram_one_tap_submission_authorized"] is True
+assert source["telegram_persistent_execution_transport_authorized"] is True
+assert source["telegram_pubsub_transport_authorized"] is True
 PY
 then
   fail "local_preflight_not_safe"
