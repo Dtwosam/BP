@@ -103,8 +103,8 @@ def test_telegram_arm_does_not_submit_or_record_order() -> None:
 
 def test_telegram_arm_failure_reengages_kill_switch() -> None:
     text = ARM.read_text(encoding="utf-8")
-    arm_mutation = text.index("/etc/bp-canary/activation.json")
-    armed_flag = text.index("ARMED=true", arm_mutation)
-    health = text.index('{"action":"health"}', armed_flag)
-    assert arm_mutation < armed_flag < health
+    armed_flag = text.index("ARMED=true")
+    arm_mutation = text.index("/etc/bp-canary/activation.json", armed_flag)
+    health = text.index('{"action":"health"}', arm_mutation)
+    assert armed_flag < arm_mutation < health
     assert "telegram-arm-failure-reengaged" in text
