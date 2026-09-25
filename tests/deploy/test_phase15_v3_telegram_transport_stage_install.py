@@ -163,6 +163,23 @@ def test_transport_stage_install_rolls_back_if_main_moves_mid_transaction() -> N
     assert "remote_main_changed_during_stage" in text
 
 
+def test_transport_stage_install_separates_transport_and_authorization_state() -> None:
+    text = INSTALL.read_text(encoding="utf-8")
+    for marker in (
+        "TRANSPORT_STATE_DIRS=(",
+        "AUTH_STATE_DIRS=(",
+        "/var/lib/bp-canary/telegram-dispatch-claims",
+        "/var/lib/bp-canary/telegram-execution-authorized",
+        "/var/lib/bp-canary/telegram-execution-auth-processed",
+        "/var/lib/bp-canary/telegram-execution-auth-failures",
+        'install -d -o bp-transport -g bp-transport -m 0700 "$dir"',
+        'install -d -o root -g root -m 0700 "$dir"',
+        "bp-phase15-telegram-execution-authorization-worker.service",
+        "EXECUTION_AUTHORIZATION_WORKER_STAGED=true",
+    ):
+        assert marker in text
+
+
 def test_transport_stage_install_preserves_live_runtime_boundaries() -> None:
     text = INSTALL.read_text(encoding="utf-8")
     for marker in (
