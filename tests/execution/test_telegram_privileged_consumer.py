@@ -152,7 +152,8 @@ def test_privileged_consumer_invokes_executor_once_and_reengages_kill(
     assert [call["action"] for call in calls] == ["health", "health", "submit"]
     assert kill.exists()
     assert activation.exists()
-    assert len(list(state.glob("*.attempt.json"))) == 1
+    assert (state / consumer.SECOND_CANARY_ATTEMPT_BASENAME).is_file()
+    assert len(list(state.glob("*.attempt.json"))) == 2
     assert len(list(state.glob("*.result.json"))) == 1
 
 
@@ -184,6 +185,41 @@ def test_privileged_consumer_never_retries_after_attempt_marker(
     assert result["status"] == "already_terminal"
     assert result["retry_allowed"] is False
     assert result["executor_invoked"] is True
+
+
+def test_privileged_consumer_blocks_different_package_after_global_slot_consumed(
+    tmp_path: Path,
+) -> None:
+    package = tmp_path / ("c" * 64)
+    package.mkdir()
+    processed = tmp_path / "processed.json"
+    processed.write_text("{}\n", encoding="utf-8")
+    state = tmp_path / "state"
+    state.mkdir()
+    (state / consumer.SECOND_CANARY_ATTEMPT_BASENAME).write_text(
+        "{}\n",
+        encoding="utf-8",
+    )
+
+    result = consumer.execute_authorized_package_once(
+        package_dir=package,
+        processed_receipt_path=processed,
+        executor_path=tmp_path / "executor.py",
+        executor_wrapper_path=tmp_path / "executor.sh",
+        release_manifest_path=tmp_path / "manifest.json",
+        activation_path=tmp_path / "activation.json",
+        kill_switch_path=tmp_path / "KILL",
+        state_root=state,
+        expected_executor_sha256="0" * 64,
+        observed_at=datetime(2026, 9, 25, 12, 0, tzinfo=UTC),
+        expected_owner_uid=os.getuid(),
+    )
+
+    assert result["status"] == "already_terminal"
+    assert result["terminal_reason"] == "second_canary_authorization_consumed"
+    assert result["authorization_slot_consumed"] is True
+    assert result["executor_invoked"] is False
+    assert result["retry_allowed"] is False
 
 
 def test_privileged_consumer_source_has_no_second_trading_implementation() -> None:
