@@ -136,6 +136,15 @@ def test_transport_release_is_deterministic_secret_free_and_verifiable(
             "src/bp_engine/execution/telegram_privileged_handoff.py"
             in names
         )
+        assert "deploy/bp-phase15-telegram-privileged-handoff.service" in names
+        assert (
+            "scripts/run_phase15_v3_telegram_privileged_handoff_worker.py"
+            in names
+        )
+        assert (
+            "src/bp_engine/execution/telegram_privileged_consumer.py"
+            in names
+        )
         assert "deploy/phase15-telegram-transport-runtime-requirements.txt" in names
         requirements = archive.extractfile(
             "deploy/phase15-telegram-transport-runtime-requirements.txt"
