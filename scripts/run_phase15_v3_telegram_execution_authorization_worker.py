@@ -199,6 +199,7 @@ def _materialize_handoff(
         "real_order_submitted": False,
     }
 
+    published = False
     try:
         temporary_dir.mkdir(mode=0o700)
         for name, payload in (
@@ -221,6 +222,7 @@ def _materialize_handoff(
         finally:
             os.close(directory_fd)
         os.rename(temporary_dir, handoff_dir)
+        published = True
 
         root_fd = os.open(
             handoff_root,
@@ -230,13 +232,19 @@ def _materialize_handoff(
             os.fsync(root_fd)
         finally:
             os.close(root_fd)
-    except Exception:
+    except (
+        OSError,
+        TypeError,
+        ValueError,
+        ExecutionAuthorizationWorkerError,
+    ):
+        cleanup_dir = handoff_dir if published else temporary_dir
         try:
-            if temporary_dir.is_dir() and not temporary_dir.is_symlink():
-                for path in temporary_dir.iterdir():
+            if cleanup_dir.is_dir() and not cleanup_dir.is_symlink():
+                for path in cleanup_dir.iterdir():
                     if path.is_file() and not path.is_symlink():
                         path.unlink()
-                temporary_dir.rmdir()
+                cleanup_dir.rmdir()
         except OSError:
             pass
         raise
