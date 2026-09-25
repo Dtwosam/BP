@@ -134,6 +134,12 @@ def test_transport_activate_starts_in_dependency_order_and_fails_closed() -> Non
         assert marker in text
 
 
+def test_transport_activate_preserves_remote_health_json() -> None:
+    text = ACTIVATE.read_text(encoding="utf-8")
+    assert text.count(r"""'{\"action\":\"health\"}'""") == 2
+    assert """'{"action":"health"}'""" not in text
+
+
 def test_transport_activate_never_contains_order_submission_logic() -> None:
     text = ACTIVATE.read_text(encoding="utf-8")
     for forbidden in (
