@@ -13,7 +13,6 @@ def test_transport_claim_unit_is_unprivileged_offline_and_wallet_isolated() -> N
         "User=bp-transport",
         "Group=bp-transport",
         "EnvironmentFile=/etc/bp-telegram-transport/claim.env",
-        "ConditionPathExists=/etc/bp-telegram-transport/origin.key",
         "ConditionPathIsDirectory=/var/lib/bp-canary/telegram-transport-inbox",
         "ConditionPathIsDirectory=/var/lib/bp-canary/telegram-transport-claims",
         "ConditionPathIsDirectory=/var/lib/bp-canary/telegram-transport-ready",
@@ -33,8 +32,8 @@ def test_transport_claim_unit_is_unprivileged_offline_and_wallet_isolated() -> N
         "ProtectSystem=strict",
         "CapabilityBoundingSet=",
         "AmbientCapabilities=",
-        "InaccessiblePaths=/etc/bp-canary",
-        "ReadOnlyPaths=/opt/bp-telegram-transport /etc/bp-telegram-transport",
+        "InaccessiblePaths=/etc/bp-canary /etc/bp-telegram-transport/origin.key",
+        "ReadOnlyPaths=/opt/bp-telegram-transport /etc/bp-telegram-transport/claim.env /etc/bp-telegram-transport/transport.key",
         "telegram-transport-inbox",
         "telegram-transport-claims",
         "telegram-transport-ready",
@@ -53,6 +52,7 @@ def test_transport_claim_unit_is_unprivileged_offline_and_wallet_isolated() -> N
         "POLYMARKET_PRIVATE_KEY=",
         "POLYMARKET_WALLET_ADDRESS=",
         "run_phase15_v3_canary_telegram_handoff",
+        "ConditionPathExists=/etc/bp-telegram-transport/origin.key",
     ):
         assert forbidden not in text
 
