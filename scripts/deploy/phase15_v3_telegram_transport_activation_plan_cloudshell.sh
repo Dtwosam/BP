@@ -292,9 +292,9 @@ for key, expected in required_source_truth.items():
     if source.get(key) != expected:
         blockers.append(f"source_truth_{key}_not_activation_value")
 
-# Carrier delivery/claim is implemented, but no persistent Johannesburg consumer yet
-# owns origin verification -> fresh source-truth gate -> dispatch claim -> executor handoff.
-blockers.append("persistent_execution_authorization_consumer_not_defined")
+# The persistent authorization consumer now verifies origin/source-truth proof and
+# consumes the one-shot dispatch claim, but privileged local executor handoff remains separate.
+blockers.append("privileged_execution_handoff_not_defined")
 
 transport_key_path = "/etc/bp-telegram-transport/transport.key"
 origin_key_path = "/etc/bp-telegram-transport/origin.key"
@@ -350,6 +350,16 @@ env_files = {
             "BP_TELEGRAM_TRANSPORT_KEY_ID": transport_key_id or "<required>",
         },
     },
+    "/etc/bp-telegram-transport/execution-auth.env": {
+        "owner": "root",
+        "group": "root",
+        "mode": "0600",
+        "values": {
+            "BP_TELEGRAM_EXECUTION_AUTH_WORKER_ENABLED": "yes",
+            "BP_TELEGRAM_ORIGIN_KEY_FILE": origin_key_path,
+            "BP_TELEGRAM_ORIGIN_KEY_ID": origin_key_id or "<required>",
+        },
+    },
 }
 
 key_files = {
@@ -376,8 +386,8 @@ key_files = {
     },
     "executor_origin_key": {
         "path": origin_key_path,
-        "owner": "<future execution authorization consumer>",
-        "group": "<future execution authorization consumer>",
+        "owner": "root",
+        "group": "root",
         "mode": "0600",
         "material": "<same origin material as recorder; never emitted>",
     },
@@ -431,6 +441,7 @@ report = {
     "service_activation_order_after_all_future_authorizations": [
         "bp-phase15-telegram-pubsub-streaming-receiver.service",
         "bp-phase15-telegram-transport-claim-worker.service",
+        "bp-phase15-telegram-execution-authorization-worker.service",
         "bp-phase15-telegram-pubsub-publisher.service",
         "bp-phase15-canary-telegram-approval.service (restart only after reviewed handoff env exists)",
     ],
@@ -438,20 +449,32 @@ report = {
         "transport stage status PASS on both hosts",
         "separate key provisioning with different origin/transport material",
         "resource-scoped Pub/Sub IAM provisioning",
-        "persistent execution authorization consumer implemented and reviewed",
+        "privileged local executor handoff consumer implemented and reviewed",
         "explicit source-truth authorization for second order and Telegram automation",
         "independent safe-idle/geoblock/account checks immediately before any live execution",
     ],
     "persistent_execution_authorization_consumer": {
-        "defined": False,
-        "required_chain": [
+        "defined": True,
+        "service": (
+            "bp-phase15-telegram-execution-authorization-worker.service"
+        ),
+        "worker": (
+            "scripts/run_phase15_v3_telegram_execution_authorization_worker.py"
+        ),
+        "origin_key_only": True,
+        "network_enabled": False,
+        "handoff_invoked": False,
+        "executor_invoked": False,
+        "real_order_submitted": False,
+        "implemented_chain": [
             "execution-ready origin HMAC verification",
             "short-lived signed source-truth authorization verification",
             "fresh PROJECT_STATE authorization evaluation at recorder approval time",
             "one-shot dispatch ticket creation/claim",
             "exact prepared/approval/dispatch binding",
-            "Johannesburg executor handoff",
+            "immutable Johannesburg handoff package materialization",
         ],
+        "remaining_gap": "privileged_execution_handoff_not_defined",
     },
     "mutation_performed": False,
     "secret_generated": False,
