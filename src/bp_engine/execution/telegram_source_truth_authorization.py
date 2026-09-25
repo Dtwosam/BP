@@ -316,7 +316,7 @@ def verify_source_truth_authorization(
         "request_sha256": str(origin["request_sha256"]),
         "prepared_sha256": str(origin["prepared_sha256"]),
         "approval_sha256": str(origin["approval_sha256"]),
-        "approval_source_sha256": origin_payload_sha256(approval),
+        "approval_source_sha256": str(origin["approval_source_sha256"]),
         "origin_attestation_sha256": origin_payload_sha256(origin_attestation),
         "origin_attested_at": str(origin["attested_at"]),
     }
