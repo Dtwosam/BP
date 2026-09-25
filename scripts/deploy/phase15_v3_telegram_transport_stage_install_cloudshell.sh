@@ -609,14 +609,14 @@ printf -v ARCHIVE_SHA_Q '%q' "$ARCHIVE_SHA256"
 printf -v STAGE_ID_Q '%q' "$STAGE_ID"
 
 RECORDER_B64=$(printf '%s' "$RECORDER_SCRIPT" | base64 -w0)
+RECORDER_STAGED=true
 gcloud compute ssh "$US_VM"   --project="$PROJECT"   --zone="$US_ZONE"   --quiet   --command="printf '%s' '$RECORDER_B64' | base64 -d | sudo env BP_RELEASE_HEAD=$HEAD_Q BP_RELEASE_ARCHIVE=$ARCHIVE_Q BP_RELEASE_ARCHIVE_SHA256=$ARCHIVE_SHA_Q BP_STAGE_ID=$STAGE_ID_Q bash" ||
   fail "publisher_stage_failed"
-RECORDER_STAGED=true
 
 EXECUTOR_B64=$(printf '%s' "$EXECUTOR_SCRIPT" | base64 -w0)
+EXEC_STAGED=true
 gcloud compute ssh "$EXEC_VM"   --project="$PROJECT"   --zone="$EXEC_ZONE"   --quiet   --command="printf '%s' '$EXECUTOR_B64' | base64 -d | sudo env BP_RELEASE_HEAD=$HEAD_Q BP_RELEASE_ARCHIVE=$ARCHIVE_Q BP_RELEASE_ARCHIVE_SHA256=$ARCHIVE_SHA_Q BP_STAGE_ID=$STAGE_ID_Q bash" ||
   fail "executor_stage_failed"
-EXEC_STAGED=true
 
 COMMITTED=true
 trap - EXIT
