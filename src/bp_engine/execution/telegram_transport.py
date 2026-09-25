@@ -21,8 +21,6 @@ from bp_engine.execution.telegram_origin_attestation import (
     ORIGIN_ATTESTATION_FIELDS,
     ORIGIN_ATTESTATION_PURPOSE,
     ORIGIN_ATTESTATION_SCHEMA_VERSION,
-    OriginAttestationError,
-    verify_origin_attestation,
 )
 
 TRANSPORT_SCHEMA_VERSION = 1
@@ -176,6 +174,14 @@ def _validate_origin_attestation_binding(
         raise TransportError("origin attestation schema mismatch")
     if origin_attestation.get("purpose") != ORIGIN_ATTESTATION_PURPOSE:
         raise TransportError("origin attestation purpose mismatch")
+    origin_key_id = str(origin_attestation.get("key_id") or "").strip()
+    allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
+    if (
+        not origin_key_id
+        or len(origin_key_id.encode()) > 64
+        or any(ch not in allowed for ch in origin_key_id)
+    ):
+        raise TransportError("origin attestation key id invalid")
 
     expected = {
         "intent_id": intent_id,
@@ -417,6 +423,7 @@ def verify_transport_envelope(
             envelope.get("origin_attestation_sha256") or ""
         ),
         "origin_attestation": origin_copy,
+        "origin_key_id": str(origin_copy["key_id"]),
         "transport_nonce": transport_nonce,
         "created_at": created.isoformat(),
         "expires_at": expires.isoformat(),
@@ -424,44 +431,6 @@ def verify_transport_envelope(
         "approval": dict(approval),
     }
 
-
-
-def _verify_origin_authenticity(
-    verified: Mapping[str, Any],
-    *,
-    origin_key: bytes,
-    expected_origin_key_id: str,
-    observed_at: datetime,
-) -> dict[str, Any]:
-    try:
-        origin_verified = verify_origin_attestation(
-            verified["origin_attestation"],
-            prepared=verified["prepared"],
-            approval=verified["approval"],
-            key=origin_key,
-            expected_key_id=expected_origin_key_id,
-            observed_at=observed_at,
-        )
-    except OriginAttestationError as exc:
-        raise TransportError(
-            f"origin attestation authentication failed: {exc}"
-        ) from exc
-
-    expected = {
-        "intent_id": str(verified["intent_id"]),
-        "prediction_id": str(verified["prediction_id"]),
-        "paper_order_id": str(verified["paper_order_id"]),
-        "request_sha256": str(verified["request_sha256"]),
-        "prepared_sha256": str(verified["prepared_sha256"]),
-        "approval_sha256": str(verified["approval_sha256"]),
-        "approval_source_sha256": str(verified["approval_source_sha256"]),
-    }
-    for name, value in expected.items():
-        if str(origin_verified.get(name) or "") != value:
-            raise TransportError(
-                f"origin attestation authenticated {name} mismatch"
-            )
-    return origin_verified
 
 
 def _ensure_private_directory(path: Path) -> None:
@@ -483,8 +452,6 @@ def claim_transport_envelope(
     *,
     key: bytes,
     expected_key_id: str,
-    origin_key: bytes,
-    expected_origin_key_id: str,
     observed_at: datetime,
     state_dir: Path,
 ) -> dict[str, Any]:
@@ -494,13 +461,6 @@ def claim_transport_envelope(
         expected_key_id=expected_key_id,
         observed_at=observed_at,
     )
-    origin_verified = _verify_origin_authenticity(
-        verified,
-        origin_key=origin_key,
-        expected_origin_key_id=expected_origin_key_id,
-        observed_at=observed_at,
-    )
-    verified["origin_key_id"] = str(origin_verified["key_id"])
     _ensure_private_directory(state_dir)
 
     claim_key = hashlib.sha256(
