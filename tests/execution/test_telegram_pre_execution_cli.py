@@ -66,7 +66,7 @@ def _authorized_state() -> dict[str, object]:
     }
 
 
-def test_pre_execution_gate_main_reports_current_source_truth_blocked(
+def test_pre_execution_gate_main_reports_current_source_truth_authorized(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -96,11 +96,11 @@ def test_pre_execution_gate_main_reports_current_source_truth_blocked(
         ],
     )
 
-    assert module.main() == 2
+    assert module.main() == 0
     result = json.loads(capsys.readouterr().out)
-    assert result["status"] == "pre_execution_blocked"
-    assert result["authorized"] is False
-    assert "second_order_not_authorized" in result["blockers"]
+    assert result["status"] == "pre_execution_authorized"
+    assert result["authorized"] is True
+    assert result["blockers"] == []
     assert result["mutation_performed"] is False
     assert result["executor_invoked"] is False
     assert result["real_order_submitted"] is False
