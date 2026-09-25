@@ -146,3 +146,17 @@ def test_phase15_telegram_transport_activation_is_authorized_but_not_an_order() 
     assert activation["broad_autonomous_live_rollout_authorized"] is False
     assert state["live_trading_enabled"] is False
     assert gate["live_trading_enabled"] is False
+
+def test_phase15_telegram_approval_listener_first_install_is_authorized_not_installed() -> None:
+    state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
+    gate = state["phase_15_v3_live_canary"]
+    listener = gate["telegram_approval_listener_install_authorization"]
+
+    assert listener["status"] == "AUTHORIZED_NOT_INSTALLED"
+    assert listener["target_host"] == "bp-recorder"
+    assert listener["installation_type"] == "FIRST_INSTALL"
+    assert listener["requires_interactive_secret_entry"] is True
+    assert listener["stores_bot_token_in_git"] is False
+    assert listener["handoff_configured_during_install"] is False
+    assert listener["live_trading_enabled_during_install"] is False
+    assert listener["real_order_submission_authorized_by_install"] is False

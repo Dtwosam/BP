@@ -714,3 +714,13 @@ Activation is not an order-submission authorization by itself. Global and Phase-
 
 After activation PASS, the system must wait for one **fresh private Telegram APPROVE** bound to a new exact frozen-V3 $5 intent/request before the separately authorized second canary can invoke the executor. The existing one-shot global second-canary attempt marker and mandatory official reconciliation before any third live action remain unchanged.
 
+## D-070 — Authorize first installation of the Phase-15 Telegram approval listener
+**Date:** 25 Sep 2026  
+**Status:** Active
+
+**Decision:** Production diagnostics confirmed that the Phase-15 Telegram approval listener has not previously been installed through the reviewed interactive installer: the listener release pointer, systemd unit, three-key Telegram environment file, handoff environment, and listener state root are all absent, while recorder core services remain healthy. The user clarified that no Telegram bot token, user ID, or private-chat ID had previously been entered.
+
+The user explicitly authorized the **first installation** of the Phase-15 Telegram approval listener on `bp-recorder` as a prerequisite to the separately authorized Telegram transport activation. The reviewed installer remains interactive and exact-main-bound, validates the bot and private chat, stores the Telegram secret only on the recorder host, installs the listener in research/zero-money mode, leaves transport handoff disabled, preserves recorder/predictor/paper-executor process continuity, and submits no real order.
+
+After listener installation and read-only listener-status PASS, the activation sequence proceeds to the separately reviewed VM identity remediation, then read-only Pub/Sub readiness, then the already-authorized transport activation. A fresh private Telegram APPROVE for a new exact frozen-V3 $5 intent remains mandatory before the second canary can invoke the executor.
+

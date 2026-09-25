@@ -4339,7 +4339,7 @@
     "second_order_authorized": true,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "Transport activation is explicitly authorized but not yet complete. The staged transport is binding-current and read-only Pub/Sub readiness identified only activation-time VM identity/resource blockers. First run scripts/deploy/phase15_v3_telegram_transport_identity_remediation_cloudshell.sh under the existing activation authorization to attach distinct user-managed publisher/subscriber service accounts with cloud-platform scope through controlled VM restarts while preserving transport inactivity and executor safe-idle. Then rerun read-only Pub/Sub readiness; if only activation-owned topic/subscription/resource-IAM blockers remain, run the fail-closed transport activation helper. Activation itself must submit no order and must leave the Johannesburg executor safe-idle with the kill switch engaged. After activation PASS, wait for exactly one fresh private Telegram APPROVE of a new frozen-V3 $5 intent; the global second-canary attempt marker permits at most one executor invocation, and official reconciliation remains mandatory before any third live action.",
+    "next_action": "The Telegram approval listener is not currently installed and has never been provisioned through the reviewed interactive installer. Its first installation on bp-recorder is explicitly authorized as a prerequisite to the already-authorized transport activation. Run scripts/deploy/phase15_v3_telegram_approval_install_cloudshell.sh interactively, verify listener status PASS with current runtime bindings and handoff still disabled, then run the guarded VM identity remediation. After identity remediation PASS, rerun read-only Pub/Sub readiness; if only activation-owned topic/subscription/resource-IAM blockers remain, run the fail-closed transport activation helper. Activation itself must submit no order and must leave the Johannesburg executor safe-idle with the kill switch engaged. After activation PASS, wait for exactly one fresh private Telegram APPROVE of a new frozen-V3 $5 intent; the global second-canary attempt marker permits at most one executor invocation, and official reconciliation remains mandatory before any third live action.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
@@ -4673,6 +4673,19 @@
       "official_reconciliation_required_before_any_third_order": true,
       "broad_autonomous_live_rollout_authorized": false,
       "activation_helper": "scripts/deploy/phase15_v3_telegram_transport_activate_cloudshell.sh"
+    },
+    "telegram_approval_listener_install_authorization": {
+      "status": "AUTHORIZED_NOT_INSTALLED",
+      "authorization_date": "2026-09-25",
+      "authorization_source": "User explicitly authorized installing the Phase 15 Telegram approval listener on bp-recorder as a prerequisite to the already-authorized transport activation.",
+      "target_host": "bp-recorder",
+      "installation_type": "FIRST_INSTALL",
+      "requires_interactive_secret_entry": true,
+      "stores_bot_token_in_git": false,
+      "handoff_configured_during_install": false,
+      "live_trading_enabled_during_install": false,
+      "real_order_submission_authorized_by_install": false,
+      "installer": "scripts/deploy/phase15_v3_telegram_approval_install_cloudshell.sh"
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {
