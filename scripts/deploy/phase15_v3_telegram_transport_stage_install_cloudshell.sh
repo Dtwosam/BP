@@ -107,6 +107,7 @@ SERVICES=(
   bp-phase15-telegram-pubsub-streaming-receiver.service
   bp-phase15-telegram-transport-claim-worker.service
   bp-phase15-telegram-execution-authorization-worker.service
+  bp-phase15-telegram-privileged-handoff.service
 )
 [[ -f "$OWNER" ]] || exit 0
 readarray -t CREATED_FLAGS < <(
@@ -129,7 +130,7 @@ for service in "${SERVICES[@]}"; do
   systemctl disable "$service" >/dev/null 2>&1 || true
   rm -f "/etc/systemd/system/$service"
 done
-rm -rf   /var/lib/bp-canary/telegram-transport-inbox   /var/lib/bp-canary/telegram-transport-rejections   /var/lib/bp-canary/telegram-transport-claims   /var/lib/bp-canary/telegram-transport-ready   /var/lib/bp-canary/telegram-transport-claim-processed   /var/lib/bp-canary/telegram-transport-claim-failures   /var/lib/bp-canary/telegram-dispatch-claims   /var/lib/bp-canary/telegram-execution-authorized   /var/lib/bp-canary/telegram-execution-auth-processed   /var/lib/bp-canary/telegram-execution-auth-failures   "$CONFIG"   "$ROOT"
+rm -rf   /var/lib/bp-canary/telegram-transport-inbox   /var/lib/bp-canary/telegram-transport-rejections   /var/lib/bp-canary/telegram-transport-claims   /var/lib/bp-canary/telegram-transport-ready   /var/lib/bp-canary/telegram-transport-claim-processed   /var/lib/bp-canary/telegram-transport-claim-failures   /var/lib/bp-canary/telegram-dispatch-claims   /var/lib/bp-canary/telegram-execution-authorized   /var/lib/bp-canary/telegram-execution-auth-processed   /var/lib/bp-canary/telegram-execution-auth-failures   /var/lib/bp-canary/telegram-live-handoff   "$CONFIG"   "$ROOT"
 rm -f "$OWNER"
 systemctl daemon-reload
 if [[ "$CREATED_USER" == "true" ]]; then
@@ -391,6 +392,7 @@ AUTH_STATE_DIRS=(
   /var/lib/bp-canary/telegram-execution-authorized
   /var/lib/bp-canary/telegram-execution-auth-processed
   /var/lib/bp-canary/telegram-execution-auth-failures
+  /var/lib/bp-canary/telegram-live-handoff
 )
 STATE_DIRS=(
   "${TRANSPORT_STATE_DIRS[@]}"
@@ -520,7 +522,7 @@ install -d -o root -g root -m 0755 "$RELEASES"
 install -d -o root -g root -m 0755 "$RELEASE"
 tar -xzf "$ARCHIVE" -C "$RELEASE"
 
-for required in   RELEASE-MANIFEST.json   deploy/bp-phase15-telegram-pubsub-streaming-receiver.service   deploy/bp-phase15-telegram-transport-claim-worker.service   deploy/bp-phase15-telegram-execution-authorization-worker.service   deploy/phase15-telegram-transport-runtime-requirements.txt   scripts/run_phase15_v3_telegram_pubsub_streaming_receive.py   scripts/run_phase15_v3_telegram_transport_claim_worker.py   scripts/run_phase15_v3_telegram_execution_ready_verify.py   scripts/run_phase15_v3_telegram_execution_authorization_worker.py   scripts/run_phase15_v3_telegram_execution_package_verify.py   scripts/run_phase15_v3_telegram_privileged_handoff_verify.py   src/bp_engine/execution/telegram_execution_package.py   src/bp_engine/execution/telegram_privileged_handoff.py
+for required in   RELEASE-MANIFEST.json   deploy/bp-phase15-telegram-pubsub-streaming-receiver.service   deploy/bp-phase15-telegram-transport-claim-worker.service   deploy/bp-phase15-telegram-execution-authorization-worker.service   deploy/bp-phase15-telegram-privileged-handoff.service   deploy/phase15-telegram-transport-runtime-requirements.txt   scripts/run_phase15_v3_telegram_pubsub_streaming_receive.py   scripts/run_phase15_v3_telegram_transport_claim_worker.py   scripts/run_phase15_v3_telegram_execution_ready_verify.py   scripts/run_phase15_v3_telegram_execution_authorization_worker.py   scripts/run_phase15_v3_telegram_execution_package_verify.py   scripts/run_phase15_v3_telegram_privileged_handoff_verify.py   scripts/run_phase15_v3_telegram_privileged_handoff_worker.py   src/bp_engine/execution/telegram_execution_package.py   src/bp_engine/execution/telegram_privileged_handoff.py   src/bp_engine/execution/telegram_privileged_consumer.py
 do
   [[ -f "$RELEASE/$required" ]] || fail "release_required_path_missing:$required"
 done
@@ -621,6 +623,7 @@ echo "ENVIRONMENT_FILES_CREATED=false"
 echo "KEY_FILES_CREATED=false"
 echo "EXECUTOR_SAFE_IDLE_PRESERVED=true"
 echo "EXECUTION_AUTHORIZATION_WORKER_STAGED=true"
+echo "PRIVILEGED_HANDOFF_WORKER_STAGED=true"
 REMOTE
 )
 
