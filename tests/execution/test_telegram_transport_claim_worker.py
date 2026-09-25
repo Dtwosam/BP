@@ -11,7 +11,11 @@ import pytest
 
 from bp_engine.execution.telegram_approval import approval_record, new_pending
 from bp_engine.execution.telegram_origin_attestation import create_origin_attestation
+from bp_engine.execution.telegram_source_truth_authorization import (
+    create_source_truth_authorization,
+)
 from bp_engine.execution.telegram_transport import (
+    create_authorized_transport_envelope,
     create_transport_envelope,
     encode_transport_key,
 )
@@ -96,6 +100,68 @@ def _envelope(now: datetime) -> tuple[dict[str, object], bytes]:
     return envelope, key
 
 
+def _authorized_state() -> dict[str, object]:
+    return {
+        "source_of_truth_version": "synthetic-claim-worker-v2",
+        "live_trading_enabled": False,
+        "phase_15_v3_live_canary": {
+            "live_trading_enabled": False,
+            "phase15_canary_authorized": True,
+            "canary_order_submitted": True,
+            "pending_unsubmitted_intent": None,
+            "v3_strategy_mutation_performed": False,
+            "second_order_authorized": True,
+            "automated_real_money_submission": True,
+            "manual_real_money_submission_required": False,
+            "telegram_one_tap_submission_authorized": True,
+            "telegram_persistent_execution_transport_authorized": True,
+            "telegram_pubsub_transport_authorized": True,
+            "first_live_canary": {
+                "official_reconciliation_complete": True,
+            },
+        },
+    }
+
+
+def _authorized_envelope(now: datetime) -> tuple[dict[str, object], bytes]:
+    prepared = _prepared(now)
+    pending = new_pending(
+        prepared,
+        telegram_user_id=111,
+        telegram_chat_id=111,
+        created_at=now,
+        nonce="claim-worker-v2-approval",
+    )
+    approval = approval_record(
+        action="approve",
+        pending=pending,
+        callback_query_id="callback-v2",
+        approved_at=now + timedelta(seconds=1),
+    )
+    origin = _origin_attestation(prepared, approval, now)
+    source_truth = create_source_truth_authorization(
+        _authorized_state(),
+        prepared=prepared,
+        approval=approval,
+        origin_attestation=origin,
+        key=ORIGIN_KEY,
+        key_id=ORIGIN_KEY_ID,
+        attested_at=now + timedelta(seconds=3),
+    )
+    key = bytes(range(32))
+    envelope = create_authorized_transport_envelope(
+        prepared,
+        approval=approval,
+        origin_attestation=origin,
+        source_truth_authorization=source_truth,
+        key=key,
+        key_id=KEY_ID,
+        created_at=now + timedelta(seconds=3),
+        nonce="claim-worker-v2-transport",
+    )
+    return envelope, key
+
+
 def _write_key(path: Path, key: bytes) -> None:
     path.write_text(encode_transport_key(key) + "\n", encoding="utf-8")
     path.chmod(0o600)
@@ -169,6 +235,48 @@ def test_claim_worker_consumes_inbox_once_and_materializes_ready(tmp_path: Path)
         observed_at=now + timedelta(seconds=4),
     )
     assert second == []
+
+
+def test_claim_worker_materializes_source_truth_for_v2(
+    tmp_path: Path,
+) -> None:
+    worker = _load()
+    now = datetime.now(UTC)
+    envelope, key = _authorized_envelope(now)
+    key_path = tmp_path / "transport.key"
+    inbox = tmp_path / "inbox"
+    envelope_path = inbox / "exact-order-v2.json"
+    _write_key(key_path, key)
+    _write_envelope(envelope_path, envelope)
+
+    result = worker.claim_pending_once(
+        inbox_dir=inbox,
+        claim_dir=tmp_path / "claims",
+        ready_dir=tmp_path / "ready",
+        processed_dir=tmp_path / "processed",
+        failure_dir=tmp_path / "failures",
+        key_path=key_path,
+        expected_key_id=KEY_ID,
+        observed_at=now + timedelta(seconds=4),
+    )[0]
+
+    assert result["status"] == "claimed_ready"
+    ready_path = Path(result["ready_path"])
+    source_path = ready_path / "source-truth-authorization.json"
+    assert source_path.is_file()
+    assert (os.stat(source_path).st_mode & 0o777) == 0o600
+    source = json.loads(source_path.read_text(encoding="utf-8"))
+    receipt = json.loads(
+        (ready_path / "receipt.json").read_text(encoding="utf-8")
+    )
+    assert source == envelope["source_truth_authorization"]
+    assert receipt["source_truth_authorization_sha256"] == envelope[
+        "source_truth_authorization_sha256"
+    ]
+    assert receipt["project_state_sha256"] == source["project_state_sha256"]
+    assert receipt["authorization_snapshot_sha256"] == source[
+        "authorization_snapshot_sha256"
+    ]
 
 
 def test_claim_worker_materialization_failure_consumes_claim_without_retry(
