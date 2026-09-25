@@ -35,7 +35,11 @@ def test_pubsub_publisher_unit_is_zero_money_and_secret_isolated() -> None:
             "/opt/bp-telegram-transport/current/scripts/"
             "run_phase15_v3_telegram_pubsub_publish_worker.py"
         ),
-        "ReadOnlyPaths=/opt/bp-telegram-transport /etc/bp/telegram-pubsub-publisher.env /etc/bp-telegram-transport/transport.key",
+        (
+            "ReadOnlyPaths=/opt/bp-telegram-transport "
+            "/etc/bp/telegram-pubsub-publisher.env "
+            "/etc/bp-telegram-transport/transport.key"
+        ),
         "ReadWritePaths=/var/lib/bp/phase15-canary-telegram-transport",
     ):
         assert marker in text
