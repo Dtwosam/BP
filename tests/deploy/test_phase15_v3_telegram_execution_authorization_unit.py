@@ -37,8 +37,8 @@ def test_execution_authorization_unit_is_offline_wallet_isolated() -> None:
         "CapabilityBoundingSet=",
         "AmbientCapabilities=",
         (
-            "InaccessiblePaths=/etc/bp-canary "
-            "-/etc/bp-telegram-transport/transport.key"
+            "InaccessiblePaths=/etc/bp-canary /opt/bp-canary "
+            "/etc/bp -/etc/bp-telegram-transport/transport.key"
         ),
         (
             "ReadOnlyPaths=/opt/bp-telegram-transport "
