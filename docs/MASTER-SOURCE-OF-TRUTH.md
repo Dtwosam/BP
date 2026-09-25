@@ -219,6 +219,14 @@ Before the order can reach the existing Johannesburg executor, all of the follow
 
 Missing, stale, malformed, mismatched, expired, rejected, or ambiguous state fails closed and must not be retried automatically. Official order/fill reconciliation is mandatory after this second canary before any third live action can be authorized.
 
+### 4.3.5 Telegram transport staged, not activated — 25 September 2026
+
+The deterministic Phase-15 Telegram transport release has now been staged successfully on both production hosts at exact release head `facf1dbea1e745419f9e615e0692c9acef952b11`, release SHA-256 `c4471702db92982783def0cbd8139f1980279f8334d290450f70a46af58516e2`, and stage ID `phase15-telegram-stage-3fe604820deabe0c8971f23c`. Durable sanitized evidence is `docs/evidence/phase-15-v3-telegram-transport-stage-production-20260925.json`.
+
+The stage-only installer and the independent read-only status verifier both returned PASS. The recorder publisher plus all four Johannesburg transport/execution-authorization units are installed but inactive and disabled. No runtime environment files or key files are present; IAM and Pub/Sub resources were not changed; global and Phase-15 live-trading flags remain false; and no real order was submitted.
+
+This milestone does **not** authorize activation. Transport activation remains a separate explicit-human authorization boundary. Before activation, the activation helper must still fail closed unless the reviewed VM service-account identity/scope requirements and all activation-time source-truth, safe-idle, geoblock, account, secret, IAM, Pub/Sub, and service-start checks pass. Until that separate authorization is given, the staged transport must remain inactive and secret-free.
+
 ---
 
 ---

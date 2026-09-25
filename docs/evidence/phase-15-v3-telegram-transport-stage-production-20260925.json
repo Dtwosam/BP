@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-telegram-transport-stage-production",
+  "observed_date": "2026-09-25",
+  "project": "project-4397f2c0-7098-4c1c-abb",
+  "release_head": "facf1dbea1e745419f9e615e0692c9acef952b11",
+  "release_sha256": "c4471702db92982783def0cbd8139f1980279f8334d290450f70a46af58516e2",
+  "stage_id": "phase15-telegram-stage-3fe604820deabe0c8971f23c",
+  "stage_install": {
+    "status": "PASS",
+    "publisher_staged": true,
+    "executor_staged": true,
+    "services_started": false,
+    "services_enabled": false,
+    "environment_files_created": false,
+    "key_files_created": false,
+    "iam_changed": false,
+    "pubsub_resources_changed": false,
+    "live_trading_enabled": false,
+    "no_real_order_submitted": true
+  },
+  "stage_status": {
+    "status": "PASS",
+    "blockers": [],
+    "stage_ready_for_later_configuration_review": true,
+    "publisher_service_active": false,
+    "executor_services_active": {
+      "bp-phase15-telegram-execution-authorization-worker.service": false,
+      "bp-phase15-telegram-privileged-handoff.service": false,
+      "bp-phase15-telegram-pubsub-streaming-receiver.service": false,
+      "bp-phase15-telegram-transport-claim-worker.service": false
+    },
+    "environment_files_present": false,
+    "key_files_present": false,
+    "mutation_performed": false,
+    "service_enabled": false,
+    "service_started": false,
+    "real_order_submitted": false
+  },
+  "source_truth_at_observation": {
+    "automated_real_money_submission": true,
+    "canary_order_submitted": true,
+    "live_trading_enabled": false,
+    "manual_real_money_submission_required": false,
+    "phase15_live_trading_enabled": false,
+    "second_order_authorized": true,
+    "telegram_one_tap_submission_authorized": true,
+    "telegram_persistent_execution_transport_authorized": true,
+    "telegram_pubsub_transport_authorized": true
+  },
+  "activation_authorized": false,
+  "notes": [
+    "Stage-only install completed after rollback of the earlier incomplete inert stage.",
+    "No environment/key material, IAM change, Pub/Sub resource change, service start/enable, live-trading enablement, or real order submission occurred.",
+    "Transport activation remains a separate explicit authorization boundary."
+  ]
+}
