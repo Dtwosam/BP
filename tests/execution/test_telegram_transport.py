@@ -14,9 +14,13 @@ from bp_engine.execution.telegram_approval import (
     request_sha256,
 )
 from bp_engine.execution.telegram_origin_attestation import create_origin_attestation
+from bp_engine.execution.telegram_source_truth_authorization import (
+    create_source_truth_authorization,
+)
 from bp_engine.execution.telegram_transport import (
     TransportError,
     claim_transport_envelope,
+    create_authorized_transport_envelope,
     create_transport_envelope,
     encode_transport_key,
     load_transport_key_file,
@@ -83,6 +87,48 @@ def _origin_attestation(
     )
 
 
+def _authorized_state() -> dict[str, object]:
+    return {
+        "source_of_truth_version": "synthetic-transport-v2",
+        "live_trading_enabled": False,
+        "phase_15_v3_live_canary": {
+            "live_trading_enabled": False,
+            "phase15_canary_authorized": True,
+            "canary_order_submitted": True,
+            "pending_unsubmitted_intent": None,
+            "v3_strategy_mutation_performed": False,
+            "second_order_authorized": True,
+            "automated_real_money_submission": True,
+            "manual_real_money_submission_required": False,
+            "telegram_one_tap_submission_authorized": True,
+            "telegram_persistent_execution_transport_authorized": True,
+            "telegram_pubsub_transport_authorized": True,
+            "first_live_canary": {
+                "official_reconciliation_complete": True,
+            },
+        },
+    }
+
+
+def _source_truth_authorization(
+    prepared: dict[str, object],
+    approval: dict[str, object],
+    origin: dict[str, object],
+    now: datetime,
+    *,
+    state: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return create_source_truth_authorization(
+        state or _authorized_state(),
+        prepared=prepared,
+        approval=approval,
+        origin_attestation=origin,
+        key=ORIGIN_KEY,
+        key_id=ORIGIN_KEY_ID,
+        attested_at=now + timedelta(seconds=3),
+    )
+
+
 def test_transport_key_round_trip_is_exact_and_strict() -> None:
     key = bytes(range(32))
     encoded = encode_transport_key(key)
@@ -143,6 +189,112 @@ def test_transport_envelope_is_exact_bound_and_strips_telegram_identity() -> Non
     assert "telegram_user_id" not in envelope["approval"]
     assert "telegram_chat_id" not in envelope["approval"]
     assert "callback_query_id" not in envelope["approval"]
+
+
+def test_authorized_transport_v2_binds_source_truth_proof() -> None:
+    now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
+    prepared = _prepared(now)
+    approval = _approval(prepared, now)
+    origin = _origin_attestation(prepared, approval, now)
+    source_truth = _source_truth_authorization(
+        prepared,
+        approval,
+        origin,
+        now,
+    )
+    key = bytes(range(32))
+
+    envelope = create_authorized_transport_envelope(
+        prepared,
+        approval=approval,
+        origin_attestation=origin,
+        source_truth_authorization=source_truth,
+        key=key,
+        key_id=KEY_ID,
+        created_at=now + timedelta(seconds=3),
+        nonce="transport-v2-source-truth",
+    )
+    verified = verify_transport_envelope(
+        envelope,
+        key=key,
+        expected_key_id=KEY_ID,
+        observed_at=now + timedelta(seconds=4),
+    )
+
+    assert envelope["schema_version"] == 2
+    assert verified["source_truth_authorization"] == source_truth
+    assert verified["source_truth_authorization_sha256"] == payload_sha256(
+        source_truth
+    )
+    assert source_truth["authorized"] is True
+    assert source_truth["blockers"] == []
+    assert datetime.fromisoformat(str(envelope["expires_at"])) <= (
+        datetime.fromisoformat(str(source_truth["expires_at"]))
+    )
+
+
+def test_authorized_transport_v2_rejects_blocked_source_truth() -> None:
+    now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
+    prepared = _prepared(now)
+    approval = _approval(prepared, now)
+    origin = _origin_attestation(prepared, approval, now)
+    blocked = _authorized_state()
+    phase = blocked["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    phase["second_order_authorized"] = False
+    source_truth = _source_truth_authorization(
+        prepared,
+        approval,
+        origin,
+        now,
+        state=blocked,
+    )
+
+    with pytest.raises(TransportError, match="authorization is blocked"):
+        create_authorized_transport_envelope(
+            prepared,
+            approval=approval,
+            origin_attestation=origin,
+            source_truth_authorization=source_truth,
+            key=bytes(range(32)),
+            key_id=KEY_ID,
+            created_at=now + timedelta(seconds=3),
+            nonce="transport-v2-blocked",
+        )
+
+
+def test_authorized_transport_v2_tampering_fails_transport_hmac() -> None:
+    now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
+    prepared = _prepared(now)
+    approval = _approval(prepared, now)
+    origin = _origin_attestation(prepared, approval, now)
+    source_truth = _source_truth_authorization(
+        prepared,
+        approval,
+        origin,
+        now,
+    )
+    key = bytes(range(32))
+    envelope = create_authorized_transport_envelope(
+        prepared,
+        approval=approval,
+        origin_attestation=origin,
+        source_truth_authorization=source_truth,
+        key=key,
+        key_id=KEY_ID,
+        created_at=now + timedelta(seconds=3),
+        nonce="transport-v2-tamper",
+    )
+    changed = copy.deepcopy(envelope)
+    changed["source_truth_authorization"]["project_state_sha256"] = "9" * 64
+
+    with pytest.raises(TransportError, match="hmac mismatch"):
+        verify_transport_envelope(
+            changed,
+            key=key,
+            expected_key_id=KEY_ID,
+            observed_at=now + timedelta(seconds=4),
+        )
 
 
 def test_transport_envelope_tampering_wrong_key_and_expiry_fail_closed() -> None:
