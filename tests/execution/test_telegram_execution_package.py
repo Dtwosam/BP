@@ -60,12 +60,15 @@ def _build_package(
             "action": "BUY",
         },
     }
+    request = prepared["request"]
+    assert isinstance(request, dict)
+    request_sha256 = payload_sha256(request)
     approval = {
         "schema_version": 1,
         "status": "approved",
         "action": "approve",
         "intent_id": prepared["intent_id"],
-        "request_sha256": "1" * 64,
+        "request_sha256": request_sha256,
         "approved_at": (now + timedelta(seconds=1)).isoformat(),
     }
     ready = {
@@ -76,7 +79,7 @@ def _build_package(
         "intent_id": prepared["intent_id"],
         "prediction_id": prepared["prediction_id"],
         "paper_order_id": prepared["paper_order_id"],
-        "request_sha256": "1" * 64,
+        "request_sha256": request_sha256,
         "prepared_sha256": payload_sha256(prepared),
         "approval_sha256": payload_sha256(approval),
         "approval_source_sha256": "2" * 64,
