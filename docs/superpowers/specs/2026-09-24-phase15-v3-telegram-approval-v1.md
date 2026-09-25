@@ -549,6 +549,69 @@ extraction, filesystem mutation, IAM change, Pub/Sub creation, systemd start/ena
 arm, cancellation, or order submission. PASS means only that the verified release and host
 shape are suitable for a separately authorized install review.
 
+### Transactional transport staging lifecycle
+
+The next engineering boundary is an explicitly authorized **stage-only** installer:
+
+```text
+scripts/deploy/phase15_v3_telegram_transport_stage_install_cloudshell.sh
+```
+
+It requires `PHASE15_ACCEPT_TELEGRAM_TRANSPORT_STAGE_INSTALL=yes`, a clean checkout exactly
+at current `origin/main`, the exact verified transport release, and PASS from both read-only
+host preflights before the first archive copy. This authorization is only permission to stage
+software/runtime files; it is not transport activation or live-order authorization.
+
+The stage installer copies the same archive to both hosts, verifies its SHA-256 again remotely,
+creates a dedicated transport virtual environment from the release-carried direct dependency
+pins using binary wheels only, verifies `httpx==0.28.1` and
+`google-cloud-pubsub==2.41.0`, installs only the appropriate systemd unit files, and creates
+the transport state directories. The recorder publisher remains owned by `bp`; the
+Johannesburg receiver/claim services use the dedicated `bp-transport` system account.
+
+Before each host's first stage mutation, the installer writes a durable stage-owner record
+binding the random stage ID, role, release head, archive SHA-256, and any planned
+`bp-transport` user/group creation. Final stage metadata records `stage_complete=true`.
+This ownership record lets local rollback safely identify partial work even if SSH is lost
+mid-stage. A two-host failure rolls back any already-completed side using that exact stage
+identity.
+
+Staging deliberately creates **no** publisher/receiver/claim environment files, transport
+key, origin key, Pub/Sub topic/subscription, IAM binding, activation, wallet material, or
+handoff configuration. It performs `systemctl daemon-reload` only; all transport services
+must remain disabled and inactive. Recorder/predictor/paper PIDs are preserved, and the
+Johannesburg executor must remain safe-idle with the kill switch engaged before and after
+staging.
+
+The stage can be inspected read-only with:
+
+```text
+scripts/deploy/phase15_v3_telegram_transport_stage_status_cloudshell.sh
+```
+
+That verifier requires both hosts to bind to one stage ID and archive SHA, the staged release
+head to equal current `main`, installed unit hashes to match release bytes, the pinned direct
+runtime versions to match, all transport services to remain inactive/disabled, all runtime
+env/key files to remain absent, recorder core services to remain healthy, current source
+truth to remain no-second-order/live-disabled, and the Johannesburg executor to remain
+safe-idle and directly eligible in ZA. It performs no mutation.
+
+A never-activated stage can be removed with:
+
+```text
+scripts/deploy/phase15_v3_telegram_transport_stage_rollback_cloudshell.sh
+```
+
+Rollback requires `PHASE15_ACCEPT_TELEGRAM_TRANSPORT_STAGE_ROLLBACK=yes` plus the exact
+`PHASE15_TELEGRAM_TRANSPORT_STAGE_ID`. It probes both hosts before deletion and refuses if
+any transport service is active/enabled or if any publisher/receiver/claim env file,
+transport key, or origin key exists. It revalidates owner+metadata immediately before removal,
+preserves recorder core PIDs and Johannesburg safe-idle health, and can finish a prior partial
+rollback by treating an already-clean side as absent. It does not remove keys/env because
+their presence makes this stage-only rollback fail closed.
+
+None of these staging helpers has been run against production by this branch.
+
 ## Safety invariants
 
 - no second order without new explicit source-truth authorization;
