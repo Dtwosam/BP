@@ -154,12 +154,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
+ARMED=true
 PHASE15_ACCEPT_TELEGRAM_REAL_MONEY=yes \
 PHASE15_CANARY_PREPARED_FILE="$PREPARED_FILE" \
 PHASE15_TELEGRAM_APPROVAL_FILE="$APPROVAL_FILE" \
 PHASE15_TELEGRAM_DISPATCH_CLAIM_FILE="$DISPATCH_CLAIM_FILE" \
   bash "$ARM_HELPER" >/dev/null
-ARMED=true
 
 [[ "$(sha256sum "$DISPATCH_CLAIM_FILE" | awk '{print $1}')" == "$DISPATCH_CLAIM_SHA256" ]] ||
   fail "dispatch_claim_changed_after_arm"
