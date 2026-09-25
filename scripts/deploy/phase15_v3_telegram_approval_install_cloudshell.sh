@@ -153,6 +153,7 @@ STATE_ROOT=/var/lib/bp/phase15-canary-telegram-approval
 SERVICE=bp-phase15-canary-telegram-approval.service
 SERVICE_PATH=/etc/systemd/system/$SERVICE
 ENV_PATH=/etc/bp/telegram-approval.env
+HANDOFF_ENV_PATH=/etc/bp/telegram-approval-handoff.env
 BACKUP=$(mktemp -d /var/tmp/bp-phase15-telegram-rollback.XXXXXX)
 COMMITTED=false
 
@@ -204,6 +205,8 @@ trap cleanup EXIT
   fail "candidate_archive_sha256_mismatch"
 [[ -x /opt/bp/.venv/bin/python ]] || fail "production_python_missing"
 id bp >/dev/null 2>&1 || fail "bp_user_missing"
+[[ ! -e "$HANDOFF_ENV_PATH" && ! -L "$HANDOFF_ENV_PATH" ]] ||
+  fail "handoff_env_must_not_exist_for_listener_install"
 
 for unit in bp-postgres.service bp-recorder.service bp-v3-frozen-predictor.service bp-v3-paper-execution.service; do
   systemctl is-active --quiet "$unit" || fail "core_service_not_active:$unit"
@@ -240,6 +243,8 @@ grep -q '^BP_TELEGRAM_BOT_TOKEN=.' "$ENV_PATH" || fail "telegram_bot_token_missi
 grep -Eq '^BP_TELEGRAM_USER_ID=[1-9][0-9]*$' "$ENV_PATH" || fail "telegram_user_id_invalid"
 grep -Eq '^BP_TELEGRAM_CHAT_ID=[1-9][0-9]*$' "$ENV_PATH" || fail "telegram_chat_id_invalid"
 ! grep -q '^BP_TELEGRAM_HANDOFF_' "$ENV_PATH" || fail "handoff_configuration_forbidden"
+[[ ! -e "$HANDOFF_ENV_PATH" && ! -L "$HANDOFF_ENV_PATH" ]] ||
+  fail "handoff_env_created_or_present"
 
 ln -sfn "$RELEASE" "$CURRENT"
 install -o root -g root -m 0644 "$RELEASE/deploy/$SERVICE" "$SERVICE_PATH"
