@@ -17,6 +17,10 @@ from bp_engine.execution.telegram_pre_execution import (
     verify_pre_execution_snapshot,
 )
 
+from bp_engine.execution.telegram_source_truth_authorization import (
+    payload_sha256 as source_truth_payload_sha256,
+)
+
 ROOT = Path(__file__).resolve().parents[2]
 STATE = ROOT / "PROJECT_STATE.json"
 MODULE = ROOT / "src" / "bp_engine" / "execution" / "telegram_pre_execution.py"
@@ -46,6 +50,7 @@ def _ready() -> dict[str, object]:
 
 def _authorized_state() -> dict[str, object]:
     return {
+        "source_of_truth_version": "synthetic-pre-execution-v2",
         "live_trading_enabled": False,
         "phase_15_v3_live_canary": {
             "live_trading_enabled": False,
@@ -64,6 +69,25 @@ def _authorized_state() -> dict[str, object]:
             },
         },
     }
+
+
+def _ready_v2(state: dict[str, object]) -> dict[str, object]:
+    ready = _ready()
+    ready.update(
+        {
+            "status": "execution_ready_source_truth_verified",
+            "source_truth_authorization_sha256": "6" * 64,
+            "project_state_sha256": source_truth_sha256(state),
+            "authorization_snapshot_sha256": source_truth_payload_sha256(
+                project_state_authorization_snapshot(state)
+            ),
+            "source_truth_attested_at": "2026-09-24T21:00:03+00:00",
+            "source_truth_expires_at": "2026-09-24T21:00:14+00:00",
+            "source_truth_authorized": True,
+            "source_truth_blockers": [],
+        }
+    )
+    return ready
 
 
 def test_current_source_truth_blocks_telegram_pre_execution() -> None:
@@ -159,6 +183,97 @@ def test_pre_execution_requires_every_explicit_gate(
     )
     assert result["authorized"] is False
     assert blocker in result["blockers"]
+
+
+def test_pre_execution_accepts_source_truth_v2_only_when_current_state_matches() -> None:
+    state = _authorized_state()
+    ready = _ready_v2(state)
+
+    result = evaluate_pre_execution_authorization(
+        ready_verification=ready,
+        project_state=state,
+    )
+
+    assert result["status"] == "pre_execution_authorized"
+    assert result["authorized"] is True
+    assert result["blockers"] == []
+    assert result["source_truth_sha256"] == ready["project_state_sha256"]
+    assert result["source_truth_authorization_sha256"] == "6" * 64
+    assert result["authorization_snapshot_sha256"] == ready[
+        "authorization_snapshot_sha256"
+    ]
+    assert result["source_truth_attested_at"] == ready[
+        "source_truth_attested_at"
+    ]
+    assert result["source_truth_expires_at"] == ready[
+        "source_truth_expires_at"
+    ]
+    assert result["retry_allowed"] is False
+    assert result["executor_invoked"] is False
+    assert result["real_order_submitted"] is False
+
+
+def test_pre_execution_rejects_v2_when_current_source_truth_drifted() -> None:
+    signed_state = _authorized_state()
+    ready = _ready_v2(signed_state)
+    current_state = copy.deepcopy(signed_state)
+    phase = current_state["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    phase["second_order_authorized"] = False
+
+    with pytest.raises(
+        PreExecutionError,
+        match="project state hash mismatch",
+    ):
+        evaluate_pre_execution_authorization(
+            ready_verification=ready,
+            project_state=current_state,
+        )
+
+
+def test_pre_execution_rejects_v2_snapshot_hash_or_authorization_drift() -> None:
+    state = _authorized_state()
+
+    changed_snapshot = _ready_v2(state)
+    changed_snapshot["authorization_snapshot_sha256"] = "9" * 64
+    with pytest.raises(
+        PreExecutionError,
+        match="authorization snapshot hash mismatch",
+    ):
+        evaluate_pre_execution_authorization(
+            ready_verification=changed_snapshot,
+            project_state=state,
+        )
+
+    blocked = _ready_v2(state)
+    blocked["source_truth_authorized"] = False
+    blocked["source_truth_blockers"] = ["second_order_not_authorized"]
+    with pytest.raises(
+        PreExecutionError,
+        match="is not authorized",
+    ):
+        evaluate_pre_execution_authorization(
+            ready_verification=blocked,
+            project_state=state,
+        )
+
+
+def test_pre_execution_v2_report_hash_binds_source_truth_proof() -> None:
+    state = _authorized_state()
+    first = evaluate_pre_execution_authorization(
+        ready_verification=_ready_v2(state),
+        project_state=state,
+    )
+    changed = _ready_v2(state)
+    changed["source_truth_authorization_sha256"] = "7" * 64
+    second = evaluate_pre_execution_authorization(
+        ready_verification=changed,
+        project_state=state,
+    )
+
+    assert first["authorization_report_sha256"] != second[
+        "authorization_report_sha256"
+    ]
 
 
 def test_source_truth_snapshot_reuses_exact_pre_execution_blocker_policy() -> None:
