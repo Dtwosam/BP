@@ -13,6 +13,26 @@ class PreExecutionError(RuntimeError):
     pass
 
 
+PROJECT_STATE_AUTHORIZATION_SNAPSHOT_FIELDS = frozenset(
+    {
+        "source_of_truth_version",
+        "global_live_trading_enabled",
+        "phase15_live_trading_enabled",
+        "phase15_canary_authorized",
+        "canary_order_submitted",
+        "first_canary_reconciliation_complete",
+        "pending_unsubmitted_intent_present",
+        "v3_strategy_mutation_performed",
+        "second_order_authorized",
+        "automated_real_money_submission",
+        "manual_real_money_submission_required",
+        "telegram_one_tap_submission_authorized",
+        "telegram_persistent_execution_transport_authorized",
+        "telegram_pubsub_transport_authorized",
+    }
+)
+
+
 def _canonical(payload: Mapping[str, Any]) -> bytes:
     try:
         return json.dumps(
@@ -30,6 +50,102 @@ def source_truth_sha256(state: Mapping[str, Any]) -> str:
     return hashlib.sha256(_canonical(state)).hexdigest()
 
 
+def project_state_authorization_snapshot(
+    project_state: Mapping[str, Any],
+) -> dict[str, Any]:
+    phase = project_state.get("phase_15_v3_live_canary")
+    if not isinstance(phase, Mapping):
+        raise PreExecutionError("phase 15 source truth missing")
+
+    first_canary = phase.get("first_live_canary")
+    if not isinstance(first_canary, Mapping):
+        first_canary = {}
+
+    return {
+        "source_of_truth_version": str(
+            project_state.get("source_of_truth_version") or ""
+        ),
+        "global_live_trading_enabled": project_state.get(
+            "live_trading_enabled"
+        ),
+        "phase15_live_trading_enabled": phase.get("live_trading_enabled"),
+        "phase15_canary_authorized": phase.get("phase15_canary_authorized"),
+        "canary_order_submitted": phase.get("canary_order_submitted"),
+        "first_canary_reconciliation_complete": first_canary.get(
+            "official_reconciliation_complete"
+        ),
+        "pending_unsubmitted_intent_present": (
+            phase.get("pending_unsubmitted_intent") is not None
+        ),
+        "v3_strategy_mutation_performed": phase.get(
+            "v3_strategy_mutation_performed"
+        ),
+        "second_order_authorized": phase.get("second_order_authorized"),
+        "automated_real_money_submission": phase.get(
+            "automated_real_money_submission"
+        ),
+        "manual_real_money_submission_required": phase.get(
+            "manual_real_money_submission_required"
+        ),
+        "telegram_one_tap_submission_authorized": phase.get(
+            "telegram_one_tap_submission_authorized"
+        ),
+        "telegram_persistent_execution_transport_authorized": phase.get(
+            "telegram_persistent_execution_transport_authorized"
+        ),
+        "telegram_pubsub_transport_authorized": phase.get(
+            "telegram_pubsub_transport_authorized"
+        ),
+    }
+
+
+def authorization_snapshot_blockers(
+    snapshot: Mapping[str, Any],
+) -> list[str]:
+    if set(snapshot) != PROJECT_STATE_AUTHORIZATION_SNAPSHOT_FIELDS:
+        raise PreExecutionError("source truth authorization snapshot fields mismatch")
+
+    blockers: list[str] = []
+    if snapshot.get("global_live_trading_enabled") is not False:
+        blockers.append("global_live_trading_not_safely_disabled")
+    if snapshot.get("phase15_live_trading_enabled") is not False:
+        blockers.append("phase15_live_trading_not_safely_disabled")
+    if snapshot.get("phase15_canary_authorized") is not True:
+        blockers.append("phase15_canary_not_authorized")
+    if snapshot.get("canary_order_submitted") is not True:
+        blockers.append("first_canary_not_submitted")
+    if snapshot.get("first_canary_reconciliation_complete") is not True:
+        blockers.append("first_canary_reconciliation_not_complete")
+    if snapshot.get("pending_unsubmitted_intent_present") is not False:
+        blockers.append("pending_unsubmitted_intent_present")
+    if snapshot.get("v3_strategy_mutation_performed") is not False:
+        blockers.append("v3_strategy_mutation_detected")
+    if snapshot.get("second_order_authorized") is not True:
+        blockers.append("second_order_not_authorized")
+    if snapshot.get("automated_real_money_submission") is not True:
+        blockers.append("automated_real_money_submission_not_authorized")
+    if snapshot.get("manual_real_money_submission_required") is not False:
+        blockers.append("manual_submission_still_required")
+    if snapshot.get("telegram_one_tap_submission_authorized") is not True:
+        blockers.append("telegram_one_tap_not_authorized")
+    if (
+        snapshot.get("telegram_persistent_execution_transport_authorized")
+        is not True
+    ):
+        blockers.append("persistent_execution_transport_not_authorized")
+    if snapshot.get("telegram_pubsub_transport_authorized") is not True:
+        blockers.append("telegram_pubsub_transport_not_authorized")
+    return blockers
+
+
+def project_state_authorization_blockers(
+    project_state: Mapping[str, Any],
+) -> list[str]:
+    return authorization_snapshot_blockers(
+        project_state_authorization_snapshot(project_state)
+    )
+
+
 def evaluate_pre_execution_authorization(
     *,
     ready_verification: Mapping[str, Any],
@@ -44,43 +160,7 @@ def evaluate_pre_execution_authorization(
     if ready_verification.get("real_order_submitted") is not False:
         raise PreExecutionError("ready bundle money state invalid")
 
-    phase = project_state.get("phase_15_v3_live_canary")
-    if not isinstance(phase, Mapping):
-        raise PreExecutionError("phase 15 source truth missing")
-
-    first_canary = phase.get("first_live_canary")
-    if not isinstance(first_canary, Mapping):
-        first_canary = {}
-
-    blockers: list[str] = []
-
-    if project_state.get("live_trading_enabled") is not False:
-        blockers.append("global_live_trading_not_safely_disabled")
-    if phase.get("live_trading_enabled") is not False:
-        blockers.append("phase15_live_trading_not_safely_disabled")
-    if phase.get("phase15_canary_authorized") is not True:
-        blockers.append("phase15_canary_not_authorized")
-    if phase.get("canary_order_submitted") is not True:
-        blockers.append("first_canary_not_submitted")
-    if first_canary.get("official_reconciliation_complete") is not True:
-        blockers.append("first_canary_reconciliation_not_complete")
-    if phase.get("pending_unsubmitted_intent") is not None:
-        blockers.append("pending_unsubmitted_intent_present")
-    if phase.get("v3_strategy_mutation_performed") is not False:
-        blockers.append("v3_strategy_mutation_detected")
-
-    if phase.get("second_order_authorized") is not True:
-        blockers.append("second_order_not_authorized")
-    if phase.get("automated_real_money_submission") is not True:
-        blockers.append("automated_real_money_submission_not_authorized")
-    if phase.get("manual_real_money_submission_required") is not False:
-        blockers.append("manual_submission_still_required")
-    if phase.get("telegram_one_tap_submission_authorized") is not True:
-        blockers.append("telegram_one_tap_not_authorized")
-    if phase.get("telegram_persistent_execution_transport_authorized") is not True:
-        blockers.append("persistent_execution_transport_not_authorized")
-    if phase.get("telegram_pubsub_transport_authorized") is not True:
-        blockers.append("telegram_pubsub_transport_not_authorized")
+    blockers = project_state_authorization_blockers(project_state)
 
     report = {
         "schema_version": PRE_EXECUTION_SCHEMA_VERSION,
