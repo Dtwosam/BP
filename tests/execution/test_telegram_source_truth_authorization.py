@@ -101,8 +101,8 @@ def _origin(
     )
 
 
-def test_current_source_truth_is_signed_as_blocked_and_cannot_be_required() -> None:
-    now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
+def test_current_source_truth_is_signed_as_authorized_for_one_second_canary() -> None:
+    now = datetime(2026, 9, 25, 12, 0, tzinfo=UTC)
     state = json.loads(STATE.read_text(encoding="utf-8"))
     prepared = _prepared(now)
     approval = _approval(prepared, now)
@@ -126,34 +126,19 @@ def test_current_source_truth_is_signed_as_blocked_and_cannot_be_required() -> N
         key=key,
         expected_key_id=ORIGIN_KEY_ID,
         observed_at=now + timedelta(seconds=4),
+        require_authorized=True,
     )
 
-    assert verified["authorized"] is False
+    assert verified["authorized"] is True
+    assert verified["blockers"] == []
     assert verified["project_state_sha256"] == source_truth_sha256(state)
-    for blocker in (
-        "second_order_not_authorized",
-        "automated_real_money_submission_not_authorized",
-        "manual_submission_still_required",
-        "telegram_one_tap_not_authorized",
-        "persistent_execution_transport_not_authorized",
-        "telegram_pubsub_transport_not_authorized",
-    ):
-        assert blocker in verified["blockers"]
-
-    with pytest.raises(
-        SourceTruthAuthorizationError,
-        match="source truth snapshot is not authorized",
-    ):
-        verify_source_truth_authorization(
-            attestation,
-            prepared=prepared,
-            approval=approval,
-            origin_attestation=origin,
-            key=key,
-            expected_key_id=ORIGIN_KEY_ID,
-            observed_at=now + timedelta(seconds=4),
-            require_authorized=True,
-        )
+    snapshot = verified["authorization_snapshot"]
+    assert snapshot["second_order_authorized"] is True
+    assert snapshot["automated_real_money_submission"] is True
+    assert snapshot["manual_real_money_submission_required"] is False
+    assert snapshot["telegram_one_tap_submission_authorized"] is True
+    assert snapshot["telegram_persistent_execution_transport_authorized"] is True
+    assert snapshot["telegram_pubsub_transport_authorized"] is True
 
 
 def test_authorized_snapshot_is_exact_order_bound_and_short_lived() -> None:
