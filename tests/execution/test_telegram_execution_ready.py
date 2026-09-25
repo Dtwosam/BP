@@ -16,7 +16,13 @@ from bp_engine.execution.telegram_origin_attestation import (
     create_origin_attestation,
     encode_origin_key,
 )
-from bp_engine.execution.telegram_transport import create_transport_envelope
+from bp_engine.execution.telegram_source_truth_authorization import (
+    create_source_truth_authorization,
+)
+from bp_engine.execution.telegram_transport import (
+    create_authorized_transport_envelope,
+    create_transport_envelope,
+)
 
 ORIGIN_KEY_ID = "phase15-telegram-origin-v1"
 TRANSPORT_KEY_ID = "phase15-telegram-transport-v1"
@@ -41,6 +47,29 @@ def _prepared(now: datetime) -> dict[str, object]:
         "policy": {
             "policy_version": "v3-live-canary-v1",
             "max_submission_attempts": 1,
+        },
+    }
+
+
+def _authorized_state() -> dict[str, object]:
+    return {
+        "source_of_truth_version": "synthetic-ready-v2",
+        "live_trading_enabled": False,
+        "phase_15_v3_live_canary": {
+            "live_trading_enabled": False,
+            "phase15_canary_authorized": True,
+            "canary_order_submitted": True,
+            "pending_unsubmitted_intent": None,
+            "v3_strategy_mutation_performed": False,
+            "second_order_authorized": True,
+            "automated_real_money_submission": True,
+            "manual_real_money_submission_required": False,
+            "telegram_one_tap_submission_authorized": True,
+            "telegram_persistent_execution_transport_authorized": True,
+            "telegram_pubsub_transport_authorized": True,
+            "first_live_canary": {
+                "official_reconciliation_complete": True,
+            },
         },
     }
 
