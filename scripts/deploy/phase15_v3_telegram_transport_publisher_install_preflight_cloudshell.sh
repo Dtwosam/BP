@@ -65,8 +65,7 @@ print(json.dumps(
 PY
 ) || fail "source_truth_read_failed"
 
-python3 - "$VERIFY_JSON" "$SOURCE_JSON" "$LOCAL_HEAD" <<'PY' ||
-  fail "local_preflight_not_safe"
+if ! python3 - "$VERIFY_JSON" "$SOURCE_JSON" "$LOCAL_HEAD" <<'PY'
 import json
 import sys
 
@@ -94,6 +93,9 @@ assert source["telegram_one_tap_submission_authorized"] is False
 assert source["telegram_persistent_execution_transport_authorized"] is False
 assert source["telegram_pubsub_transport_authorized"] is False
 PY
+then
+  fail "local_preflight_not_safe"
+fi
 
 command -v gcloud >/dev/null 2>&1 || fail "gcloud_missing"
 gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q . ||
@@ -248,14 +250,14 @@ if host["publisher_unit"]["active"] is True:
 if host["publisher_unit"]["enabled"] is True:
     blockers.append("existing_publisher_unit_enabled")
 
-for name in (
-    "transport_root",
-    "transport_config",
-    "publisher_env",
-    "transport_state",
-):
-    if host[name]["exists"] is True:
-        blockers.append(f"existing_{name}_present")
+if host["transport_root"]["exists"] is True:
+    blockers.append("existing_transport_root_present")
+if host["transport_config"]["exists"] is True:
+    blockers.append("existing_transport_config_present")
+if host["publisher_env"]["exists"] is True:
+    blockers.append("existing_publisher_env_present")
+if host["transport_state"]["exists"] is True:
+    blockers.append("existing_transport_state_present")
 
 if host["canary_wallet_root"]["exists"] is True:
     blockers.append("wallet_material_path_present_on_recorder")
