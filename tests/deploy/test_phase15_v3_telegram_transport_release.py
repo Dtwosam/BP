@@ -104,6 +104,7 @@ def test_transport_release_is_deterministic_secret_free_and_verifiable(
     with tarfile.open(first, mode="r:gz") as archive:
         names = set(archive.getnames())
         assert "RELEASE-MANIFEST.json" in names
+        assert "deploy/phase15-telegram-approved-outbox-handoff.sh" in names
         assert "deploy/phase15-telegram-transport-runtime-requirements.txt" in names
         requirements = archive.extractfile(
             "deploy/phase15-telegram-transport-runtime-requirements.txt"
@@ -115,6 +116,15 @@ def test_transport_release_is_deterministic_secret_free_and_verifiable(
         ]
         assert not any(name.endswith((".env", ".key", ".pem", ".p12", ".pfx")) for name in names)
         assert "PROJECT_STATE.json" not in names
+        handoff = archive.extractfile(
+            "deploy/phase15-telegram-approved-outbox-handoff.sh"
+        )
+        assert handoff is not None
+        handoff_text = handoff.read().decode("utf-8")
+        assert "run_phase15_v3_telegram_approved_outbox.py" in handoff_text
+        assert "POLYMARKET_PRIVATE_KEY" in handoff_text
+        assert "gcloud" not in handoff_text
+        assert "executor.sh" not in handoff_text
 
 
 def test_transport_release_verifier_rejects_wrong_commit(tmp_path: Path) -> None:
