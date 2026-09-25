@@ -59,6 +59,8 @@ def test_transport_stage_install_stages_runtime_but_never_activates_services() -
         "gcloud compute scp",
         "python3 -m venv",
         "--only-binary=:all:",
+        "phase15-telegram-approved-outbox-handoff.sh",
+        "APPROVED_OUTBOX_HANDOFF_STAGED=true",
         'assert version("httpx") == "0.28.1"',
         'assert version("google-cloud-pubsub") == "2.41.0"',
         '"$VENV/bin/pip" check',
