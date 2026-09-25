@@ -68,6 +68,7 @@ def test_activation_plan_spells_out_secret_free_runtime_configuration() -> None:
         "BP_TELEGRAM_HANDOFF_ENABLED",
         "BP_TELEGRAM_APPROVED_OUTBOX_ENABLED",
         "BP_TELEGRAM_PROJECT_STATE_FILE",
+        "/etc/bp-telegram-transport/project-state.json",
         "BP_TELEGRAM_ORIGIN_KEY_FILE",
         "BP_TELEGRAM_TRANSPORT_KEY_FILE",
         '"secret_material_generated": False',
@@ -105,7 +106,7 @@ def test_activation_plan_documents_authorization_consumer_and_remaining_handoff_
     for marker in (
         "execution-ready origin HMAC verification",
         "short-lived signed source-truth authorization verification",
-        "fresh PROJECT_STATE authorization evaluation at recorder approval time",
+        "fresh exact-main source-truth snapshot authorization evaluation at recorder approval time",
         "one-shot dispatch ticket creation/claim",
         "exact prepared/approval/dispatch binding",
         "immutable Johannesburg handoff package materialization",
