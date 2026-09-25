@@ -4698,8 +4698,12 @@
       "sanitized_evidence": "docs/evidence/phase-15-v3-telegram-approval-listener-install-20260925.json"
     },
     "iap_ssh_access_authorization": {
-      "status": "AUTHORIZED_NOT_ENABLED",
+      "status": "ENABLED_PASS",
       "authorization_date": "2026-09-25",
+      "observed_date": "2026-09-25",
+      "enabled_verified": true,
+      "ssh_restored": false,
+      "current_blocker": "IAP SSH still fails with backend error 4003; troubleshooter reports zero user-permission issues and one VPC/IAP configuration issue.",
       "authorization_source": "User explicitly authorized enabling iap.googleapis.com solely to restore IAP SSH access after Cloud Shell became unavailable.",
       "project_id": "project-4397f2c0-7098-4c1c-abb",
       "service": "iap.googleapis.com",
