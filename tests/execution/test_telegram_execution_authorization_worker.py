@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import os
@@ -13,6 +14,7 @@ from bp_engine.execution.telegram_approval import approval_record, new_pending
 from bp_engine.execution.telegram_origin_attestation import (
     create_origin_attestation,
     encode_origin_key,
+    payload_sha256,
 )
 from bp_engine.execution.telegram_source_truth_authorization import (
     create_source_truth_authorization,
@@ -241,6 +243,7 @@ def test_execution_authorization_worker_materializes_one_shot_handoff(
         "pre-execution.json",
         "dispatch-ticket.json",
         "dispatch-claim.json",
+        "package-manifest.json",
         "receipt.json",
     ):
         path = handoff_dir / name
@@ -253,7 +256,23 @@ def test_execution_authorization_worker_materializes_one_shot_handoff(
     receipt = json.loads(
         (handoff_dir / "receipt.json").read_text(encoding="utf-8")
     )
+    manifest = json.loads(
+        (handoff_dir / "package-manifest.json").read_text(encoding="utf-8")
+    )
     assert ticket["expires_at"] == receipt["expires_at"]
+    assert receipt["package_manifest_sha256"] == payload_sha256(manifest)
+    assert result["package_manifest_sha256"] == receipt[
+        "package_manifest_sha256"
+    ]
+    for name, metadata in manifest["files"].items():
+        encoded = (handoff_dir / name).read_bytes()
+        assert metadata["sha256"] == hashlib.sha256(encoded).hexdigest()
+        assert metadata["size_bytes"] == len(encoded)
+    processed_path = next((tmp_path / "processed").glob("*.json"))
+    processed = json.loads(processed_path.read_text(encoding="utf-8"))
+    assert processed["package_manifest_sha256"] == receipt[
+        "package_manifest_sha256"
+    ]
     assert receipt["handoff_invoked"] is False
     assert receipt["executor_invoked"] is False
     assert receipt["real_order_submitted"] is False
@@ -288,7 +307,7 @@ def test_execution_authorization_worker_consumed_claim_never_retries(
     now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
     ready_root, key_path = _ready_bundle(tmp_path, now)
 
-    def fail_materialization(**_: object) -> Path:
+    def fail_materialization(**_: object) -> tuple[Path, str]:
         raise module.ExecutionAuthorizationWorkerError(
             "simulated-handoff-materialization-failure"
         )
