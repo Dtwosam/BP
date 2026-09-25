@@ -78,6 +78,7 @@ META = ROOT / "STAGE-METADATA.json"
 OWNER = Path("/var/lib/bp/phase15-canary-telegram-transport-stage-owner.json")
 CURRENT = ROOT / "current"
 VENV = ROOT / ".venv"
+HANDOFF = ROOT / "bin" / "approved-outbox-handoff"
 STATE = Path("/var/lib/bp/phase15-canary-telegram-transport")
 SERVICE = "bp-phase15-telegram-pubsub-publisher.service"
 SERVICE_PATH = Path("/etc/systemd/system") / SERVICE
@@ -172,6 +173,11 @@ current_target = ""
 if CURRENT.is_symlink():
     current_target = os.readlink(CURRENT)
 release_unit = Path(current_target) / "deploy" / SERVICE if current_target else Path("/")
+release_handoff = (
+    Path(current_target) / "deploy" / "phase15-telegram-approved-outbox-handoff.sh"
+    if current_target
+    else Path("/")
+)
 
 print(json.dumps(
     {
@@ -181,6 +187,11 @@ print(json.dumps(
         "current": path_info(CURRENT),
         "state": path_info(STATE),
         "runtime_versions": versions,
+        "handoff": {
+            **path_info(HANDOFF),
+            "installed_sha256": sha256(HANDOFF),
+            "release_sha256": sha256(release_handoff),
+        },
         "service": {
             "active": active_rc == 0 and active == "active",
             "enabled": enabled_rc == 0 and enabled == "enabled",
@@ -400,6 +411,19 @@ archive_hashes = {
 }
 if len(archive_hashes) != 1 or "" in archive_hashes:
     blockers.append("archive_sha256_mismatch")
+
+handoff = recorder.get("handoff") or {}
+if (
+    handoff.get("exists") is not True
+    or handoff.get("is_file") is not True
+    or handoff.get("is_symlink") is True
+    or handoff.get("mode") != "0o750"
+    or handoff.get("owner") != "root"
+    or handoff.get("group") != "bp"
+    or not handoff.get("installed_sha256")
+    or handoff.get("installed_sha256") != handoff.get("release_sha256")
+):
+    blockers.append("approved_outbox_handoff_invalid")
 
 if recorder.get("env_present") is not False:
     blockers.append("publisher_env_present")
