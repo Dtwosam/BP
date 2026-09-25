@@ -68,13 +68,6 @@ def _extract_members(archive_bytes: bytes) -> dict[str, bytes]:
     try:
         with tarfile.open(fileobj=io.BytesIO(raw_tar), mode="r:") as archive:
             members = archive.getmembers()
-            expected = set(RELEASE_FILES) | {"RELEASE-MANIFEST.json"}
-            names = [member.name for member in members]
-            if len(names) != len(set(names)):
-                raise ReleaseError("release archive contains duplicate paths")
-            if set(names) != expected:
-                raise ReleaseError("release archive file set mismatch")
-
             for member in members:
                 if (
                     not member.isfile()
@@ -86,6 +79,15 @@ def _extract_members(archive_bytes: bytes) -> dict[str, bytes]:
                     raise ReleaseError(
                         f"release archive member type invalid: {member.name}"
                     )
+
+            expected = set(RELEASE_FILES) | {"RELEASE-MANIFEST.json"}
+            names = [member.name for member in members]
+            if len(names) != len(set(names)):
+                raise ReleaseError("release archive contains duplicate paths")
+            if set(names) != expected:
+                raise ReleaseError("release archive file set mismatch")
+
+            for member in members:
                 if member.size <= 0 or member.size > MAX_MEMBER_BYTES:
                     raise ReleaseError(
                         f"release archive member size invalid: {member.name}"
