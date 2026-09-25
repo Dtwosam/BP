@@ -41,6 +41,7 @@ def test_transport_stage_status_binds_both_hosts_to_one_stage_and_release() -> N
         "archive_sha256_mismatch",
         "release_head_not_current",
         "publisher_unit_hash_mismatch",
+        "approved_outbox_handoff_invalid",
         "transport_unit_hash_mismatch",
         '"httpx": "0.28.1"',
         '"google-cloud-pubsub": "2.41.0"',
