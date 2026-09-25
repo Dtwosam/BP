@@ -9,7 +9,10 @@ import pytest
 from bp_engine.execution.telegram_pre_execution import (
     PRE_EXECUTION_PURPOSE,
     PreExecutionError,
+    authorization_snapshot_blockers,
     evaluate_pre_execution_authorization,
+    project_state_authorization_blockers,
+    project_state_authorization_snapshot,
     source_truth_sha256,
     verify_pre_execution_snapshot,
 )
@@ -156,6 +159,22 @@ def test_pre_execution_requires_every_explicit_gate(
     )
     assert result["authorized"] is False
     assert blocker in result["blockers"]
+
+
+def test_source_truth_snapshot_reuses_exact_pre_execution_blocker_policy() -> None:
+    state = _authorized_state()
+    snapshot = project_state_authorization_snapshot(state)
+    assert authorization_snapshot_blockers(snapshot) == []
+    assert project_state_authorization_blockers(state) == []
+
+    changed = copy.deepcopy(state)
+    phase = changed["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    phase["second_order_authorized"] = False
+    changed_snapshot = project_state_authorization_snapshot(changed)
+    expected = ["second_order_not_authorized"]
+    assert authorization_snapshot_blockers(changed_snapshot) == expected
+    assert project_state_authorization_blockers(changed) == expected
 
 
 def test_pre_execution_authorizes_only_fully_explicit_synthetic_state() -> None:
