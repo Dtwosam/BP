@@ -115,7 +115,8 @@ def test_transport_activate_starts_in_dependency_order_and_fails_closed() -> Non
 
     for marker in (
         "activation-failure-safe-stop",
-        'printf "%s\\n" activation-failure-safe-stop > /etc/bp-canary/KILL',
+        'printf "%s',
+        'activation-failure-safe-stop > /etc/bp-canary/KILL',
         "systemctl stop bp-phase15-telegram-privileged-handoff.service",
         "systemctl disable bp-phase15-telegram-privileged-handoff.service",
         "rm -f /etc/bp-telegram-transport/receiver.env",
