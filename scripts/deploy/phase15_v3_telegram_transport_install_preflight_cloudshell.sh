@@ -163,6 +163,7 @@ payload = {
     "free_bytes_root": disk.free,
     "transport_root": path_info("/opt/bp-telegram-transport"),
     "transport_config": path_info("/etc/bp-telegram-transport"),
+    "transport_state": path_info("/var/lib/bp-telegram-transport"),
     "transport_units": unit_state,
     "executor_script": path_info("/opt/bp-canary/executor.sh"),
     "kill_switch": path_info("/etc/bp-canary/KILL"),
@@ -237,6 +238,8 @@ if host["transport_root"]["exists"] is True:
     blockers.append("existing_transport_root_present")
 if host["transport_config"]["exists"] is True:
     blockers.append("existing_transport_config_present")
+if host["transport_state"]["exists"] is True:
+    blockers.append("existing_transport_state_present")
 
 if host["executor_script"]["exists"] is not True:
     blockers.append("executor_script_missing")
@@ -278,6 +281,7 @@ report = {
     "transport_install_present": (
         host["transport_root"]["exists"] is True
         or host["transport_config"]["exists"] is True
+        or host["transport_state"]["exists"] is True
         or any(
             state["active"] is True or state["enabled"] is True
             for state in host["transport_units"].values()
