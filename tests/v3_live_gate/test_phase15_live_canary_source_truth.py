@@ -157,27 +157,34 @@ def test_phase15_telegram_transport_activation_is_authorized_but_not_an_order() 
     assert state["live_trading_enabled"] is False
     assert gate["live_trading_enabled"] is False
 
-def test_phase15_telegram_approval_listener_first_install_is_verified_pass() -> None:
+def test_phase15_telegram_approval_listener_runtime_repair_is_required() -> None:
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     gate = state["phase_15_v3_live_canary"]
     listener = gate["telegram_approval_listener_install_authorization"]
+    activation = gate["telegram_transport_activation_authorization"]
 
-    assert listener["status"] == "INSTALLED_PASS"
+    assert listener["status"] == "RUNTIME_REPAIR_REQUIRED"
     assert listener["target_host"] == "bp-recorder"
     assert listener["installation_type"] == "FIRST_INSTALL"
     assert listener["deployed_head"] == "13b3f358543ef7a26c31bea65ec57b68f9ebf45f"
-    assert listener["service_active"] is True
+    assert listener["runtime_health_status"] == "RESTART_LOOP"
+    assert listener["runtime_failure_reason"] == "telegram_approval_module_import_failed"
+    assert listener["observed_restart_count"] == 1749
+    assert listener["service_active"] is False
     assert listener["service_enabled"] is True
-    assert listener["listener_binding_current"] is True
+    assert listener["listener_binding_current"] is False
     assert listener["handoff_configured"] is False
     assert listener["handoff_env_present"] is False
-    assert listener["journal_error_line_count_last_15m"] == 0
+    assert listener["runtime_repair_required"] is True
+    assert listener["runtime_repair_authorized"] is False
     assert listener["no_real_order_submitted"] is True
     assert listener["stores_bot_token_in_git"] is False
     assert listener["live_trading_enabled_during_install"] is False
     assert listener["real_order_submission_authorized_by_install"] is False
-    assert listener["sanitized_evidence"] == (
-        "docs/evidence/phase-15-v3-telegram-approval-listener-install-20260925.json"
+    assert activation["status"] == "AUTHORIZED_NOT_ACTIVATED"
+    assert activation["does_not_submit_real_order"] is True
+    assert listener["runtime_failure_evidence"] == (
+        "docs/evidence/phase-15-v3-telegram-approval-listener-runtime-failure-20260926.json"
     )
 
 def test_phase15_iap_ssh_api_enablement_is_narrowly_authorized() -> None:
