@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-telegram-transport-activation-pass-production",
+  "observed_date": "2026-09-26",
+  "project": "project-4397f2c0-7098-4c1c-abb",
+  "activation_main": "469049a9f6361f9c656e3d176029b10db7359689",
+  "activation_helper": "scripts/deploy/phase15_v3_telegram_transport_activate_cloudshell.sh",
+  "activation_helper_git_blob_sha": "83157c6c04b9a996bab51012b4bda4dd31062320",
+  "stage_id": "phase15-telegram-stage-05b83214b159772872bc7347",
+  "pre_activation_gates": {
+    "current_main_verified": true,
+    "exact_helper_verified": true,
+    "telegram_listener_status": "PASS",
+    "transport_stage_status": "PASS",
+    "pubsub_readiness_status": "PASS",
+    "activation_readiness_status": "PASS",
+    "activation_ready": true,
+    "blockers": [],
+    "executor_safe_idle": true
+  },
+  "activation_result": {
+    "status": "PASS",
+    "release_head": "469049a9f6361f9c656e3d176029b10db7359689",
+    "source_truth_sha256": "454f79e73a0e2ec98ab2707259e45b8c064d059649a1b6974193a718d356efdf",
+    "topic_id": "bp-phase15-telegram-transport-v1",
+    "subscription_id": "bp-phase15-telegram-exec-v1",
+    "publisher_service_account": "bp-phase15-telegram-publisher@project-4397f2c0-7098-4c1c-abb.iam.gserviceaccount.com",
+    "subscriber_service_account": "bp-phase15-telegram-subscriber@project-4397f2c0-7098-4c1c-abb.iam.gserviceaccount.com",
+    "topic_created": false,
+    "subscription_created": false,
+    "transport_key_id": "transport-0cc0a3fc29029c26",
+    "origin_key_id": "origin-df90a0d120c584d8",
+    "global_live_trading_enabled": false,
+    "second_canary_authorized": true,
+    "services_active": true,
+    "executor_safe_idle": true,
+    "real_order_submitted": false,
+    "waiting_for_fresh_telegram_approval": true
+  },
+  "boundary": {
+    "telegram_approval_performed": false,
+    "executor_armed": false,
+    "order_submission_performed": false,
+    "activation_authorization_consumed": true,
+    "activation_retry_authorized": false,
+    "fresh_explicit_authorization_required_for_any_activation_retry": true
+  },
+  "next_boundary": {
+    "pending_unsubmitted_intent": null,
+    "prepare_one_fresh_new_frozen_v3_paper_derived_intent": true,
+    "target_notional_usd": 5,
+    "fresh_private_telegram_approve_required_after_intent_freeze": true,
+    "executor_invocation_allowed_before_fresh_approval": false,
+    "official_reconciliation_required_after_future_one_shot_execution": true
+  },
+  "notes": [
+    "This evidence records the user-supplied successful activation output only; no additional production mutation was performed while recording it.",
+    "Transport activation is complete. Telegram APPROVE, executor arming/invocation, and order submission remain separate later boundaries.",
+    "Global and Phase-15 live trading remain disabled."
+  ]
+}
