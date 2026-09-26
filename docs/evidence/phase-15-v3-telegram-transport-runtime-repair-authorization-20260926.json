@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-telegram-transport-runtime-repair-authorization",
+  "observed_date": "2026-09-26",
+  "authorization": {
+    "status": "AUTHORIZED_NOT_RUN",
+    "source": "User explicitly instructed ChatGPT to fix the discovered Telegram transport issue end-to-end.",
+    "authorized_from_main": "650083c7b6fe3898b0e4d637c5e8cd9aad6d4e09",
+    "helper": "scripts/deploy/phase15_v3_telegram_transport_runtime_repair_cloudshell.sh",
+    "helper_git_blob_sha": "a124942660cbd37f1ae94d3875fe1de2e0671ab9"
+  },
+  "incident": {
+    "broken_stage_id": "phase15-telegram-stage-05b83214b159772872bc7347",
+    "failed_intent_id": "live-intent-4cb75bd0f114e378130b28d7699320e9",
+    "failed_intent_retry_allowed": false,
+    "failed_intent_must_not_be_replayed": true,
+    "second_canary_global_attempt_marker_present": false,
+    "network_submission_attempt_consumed": false,
+    "executor_invoked": false,
+    "real_order_submitted": false,
+    "receiver_restart_count": 6,
+    "receiver_failure": "google.api_core.exceptions.PermissionDenied: 403 SERVICE_DISABLED for pubsub.googleapis.com"
+  },
+  "root_causes": [
+    "The deterministic Telegram transport release omitted scripts/run_phase15_v3_telegram_approved_outbox.py, causing the approved handoff wrapper to fail closed before outbox staging or network transport.",
+    "pubsub.googleapis.com was disabled for the project, causing the Johannesburg StreamingPull receiver to crash-loop.",
+    "The activation helper previously checked only immediate systemd active state and did not require post-start stability."
+  ],
+  "merged_repairs": {
+    "release_packaging_fix_main": "922f37bfcbd241f441707d0906ae0c36802cd2d5",
+    "pubsub_readiness_and_stability_fix_main": "650083c7b6fe3898b0e4d637c5e8cd9aad6d4e09"
+  },
+  "authorized_repair_scope": [
+    "verify the executor remains safe-idle and the second-canary attempt marker is absent",
+    "deactivate the broken Telegram transport only",
+    "roll back the exact broken transport stage",
+    "enable only pubsub.googleapis.com",
+    "build and restage the corrected deterministic current-main transport release",
+    "revalidate Pub/Sub readiness",
+    "reactivate the transport using the new stability checks",
+    "verify the executor remains safe-idle and no second-canary network attempt was consumed"
+  ],
+  "excluded_boundaries": {
+    "telegram_approve": false,
+    "executor_arm_or_invoke": false,
+    "order_submission": false,
+    "broad_autonomous_live_rollout": false
+  }
+}
