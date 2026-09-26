@@ -21,13 +21,17 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
-Phase 15 now authorizes **exactly one additional frozen-V3 live canary through the private Telegram approval path**. Source truth version remains `0.14.180`; the first canary is reconciled at zero fill and its submission attempt remains consumed.
+Phase 15 still authorizes **exactly one additional frozen-V3 live canary through the private Telegram approval path**. The first canary remains officially reconciled at zero fill and its submission attempt remains consumed.
 
-The second canary preserves the frozen V3 **$5 target notional** under the existing hard **$10 per-market ceiling**. Hard limits remain $10 max trade, $10 total exposure, $10 daily loss, one consecutive loss, one accepted order per arm, one network submission attempt for this authorization, and a 2-second order TTL/cancel attempt. No stake growth, V3 tuning, V4 mutation, or broad autonomous live rollout is authorized.
+The private Telegram transport is now **production-active**. Exact activation from main `469049a9f6361f9c656e3d176029b10db7359689` with repaired helper blob `83157c6c04b9a996bab51012b4bda4dd31062320` passed after listener, stage, Pub/Sub, and activation-readiness checks all returned PASS. The existing topic/subscription were reused; publisher and all four Johannesburg transport services are active; global and Phase-15 `LIVE_TRADING_ENABLED` remain false; the executor is safe-idle; and no real order was submitted. The activation authorization is consumed, so activation must not be rerun without fresh explicit authorization.
 
-The dedicated execution host is `bp-v3-canary-exec` in GCP `africa-south1-a` (Johannesburg). Its latest recorded direct official Polymarket geoblock result is `blocked=false`, `ZA/GP`. Wallet/signing material is permitted only on that host, never on the existing US BP host, in Git, or in chat.
+There is **no pending second-canary intent yet**. The next action is to start the already-authorized prepare-only watcher for one fresh NEW frozen-V3 paper-derived candidate. The watcher runs research/zero-money only, never arms or submits, and feeds the active private Telegram listener. Once a fresh $5 intent appears, review its market, side, limit price, requested shares, and market end time. Only then may the user send one private Telegram `APPROVE` bound to that exact short-lived intent.
 
-The authorized path is: fresh NEW frozen-V3 intent → private Telegram APPROVE → short-lived source-truth attestation → authenticated Pub/Sub transport → one-shot Johannesburg claim → execution-package verification → exact executor handoff verification → one executor invocation → stop and officially reconcile before any third live action. Global `LIVE_TRADING_ENABLED` remains false so unrelated execution paths stay closed.
+The second canary preserves the frozen V3 **$5 target notional** under the existing hard **$10 per-market ceiling**. Hard limits remain $10 max trade, $10 total exposure, $10 daily loss, one consecutive loss, one accepted order, one network submission attempt for the authorization, and a 2-second order TTL/cancel attempt. No stake growth, V3 tuning, V4 mutation, or broad autonomous live rollout is authorized.
+
+The dedicated execution host remains `bp-v3-canary-exec` in GCP `africa-south1-a` (Johannesburg). Wallet/signing material is permitted only on that host, never on the existing US BP host, in Git, or in chat.
+
+The active path is now: fresh NEW frozen-V3 candidate → prepare-only watcher → private Telegram notification → exact Telegram APPROVE → signed source-truth/dispatch verification → authenticated Pub/Sub transport → one-shot Johannesburg claim → exact executor handoff verification → one executor invocation → stop and officially reconcile before any third live action. Global `LIVE_TRADING_ENABLED` remains false so unrelated execution paths stay closed.
 
 ### Historical Gate A acceptance
 
@@ -74,14 +78,13 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
-1. Merge and deploy only the Phase 15 one-order canary engineering package after exact-head CI passes.
-2. Bootstrap the Johannesburg signer with `PHASE15_ACCEPT_WALLET_SETUP=yes`. The private key is entered only at the hidden Cloud Shell prompt. Bootstrap must end with the kill switch engaged and `TRADING_ORDER_SUBMITTED=false`.
-3. Prepare one **new** frozen-V3 paper-derived intent with `scripts/deploy/phase15_v3_canary_prepare_cloudshell.sh`. Historical paper trades are forbidden.
-4. Review the prepared side, $5 target, limit price, shares, and market end time.
-5. Arm explicitly with `PHASE15_ACCEPT_REAL_MONEY=yes`; the arm lasts at most 45 seconds and submits no order.
-6. The user manually submits exactly the prepared JSON to the Johannesburg executor, saves the sanitized JSON result, then runs the record helper.
-7. Stop. Official reconciliation is required before any second order; no second order is currently authorized.
-8. Continue frozen-V3 paper observation and V4 Gate B collection unchanged. Do not tune V3 or access V4 labels/training/policy selection early.
+1. From a clean checkout at current `origin/main`, verify the Telegram transport activation-PASS checkpoint and exact prepare-watch start-helper blob recorded in source truth.
+2. Start the already-authorized **prepare-only** watcher with `PHASE15_ACCEPT_PERSISTENT_PREPARE_WATCH=yes` using `scripts/deploy/phase15_v3_canary_prepare_watch_start_cloudshell.sh`. This step must end with `NO_REAL_ORDER_SUBMITTED=true`, `ARM_AUTOMATED=false`, `SUBMISSION_AUTOMATED=false`, and `PHASE15_V3_CANARY_PERSISTENT_PREPARE_START=PASS`.
+3. Follow/read the watcher state with the existing status/follow helpers until one **fresh NEW** frozen-V3 $5 candidate is prepared. Historical prepared intents are forbidden.
+4. Review the exact intent ID, prediction ID, paper order ID, side, $5 target, limit price, shares, remaining market window, and expiry.
+5. Stop at the Telegram boundary. Only the matching private Telegram `APPROVE` may advance that exact fresh intent; do not use the old manual arm/submit workflow.
+6. After any later one-shot executor invocation, stop immediately and perform official reconciliation before any third live action.
+7. Continue frozen-V3 paper observation and V4 Gate B collection unchanged. Do not tune V3 or access V4 labels/training/policy selection early.
 
 
 **Preserved Phase 14 historical context:** frozen V3 paper activation remains a **historical production PASS** and the recorder/frozen-V3 runtime remains **active after concurrent-partition-retirement rollout PASS**. The frozen identities remain model `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`, prediction `v3-frozen-paper-v1`, execution `paper-execution-v3-frozen-v1`, and `min_edge=0.075`. That paper program used `real_money         = $0.00` and remains **prospective observation only** while the separately bounded Phase 15 canary is evaluated.

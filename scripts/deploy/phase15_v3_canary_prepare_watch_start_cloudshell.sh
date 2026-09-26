@@ -43,15 +43,48 @@ import sys
 from pathlib import Path
 state=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 gate=state["phase_15_v3_live_canary"]
+first=gate.get("first_live_canary") or {}
+second=gate.get("second_live_canary_authorization") or {}
+stage=gate.get("telegram_transport_stage") or {}
+activation=gate.get("telegram_transport_activation_authorization") or {}
 watch=gate["persistent_prepare_watch"]
 master=state["phase_14_checkpoint"]["master_live_gate"]
 assert state["source_of_truth_version"] == "0.14.180"
-assert gate["phase15_canary_authorized"] is True
-assert gate["manual_real_money_submission_required"] is True
+assert state["live_trading_enabled"] is False
 assert gate["live_trading_enabled"] is False
-assert gate["canary_order_submitted"] is False
+assert gate["phase15_canary_authorized"] is True
+assert gate["canary_order_submitted"] is True
+assert first.get("official_reconciliation_complete") is True
+assert gate.get("pending_unsubmitted_intent") is None
+assert gate.get("v3_strategy_mutation_performed") is False
+assert gate["second_order_authorized"] is True
+assert gate["automated_real_money_submission"] is True
+assert gate["manual_real_money_submission_required"] is False
+assert gate["telegram_one_tap_submission_authorized"] is True
+assert gate["telegram_persistent_execution_transport_authorized"] is True
+assert gate["telegram_pubsub_transport_authorized"] is True
+assert stage.get("status") == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_TELEGRAM_APPROVAL"
+assert stage.get("activation_pass") is True
+assert stage.get("activation_consumed") is True
+assert stage.get("executor_safe_idle") is True
+assert stage.get("real_order_submitted") is False
+assert stage.get("waiting_for_fresh_telegram_approval") is True
+assert activation.get("status") == "ACTIVATED_WAITING_FOR_FRESH_TELEGRAM_APPROVAL"
+assert activation.get("activation_result") == "PASS"
+assert activation.get("authorization_consumed") is True
+assert activation.get("waiting_for_fresh_telegram_approval") is True
+assert activation.get("telegram_approval_performed") is False
+assert activation.get("executor_armed") is False
+assert activation.get("order_submission_performed") is False
+assert activation.get("real_order_submitted") is False
+assert second.get("status") == "AUTHORIZED_NOT_SUBMITTED"
+assert second.get("strategy_target_notional_usd") == 5
+assert second.get("max_network_submission_attempts") == 1
+assert second.get("requires_fresh_telegram_approval") is True
+assert second.get("requires_official_reconciliation_before_any_third_order") is True
 assert watch["authorized"] is True
 assert watch["max_wait_seconds"] == 7200
+assert watch["prepare_only"] is True
 assert watch["arm_automated"] is False
 assert watch["submission_automated"] is False
 assert all(value == "pass" for value in master.values())
