@@ -64,9 +64,29 @@ def metadata(path: Path) -> dict[str, object]:
 
 
 deployed_head = None
+release_import_usable_by_service_user = False
 if current.is_symlink():
     resolved = current.resolve()
     deployed_head = resolved.name
+    import_probe = subprocess.run(
+        [
+            "runuser",
+            "-u",
+            "bp",
+            "--",
+            "env",
+            "PYTHONDONTWRITEBYTECODE=1",
+            f"PYTHONPATH={resolved / 'src'}",
+            "/opt/bp/.venv/bin/python",
+            "-S",
+            "-c",
+            "import bp_engine.execution.telegram_approval",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    release_import_usable_by_service_user = import_probe.returncode == 0
 
 env_keys: list[str] = []
 token_set = False
@@ -110,6 +130,7 @@ payload = {
     "service_active": systemctl("is-active", service) == "active",
     "service_enabled": systemctl("is-enabled", service) == "enabled",
     "deployed_head": deployed_head,
+    "release_import_usable_by_service_user": release_import_usable_by_service_user,
     "unit": metadata(unit_path),
     "env": metadata(env_path),
     "state_root": metadata(state_root),
@@ -137,6 +158,7 @@ expected_keys = [
 ]
 assert payload["service_active"] is True
 assert payload["service_enabled"] is True
+assert payload["release_import_usable_by_service_user"] is True
 assert payload["env_keys"] == expected_keys
 assert payload["bot_token_set"] is True
 assert payload["telegram_user_id_set"] is True

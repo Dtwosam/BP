@@ -239,10 +239,15 @@ if [[ ! -d "$RELEASE" ]]; then
   install -d -o root -g root -m 0755 "$RELEASE"
   tar -xzf "$ARCHIVE" -C "$RELEASE"
 fi
+chown -hR root:bp "$RELEASE"
+find "$RELEASE" -type d -exec chmod 0750 {} +
+find "$RELEASE" -type f -exec chmod 0640 {} +
 for path in   scripts/run_phase15_v3_canary_telegram_approval.py   src/bp_engine/execution/telegram_approval.py   deploy/bp-phase15-canary-telegram-approval.service
 do
   [[ -f "$RELEASE/$path" ]] || fail "release_required_path_missing:$path"
 done
+runuser -u bp -- env   PYTHONDONTWRITEBYTECODE=1   PYTHONPATH="$RELEASE/src"   /opt/bp/.venv/bin/python -S -c   'import bp_engine.execution.telegram_approval' >/dev/null ||
+  fail "telegram_release_import_not_usable_by_service_user"
 
 install -d -o bp -g bp -m 0700 "$STATE_ROOT"
 install -o root -g bp -m 0640 "$ENV_UPLOAD" "$ENV_PATH"
@@ -262,12 +267,24 @@ install -o root -g root -m 0644 "$RELEASE/deploy/$SERVICE" "$SERVICE_PATH"
 systemctl daemon-reload
 systemctl enable "$SERVICE" >/dev/null
 systemctl restart "$SERVICE"
-sleep 2
+sleep 3
 
 systemctl is-enabled --quiet "$SERVICE" || fail "telegram_service_not_enabled"
 systemctl is-active --quiet "$SERVICE" || {
   journalctl -u "$SERVICE" -n 50 --no-pager >&2 || true
   fail "telegram_service_not_active"
+}
+PID_FIRST=$(systemctl show -p MainPID --value "$SERVICE")
+[[ "$PID_FIRST" =~ ^[1-9][0-9]*$ ]] || fail "telegram_service_pid_invalid"
+sleep 5
+systemctl is-active --quiet "$SERVICE" || {
+  journalctl -u "$SERVICE" -n 50 --no-pager >&2 || true
+  fail "telegram_service_not_stable"
+}
+PID_SECOND=$(systemctl show -p MainPID --value "$SERVICE")
+[[ "$PID_SECOND" == "$PID_FIRST" ]] || {
+  journalctl -u "$SERVICE" -n 50 --no-pager >&2 || true
+  fail "telegram_service_restarted_during_stability_window"
 }
 
 RECORDER_PID_AFTER=$(systemctl show -p MainPID --value bp-recorder.service)

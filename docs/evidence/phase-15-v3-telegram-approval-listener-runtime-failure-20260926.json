@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-telegram-approval-listener-runtime-failure",
+  "observed_date": "2026-09-26",
+  "project": "project-4397f2c0-7098-4c1c-abb",
+  "host": "bp-recorder",
+  "service": "bp-phase15-canary-telegram-approval.service",
+  "deployed_head": "13b3f358543ef7a26c31bea65ec57b68f9ebf45f",
+  "observed": {
+    "unit_loaded": true,
+    "unit_enabled": true,
+    "active_snapshot_transient": true,
+    "substate_snapshot": "running",
+    "main_pid_snapshot": 231486,
+    "result_snapshot": "success",
+    "restart_count": 1749,
+    "process_present_during_snapshot": true,
+    "no_mutation_performed_by_diagnostic": true
+  },
+  "failure": {
+    "status": "RESTART_LOOP",
+    "exception_type": "ModuleNotFoundError",
+    "exception_message": "No module named 'bp_engine.execution.telegram_approval'",
+    "failing_import": "from bp_engine.execution.telegram_approval import ...",
+    "repeated_exit_status": 1,
+    "repeated_systemd_result": "exit-code"
+  },
+  "static_runtime_metadata": {
+    "env_owner": "root",
+    "env_group": "bp",
+    "env_mode": "0640",
+    "env_keys": [
+      "BP_TELEGRAM_BOT_TOKEN",
+      "BP_TELEGRAM_CHAT_ID",
+      "BP_TELEGRAM_USER_ID"
+    ],
+    "bot_token_set": true,
+    "telegram_user_id_set": true,
+    "telegram_chat_id_set": true,
+    "handoff_configured": false,
+    "handoff_env_present": false,
+    "unit_owner": "root",
+    "unit_group": "root",
+    "unit_mode": "0644",
+    "state_root_owner": "bp",
+    "state_root_group": "bp",
+    "state_root_mode": "0700"
+  },
+  "impact": {
+    "transport_activation_started": false,
+    "pubsub_or_iam_mutated_by_failed_activation_attempt": false,
+    "runtime_transport_keys_or_env_created": false,
+    "telegram_approval_performed": false,
+    "executor_armed": false,
+    "real_order_submitted": false,
+    "global_live_trading_enabled": false
+  },
+  "remediation": {
+    "repo_fix_required": true,
+    "production_runtime_repair_required": true,
+    "production_runtime_repair_authorized": false,
+    "repair_helper": "scripts/deploy/phase15_v3_telegram_approval_runtime_repair_cloudshell.sh",
+    "repair_must_reuse_existing_telegram_env": true,
+    "repair_must_not_configure_handoff": true,
+    "repair_must_not_invoke_executor": true,
+    "repair_must_not_submit_order": true
+  }
+}

@@ -10,6 +10,7 @@ INSTALL = ROOT / "scripts/deploy/phase15_v3_telegram_approval_install_cloudshell
 STATUS = ROOT / "scripts/deploy/phase15_v3_telegram_approval_status_cloudshell.sh"
 READINESS = ROOT / "scripts/deploy/phase15_v3_telegram_activation_readiness_cloudshell.sh"
 DISABLE = ROOT / "scripts/deploy/phase15_v3_telegram_approval_disable_cloudshell.sh"
+REPAIR = ROOT / "scripts/deploy/phase15_v3_telegram_approval_runtime_repair_cloudshell.sh"
 RUNNER = ROOT / "scripts/run_phase15_v3_canary_telegram_approval.py"
 OUTBOX = ROOT / "scripts/run_phase15_v3_telegram_transport_outbox.py"
 INTAKE = ROOT / "scripts/run_phase15_v3_telegram_transport_intake.py"
@@ -34,6 +35,7 @@ def test_telegram_listener_unit_is_research_zero_money_and_secret_limited() -> N
         "ProtectSystem=full",
         "ReadOnlyPaths=-/var/lib/bp/phase15-canary-prepare-watch",
         "ReadWritePaths=/var/lib/bp/phase15-canary-telegram-approval",
+        "ExecStart=/opt/bp/.venv/bin/python -S ",
     ):
         assert marker in text
     assert "BP_TELEGRAM_HANDOFF_COMMAND=" not in text
@@ -80,6 +82,12 @@ def test_telegram_install_is_listener_only_and_token_never_enters_git() -> None:
         'assert second.get("max_network_submission_attempts") == 1',
         'systemctl enable "$SERVICE"',
         'systemctl restart "$SERVICE"',
+        'chown -hR root:bp "$RELEASE"',
+        'find "$RELEASE" -type d -exec chmod 0750 {} +',
+        'find "$RELEASE" -type f -exec chmod 0640 {} +',
+        "telegram_release_import_not_usable_by_service_user",
+        "/opt/bp/.venv/bin/python -S -c",
+        "telegram_service_restarted_during_stability_window",
         "CORE_SERVICE_PIDS_PRESERVED=true",
         "BOT_TOKEN_STORED_IN_GIT=false",
         "HANDOFF_CONFIGURED=false",
@@ -131,6 +139,7 @@ def test_telegram_status_is_read_only_and_never_prints_secret_values() -> None:
         "handoff_configured",
         "handoff_env_present",
         "journal_error_line_count_last_15m",
+        "release_import_usable_by_service_user",
         '"owner": pwd.getpwuid(info.st_uid).pw_name',
         '"group": grp.getgrgid(info.st_gid).gr_name',
         "LISTENER_BINDING_CURRENT=true",
@@ -151,7 +160,7 @@ def test_telegram_status_is_read_only_and_never_prints_secret_values() -> None:
 
 
 def test_telegram_install_and_status_shell_syntax_is_valid() -> None:
-    for path in (INSTALL, STATUS):
+    for path in (INSTALL, STATUS, REPAIR):
         completed = subprocess.run(
             ["bash", "-n", str(path)],
             check=False,
@@ -222,6 +231,52 @@ def test_telegram_activation_readiness_shell_and_embedded_python_are_valid() -> 
     assert len(blocks) >= 3
     for block in blocks:
         ast.parse(block)
+
+
+def test_telegram_runtime_repair_is_listener_only_and_reuses_existing_secret_file() -> None:
+    text = REPAIR.read_text(encoding="utf-8")
+    for marker in (
+        "PHASE15_ACCEPT_TELEGRAM_APPROVAL_RUNTIME_REPAIR",
+        "explicit_telegram_approval_runtime_repair_authorization_required",
+        'listener["status"] == "RUNTIME_REPAIR_REQUIRED"',
+        'listener["runtime_repair_authorized"] is True',
+        '[[ -f "$ENV_PATH" ]]',
+        'ENV_META=$(stat -c',
+        "listener_env_keys_invalid",
+        'chown -hR root:bp "$RELEASE"',
+        'find "$RELEASE" -type d -exec chmod 0750 {} +',
+        'find "$RELEASE" -type f -exec chmod 0640 {} +',
+        "repair_release_import_not_usable_by_service_user",
+        'systemctl restart "$SERVICE"',
+        "listener_restarted_during_repair_stability_window",
+        "EXISTING_TELEGRAM_ENV_REUSED=true",
+        "HANDOFF_CONFIGURED=false",
+        "NO_REAL_ORDER_SUBMITTED=true",
+        "PHASE15_V3_TELEGRAM_APPROVAL_RUNTIME_REPAIR=PASS",
+    ):
+        assert marker in text
+    for forbidden in (
+        "read -r -s BOT_TOKEN",
+        "telegram-approval-handoff.env <<",
+        "phase15_v3_canary_arm_cloudshell.sh",
+        "sudo /opt/bp-canary/executor.sh",
+        "PHASE15_ACCEPT_REAL_MONEY",
+        "post_order",
+        "create_limit_order",
+        "POLYMARKET_PRIVATE_KEY",
+        "POLYMARKET_WALLET_ADDRESS",
+    ):
+        assert forbidden not in text
+
+
+def test_telegram_runtime_repair_shell_syntax_is_valid() -> None:
+    completed = subprocess.run(
+        ["bash", "-n", str(REPAIR)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
 
 
 def test_telegram_disable_revokes_token_but_preserves_audit_state() -> None:
