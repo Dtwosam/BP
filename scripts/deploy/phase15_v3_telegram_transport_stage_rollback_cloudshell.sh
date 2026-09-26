@@ -167,6 +167,7 @@ SERVICES = (
     "bp-phase15-telegram-privileged-handoff.service",
 )
 STATE_DIRS = (
+    Path("/var/lib/bp-telegram-transport"),
     Path("/var/lib/bp-canary/telegram-transport-inbox"),
     Path("/var/lib/bp-canary/telegram-transport-rejections"),
     Path("/var/lib/bp-canary/telegram-transport-claims"),
@@ -383,6 +384,7 @@ SERVICES=(
   bp-phase15-telegram-privileged-handoff.service
 )
 STATE_DIRS=(
+  /var/lib/bp-telegram-transport
   /var/lib/bp-canary/telegram-transport-inbox
   /var/lib/bp-canary/telegram-transport-rejections
   /var/lib/bp-canary/telegram-transport-claims
