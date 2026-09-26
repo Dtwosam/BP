@@ -29,7 +29,10 @@ def test_streaming_receiver_unit_is_unprivileged_zero_money_and_wallet_isolated(
         "AmbientCapabilities=",
         "--inbox-dir /var/lib/bp-telegram-transport/inbox",
         "--rejection-dir /var/lib/bp-telegram-transport/rejections",
-        "InaccessiblePaths=/etc/bp-canary /var/lib/bp-canary -/etc/bp-telegram-transport/origin.key",
+        (
+            "InaccessiblePaths=/etc/bp-canary /var/lib/bp-canary "
+            "-/etc/bp-telegram-transport/origin.key"
+        ),
         (
             "ReadOnlyPaths=/opt/bp-telegram-transport "
             "/etc/bp-telegram-transport/receiver.env "
