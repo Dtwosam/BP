@@ -86,7 +86,7 @@ def test_telegram_install_is_listener_only_and_token_never_enters_git() -> None:
         'find "$RELEASE" -type d -exec chmod 0750 {} +',
         'find "$RELEASE" -type f -exec chmod 0640 {} +',
         "telegram_release_import_not_usable_by_service_user",
-        '"/opt/bp/.venv/bin/python -S -c"',
+        "/opt/bp/.venv/bin/python -S -c",
         "telegram_service_restarted_during_stability_window",
         "CORE_SERVICE_PIDS_PRESERVED=true",
         "BOT_TOKEN_STORED_IN_GIT=false",
