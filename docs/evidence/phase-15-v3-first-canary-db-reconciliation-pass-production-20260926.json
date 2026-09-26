@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-first-canary-db-reconciliation-pass-production",
+  "observed_date": "2026-09-26",
+  "source_main": "38b6081621eab59aecafcdb0628e1d68e9497827",
+  "helper": "scripts/deploy/phase15_v3_first_canary_db_reconciliation_cloudshell.sh",
+  "helper_git_blob_sha": "b21456d222f8256b381d43d70c1373bbbee6d78d",
+  "authorization_evidence": "docs/evidence/phase-15-v3-first-canary-db-reconciliation-authorization-20260926.json",
+  "target_intent_id": "live-intent-6cdfcfd28d0eb52f1ee0762bfd351409",
+  "target_external_order_id": "0x7c85e5e8753a875dfd9fec8ffd45726164863648127351b21c2a8ba1819a28de",
+  "preflight": {
+    "account_clean_for_canary": true,
+    "collateral_balance_usd": "30",
+    "open_order_count": 0,
+    "geoblock": {
+      "blocked": false,
+      "country": "ZA",
+      "region": "GP"
+    },
+    "kill_switch_engaged": true,
+    "activation_valid": false,
+    "live_order_submitted": false,
+    "submission_ready": false,
+    "wallet_configured": true,
+    "private_key_configured": true,
+    "sdk_import_ok": true
+  },
+  "official_fill_reverification": {
+    "read_only": true,
+    "confirmed_filled_shares": "0",
+    "confirmed_filled_notional_usd": "0",
+    "matching_trade_count": 0,
+    "fill_state": "zero_fill_observed",
+    "order_still_open": false,
+    "open_order_count": 0,
+    "official_reconciliation_complete": true,
+    "snapshot_stable_across_3_seconds": true,
+    "sdk_version": "0.7.1"
+  },
+  "reconciliation_result": {
+    "status": "reconciled",
+    "reconciliation_id": "live-reconciliation-81489372163985723f74f2003c7ef1d7",
+    "event_types": [
+      "accepted",
+      "cancelled"
+    ],
+    "unresolved_count": 0,
+    "critical_count": 0
+  },
+  "safety": {
+    "telegram_approval_performed": false,
+    "executor_armed": false,
+    "executor_invoked": false,
+    "order_submission_performed": false,
+    "network_submission_attempt_consumed_by_repair": false,
+    "live_trading_enabled": false
+  },
+  "helper_result": "PASS"
+}
