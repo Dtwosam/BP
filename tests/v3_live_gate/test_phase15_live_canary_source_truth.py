@@ -18,6 +18,10 @@ WATCHER_RESTART_AUTH_EVIDENCE = (
     ROOT
     / "docs/evidence/phase-15-v3-post-reconciliation-watcher-restart-authorization-20260926.json"
 )
+WATCHER_RESTART_PASS_EVIDENCE = (
+    ROOT
+    / "docs/evidence/phase-15-v3-post-reconciliation-watcher-restart-pass-production-20260926.json"
+)
 
 
 def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -> None:
@@ -286,9 +290,9 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
     assert activation["official_reconciliation_required_before_any_third_order"] is True
     assert activation["broad_autonomous_live_rollout_authorized"] is False
     assert gate["pending_unsubmitted_intent"] is None
-    assert watch["status"] == "REAUTHORIZED_READY_FOR_POST_RECONCILIATION_RESTART"
+    assert watch["status"] == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_POST_RECONCILIATION_CANDIDATE"
     assert watch["authorized"] is True
-    assert watch["start_authorized"] is True
+    assert watch["start_authorized"] is False
     assert watch["runtime_reauthorization_required"] is False
     assert watch["runtime_reauthorization_authorized"] is True
     assert watch["runtime_reauthorization_authorized_at_main"] == (
@@ -296,8 +300,8 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
     )
     assert watch["runtime_reauthorization_consumed"] is True
     assert watch["post_reconciliation_restart_authorization_required"] is False
-    assert watch["post_reconciliation_restart_authorized"] is True
-    assert watch["post_reconciliation_restart_authorization_consumed"] is False
+    assert watch["post_reconciliation_restart_authorized"] is False
+    assert watch["post_reconciliation_restart_authorization_consumed"] is True
     assert watch["post_reconciliation_restart_authorized_at_main"] == (
         "6488426580c61cbe76fe31c2ad7b482b519e63fc"
     )
@@ -308,7 +312,12 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
     )
     assert watch["post_reconciliation_restart_does_not_authorize_order_submission"] is True
     assert watch["post_reconciliation_restart_source_main"] == (
-        "902fcdbec0e8236acd5a3ce53980026c0fd77792"
+        "271b35fffdb3ccff1490e213672dfa98b7583d75"
+    )
+    assert watch["post_reconciliation_restart_production_performed"] is True
+    assert watch["post_reconciliation_restart_result"] == "PASS"
+    assert watch["post_reconciliation_restart_run_id"] == (
+        "phase15-prepare-watch-20260926T195409Z-271b35ff"
     )
     assert watch["post_reconciliation_restart_start_helper_git_blob_sha"] == (
         "0a98b03e35d8019a85063e45d1a979fea96c0532"
@@ -332,16 +341,16 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
     assert watch["prepare_only"] is True
     assert watch["arm_automated"] is False
     assert watch["submission_automated"] is False
-    assert watch["service_active"] is False
+    assert watch["service_active"] is True
     assert watch["start_result"] == "PASS"
-    assert watch["run_id"] == "phase15-prepare-watch-20260926T155010Z-f3de8c00"
+    assert watch["run_id"] == "phase15-prepare-watch-20260926T195409Z-271b35ff"
     assert watch["remote_run_dir"] == (
         "/var/lib/bp/phase15-canary-prepare-watch/runs/"
-        "phase15-prepare-watch-20260926T155010Z-f3de8c00"
+        "phase15-prepare-watch-20260926T195409Z-271b35ff"
     )
-    assert watch["helper_head"] == "f3de8c008d6a50584dc71a172ca4dcb4275f73d8"
-    assert watch["last_status"] == "expired"
-    assert watch["last_status_reason"] == "no_eligible_v3_trade_within_wait_window"
+    assert watch["helper_head"] == "271b35fffdb3ccff1490e213672dfa98b7583d75"
+    assert watch["last_status"] == "waiting_for_fresh_candidate"
+    assert watch["last_status_reason"] == "post_reconciliation_prepare_only_watcher_restarted"
     assert watch["current_run_fresh_candidate_required"] is True
     assert watch["current_run_historical_prepared_intents_forbidden"] is True
     assert watch["current_run_second_canary_network_attempt_consumed"] is False
@@ -377,8 +386,11 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
         "docs/evidence/phase-15-v3-second-telegram-prepare-watch-runtime-reauthorization-20260926.json"
     )
     assert watch["current_run_evidence"] == (
-        "docs/evidence/phase-15-v3-corrected-second-telegram-prepare-watch-restart-pass-production-20260926.json"
+        "docs/evidence/phase-15-v3-post-reconciliation-watcher-restart-pass-production-20260926.json"
     )
+    assert watch["previous_run_id"] == "phase15-prepare-watch-20260926T155010Z-f3de8c00"
+    assert watch["previous_last_status"] == "expired"
+    assert watch["previous_last_status_reason"] == "no_eligible_v3_trade_within_wait_window"
     watcher_evidence = json.loads(WATCHER_EXPIRED_EVIDENCE.read_text(encoding="utf-8"))
     assert watcher_evidence["run"]["status"] == "expired"
     assert watcher_evidence["run"]["reason"] == "no_eligible_v3_trade_within_wait_window"
@@ -407,6 +419,23 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
     assert restart_auth_evidence["excluded_actions"]["telegram_approve"] is False
     assert restart_auth_evidence["excluded_actions"]["executor_arm_or_invoke"] is False
     assert restart_auth_evidence["excluded_actions"]["order_submission"] is False
+
+    restart_pass_evidence = json.loads(
+        WATCHER_RESTART_PASS_EVIDENCE.read_text(encoding="utf-8")
+    )
+    assert restart_pass_evidence["source_main"] == (
+        "271b35fffdb3ccff1490e213672dfa98b7583d75"
+    )
+    assert restart_pass_evidence["result"] == "PASS"
+    assert restart_pass_evidence["run"]["service_active"] is True
+    assert restart_pass_evidence["run"]["max_wait_seconds"] == 7200
+    assert restart_pass_evidence["safety"]["prepare_only"] is True
+    assert restart_pass_evidence["safety"]["no_real_order_submitted"] is True
+    assert restart_pass_evidence["safety"]["arm_automated"] is False
+    assert restart_pass_evidence["safety"]["submission_automated"] is False
+    assert restart_pass_evidence["safety"]["telegram_approval_performed"] is False
+    assert restart_pass_evidence["safety"]["executor_armed"] is False
+    assert restart_pass_evidence["safety"]["order_submission_performed"] is False
 
     assert state["live_trading_enabled"] is False
     assert gate["live_trading_enabled"] is False
