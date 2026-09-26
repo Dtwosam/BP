@@ -83,6 +83,8 @@ assert second.get("max_network_submission_attempts") == 1
 assert second.get("requires_fresh_telegram_approval") is True
 assert second.get("requires_official_reconciliation_before_any_third_order") is True
 assert watch["authorized"] is True
+assert watch["start_authorized"] is True
+assert watch.get("runtime_reauthorization_required") is False
 assert watch["max_wait_seconds"] == 7200
 assert watch["prepare_only"] is True
 assert watch["arm_automated"] is False
