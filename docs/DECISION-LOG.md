@@ -824,3 +824,11 @@ Add an idempotent repair helper that freshly re-verifies the exact first canary 
 Fresh Johannesburg-account verification again established zero fill, zero matching trades, zero open orders, safe-idle, kill switch engaged, and a stable official snapshot. The helper persisted reconciliation `live-reconciliation-81489372163985723f74f2003c7ef1d7` for the first canary with `unresolved_count=0` and `critical_count=0`. Telegram `APPROVE`, executor arm/invocation, order submission, and second-canary network-attempt consumption all remained false.
 
 The repair authorization is consumed and must not be reused. The three paper predictions already rejected under `reconciliation_blocked` remain terminally excluded. The next action is read-only status/follow of the existing corrected prepare watcher; only a later NEW frozen-V3 candidate may advance to the separate Telegram approval boundary. Evidence: `docs/evidence/phase-15-v3-first-canary-db-reconciliation-pass-production-20260926.json`.
+
+## D-081 — Require fresh authorization for post-reconciliation watcher restart
+**Date:** 26 Sep 2026  
+**Status:** Authorization required
+
+**Decision:** Read-only status of corrected prepare-only watcher run `phase15-prepare-watch-20260926T155010Z-f3de8c00` showed it expired safely at `2026-09-26T17:50:48.084941Z` after its 7200-second window with reason `no_eligible_v3_trade_within_wait_window`. The service is inactive, no arm was attempted, no real order was submitted, and the second-canary network attempt remains unconsumed.
+
+The first-canary reconciliation blocker has since been repaired, but that happened after this watcher window ended. The four restart-bound artifacts remain unchanged from the previously authorized corrected release, so this is not a new code-risk finding. Nevertheless, the previous watcher-start authorization was one-shot and is consumed. Any new 7200-second post-reconciliation watcher start is a fresh production mutation and requires fresh explicit authorization. That future restart remains prepare-only/research/zero-money and does not itself authorize Telegram `APPROVE`, executor arm/invocation, or order submission. Evidence: `docs/evidence/phase-15-v3-post-reconciliation-watcher-expired-readonly-20260926.json`.
