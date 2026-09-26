@@ -290,6 +290,25 @@ def test_ready_module_verifies_v2_source_truth_authorization(
     assert result["real_order_submitted"] is False
 
 
+def test_ready_module_accepts_group_read_only_bundle(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
+    ready, key_path = _bundle_v2(tmp_path, now)
+    ready.chmod(0o750)
+    for path in ready.iterdir():
+        if path.is_file():
+            path.chmod(0o640)
+
+    result = verify_ready_bundle(
+        ready_dir=ready,
+        origin_key_path=key_path,
+        expected_origin_key_id=ORIGIN_KEY_ID,
+        observed_at=now + timedelta(seconds=4),
+    )
+
+    assert result["status"] == "execution_ready_source_truth_verified"
+    assert result["source_truth_authorized"] is True
+
+
 def test_ready_module_rejects_changed_v2_source_truth_mac(
     tmp_path: Path,
 ) -> None:
