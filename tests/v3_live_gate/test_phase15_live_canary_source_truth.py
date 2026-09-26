@@ -135,6 +135,7 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
     gate = state["phase_15_v3_live_canary"]
     stage = gate["telegram_transport_stage"]
     activation = gate["telegram_transport_activation_authorization"]
+    second = gate["second_live_canary_authorization"]
     watch = gate["persistent_prepare_watch"]
 
     assert stage["status"] == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_TELEGRAM_APPROVAL"
