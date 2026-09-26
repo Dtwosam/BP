@@ -73,6 +73,20 @@ def _ensure_private_directory(path: Path, *, label: str) -> None:
     os.chmod(path, 0o700)
 
 
+def _ensure_shared_read_directory(path: Path, *, label: str) -> None:
+    try:
+        path.mkdir(parents=True, mode=0o750)
+    except FileExistsError:
+        pass
+    try:
+        info = path.lstat()
+    except OSError as exc:
+        raise TransportError(f"{label} is not accessible") from exc
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+        raise TransportError(f"{label} must be a non-symlink directory")
+    os.chmod(path, 0o750)
+
+
 def _validate_readonly_private_directory(path: Path, *, label: str) -> None:
     try:
         info = path.lstat()
@@ -102,7 +116,12 @@ def _load_envelope_file(path: Path) -> dict[str, Any]:
     return dict(payload)
 
 
-def _write_private_json(path: Path, payload: Mapping[str, Any]) -> None:
+def _write_private_json(
+    path: Path,
+    payload: Mapping[str, Any],
+    *,
+    mode: int = 0o600,
+) -> None:
     encoded = (
         json.dumps(
             dict(payload),
@@ -113,7 +132,7 @@ def _write_private_json(path: Path, payload: Mapping[str, Any]) -> None:
         )
         + "\n"
     )
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
     with os.fdopen(fd, "w", encoding="utf-8") as handle:
         handle.write(encoded)
         handle.flush()
@@ -146,7 +165,7 @@ def _materialize_ready(
     envelope: Mapping[str, Any],
     observed_at: datetime,
 ) -> Path:
-    _ensure_private_directory(ready_root, label="transport ready directory")
+    _ensure_shared_read_directory(ready_root, label="transport ready directory")
     claim_id = str(claimed["claim_id"])
     if len(claim_id) != 64 or any(ch not in "0123456789abcdef" for ch in claim_id):
         raise TransportError("transport claim id invalid")
@@ -155,7 +174,7 @@ def _materialize_ready(
         raise TransportError("transport ready directory already exists")
 
     stage = Path(tempfile.mkdtemp(prefix=f".{claim_id}.", dir=ready_root))
-    os.chmod(stage, 0o700)
+    os.chmod(stage, 0o750)
     try:
         receipt = {
             "schema_version": 1,
@@ -179,11 +198,12 @@ def _materialize_ready(
             "executor_invoked": False,
             "real_order_submitted": False,
         }
-        _write_private_json(stage / "prepared.json", claimed["prepared"])
-        _write_private_json(stage / "approval.json", claimed["approval"])
+        _write_private_json(stage / "prepared.json", claimed["prepared"], mode=0o640)
+        _write_private_json(stage / "approval.json", claimed["approval"], mode=0o640)
         _write_private_json(
             stage / "origin-attestation.json",
             claimed["origin_attestation"],
+            mode=0o640,
         )
         if "source_truth_authorization" in claimed:
             source_truth = claimed["source_truth_authorization"]
@@ -199,9 +219,10 @@ def _materialize_ready(
             _write_private_json(
                 stage / "source-truth-authorization.json",
                 source_truth,
+                mode=0o640,
             )
-        _write_private_json(stage / "envelope.json", envelope)
-        _write_private_json(stage / "receipt.json", receipt)
+        _write_private_json(stage / "envelope.json", envelope, mode=0o640)
+        _write_private_json(stage / "receipt.json", receipt, mode=0o640)
         os.rename(stage, final_dir)
     except Exception:
         shutil.rmtree(stage, ignore_errors=True)
@@ -256,7 +277,7 @@ def claim_pending_once(
 ) -> list[dict[str, Any]]:
     key = load_transport_key_file(key_path)
     _ensure_private_directory(claim_dir, label="transport claim directory")
-    _ensure_private_directory(ready_dir, label="transport ready directory")
+    _ensure_shared_read_directory(ready_dir, label="transport ready directory")
     results: list[dict[str, Any]] = []
 
     for inbox_path in _pending(inbox_dir, processed_dir, failure_dir):
