@@ -130,7 +130,7 @@ for service in "${SERVICES[@]}"; do
   systemctl disable "$service" >/dev/null 2>&1 || true
   rm -f "/etc/systemd/system/$service"
 done
-rm -rf   /var/lib/bp-canary/telegram-transport-inbox   /var/lib/bp-canary/telegram-transport-rejections   /var/lib/bp-canary/telegram-transport-claims   /var/lib/bp-canary/telegram-transport-ready   /var/lib/bp-canary/telegram-transport-claim-processed   /var/lib/bp-canary/telegram-transport-claim-failures   /var/lib/bp-canary/telegram-dispatch-claims   /var/lib/bp-canary/telegram-execution-authorized   /var/lib/bp-canary/telegram-execution-auth-processed   /var/lib/bp-canary/telegram-execution-auth-failures   /var/lib/bp-canary/telegram-live-handoff   "$CONFIG"   "$ROOT"
+rm -rf   /var/lib/bp-telegram-transport   /var/lib/bp-canary/telegram-dispatch-claims   /var/lib/bp-canary/telegram-execution-authorized   /var/lib/bp-canary/telegram-execution-auth-processed   /var/lib/bp-canary/telegram-execution-auth-failures   /var/lib/bp-canary/telegram-live-handoff   "$CONFIG"   "$ROOT"
 rm -f "$OWNER"
 systemctl daemon-reload
 if [[ "$CREATED_USER" == "true" ]]; then
@@ -275,6 +275,9 @@ PY
 install -d -o root -g root -m 0755 "$RELEASES"
 install -d -o root -g root -m 0755 "$RELEASE"
 tar -xzf "$ARCHIVE" -C "$RELEASE"
+chown -hR root:bp "$RELEASE"
+find "$RELEASE" -type d -exec chmod 0750 {} +
+find "$RELEASE" -type f -exec chmod 0640 {} +
 
 for required in   RELEASE-MANIFEST.json   deploy/bp-phase15-telegram-pubsub-publisher.service   deploy/phase15-telegram-approved-outbox-handoff.sh   deploy/phase15-telegram-transport-runtime-requirements.txt   scripts/run_phase15_v3_telegram_pubsub_publish_worker.py
 do
@@ -295,6 +298,8 @@ chown -hR root:bp "$VENV"
 chmod -R g+rX,o-rwx "$VENV"
 runuser -u bp -- "$VENV/bin/python" -c 'import httpx; import google.cloud.pubsub_v1' >/dev/null ||
   fail "publisher_venv_not_usable_by_service_user"
+runuser -u bp -- test -r "$RELEASE/scripts/run_phase15_v3_telegram_pubsub_publish_worker.py" ||
+  fail "publisher_release_not_readable_by_service_user"
 
 install -d -o root -g root -m 0755 "$BIN"
 install -o root -g bp -m 0750   "$RELEASE/deploy/phase15-telegram-approved-outbox-handoff.sh"   "$HANDOFF"
@@ -386,7 +391,16 @@ SERVICES=(
   bp-phase15-telegram-execution-authorization-worker.service
   bp-phase15-telegram-privileged-handoff.service
 )
-TRANSPORT_STATE_DIRS=(
+TRANSPORT_STATE_ROOT=/var/lib/bp-telegram-transport
+TRANSPORT_PRIVATE_STATE_DIRS=(
+  "$TRANSPORT_STATE_ROOT/inbox"
+  "$TRANSPORT_STATE_ROOT/rejections"
+  "$TRANSPORT_STATE_ROOT/claims"
+  "$TRANSPORT_STATE_ROOT/processed"
+  "$TRANSPORT_STATE_ROOT/failures"
+)
+TRANSPORT_READY_DIR="$TRANSPORT_STATE_ROOT/ready"
+LEGACY_TRANSPORT_STATE_DIRS=(
   /var/lib/bp-canary/telegram-transport-inbox
   /var/lib/bp-canary/telegram-transport-rejections
   /var/lib/bp-canary/telegram-transport-claims
@@ -402,7 +416,14 @@ AUTH_STATE_DIRS=(
   /var/lib/bp-canary/telegram-live-handoff
 )
 STATE_DIRS=(
-  "${TRANSPORT_STATE_DIRS[@]}"
+  "$TRANSPORT_STATE_ROOT"
+  "${AUTH_STATE_DIRS[@]}"
+)
+PREEXISTING_STATE_PATHS=(
+  "$TRANSPORT_STATE_ROOT"
+  "$TRANSPORT_READY_DIR"
+  "${TRANSPORT_PRIVATE_STATE_DIRS[@]}"
+  "${LEGACY_TRANSPORT_STATE_DIRS[@]}"
   "${AUTH_STATE_DIRS[@]}"
 )
 CREATED_USER=false
@@ -425,7 +446,8 @@ cleanup() {
     systemctl disable "$service" >/dev/null 2>&1 || true
     rm -f "/etc/systemd/system/$service"
   done
-  for dir in "${STATE_DIRS[@]}"; do
+  rm -rf "$TRANSPORT_STATE_ROOT"
+  for dir in "${AUTH_STATE_DIRS[@]}"; do
     rm -rf "$dir"
   done
   rm -rf "$CONFIG" "$ROOT"
@@ -461,7 +483,7 @@ for service in "${SERVICES[@]}"; do
   systemctl is-enabled --quiet "$service" 2>/dev/null &&
     fail "transport_service_unexpectedly_enabled:$service" || true
 done
-for dir in "${STATE_DIRS[@]}"; do
+for dir in "${PREEXISTING_STATE_PATHS[@]}"; do
   [[ ! -e "$dir" && ! -L "$dir" ]] || fail "transport_state_already_exists:$dir"
 done
 
@@ -529,6 +551,9 @@ fi
 install -d -o root -g root -m 0755 "$RELEASES"
 install -d -o root -g root -m 0755 "$RELEASE"
 tar -xzf "$ARCHIVE" -C "$RELEASE"
+chown -hR root:bp-transport "$RELEASE"
+find "$RELEASE" -type d -exec chmod 0750 {} +
+find "$RELEASE" -type f -exec chmod 0640 {} +
 
 for required in   RELEASE-MANIFEST.json   deploy/bp-phase15-telegram-pubsub-streaming-receiver.service   deploy/bp-phase15-telegram-transport-claim-worker.service   deploy/bp-phase15-telegram-execution-authorization-worker.service   deploy/bp-phase15-telegram-privileged-handoff.service   deploy/phase15-telegram-transport-runtime-requirements.txt   scripts/run_phase15_v3_telegram_pubsub_streaming_receive.py   scripts/run_phase15_v3_telegram_transport_claim_worker.py   scripts/run_phase15_v3_telegram_execution_ready_verify.py   scripts/run_phase15_v3_telegram_execution_authorization_worker.py   scripts/run_phase15_v3_telegram_execution_package_verify.py   scripts/run_phase15_v3_telegram_privileged_handoff_verify.py   scripts/run_phase15_v3_telegram_privileged_handoff_worker.py   src/bp_engine/execution/telegram_execution_package.py   src/bp_engine/execution/telegram_privileged_handoff.py   src/bp_engine/execution/telegram_privileged_consumer.py
 do
@@ -549,12 +574,18 @@ chown -hR root:bp-transport "$VENV"
 chmod -R g+rX,o-rwx "$VENV"
 runuser -u bp-transport -- "$VENV/bin/python" -c 'import httpx; import google.cloud.pubsub_v1' >/dev/null ||
   fail "executor_venv_not_usable_by_service_user"
+runuser -u bp-transport -- test -r "$RELEASE/scripts/run_phase15_v3_telegram_pubsub_streaming_receive.py" ||
+  fail "executor_release_not_readable_by_service_user"
+runuser -u bp-transport -- test -r "$RELEASE/scripts/run_phase15_v3_telegram_transport_claim_worker.py" ||
+  fail "executor_claim_worker_not_readable_by_service_user"
 
 ln -s "$RELEASE" "$CURRENT"
 install -d -o root -g bp-transport -m 0750 "$CONFIG"
-for dir in "${TRANSPORT_STATE_DIRS[@]}"; do
+install -d -o root -g bp-transport -m 0710 "$TRANSPORT_STATE_ROOT"
+for dir in "${TRANSPORT_PRIVATE_STATE_DIRS[@]}"; do
   install -d -o bp-transport -g bp-transport -m 0700 "$dir"
 done
+install -d -o bp-transport -g bp-transport -m 0750 "$TRANSPORT_READY_DIR"
 for dir in "${AUTH_STATE_DIRS[@]}"; do
   install -d -o root -g root -m 0700 "$dir"
 done
