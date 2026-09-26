@@ -75,6 +75,8 @@ assert gate["telegram_persistent_execution_transport_authorized"] is True
 assert gate["telegram_pubsub_transport_authorized"] is True
 assert stage.get("status") == "PRODUCTION_STAGED_INACTIVE"
 assert stage.get("activation_authorized") is True
+assert stage.get("stage_ready_for_later_configuration_review") is True
+assert stage.get("restage_required_before_activation_retry") is False
 assert activation.get("status") == "AUTHORIZED_NOT_ACTIVATED"
 assert activation.get("does_not_submit_real_order") is True
 assert activation.get("fresh_private_telegram_approval_still_required_for_second_canary") is True
