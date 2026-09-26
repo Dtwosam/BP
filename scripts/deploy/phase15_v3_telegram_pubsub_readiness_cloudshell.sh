@@ -72,6 +72,16 @@ PROJECT_NUMBER=$(gcloud projects describe "$PROJECT" --format='value(projectNumb
 [[ "$PROJECT_NUMBER" =~ ^[0-9]+$ ]] || fail "project_number_invalid"
 DEFAULT_COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
+PUBSUB_ENABLED_SERVICES=$(gcloud services list --enabled \
+  --project="$PROJECT" \
+  --filter='config.name=pubsub.googleapis.com' \
+  --format='value(config.name)') ||
+  fail "pubsub_service_enablement_read_failed"
+PUBSUB_API_ENABLED=false
+if [[ "$PUBSUB_ENABLED_SERVICES" == "pubsub.googleapis.com" ]]; then
+  PUBSUB_API_ENABLED=true
+fi
+
 US_INSTANCE=$(gcloud compute instances describe "$US_VM"   --project="$PROJECT"   --zone="$US_ZONE"   --format=json) || fail "recorder_instance_describe_failed"
 EXEC_INSTANCE=$(gcloud compute instances describe "$EXEC_VM"   --project="$PROJECT"   --zone="$EXEC_ZONE"   --format=json) || fail "executor_instance_describe_failed"
 
@@ -103,7 +113,7 @@ fi
 PROJECT_IAM=$(gcloud projects get-iam-policy "$PROJECT" --format=json) ||
   fail "project_iam_read_failed"
 
-python3 -   "$SOURCE"   "$US_INSTANCE"   "$EXEC_INSTANCE"   "$TOPIC"   "$SUBSCRIPTION"   "$TOPIC_IAM"   "$SUBSCRIPTION_IAM"   "$PROJECT_IAM"   "$TOPIC_NAME"   "$SUBSCRIPTION_NAME"   "$DEFAULT_COMPUTE_SA" <<'PY'
+python3 -   "$SOURCE"   "$US_INSTANCE"   "$EXEC_INSTANCE"   "$TOPIC"   "$SUBSCRIPTION"   "$TOPIC_IAM"   "$SUBSCRIPTION_IAM"   "$PROJECT_IAM"   "$TOPIC_NAME"   "$SUBSCRIPTION_NAME"   "$DEFAULT_COMPUTE_SA"   "$PUBSUB_API_ENABLED" <<'PY'
 import json
 import sys
 
@@ -119,6 +129,7 @@ import sys
     topic_name,
     subscription_name,
     default_compute_sa,
+    pubsub_api_enabled_raw,
 ) = sys.argv[1:]
 
 source = json.loads(source_raw)
@@ -129,6 +140,7 @@ subscription = json.loads(subscription_raw)
 topic_iam = json.loads(topic_iam_raw)
 subscription_iam = json.loads(subscription_iam_raw)
 project_iam = json.loads(project_iam_raw)
+pubsub_api_enabled = pubsub_api_enabled_raw == "true"
 
 cloud_platform = "https://www.googleapis.com/auth/cloud-platform"
 
@@ -201,6 +213,9 @@ subscriber_sa, subscriber_blockers = service_account(
 )
 blockers.extend(publisher_blockers)
 blockers.extend(subscriber_blockers)
+
+if not pubsub_api_enabled:
+    blockers.append("pubsub_api_not_enabled")
 
 if publisher_sa == default_compute_sa:
     blockers.append("publisher_uses_default_compute_service_account")
@@ -276,6 +291,7 @@ report = {
     "source_truth": source,
     "topic_name": topic_name,
     "subscription_name": subscription_name,
+    "pubsub_api_enabled": pubsub_api_enabled,
     "publisher_service_account": publisher_sa,
     "subscriber_service_account": subscriber_sa,
     "publisher_project_roles": publisher_project_roles,
