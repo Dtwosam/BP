@@ -6,7 +6,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 HOST_EVIDENCE = ROOT / "docs/evidence/phase-15-v3-canary-host-geoblock-20260923.json"
 LIVE_CANARY_EVIDENCE = ROOT / "docs/evidence/phase-15-v3-first-live-canary-submission-20260924.json"
-DB_RECONCILIATION_PASS_EVIDENCE = (\n    ROOT\n    / "docs/evidence/phase-15-v3-first-canary-db-reconciliation-pass-production-20260926.json"\n)
+DB_RECONCILIATION_PASS_EVIDENCE = (
+    ROOT
+    / "docs/evidence/phase-15-v3-first-canary-db-reconciliation-pass-production-20260926.json"
+)
 
 
 def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -> None:
