@@ -29,7 +29,7 @@ def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -
     gate = state["phase_15_v3_live_canary"]
     master = state["phase_14_checkpoint"]["master_live_gate"]
 
-    assert state["source_of_truth_version"] == "0.14.181"
+    assert state["source_of_truth_version"] == "0.14.180"
     assert state["current_phase"] == 15
     assert state["status"] == "PHASE_15_SECOND_LIVE_CANARY_TELEGRAM_AUTHORIZED_NOT_SUBMITTED"
     assert all(value == "pass" for value in master.values())
