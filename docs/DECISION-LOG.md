@@ -796,11 +796,21 @@ The scope is restart of the corrected prepare-only research/zero-money watcher o
 
 ## D-078 — Record corrected second-canary prepare watcher restart PASS
 **Date:** 26 Sep 2026  
-**Status:** Active
+**Status:** Superseded by D-079
 
 **Decision:** The corrected Phase-15 prepare-only watcher restart passed from exact main `f3de8c008d6a50584dc71a172ca4dcb4275f73d8` after verifying the exact authorized start-helper, runner, service-unit, and canary blobs. Production run `phase15-prepare-watch-20260926T155010Z-f3de8c00` is active on `bp-recorder`.
 
 The watcher remains research/zero-money, bounded to 7200 seconds, not enabled across reboot, and cannot arm or submit. The restart returned `NO_REAL_ORDER_SUBMITTED=true`, `ARM_AUTOMATED=false`, and `SUBMISSION_AUTOMATED=false`. Telegram `APPROVE`, executor arm/invocation, and order submission remain unperformed. The D-077 restart authorization is consumed, while the second-canary network-attempt slot remains unconsumed.
 
 The next action is read-only status/follow observation of this exact run until one fresh NEW frozen-V3 $5 candidate appears or the run terminates. Any candidate must be reviewed before crossing the later Telegram approval boundary.
+
+## D-079 — Repair missing first-canary post-submission reconciliation ledger row
+**Date:** 26 Sep 2026  
+**Status:** Engineering ready; production authorization required
+
+**Decision:** Read-only production evidence shows three fresh frozen-V3 paper trades were generated after corrected watcher activation and all three were otherwise live-eligible, but each live-risk decision failed only with `reconciliation_blocked`.
+
+The first live canary is externally verified zero-fill, yet the official fill probe was intentionally read-only and did not persist a post-submission `live_reconciliation_runs` record. The latest DB reconciliation predates the first canary's accepted/cancelled event, so the live account snapshot correctly treats reconciliation as unresolved.
+
+Add an idempotent repair helper that freshly re-verifies the exact first canary as zero-fill and safe-idle, then writes only the missing `post_submission_official_zero_fill` reconciliation row with zero unresolved/critical count and a zero-exposure account snapshot. The helper is bound by Git blob and requires a distinct source-truth authorization. It contains no Telegram approval, arm/invoke, or order-submission path. Production execution remains unauthorized until explicitly approved.
 
