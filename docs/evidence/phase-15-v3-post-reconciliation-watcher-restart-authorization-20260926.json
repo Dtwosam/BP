@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-post-reconciliation-watcher-restart-authorization",
+  "authorization_date": "2026-09-26",
+  "authorization_source": "User explicitly authorized one new 7200-second post-reconciliation prepare-only watcher restart in chat.",
+  "authorized_at_main": "6488426580c61cbe76fe31c2ad7b482b519e63fc",
+  "previous_run_id": "phase15-prepare-watch-20260926T155010Z-f3de8c00",
+  "previous_run_status": "expired",
+  "previous_run_reason": "no_eligible_v3_trade_within_wait_window",
+  "first_canary_reconciliation": {
+    "status": "PRODUCTION_PASS",
+    "reconciliation_id": "live-reconciliation-81489372163985723f74f2003c7ef1d7",
+    "unresolved_count": 0,
+    "critical_count": 0
+  },
+  "authorized_restart": {
+    "max_wait_seconds": 7200,
+    "prepare_only": true,
+    "research_mode": true,
+    "zero_money": true,
+    "fresh_candidate_required": true,
+    "historical_rejected_predictions_forbidden": true
+  },
+  "bound_artifacts": {
+    "start_helper_git_blob_sha": "0a98b03e35d8019a85063e45d1a979fea96c0532",
+    "runner_git_blob_sha": "efe6dc9c3b37f5788b701107366bb634a4b1f357",
+    "service_unit_git_blob_sha": "5e20c65edd57e398d2106c7f6fe93fbb477b7572",
+    "canary_git_blob_sha": "df5e60b1b2ba632fd77d65103509fac70187be7d",
+    "changed_since_previous_authorized_restart": false
+  },
+  "excluded_actions": {
+    "telegram_approve": false,
+    "executor_arm_or_invoke": false,
+    "order_submission": false
+  },
+  "authorization_consumed": false,
+  "production_restart_performed": false
+}
