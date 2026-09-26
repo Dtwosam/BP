@@ -17,7 +17,7 @@ Environment=BP_TELEGRAM_HANDOFF_ENABLED=no
 EnvironmentFile=-/etc/bp/telegram-approval-handoff.env
 Environment=PYTHONPATH=/opt/bp-phase15-telegram-approval/current/src
 UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS
-ExecStart=/opt/bp/.venv/bin/python /opt/bp-phase15-telegram-approval/current/scripts/run_phase15_v3_canary_telegram_approval.py
+ExecStart=/opt/bp/.venv/bin/python -S /opt/bp-phase15-telegram-approval/current/scripts/run_phase15_v3_canary_telegram_approval.py
 Restart=on-failure
 RestartSec=2s
 UMask=0077
