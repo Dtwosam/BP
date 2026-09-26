@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-second-telegram-prepare-watch-runtime-reauthorization",
+  "authorization_date": "2026-09-26",
+  "authorized_at_main": "51e4cf1fa5063ff0f4a263dd5ec1646dc18684cf",
+  "authorization_source": "User explicitly authorized the corrected prepare-only watcher restart.",
+  "scope": "Restart only the corrected Phase-15 prepare-only watcher using the exact bound artifacts recorded here. The watcher remains research/zero-money, may prepare at most one fresh second-canary candidate, cannot arm or submit, and does not authorize Telegram APPROVE, executor arm/invocation, or order submission.",
+  "exact_artifacts": {
+    "start_helper_git_blob_sha": "0a98b03e35d8019a85063e45d1a979fea96c0532",
+    "runner_git_blob_sha": "efe6dc9c3b37f5788b701107366bb634a4b1f357",
+    "service_unit_git_blob_sha": "5e20c65edd57e398d2106c7f6fe93fbb477b7572",
+    "canary_git_blob_sha": "df5e60b1b2ba632fd77d65103509fac70187be7d"
+  },
+  "safety": {
+    "prepare_only": true,
+    "research_zero_money": true,
+    "telegram_approve_authorized": false,
+    "executor_arm_or_invoke_authorized": false,
+    "order_submission_authorized": false,
+    "second_canary_network_attempt_already_consumed": false,
+    "pending_intent": null,
+    "execution_one_shot_global_marker_preserved": true
+  }
+}

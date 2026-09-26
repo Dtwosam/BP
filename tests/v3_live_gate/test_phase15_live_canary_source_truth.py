@@ -195,10 +195,21 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
     assert activation["official_reconciliation_required_before_any_third_order"] is True
     assert activation["broad_autonomous_live_rollout_authorized"] is False
     assert gate["pending_unsubmitted_intent"] is None
-    assert watch["status"] == "STOPPED_SAFE_SECOND_CANARY_LEDGER_FIX_REAUTHORIZATION_REQUIRED"
+    assert watch["status"] == "REAUTHORIZED_READY_FOR_CORRECTED_SECOND_CANARY_RESTART"
     assert watch["authorized"] is True
-    assert watch["start_authorized"] is False
-    assert watch["runtime_reauthorization_required"] is True
+    assert watch["start_authorized"] is True
+    assert watch["runtime_reauthorization_required"] is False
+    assert watch["runtime_reauthorization_authorized"] is True
+    assert watch["runtime_reauthorization_authorized_at_main"] == (
+        "51e4cf1fa5063ff0f4a263dd5ec1646dc18684cf"
+    )
+    assert watch["runtime_reauthorization_consumed"] is False
+    assert watch["runtime_reauthorization_does_not_authorize_telegram_approve"] is True
+    assert (
+        watch["runtime_reauthorization_does_not_authorize_executor_arm_or_invoke"]
+        is True
+    )
+    assert watch["runtime_reauthorization_does_not_authorize_order_submission"] is True
     assert watch["telegram_second_canary_compatible"] is True
     assert watch["prepare_only"] is True
     assert watch["arm_automated"] is False
@@ -237,6 +248,18 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
     assert watch["candidate_canary_git_blob_sha"] == (
         "df5e60b1b2ba632fd77d65103509fac70187be7d"
     )
+    assert watch["runtime_reauthorization_start_helper_git_blob_sha"] == (
+        "0a98b03e35d8019a85063e45d1a979fea96c0532"
+    )
+    assert watch["runtime_reauthorization_runner_git_blob_sha"] == (
+        "efe6dc9c3b37f5788b701107366bb634a4b1f357"
+    )
+    assert watch["runtime_reauthorization_service_unit_git_blob_sha"] == (
+        "5e20c65edd57e398d2106c7f6fe93fbb477b7572"
+    )
+    assert watch["runtime_reauthorization_canary_git_blob_sha"] == (
+        "df5e60b1b2ba632fd77d65103509fac70187be7d"
+    )
     assert watch["candidate_authorized_lifetime_submission_attempt_limit"] == 2
     assert watch["candidate_authorized_lifetime_accepted_order_limit"] == 2
     assert watch["legacy_default_lifetime_submission_attempt_limit"] == 1
@@ -245,6 +268,9 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
     assert watch["global_attempt_marker_path"] == second["global_attempt_marker_path"]
     assert watch["current_run_stop_evidence"] == (
         "docs/evidence/phase-15-v3-second-telegram-prepare-watch-ledger-stop-production-20260926.json"
+    )
+    assert watch["runtime_reauthorization_evidence"] == (
+        "docs/evidence/phase-15-v3-second-telegram-prepare-watch-runtime-reauthorization-20260926.json"
     )
     assert state["live_trading_enabled"] is False
     assert gate["live_trading_enabled"] is False
