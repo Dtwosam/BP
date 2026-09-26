@@ -411,11 +411,23 @@ def test_persistent_prepare_start_requires_explicit_scope_and_health_only() -> N
         'second.get("status") == "AUTHORIZED_NOT_SUBMITTED"',
         'second.get("requires_fresh_telegram_approval") is True',
         'watch["prepare_only"] is True',
+        'watch["start_authorized"] is True',
+        'watch.get("runtime_reauthorization_required") is False',
+        "BP_PHASE15_PREPARE_AUTHORIZED_SUBMISSION_ATTEMPT_LIMIT=2",
+        "BP_PHASE15_PREPARE_AUTHORIZED_ACCEPTED_ORDER_LIMIT=2",
     ):
         assert marker in text
     assert "deploy/bp-phase15-canary-prepare-watch.service" in text
     assert "deploy/bp-phase15-v3-canary-prepare-watch.service" not in text
     assert PERSISTENT_PREPARE_UNIT.exists()
+    unit_text = PERSISTENT_PREPARE_UNIT.read_text(encoding="utf-8")
+    assert "--authorized-submission-attempt-limit ${BP_PHASE15_PREPARE_AUTHORIZED_SUBMISSION_ATTEMPT_LIMIT}" in unit_text
+    assert "--authorized-accepted-order-limit ${BP_PHASE15_PREPARE_AUTHORIZED_ACCEPTED_ORDER_LIMIT}" in unit_text
+    runner_text = PERSISTENT_PREPARE_RUNNER.read_text(encoding="utf-8")
+    assert '"--authorized-submission-attempt-limit"' in runner_text
+    assert '"--authorized-accepted-order-limit"' in runner_text
+    assert "authorized_submission_attempt_limit=args.authorized_submission_attempt_limit" in runner_text
+    assert "authorized_accepted_order_limit=args.authorized_accepted_order_limit" in runner_text
     for forbidden in (
         '{"action":"submit"}',
         "post_order",
