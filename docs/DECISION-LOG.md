@@ -706,7 +706,7 @@ Official reconciliation is mandatory after the second canary. No third order is 
 
 ## D-069 — Authorize activation of the staged Phase-15 Telegram transport
 **Date:** 25 Sep 2026  
-**Status:** Active
+**Status:** Superseded for future activation retries by D-072
 
 **Decision:** The user explicitly authorized **transport activation** for the already-staged private Phase-15 Telegram pipeline. This authorization covers only the reviewed activation prerequisites and transport runtime: dedicated VM service-account/access-scope remediation where required, Pub/Sub topic/subscription provisioning, resource-scoped publisher/subscriber IAM, separate transport/origin key generation and installation, runtime environment-file installation, transport service start/enable, and the Telegram listener restart needed to enable the reviewed local handoff.
 
@@ -731,4 +731,16 @@ After listener installation and read-only listener-status PASS, the activation s
 **Decision:** After Cloud Shell became unavailable, the user moved the reviewed Phase-15 activation workflow to a locally authenticated Mac. Read-only SSH troubleshooting showed the recorder's IAP network path to port 22 as reachable in both directions, while the project-level Identity-Aware Proxy API was disabled. The troubleshooting flow had also enabled the Network Management API to perform that read-only connectivity test.
 
 The user explicitly authorized enabling only `iap.googleapis.com` on `project-4397f2c0-7098-4c1c-abb` to restore IAP SSH access. This authorization does not cover firewall changes, VM mutation, transport activation, kill-switch changes, executor invocation, or order submission. After enablement, access must be revalidated with read-only SSH to both production VMs before the separately authorized VM identity remediation resumes.
+
+## D-072 — Require fresh authorization after Telegram activation-helper key-format fix
+**Date:** 26 Sep 2026  
+**Status:** Active
+
+**Decision:** The third authorized Phase-15 Telegram transport activation attempt failed closed after mutation began. Read-only post-failure diagnostics verified that cleanup completed on both hosts and that no Telegram approval, executor arm, or order submission occurred. The staged package remains intact and read-only healthy; no restage is required.
+
+The production journals isolate the failure to the activation helper's secret-file encoding. The helper wrote 32 raw random bytes to the transport and origin key files, while both runtime loaders require a single UTF-8 base64url value that decodes to exactly 32 bytes. The receiver and claim worker therefore exited on UTF-8 decode before transport activation could complete. Diagnostics also observed the fail-closed kill marker as `activation-failure-safe-stopn`; kill semantics remained engaged by file presence, but the nested escaped `printf` is corrected.
+
+The candidate helper encodes each 32-byte secret as one-line base64url text, validates that it decodes back to 32 bytes before the mutation boundary, and writes the fail-closed kill marker with `echo`. Its exact Git blob is `83157c6c04b9a996bab51012b4bda4dd31062320`.
+
+The prior activation authorization in D-069 was bound to helper blob `d2560354d10c9964ba0a5a0161f1be9ffb2dfd86`. It remains historical evidence of the earlier authorization but does not authorize the changed helper. Source truth must therefore remain `REAUTHORIZATION_REQUIRED` until the user gives fresh explicit activation authorization for the exact new helper artifact. Telegram `APPROVE`, executor arming, and order submission remain separate later boundaries.
 
