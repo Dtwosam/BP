@@ -164,6 +164,17 @@ payload = {
     "transport_root": path_info("/opt/bp-telegram-transport"),
     "transport_config": path_info("/etc/bp-telegram-transport"),
     "transport_state": path_info("/var/lib/bp-telegram-transport"),
+    "legacy_transport_state_present": any(
+        Path(path).exists() or Path(path).is_symlink()
+        for path in (
+            "/var/lib/bp-canary/telegram-transport-inbox",
+            "/var/lib/bp-canary/telegram-transport-rejections",
+            "/var/lib/bp-canary/telegram-transport-claims",
+            "/var/lib/bp-canary/telegram-transport-ready",
+            "/var/lib/bp-canary/telegram-transport-claim-processed",
+            "/var/lib/bp-canary/telegram-transport-claim-failures",
+        )
+    ),
     "transport_units": unit_state,
     "executor_script": path_info("/opt/bp-canary/executor.sh"),
     "kill_switch": path_info("/etc/bp-canary/KILL"),
@@ -240,6 +251,8 @@ if host["transport_config"]["exists"] is True:
     blockers.append("existing_transport_config_present")
 if host["transport_state"]["exists"] is True:
     blockers.append("existing_transport_state_present")
+if host["legacy_transport_state_present"] is True:
+    blockers.append("existing_legacy_transport_state_present")
 
 if host["executor_script"]["exists"] is not True:
     blockers.append("executor_script_missing")
@@ -282,6 +295,7 @@ report = {
         host["transport_root"]["exists"] is True
         or host["transport_config"]["exists"] is True
         or host["transport_state"]["exists"] is True
+        or host["legacy_transport_state_present"] is True
         or any(
             state["active"] is True or state["enabled"] is True
             for state in host["transport_units"].values()
