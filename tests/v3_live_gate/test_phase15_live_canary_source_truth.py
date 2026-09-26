@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 HOST_EVIDENCE = ROOT / "docs/evidence/phase-15-v3-canary-host-geoblock-20260923.json"
 LIVE_CANARY_EVIDENCE = ROOT / "docs/evidence/phase-15-v3-first-live-canary-submission-20260924.json"
+DB_RECONCILIATION_PASS_EVIDENCE = ROOT / "docs/evidence/phase-15-v3-first-canary-db-reconciliation-pass-production-20260926.json"
 
 
 def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -> None:
@@ -113,16 +114,21 @@ def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -
     assert first["official_fill_state"] == "zero_fill_observed"
     assert first["official_reconciliation_complete"] is True
     assert first["external_official_reconciliation_complete"] is True
-    assert first["live_risk_ledger_reconciliation_complete"] is False
+    assert first["live_risk_ledger_reconciliation_complete"] is True
     assert first["live_risk_ledger_reconciliation_status"] == (
-        "MISSING_POST_SUBMISSION_ROW"
+        "PASS_POST_SUBMISSION_ZERO_FILL"
     )
-    assert first["live_risk_blocked_by_missing_post_submission_reconciliation"] is True
-    assert first["db_reconciliation_required"] is True
+    assert first["live_risk_blocked_by_missing_post_submission_reconciliation"] is False
+    assert first["db_reconciliation_required"] is False
+    assert first["db_reconciliation_id"] == (
+        "live-reconciliation-81489372163985723f74f2003c7ef1d7"
+    )
+    assert first["db_reconciliation_unresolved_count"] == 0
+    assert first["db_reconciliation_critical_count"] == 0
     repair = gate["post_submission_db_reconciliation_repair"]
-    assert repair["status"] == "AUTHORIZED_READY"
-    assert repair["authorized"] is True
-    assert repair["authorization_consumed"] is False
+    assert repair["status"] == "PRODUCTION_PASS"
+    assert repair["authorized"] is False
+    assert repair["authorization_consumed"] is True
     assert repair["helper"] == (
         "scripts/deploy/phase15_v3_first_canary_db_reconciliation_cloudshell.sh"
     )
@@ -145,8 +151,8 @@ def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -
     assert repair["does_not_authorize_telegram_approve"] is True
     assert repair["does_not_authorize_executor_arm_or_invoke"] is True
     assert repair["does_not_authorize_order_submission"] is True
-    assert repair["production_db_mutation_performed"] is False
-    assert repair["production_authorization_required"] is False
+    assert repair["production_db_mutation_performed"] is True
+    assert repair["production_authorization_required"] is True
     assert repair["authorization_date"] == "2026-09-26"
     assert repair["authorization_recorded_from_main"] == (
         "53345938ee4fe08ba0a1eae3ad7c364e25e999e7"
@@ -155,6 +161,37 @@ def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -
     assert repair["authorization_evidence"] == (
         "docs/evidence/phase-15-v3-first-canary-db-reconciliation-authorization-20260926.json"
     )
+    assert repair["production_run_source_main"] == (
+        "38b6081621eab59aecafcdb0628e1d68e9497827"
+    )
+    assert repair["production_result_status"] == "reconciled"
+    assert repair["reconciliation_id"] == first["db_reconciliation_id"]
+    assert repair["unresolved_count"] == 0
+    assert repair["critical_count"] == 0
+    assert repair["official_zero_fill_reverified"] is True
+    assert repair["telegram_approval_performed"] is False
+    assert repair["executor_armed"] is False
+    assert repair["executor_invoked"] is False
+    assert repair["order_submission_performed"] is False
+    assert repair["network_submission_attempt_consumed_by_repair"] is False
+    assert repair["production_evidence"] == (
+        "docs/evidence/phase-15-v3-first-canary-db-reconciliation-pass-production-20260926.json"
+    )
+
+    db_reconciliation_evidence = json.loads(
+        DB_RECONCILIATION_PASS_EVIDENCE.read_text(encoding="utf-8")
+    )
+    assert db_reconciliation_evidence["helper_result"] == "PASS"
+    assert db_reconciliation_evidence["reconciliation_result"]["status"] == "reconciled"
+    assert db_reconciliation_evidence["reconciliation_result"]["unresolved_count"] == 0
+    assert db_reconciliation_evidence["reconciliation_result"]["critical_count"] == 0
+    assert db_reconciliation_evidence["official_fill_reverification"]["fill_state"] == (
+        "zero_fill_observed"
+    )
+    assert db_reconciliation_evidence["safety"]["telegram_approval_performed"] is False
+    assert db_reconciliation_evidence["safety"]["executor_armed"] is False
+    assert db_reconciliation_evidence["safety"]["executor_invoked"] is False
+    assert db_reconciliation_evidence["safety"]["order_submission_performed"] is False
 
     live_evidence = json.loads(LIVE_CANARY_EVIDENCE.read_text(encoding="utf-8"))
     assert live_evidence["status"] == "SUBMITTED_AND_RECORDED_RECONCILIATION_PENDING"
