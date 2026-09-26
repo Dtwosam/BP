@@ -766,11 +766,23 @@ The D-073 activation authorization is consumed by this successful mutation. Sour
 
 ## D-075 — Record second-canary prepare watcher start PASS
 **Date:** 26 Sep 2026  
-**Status:** Active
+**Status:** Closed by D-076
 
 **Decision:** The already-authorized Phase-15 persistent prepare-only watcher started successfully from exact main `c2034bee883786c5e31558cb5717d98780baa8c3` using start-helper blob `7becabcb3768d30988c082fe77b51e163ffddd6f`. Production run `phase15-prepare-watch-20260926T144337Z-c2034bee` is active on `bp-recorder` at `/var/lib/bp/phase15-canary-prepare-watch/runs/phase15-prepare-watch-20260926T144337Z-c2034bee`.
 
 This mutation remains strictly prepare-only: the watcher is bounded to 7200 seconds, is not enabled across reboot, does not automate arm or submission, and started with no real order submitted. Telegram `APPROVE`, executor arming/invocation, and order submission remain unperformed. There is still no pending second-canary intent.
 
 The next action is read-only observation using the existing prepare-watch status/follow helpers until exactly one fresh NEW frozen-V3 paper-derived $5 candidate appears. Historical prepared intents remain forbidden. The candidate's exact intent/prediction/paper-order IDs, side, target, limit price, requested shares, remaining window, and expiry must be reviewed before any matching private Telegram `APPROVE`.
+
+## D-076 — Correct second-canary preparation lifetime ledger gating
+**Date:** 26 Sep 2026  
+**Status:** Active
+
+**Decision:** Production run `phase15-prepare-watch-20260926T144337Z-c2034bee` stopped safely before preparing an intent with `canary_submission_attempt_limit_reached`, `submission_attempt_count=1`, and `submission_attempt_consumed=false`. The watcher service is inactive; no pending intent, Telegram `APPROVE`, executor arm/invocation, or order submission exists.
+
+The root cause is that generic `v3-live-canary-v1` preparation counts accepted/rejected/submission-unknown events over the lifetime of the policy. The officially reconciled first canary therefore satisfies the original lifetime one-attempt and one-accepted-order limits before the separately authorized second canary can be prepared.
+
+The correction does not raise the global policy constants. Legacy/default preparation remains capped at one lifetime attempt/order. Only the source-truth-gated second-canary persistent watcher passes an authorized lifetime ceiling of two, representing exactly the reconciled first canary plus the one separately authorized second canary. The actual second-canary execution remains independently one-shot through the root-owned `/var/lib/bp-canary/telegram-live-handoff/second-canary.attempt.json` marker created immediately before executor invocation.
+
+Because `src/bp_engine/execution/canary.py`, the prepare watcher runner/unit, and watcher start helper are bound runtime artifacts, this fix requires fresh explicit production authorization before the corrected watcher may be restarted. Existing second-canary authorization remains unconsumed.
 
