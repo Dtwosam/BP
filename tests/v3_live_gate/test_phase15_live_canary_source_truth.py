@@ -142,6 +142,24 @@ def test_phase15_telegram_transport_activation_is_authorized_but_not_an_order() 
     assert stage["activation_authorized"] is True
     assert stage["activation_reauthorization_required"] is False
     assert stage["restage_required_before_activation_retry"] is False
+    assert stage["stage_ready_for_later_configuration_review"] is False
+    assert stage["blockers"] == [
+        "post_activation_failure_cleanup_revalidation_required"
+    ]
+    assert stage["latest_activation_attempt_status"] == (
+        "FAIL_CLOSED_CLEANUP_REVALIDATION_REQUIRED"
+    )
+    assert stage["latest_activation_attempt_reason"] == (
+        "executor_transport_service_activation_failed"
+    )
+    assert stage["latest_activation_attempt_executor_cleanup_verified"] is False
+    assert stage["latest_activation_attempt_recorder_cleanup_verified"] is False
+    assert stage["latest_activation_attempt_real_order_submitted"] is False
+    assert stage["latest_activation_attempt_mutation_started"] is True
+    assert stage["latest_activation_retry_blocked_pending_revalidation"] is True
+    assert stage["latest_activation_failure_evidence"] == (
+        "docs/evidence/phase-15-v3-telegram-transport-third-activation-failure-20260926.json"
+    )
     assert activation["status"] == "AUTHORIZED_NOT_ACTIVATED"
     assert activation["authorized_stage_id"] == stage["stage_id"]
     assert activation["authorized_at_main"] == "3852c19aaa47be6335f3475b873bb04aa84be30f"

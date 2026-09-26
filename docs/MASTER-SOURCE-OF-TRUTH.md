@@ -240,6 +240,8 @@ Production listener repair completed PASS on 26 September 2026 using the separat
 
 The existing transport activation authorization remains `AUTHORIZED_NOT_ACTIVATED`. A fresh read-only activation-readiness check after repair returned `activation_ready=true` with zero blockers and Johannesburg safe-idle preserved. Transport activation remains a separate mutation; Telegram `APPROVE`, executor arming, and order submission remain separate later boundaries.
 
+A subsequent authorized activation attempt from exact main `837ba96aae74addd97892b9330c86f270e529a53` passed the read-only readiness gate, crossed the transport mutation boundary, updated the resource-scoped Pub/Sub IAM bindings, and created enablement symlinks for the four Johannesburg transport services, but then failed closed at `executor_transport_service_activation_failed`. The supplied boundary output confirms no Telegram `APPROVE`, executor arm, or order submission occurred. Because the helper suppresses cleanup command output, source truth does not infer cleanup success: current stage readiness is temporarily false with blocker `post_activation_failure_cleanup_revalidation_required`, and activation retry is blocked pending read-only verification of executor/recorder cleanup plus unit-level journal diagnosis. The existing stage-bound activation authorization is preserved, but it cannot be exercised while stage readiness is false. Durable sanitized evidence is `docs/evidence/phase-15-v3-telegram-transport-third-activation-failure-20260926.json`.
+
 ---
 
 ---
