@@ -786,3 +786,11 @@ The correction does not raise the global policy constants. Legacy/default prepar
 
 Because `src/bp_engine/execution/canary.py`, the prepare watcher runner/unit, and watcher start helper are bound runtime artifacts, this fix requires fresh explicit production authorization before the corrected watcher may be restarted. Existing second-canary authorization remains unconsumed.
 
+## D-077 — Reauthorize corrected second-canary prepare watcher restart
+**Date:** 26 Sep 2026  
+**Status:** Active
+
+**Decision:** The user explicitly authorized restarting the corrected Phase-15 prepare-only watcher from exact main `51e4cf1fa5063ff0f4a263dd5ec1646dc18684cf`, bound to start-helper blob `0a98b03e35d8019a85063e45d1a979fea96c0532`, runner blob `efe6dc9c3b37f5788b701107366bb634a4b1f357`, service-unit blob `5e20c65edd57e398d2106c7f6fe93fbb477b7572`, and canary blob `df5e60b1b2ba632fd77d65103509fac70187be7d`.
+
+The scope is restart of the corrected prepare-only research/zero-money watcher only. It may prepare one fresh second-canary candidate but cannot arm or submit. Telegram `APPROVE`, executor arm/invocation, and order submission remain unperformed and are not authorized by this decision. The second-canary network-attempt slot remains unconsumed.
+
