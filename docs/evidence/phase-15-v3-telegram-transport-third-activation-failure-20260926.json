@@ -44,22 +44,78 @@
       "remove recorder transport keys/project-state snapshot",
       "restart Telegram approval listener"
     ],
-    "cleanup_verification_status": "PENDING_READ_ONLY_REVALIDATION",
-    "executor_cleanup_verified": false,
-    "recorder_cleanup_verified": false
+    "cleanup_verification_status": "PASS",
+    "executor_cleanup_verified": true,
+    "recorder_cleanup_verified": true
   },
   "retry_gate": {
-    "stage_ready_for_later_configuration_review": false,
-    "blocker": "post_activation_failure_cleanup_revalidation_required",
-    "activation_authorization_preserved": true,
+    "stage_ready_for_later_configuration_review": true,
+    "blockers": [],
+    "activation_authorization_preserved_as_history": true,
+    "previous_authorized_helper_git_blob_sha": "d2560354d10c9964ba0a5a0161f1be9ffb2dfd86",
+    "candidate_activation_helper_git_blob_sha": "83157c6c04b9a996bab51012b4bda4dd31062320",
+    "fresh_activation_reauthorization_required": true,
+    "restage_required": false,
     "activation_retry_allowed_now": false,
     "telegram_approve_allowed_now": false,
     "executor_arm_allowed_now": false,
     "order_submission_allowed_now": false
   },
   "notes": [
-    "This evidence records only the supplied activation output and the reviewed helper cleanup contract.",
-    "It does not claim that cleanup succeeded; cleanup must be verified read-only before any retry decision.",
-    "The top-level failure reason does not identify which of the four executor services failed its active/enabled verification."
-  ]
+    "Read-only revalidation verified fail-closed cleanup completed on both hosts.",
+    "The receiver and claim worker both failed because the activation helper wrote raw random bytes while the runtime key loaders require UTF-8 base64url text.",
+    "The observed kill marker value contained a trailing literal n; file presence still engaged the kill switch, and the candidate helper fixes the marker writer.",
+    "The staged transport package remains intact and read-only stage/listener/PubSub/activation-readiness checks pass; no restage is required.",
+    "Changing the activation helper invalidates the previous exact-helper authorization for any later activation attempt.",
+    "No Telegram approval, executor arm, or order submission occurred."
+  ],
+  "root_cause": {
+    "status": "IDENTIFIED",
+    "category": "activation_generated_key_file_format_mismatch",
+    "transport_key_loader_contract": "UTF-8 text containing one base64url value decoding to exactly 32 bytes",
+    "origin_key_loader_contract": "UTF-8 text containing one base64url value decoding to exactly 32 bytes",
+    "activation_helper_behavior": "wrote 32 raw random bytes to both key files",
+    "observed_receiver_error": "UnicodeDecodeError while load_transport_key_file() read transport.key as UTF-8",
+    "observed_claim_worker_error": "UnicodeDecodeError while load_transport_key_file() read transport.key as UTF-8",
+    "execution_authorization_worker_startup": "started and later stopped successfully by fail-closed cleanup",
+    "privileged_handoff_startup": "started and later stopped successfully by fail-closed cleanup"
+  },
+  "fail_closed_cleanup_verification": {
+    "status": "PASS",
+    "executor": {
+      "all_four_transport_services_inactive": true,
+      "all_four_transport_services_disabled": true,
+      "runtime_env_files_present": false,
+      "runtime_key_files_present": false,
+      "kill_switch_engaged": true,
+      "kill_marker_value_observed": "activation-failure-safe-stopn",
+      "executor_status": "ok",
+      "executor_safe_idle": true,
+      "activation_valid": false,
+      "submission_ready": false,
+      "live_order_submitted": false,
+      "account_clean_for_canary": true,
+      "open_order_count": 0,
+      "geoblock_blocked": false,
+      "geoblock_country": "ZA"
+    },
+    "recorder": {
+      "publisher_active": false,
+      "publisher_enabled": false,
+      "approval_listener_active": true,
+      "approval_listener_enabled": true,
+      "publisher_env_present": false,
+      "approval_handoff_env_present": false,
+      "transport_key_present": false,
+      "origin_key_present": false,
+      "project_state_snapshot_present": false
+    }
+  },
+  "candidate_fix": {
+    "helper_git_blob_sha": "83157c6c04b9a996bab51012b4bda4dd31062320",
+    "key_generation": "base64url-encode 32 random bytes and write one ASCII/UTF-8 line",
+    "pre_mutation_decode_length_check_bytes": 32,
+    "cleanup_kill_marker_writer": "echo activation-failure-safe-stop",
+    "production_activation_authorized": false
+  }
 }

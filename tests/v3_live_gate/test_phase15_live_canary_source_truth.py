@@ -130,7 +130,7 @@ def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -
     assert evidence["safety"]["trading_software_installed"] is False
     assert evidence["safety"]["wallet_or_signing_material_present"] is False
 
-def test_phase15_telegram_transport_activation_is_authorized_but_not_an_order() -> None:
+def test_phase15_telegram_transport_activation_requires_reauthorization_after_key_fix() -> None:
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     gate = state["phase_15_v3_live_canary"]
     stage = gate["telegram_transport_stage"]
@@ -139,34 +139,49 @@ def test_phase15_telegram_transport_activation_is_authorized_but_not_an_order() 
     assert stage["status"] == "PRODUCTION_STAGED_INACTIVE"
     assert stage["stage_id"] == "phase15-telegram-stage-05b83214b159772872bc7347"
     assert stage["release_head"] == "ba0bc324cab50bf0809c8eed4e019c13bc4c6653"
-    assert stage["activation_authorized"] is True
-    assert stage["activation_reauthorization_required"] is False
+    assert stage["stage_ready_for_later_configuration_review"] is True
+    assert stage["blockers"] == []
+    assert stage["activation_authorized"] is False
+    assert stage["activation_reauthorization_required"] is True
     assert stage["restage_required_before_activation_retry"] is False
-    assert stage["stage_ready_for_later_configuration_review"] is False
-    assert stage["blockers"] == [
-        "post_activation_failure_cleanup_revalidation_required"
-    ]
     assert stage["latest_activation_attempt_status"] == (
-        "FAIL_CLOSED_CLEANUP_REVALIDATION_REQUIRED"
+        "FAIL_CLOSED_RECOVERED_ROOT_CAUSE_IDENTIFIED"
     )
     assert stage["latest_activation_attempt_reason"] == (
-        "executor_transport_service_activation_failed"
+        "transport_key_files_raw_binary_but_runtime_loaders_require_utf8_base64url"
     )
-    assert stage["latest_activation_attempt_executor_cleanup_verified"] is False
-    assert stage["latest_activation_attempt_recorder_cleanup_verified"] is False
+    assert stage["latest_activation_attempt_executor_cleanup_verified"] is True
+    assert stage["latest_activation_attempt_recorder_cleanup_verified"] is True
     assert stage["latest_activation_attempt_real_order_submitted"] is False
-    assert stage["latest_activation_attempt_mutation_started"] is True
-    assert stage["latest_activation_retry_blocked_pending_revalidation"] is True
-    assert stage["latest_activation_failure_evidence"] == (
-        "docs/evidence/phase-15-v3-telegram-transport-third-activation-failure-20260926.json"
+    assert stage["latest_activation_attempt_executor_services_inactive_disabled"] is True
+    assert stage["latest_activation_attempt_executor_runtime_material_absent"] is True
+    assert stage["latest_activation_attempt_kill_switch_engaged"] is True
+    assert stage["latest_activation_attempt_executor_safe_idle"] is True
+    assert stage["latest_activation_attempt_open_order_count"] == 0
+    assert stage["latest_activation_attempt_recorder_publisher_inactive_disabled"] is True
+    assert stage["latest_activation_attempt_listener_active_enabled"] is True
+    assert stage["latest_activation_attempt_recorder_transport_material_absent"] is True
+    assert stage["latest_activation_attempt_cleanup_kill_marker_observed"] == (
+        "activation-failure-safe-stopn"
     )
-    assert activation["status"] == "AUTHORIZED_NOT_ACTIVATED"
+    assert stage["latest_activation_candidate_helper_git_blob_sha"] == (
+        "83157c6c04b9a996bab51012b4bda4dd31062320"
+    )
+
+    assert activation["status"] == "REAUTHORIZATION_REQUIRED"
     assert activation["authorized_stage_id"] == stage["stage_id"]
     assert activation["authorized_at_main"] == "3852c19aaa47be6335f3475b873bb04aa84be30f"
     assert activation["activation_helper_git_blob_sha"] == (
         "d2560354d10c9964ba0a5a0161f1be9ffb2dfd86"
     )
-    assert activation["fresh_explicit_authorization_required_for_current_stage"] is False
+    assert activation["previous_authorized_helper_git_blob_sha"] == (
+        "d2560354d10c9964ba0a5a0161f1be9ffb2dfd86"
+    )
+    assert activation["candidate_activation_helper_git_blob_sha"] == (
+        "83157c6c04b9a996bab51012b4bda4dd31062320"
+    )
+    assert activation["fresh_explicit_authorization_required_for_current_stage"] is True
+    assert activation["previous_authorization_preserved_as_history"] is True
     assert activation["does_not_submit_real_order"] is True
     assert activation["fresh_private_telegram_approval_still_required_for_second_canary"] is True
     assert activation["global_second_canary_attempt_marker_still_one_shot"] is True
@@ -205,7 +220,8 @@ def test_phase15_telegram_approval_listener_runtime_repair_passed() -> None:
     )
     assert listener["previous_observed_restart_count"] == 1749
     assert listener["no_real_order_submitted"] is True
-    assert activation["status"] == "AUTHORIZED_NOT_ACTIVATED"
+    assert activation["status"] == "REAUTHORIZATION_REQUIRED"
+    assert activation["fresh_explicit_authorization_required_for_current_stage"] is True
     assert activation["does_not_submit_real_order"] is True
     assert state["live_trading_enabled"] is False
     assert gate["live_trading_enabled"] is False
