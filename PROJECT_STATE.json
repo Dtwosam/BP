@@ -4646,8 +4646,10 @@
       "stage_install_status": "PASS",
       "stage_status_status": "PASS",
       "pubsub_readiness_status": "PASS",
-      "stage_ready_for_later_configuration_review": true,
-      "blockers": [],
+      "stage_ready_for_later_configuration_review": false,
+      "blockers": [
+        "restage_required_after_activation_runtime_permission_failure"
+      ],
       "publisher_staged": true,
       "executor_staged": true,
       "publisher_service_active": false,
@@ -4670,6 +4672,14 @@
       "previous_activation_attempt_real_order_submitted": false,
       "previous_stage_id": "phase15-telegram-stage-3fe604820deabe0c8971f23c",
       "previous_stage_rollback_status": "PASS",
+      "latest_activation_attempt_status": "FAIL_CLOSED",
+      "latest_activation_attempt_date": "2026-09-26",
+      "latest_activation_attempt_reason": "executor_transport_service_activation_failed",
+      "latest_activation_attempt_executor_cleanup_verified": true,
+      "latest_activation_attempt_recorder_cleanup_verified": false,
+      "latest_activation_attempt_real_order_submitted": false,
+      "restage_required_before_activation_retry": true,
+      "latest_activation_failure_evidence": "docs/evidence/phase-15-v3-telegram-transport-second-activation-failure-20260926.json",
       "evidence": "docs/evidence/phase-15-v3-telegram-transport-restage-readiness-production-20260926.json"
     },
     "telegram_transport_activation_authorization": {

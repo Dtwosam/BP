@@ -41,7 +41,7 @@ MUTATION_STARTED=false
 cleanup() {
   status=$?
   if [[ "$status" -ne 0 && "$MUTATION_STARTED" == "true" ]]; then
-    gcloud compute ssh "$EXEC_VM"       --project="$PROJECT"       --zone="$EXEC_ZONE"       --quiet       --command="sudo systemctl stop bp-phase15-telegram-privileged-handoff.service bp-phase15-telegram-execution-authorization-worker.service bp-phase15-telegram-transport-claim-worker.service bp-phase15-telegram-pubsub-streaming-receiver.service >/dev/null 2>&1 || true; sudo systemctl disable bp-phase15-telegram-privileged-handoff.service bp-phase15-telegram-execution-authorization-worker.service bp-phase15-telegram-transport-claim-worker.service bp-phase15-telegram-pubsub-streaming-receiver.service >/dev/null 2>&1 || true; sudo rm -f /etc/bp-telegram-transport/receiver.env /etc/bp-telegram-transport/claim.env /etc/bp-telegram-transport/execution-auth.env /etc/bp-telegram-transport/privileged-handoff.env /etc/bp-telegram-transport/transport.key /etc/bp-telegram-transport/origin.key; sudo sh -c 'umask 077; printf %s\\n activation-failure-safe-stop > /etc/bp-canary/KILL'"       >/dev/null 2>&1 || true
+    gcloud compute ssh "$EXEC_VM"       --project="$PROJECT"       --zone="$EXEC_ZONE"       --quiet       --command="sudo systemctl stop bp-phase15-telegram-privileged-handoff.service bp-phase15-telegram-execution-authorization-worker.service bp-phase15-telegram-transport-claim-worker.service bp-phase15-telegram-pubsub-streaming-receiver.service >/dev/null 2>&1 || true; sudo systemctl disable bp-phase15-telegram-privileged-handoff.service bp-phase15-telegram-execution-authorization-worker.service bp-phase15-telegram-transport-claim-worker.service bp-phase15-telegram-pubsub-streaming-receiver.service >/dev/null 2>&1 || true; sudo rm -f /etc/bp-telegram-transport/receiver.env /etc/bp-telegram-transport/claim.env /etc/bp-telegram-transport/execution-auth.env /etc/bp-telegram-transport/privileged-handoff.env /etc/bp-telegram-transport/transport.key /etc/bp-telegram-transport/origin.key; sudo sh -c 'umask 077; printf "%s\\n" activation-failure-safe-stop > /etc/bp-canary/KILL'"       >/dev/null 2>&1 || true
     gcloud compute ssh "$US_VM"       --project="$PROJECT"       --zone="$US_ZONE"       --quiet       --command="sudo systemctl stop bp-phase15-telegram-pubsub-publisher.service >/dev/null 2>&1 || true; sudo systemctl disable bp-phase15-telegram-pubsub-publisher.service >/dev/null 2>&1 || true; sudo rm -f /etc/bp/telegram-pubsub-publisher.env; sudo rm -f /etc/bp/telegram-approval-handoff.env; sudo rm -f /etc/bp-telegram-transport/transport.key /etc/bp-telegram-transport/origin.key /etc/bp-telegram-transport/project-state.json; sudo rmdir /etc/bp-telegram-transport >/dev/null 2>&1 || true; sudo systemctl restart bp-phase15-canary-telegram-approval.service >/dev/null 2>&1 || true"       >/dev/null 2>&1 || true
   fi
   rm -rf "$TMP_DIR"
@@ -75,6 +75,8 @@ assert gate["telegram_persistent_execution_transport_authorized"] is True
 assert gate["telegram_pubsub_transport_authorized"] is True
 assert stage.get("status") == "PRODUCTION_STAGED_INACTIVE"
 assert stage.get("activation_authorized") is True
+assert stage.get("stage_ready_for_later_configuration_review") is True
+assert stage.get("restage_required_before_activation_retry") is False
 assert activation.get("status") == "AUTHORIZED_NOT_ACTIVATED"
 assert activation.get("does_not_submit_real_order") is True
 assert activation.get("fresh_private_telegram_approval_still_required_for_second_canary") is True

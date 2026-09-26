@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-telegram-transport-second-activation-failure",
+  "observed_date": "2026-09-26",
+  "project": "project-4397f2c0-7098-4c1c-abb",
+  "activation_helper_main": "59e54e0a84acef58a5f0a7ae14adc42aca94cee1",
+  "staged_release_head": "def15988b87fe90436fa9ee1458e640ba67bb1af",
+  "staged_release_sha256": "6b35d1ce72e581dbe75531170cf9b078ed71e23416431ea8f0f965822a8d9d24",
+  "stage_id": "phase15-telegram-stage-c1eb8ce238d6cd96d2edaec6",
+  "activation_result": {
+    "status": "FAIL_CLOSED",
+    "reason": "executor_transport_service_activation_failed",
+    "real_order_submitted": false
+  },
+  "diagnostic_findings": {
+    "transport_venv_service_user_probe": "PASS",
+    "transport_venv_fix_regressed": false,
+    "receiver_failure": "staged Python script path permission denied",
+    "claim_worker_failure": "staged Python script path permission denied",
+    "execution_authorization_failure": "permission denied reading transport-ready root",
+    "release_tree_root_cause": "file-only archive extracted under umask 077 created intermediate directories not traversable by bp-transport",
+    "state_tree_root_cause": "unprivileged transport queues were children of root:root 0700 /var/lib/bp-canary, and the capability-stripped execution-authorization worker could not read bp-transport-private ready state"
+  },
+  "recovery_contract": {
+    "current_stage_activation_retry_allowed": false,
+    "rollback_required": true,
+    "corrected_restage_required": true,
+    "transport_state_root": "/var/lib/bp-telegram-transport",
+    "privileged_state_root": "/var/lib/bp-canary",
+    "activation_authorization_remains_separate": true,
+    "activation_does_not_submit_real_order": true,
+    "fresh_private_telegram_approval_required_after_activation": true,
+    "official_reconciliation_required_before_any_third_order": true,
+    "recorder_cleanup_requires_guarded_rollback_revalidation": true
+  },
+  "notes": [
+    "The supplied post-failure diagnostic directly verifies executor-side cleanup only; recorder-side cleanup is not claimed by this evidence.",
+    "No secret material is included in this evidence.",
+    "No model, strategy, sizing, live-risk, wallet, arming, or order-submission semantics are changed by the recovery design.",
+    "The second live canary was not submitted and the single authorized second-canary network submission attempt remains unused.",
+    "The observed kill-file text included a trailing literal `n` because the activation cleanup printf format was not quoted; kill engagement depended on file presence, and the recovery patch fixes the marker writer to emit the intended newline."
+  ],
+  "executor_cleanup_verification": {
+    "executor_transport_services_active": false,
+    "executor_transport_services_enabled": false,
+    "runtime_environment_files_present": false,
+    "runtime_key_files_present": false,
+    "kill_switch_engaged": true,
+    "account_clean_for_canary": true,
+    "collateral_balance_usd": "30",
+    "open_order_count": 0,
+    "geoblock_blocked": false,
+    "geoblock_country": "ZA",
+    "activation_valid": false,
+    "submission_ready": false,
+    "live_order_submitted": false,
+    "executor_status": "ok",
+    "kill_switch_value_observed": "activation-failure-safe-stopn",
+    "kill_switch_value_intended": "activation-failure-safe-stop",
+    "kill_switch_marker_format_bug_fixed_in_recovery_patch": true
+  }
+}

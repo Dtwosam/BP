@@ -161,6 +161,24 @@ def test_origin_attester_writes_once_without_forwarding_telegram_identity(
         )
 
 
+def test_claim_worker_shared_file_mode_survives_restrictive_umask(
+    tmp_path: Path,
+) -> None:
+    claim_worker = _load(CLAIM_WORKER, "telegram_claim_umask_test")
+    target = tmp_path / "shared.json"
+    previous = os.umask(0o077)
+    try:
+        claim_worker._write_private_json(
+            target,
+            {"status": "test"},
+            mode=0o640,
+        )
+    finally:
+        os.umask(previous)
+
+    assert (os.stat(target).st_mode & 0o777) == 0o640
+
+
 def test_full_safe_origin_transport_claim_verify_chain(tmp_path: Path) -> None:
     claim_worker = _load(CLAIM_WORKER, "telegram_origin_pipeline_claim")
     verifier = _load(VERIFY_SCRIPT, "telegram_origin_pipeline_verify")
@@ -207,6 +225,9 @@ def test_full_safe_origin_transport_claim_verify_chain(tmp_path: Path) -> None:
     assert claimed[0]["status"] == "claimed_ready"
     ready_dir = Path(claimed[0]["ready_path"])
     assert (ready_dir / "origin-attestation.json").is_file()
+    assert (os.stat(ready_dir).st_mode & 0o777) == 0o750
+    for ready_file in ready_dir.iterdir():
+        assert (os.stat(ready_file).st_mode & 0o777) == 0o640
 
     verified = verifier.verify_ready_bundle(
         ready_dir=ready_dir,
@@ -289,6 +310,9 @@ def test_full_source_truth_transport_v2_chain(tmp_path: Path) -> None:
     assert claimed[0]["status"] == "claimed_ready"
     ready_dir = Path(claimed[0]["ready_path"])
     assert (ready_dir / "source-truth-authorization.json").is_file()
+    assert (os.stat(ready_dir).st_mode & 0o777) == 0o750
+    for ready_file in ready_dir.iterdir():
+        assert (os.stat(ready_file).st_mode & 0o777) == 0o640
 
     verified = verifier.verify_ready_bundle(
         ready_dir=ready_dir,

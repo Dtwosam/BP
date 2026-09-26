@@ -208,7 +208,7 @@ def test_claim_worker_consumes_inbox_once_and_materializes_ready(tmp_path: Path)
     assert result["real_order_submitted"] is False
     ready_path = Path(result["ready_path"])
     assert ready_path.is_dir()
-    assert (os.stat(ready_path).st_mode & 0o777) == 0o700
+    assert (os.stat(ready_path).st_mode & 0o777) == 0o750
     for name in (
         "prepared.json",
         "approval.json",
@@ -216,7 +216,7 @@ def test_claim_worker_consumes_inbox_once_and_materializes_ready(tmp_path: Path)
         "envelope.json",
         "receipt.json",
     ):
-        assert (os.stat(ready_path / name).st_mode & 0o777) == 0o600
+        assert (os.stat(ready_path / name).st_mode & 0o777) == 0o640
     ready_receipt = json.loads((ready_path / "receipt.json").read_text(encoding="utf-8"))
     assert ready_receipt["status"] == "claimed_ready"
     assert ready_receipt["executor_invoked"] is False
@@ -264,7 +264,7 @@ def test_claim_worker_materializes_source_truth_for_v2(
     ready_path = Path(result["ready_path"])
     source_path = ready_path / "source-truth-authorization.json"
     assert source_path.is_file()
-    assert (os.stat(source_path).st_mode & 0o777) == 0o600
+    assert (os.stat(source_path).st_mode & 0o777) == 0o640
     source = json.loads(source_path.read_text(encoding="utf-8"))
     receipt = json.loads(
         (ready_path / "receipt.json").read_text(encoding="utf-8")

@@ -304,12 +304,12 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--inbox-dir",
         type=Path,
-        default=Path("/var/lib/bp-canary/telegram-transport-inbox"),
+        default=Path("/var/lib/bp-telegram-transport/inbox"),
     )
     parser.add_argument(
         "--rejection-dir",
         type=Path,
-        default=Path("/var/lib/bp-canary/telegram-transport-rejections"),
+        default=Path("/var/lib/bp-telegram-transport/rejections"),
     )
     return parser.parse_args()
 

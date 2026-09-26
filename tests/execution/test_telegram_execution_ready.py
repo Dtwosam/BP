@@ -290,6 +290,46 @@ def test_ready_module_verifies_v2_source_truth_authorization(
     assert result["real_order_submitted"] is False
 
 
+def test_ready_module_accepts_group_read_only_bundle(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
+    ready, key_path = _bundle_v2(tmp_path, now)
+    ready.chmod(0o750)
+    for path in ready.iterdir():
+        if path.is_file():
+            path.chmod(0o640)
+
+    result = verify_ready_bundle(
+        ready_dir=ready,
+        origin_key_path=key_path,
+        expected_origin_key_id=ORIGIN_KEY_ID,
+        observed_at=now + timedelta(seconds=4),
+    )
+
+    assert result["status"] == "execution_ready_source_truth_verified"
+    assert result["source_truth_authorized"] is True
+
+
+def test_ready_module_rejects_group_readable_bundle_for_other_group(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
+    ready, key_path = _bundle_v2(tmp_path, now)
+    ready.chmod(0o750)
+    for path in ready.iterdir():
+        if path.is_file():
+            path.chmod(0o640)
+    monkeypatch.setattr(os, "getegid", lambda: os.stat(ready).st_gid + 1)
+
+    with pytest.raises(ReadyVerificationError, match="shared group must match"):
+        verify_ready_bundle(
+            ready_dir=ready,
+            origin_key_path=key_path,
+            expected_origin_key_id=ORIGIN_KEY_ID,
+            observed_at=now + timedelta(seconds=4),
+        )
+
+
 def test_ready_module_rejects_changed_v2_source_truth_mac(
     tmp_path: Path,
 ) -> None:

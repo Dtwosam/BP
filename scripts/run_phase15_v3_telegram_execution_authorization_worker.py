@@ -71,9 +71,14 @@ def _validate_readonly_private_directory(path: Path, *, label: str) -> None:
         raise ExecutionAuthorizationWorkerError(
             f"{label} must be a non-symlink directory"
         )
-    if stat.S_IMODE(info.st_mode) & 0o077:
+    mode = stat.S_IMODE(info.st_mode)
+    if mode not in (0o700, 0o750):
         raise ExecutionAuthorizationWorkerError(
-            f"{label} must not grant group or other access"
+            f"{label} mode must be 0700 or 0750"
+        )
+    if mode == 0o750 and info.st_gid != os.getegid():
+        raise ExecutionAuthorizationWorkerError(
+            f"{label} shared group must match effective group"
         )
 
 
@@ -88,9 +93,14 @@ def _load_private_json(path: Path, *, label: str) -> dict[str, Any]:
         raise ExecutionAuthorizationWorkerError(
             f"{label} must be a regular non-symlink file"
         )
-    if stat.S_IMODE(info.st_mode) != 0o600:
+    mode = stat.S_IMODE(info.st_mode)
+    if mode not in (0o600, 0o640):
         raise ExecutionAuthorizationWorkerError(
-            f"{label} mode must be 0600"
+            f"{label} mode must be 0600 or 0640"
+        )
+    if mode == 0o640 and info.st_gid != os.getegid():
+        raise ExecutionAuthorizationWorkerError(
+            f"{label} shared group must match effective group"
         )
     if info.st_size <= 0 or info.st_size > MAX_JSON_BYTES:
         raise ExecutionAuthorizationWorkerError(
@@ -544,7 +554,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--ready-root",
         type=Path,
-        default=Path("/var/lib/bp-canary/telegram-transport-ready"),
+        default=Path("/var/lib/bp-telegram-transport/ready"),
     )
     parser.add_argument(
         "--dispatch-claim-dir",

@@ -68,6 +68,8 @@ def test_transport_stage_rollback_refuses_activated_or_configured_transport() ->
         "executor_secret_or_env_present",
         "bp-phase15-telegram-privileged-handoff.service",
         "/var/lib/bp-canary/telegram-live-handoff",
+        "/var/lib/bp-telegram-transport",
+        "/var/lib/bp-canary/telegram-transport-ready",
         "privileged-handoff.env",
         "stage_rollback_preconditions_failed",
     ):

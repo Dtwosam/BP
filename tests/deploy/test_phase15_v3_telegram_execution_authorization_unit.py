@@ -19,7 +19,7 @@ def test_execution_authorization_unit_is_offline_wallet_isolated() -> None:
     text = UNIT.read_text(encoding="utf-8")
     for marker in (
         "User=root",
-        "Group=root",
+        "Group=bp-transport",
         "EnvironmentFile=/etc/bp-telegram-transport/execution-auth.env",
         "ConditionPathExists=/etc/bp-telegram-transport/origin.key",
         "Environment=MODE=research",
@@ -36,6 +36,7 @@ def test_execution_authorization_unit_is_offline_wallet_isolated() -> None:
         "ProtectSystem=strict",
         "CapabilityBoundingSet=",
         "AmbientCapabilities=",
+        "--ready-root /var/lib/bp-telegram-transport/ready",
         (
             "InaccessiblePaths=/etc/bp-canary /opt/bp-canary "
             "-/etc/bp -/etc/bp-telegram-transport/transport.key"
@@ -44,7 +45,7 @@ def test_execution_authorization_unit_is_offline_wallet_isolated() -> None:
             "ReadOnlyPaths=/opt/bp-telegram-transport "
             "/etc/bp-telegram-transport/execution-auth.env "
             "/etc/bp-telegram-transport/origin.key "
-            "/var/lib/bp-canary/telegram-transport-ready"
+            "/var/lib/bp-telegram-transport/ready"
         ),
         "telegram-dispatch-claims",
         "telegram-execution-authorized",

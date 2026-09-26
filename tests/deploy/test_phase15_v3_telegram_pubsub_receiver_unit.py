@@ -27,15 +27,20 @@ def test_streaming_receiver_unit_is_unprivileged_zero_money_and_wallet_isolated(
         "ProtectSystem=strict",
         "CapabilityBoundingSet=",
         "AmbientCapabilities=",
-        "InaccessiblePaths=/etc/bp-canary -/etc/bp-telegram-transport/origin.key",
+        "--inbox-dir /var/lib/bp-telegram-transport/inbox",
+        "--rejection-dir /var/lib/bp-telegram-transport/rejections",
+        (
+            "InaccessiblePaths=/etc/bp-canary /var/lib/bp-canary "
+            "-/etc/bp-telegram-transport/origin.key"
+        ),
         (
             "ReadOnlyPaths=/opt/bp-telegram-transport "
             "/etc/bp-telegram-transport/receiver.env "
             "/etc/bp-telegram-transport/transport.key"
         ),
         (
-            "ReadWritePaths=/var/lib/bp-canary/telegram-transport-inbox "
-            "/var/lib/bp-canary/telegram-transport-rejections"
+            "ReadWritePaths=/var/lib/bp-telegram-transport/inbox "
+            "/var/lib/bp-telegram-transport/rejections"
         ),
     ):
         assert marker in text

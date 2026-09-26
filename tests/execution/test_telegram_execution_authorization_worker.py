@@ -299,6 +299,32 @@ def test_execution_authorization_worker_materializes_one_shot_handoff(
     ]
 
 
+def test_execution_authorization_worker_accepts_group_read_only_ready_bundle(
+    tmp_path: Path,
+) -> None:
+    module = _load()
+    now = datetime(2026, 9, 24, 21, 0, tzinfo=UTC)
+    ready_root, key_path = _ready_bundle(tmp_path, now)
+    ready_root.chmod(0o750)
+    ready_dir = ready_root / "exact-order"
+    ready_dir.chmod(0o750)
+    for path in ready_dir.iterdir():
+        if path.is_file():
+            path.chmod(0o640)
+
+    result = _run_once(
+        module,
+        tmp_path=tmp_path,
+        ready_root=ready_root,
+        key_path=key_path,
+        observed_at=now + timedelta(seconds=4),
+    )
+
+    assert result[0]["status"] == "execution_authorized_handoff_ready"
+    assert result[0]["executor_invoked"] is False
+    assert result[0]["real_order_submitted"] is False
+
+
 def test_execution_authorization_worker_consumed_claim_never_retries(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

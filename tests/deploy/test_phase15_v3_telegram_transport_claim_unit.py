@@ -13,11 +13,11 @@ def test_transport_claim_unit_is_unprivileged_offline_and_wallet_isolated() -> N
         "User=bp-transport",
         "Group=bp-transport",
         "EnvironmentFile=/etc/bp-telegram-transport/claim.env",
-        "ConditionPathIsDirectory=/var/lib/bp-canary/telegram-transport-inbox",
-        "ConditionPathIsDirectory=/var/lib/bp-canary/telegram-transport-claims",
-        "ConditionPathIsDirectory=/var/lib/bp-canary/telegram-transport-ready",
-        "ConditionPathIsDirectory=/var/lib/bp-canary/telegram-transport-claim-processed",
-        "ConditionPathIsDirectory=/var/lib/bp-canary/telegram-transport-claim-failures",
+        "ConditionPathIsDirectory=/var/lib/bp-telegram-transport/inbox",
+        "ConditionPathIsDirectory=/var/lib/bp-telegram-transport/claims",
+        "ConditionPathIsDirectory=/var/lib/bp-telegram-transport/ready",
+        "ConditionPathIsDirectory=/var/lib/bp-telegram-transport/processed",
+        "ConditionPathIsDirectory=/var/lib/bp-telegram-transport/failures",
         "Environment=MODE=research",
         "Environment=LIVE_TRADING_ENABLED=false",
         "Environment=MAX_TRADE_SIZE_USD=0",
@@ -32,17 +32,20 @@ def test_transport_claim_unit_is_unprivileged_offline_and_wallet_isolated() -> N
         "ProtectSystem=strict",
         "CapabilityBoundingSet=",
         "AmbientCapabilities=",
-        "InaccessiblePaths=/etc/bp-canary -/etc/bp-telegram-transport/origin.key",
+        (
+            "InaccessiblePaths=/etc/bp-canary /var/lib/bp-canary "
+            "-/etc/bp-telegram-transport/origin.key"
+        ),
         (
             "ReadOnlyPaths=/opt/bp-telegram-transport "
             "/etc/bp-telegram-transport/claim.env "
             "/etc/bp-telegram-transport/transport.key"
         ),
-        "telegram-transport-inbox",
-        "telegram-transport-claims",
-        "telegram-transport-ready",
-        "telegram-transport-claim-processed",
-        "telegram-transport-claim-failures",
+        "/var/lib/bp-telegram-transport/inbox",
+        "/var/lib/bp-telegram-transport/claims",
+        "/var/lib/bp-telegram-transport/ready",
+        "/var/lib/bp-telegram-transport/processed",
+        "/var/lib/bp-telegram-transport/failures",
         "RestrictAddressFamilies=AF_UNIX",
     ):
         assert marker in text
