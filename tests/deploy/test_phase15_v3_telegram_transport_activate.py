@@ -77,6 +77,10 @@ def test_transport_activate_enforces_identity_and_resource_scoped_iam() -> None:
         "roles/pubsub.subscriber",
         "gcloud pubsub topics add-iam-policy-binding",
         "gcloud pubsub subscriptions add-iam-policy-binding",
+        "gcloud services list --enabled",
+        "pubsub.googleapis.com",
+        "pubsub_service_enablement_read_failed",
+        "pubsub_api_not_enabled",
     ):
         assert marker in text
     assert "gcloud projects add-iam-policy-binding" not in text
@@ -141,6 +145,18 @@ def test_transport_activate_starts_in_dependency_order_and_fails_closed() -> Non
         'assert account.get("clean_for_canary") is True',
         "WAITING_FOR_FRESH_TELEGRAM_APPROVAL=true",
         "REAL_ORDER_SUBMITTED=false",
+    ):
+        assert marker in text
+
+
+def test_transport_activate_requires_post_start_transport_stability() -> None:
+    text = ACTIVATE.read_text(encoding="utf-8")
+    for marker in (
+        "sleep 3",
+        "executor_transport_service_stability_failed",
+        "publisher_or_listener_stability_failed",
+        "systemctl show -p NRestarts --value",
+        '== "0"',
     ):
         assert marker in text
 

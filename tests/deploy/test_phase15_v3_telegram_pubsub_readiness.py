@@ -12,6 +12,11 @@ READINESS = ROOT / "scripts/deploy/phase15_v3_telegram_pubsub_readiness_cloudshe
 def test_pubsub_readiness_is_read_only_and_checks_least_privilege_shape() -> None:
     text = READINESS.read_text(encoding="utf-8")
     for marker in (
+        "pubsub.googleapis.com",
+        "gcloud services list --enabled",
+        "pubsub_service_enablement_read_failed",
+        "pubsub_api_not_enabled",
+        '"pubsub_api_enabled": pubsub_api_enabled',
         "publisher_uses_default_compute_service_account",
         "subscriber_uses_default_compute_service_account",
         "publisher_and_subscriber_service_accounts_not_separate",
