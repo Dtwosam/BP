@@ -449,7 +449,7 @@ def test_phase15_telegram_approval_listener_runtime_repair_passed() -> None:
     )
     assert listener["previous_observed_restart_count"] == 1749
     assert listener["no_real_order_submitted"] is True
-    assert activation["status"] == "ACTIVATED_WAITING_FOR_FRESH_TELEGRAM_APPROVAL"
+    assert activation["status"] == "REPAIR_RESUME_PENDING"
     assert activation["fresh_explicit_authorization_required_for_current_stage"] is True
     assert activation["does_not_submit_real_order"] is True
     assert state["live_trading_enabled"] is False
