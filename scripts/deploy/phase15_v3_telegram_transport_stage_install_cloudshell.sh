@@ -227,6 +227,7 @@ trap cleanup EXIT
   fail "release_archive_sha256_mismatch"
 id bp >/dev/null 2>&1 || fail "bp_user_missing"
 command -v python3 >/dev/null 2>&1 || fail "python3_missing"
+command -v runuser >/dev/null 2>&1 || fail "runuser_missing"
 python3 -m venv --help >/dev/null 2>&1 || fail "python_venv_unavailable"
 
 [[ ! -e "$ROOT" && ! -L "$ROOT" ]] || fail "transport_root_already_exists"
@@ -289,6 +290,16 @@ from importlib.metadata import version
 assert version("httpx") == "0.28.1"
 assert version("google-cloud-pubsub") == "2.41.0"
 PY
+
+chown -hR root:bp-transport "$VENV"
+chmod -R g+rX,o-rwx "$VENV"
+runuser -u bp-transport -- "$VENV/bin/python" -c 'import httpx; import google.cloud.pubsub_v1' >/dev/null ||
+  fail "executor_venv_not_usable_by_service_user"
+
+chown -hR root:bp "$VENV"
+chmod -R g+rX,o-rwx "$VENV"
+runuser -u bp -- "$VENV/bin/python" -c 'import httpx; import google.cloud.pubsub_v1' >/dev/null ||
+  fail "publisher_venv_not_usable_by_service_user"
 
 install -d -o root -g root -m 0755 "$BIN"
 install -o root -g bp -m 0750   "$RELEASE/deploy/phase15-telegram-approved-outbox-handoff.sh"   "$HANDOFF"
@@ -441,6 +452,7 @@ trap cleanup EXIT
 [[ "$(sha256sum "$ARCHIVE" | awk '{print $1}')" == "$ARCHIVE_SHA256" ]] ||
   fail "release_archive_sha256_mismatch"
 command -v python3 >/dev/null 2>&1 || fail "python3_missing"
+command -v runuser >/dev/null 2>&1 || fail "runuser_missing"
 python3 -m venv --help >/dev/null 2>&1 || fail "python_venv_unavailable"
 
 [[ ! -e "$ROOT" && ! -L "$ROOT" ]] || fail "transport_root_already_exists"
