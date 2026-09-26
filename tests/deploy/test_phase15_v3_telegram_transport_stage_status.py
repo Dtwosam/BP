@@ -49,6 +49,11 @@ def test_transport_stage_status_binds_both_hosts_to_one_stage_and_release() -> N
         '"google-cloud-pubsub": "2.41.0"',
         "publisher_runtime_versions_mismatch",
         "executor_runtime_versions_mismatch",
+        "executor_release_not_readable_by_service_user",
+        "executor_transport_state_root_invalid",
+        "legacy_transport_state_present",
+        '/var/lib/bp-telegram-transport/ready',
+        '"0o750"',
     ):
         assert marker in text
 
