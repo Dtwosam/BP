@@ -133,6 +133,7 @@ def _write_private_json(
         + "\n"
     )
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
+    os.fchmod(fd, mode)
     with os.fdopen(fd, "w", encoding="utf-8") as handle:
         handle.write(encoded)
         handle.flush()
