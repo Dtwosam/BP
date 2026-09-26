@@ -219,7 +219,7 @@ Before the order can reach the existing Johannesburg executor, all of the follow
 
 Missing, stale, malformed, mismatched, expired, rejected, or ambiguous state fails closed and must not be retried automatically. Official order/fill reconciliation is mandatory after this second canary before any third live action can be authorized.
 
-### 4.3.5 Telegram transport restaged, activation authorized but not activated — 26 September 2026
+### 4.3.5 Telegram transport activation authorized, listener runtime repair required — 26 September 2026
 
 Two transport activation attempts failed closed before any order-submission path. The second failure isolated filesystem-boundary defects rather than trading-logic defects: staged release-tree traversal for `bp-transport` and cross-service access to the transport-ready queue. PR #301 corrected those runtime boundaries, kept privileged canary/wallet state isolated, and preserved all model, sizing, risk, wallet, arming, and order-submission semantics.
 
@@ -230,6 +230,13 @@ The corrected deterministic release was then staged successfully on both product
 Independent read-only stage status returned PASS with zero blockers, exact current stage binding, no active publisher/executor transport service, no environment/key material, and no real order submitted. Independent Pub/Sub readiness also returned PASS with zero blockers: the dedicated publisher/subscriber service accounts retain no project-level workload roles and the existing topic/subscription plus resource-scoped bindings are ready. Durable sanitized evidence is `docs/evidence/phase-15-v3-telegram-transport-restage-05b832-readiness-production-20260926.json`.
 
 The user subsequently gave fresh explicit authorization to activate exactly stage `phase15-telegram-stage-05b83214b159772872bc7347` from reviewed main `3852c19aaa47be6335f3475b873bb04aa84be30f`. Source truth now records `activation_authorized=true` and `AUTHORIZED_NOT_ACTIVATED`. The authorization is limited to the reviewed fail-closed transport-activation helper and does not authorize Telegram `APPROVE`, executor arming, or any order submission. Activation itself must submit no order and preserve Johannesburg safe-idle. After successful activation, exactly one fresh private Telegram `APPROVE` for a new exact frozen-V3 $5 intent/request remains mandatory before the second canary may invoke the executor, and official reconciliation remains mandatory before any third live action.
+
+
+A subsequent activation attempt on authorized stage `phase15-telegram-stage-05b83214b159772872bc7347` stopped at the pre-mutation Telegram-listener status gate. The stricter read-only diagnostic found the listener's static configuration intact—enabled unit, exact three-key Telegram env with correct ownership/mode, handoff absent, and state-root permissions correct—but the service was in a restart loop. At the diagnostic snapshot systemd reported restart counter 1749; repeated journal entries show `ModuleNotFoundError: No module named 'bp_engine.execution.telegram_approval'`. The apparently active snapshot was transient between restart and crash, not a healthy steady state.
+
+The listener installer had archived the leaf module but did not make the minimal sidecar runtime hermetic against the older installed `bp_engine` package, and it did not explicitly normalize extracted release-tree traversal permissions or prove service-user importability before commit. The corrective repository patch runs the listener with Python `-S`, normalizes the release tree to root:`bp` with service-readable/traversable modes, adds a direct `bp` import probe, strengthens post-start PID stability checks, and makes read-only listener status verify the same import path.
+
+Production listener repair is a separate mutation from transport activation. Source truth therefore records `RUNTIME_REPAIR_REQUIRED` and `runtime_repair_authorized=false`. The dedicated repair helper may reuse the existing root-owned Telegram env in place and restart only the listener after separate explicit authorization; it may not configure handoff, touch the executor, arm live trading, or submit an order. The existing transport activation authorization remains `AUTHORIZED_NOT_ACTIVATED`, but the activation helper remains fail-closed on listener status until this repair is completed and independently verified. Durable evidence is `docs/evidence/phase-15-v3-telegram-approval-listener-runtime-failure-20260926.json`.
 
 ---
 
