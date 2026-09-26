@@ -41,7 +41,7 @@ MUTATION_STARTED=false
 cleanup() {
   status=$?
   if [[ "$status" -ne 0 && "$MUTATION_STARTED" == "true" ]]; then
-    gcloud compute ssh "$EXEC_VM"       --project="$PROJECT"       --zone="$EXEC_ZONE"       --quiet       --command="sudo systemctl stop bp-phase15-telegram-privileged-handoff.service bp-phase15-telegram-execution-authorization-worker.service bp-phase15-telegram-transport-claim-worker.service bp-phase15-telegram-pubsub-streaming-receiver.service >/dev/null 2>&1 || true; sudo systemctl disable bp-phase15-telegram-privileged-handoff.service bp-phase15-telegram-execution-authorization-worker.service bp-phase15-telegram-transport-claim-worker.service bp-phase15-telegram-pubsub-streaming-receiver.service >/dev/null 2>&1 || true; sudo rm -f /etc/bp-telegram-transport/receiver.env /etc/bp-telegram-transport/claim.env /etc/bp-telegram-transport/execution-auth.env /etc/bp-telegram-transport/privileged-handoff.env /etc/bp-telegram-transport/transport.key /etc/bp-telegram-transport/origin.key; sudo sh -c 'umask 077; printf "%s\\n" activation-failure-safe-stop > /etc/bp-canary/KILL'"       >/dev/null 2>&1 || true
+    gcloud compute ssh "$EXEC_VM"       --project="$PROJECT"       --zone="$EXEC_ZONE"       --quiet       --command="sudo systemctl stop bp-phase15-telegram-privileged-handoff.service bp-phase15-telegram-execution-authorization-worker.service bp-phase15-telegram-transport-claim-worker.service bp-phase15-telegram-pubsub-streaming-receiver.service >/dev/null 2>&1 || true; sudo systemctl disable bp-phase15-telegram-privileged-handoff.service bp-phase15-telegram-execution-authorization-worker.service bp-phase15-telegram-transport-claim-worker.service bp-phase15-telegram-pubsub-streaming-receiver.service >/dev/null 2>&1 || true; sudo rm -f /etc/bp-telegram-transport/receiver.env /etc/bp-telegram-transport/claim.env /etc/bp-telegram-transport/execution-auth.env /etc/bp-telegram-transport/privileged-handoff.env /etc/bp-telegram-transport/transport.key /etc/bp-telegram-transport/origin.key; sudo sh -c 'umask 077; echo activation-failure-safe-stop > /etc/bp-canary/KILL'"       >/dev/null 2>&1 || true
     gcloud compute ssh "$US_VM"       --project="$PROJECT"       --zone="$US_ZONE"       --quiet       --command="sudo systemctl stop bp-phase15-telegram-pubsub-publisher.service >/dev/null 2>&1 || true; sudo systemctl disable bp-phase15-telegram-pubsub-publisher.service >/dev/null 2>&1 || true; sudo rm -f /etc/bp/telegram-pubsub-publisher.env; sudo rm -f /etc/bp/telegram-approval-handoff.env; sudo rm -f /etc/bp-telegram-transport/transport.key /etc/bp-telegram-transport/origin.key /etc/bp-telegram-transport/project-state.json; sudo rmdir /etc/bp-telegram-transport >/dev/null 2>&1 || true; sudo systemctl restart bp-phase15-canary-telegram-approval.service >/dev/null 2>&1 || true"       >/dev/null 2>&1 || true
   fi
   rm -rf "$TMP_DIR"
@@ -229,6 +229,7 @@ PY
   fail "transport_and_origin_key_ids_collide"
 
 python3 - "$TMP_DIR/transport.key" "$TMP_DIR/origin.key" <<'PY'
+import base64
 import os
 import secrets
 import sys
@@ -236,9 +237,17 @@ from pathlib import Path
 
 for raw in sys.argv[1:]:
     path = Path(raw)
+    encoded = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("ascii").rstrip("=")
+    padded = encoded + "=" * (-len(encoded) % 4)
+    decoded = base64.b64decode(
+        padded.encode("ascii"),
+        altchars=b"-_",
+        validate=True,
+    )
+    assert len(decoded) == 32
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(fd, "wb") as handle:
-        handle.write(secrets.token_bytes(32))
+    with os.fdopen(fd, "w", encoding="ascii", newline="\n") as handle:
+        handle.write(encoded + "\n")
         handle.flush()
         os.fsync(handle.fileno())
 PY
