@@ -140,6 +140,14 @@ PROJECT_NUMBER=$(gcloud projects describe "$PROJECT"   --format='value(projectNu
 [[ "$PROJECT_NUMBER" =~ ^[0-9]+$ ]] || fail "project_number_invalid"
 DEFAULT_COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
+PUBSUB_ENABLED_SERVICES=$(gcloud services list --enabled \
+  --project="$PROJECT" \
+  --filter='config.name=pubsub.googleapis.com' \
+  --format='value(config.name)') ||
+  fail "pubsub_service_enablement_read_failed"
+[[ "$PUBSUB_ENABLED_SERVICES" == "pubsub.googleapis.com" ]] ||
+  fail "pubsub_api_not_enabled"
+
 US_INSTANCE=$(gcloud compute instances describe "$US_VM"   --project="$PROJECT"   --zone="$US_ZONE"   --format=json) ||
   fail "recorder_instance_describe_failed"
 EXEC_INSTANCE=$(gcloud compute instances describe "$EXEC_VM"   --project="$PROJECT"   --zone="$EXEC_ZONE"   --format=json) ||
@@ -415,6 +423,30 @@ sudo systemctl is-enabled --quiet bp-phase15-telegram-pubsub-publisher.service
 sudo systemctl restart bp-phase15-canary-telegram-approval.service
 sudo systemctl is-active --quiet bp-phase15-canary-telegram-approval.service
 ' || fail "publisher_or_listener_activation_failed"
+
+sleep 3
+
+gcloud compute ssh "$EXEC_VM"   --project="$PROJECT"   --zone="$EXEC_ZONE"   --quiet   --command='
+set -Eeuo pipefail
+for unit in \
+  bp-phase15-telegram-pubsub-streaming-receiver.service \
+  bp-phase15-telegram-transport-claim-worker.service \
+  bp-phase15-telegram-execution-authorization-worker.service \
+  bp-phase15-telegram-privileged-handoff.service
+do
+  sudo systemctl is-active --quiet "$unit"
+  sudo systemctl is-enabled --quiet "$unit"
+  [[ "$(sudo systemctl show -p NRestarts --value "$unit")" == "0" ]]
+done
+' || fail "executor_transport_service_stability_failed"
+
+gcloud compute ssh "$US_VM"   --project="$PROJECT"   --zone="$US_ZONE"   --quiet   --command='
+set -Eeuo pipefail
+sudo systemctl is-active --quiet bp-phase15-telegram-pubsub-publisher.service
+sudo systemctl is-enabled --quiet bp-phase15-telegram-pubsub-publisher.service
+[[ "$(sudo systemctl show -p NRestarts --value bp-phase15-telegram-pubsub-publisher.service)" == "0" ]]
+sudo systemctl is-active --quiet bp-phase15-canary-telegram-approval.service
+' || fail "publisher_or_listener_stability_failed"
 
 HEALTH_AFTER=$(gcloud compute ssh "$EXEC_VM"   --project="$PROJECT"   --zone="$EXEC_ZONE"   --quiet   --command="printf '%s' '{\"action\":\"health\"}' | sudo /opt/bp-canary/executor.sh") ||
   fail "executor_post_activation_probe_failed"
