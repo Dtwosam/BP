@@ -14,6 +14,10 @@ WATCHER_EXPIRED_EVIDENCE = (
     ROOT
     / "docs/evidence/phase-15-v3-post-reconciliation-watcher-expired-readonly-20260926.json"
 )
+WATCHER_RESTART_AUTH_EVIDENCE = (
+    ROOT
+    / "docs/evidence/phase-15-v3-post-reconciliation-watcher-restart-authorization-20260926.json"
+)
 
 
 def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -> None:
@@ -282,17 +286,27 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
     assert activation["official_reconciliation_required_before_any_third_order"] is True
     assert activation["broad_autonomous_live_rollout_authorized"] is False
     assert gate["pending_unsubmitted_intent"] is None
-    assert watch["status"] == "EXPIRED_POST_RECONCILIATION_RESTART_AUTHORIZATION_REQUIRED"
+    assert watch["status"] == "REAUTHORIZED_READY_FOR_POST_RECONCILIATION_RESTART"
     assert watch["authorized"] is True
-    assert watch["start_authorized"] is False
+    assert watch["start_authorized"] is True
     assert watch["runtime_reauthorization_required"] is False
     assert watch["runtime_reauthorization_authorized"] is True
     assert watch["runtime_reauthorization_authorized_at_main"] == (
         "51e4cf1fa5063ff0f4a263dd5ec1646dc18684cf"
     )
     assert watch["runtime_reauthorization_consumed"] is True
-    assert watch["post_reconciliation_restart_authorization_required"] is True
-    assert watch["post_reconciliation_restart_authorized"] is False
+    assert watch["post_reconciliation_restart_authorization_required"] is False
+    assert watch["post_reconciliation_restart_authorized"] is True
+    assert watch["post_reconciliation_restart_authorization_consumed"] is False
+    assert watch["post_reconciliation_restart_authorized_at_main"] == (
+        "6488426580c61cbe76fe31c2ad7b482b519e63fc"
+    )
+    assert watch["post_reconciliation_restart_does_not_authorize_telegram_approve"] is True
+    assert (
+        watch["post_reconciliation_restart_does_not_authorize_executor_arm_or_invoke"]
+        is True
+    )
+    assert watch["post_reconciliation_restart_does_not_authorize_order_submission"] is True
     assert watch["post_reconciliation_restart_source_main"] == (
         "902fcdbec0e8236acd5a3ce53980026c0fd77792"
     )
@@ -377,6 +391,22 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
         is True
     )
     assert watcher_evidence["authorization_boundary"]["fresh_restart_authorized"] is False
+
+    restart_auth_evidence = json.loads(
+        WATCHER_RESTART_AUTH_EVIDENCE.read_text(encoding="utf-8")
+    )
+    assert restart_auth_evidence["authorized_at_main"] == (
+        "6488426580c61cbe76fe31c2ad7b482b519e63fc"
+    )
+    assert restart_auth_evidence["authorized_restart"]["max_wait_seconds"] == 7200
+    assert restart_auth_evidence["authorized_restart"]["prepare_only"] is True
+    assert restart_auth_evidence["authorized_restart"]["research_mode"] is True
+    assert restart_auth_evidence["authorized_restart"]["zero_money"] is True
+    assert restart_auth_evidence["authorization_consumed"] is False
+    assert restart_auth_evidence["production_restart_performed"] is False
+    assert restart_auth_evidence["excluded_actions"]["telegram_approve"] is False
+    assert restart_auth_evidence["excluded_actions"]["executor_arm_or_invoke"] is False
+    assert restart_auth_evidence["excluded_actions"]["order_submission"] is False
 
     assert state["live_trading_enabled"] is False
     assert gate["live_trading_enabled"] is False
