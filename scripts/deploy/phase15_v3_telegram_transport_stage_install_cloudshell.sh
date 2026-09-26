@@ -291,11 +291,6 @@ assert version("httpx") == "0.28.1"
 assert version("google-cloud-pubsub") == "2.41.0"
 PY
 
-chown -hR root:bp-transport "$VENV"
-chmod -R g+rX,o-rwx "$VENV"
-runuser -u bp-transport -- "$VENV/bin/python" -c 'import httpx; import google.cloud.pubsub_v1' >/dev/null ||
-  fail "executor_venv_not_usable_by_service_user"
-
 chown -hR root:bp "$VENV"
 chmod -R g+rX,o-rwx "$VENV"
 runuser -u bp -- "$VENV/bin/python" -c 'import httpx; import google.cloud.pubsub_v1' >/dev/null ||
@@ -549,6 +544,11 @@ from importlib.metadata import version
 assert version("httpx") == "0.28.1"
 assert version("google-cloud-pubsub") == "2.41.0"
 PY
+
+chown -hR root:bp-transport "$VENV"
+chmod -R g+rX,o-rwx "$VENV"
+runuser -u bp-transport -- "$VENV/bin/python" -c 'import httpx; import google.cloud.pubsub_v1' >/dev/null ||
+  fail "executor_venv_not_usable_by_service_user"
 
 ln -s "$RELEASE" "$CURRENT"
 install -d -o root -g bp-transport -m 0750 "$CONFIG"
