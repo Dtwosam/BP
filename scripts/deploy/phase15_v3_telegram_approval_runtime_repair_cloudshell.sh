@@ -107,6 +107,7 @@ STATE_ROOT=/var/lib/bp/phase15-canary-telegram-approval
 BACKUP=$(mktemp -d /var/tmp/bp-phase15-telegram-repair-rollback.XXXXXX)
 COMMITTED=false
 MUTATION_STARTED=false
+SERVICE_MUTATION_STARTED=false
 RELEASE_CREATED=false
 
 fail() {
@@ -122,7 +123,7 @@ cleanup() {
     rm -rf "$BACKUP"
     return
   fi
-  if [[ "$MUTATION_STARTED" == "true" ]]; then
+  if [[ "$SERVICE_MUTATION_STARTED" == "true" ]]; then
     systemctl stop "$SERVICE" >/dev/null 2>&1 || true
     if [[ -f "$BACKUP/service" ]]; then
       install -o root -g root -m 0644 "$BACKUP/service" "$SERVICE_PATH"
@@ -212,6 +213,7 @@ runuser -u bp -- env \
   fail "repair_release_import_not_usable_by_service_user"
 
 install -d -o bp -g bp -m 0700 "$STATE_ROOT"
+SERVICE_MUTATION_STARTED=true
 ln -sfn "$RELEASE" "$CURRENT"
 install -o root -g root -m 0644 "$RELEASE/deploy/$SERVICE" "$SERVICE_PATH"
 systemctl daemon-reload
