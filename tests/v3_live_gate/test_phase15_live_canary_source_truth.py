@@ -194,15 +194,34 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
     assert activation["official_reconciliation_required_before_any_third_order"] is True
     assert activation["broad_autonomous_live_rollout_authorized"] is False
     assert gate["pending_unsubmitted_intent"] is None
-    assert watch["status"] == "PRODUCTION_INACTIVE_READY_FOR_SECOND_TELEGRAM_CANARY"
+    assert watch["status"] == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_SECOND_TELEGRAM_CANARY"
     assert watch["authorized"] is True
     assert watch["start_authorized"] is True
     assert watch["telegram_second_canary_compatible"] is True
     assert watch["prepare_only"] is True
     assert watch["arm_automated"] is False
     assert watch["submission_automated"] is False
+    assert watch["service_active"] is True
+    assert watch["start_result"] == "PASS"
+    assert watch["run_id"] == "phase15-prepare-watch-20260926T144337Z-c2034bee"
+    assert watch["remote_run_dir"] == (
+        "/var/lib/bp/phase15-canary-prepare-watch/runs/"
+        "phase15-prepare-watch-20260926T144337Z-c2034bee"
+    )
+    assert watch["helper_head"] == "c2034bee883786c5e31558cb5717d98780baa8c3"
+    assert watch["last_status"] == "waiting_for_fresh_candidate"
+    assert watch["current_run_fresh_candidate_required"] is True
+    assert watch["current_run_historical_prepared_intents_forbidden"] is True
+    assert watch["no_real_order_submitted"] is True
+    assert watch["telegram_approval_performed"] is False
+    assert watch["executor_armed"] is False
+    assert watch["executor_invoked"] is False
+    assert watch["order_submission_performed"] is False
     assert watch["start_helper_git_blob_sha"] == (
         "7becabcb3768d30988c082fe77b51e163ffddd6f"
+    )
+    assert watch["current_run_evidence"] == (
+        "docs/evidence/phase-15-v3-second-telegram-prepare-watch-start-production-20260926.json"
     )
     assert state["live_trading_enabled"] is False
     assert gate["live_trading_enabled"] is False
