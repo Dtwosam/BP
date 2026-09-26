@@ -111,7 +111,9 @@ set -Eeuo pipefail
 
 python3 - <<'PY'
 import json
+import grp
 import os
+import pwd
 import shutil
 import stat
 import subprocess
@@ -134,13 +136,18 @@ def path_info(path: str) -> dict[str, object]:
         info = candidate.lstat()
     except OSError:
         return {"exists": False}
-    return {
+    result: dict[str, object] = {
         "exists": True,
         "is_symlink": stat.S_ISLNK(info.st_mode),
         "is_dir": stat.S_ISDIR(info.st_mode),
         "is_file": stat.S_ISREG(info.st_mode),
         "mode": oct(stat.S_IMODE(info.st_mode)),
+        "owner": pwd.getpwuid(info.st_uid).pw_name,
+        "group": grp.getgrgid(info.st_gid).gr_name,
     }
+    if stat.S_ISDIR(info.st_mode) and not stat.S_ISLNK(info.st_mode):
+        result["entries"] = sorted(entry.name for entry in candidate.iterdir())
+    return result
 
 
 core_units = [
@@ -265,7 +272,20 @@ if host["publisher_unit"]["enabled"] is True:
 
 if host["transport_root"]["exists"] is True:
     blockers.append("existing_transport_root_present")
-if host["transport_config"]["exists"] is True:
+transport_config = host["transport_config"]
+reusable_empty_transport_config = (
+    transport_config.get("exists") is True
+    and transport_config.get("is_dir") is True
+    and transport_config.get("is_symlink") is False
+    and transport_config.get("mode") == "0o750"
+    and transport_config.get("owner") == "root"
+    and transport_config.get("group") == "bp"
+    and transport_config.get("entries") == []
+)
+if (
+    transport_config.get("exists") is True
+    and not reusable_empty_transport_config
+):
     blockers.append("existing_transport_config_present")
 if host["publisher_env"]["exists"] is True:
     blockers.append("existing_publisher_env_present")
@@ -291,9 +311,13 @@ report = {
     "recorder_zone": expected_zone,
     "core_units": host["core_units"],
     "approval_sidecar_present": host["approval_sidecar"]["exists"],
+    "reusable_empty_transport_config": reusable_empty_transport_config,
     "publisher_install_present": (
         host["transport_root"]["exists"] is True
-        or host["transport_config"]["exists"] is True
+        or (
+            host["transport_config"]["exists"] is True
+            and not reusable_empty_transport_config
+        )
         or host["publisher_env"]["exists"] is True
         or host["transport_state"]["exists"] is True
         or host["publisher_unit"]["active"] is True
