@@ -4424,7 +4424,7 @@
     "prepare_min_arm_window_seconds": 30,
     "prepare_arm_window_reason": "Operational safety margin before arm; stricter than the 15-second live-risk expiry minimum and does not relax strategy/risk.",
     "persistent_prepare_watch": {
-      "status": "PRODUCTION_PREPARED_RECONCILED_INACTIVE",
+      "status": "PRODUCTION_INACTIVE_READY_FOR_SECOND_TELEGRAM_CANARY",
       "authorization_date": "2026-09-24",
       "authorization_source": "User explicitly authorized a persistent prepare watcher.",
       "authorized": true,
@@ -4487,7 +4487,13 @@
         "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
         "scripts/deploy/phase15_v3_canary_executor.py"
       ],
-      "binding_semantics": "Documentation/evidence-only main advances are allowed; any change to a bound prepare/runtime/arm/executor path fails closed."
+      "binding_semantics": "Documentation/evidence-only main advances are allowed; any change to a bound prepare/runtime/arm/executor path fails closed.",
+      "telegram_second_canary_compatible": true,
+      "start_authorized": true,
+      "start_helper_git_blob_sha": "7becabcb3768d30988c082fe77b51e163ffddd6f",
+      "next_run_must_require_fresh_candidate": true,
+      "next_run_must_not_reuse_historical_prepared_intent": true,
+      "next_run_feeds_active_telegram_listener": true
     },
     "transient_risk_retry_fix": {
       "status": "PRODUCTION_ACTIVE",
