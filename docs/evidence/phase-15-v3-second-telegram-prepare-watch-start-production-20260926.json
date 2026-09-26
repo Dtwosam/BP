@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-second-telegram-prepare-watch-start-production",
+  "observed_date": "2026-09-26",
+  "project": "project-4397f2c0-7098-4c1c-abb",
+  "source_main": "c2034bee883786c5e31558cb5717d98780baa8c3",
+  "start_helper": "scripts/deploy/phase15_v3_canary_prepare_watch_start_cloudshell.sh",
+  "start_helper_git_blob_sha": "7becabcb3768d30988c082fe77b51e163ffddd6f",
+  "result": {
+    "run_id": "phase15-prepare-watch-20260926T144337Z-c2034bee",
+    "remote_run_dir": "/var/lib/bp/phase15-canary-prepare-watch/runs/phase15-prepare-watch-20260926T144337Z-c2034bee",
+    "service_active": true,
+    "no_real_order_submitted": true,
+    "arm_automated": false,
+    "submission_automated": false,
+    "helper_result": "PASS",
+    "max_wait_seconds": 7200,
+    "enabled_across_vm_reboot": false
+  },
+  "boundary": {
+    "telegram_approval_performed": false,
+    "executor_armed": false,
+    "executor_invoked": false,
+    "order_submission_performed": false,
+    "pending_unsubmitted_intent": null
+  },
+  "next_boundary": {
+    "wait_for_exactly_one_fresh_new_frozen_v3_candidate": true,
+    "target_notional_usd": 5,
+    "historical_prepared_intents_forbidden": true,
+    "review_exact_intent_before_telegram_approve": true,
+    "telegram_approve_allowed_before_fresh_candidate": false,
+    "official_reconciliation_required_after_future_one_shot_execution": true
+  },
+  "notes": [
+    "The watcher is prepare-only and runs independently on bp-recorder.",
+    "Starting the watcher performed no Telegram approval, executor arm/invocation, or order submission.",
+    "Global and Phase-15 live trading remain disabled."
+  ]
+}
