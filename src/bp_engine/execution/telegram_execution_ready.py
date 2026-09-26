@@ -44,8 +44,11 @@ def _load_ready_file(ready_dir: Path, name: str) -> dict[str, Any]:
         raise ReadyVerificationError(f"{name} is not readable") from exc
     if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
         raise ReadyVerificationError(f"{name} must be a regular non-symlink file")
-    if stat.S_IMODE(info.st_mode) not in (0o600, 0o640):
+    mode = stat.S_IMODE(info.st_mode)
+    if mode not in (0o600, 0o640):
         raise ReadyVerificationError(f"{name} mode must be 0600 or 0640")
+    if mode == 0o640 and info.st_gid != os.getegid():
+        raise ReadyVerificationError(f"{name} shared group must match effective group")
     if info.st_size <= 0 or info.st_size > MAX_READY_FILE_BYTES:
         raise ReadyVerificationError(f"{name} size invalid")
     try:
@@ -70,8 +73,13 @@ def verify_ready_bundle(
         raise ReadyVerificationError("ready directory is not accessible") from exc
     if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
         raise ReadyVerificationError("ready directory must be a non-symlink directory")
-    if stat.S_IMODE(info.st_mode) not in (0o700, 0o750):
+    mode = stat.S_IMODE(info.st_mode)
+    if mode not in (0o700, 0o750):
         raise ReadyVerificationError("ready directory mode must be 0700 or 0750")
+    if mode == 0o750 and info.st_gid != os.getegid():
+        raise ReadyVerificationError(
+            "ready directory shared group must match effective group"
+        )
 
     payloads = {name: _load_ready_file(ready_dir, name) for name in READY_FILES}
     prepared = payloads["prepared.json"]
