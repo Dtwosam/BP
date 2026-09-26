@@ -225,7 +225,7 @@ def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -
     assert evidence["safety"]["trading_software_installed"] is False
     assert evidence["safety"]["wallet_or_signing_material_present"] is False
 
-def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_approval() -> None:
+def test_phase15_telegram_transport_is_staged_inactive_for_authorized_repair_resume() -> None:
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     gate = state["phase_15_v3_live_canary"]
     stage = gate["telegram_transport_stage"]
@@ -233,54 +233,32 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
     second = gate["second_live_canary_authorization"]
     watch = gate["persistent_prepare_watch"]
 
-    assert stage["status"] == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_TELEGRAM_APPROVAL"
-    assert stage["stage_id"] == "phase15-telegram-stage-05b83214b159772872bc7347"
-    assert stage["release_head"] == "ba0bc324cab50bf0809c8eed4e019c13bc4c6653"
-    assert stage["stage_ready_for_later_configuration_review"] is True
-    assert stage["blockers"] == []
-    assert stage["publisher_service_active"] is True
-    assert stage["executor_services_active"] is True
-    assert stage["services_started"] is True
-    assert stage["services_enabled"] is True
-    assert stage["environment_files_present"] is True
-    assert stage["key_files_present"] is True
-    assert stage["activation_authorized"] is False
-    assert stage["activation_reauthorization_required"] is False
-    assert stage["activation_consumed"] is True
-    assert stage["activation_pass"] is True
-    assert stage["activation_main"] == "469049a9f6361f9c656e3d176029b10db7359689"
-    assert stage["activation_helper_git_blob_sha"] == (
-        "83157c6c04b9a996bab51012b4bda4dd31062320"
+    assert stage["status"] == "PRODUCTION_STAGED_INACTIVE_REPAIR_RESUME_PENDING"
+    assert stage["stage_id"] == "phase15-telegram-stage-c2dc6e8eab1a0b00200b7486"
+    assert stage["release_head"] == "51fdb27374c70ff04e07cf3c697c0fb2e4f81a44"
+    assert stage["release_sha256"] == (
+        "c31544dae4b99393377a1c6597f3d5875b2ab9df4427396b7fcfed6281b33a22"
     )
-    assert stage["activation_source_truth_sha256"] == (
-        "454f79e73a0e2ec98ab2707259e45b8c064d059649a1b6974193a718d356efdf"
-    )
-    assert stage["topic_created_by_successful_activation"] is False
-    assert stage["subscription_created_by_successful_activation"] is False
-    assert stage["global_live_trading_enabled"] is False
-    assert stage["second_canary_authorized"] is True
-    assert stage["executor_safe_idle"] is True
+    assert stage["stage_install_status"] == "PASS"
+    assert stage["stage_status_status"] == "PENDING_RESUME_REVALIDATION"
+    assert stage["pubsub_readiness_status"] == "BLOCKED_REPAIR_AUTHORIZATION_MISMATCH"
+    assert stage["stage_ready_for_later_configuration_review"] is False
+    assert stage["publisher_service_active"] is False
+    assert stage["executor_services_active"] is False
+    assert stage["services_started"] is False
+    assert stage["services_enabled"] is False
+    assert stage["environment_files_present"] is False
+    assert stage["key_files_present"] is False
+    assert stage["current_runtime_usable"] is False
+    assert stage["runtime_health_status"] == "STAGED_INACTIVE_REPAIR_RESUME_PENDING"
+    assert stage["second_canary_network_attempt_consumed"] is False
     assert stage["real_order_submitted"] is False
-    assert stage["waiting_for_fresh_telegram_approval"] is True
-    assert stage["latest_activation_attempt_status"] == (
-        "PASS_WAITING_FOR_FRESH_TELEGRAM_APPROVAL"
-    )
+    assert stage["waiting_for_fresh_telegram_approval"] is False
+    assert stage["latest_activation_attempt_status"] == "REPAIR_RESUME_PENDING"
     assert stage["latest_activation_attempt_real_order_submitted"] is False
 
-    assert activation["status"] == "ACTIVATED_WAITING_FOR_FRESH_TELEGRAM_APPROVAL"
-    assert activation["activation_performed"] is True
-    assert activation["activation_result"] == "PASS"
-    assert activation["activated_at_main"] == (
-        "469049a9f6361f9c656e3d176029b10db7359689"
-    )
-    assert activation["activated_helper_git_blob_sha"] == (
-        "83157c6c04b9a996bab51012b4bda4dd31062320"
-    )
-    assert activation["authorization_consumed"] is True
-    assert activation["activation_retry_authorized"] is False
-    assert activation["activation_retry_requires_fresh_explicit_authorization"] is True
-    assert activation["fresh_explicit_authorization_required_for_current_stage"] is True
-    assert activation["waiting_for_fresh_telegram_approval"] is True
+    assert activation["status"] == "REPAIR_RESUME_PENDING"
+    assert activation["waiting_for_fresh_telegram_approval"] is False
     assert activation["telegram_approval_performed"] is False
     assert activation["executor_armed"] is False
     assert activation["order_submission_performed"] is False
