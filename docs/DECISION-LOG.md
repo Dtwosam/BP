@@ -835,8 +835,16 @@ The first-canary reconciliation blocker has since been repaired, but that happen
 
 ## D-082 — Authorize one post-reconciliation prepare-only watcher restart
 **Date:** 26 Sep 2026  
-**Status:** Authorized; not yet executed
+**Status:** Superseded by D-083; authorization consumed
 
 **Decision:** The user explicitly authorized one new 7200-second Phase-15 prepare-only watcher restart after the first-canary reconciliation repair. The authorization is bound to current main `6488426580c61cbe76fe31c2ad7b482b519e63fc` and the unchanged previously reviewed artifacts: start-helper `0a98b03e35d8019a85063e45d1a979fea96c0532`, runner `efe6dc9c3b37f5788b701107366bb634a4b1f357`, service unit `5e20c65edd57e398d2106c7f6fe93fbb477b7572`, and canary runtime `df5e60b1b2ba632fd77d65103509fac70187be7d`.
 
 The restart remains research/zero-money and prepare-only, may consider only a later NEW frozen-V3 candidate, and must not reuse the three predictions previously rejected under `reconciliation_blocked`. It cannot arm or submit. Telegram `APPROVE`, executor arm/invocation, and order submission remain separate boundaries and are not authorized here. Evidence: `docs/evidence/phase-15-v3-post-reconciliation-watcher-restart-authorization-20260926.json`.
+
+## D-083 — Accept post-reconciliation prepare-only watcher restart PASS
+**Date:** 26 Sep 2026  
+**Status:** Active
+
+**Decision:** The freshly authorized post-reconciliation prepare-only watcher restart passed in production from exact main `271b35fffdb3ccff1490e213672dfa98b7583d75`. Run `phase15-prepare-watch-20260926T195409Z-271b35ff` is active on `bp-recorder`, bounded to 7200 seconds, and remains research/zero-money and prepare-only.
+
+The start returned service active with `NO_REAL_ORDER_SUBMITTED=true`, `ARM_AUTOMATED=false`, and `SUBMISSION_AUTOMATED=false`. The second-canary network attempt remains unconsumed. The one-shot restart authorization is consumed. Only a later NEW frozen-V3 candidate may be considered; the three previously rejected predictions remain terminally excluded. Telegram `APPROVE`, executor arm/invocation, and order submission remain separate boundaries. Evidence: `docs/evidence/phase-15-v3-post-reconciliation-watcher-restart-pass-production-20260926.json`.
