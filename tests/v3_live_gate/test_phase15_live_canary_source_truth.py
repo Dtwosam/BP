@@ -135,6 +135,7 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
     gate = state["phase_15_v3_live_canary"]
     stage = gate["telegram_transport_stage"]
     activation = gate["telegram_transport_activation_authorization"]
+    watch = gate["persistent_prepare_watch"]
 
     assert stage["status"] == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_TELEGRAM_APPROVAL"
     assert stage["stage_id"] == "phase15-telegram-stage-05b83214b159772872bc7347"
@@ -193,6 +194,16 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
     assert activation["official_reconciliation_required_before_any_third_order"] is True
     assert activation["broad_autonomous_live_rollout_authorized"] is False
     assert gate["pending_unsubmitted_intent"] is None
+    assert watch["status"] == "PRODUCTION_INACTIVE_READY_FOR_SECOND_TELEGRAM_CANARY"
+    assert watch["authorized"] is True
+    assert watch["start_authorized"] is True
+    assert watch["telegram_second_canary_compatible"] is True
+    assert watch["prepare_only"] is True
+    assert watch["arm_automated"] is False
+    assert watch["submission_automated"] is False
+    assert watch["start_helper_git_blob_sha"] == (
+        "7becabcb3768d30988c082fe77b51e163ffddd6f"
+    )
     assert state["live_trading_enabled"] is False
     assert gate["live_trading_enabled"] is False
 
