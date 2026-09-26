@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-corrected-second-telegram-prepare-watch-restart-pass-production",
+  "observed_date": "2026-09-26",
+  "source_main": "f3de8c008d6a50584dc71a172ca4dcb4275f73d8",
+  "authorization": {
+    "status_before_run": "REAUTHORIZED_READY_FOR_CORRECTED_SECOND_CANARY_RESTART",
+    "consumed_by_restart": true
+  },
+  "exact_artifacts": {
+    "start_helper_git_blob_sha": "0a98b03e35d8019a85063e45d1a979fea96c0532",
+    "runner_git_blob_sha": "efe6dc9c3b37f5788b701107366bb634a4b1f357",
+    "service_unit_git_blob_sha": "5e20c65edd57e398d2106c7f6fe93fbb477b7572",
+    "canary_git_blob_sha": "df5e60b1b2ba632fd77d65103509fac70187be7d"
+  },
+  "result": {
+    "run_id": "phase15-prepare-watch-20260926T155010Z-f3de8c00",
+    "remote_run_dir": "/var/lib/bp/phase15-canary-prepare-watch/runs/phase15-prepare-watch-20260926T155010Z-f3de8c00",
+    "service_active": true,
+    "no_real_order_submitted": true,
+    "arm_automated": false,
+    "submission_automated": false,
+    "helper_result": "PASS",
+    "max_wait_seconds": 7200,
+    "enabled_across_vm_reboot": false
+  },
+  "boundary": {
+    "telegram_approval_performed": false,
+    "executor_armed": false,
+    "executor_invoked": false,
+    "order_submission_performed": false,
+    "pending_unsubmitted_intent": null,
+    "second_canary_network_attempt_consumed": false
+  },
+  "next_boundary": {
+    "read_only_follow_only": true,
+    "wait_for_one_fresh_new_frozen_v3_candidate": true,
+    "target_notional_usd": 5,
+    "review_exact_candidate_before_any_telegram_approve": true
+  }
+}
