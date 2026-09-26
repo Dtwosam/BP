@@ -242,18 +242,30 @@ SERVICES = (
     "bp-phase15-telegram-execution-authorization-worker.service",
     "bp-phase15-telegram-privileged-handoff.service",
 )
-STATE_DIRS = (
+TRANSPORT_STATE_ROOT = Path("/var/lib/bp-telegram-transport")
+TRANSPORT_STATE_DIRS = (
+    TRANSPORT_STATE_ROOT / "inbox",
+    TRANSPORT_STATE_ROOT / "rejections",
+    TRANSPORT_STATE_ROOT / "claims",
+    TRANSPORT_STATE_ROOT / "ready",
+    TRANSPORT_STATE_ROOT / "processed",
+    TRANSPORT_STATE_ROOT / "failures",
+)
+AUTH_STATE_DIRS = (
+    Path("/var/lib/bp-canary/telegram-dispatch-claims"),
+    Path("/var/lib/bp-canary/telegram-execution-authorized"),
+    Path("/var/lib/bp-canary/telegram-execution-auth-processed"),
+    Path("/var/lib/bp-canary/telegram-execution-auth-failures"),
+    Path("/var/lib/bp-canary/telegram-live-handoff"),
+)
+STATE_DIRS = TRANSPORT_STATE_DIRS + AUTH_STATE_DIRS
+LEGACY_TRANSPORT_STATE_DIRS = (
     Path("/var/lib/bp-canary/telegram-transport-inbox"),
     Path("/var/lib/bp-canary/telegram-transport-rejections"),
     Path("/var/lib/bp-canary/telegram-transport-claims"),
     Path("/var/lib/bp-canary/telegram-transport-ready"),
     Path("/var/lib/bp-canary/telegram-transport-claim-processed"),
     Path("/var/lib/bp-canary/telegram-transport-claim-failures"),
-    Path("/var/lib/bp-canary/telegram-dispatch-claims"),
-    Path("/var/lib/bp-canary/telegram-execution-authorized"),
-    Path("/var/lib/bp-canary/telegram-execution-auth-processed"),
-    Path("/var/lib/bp-canary/telegram-execution-auth-failures"),
-    Path("/var/lib/bp-canary/telegram-live-handoff"),
 )
 
 
@@ -339,6 +351,26 @@ if python.is_file():
 
 user_rc, _ = run("id", "bp-transport")
 group_rc, group = run("id", "-gn", "bp-transport")
+receiver_script = (
+    Path(current_target)
+    / "scripts"
+    / "run_phase15_v3_telegram_pubsub_streaming_receive.py"
+    if current_target
+    else Path("/")
+)
+claim_script = (
+    Path(current_target)
+    / "scripts"
+    / "run_phase15_v3_telegram_transport_claim_worker.py"
+    if current_target
+    else Path("/")
+)
+receiver_read_rc, _ = run(
+    "runuser", "-u", "bp-transport", "--", "test", "-r", str(receiver_script)
+)
+claim_read_rc, _ = run(
+    "runuser", "-u", "bp-transport", "--", "test", "-r", str(claim_script)
+)
 health = json.loads(sys.argv[1])
 
 print(json.dumps(
@@ -348,11 +380,19 @@ print(json.dumps(
         "root": path_info(ROOT),
         "current": path_info(CURRENT),
         "config": path_info(CONFIG),
+        "transport_state_root": path_info(TRANSPORT_STATE_ROOT),
         "state_dirs": {str(path): path_info(path) for path in STATE_DIRS},
+        "legacy_transport_state_present": any(
+            path.exists() or path.is_symlink()
+            for path in LEGACY_TRANSPORT_STATE_DIRS
+        ),
         "runtime_versions": versions,
         "services": services,
         "bp_transport_user_exists": user_rc == 0,
         "bp_transport_primary_group": group if group_rc == 0 else "",
+        "release_service_user_readable": (
+            receiver_read_rc == 0 and claim_read_rc == 0
+        ),
         "receiver_env_present": (CONFIG / "receiver.env").exists(),
         "claim_env_present": (CONFIG / "claim.env").exists(),
         "execution_auth_env_present": (
@@ -559,6 +599,21 @@ if executor.get("runtime_versions") != {
     "google-cloud-pubsub": "2.41.0",
 }:
     blockers.append("executor_runtime_versions_mismatch")
+transport_state_root = executor.get("transport_state_root") or {}
+if (
+    transport_state_root.get("exists") is not True
+    or transport_state_root.get("is_dir") is not True
+    or transport_state_root.get("is_symlink") is True
+    or transport_state_root.get("mode") != "0o710"
+    or transport_state_root.get("owner") != "root"
+    or transport_state_root.get("group") != "bp-transport"
+):
+    blockers.append("executor_transport_state_root_invalid")
+if executor.get("legacy_transport_state_present") is not False:
+    blockers.append("legacy_transport_state_present")
+if executor.get("release_service_user_readable") is not True:
+    blockers.append("executor_release_not_readable_by_service_user")
+
 root_authorization_state_dirs = {
     "/var/lib/bp-canary/telegram-dispatch-claims",
     "/var/lib/bp-canary/telegram-execution-authorized",
@@ -566,17 +621,27 @@ root_authorization_state_dirs = {
     "/var/lib/bp-canary/telegram-execution-auth-failures",
     "/var/lib/bp-canary/telegram-live-handoff",
 }
+ready_state_dir = "/var/lib/bp-telegram-transport/ready"
 for path, info in (executor.get("state_dirs") or {}).items():
-    expected_owner = (
-        "root" if path in root_authorization_state_dirs else "bp-transport"
-    )
+    if path in root_authorization_state_dirs:
+        expected_owner = "root"
+        expected_group = "root"
+        expected_mode = "0o700"
+    elif path == ready_state_dir:
+        expected_owner = "bp-transport"
+        expected_group = "bp-transport"
+        expected_mode = "0o750"
+    else:
+        expected_owner = "bp-transport"
+        expected_group = "bp-transport"
+        expected_mode = "0o700"
     if (
         info.get("exists") is not True
         or info.get("is_dir") is not True
         or info.get("is_symlink") is True
-        or info.get("mode") != "0o700"
+        or info.get("mode") != expected_mode
         or info.get("owner") != expected_owner
-        or info.get("group") != expected_owner
+        or info.get("group") != expected_group
     ):
         blockers.append(f"executor_state_dir_invalid:{path}")
 
