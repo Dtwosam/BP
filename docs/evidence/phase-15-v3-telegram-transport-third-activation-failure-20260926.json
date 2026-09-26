@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-telegram-transport-third-activation-failure",
+  "observed_date": "2026-09-26",
+  "project": "project-4397f2c0-7098-4c1c-abb",
+  "activation_main": "837ba96aae74addd97892b9330c86f270e529a53",
+  "activation_helper": "scripts/deploy/phase15_v3_telegram_transport_activate_cloudshell.sh",
+  "activation_helper_git_blob_sha": "d2560354d10c9964ba0a5a0161f1be9ffb2dfd86",
+  "stage_id": "phase15-telegram-stage-05b83214b159772872bc7347",
+  "pre_mutation_readiness": {
+    "status": "PASS",
+    "activation_ready": true,
+    "blockers": [],
+    "executor_safe_idle": true,
+    "listener_active": true,
+    "listener_enabled": true,
+    "listener_env_exists": true,
+    "listener_handoff_env_present": false,
+    "live_trading_enabled": false
+  },
+  "activation_result": {
+    "status": "FAIL_CLOSED",
+    "reason": "executor_transport_service_activation_failed",
+    "mutation_started": true,
+    "observed_mutations_before_failure": [
+      "resource-scoped Pub/Sub IAM policy update commands completed",
+      "systemd enable symlinks were created for all four Johannesburg transport services"
+    ],
+    "telegram_approval_performed": false,
+    "executor_armed": false,
+    "order_submission_performed": false,
+    "real_order_submitted": false
+  },
+  "fail_closed_cleanup_contract": {
+    "helper_cleanup_is_registered": true,
+    "expected_executor_cleanup": [
+      "stop and disable all four Johannesburg transport services",
+      "remove executor transport env/key files",
+      "write activation-failure-safe-stop kill marker"
+    ],
+    "expected_recorder_cleanup": [
+      "stop and disable publisher",
+      "remove publisher/handoff transport config",
+      "remove recorder transport keys/project-state snapshot",
+      "restart Telegram approval listener"
+    ],
+    "cleanup_verification_status": "PENDING_READ_ONLY_REVALIDATION",
+    "executor_cleanup_verified": false,
+    "recorder_cleanup_verified": false
+  },
+  "retry_gate": {
+    "stage_ready_for_later_configuration_review": false,
+    "blocker": "post_activation_failure_cleanup_revalidation_required",
+    "activation_authorization_preserved": true,
+    "activation_retry_allowed_now": false,
+    "telegram_approve_allowed_now": false,
+    "executor_arm_allowed_now": false,
+    "order_submission_allowed_now": false
+  },
+  "notes": [
+    "This evidence records only the supplied activation output and the reviewed helper cleanup contract.",
+    "It does not claim that cleanup succeeded; cleanup must be verified read-only before any retry decision.",
+    "The top-level failure reason does not identify which of the four executor services failed its active/enabled verification."
+  ]
+}
