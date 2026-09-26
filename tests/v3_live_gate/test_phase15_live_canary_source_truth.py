@@ -179,7 +179,9 @@ def test_phase15_telegram_approval_listener_runtime_repair_is_required() -> None
     assert listener["handoff_env_present"] is False
     assert listener["runtime_repair_required"] is True
     assert listener["runtime_repair_authorized"] is True
-    assert listener["runtime_repair_authorized_at_main"] == "a60ff465ab307a360fb20fcefa5158f8258e46a8"
+    assert listener["runtime_repair_authorized_at_main"] == (
+        "a60ff465ab307a360fb20fcefa5158f8258e46a8"
+    )
     assert listener["runtime_repair_helper_git_blob_sha"] == (
         "028c5e0f747f388d8471b3be49ba288b9bbbecc4"
     )
