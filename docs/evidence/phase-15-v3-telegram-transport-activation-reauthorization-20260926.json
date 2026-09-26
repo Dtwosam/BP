@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-telegram-transport-activation-reauthorization",
+  "authorization_date": "2026-09-26",
+  "stage_id": "phase15-telegram-stage-05b83214b159772872bc7347",
+  "staged_release_head": "ba0bc324cab50bf0809c8eed4e019c13bc4c6653",
+  "authorization_recorded_from_main": "23372ef1b9038a756a8187209873de363498aae0",
+  "activation_helper": "scripts/deploy/phase15_v3_telegram_transport_activate_cloudshell.sh",
+  "activation_helper_git_blob_sha": "83157c6c04b9a996bab51012b4bda4dd31062320",
+  "authorization_status": "AUTHORIZED_NOT_ACTIVATED",
+  "authorization_source": "User explicitly authorized the exact repaired transport-activation boundary after PR #310 merged and post-merge CI passed.",
+  "prior_helper_git_blob_sha": "d2560354d10c9964ba0a5a0161f1be9ffb2dfd86",
+  "reauthorization_reason": "The helper changed to encode transport/origin keys as UTF-8 base64url text and correct the fail-closed kill-marker writer after production diagnostics identified the raw-binary key mismatch.",
+  "scope": {
+    "transport_activation": true,
+    "telegram_approve": false,
+    "executor_arming": false,
+    "order_submission": false,
+    "broad_autonomous_live_rollout": false
+  },
+  "mandatory_pre_activation_checks": [
+    "clean exact-current-main checkout",
+    "exact activation-helper Git blob",
+    "Telegram listener status PASS",
+    "transport stage status PASS",
+    "Pub/Sub readiness PASS",
+    "activation readiness PASS",
+    "Johannesburg executor safe-idle"
+  ],
+  "mandatory_safety": {
+    "activation_itself_submits_no_order": true,
+    "global_live_trading_remains_disabled": true,
+    "phase15_live_trading_remains_disabled": true,
+    "fresh_private_telegram_approval_required_after_successful_activation": true,
+    "one_shot_second_canary_marker_remains_required": true,
+    "official_reconciliation_required_before_any_third_order": true
+  },
+  "production_mutation_performed_by_this_record": false,
+  "real_order_submitted": false
+}

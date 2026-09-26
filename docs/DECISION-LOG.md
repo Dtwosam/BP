@@ -734,7 +734,7 @@ The user explicitly authorized enabling only `iap.googleapis.com` on `project-43
 
 ## D-072 — Require fresh authorization after Telegram activation-helper key-format fix
 **Date:** 26 Sep 2026  
-**Status:** Active
+**Status:** Superseded by D-073
 
 **Decision:** The third authorized Phase-15 Telegram transport activation attempt failed closed after mutation began. Read-only post-failure diagnostics verified that cleanup completed on both hosts and that no Telegram approval, executor arm, or order submission occurred. The staged package remains intact and read-only healthy; no restage is required.
 
@@ -743,4 +743,14 @@ The production journals isolate the failure to the activation helper's secret-fi
 The candidate helper encodes each 32-byte secret as one-line base64url text, validates that it decodes back to 32 bytes before the mutation boundary, and writes the fail-closed kill marker with `echo`. Its exact Git blob is `83157c6c04b9a996bab51012b4bda4dd31062320`.
 
 The prior activation authorization in D-069 was bound to helper blob `d2560354d10c9964ba0a5a0161f1be9ffb2dfd86`. It remains historical evidence of the earlier authorization but does not authorize the changed helper. Source truth must therefore remain `REAUTHORIZATION_REQUIRED` until the user gives fresh explicit activation authorization for the exact new helper artifact. Telegram `APPROVE`, executor arming, and order submission remain separate later boundaries.
+
+## D-073 — Reauthorize repaired Phase-15 Telegram transport activation
+**Date:** 26 Sep 2026  
+**Status:** Active
+
+**Decision:** After PR #310 merged as current main `23372ef1b9038a756a8187209873de363498aae0` and post-merge CI passed, the user explicitly authorized transport activation for exactly stage `phase15-telegram-stage-05b83214b159772872bc7347` using activation-helper Git blob `83157c6c04b9a996bab51012b4bda4dd31062320`.
+
+The authorization is narrowly bound to the reviewed repaired helper and current staged transport. It permits the fail-closed transport activation mutation only after a clean exact-current-main checkout and fresh read-only listener, stage, Pub/Sub, activation-readiness, and safe-idle checks pass. It does not authorize Telegram `APPROVE`, executor arming, order submission, or broad autonomous live rollout.
+
+Activation itself must keep global and Phase-15 live trading disabled, preserve the Johannesburg executor in safe-idle until a later fresh approval boundary, and submit no real order. After activation PASS, the system must stop and wait for a fresh private Telegram approval bound to a new exact frozen-V3 $5 intent/request before any executor invocation. Official reconciliation remains mandatory before any third live action.
 
