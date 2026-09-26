@@ -82,10 +82,18 @@ def test_transport_activate_enforces_identity_and_resource_scoped_iam() -> None:
     assert "gcloud projects add-iam-policy-binding" not in text
 
 
-def test_transport_activate_generates_separate_unprinted_keys_and_least_privilege_files() -> None:
+def test_transport_activate_generates_base64url_unprinted_keys_and_least_privilege_files() -> None:
     text = ACTIVATE.read_text(encoding="utf-8")
     for marker in (
         "secrets.token_bytes(32)",
+        "base64.urlsafe_b64encode",
+        '.decode("ascii").rstrip("=")',
+        "base64.b64decode(",
+        'altchars=b"-_"',
+        "validate=True",
+        "assert len(decoded) == 32",
+        'os.fdopen(fd, "w", encoding="ascii", newline="\\n")',
+        'handle.write(encoded + "\\n")',
         "transport.key",
         "origin.key",
         "root -g bp -m 0640",
@@ -100,6 +108,7 @@ def test_transport_activate_generates_separate_unprinted_keys_and_least_privileg
         "BP_TELEGRAM_PRIVILEGED_HANDOFF_ENABLED=yes",
     ):
         assert marker in text
+    assert 'os.fdopen(fd, "wb")' not in text
     assert "cat $TMP_DIR/transport.key" not in text
     assert "cat $TMP_DIR/origin.key" not in text
 
@@ -115,8 +124,7 @@ def test_transport_activate_starts_in_dependency_order_and_fails_closed() -> Non
 
     for marker in (
         "activation-failure-safe-stop",
-        'printf "%s',
-        'activation-failure-safe-stop > /etc/bp-canary/KILL',
+        "echo activation-failure-safe-stop > /etc/bp-canary/KILL",
         "systemctl stop bp-phase15-telegram-privileged-handoff.service",
         "systemctl disable bp-phase15-telegram-privileged-handoff.service",
         "rm -f /etc/bp-telegram-transport/receiver.env",
