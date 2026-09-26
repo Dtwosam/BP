@@ -207,6 +207,9 @@ def test_full_safe_origin_transport_claim_verify_chain(tmp_path: Path) -> None:
     assert claimed[0]["status"] == "claimed_ready"
     ready_dir = Path(claimed[0]["ready_path"])
     assert (ready_dir / "origin-attestation.json").is_file()
+    assert (os.stat(ready_dir).st_mode & 0o777) == 0o750
+    for ready_file in ready_dir.iterdir():
+        assert (os.stat(ready_file).st_mode & 0o777) == 0o640
 
     verified = verifier.verify_ready_bundle(
         ready_dir=ready_dir,
@@ -289,6 +292,9 @@ def test_full_source_truth_transport_v2_chain(tmp_path: Path) -> None:
     assert claimed[0]["status"] == "claimed_ready"
     ready_dir = Path(claimed[0]["ready_path"])
     assert (ready_dir / "source-truth-authorization.json").is_file()
+    assert (os.stat(ready_dir).st_mode & 0o777) == 0o750
+    for ready_file in ready_dir.iterdir():
+        assert (os.stat(ready_file).st_mode & 0o777) == 0o640
 
     verified = verifier.verify_ready_bundle(
         ready_dir=ready_dir,
