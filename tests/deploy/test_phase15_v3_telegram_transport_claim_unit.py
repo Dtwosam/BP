@@ -32,7 +32,10 @@ def test_transport_claim_unit_is_unprivileged_offline_and_wallet_isolated() -> N
         "ProtectSystem=strict",
         "CapabilityBoundingSet=",
         "AmbientCapabilities=",
-        "InaccessiblePaths=/etc/bp-canary /var/lib/bp-canary -/etc/bp-telegram-transport/origin.key",
+        (
+            "InaccessiblePaths=/etc/bp-canary /var/lib/bp-canary "
+            "-/etc/bp-telegram-transport/origin.key"
+        ),
         (
             "ReadOnlyPaths=/opt/bp-telegram-transport "
             "/etc/bp-telegram-transport/claim.env "
