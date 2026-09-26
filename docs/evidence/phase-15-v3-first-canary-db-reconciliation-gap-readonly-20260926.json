@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-first-canary-db-reconciliation-gap-readonly",
+  "observed_date": "2026-09-26",
+  "source_main": "81ad983708a02927e057bcb3c1c3672d98b30a98",
+  "audit_mode": "read_only",
+  "database_session_read_only": true,
+  "first_live_canary": {
+    "intent_id": "live-intent-6cdfcfd28d0eb52f1ee0762bfd351409",
+    "external_order_id": "0x7c85e5e8753a875dfd9fec8ffd45726164863648127351b21c2a8ba1819a28de",
+    "accepted_event_observed_at": "2026-09-24T17:20:14.900358+00:00",
+    "cancelled_event_observed_at": "2026-09-24T17:20:14.900358+00:00",
+    "external_zero_fill_evidence": "docs/evidence/phase-15-v3-first-live-canary-zero-fill-reconciliation-20260924.json",
+    "external_official_reconciliation_complete": true
+  },
+  "live_reconciliation_ledger": {
+    "latest_reconciliation_id": "live-reconciliation-8da1de9a5375b842c1476e588201e18a",
+    "latest_observed_at": "2026-09-24T17:04:50.389631+00:00",
+    "latest_reconciliation_predates_live_submission": true,
+    "latest_reconciliation_kind": "pre_submission_intent_close",
+    "latest_critical_count": 0,
+    "latest_unresolved_count": 0,
+    "post_submission_reconciliation_row_present": false,
+    "account_snapshot_present_on_latest_row": false
+  },
+  "corrected_watcher_window": {
+    "activated_at": "2026-09-26T15:50:10.185545+00:00",
+    "fresh_frozen_v3_paper_order_count_observed": 3,
+    "fresh_trade_and_executable_count_observed": 3,
+    "canary_risk_decision_count_observed": 3,
+    "common_risk_reason": "reconciliation_blocked",
+    "other_risk_reasons_observed": []
+  },
+  "root_cause": "The official fill probe was intentionally read-only. It established that the first submitted canary was zero-fill, but did not persist a post-submission live_reconciliation_runs row. Because a real accepted submission exists after the latest reconciliation row, the live account snapshot fails closed with unresolved_critical_reconciliation > 0, causing otherwise eligible fresh paper candidates to be rejected as reconciliation_blocked.",
+  "repair": {
+    "status": "ENGINEERING_READY_AUTHORIZATION_REQUIRED",
+    "helper": "scripts/deploy/phase15_v3_first_canary_db_reconciliation_cloudshell.sh",
+    "candidate_helper_git_blob_sha": "b21456d222f8256b381d43d70c1373bbbee6d78d",
+    "production_mutation_performed": false,
+    "fresh_explicit_authorization_required": true,
+    "intended_write": "One idempotent post_submission_official_zero_fill reconciliation row after fresh official zero-fill verification.",
+    "telegram_approve_authorized": false,
+    "executor_arm_or_invoke_authorized": false,
+    "order_submission_authorized": false
+  }
+}
