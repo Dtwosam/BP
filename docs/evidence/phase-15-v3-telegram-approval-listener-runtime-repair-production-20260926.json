@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-telegram-approval-listener-runtime-repair-production",
+  "observed_date": "2026-09-26",
+  "project": "project-4397f2c0-7098-4c1c-abb",
+  "host": "bp-recorder",
+  "repair": {
+    "status": "PASS",
+    "deployed_head": "72aea2868cae1991af5bc66fab75e2ee518e0db7",
+    "release_import_usable_by_service_user": true,
+    "service_active": true,
+    "service_enabled": true,
+    "service_pid_stable": true,
+    "existing_telegram_env_reused": true,
+    "bot_token_stored_in_git": false,
+    "handoff_configured": false,
+    "live_trading_enabled": false,
+    "core_service_pids_preserved": true,
+    "no_real_order_submitted": true
+  },
+  "read_only_listener_status": {
+    "status": "PASS",
+    "deployed_head": "72aea2868cae1991af5bc66fab75e2ee518e0db7",
+    "listener_binding_current": true,
+    "service_active": true,
+    "service_enabled": true,
+    "release_import_usable_by_service_user": true,
+    "journal_error_line_count_last_15m": 0,
+    "env": {
+      "exists": true,
+      "owner": "root",
+      "group": "bp",
+      "mode": "0640",
+      "keys": [
+        "BP_TELEGRAM_BOT_TOKEN",
+        "BP_TELEGRAM_CHAT_ID",
+        "BP_TELEGRAM_USER_ID"
+      ],
+      "bot_token_set": true,
+      "telegram_user_id_set": true,
+      "telegram_chat_id_set": true
+    },
+    "unit": {
+      "exists": true,
+      "owner": "root",
+      "group": "root",
+      "mode": "0644"
+    },
+    "state_root": {
+      "exists": true,
+      "owner": "bp",
+      "group": "bp",
+      "mode": "0700"
+    },
+    "handoff_configured": false,
+    "handoff_env_present": false,
+    "no_real_order_submitted": true
+  },
+  "post_repair_activation_readiness": {
+    "status": "PASS",
+    "activation_ready": true,
+    "blockers": [],
+    "executor_safe_idle": true,
+    "listener": {
+      "active": true,
+      "enabled": true,
+      "env_exists": true,
+      "handoff_env_present": false
+    },
+    "mutation_performed": false
+  },
+  "authorization_boundary": {
+    "listener_runtime_repair_authorization_consumed": true,
+    "listener_runtime_repair_authorized_after_success": false,
+    "transport_activation_authorization_preserved": true,
+    "telegram_approve_performed": false,
+    "executor_armed": false,
+    "order_submission_performed": false,
+    "real_order_submitted": false
+  },
+  "historical_failure": {
+    "previous_deployed_head": "13b3f358543ef7a26c31bea65ec57b68f9ebf45f",
+    "failure_status": "RESTART_LOOP",
+    "failure_reason": "telegram_approval_module_import_failed",
+    "observed_restart_count": 1749,
+    "failure_evidence": "docs/evidence/phase-15-v3-telegram-approval-listener-runtime-failure-20260926.json"
+  }
+}
