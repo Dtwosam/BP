@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-telegram-approval-runtime-repair-authorization",
+  "authorization_date": "2026-09-26",
+  "target_host": "bp-recorder",
+  "authorization_recorded_from_main": "a60ff465ab307a360fb20fcefa5158f8258e46a8",
+  "runtime_repair_helper": "scripts/deploy/phase15_v3_telegram_approval_runtime_repair_cloudshell.sh",
+  "runtime_repair_helper_git_blob_sha": "028c5e0f747f388d8471b3be49ba288b9bbbecc4",
+  "authorization_status": "AUTHORIZED_NOT_REPAIRED",
+  "scope": {
+    "listener_runtime_repair": true,
+    "reuse_existing_telegram_env": true,
+    "restart_only_approval_listener": true,
+    "configure_handoff": false,
+    "transport_activation": false,
+    "telegram_approve": false,
+    "executor_arming": false,
+    "order_submission": false
+  },
+  "transport_stage_id": "phase15-telegram-stage-05b83214b159772872bc7347",
+  "transport_activation_authorization_preserved": true,
+  "production_mutation_performed_by_this_record": false,
+  "real_order_submitted": false
+}
