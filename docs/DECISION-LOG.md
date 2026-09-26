@@ -764,3 +764,13 @@ The successful activation reused the existing Pub/Sub topic and subscription, pr
 
 The D-073 activation authorization is consumed by this successful mutation. Source truth now records `ACTIVATED_WAITING_FOR_FRESH_TELEGRAM_APPROVAL`; any activation retry requires fresh explicit authorization. There is currently no pending unsubmitted intent. The next action is to prepare and review one fresh NEW frozen-V3 paper-derived $5 intent, then stop at the private Telegram approval boundary. Only one fresh `APPROVE` bound to that exact new intent may advance the path; executor invocation and order submission remain later steps, and official reconciliation remains mandatory after any future one-shot execution.
 
+## D-075 — Record second-canary prepare watcher start PASS
+**Date:** 26 Sep 2026  
+**Status:** Active
+
+**Decision:** The already-authorized Phase-15 persistent prepare-only watcher started successfully from exact main `c2034bee883786c5e31558cb5717d98780baa8c3` using start-helper blob `7becabcb3768d30988c082fe77b51e163ffddd6f`. Production run `phase15-prepare-watch-20260926T144337Z-c2034bee` is active on `bp-recorder` at `/var/lib/bp/phase15-canary-prepare-watch/runs/phase15-prepare-watch-20260926T144337Z-c2034bee`.
+
+This mutation remains strictly prepare-only: the watcher is bounded to 7200 seconds, is not enabled across reboot, does not automate arm or submission, and started with no real order submitted. Telegram `APPROVE`, executor arming/invocation, and order submission remain unperformed. There is still no pending second-canary intent.
+
+The next action is read-only observation using the existing prepare-watch status/follow helpers until exactly one fresh NEW frozen-V3 paper-derived $5 candidate appears. Historical prepared intents remain forbidden. The candidate's exact intent/prediction/paper-order IDs, side, target, limit price, requested shares, remaining window, and expiry must be reviewed before any matching private Telegram `APPROVE`.
+
