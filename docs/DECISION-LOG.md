@@ -746,11 +746,21 @@ The prior activation authorization in D-069 was bound to helper blob `d2560354d1
 
 ## D-073 — Reauthorize repaired Phase-15 Telegram transport activation
 **Date:** 26 Sep 2026  
-**Status:** Active
+**Status:** Consumed by D-074
 
 **Decision:** After PR #310 merged as current main `23372ef1b9038a756a8187209873de363498aae0` and post-merge CI passed, the user explicitly authorized transport activation for exactly stage `phase15-telegram-stage-05b83214b159772872bc7347` using activation-helper Git blob `83157c6c04b9a996bab51012b4bda4dd31062320`.
 
 The authorization is narrowly bound to the reviewed repaired helper and current staged transport. It permits the fail-closed transport activation mutation only after a clean exact-current-main checkout and fresh read-only listener, stage, Pub/Sub, activation-readiness, and safe-idle checks pass. It does not authorize Telegram `APPROVE`, executor arming, order submission, or broad autonomous live rollout.
 
 Activation itself must keep global and Phase-15 live trading disabled, preserve the Johannesburg executor in safe-idle until a later fresh approval boundary, and submit no real order. After activation PASS, the system must stop and wait for a fresh private Telegram approval bound to a new exact frozen-V3 $5 intent/request before any executor invocation. Official reconciliation remains mandatory before any third live action.
+
+## D-074 — Record successful Phase-15 Telegram transport activation
+**Date:** 26 Sep 2026  
+**Status:** Active
+
+**Decision:** The repaired, explicitly reauthorized Phase-15 Telegram transport activation passed in production from exact main `469049a9f6361f9c656e3d176029b10db7359689` using exact activation-helper blob `83157c6c04b9a996bab51012b4bda4dd31062320`. Before mutation, the listener-status, transport-stage-status, Pub/Sub-readiness, and activation-readiness gates all passed with zero blockers and Johannesburg safe-idle.
+
+The successful activation reused the existing Pub/Sub topic and subscription, provisioned new transport/origin key material, started and enabled the recorder publisher plus all four Johannesburg transport services, kept global and Phase-15 live trading disabled, preserved executor safe-idle, and submitted no real order. The user-supplied boundary confirms Telegram `APPROVE` was not performed, the executor was not armed, and no order submission occurred.
+
+The D-073 activation authorization is consumed by this successful mutation. Source truth now records `ACTIVATED_WAITING_FOR_FRESH_TELEGRAM_APPROVAL`; any activation retry requires fresh explicit authorization. There is currently no pending unsubmitted intent. The next action is to prepare and review one fresh NEW frozen-V3 paper-derived $5 intent, then stop at the private Telegram approval boundary. Only one fresh `APPROVE` bound to that exact new intent may advance the path; executor invocation and order submission remain later steps, and official reconciliation remains mandatory after any future one-shot execution.
 
