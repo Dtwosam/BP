@@ -86,7 +86,7 @@ print(json.dumps(
             )
             or (
                 repair_mode
-                and repair.get("status") == "AUTHORIZED_NOT_RUN"
+                and repair.get("status") in {"AUTHORIZED_NOT_RUN", "AUTHORIZED_RESUME_PENDING"}
                 and repair.get("authorized") is True
                 and repair.get("authorization_consumed") is False
                 and repair.get("transport_reactivation_authorized") is True

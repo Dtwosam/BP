@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-telegram-transport-runtime-repair-partial-production",
+  "observed_date": "2026-09-26",
+  "source_main": "51fdb27374c70ff04e07cf3c697c0fb2e4f81a44",
+  "first_repair_result": "PARTIAL_STAGED_INACTIVE",
+  "completed_steps": {
+    "pre_mutation_executor_safety": "PASS",
+    "broken_transport_deactivated": true,
+    "broken_stage_rollback": "PASS",
+    "broken_stage_id": "phase15-telegram-stage-05b83214b159772872bc7347",
+    "pubsub_api_enablement": "PASS",
+    "corrected_release_build": "PASS",
+    "corrected_stage_install": "PASS",
+    "corrected_stage_id": "phase15-telegram-stage-c2dc6e8eab1a0b00200b7486",
+    "corrected_release_head": "51fdb27374c70ff04e07cf3c697c0fb2e4f81a44",
+    "corrected_release_sha256": "c31544dae4b99393377a1c6597f3d5875b2ab9df4427396b7fcfed6281b33a22",
+    "publisher_staged": true,
+    "executor_staged": true,
+    "services_started": false,
+    "services_enabled": false,
+    "environment_files_created": false,
+    "key_files_created": false
+  },
+  "stop_point": {
+    "step": "pubsub_readiness",
+    "result": "BLOCKED",
+    "blockers": [
+      "telegram_transport_activation_not_authorized"
+    ],
+    "pubsub_api_enabled": true,
+    "mutation_performed_by_readiness": false,
+    "reason": "The readiness helper had not yet been taught to treat the already-recorded guarded runtime repair authorization as an activation authorization."
+  },
+  "safety": {
+    "live_trading_enabled": false,
+    "real_order_submitted": false,
+    "second_canary_network_attempt_consumed": false,
+    "telegram_approval_performed_by_repair": false,
+    "executor_arm_or_invoke_performed_by_repair": false,
+    "failed_approved_intent_must_not_be_replayed": true
+  },
+  "next_step": "Use the exact source-truth-bound repair resume helper to revalidate the corrected staged transport and Pub/Sub readiness in repair mode, reactivate the transport with stability checks, and verify safe-idle afterward."
+}

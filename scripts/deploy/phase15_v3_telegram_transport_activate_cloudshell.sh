@@ -77,7 +77,7 @@ assert gate["telegram_one_tap_submission_authorized"] is True
 assert gate["telegram_persistent_execution_transport_authorized"] is True
 assert gate["telegram_pubsub_transport_authorized"] is True
 if repair_mode:
-    assert repair.get("status") == "AUTHORIZED_NOT_RUN"
+    assert repair.get("status") in {"AUTHORIZED_NOT_RUN", "AUTHORIZED_RESUME_PENDING"}
     assert repair.get("authorized") is True
     assert repair.get("authorization_consumed") is False
     assert repair.get("enable_pubsub_api_authorized") is True
