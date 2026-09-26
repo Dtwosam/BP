@@ -194,14 +194,15 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
     assert activation["official_reconciliation_required_before_any_third_order"] is True
     assert activation["broad_autonomous_live_rollout_authorized"] is False
     assert gate["pending_unsubmitted_intent"] is None
-    assert watch["status"] == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_SECOND_TELEGRAM_CANARY"
+    assert watch["status"] == "STOPPED_SAFE_SECOND_CANARY_LEDGER_FIX_REAUTHORIZATION_REQUIRED"
     assert watch["authorized"] is True
-    assert watch["start_authorized"] is True
+    assert watch["start_authorized"] is False
+    assert watch["runtime_reauthorization_required"] is True
     assert watch["telegram_second_canary_compatible"] is True
     assert watch["prepare_only"] is True
     assert watch["arm_automated"] is False
     assert watch["submission_automated"] is False
-    assert watch["service_active"] is True
+    assert watch["service_active"] is False
     assert watch["start_result"] == "PASS"
     assert watch["run_id"] == "phase15-prepare-watch-20260926T144337Z-c2034bee"
     assert watch["remote_run_dir"] == (
@@ -209,19 +210,40 @@ def test_phase15_telegram_transport_activation_passed_and_is_waiting_for_fresh_a
         "phase15-prepare-watch-20260926T144337Z-c2034bee"
     )
     assert watch["helper_head"] == "c2034bee883786c5e31558cb5717d98780baa8c3"
-    assert watch["last_status"] == "waiting_for_fresh_candidate"
-    assert watch["current_run_fresh_candidate_required"] is True
-    assert watch["current_run_historical_prepared_intents_forbidden"] is True
+    assert watch["last_status"] == "already_complete"
+    assert watch["last_status_reason"] == "canary_submission_attempt_limit_reached"
+    assert watch["submission_attempt_consumed"] is False
+    assert watch["first_canary_lifetime_submission_attempt_count"] == 1
+    assert watch["second_canary_network_attempt_consumed"] is False
+    assert watch["second_canary_authorization_preserved"] is True
     assert watch["no_real_order_submitted"] is True
     assert watch["telegram_approval_performed"] is False
     assert watch["executor_armed"] is False
     assert watch["executor_invoked"] is False
     assert watch["order_submission_performed"] is False
-    assert watch["start_helper_git_blob_sha"] == (
+    assert watch["production_start_helper_git_blob_sha"] == (
         "7becabcb3768d30988c082fe77b51e163ffddd6f"
     )
-    assert watch["current_run_evidence"] == (
-        "docs/evidence/phase-15-v3-second-telegram-prepare-watch-start-production-20260926.json"
+    assert watch["candidate_start_helper_git_blob_sha"] == (
+        "0a98b03e35d8019a85063e45d1a979fea96c0532"
+    )
+    assert watch["candidate_runner_git_blob_sha"] == (
+        "efe6dc9c3b37f5788b701107366bb634a4b1f357"
+    )
+    assert watch["candidate_service_unit_git_blob_sha"] == (
+        "5e20c65edd57e398d2106c7f6fe93fbb477b7572"
+    )
+    assert watch["candidate_canary_git_blob_sha"] == (
+        "df5e60b1b2ba632fd77d65103509fac70187be7d"
+    )
+    assert watch["candidate_authorized_lifetime_submission_attempt_limit"] == 2
+    assert watch["candidate_authorized_lifetime_accepted_order_limit"] == 2
+    assert watch["legacy_default_lifetime_submission_attempt_limit"] == 1
+    assert watch["legacy_default_lifetime_accepted_order_limit"] == 1
+    assert watch["execution_one_shot_still_enforced_by_global_marker"] is True
+    assert watch["global_attempt_marker_path"] == second["global_attempt_marker_path"]
+    assert watch["current_run_stop_evidence"] == (
+        "docs/evidence/phase-15-v3-second-telegram-prepare-watch-ledger-stop-production-20260926.json"
     )
     assert state["live_trading_enabled"] is False
     assert gate["live_trading_enabled"] is False
