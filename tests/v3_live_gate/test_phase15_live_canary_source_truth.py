@@ -145,7 +145,9 @@ def test_phase15_telegram_transport_activation_is_authorized_but_not_an_order() 
     assert activation["status"] == "AUTHORIZED_NOT_ACTIVATED"
     assert activation["authorized_stage_id"] == stage["stage_id"]
     assert activation["authorized_at_main"] == "3852c19aaa47be6335f3475b873bb04aa84be30f"
-    assert activation["activation_helper_git_blob_sha"] == "d2560354d10c9964ba0a5a0161f1be9ffb2dfd86"
+    assert activation["activation_helper_git_blob_sha"] == (
+        "d2560354d10c9964ba0a5a0161f1be9ffb2dfd86"
+    )
     assert activation["fresh_explicit_authorization_required_for_current_stage"] is False
     assert activation["does_not_submit_real_order"] is True
     assert activation["fresh_private_telegram_approval_still_required_for_second_canary"] is True
