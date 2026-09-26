@@ -37,7 +37,8 @@
     "The supplied post-failure diagnostic directly verifies executor-side cleanup only; recorder-side cleanup is not claimed by this evidence.",
     "No secret material is included in this evidence.",
     "No model, strategy, sizing, live-risk, wallet, arming, or order-submission semantics are changed by the recovery design.",
-    "The second live canary was not submitted and the single authorized second-canary network submission attempt remains unused."
+    "The second live canary was not submitted and the single authorized second-canary network submission attempt remains unused.",
+    "The observed kill-file text included a trailing literal `n` because the activation cleanup printf format was not quoted; kill engagement depended on file presence, and the recovery patch fixes the marker writer to emit the intended newline."
   ],
   "executor_cleanup_verification": {
     "executor_transport_services_active": false,
@@ -45,7 +46,6 @@
     "runtime_environment_files_present": false,
     "runtime_key_files_present": false,
     "kill_switch_engaged": true,
-    "kill_switch_value": "activation-failure-safe-stop",
     "account_clean_for_canary": true,
     "collateral_balance_usd": "30",
     "open_order_count": 0,
@@ -54,6 +54,9 @@
     "activation_valid": false,
     "submission_ready": false,
     "live_order_submitted": false,
-    "executor_status": "ok"
+    "executor_status": "ok",
+    "kill_switch_value_observed": "activation-failure-safe-stopn",
+    "kill_switch_value_intended": "activation-failure-safe-stop",
+    "kill_switch_marker_format_bug_fixed_in_recovery_patch": true
   }
 }
