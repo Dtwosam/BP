@@ -33,27 +33,27 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--inbox-dir",
         type=Path,
-        default=Path("/var/lib/bp-canary/telegram-transport-inbox"),
+        default=Path("/var/lib/bp-telegram-transport/inbox"),
     )
     parser.add_argument(
         "--claim-dir",
         type=Path,
-        default=Path("/var/lib/bp-canary/telegram-transport-claims"),
+        default=Path("/var/lib/bp-telegram-transport/claims"),
     )
     parser.add_argument(
         "--ready-dir",
         type=Path,
-        default=Path("/var/lib/bp-canary/telegram-transport-ready"),
+        default=Path("/var/lib/bp-telegram-transport/ready"),
     )
     parser.add_argument(
         "--processed-dir",
         type=Path,
-        default=Path("/var/lib/bp-canary/telegram-transport-claim-processed"),
+        default=Path("/var/lib/bp-telegram-transport/processed"),
     )
     parser.add_argument(
         "--failure-dir",
         type=Path,
-        default=Path("/var/lib/bp-canary/telegram-transport-claim-failures"),
+        default=Path("/var/lib/bp-telegram-transport/failures"),
     )
     parser.add_argument("--poll-seconds", type=float, default=0.1)
     return parser.parse_args()
