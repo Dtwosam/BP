@@ -832,3 +832,11 @@ The repair authorization is consumed and must not be reused. The three paper pre
 **Decision:** Read-only status of corrected prepare-only watcher run `phase15-prepare-watch-20260926T155010Z-f3de8c00` showed it expired safely at `2026-09-26T17:50:48.084941Z` after its 7200-second window with reason `no_eligible_v3_trade_within_wait_window`. The service is inactive, no arm was attempted, no real order was submitted, and the second-canary network attempt remains unconsumed.
 
 The first-canary reconciliation blocker has since been repaired, but that happened after this watcher window ended. The four restart-bound artifacts remain unchanged from the previously authorized corrected release, so this is not a new code-risk finding. Nevertheless, the previous watcher-start authorization was one-shot and is consumed. Any new 7200-second post-reconciliation watcher start is a fresh production mutation and requires fresh explicit authorization. That future restart remains prepare-only/research/zero-money and does not itself authorize Telegram `APPROVE`, executor arm/invocation, or order submission. Evidence: `docs/evidence/phase-15-v3-post-reconciliation-watcher-expired-readonly-20260926.json`.
+
+## D-082 — Authorize one post-reconciliation prepare-only watcher restart
+**Date:** 26 Sep 2026  
+**Status:** Authorized; not yet executed
+
+**Decision:** The user explicitly authorized one new 7200-second Phase-15 prepare-only watcher restart after the first-canary reconciliation repair. The authorization is bound to current main `6488426580c61cbe76fe31c2ad7b482b519e63fc` and the unchanged previously reviewed artifacts: start-helper `0a98b03e35d8019a85063e45d1a979fea96c0532`, runner `efe6dc9c3b37f5788b701107366bb634a4b1f357`, service unit `5e20c65edd57e398d2106c7f6fe93fbb477b7572`, and canary runtime `df5e60b1b2ba632fd77d65103509fac70187be7d`.
+
+The restart remains research/zero-money and prepare-only, may consider only a later NEW frozen-V3 candidate, and must not reuse the three predictions previously rejected under `reconciliation_blocked`. It cannot arm or submit. Telegram `APPROVE`, executor arm/invocation, and order submission remain separate boundaries and are not authorized here. Evidence: `docs/evidence/phase-15-v3-post-reconciliation-watcher-restart-authorization-20260926.json`.
