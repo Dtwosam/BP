@@ -66,6 +66,8 @@ def test_transport_install_preflight_checks_safe_idle_and_clean_install_shape() 
         "existing_transport_unit_enabled",
         "existing_transport_root_present",
         "existing_transport_config_present",
+        "existing_transport_state_present",
+        '/var/lib/bp-telegram-transport',
         "executor_script_missing",
         "kill_switch_missing",
         "executor_health_not_ok",
