@@ -120,8 +120,8 @@ def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -
     assert first["live_risk_blocked_by_missing_post_submission_reconciliation"] is True
     assert first["db_reconciliation_required"] is True
     repair = gate["post_submission_db_reconciliation_repair"]
-    assert repair["status"] == "ENGINEERING_READY_AUTHORIZATION_REQUIRED"
-    assert repair["authorized"] is False
+    assert repair["status"] == "AUTHORIZED_READY"
+    assert repair["authorized"] is True
     assert repair["authorization_consumed"] is False
     assert repair["helper"] == (
         "scripts/deploy/phase15_v3_first_canary_db_reconciliation_cloudshell.sh"
@@ -129,7 +129,9 @@ def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -
     assert repair["candidate_helper_git_blob_sha"] == (
         "b21456d222f8256b381d43d70c1373bbbee6d78d"
     )
-    assert repair["helper_git_blob_sha"] is None
+    assert repair["helper_git_blob_sha"] == (
+        "b21456d222f8256b381d43d70c1373bbbee6d78d"
+    )
     assert repair["target_intent_id"] == first["intent_id"]
     assert repair["target_external_order_id"] == first["external_order_id"]
     assert repair["candidate_count_observed_since_corrected_watcher_start"] == 3
@@ -144,7 +146,15 @@ def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -
     assert repair["does_not_authorize_executor_arm_or_invoke"] is True
     assert repair["does_not_authorize_order_submission"] is True
     assert repair["production_db_mutation_performed"] is False
-    assert repair["production_authorization_required"] is True
+    assert repair["production_authorization_required"] is False
+    assert repair["authorization_date"] == "2026-09-26"
+    assert repair["authorization_recorded_from_main"] == (
+        "53345938ee4fe08ba0a1eae3ad7c364e25e999e7"
+    )
+    assert repair["fresh_official_zero_fill_reverification_required"] is True
+    assert repair["authorization_evidence"] == (
+        "docs/evidence/phase-15-v3-first-canary-db-reconciliation-authorization-20260926.json"
+    )
 
     live_evidence = json.loads(LIVE_CANARY_EVIDENCE.read_text(encoding="utf-8"))
     assert live_evidence["status"] == "SUBMITTED_AND_RECORDED_RECONCILIATION_PENDING"

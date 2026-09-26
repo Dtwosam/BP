@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-first-canary-db-reconciliation-authorization",
+  "authorization_date": "2026-09-26",
+  "authorization_source": "User explicitly authorized the Phase 15 first-canary DB reconciliation repair in chat.",
+  "reviewed_main": "53345938ee4fe08ba0a1eae3ad7c364e25e999e7",
+  "helper": "scripts/deploy/phase15_v3_first_canary_db_reconciliation_cloudshell.sh",
+  "helper_git_blob_sha": "b21456d222f8256b381d43d70c1373bbbee6d78d",
+  "target_intent_id": "live-intent-6cdfcfd28d0eb52f1ee0762bfd351409",
+  "target_external_order_id": "0x7c85e5e8753a875dfd9fec8ffd45726164863648127351b21c2a8ba1819a28de",
+  "authorization_scope": "Freshly re-verify the exact first live canary as official zero-fill from the Johannesburg account, then idempotently persist exactly one post_submission_official_zero_fill reconciliation row with unresolved_count=0, critical_count=0, and a zero-exposure account snapshot on bp-recorder.",
+  "fresh_official_zero_fill_reverification_required": true,
+  "telegram_approve_authorized": false,
+  "executor_arm_or_invoke_authorized": false,
+  "order_submission_authorized": false,
+  "strategy_change_authorized": false,
+  "risk_threshold_change_authorized": false,
+  "sizing_change_authorized": false,
+  "production_db_mutation_performed": false,
+  "authorization_consumed": false
+}

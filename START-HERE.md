@@ -27,7 +27,7 @@ The private Telegram transport is now **production-active**. Exact activation fr
 
 There is **no pending second-canary intent**. Prepare-only watcher run `phase15-prepare-watch-20260926T144337Z-c2034bee` is no longer active: it stopped safely before preparing a candidate because the generic canary preparation layer still counted the reconciled first canary against the original lifetime one-attempt limit. The stop did not consume the second-canary network attempt and did not perform Telegram `APPROVE`, executor arm/invocation, or order submission. A repository fix now keeps legacy/default limits at one while letting only the source-truth-gated second-canary watcher recognize the reconciled first canary plus one authorized second slot. The corrected prepare-only watcher restart is now complete. Exact main `f3de8c008d6a50584dc71a172ca4dcb4275f73d8` and all four authorized corrected blobs matched, and run `phase15-prepare-watch-20260926T155010Z-f3de8c00` is active on `bp-recorder`. The watcher remains research/zero-money with no arm or submission automation. The restart authorization is consumed; Telegram `APPROVE`, executor arm/invocation, and order submission remain separate boundaries.
 
-A later read-only audit found **three fresh frozen-V3 paper trades** during that watcher window. All three were `trade=true` and `executable=true`, but each live-canary risk decision failed only with `reconciliation_blocked`. The first live canary is externally verified zero-fill, but its read-only official-fill probe did not persist a post-submission reconciliation row into the DB ledger used by live risk. Engineering repair is ready, but production execution of that DB reconciliation is **not authorized yet**.
+A later read-only audit found **three fresh frozen-V3 paper trades** during that watcher window. All three were `trade=true` and `executable=true`, but each live-canary risk decision failed only with `reconciliation_blocked`. The first live canary is externally verified zero-fill, but its read-only official-fill probe did not persist a post-submission reconciliation row into the DB ledger used by live risk. Engineering repair is ready and fresh explicit production authorization is now recorded for exact helper blob `b21456d222f8256b381d43d70c1373bbbee6d78d`. The production DB repair has not yet been executed.
 
 The second canary preserves the frozen V3 **$5 target notional** under the existing hard **$10 per-market ceiling**. Hard limits remain $10 max trade, $10 total exposure, $10 daily loss, one consecutive loss, one accepted order, one network submission attempt for the authorization, and a 2-second order TTL/cancel attempt. No stake growth, V3 tuning, V4 mutation, or broad autonomous live rollout is authorized.
 
@@ -81,9 +81,9 @@ This checkpoint is repository-only. It did not run readiness or planning against
 ## Immediate next task
 
 1. Do not treat the three observed paper trades as missed Telegram delivery; they were blocked before preparation by `reconciliation_blocked`.
-2. Review the engineering-ready helper `scripts/deploy/phase15_v3_first_canary_db_reconciliation_cloudshell.sh` and its exact candidate blob `b21456d222f8256b381d43d70c1373bbbee6d78d`.
-3. Obtain fresh explicit production authorization before running that helper. It is the only permitted next mutation and may only persist the missing first-canary post-submission zero-fill reconciliation row after fresh official verification.
-4. Until that repair is authorized and completed, do not send Telegram `APPROVE`, arm/invoke the executor, or submit an order.
+2. Use only the authorized helper `scripts/deploy/phase15_v3_first_canary_db_reconciliation_cloudshell.sh`, exact blob `b21456d222f8256b381d43d70c1373bbbee6d78d`.
+3. From a clean checkout exactly matching current `origin/main`, run only that helper. It must freshly re-verify the first canary as official zero-fill before persisting the one missing post-submission reconciliation row.
+4. Until that repair completes and reconciliation health is reverified, do not send Telegram `APPROVE`, arm/invoke the executor, or submit an order.
 5. The three already-evaluated paper predictions remain terminally excluded; only a later NEW frozen-V3 paper candidate may proceed after reconciliation health is restored.
 6. Continue frozen-V3 paper observation and V4 Gate B collection unchanged.
 

@@ -806,11 +806,11 @@ The next action is read-only status/follow observation of this exact run until o
 
 ## D-079 — Repair missing first-canary post-submission reconciliation ledger row
 **Date:** 26 Sep 2026  
-**Status:** Engineering ready; production authorization required
+**Status:** Production repair explicitly authorized; not yet executed
 
 **Decision:** Read-only production evidence shows three fresh frozen-V3 paper trades were generated after corrected watcher activation and all three were otherwise live-eligible, but each live-risk decision failed only with `reconciliation_blocked`.
 
 The first live canary is externally verified zero-fill, yet the official fill probe was intentionally read-only and did not persist a post-submission `live_reconciliation_runs` record. The latest DB reconciliation predates the first canary's accepted/cancelled event, so the live account snapshot correctly treats reconciliation as unresolved.
 
-Add an idempotent repair helper that freshly re-verifies the exact first canary as zero-fill and safe-idle, then writes only the missing `post_submission_official_zero_fill` reconciliation row with zero unresolved/critical count and a zero-exposure account snapshot. The helper is bound by Git blob and requires a distinct source-truth authorization. It contains no Telegram approval, arm/invoke, or order-submission path. Production execution remains unauthorized until explicitly approved.
+Add an idempotent repair helper that freshly re-verifies the exact first canary as zero-fill and safe-idle, then writes only the missing `post_submission_official_zero_fill` reconciliation row with zero unresolved/critical count and a zero-exposure account snapshot. The helper is bound by Git blob and requires a distinct source-truth authorization. It contains no Telegram approval, arm/invoke, or order-submission path. The user explicitly granted that production authorization on 26 Sep 2026 for exact helper blob `b21456d222f8256b381d43d70c1373bbbee6d78d`; authorization remains unconsumed until the repair is actually run. Telegram approval, executor arm/invocation, and order submission remain unauthorized by this decision. Evidence: `docs/evidence/phase-15-v3-first-canary-db-reconciliation-authorization-20260926.json`.
 
