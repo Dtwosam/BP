@@ -75,3 +75,16 @@ def test_pubsub_readiness_requires_transport_activation_authorization() -> None:
     text = READINESS.read_text(encoding="utf-8")
     assert '"telegram_transport_activation_authorized"' in text
     assert "telegram_transport_activation_not_authorized" in text
+
+
+def test_pubsub_readiness_accepts_guarded_runtime_repair_authorization() -> None:
+    text = READINESS.read_text(encoding="utf-8")
+    for marker in (
+        "PHASE15_TELEGRAM_TRANSPORT_RUNTIME_REPAIR_MODE",
+        '"AUTHORIZED_RESUME_PENDING"',
+        'repair.get("authorized") is True',
+        'repair.get("authorization_consumed") is False',
+        'repair.get("transport_reactivation_authorized") is True',
+        'repair.get("does_not_authorize_order_submission") is True',
+    ):
+        assert marker in text
