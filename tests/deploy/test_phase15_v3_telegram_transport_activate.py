@@ -184,7 +184,7 @@ def test_transport_activate_allows_only_source_truth_authorized_runtime_repair_m
     text = ACTIVATE.read_text(encoding="utf-8")
     for marker in (
         "PHASE15_TELEGRAM_TRANSPORT_RUNTIME_REPAIR_MODE",
-        'repair.get("status") == "AUTHORIZED_NOT_RUN"',
+        '"AUTHORIZED_RESUME_PENDING"',
         'repair.get("authorized") is True',
         'repair.get("authorization_consumed") is False',
         'repair.get("enable_pubsub_api_authorized") is True',
