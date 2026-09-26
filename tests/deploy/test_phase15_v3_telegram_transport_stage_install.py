@@ -226,3 +226,28 @@ def test_transport_stage_install_stages_all_executor_units_and_verifies_bytes() 
     assert services_block in executor_text
     assert 'cmp -s "$RELEASE/deploy/$service" "/etc/systemd/system/$service"' in executor_text
     assert 'fail "transport_unit_install_hash_mismatch:$service"' in executor_text
+
+
+def test_transport_stage_install_makes_runtime_venvs_service_user_usable() -> None:
+    text = INSTALL.read_text(encoding="utf-8")
+    executor_start = text.index("EXECUTOR_SCRIPT=$(cat <<'REMOTE'")
+    publisher_text = text[:executor_start]
+    executor_text = text[executor_start:]
+
+    for marker in (
+        'command -v runuser >/dev/null 2>&1 || fail "runuser_missing"',
+        'chown -hR root:bp "$VENV"',
+        'chmod -R g+rX,o-rwx "$VENV"',
+        'runuser -u bp -- "$VENV/bin/python"',
+        'fail "publisher_venv_not_usable_by_service_user"',
+    ):
+        assert marker in publisher_text
+
+    for marker in (
+        'command -v runuser >/dev/null 2>&1 || fail "runuser_missing"',
+        'chown -hR root:bp-transport "$VENV"',
+        'chmod -R g+rX,o-rwx "$VENV"',
+        'runuser -u bp-transport -- "$VENV/bin/python"',
+        'fail "executor_venv_not_usable_by_service_user"',
+    ):
+        assert marker in executor_text
