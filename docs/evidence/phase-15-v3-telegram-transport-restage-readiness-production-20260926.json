@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-telegram-transport-restage-readiness-production",
+  "observed_date": "2026-09-26",
+  "project": "project-4397f2c0-7098-4c1c-abb",
+  "release_head": "def15988b87fe90436fa9ee1458e640ba67bb1af",
+  "release_sha256": "6b35d1ce72e581dbe75531170cf9b078ed71e23416431ea8f0f965822a8d9d24",
+  "stage_id": "phase15-telegram-stage-c1eb8ce238d6cd96d2edaec6",
+  "recovery": {
+    "previous_stage_id": "phase15-telegram-stage-3fe604820deabe0c8971f23c",
+    "previous_activation_status": "FAIL_CLOSED",
+    "previous_activation_reason": "executor_transport_service_activation_failed",
+    "previous_activation_real_order_submitted": false,
+    "fail_closed_cleanup_verified": true,
+    "previous_stage_rollback_status": "PASS",
+    "corrected_runtime_pr": 298,
+    "corrected_recovery_pr": 299
+  },
+  "stage_install": {
+    "status": "PASS",
+    "publisher_staged": true,
+    "executor_staged": true,
+    "services_started": false,
+    "services_enabled": false,
+    "environment_files_created": false,
+    "key_files_created": false,
+    "iam_changed": false,
+    "pubsub_resources_changed": false,
+    "live_trading_enabled": false,
+    "no_real_order_submitted": true
+  },
+  "stage_status": {
+    "status": "PASS",
+    "blockers": [],
+    "stage_ready_for_later_configuration_review": true,
+    "stage_binding_current": true,
+    "current_head": "def15988b87fe90436fa9ee1458e640ba67bb1af",
+    "publisher_service_active": false,
+    "executor_services_active": {
+      "bp-phase15-telegram-execution-authorization-worker.service": false,
+      "bp-phase15-telegram-privileged-handoff.service": false,
+      "bp-phase15-telegram-pubsub-streaming-receiver.service": false,
+      "bp-phase15-telegram-transport-claim-worker.service": false
+    },
+    "environment_files_present": false,
+    "key_files_present": false,
+    "mutation_performed": false,
+    "service_enabled": false,
+    "service_started": false,
+    "real_order_submitted": false
+  },
+  "pubsub_readiness": {
+    "status": "PASS",
+    "ready": true,
+    "blockers": [],
+    "topic_name": "projects/project-4397f2c0-7098-4c1c-abb/topics/bp-phase15-telegram-transport-v1",
+    "subscription_name": "projects/project-4397f2c0-7098-4c1c-abb/subscriptions/bp-phase15-telegram-exec-v1",
+    "publisher_service_account": "bp-phase15-telegram-publisher@project-4397f2c0-7098-4c1c-abb.iam.gserviceaccount.com",
+    "subscriber_service_account": "bp-phase15-telegram-subscriber@project-4397f2c0-7098-4c1c-abb.iam.gserviceaccount.com",
+    "publisher_project_roles": [],
+    "subscriber_project_roles": [],
+    "resource_scoped_publisher_role_ready": true,
+    "resource_scoped_subscriber_role_ready": true,
+    "mutation_performed": false,
+    "real_order_submitted": false
+  },
+  "source_truth_at_observation": {
+    "automated_real_money_submission": true,
+    "canary_order_submitted": true,
+    "live_trading_enabled": false,
+    "manual_real_money_submission_required": false,
+    "phase15_live_trading_enabled": false,
+    "second_order_authorized": true,
+    "telegram_one_tap_submission_authorized": true,
+    "telegram_persistent_execution_transport_authorized": true,
+    "telegram_pubsub_transport_authorized": true,
+    "telegram_transport_activation_authorized": true
+  },
+  "activation": {
+    "status": "AUTHORIZED_NOT_ACTIVATED",
+    "real_order_submission_performed": false,
+    "fresh_private_telegram_approval_still_required": true,
+    "official_reconciliation_required_before_any_third_order": true
+  },
+  "notes": [
+    "The corrected restage itself did not create or modify Pub/Sub resources or IAM; readiness reflects resources and resource-scoped bindings retained from the earlier failed activation attempt.",
+    "No transport service was started or enabled during corrected restage or either read-only verifier.",
+    "This evidence does not represent transport activation, Telegram approval, executor arming, or live order submission."
+  ]
+}
