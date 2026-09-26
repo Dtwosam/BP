@@ -159,6 +159,8 @@ def test_transport_activate_requires_durable_activation_authorization() -> None:
     for marker in (
         'stage.get("status") == "PRODUCTION_STAGED_INACTIVE"',
         'stage.get("activation_authorized") is True',
+        'stage.get("stage_ready_for_later_configuration_review") is True',
+        'stage.get("restage_required_before_activation_retry") is False',
         'activation.get("status") == "AUTHORIZED_NOT_ACTIVATED"',
         'activation.get("does_not_submit_real_order") is True',
         (
