@@ -170,7 +170,9 @@ def test_phase15_telegram_approval_listener_runtime_repair_is_required() -> None
     assert listener["runtime_health_status"] == "RESTART_LOOP"
     assert listener["runtime_failure_reason"] == "telegram_approval_module_import_failed"
     assert listener["observed_restart_count"] == 1749
-    assert listener["service_active"] is False
+    assert listener["service_active"] is True
+    assert listener["service_active_observed_transient"] is True
+    assert listener["service_healthy"] is False
     assert listener["service_enabled"] is True
     assert listener["listener_binding_current"] is False
     assert listener["handoff_configured"] is False
