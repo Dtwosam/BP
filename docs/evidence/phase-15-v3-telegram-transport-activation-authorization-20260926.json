@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-telegram-transport-activation-authorization",
+  "authorization_date": "2026-09-26",
+  "stage_id": "phase15-telegram-stage-05b83214b159772872bc7347",
+  "staged_release_head": "ba0bc324cab50bf0809c8eed4e019c13bc4c6653",
+  "authorization_recorded_from_main": "3852c19aaa47be6335f3475b873bb04aa84be30f",
+  "activation_helper": "scripts/deploy/phase15_v3_telegram_transport_activate_cloudshell.sh",
+  "activation_helper_git_blob_sha": "d2560354d10c9964ba0a5a0161f1be9ffb2dfd86",
+  "authorization_status": "AUTHORIZED_NOT_ACTIVATED",
+  "scope": {
+    "transport_activation": true,
+    "telegram_approve": false,
+    "executor_arming": false,
+    "order_submission": false,
+    "broad_autonomous_live_rollout": false
+  },
+  "mandatory_safety": {
+    "activation_itself_submits_no_order": true,
+    "global_live_trading_remains_disabled": true,
+    "phase15_live_trading_remains_disabled": true,
+    "fresh_private_telegram_approval_required_after_successful_activation": true,
+    "one_shot_second_canary_marker_remains_required": true,
+    "official_reconciliation_required_before_any_third_order": true
+  },
+  "production_mutation_performed_by_this_record": false,
+  "real_order_submitted": false
+}
