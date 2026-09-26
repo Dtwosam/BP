@@ -150,6 +150,21 @@ def test_publisher_install_preflight_keeps_cloud_scope_for_activation_only() -> 
     assert '"activation_ready": not blockers and not activation_blockers' in text
 
 
+def test_publisher_install_preflight_allows_only_exact_empty_activation_residue() -> None:
+    text = PREFLIGHT.read_text(encoding="utf-8")
+    for marker in (
+        '"reusable_empty_transport_config": reusable_empty_transport_config',
+        'transport_config.get("is_dir") is True',
+        'transport_config.get("is_symlink") is False',
+        'transport_config.get("mode") == "0o750"',
+        'transport_config.get("owner") == "root"',
+        'transport_config.get("group") == "bp"',
+        'transport_config.get("entries") == []',
+        "and not reusable_empty_transport_config",
+    ):
+        assert marker in text
+
+
 def test_publisher_install_preflight_keeps_service_account_shape_for_activation_only() -> None:
     text = PREFLIGHT.read_text(encoding="utf-8")
     for marker in (

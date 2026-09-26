@@ -119,6 +119,7 @@ def test_transport_activate_starts_in_dependency_order_and_fails_closed() -> Non
         "systemctl disable bp-phase15-telegram-privileged-handoff.service",
         "rm -f /etc/bp-telegram-transport/receiver.env",
         "rm -f /etc/bp/telegram-pubsub-publisher.env",
+        "rmdir /etc/bp-telegram-transport",
         "rm -f /etc/bp/telegram-approval-handoff.env",
         "systemctl restart bp-phase15-canary-telegram-approval.service",
         'assert payload["kill_switch_engaged"] is True',
