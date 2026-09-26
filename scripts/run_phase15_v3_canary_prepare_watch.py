@@ -85,6 +85,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--collateral-balance-usd", required=True)
     parser.add_argument("--max-wait-seconds", type=int, default=7200)
     parser.add_argument("--poll-seconds", type=float, default=0.5)
+    parser.add_argument("--authorized-submission-attempt-limit", type=int, default=1)
+    parser.add_argument("--authorized-accepted-order-limit", type=int, default=1)
     parser.add_argument("--live-source", required=True)
     parser.add_argument("--canary-source", required=True)
     return parser.parse_args()
@@ -108,6 +110,10 @@ def main() -> int:
         raise SystemExit("poll seconds must be within 0.5..10")
     if args.official_open_order_count != 0:
         raise SystemExit("official open order count must be zero")
+    if args.authorized_submission_attempt_limit not in (1, 2):
+        raise SystemExit("authorized submission attempt limit must be 1 or 2")
+    if args.authorized_accepted_order_limit not in (1, 2):
+        raise SystemExit("authorized accepted order limit must be 1 or 2")
 
     collateral = Decimal(args.collateral_balance_usd)
     if collateral < Decimal("5"):
@@ -155,6 +161,8 @@ def main() -> int:
                 api_healthy=True,
                 official_open_order_count=args.official_open_order_count,
                 collateral_balance_usd=collateral,
+                authorized_submission_attempt_limit=args.authorized_submission_attempt_limit,
+                authorized_accepted_order_limit=args.authorized_accepted_order_limit,
             )
             normalized = _normalized(report)
             status = str(normalized.get("status") or "")

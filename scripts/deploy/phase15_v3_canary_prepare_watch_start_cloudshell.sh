@@ -83,6 +83,8 @@ assert second.get("max_network_submission_attempts") == 1
 assert second.get("requires_fresh_telegram_approval") is True
 assert second.get("requires_official_reconciliation_before_any_third_order") is True
 assert watch["authorized"] is True
+assert watch["start_authorized"] is True
+assert watch.get("runtime_reauthorization_required") is False
 assert watch["max_wait_seconds"] == 7200
 assert watch["prepare_only"] is True
 assert watch["arm_automated"] is False
@@ -257,6 +259,8 @@ BP_PHASE15_PREPARE_OFFICIAL_OPEN_ORDER_COUNT=$OFFICIAL_OPEN_ORDER_COUNT
 BP_PHASE15_PREPARE_COLLATERAL_BALANCE_USD=$COLLATERAL_BALANCE_USD
 BP_PHASE15_PREPARE_MAX_WAIT_SECONDS=$MAX_WAIT_SECONDS
 BP_PHASE15_PREPARE_POLL_SECONDS=$POLL_SECONDS
+BP_PHASE15_PREPARE_AUTHORIZED_SUBMISSION_ATTEMPT_LIMIT=2
+BP_PHASE15_PREPARE_AUTHORIZED_ACCEPTED_ORDER_LIMIT=2
 EOF
 install -o root -g bp -m 0640 "$ENV_TMP" "$CURRENT_ENV"
 rm -f "$ENV_TMP"

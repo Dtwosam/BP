@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-second-telegram-prepare-watch-ledger-stop-production",
+  "observed_date": "2026-09-26",
+  "source_main": "1f2fba165c07db2d6e6b05b62de39989a7b12a5c",
+  "run_id": "phase15-prepare-watch-20260926T144337Z-c2034bee",
+  "activated_at": "2026-09-26T14:43:37.197818+00:00",
+  "updated_at": "2026-09-26T14:44:17.773177+00:00",
+  "result": {
+    "status": "already_complete",
+    "service_active": "inactive",
+    "last_report": {
+      "status": "stopped",
+      "reason": "canary_submission_attempt_limit_reached",
+      "submission_attempt_count": 1
+    },
+    "arm_attempted": false,
+    "submission_attempt_consumed": false,
+    "live_trading_enabled": false,
+    "real_order_submitted": false,
+    "armable_now": false
+  },
+  "boundary": {
+    "telegram_approval_performed": false,
+    "executor_armed": false,
+    "executor_invoked": false,
+    "order_submission_performed": false,
+    "pending_unsubmitted_intent": null
+  },
+  "root_cause": {
+    "status": "IDENTIFIED",
+    "category": "legacy_lifetime_canary_ledger_limit_blocked_separately_authorized_second_canary",
+    "first_canary_submission_attempt_count": 1,
+    "original_default_lifetime_submission_attempt_limit": 1,
+    "original_default_lifetime_accepted_order_limit": 1,
+    "second_canary_network_attempt_consumed": false,
+    "explanation": "The generic v3-live-canary-v1 preparation function counts accepted/rejected/submission_unknown events across the lifetime of the policy. The officially reconciled first canary therefore reached the original one-attempt ceiling before the separately authorized second-canary watcher could evaluate a fresh candidate."
+  },
+  "candidate_fix": {
+    "default_legacy_submission_attempt_limit": 1,
+    "default_legacy_accepted_order_limit": 1,
+    "second_canary_watcher_authorized_lifetime_submission_attempt_limit": 2,
+    "second_canary_watcher_authorized_lifetime_accepted_order_limit": 2,
+    "actual_execution_still_one_shot": true,
+    "global_attempt_marker_path": "/var/lib/bp-canary/telegram-live-handoff/second-canary.attempt.json",
+    "start_helper_git_blob_sha": "0a98b03e35d8019a85063e45d1a979fea96c0532",
+    "runner_git_blob_sha": "efe6dc9c3b37f5788b701107366bb634a4b1f357",
+    "service_unit_git_blob_sha": "5e20c65edd57e398d2106c7f6fe93fbb477b7572",
+    "canary_git_blob_sha": "df5e60b1b2ba632fd77d65103509fac70187be7d"
+  },
+  "authorization": {
+    "existing_second_canary_authorization_preserved": true,
+    "corrected_watcher_restart_authorized": false,
+    "fresh_explicit_production_authorization_required": true,
+    "reason": "The fix changes bound prepare runtime files."
+  },
+  "notes": [
+    "No fresh candidate was prepared by this run.",
+    "No Telegram APPROVE, executor arm/invocation, or order submission occurred.",
+    "This stop did not consume the second-canary network-attempt authorization."
+  ]
+}
