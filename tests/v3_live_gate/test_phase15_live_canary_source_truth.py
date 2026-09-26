@@ -225,7 +225,7 @@ def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -
     assert evidence["safety"]["trading_software_installed"] is False
     assert evidence["safety"]["wallet_or_signing_material_present"] is False
 
-def test_phase15_telegram_transport_is_staged_inactive_for_authorized_repair_resume() -> None:
+def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     gate = state["phase_15_v3_live_canary"]
     stage = gate["telegram_transport_stage"]
@@ -233,32 +233,32 @@ def test_phase15_telegram_transport_is_staged_inactive_for_authorized_repair_res
     second = gate["second_live_canary_authorization"]
     watch = gate["persistent_prepare_watch"]
 
-    assert stage["status"] == "PRODUCTION_STAGED_INACTIVE_REPAIR_RESUME_PENDING"
+    assert stage["status"] == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_TELEGRAM_APPROVAL"
     assert stage["stage_id"] == "phase15-telegram-stage-c2dc6e8eab1a0b00200b7486"
     assert stage["release_head"] == "51fdb27374c70ff04e07cf3c697c0fb2e4f81a44"
     assert stage["release_sha256"] == (
         "c31544dae4b99393377a1c6597f3d5875b2ab9df4427396b7fcfed6281b33a22"
     )
     assert stage["stage_install_status"] == "PASS"
-    assert stage["stage_status_status"] == "PENDING_RESUME_REVALIDATION"
-    assert stage["pubsub_readiness_status"] == "BLOCKED_REPAIR_AUTHORIZATION_MISMATCH"
-    assert stage["stage_ready_for_later_configuration_review"] is False
-    assert stage["publisher_service_active"] is False
-    assert stage["executor_services_active"] is False
-    assert stage["services_started"] is False
-    assert stage["services_enabled"] is False
-    assert stage["environment_files_present"] is False
-    assert stage["key_files_present"] is False
-    assert stage["current_runtime_usable"] is False
-    assert stage["runtime_health_status"] == "STAGED_INACTIVE_REPAIR_RESUME_PENDING"
+    assert stage["stage_status_status"] == "PASS"
+    assert stage["pubsub_readiness_status"] == "PASS"
+    assert stage["stage_ready_for_later_configuration_review"] is True
+    assert stage["publisher_service_active"] is True
+    assert stage["executor_services_active"] is True
+    assert stage["services_started"] is True
+    assert stage["services_enabled"] is True
+    assert stage["environment_files_present"] is True
+    assert stage["key_files_present"] is True
+    assert stage["current_runtime_usable"] is True
+    assert stage["runtime_health_status"] == "PASS"
     assert stage["second_canary_network_attempt_consumed"] is False
     assert stage["real_order_submitted"] is False
-    assert stage["waiting_for_fresh_telegram_approval"] is False
-    assert stage["latest_activation_attempt_status"] == "REPAIR_RESUME_PENDING"
+    assert stage["waiting_for_fresh_telegram_approval"] is True
+    assert stage["latest_activation_attempt_status"] == "PASS_WAITING_FOR_FRESH_TELEGRAM_APPROVAL"
     assert stage["latest_activation_attempt_real_order_submitted"] is False
 
-    assert activation["status"] == "REPAIR_RESUME_PENDING"
-    assert activation["waiting_for_fresh_telegram_approval"] is False
+    assert activation["status"] == "ACTIVATED_WAITING_FOR_FRESH_TELEGRAM_APPROVAL"
+    assert activation["waiting_for_fresh_telegram_approval"] is True
     assert activation["telegram_approval_performed"] is False
     assert activation["executor_armed"] is False
     assert activation["order_submission_performed"] is False
@@ -449,8 +449,8 @@ def test_phase15_telegram_approval_listener_runtime_repair_passed() -> None:
     )
     assert listener["previous_observed_restart_count"] == 1749
     assert listener["no_real_order_submitted"] is True
-    assert activation["status"] == "REPAIR_RESUME_PENDING"
-    assert activation["fresh_explicit_authorization_required_for_current_stage"] is True
+    assert activation["status"] == "ACTIVATED_WAITING_FOR_FRESH_TELEGRAM_APPROVAL"
+    assert activation["fresh_explicit_authorization_required_for_current_stage"] is False
     assert activation["does_not_submit_real_order"] is True
     assert state["live_trading_enabled"] is False
     assert gate["live_trading_enabled"] is False
@@ -472,17 +472,17 @@ def test_phase15_iap_ssh_api_enablement_is_narrowly_authorized() -> None:
     assert iap["does_not_authorize_order_submission"] is True
 
 
-def test_phase15_telegram_transport_runtime_repair_is_authorized_to_resume() -> None:
+def test_phase15_telegram_transport_runtime_repair_completed() -> None:
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     gate = state["phase_15_v3_live_canary"]
     repair = gate["telegram_transport_runtime_repair"]
     stage = gate["telegram_transport_stage"]
     partial = repair["partial_repair"]
 
-    assert repair["status"] == "AUTHORIZED_RESUME_PENDING"
+    assert repair["status"] == "PASS"
     assert repair["authorized"] is True
-    assert repair["authorization_consumed"] is False
-    assert repair["resume_authorized"] is True
+    assert repair["authorization_consumed"] is True
+    assert repair["resume_authorized"] is False
     assert repair["broken_stage_id"] == "phase15-telegram-stage-05b83214b159772872bc7347"
     assert repair["helper"] == (
         "scripts/deploy/phase15_v3_telegram_transport_runtime_repair_cloudshell.sh"
@@ -509,11 +509,25 @@ def test_phase15_telegram_transport_runtime_repair_is_authorized_to_resume() -> 
     assert repair["second_canary_network_attempt_consumed"] is False
     assert repair["failed_approved_intent_retry_allowed"] is False
     assert repair["failed_approved_intent_must_not_be_replayed"] is True
-    assert repair["production_result"] == "PARTIAL_REPAIR_STAGED_INACTIVE"
+    assert repair["production_result"] == "PASS"
+    assert repair["resume_authorization_consumed"] is True
+    assert repair["transport_reactivated"] is True
+    assert repair["repair_resume_result"] == "PASS"
+    assert repair["completed_at_main"] == "da85d3f9c2714d1bf2a9fdeabe888608697bf402"
+    assert repair["activation_helper_git_blob_sha"] == "1b1be9a0abb8747710f72f7c14e3792130f287f8"
+    assert repair["pubsub_readiness_status"] == "PASS"
+    assert repair["pubsub_readiness_blockers"] == []
+    assert repair["post_resume_executor_safe_idle"] is True
+    assert repair["post_resume_services_active"] is True
+    assert repair["post_resume_real_order_submitted"] is False
+    assert repair["post_resume_second_canary_network_attempt_consumed"] is False
+    assert repair["pass_evidence"] == (
+        "docs/evidence/phase-15-v3-telegram-transport-runtime-repair-resume-pass-production-20260926.json"
+    )
     assert repair["first_run_failure_reason"] == "pubsub_readiness_not_pass"
     assert repair["first_run_failure_was_before_transport_activation"] is True
 
-    assert partial["status"] == "STAGED_INACTIVE_RESUME_PENDING"
+    assert partial["status"] == "SUPERSEDED_BY_REPAIR_RESUME_PASS"
     assert partial["broken_stage_rollback_status"] == "PASS"
     assert partial["pubsub_api_enabled"] is True
     assert partial["corrected_stage_install_status"] == "PASS"
@@ -525,7 +539,7 @@ def test_phase15_telegram_transport_runtime_repair_is_authorized_to_resume() -> 
     assert partial["real_order_submitted"] is False
     assert partial["second_canary_network_attempt_consumed"] is False
 
-    assert stage["runtime_health_status"] == "STAGED_INACTIVE_REPAIR_RESUME_PENDING"
-    assert stage["current_runtime_usable"] is False
+    assert stage["runtime_health_status"] == "PASS"
+    assert stage["current_runtime_usable"] is True
     assert stage["second_canary_network_attempt_consumed"] is False
 
