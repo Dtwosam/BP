@@ -410,7 +410,7 @@ then
   fail "executor_not_safe_idle_before_activation"
 fi
 
-BP_TELEGRAM_TRANSPORT_KEY_ID="$TRANSPORT_KEY_ID" BP_TELEGRAM_ORIGIN_KEY_ID="$ORIGIN_KEY_ID"   bash "$ROOT/scripts/deploy/phase15_v3_telegram_transport_activation_plan_cloudshell.sh"   >"$TMP_DIR/activation-plan.txt" ||
+PHASE15_TELEGRAM_TRANSPORT_RUNTIME_REPAIR_MODE="$REPAIR_MODE" BP_TELEGRAM_TRANSPORT_KEY_ID="$TRANSPORT_KEY_ID" BP_TELEGRAM_ORIGIN_KEY_ID="$ORIGIN_KEY_ID"   bash "$ROOT/scripts/deploy/phase15_v3_telegram_transport_activation_plan_cloudshell.sh"   >"$TMP_DIR/activation-plan.txt" ||
   fail "activation_plan_failed"
 
 grep -Fq '"blockers": []' "$TMP_DIR/activation-plan.txt" ||
