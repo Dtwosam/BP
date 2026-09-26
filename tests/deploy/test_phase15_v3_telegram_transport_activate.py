@@ -180,6 +180,23 @@ def test_transport_activate_never_contains_order_submission_logic() -> None:
     ):
         assert forbidden not in text
 
+def test_transport_activate_allows_only_source_truth_authorized_runtime_repair_mode() -> None:
+    text = ACTIVATE.read_text(encoding="utf-8")
+    for marker in (
+        "PHASE15_TELEGRAM_TRANSPORT_RUNTIME_REPAIR_MODE",
+        'repair.get("status") == "AUTHORIZED_NOT_RUN"',
+        'repair.get("authorized") is True',
+        'repair.get("authorization_consumed") is False',
+        'repair.get("enable_pubsub_api_authorized") is True',
+        'repair.get("transport_restage_authorized") is True',
+        'repair.get("transport_reactivation_authorized") is True',
+        'repair.get("does_not_authorize_telegram_approve") is True',
+        'repair.get("does_not_authorize_executor_arm_or_invoke") is True',
+        'repair.get("does_not_authorize_order_submission") is True',
+    ):
+        assert marker in text
+
+
 def test_transport_activate_requires_durable_activation_authorization() -> None:
     text = ACTIVATE.read_text(encoding="utf-8")
     for marker in (

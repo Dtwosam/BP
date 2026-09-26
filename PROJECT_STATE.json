@@ -4339,7 +4339,7 @@
     "second_order_authorized": true,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "Post-reconciliation prepare-only watcher run phase15-prepare-watch-20260926T195409Z-271b35ff started PASS from exact main 271b35fffdb3ccff1490e213672dfa98b7583d75 and is active on bp-recorder. The one-shot watcher restart authorization is consumed. Observe this run read-only until one later NEW frozen-V3 candidate appears or the 7200-second window expires. Do not reuse the three previously rejected predictions. Telegram APPROVE, executor arm/invocation, and order submission remain separate boundaries and are not authorized by this restart.",
+    "next_action": "Run the authorized guarded Telegram transport runtime repair helper from exact current main. It may enable only pubsub.googleapis.com, deactivate/roll back the broken transport stage, restage the corrected deterministic release, and reactivate transport after readiness/stability checks. It does not authorize Telegram APPROVE, executor arm/invocation, or order submission. The failed approved intent live-intent-4cb75bd0f114e378130b28d7699320e9 is terminal and must never be replayed.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
@@ -4815,7 +4815,15 @@
       "second_canary_authorized": true,
       "executor_safe_idle": true,
       "waiting_for_fresh_telegram_approval": true,
-      "latest_activation_success_evidence": "docs/evidence/phase-15-v3-telegram-transport-activation-pass-production-20260926.json"
+      "latest_activation_success_evidence": "docs/evidence/phase-15-v3-telegram-transport-activation-pass-production-20260926.json",
+      "runtime_health_status": "DEGRADED_REPAIR_AUTHORIZED",
+      "receiver_service_active": false,
+      "receiver_service_failed": true,
+      "receiver_failure_reason": "pubsub_api_disabled",
+      "current_runtime_usable": false,
+      "second_canary_network_attempt_consumed": false,
+      "failed_approved_intent_id": "live-intent-4cb75bd0f114e378130b28d7699320e9",
+      "failed_approved_intent_retry_allowed": false
     },
     "telegram_transport_activation_authorization": {
       "status": "ACTIVATED_WAITING_FOR_FRESH_TELEGRAM_APPROVAL",
@@ -4977,6 +4985,43 @@
       "order_submission_performed": false,
       "network_submission_attempt_consumed_by_repair": false,
       "production_evidence": "docs/evidence/phase-15-v3-first-canary-db-reconciliation-pass-production-20260926.json"
+    },
+    "telegram_transport_runtime_repair": {
+      "status": "AUTHORIZED_NOT_RUN",
+      "authorized": true,
+      "authorization_consumed": false,
+      "authorization_date": "2026-09-26",
+      "authorization_source": "User explicitly instructed ChatGPT to fix the discovered Telegram transport issue end-to-end.",
+      "authorized_from_main": "650083c7b6fe3898b0e4d637c5e8cd9aad6d4e09",
+      "broken_stage_id": "phase15-telegram-stage-05b83214b159772872bc7347",
+      "root_causes": [
+        "The deterministic Telegram transport release omitted scripts/run_phase15_v3_telegram_approved_outbox.py, so an approved intent failed closed at approved_outbox_script_missing before network transport.",
+        "pubsub.googleapis.com was disabled for the project, so the Johannesburg StreamingPull receiver crash-looped with SERVICE_DISABLED and never became usable.",
+        "Activation only checked immediate systemd active state, allowing a receiver that died about one second later to be recorded as active."
+      ],
+      "repaired_main_requirements": [
+        "PR #323 includes the approved-outbox script as an actual deterministic release member.",
+        "PR #324 requires Pub/Sub API enablement during readiness/activation and requires a post-start zero-restart stability soak."
+      ],
+      "helper": "scripts/deploy/phase15_v3_telegram_transport_runtime_repair_cloudshell.sh",
+      "helper_git_blob_sha": "a124942660cbd37f1ae94d3875fe1de2e0671ab9",
+      "enable_pubsub_api_authorized": true,
+      "transport_deactivation_authorized": true,
+      "broken_stage_rollback_authorized": true,
+      "transport_restage_authorized": true,
+      "transport_reactivation_authorized": true,
+      "repair_scope": "Fail-closed repair only: verify executor safe-idle and absent second-canary attempt marker; deactivate the broken Telegram transport; roll back the exact broken stage; enable only pubsub.googleapis.com; build/restage the corrected current-main deterministic transport release; revalidate readiness; reactivate transport with stability checks; verify executor remains safe-idle and the second-canary network attempt remains unconsumed.",
+      "does_not_authorize_telegram_approve": true,
+      "does_not_authorize_executor_arm_or_invoke": true,
+      "does_not_authorize_order_submission": true,
+      "second_canary_network_attempt_consumed": false,
+      "failed_approved_intent_id": "live-intent-4cb75bd0f114e378130b28d7699320e9",
+      "failed_approved_intent_retry_allowed": false,
+      "failed_approved_intent_must_not_be_replayed": true,
+      "observed_receiver_failure": "google.api_core.exceptions.PermissionDenied: 403 SERVICE_DISABLED for pubsub.googleapis.com",
+      "observed_receiver_restart_count": 6,
+      "production_result": "PENDING",
+      "evidence": "docs/evidence/phase-15-v3-telegram-transport-runtime-repair-authorization-20260926.json"
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {

@@ -492,3 +492,36 @@ def test_phase15_iap_ssh_api_enablement_is_narrowly_authorized() -> None:
     assert iap["does_not_authorize_vm_mutation"] is True
     assert iap["does_not_authorize_transport_activation"] is True
     assert iap["does_not_authorize_order_submission"] is True
+
+
+def test_phase15_telegram_transport_runtime_repair_is_authorized_but_not_run() -> None:
+    state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
+    gate = state["phase_15_v3_live_canary"]
+    repair = gate["telegram_transport_runtime_repair"]
+    stage = gate["telegram_transport_stage"]
+
+    assert repair["status"] == "AUTHORIZED_NOT_RUN"
+    assert repair["authorized"] is True
+    assert repair["authorization_consumed"] is False
+    assert repair["broken_stage_id"] == "phase15-telegram-stage-05b83214b159772872bc7347"
+    assert repair["helper"] == (
+        "scripts/deploy/phase15_v3_telegram_transport_runtime_repair_cloudshell.sh"
+    )
+    assert repair["helper_git_blob_sha"] == "a124942660cbd37f1ae94d3875fe1de2e0671ab9"
+    assert repair["enable_pubsub_api_authorized"] is True
+    assert repair["transport_deactivation_authorized"] is True
+    assert repair["broken_stage_rollback_authorized"] is True
+    assert repair["transport_restage_authorized"] is True
+    assert repair["transport_reactivation_authorized"] is True
+    assert repair["does_not_authorize_telegram_approve"] is True
+    assert repair["does_not_authorize_executor_arm_or_invoke"] is True
+    assert repair["does_not_authorize_order_submission"] is True
+    assert repair["second_canary_network_attempt_consumed"] is False
+    assert repair["failed_approved_intent_retry_allowed"] is False
+    assert repair["failed_approved_intent_must_not_be_replayed"] is True
+    assert repair["production_result"] == "PENDING"
+    assert stage["runtime_health_status"] == "DEGRADED_REPAIR_AUTHORIZED"
+    assert stage["receiver_service_active"] is False
+    assert stage["receiver_service_failed"] is True
+    assert stage["current_runtime_usable"] is False
+    assert stage["second_canary_network_attempt_consumed"] is False

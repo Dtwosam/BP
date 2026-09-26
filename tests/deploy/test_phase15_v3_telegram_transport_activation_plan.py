@@ -178,3 +178,16 @@ def test_activation_plan_requires_durable_transport_activation_authorization() -
     text = PLAN.read_text(encoding="utf-8")
     assert '"telegram_transport_activation_authorized"' in text
     assert '"telegram_transport_activation_authorized": True' in text
+
+
+def test_activation_plan_accepts_only_guarded_runtime_repair_authorization() -> None:
+    text = PLAN.read_text(encoding="utf-8")
+    for marker in (
+        "PHASE15_TELEGRAM_TRANSPORT_RUNTIME_REPAIR_MODE",
+        'repair.get("status") == "AUTHORIZED_NOT_RUN"',
+        'repair.get("authorized") is True',
+        'repair.get("authorization_consumed") is False',
+        'repair.get("transport_reactivation_authorized") is True',
+        'repair.get("does_not_authorize_order_submission") is True',
+    ):
+        assert marker in text
