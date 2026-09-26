@@ -136,15 +136,23 @@ def path_info(path: str) -> dict[str, object]:
         info = candidate.lstat()
     except OSError:
         return {"exists": False}
-    result: dict[str, object] = {
+    return {
         "exists": True,
         "is_symlink": stat.S_ISLNK(info.st_mode),
         "is_dir": stat.S_ISDIR(info.st_mode),
         "is_file": stat.S_ISREG(info.st_mode),
         "mode": oct(stat.S_IMODE(info.st_mode)),
-        "owner": pwd.getpwuid(info.st_uid).pw_name,
-        "group": grp.getgrgid(info.st_gid).gr_name,
     }
+
+
+def transport_config_info(path: str) -> dict[str, object]:
+    candidate = Path(path)
+    result = path_info(path)
+    if result.get("exists") is not True:
+        return result
+    info = candidate.lstat()
+    result["owner"] = pwd.getpwuid(info.st_uid).pw_name
+    result["group"] = grp.getgrgid(info.st_gid).gr_name
     if stat.S_ISDIR(info.st_mode) and not stat.S_ISLNK(info.st_mode):
         result["entries"] = sorted(entry.name for entry in candidate.iterdir())
     return result
@@ -190,7 +198,7 @@ payload = {
         "enabled": enabled_rc == 0 and enabled == "enabled",
     },
     "transport_root": path_info("/opt/bp-telegram-transport"),
-    "transport_config": path_info("/etc/bp-telegram-transport"),
+    "transport_config": transport_config_info("/etc/bp-telegram-transport"),
     "publisher_env": path_info("/etc/bp/telegram-pubsub-publisher.env"),
     "transport_state": path_info(
         "/var/lib/bp/phase15-canary-telegram-transport"
