@@ -788,9 +788,19 @@ Because `src/bp_engine/execution/canary.py`, the prepare watcher runner/unit, an
 
 ## D-077 — Reauthorize corrected second-canary prepare watcher restart
 **Date:** 26 Sep 2026  
-**Status:** Active
+**Status:** Consumed by D-078
 
 **Decision:** The user explicitly authorized restarting the corrected Phase-15 prepare-only watcher from exact main `51e4cf1fa5063ff0f4a263dd5ec1646dc18684cf`, bound to start-helper blob `0a98b03e35d8019a85063e45d1a979fea96c0532`, runner blob `efe6dc9c3b37f5788b701107366bb634a4b1f357`, service-unit blob `5e20c65edd57e398d2106c7f6fe93fbb477b7572`, and canary blob `df5e60b1b2ba632fd77d65103509fac70187be7d`.
 
 The scope is restart of the corrected prepare-only research/zero-money watcher only. It may prepare one fresh second-canary candidate but cannot arm or submit. Telegram `APPROVE`, executor arm/invocation, and order submission remain unperformed and are not authorized by this decision. The second-canary network-attempt slot remains unconsumed.
+
+## D-078 — Record corrected second-canary prepare watcher restart PASS
+**Date:** 26 Sep 2026  
+**Status:** Active
+
+**Decision:** The corrected Phase-15 prepare-only watcher restart passed from exact main `f3de8c008d6a50584dc71a172ca4dcb4275f73d8` after verifying the exact authorized start-helper, runner, service-unit, and canary blobs. Production run `phase15-prepare-watch-20260926T155010Z-f3de8c00` is active on `bp-recorder`.
+
+The watcher remains research/zero-money, bounded to 7200 seconds, not enabled across reboot, and cannot arm or submit. The restart returned `NO_REAL_ORDER_SUBMITTED=true`, `ARM_AUTOMATED=false`, and `SUBMISSION_AUTOMATED=false`. Telegram `APPROVE`, executor arm/invocation, and order submission remain unperformed. The D-077 restart authorization is consumed, while the second-canary network-attempt slot remains unconsumed.
+
+The next action is read-only status/follow observation of this exact run until one fresh NEW frozen-V3 $5 candidate appears or the run terminates. Any candidate must be reviewed before crossing the later Telegram approval boundary.
 

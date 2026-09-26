@@ -25,7 +25,7 @@ Phase 15 still authorizes **exactly one additional frozen-V3 live canary through
 
 The private Telegram transport is now **production-active**. Exact activation from main `469049a9f6361f9c656e3d176029b10db7359689` with repaired helper blob `83157c6c04b9a996bab51012b4bda4dd31062320` passed after listener, stage, Pub/Sub, and activation-readiness checks all returned PASS. The existing topic/subscription were reused; publisher and all four Johannesburg transport services are active; global and Phase-15 `LIVE_TRADING_ENABLED` remain false; the executor is safe-idle; and no real order was submitted. The activation authorization is consumed, so activation must not be rerun without fresh explicit authorization.
 
-There is **no pending second-canary intent**. Prepare-only watcher run `phase15-prepare-watch-20260926T144337Z-c2034bee` is no longer active: it stopped safely before preparing a candidate because the generic canary preparation layer still counted the reconciled first canary against the original lifetime one-attempt limit. The stop did not consume the second-canary network attempt and did not perform Telegram `APPROVE`, executor arm/invocation, or order submission. A repository fix now keeps legacy/default limits at one while letting only the source-truth-gated second-canary watcher recognize the reconciled first canary plus one authorized second slot. Because bound runtime files changed, a fresh explicit production authorization was required for the exact corrected release. That authorization is now recorded for main `51e4cf1fa5063ff0f4a263dd5ec1646dc18684cf` and the exact corrected start-helper/runner/unit/canary blobs. It authorizes only the prepare-only watcher restart; Telegram `APPROVE`, executor arm/invocation, and order submission remain separate boundaries.
+There is **no pending second-canary intent**. Prepare-only watcher run `phase15-prepare-watch-20260926T144337Z-c2034bee` is no longer active: it stopped safely before preparing a candidate because the generic canary preparation layer still counted the reconciled first canary against the original lifetime one-attempt limit. The stop did not consume the second-canary network attempt and did not perform Telegram `APPROVE`, executor arm/invocation, or order submission. A repository fix now keeps legacy/default limits at one while letting only the source-truth-gated second-canary watcher recognize the reconciled first canary plus one authorized second slot. The corrected prepare-only watcher restart is now complete. Exact main `f3de8c008d6a50584dc71a172ca4dcb4275f73d8` and all four authorized corrected blobs matched, and run `phase15-prepare-watch-20260926T155010Z-f3de8c00` is active on `bp-recorder`. The watcher remains research/zero-money with no arm or submission automation. The restart authorization is consumed; Telegram `APPROVE`, executor arm/invocation, and order submission remain separate boundaries.
 
 The second canary preserves the frozen V3 **$5 target notional** under the existing hard **$10 per-market ceiling**. Hard limits remain $10 max trade, $10 total exposure, $10 daily loss, one consecutive loss, one accepted order, one network submission attempt for the authorization, and a 2-second order TTL/cancel attempt. No stake growth, V3 tuning, V4 mutation, or broad autonomous live rollout is authorized.
 
@@ -78,11 +78,11 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
-1. From a clean checkout exactly matching current `origin/main`, verify main and the four authorized corrected watcher artifact blobs.
-2. Restart only the corrected **prepare-only** watcher under its explicit authorization. It must remain research/zero-money with no arm or submission automation.
-3. Use only read-only status/follow observation until exactly one fresh NEW frozen-V3 $5 candidate is prepared.
-4. Review the candidate's exact intent ID, prediction ID, paper order ID, side, target, limit price, requested shares, remaining market window, and expiry.
-5. Stop at the Telegram boundary. This watcher authorization does **not** authorize Telegram `APPROVE`, executor arm/invocation, or order submission.
+1. Keep corrected run `phase15-prepare-watch-20260926T155010Z-f3de8c00` active; do not restart it again.
+2. Use only the existing read-only prepare-watch status/follow helpers to observe that exact run until one fresh NEW frozen-V3 $5 candidate is prepared or the run terminates.
+3. If a fresh candidate appears, review the exact intent ID, prediction ID, paper order ID, side, target, limit price, requested shares, remaining market window, and expiry.
+4. Stop at the Telegram boundary. Do not send Telegram `APPROVE`, arm/invoke the executor, or submit an order based on this watcher-start authorization.
+5. If the watcher terminates without a candidate, record that terminal result before any later restart decision.
 6. Continue frozen-V3 paper observation and V4 Gate B collection unchanged.
 
 
