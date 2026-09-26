@@ -814,3 +814,13 @@ The first live canary is externally verified zero-fill, yet the official fill pr
 
 Add an idempotent repair helper that freshly re-verifies the exact first canary as zero-fill and safe-idle, then writes only the missing `post_submission_official_zero_fill` reconciliation row with zero unresolved/critical count and a zero-exposure account snapshot. The helper is bound by Git blob and requires a distinct source-truth authorization. It contains no Telegram approval, arm/invoke, or order-submission path. The user explicitly granted that production authorization on 26 Sep 2026 for exact helper blob `b21456d222f8256b381d43d70c1373bbbee6d78d`; authorization remains unconsumed until the repair is actually run. Telegram approval, executor arm/invocation, and order submission remain unauthorized by this decision. Evidence: `docs/evidence/phase-15-v3-first-canary-db-reconciliation-authorization-20260926.json`.
 
+
+## D-080 — Accept first-canary DB reconciliation repair production PASS
+**Date:** 26 Sep 2026  
+**Status:** Active
+
+**Decision:** The explicitly authorized first-canary DB reconciliation repair passed in production from exact main `38b6081621eab59aecafcdb0628e1d68e9497827` using exact helper blob `b21456d222f8256b381d43d70c1373bbbee6d78d`.
+
+Fresh Johannesburg-account verification again established zero fill, zero matching trades, zero open orders, safe-idle, kill switch engaged, and a stable official snapshot. The helper persisted reconciliation `live-reconciliation-81489372163985723f74f2003c7ef1d7` for the first canary with `unresolved_count=0` and `critical_count=0`. Telegram `APPROVE`, executor arm/invocation, order submission, and second-canary network-attempt consumption all remained false.
+
+The repair authorization is consumed and must not be reused. The three paper predictions already rejected under `reconciliation_blocked` remain terminally excluded. The next action is read-only status/follow of the existing corrected prepare watcher; only a later NEW frozen-V3 candidate may advance to the separate Telegram approval boundary. Evidence: `docs/evidence/phase-15-v3-first-canary-db-reconciliation-pass-production-20260926.json`.
