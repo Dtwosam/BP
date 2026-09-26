@@ -10,6 +10,7 @@ TOPIC_ID="${BP_TELEGRAM_PUBSUB_TOPIC_ID:-bp-phase15-telegram-transport-v1}"
 SUBSCRIPTION_ID="${BP_TELEGRAM_PUBSUB_SUBSCRIPTION_ID:-bp-phase15-telegram-exec-v1}"
 TRANSPORT_KEY_ID="${BP_TELEGRAM_TRANSPORT_KEY_ID:-}"
 ORIGIN_KEY_ID="${BP_TELEGRAM_ORIGIN_KEY_ID:-}"
+REPAIR_MODE="${PHASE15_TELEGRAM_TRANSPORT_RUNTIME_REPAIR_MODE:-no}"
 
 fail() {
   echo "PHASE15_V3_TELEGRAM_TRANSPORT_ACTIVATION_PLAN=FAIL" >&2
@@ -32,14 +33,16 @@ gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q . ||
   fail "gcloud_auth_missing"
 
 SOURCE_JSON=$(
-  python3 - "$ROOT/PROJECT_STATE.json" <<'PY'
+  python3 - "$ROOT/PROJECT_STATE.json" "$REPAIR_MODE" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 state = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+repair_mode = sys.argv[2] == "yes"
 gate = state["phase_15_v3_live_canary"]
 first = gate.get("first_live_canary") or {}
+repair = gate.get("telegram_transport_runtime_repair") or {}
 print(json.dumps(
     {
         "live_trading_enabled": state["live_trading_enabled"],
@@ -71,14 +74,24 @@ print(json.dumps(
             "telegram_pubsub_transport_authorized", False
         ),
         "telegram_transport_activation_authorized": (
-            (gate.get("telegram_transport_activation_authorization") or {}).get(
-                "status"
+            (
+                (gate.get("telegram_transport_activation_authorization") or {}).get(
+                    "status"
+                )
+                == "AUTHORIZED_NOT_ACTIVATED"
+                and (gate.get("telegram_transport_stage") or {}).get(
+                    "activation_authorized"
+                )
+                is True
             )
-            == "AUTHORIZED_NOT_ACTIVATED"
-            and (gate.get("telegram_transport_stage") or {}).get(
-                "activation_authorized"
+            or (
+                repair_mode
+                and repair.get("status") == "AUTHORIZED_NOT_RUN"
+                and repair.get("authorized") is True
+                and repair.get("authorization_consumed") is False
+                and repair.get("transport_reactivation_authorized") is True
+                and repair.get("does_not_authorize_order_submission") is True
             )
-            is True
         ),
     },
     separators=(",", ":"),
