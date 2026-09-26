@@ -216,7 +216,7 @@ def test_claim_worker_consumes_inbox_once_and_materializes_ready(tmp_path: Path)
         "envelope.json",
         "receipt.json",
     ):
-        assert (os.stat(ready_path / name).st_mode & 0o777) == 0o600
+        assert (os.stat(ready_path / name).st_mode & 0o777) == 0o640
     ready_receipt = json.loads((ready_path / "receipt.json").read_text(encoding="utf-8"))
     assert ready_receipt["status"] == "claimed_ready"
     assert ready_receipt["executor_invoked"] is False
