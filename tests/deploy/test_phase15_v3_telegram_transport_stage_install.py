@@ -166,14 +166,18 @@ def test_transport_stage_install_rolls_back_if_main_moves_mid_transaction() -> N
 def test_transport_stage_install_separates_transport_and_authorization_state() -> None:
     text = INSTALL.read_text(encoding="utf-8")
     for marker in (
-        "TRANSPORT_STATE_DIRS=(",
+        "TRANSPORT_STATE_ROOT=/var/lib/bp-telegram-transport",
+        "TRANSPORT_PRIVATE_STATE_DIRS=(",
+        'TRANSPORT_READY_DIR="$TRANSPORT_STATE_ROOT/ready"',
         "AUTH_STATE_DIRS=(",
         "/var/lib/bp-canary/telegram-dispatch-claims",
         "/var/lib/bp-canary/telegram-execution-authorized",
         "/var/lib/bp-canary/telegram-execution-auth-processed",
         "/var/lib/bp-canary/telegram-execution-auth-failures",
         "/var/lib/bp-canary/telegram-live-handoff",
+        'install -d -o root -g bp-transport -m 0710 "$TRANSPORT_STATE_ROOT"',
         'install -d -o bp-transport -g bp-transport -m 0700 "$dir"',
+        'install -d -o bp-transport -g bp-transport -m 0750 "$TRANSPORT_READY_DIR"',
         'install -d -o root -g root -m 0700 "$dir"',
         "bp-phase15-telegram-execution-authorization-worker.service",
         "bp-phase15-telegram-privileged-handoff.service",
@@ -240,6 +244,10 @@ def test_transport_stage_install_makes_runtime_venvs_service_user_usable() -> No
         'chmod -R g+rX,o-rwx "$VENV"',
         'runuser -u bp -- "$VENV/bin/python"',
         'fail "publisher_venv_not_usable_by_service_user"',
+        'chown -hR root:bp "$RELEASE"',
+        'find "$RELEASE" -type d -exec chmod 0750 {} +',
+        'find "$RELEASE" -type f -exec chmod 0640 {} +',
+        'fail "publisher_release_not_readable_by_service_user"',
     ):
         assert marker in publisher_text
 
@@ -249,5 +257,10 @@ def test_transport_stage_install_makes_runtime_venvs_service_user_usable() -> No
         'chmod -R g+rX,o-rwx "$VENV"',
         'runuser -u bp-transport -- "$VENV/bin/python"',
         'fail "executor_venv_not_usable_by_service_user"',
+        'chown -hR root:bp-transport "$RELEASE"',
+        'find "$RELEASE" -type d -exec chmod 0750 {} +',
+        'find "$RELEASE" -type f -exec chmod 0640 {} +',
+        'fail "executor_release_not_readable_by_service_user"',
+        'fail "executor_claim_worker_not_readable_by_service_user"',
     ):
         assert marker in executor_text
