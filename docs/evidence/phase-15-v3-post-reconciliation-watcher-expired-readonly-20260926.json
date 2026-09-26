@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-post-reconciliation-watcher-expired-readonly",
+  "observed_date": "2026-09-26",
+  "source_main": "902fcdbec0e8236acd5a3ce53980026c0fd77792",
+  "observation_mode": "read_only",
+  "helper": "scripts/deploy/phase15_v3_canary_prepare_watch_status_cloudshell.sh",
+  "run": {
+    "run_id": "phase15-prepare-watch-20260926T155010Z-f3de8c00",
+    "helper_head": "f3de8c008d6a50584dc71a172ca4dcb4275f73d8",
+    "activated_at": "2026-09-26T15:50:10.185545+00:00",
+    "updated_at": "2026-09-26T17:50:48.084941+00:00",
+    "max_wait_seconds": 7200,
+    "status": "expired",
+    "reason": "no_eligible_v3_trade_within_wait_window",
+    "service_active": "inactive",
+    "arm_attempted": false,
+    "real_order_submitted": false,
+    "submission_attempt_consumed": false
+  },
+  "post_reconciliation_context": {
+    "first_canary_db_reconciliation_status": "PRODUCTION_PASS",
+    "reconciliation_id": "live-reconciliation-81489372163985723f74f2003c7ef1d7",
+    "unresolved_count": 0,
+    "critical_count": 0,
+    "blocker_cleared": true,
+    "watcher_expired_before_repair_completed": true
+  },
+  "next_restart_candidate_artifacts": {
+    "start_helper_git_blob_sha": "0a98b03e35d8019a85063e45d1a979fea96c0532",
+    "runner_git_blob_sha": "efe6dc9c3b37f5788b701107366bb634a4b1f357",
+    "service_unit_git_blob_sha": "5e20c65edd57e398d2106c7f6fe93fbb477b7572",
+    "canary_git_blob_sha": "df5e60b1b2ba632fd77d65103509fac70187be7d",
+    "artifacts_changed_since_previous_authorized_restart": false
+  },
+  "authorization_boundary": {
+    "previous_restart_authorization_consumed": true,
+    "fresh_restart_authorization_required": true,
+    "fresh_restart_authorized": false,
+    "telegram_approve_authorized": false,
+    "executor_arm_or_invoke_authorized": false,
+    "order_submission_authorized": false
+  }
+}
