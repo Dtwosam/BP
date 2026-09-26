@@ -5055,7 +5055,8 @@
         "second_canary_network_attempt_consumed": false
       },
       "first_run_failure_reason": "pubsub_readiness_not_pass",
-      "first_run_failure_was_before_transport_activation": true
+      "first_run_failure_was_before_transport_activation": true,
+      "partial_repair_evidence": "docs/evidence/phase-15-v3-telegram-transport-runtime-repair-partial-production-20260926.json"
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {
