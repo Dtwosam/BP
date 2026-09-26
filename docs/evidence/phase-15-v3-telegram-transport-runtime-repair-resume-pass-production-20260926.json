@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-telegram-transport-runtime-repair-resume-pass-production",
+  "observed_date": "2026-09-26",
+  "source_main": "da85d3f9c2714d1bf2a9fdeabe888608697bf402",
+  "staged_transport": {
+    "stage_id": "phase15-telegram-stage-c2dc6e8eab1a0b00200b7486",
+    "staged_release_head": "51fdb27374c70ff04e07cf3c697c0fb2e4f81a44",
+    "staged_release_sha256": "c31544dae4b99393377a1c6597f3d5875b2ab9df4427396b7fcfed6281b33a22",
+    "stage_status": "PASS",
+    "blockers": [],
+    "stage_binding_current": true,
+    "publisher_service_active_before_resume": false,
+    "executor_services_active_before_resume": false,
+    "environment_files_present_before_resume": false,
+    "key_files_present_before_resume": false,
+    "real_order_submitted_before_resume": false
+  },
+  "pubsub_readiness": {
+    "status": "PASS",
+    "blockers": [],
+    "pubsub_api_enabled": true,
+    "ready": true,
+    "mutation_performed": false,
+    "publisher_service_account": "bp-phase15-telegram-publisher@project-4397f2c0-7098-4c1c-abb.iam.gserviceaccount.com",
+    "subscriber_service_account": "bp-phase15-telegram-subscriber@project-4397f2c0-7098-4c1c-abb.iam.gserviceaccount.com",
+    "publisher_project_roles": [],
+    "subscriber_project_roles": []
+  },
+  "activation": {
+    "status": "PASS",
+    "activation_main": "da85d3f9c2714d1bf2a9fdeabe888608697bf402",
+    "activation_helper_git_blob_sha": "1b1be9a0abb8747710f72f7c14e3792130f287f8",
+    "resume_helper_git_blob_sha": "4cf575663761c88c75b6c1cd4c291db27f7653c9",
+    "source_truth_sha256": "6a7df566916d8da2c1f1a2ff3db9ba7fc42235a2e79634b9dcd9d57b2fc8c037",
+    "topic_id": "bp-phase15-telegram-transport-v1",
+    "subscription_id": "bp-phase15-telegram-exec-v1",
+    "topic_created": false,
+    "subscription_created": false,
+    "transport_key_id": "transport-c7ea7d730e7dc45e",
+    "origin_key_id": "origin-cdd4b1321a2c408d",
+    "global_live_trading_enabled": false,
+    "second_canary_authorized": true,
+    "services_active": true,
+    "executor_safe_idle": true,
+    "real_order_submitted": false,
+    "waiting_for_fresh_telegram_approval": true
+  },
+  "post_resume_safety": {
+    "pubsub_api_enabled": true,
+    "transport_reactivated": true,
+    "second_canary_network_attempt_consumed": false,
+    "telegram_approval_performed": false,
+    "executor_armed": false,
+    "executor_invoked": false,
+    "real_order_submitted": false,
+    "repair_resume_result": "PASS"
+  },
+  "failed_intent": {
+    "intent_id": "live-intent-4cb75bd0f114e378130b28d7699320e9",
+    "retry_allowed": false,
+    "must_not_be_replayed": true
+  },
+  "notes": [
+    "The repaired transport is active and waiting for a future fresh Telegram approval boundary.",
+    "The failed approved intent remains terminal and is not reusable.",
+    "No order submission or executor invocation occurred during the repair or resume.",
+    "The authorized second-canary network submission attempt remains unconsumed."
+  ]
+}
