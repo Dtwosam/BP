@@ -4718,7 +4718,7 @@
       "installer": "scripts/deploy/phase15_v3_telegram_approval_install_cloudshell.sh",
       "observed_date": "2026-09-25",
       "deployed_head": "13b3f358543ef7a26c31bea65ec57b68f9ebf45f",
-      "service_active": false,
+      "service_active": true,
       "service_enabled": true,
       "listener_binding_current": false,
       "handoff_configured": false,
@@ -4735,7 +4735,9 @@
       "runtime_repair_authorized": false,
       "runtime_repair_helper": "scripts/deploy/phase15_v3_telegram_approval_runtime_repair_cloudshell.sh",
       "runtime_repair_scope": "Deploy only the corrected Telegram approval sidecar release/unit on bp-recorder, reuse the existing root-owned Telegram env in place, restart only the listener, and verify stable service-user import/liveness. No handoff configuration, executor mutation, arming, or order submission.",
-      "runtime_failure_evidence": "docs/evidence/phase-15-v3-telegram-approval-listener-runtime-failure-20260926.json"
+      "runtime_failure_evidence": "docs/evidence/phase-15-v3-telegram-approval-listener-runtime-failure-20260926.json",
+      "service_active_observed_transient": true,
+      "service_healthy": false
     },
     "iap_ssh_access_authorization": {
       "status": "AUTHORIZED_NOT_ENABLED",
