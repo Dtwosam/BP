@@ -227,11 +227,17 @@ def prepare_next_canary(
     api_healthy: bool,
     official_open_order_count: int,
     collateral_balance_usd: Decimal,
+    authorized_submission_attempt_limit: int = CANARY_MAX_SUBMISSION_ATTEMPTS,
+    authorized_accepted_order_limit: int = CANARY_MAX_ACCEPTED_ORDERS,
 ) -> dict[str, object]:
     activated = _utc(activated_at, "activated_at")
     observed = _utc(observed_at, "observed_at")
     repository = LiveReadinessRepository()
     policy = canary_policy()
+    if authorized_submission_attempt_limit not in (CANARY_MAX_SUBMISSION_ATTEMPTS, 2):
+        raise ValueError("authorized submission attempt limit must be 1 or 2")
+    if authorized_accepted_order_limit not in (CANARY_MAX_ACCEPTED_ORDERS, 2):
+        raise ValueError("authorized accepted order limit must be 1 or 2")
 
     with engine.begin() as connection:
         _ensure_initial_reconciliation(
@@ -243,19 +249,21 @@ def prepare_next_canary(
         )
 
         attempt_count = _submission_attempt_count(connection)
-        if attempt_count >= CANARY_MAX_SUBMISSION_ATTEMPTS:
+        if attempt_count >= authorized_submission_attempt_limit:
             return {
                 "status": "stopped",
                 "reason": "canary_submission_attempt_limit_reached",
                 "submission_attempt_count": attempt_count,
+                "authorized_submission_attempt_limit": authorized_submission_attempt_limit,
             }
 
         accepted_count = _accepted_count(connection)
-        if accepted_count >= CANARY_MAX_ACCEPTED_ORDERS:
+        if accepted_count >= authorized_accepted_order_limit:
             return {
                 "status": "stopped",
                 "reason": "canary_accepted_order_limit_reached",
                 "accepted_order_count": accepted_count,
+                "authorized_accepted_order_limit": authorized_accepted_order_limit,
             }
 
         pending = connection.execute(
