@@ -163,7 +163,7 @@ def test_phase15_telegram_approval_listener_runtime_repair_is_required() -> None
     listener = gate["telegram_approval_listener_install_authorization"]
     activation = gate["telegram_transport_activation_authorization"]
 
-    assert listener["status"] == "RUNTIME_REPAIR_AUTHORIZED"
+    assert listener["status"] == "RUNTIME_REPAIR_REQUIRED"
     assert listener["target_host"] == "bp-recorder"
     assert listener["installation_type"] == "FIRST_INSTALL"
     assert listener["deployed_head"] == "13b3f358543ef7a26c31bea65ec57b68f9ebf45f"
@@ -179,6 +179,10 @@ def test_phase15_telegram_approval_listener_runtime_repair_is_required() -> None
     assert listener["handoff_env_present"] is False
     assert listener["runtime_repair_required"] is True
     assert listener["runtime_repair_authorized"] is True
+    assert listener["runtime_repair_status_semantics"] == (
+        "status tracks runtime condition; authorization is tracked separately by "
+        "runtime_repair_authorized"
+    )
     assert listener["runtime_repair_authorized_at_main"] == (
         "a60ff465ab307a360fb20fcefa5158f8258e46a8"
     )
