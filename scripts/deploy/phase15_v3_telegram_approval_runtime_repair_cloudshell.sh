@@ -106,6 +106,8 @@ HANDOFF_ENV_PATH=/etc/bp/telegram-approval-handoff.env
 STATE_ROOT=/var/lib/bp/phase15-canary-telegram-approval
 BACKUP=$(mktemp -d /var/tmp/bp-phase15-telegram-repair-rollback.XXXXXX)
 COMMITTED=false
+MUTATION_STARTED=false
+RELEASE_CREATED=false
 
 fail() {
   echo "PHASE15_V3_TELEGRAM_APPROVAL_RUNTIME_REPAIR=FAIL" >&2
@@ -120,23 +122,29 @@ cleanup() {
     rm -rf "$BACKUP"
     return
   fi
-  systemctl stop "$SERVICE" >/dev/null 2>&1 || true
-  if [[ -f "$BACKUP/service" ]]; then
-    install -o root -g root -m 0644 "$BACKUP/service" "$SERVICE_PATH"
+  if [[ "$MUTATION_STARTED" == "true" ]]; then
+    systemctl stop "$SERVICE" >/dev/null 2>&1 || true
+    if [[ -f "$BACKUP/service" ]]; then
+      install -o root -g root -m 0644 "$BACKUP/service" "$SERVICE_PATH"
+    fi
+    if [[ -f "$BACKUP/current-target" ]]; then
+      ln -sfn "$(cat "$BACKUP/current-target")" "$CURRENT"
+    fi
+    systemctl daemon-reload
+    if [[ -f "$BACKUP/enabled" ]]; then
+      systemctl enable "$SERVICE" >/dev/null 2>&1 || true
+    else
+      systemctl disable "$SERVICE" >/dev/null 2>&1 || true
+    fi
+    if [[ -f "$BACKUP/active" ]]; then
+      systemctl restart "$SERVICE" >/dev/null 2>&1 || true
+    fi
   fi
-  if [[ -f "$BACKUP/current-target" ]]; then
-    ln -sfn "$(cat "$BACKUP/current-target")" "$CURRENT"
+  if [[ "$RELEASE_CREATED" == "true" ]]; then
+    rm -rf "$RELEASE"
   fi
-  systemctl daemon-reload
-  if [[ -f "$BACKUP/enabled" ]]; then
-    systemctl enable "$SERVICE" >/dev/null 2>&1 || true
-  else
-    systemctl disable "$SERVICE" >/dev/null 2>&1 || true
-  fi
-  if [[ -f "$BACKUP/active" ]]; then
-    systemctl restart "$SERVICE" >/dev/null 2>&1 || true
-  fi
-  rm -rf "$RELEASE" "$BACKUP"
+  rm -rf "$BACKUP"
+  trap - EXIT
   exit "$status"
 }
 trap cleanup EXIT
@@ -179,8 +187,10 @@ systemctl is-enabled --quiet "$SERVICE" 2>/dev/null && touch "$BACKUP/enabled" |
 systemctl is-active --quiet "$SERVICE" 2>/dev/null && touch "$BACKUP/active" || true
 
 [[ ! -e "$RELEASE" && ! -L "$RELEASE" ]] || fail "repair_release_already_exists"
+MUTATION_STARTED=true
 install -d -o root -g root -m 0755 "$RELEASES"
 install -d -o root -g root -m 0755 "$RELEASE"
+RELEASE_CREATED=true
 tar -xzf "$ARCHIVE" -C "$RELEASE"
 chown -hR root:bp "$RELEASE"
 find "$RELEASE" -type d -exec chmod 0750 {} +
