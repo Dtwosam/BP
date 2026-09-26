@@ -184,7 +184,7 @@ def test_activation_plan_accepts_only_guarded_runtime_repair_authorization() -> 
     text = PLAN.read_text(encoding="utf-8")
     for marker in (
         "PHASE15_TELEGRAM_TRANSPORT_RUNTIME_REPAIR_MODE",
-        'repair.get("status") == "AUTHORIZED_NOT_RUN"',
+        '"AUTHORIZED_RESUME_PENDING"',
         'repair.get("authorized") is True',
         'repair.get("authorization_consumed") is False',
         'repair.get("transport_reactivation_authorized") is True',
