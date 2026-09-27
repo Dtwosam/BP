@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-reconciliation-account-snapshot-bug-diagnosis",
+  "observed_date": "2026-09-27",
+  "observed_candidate": {
+    "prediction_id": "2013df22eb33d69b2f3c1561873037bb1bf49995371c79cc19273af11383b32c",
+    "paper_order_id": "fa92910d12283d266dbd091d1b99f8064905f201c1a7fa6a4358b302b59b61dd",
+    "recorded_at": "2026-09-27T19:44:01.058767+00:00",
+    "market_end_at": "2026-09-27T19:45:00+00:00",
+    "side": "down",
+    "limit_price": "0.43",
+    "cost_adjusted_edge": "0.154691956459789500",
+    "risk_decision_created_at": "2026-09-27T19:44:05.093130+00:00",
+    "risk_eligible": false,
+    "risk_reasons": [
+      "liquidity_missing",
+      "reconciliation_blocked"
+    ],
+    "prepare_arm_window_seconds": "54.90687"
+  },
+  "diagnosis": {
+    "timing_blocked": false,
+    "watcher_saw_candidate": true,
+    "live_intent_created": false,
+    "reconciliation_rule_requires_zero_unresolved_critical": true,
+    "first_canary_reconciliation_id": "live-reconciliation-81489372163985723f74f2003c7ef1d7",
+    "first_canary_reconciliation_has_account_snapshot": true,
+    "second_terminal_intent_id": "live-intent-4cb75bd0f114e378130b28d7699320e9",
+    "second_terminal_reconciliation_id": "live-reconciliation-745a1e86a0075b4e98cdfbb30517a154",
+    "second_terminal_reconciliation_has_account_snapshot": false,
+    "mechanism": "A snapshotless pre_submission_intent_close row is conservatively treated as critical when historical submission-attempt events already exist, even though the second intent itself was closed before submission."
+  },
+  "repair_design": {
+    "future_reconciliation_rows_carry_last_clean_account_snapshot": true,
+    "dirty_latest_reconciliation_refused": true,
+    "current_db_repair_requires_explicit_authorization": true,
+    "current_db_repair_requires_executor_safe_idle": true,
+    "current_db_repair_requires_zero_open_orders": true,
+    "current_db_repair_requires_second_canary_attempt_marker_absent": true,
+    "additional_network_attempts_authorized": false,
+    "order_submission_authorized": false
+  },
+  "bindings": {
+    "helper_git_blob_sha": "c62d97971fef62ca1418363449035cf69d1854aa",
+    "canary_git_blob_sha": "14c3f508ec1a0c446af4c4ee92572075ffff3753"
+  },
+  "production_mutation_performed": false
+}
