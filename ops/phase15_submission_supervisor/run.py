@@ -54,6 +54,7 @@ class Config:
     repo: Path
     state_root: Path
     gcloud_bin: Path
+    python_bin: Path
     poll_seconds: float
     project: str
     recorder_vm: str
@@ -187,6 +188,21 @@ def verify_authorization(repo: Path) -> dict[str, Any]:
     return state
 
 
+def _tool_env(config: Config) -> dict[str, str]:
+    env = os.environ.copy()
+    system_path = "/usr/bin:/bin:/usr/sbin:/sbin"
+    env["PATH"] = ":".join(
+        dict.fromkeys(
+            [
+                str(config.gcloud_bin.parent),
+                str(config.python_bin.parent),
+                *system_path.split(":"),
+            ]
+        )
+    )
+    return env
+
+
 def _gcloud_ssh(
     config: Config,
     *,
@@ -206,6 +222,7 @@ def _gcloud_ssh(
             "--quiet",
             f"--command={command}",
         ],
+        env=_tool_env(config),
         timeout=timeout,
     ).stdout.strip()
 
@@ -485,10 +502,7 @@ def _auto_approver_ready() -> bool:
 
 
 def _helper_env(config: Config) -> dict[str, str]:
-    env = os.environ.copy()
-    inherited = env.get("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
-    env["PATH"] = f"{config.gcloud_bin.parent}:{inherited}"
-    return env
+    return _tool_env(config)
 
 
 def _reconcile(config: Config, intent_id: str) -> None:
@@ -553,6 +567,11 @@ def _parse_args() -> argparse.Namespace:
         type=Path,
         default=Path(os.environ.get("BP_PHASE15_GCLOUD_BIN", "")),
     )
+    parser.add_argument(
+        "--python-bin",
+        type=Path,
+        default=Path(os.environ.get("BP_PHASE15_PYTHON_BIN", "")),
+    )
     parser.add_argument("--poll-seconds", type=float, default=5.0)
     return parser.parse_args()
 
@@ -566,6 +585,11 @@ def main() -> int:
     gcloud_bin = args.gcloud_bin.expanduser().resolve()
     if not gcloud_bin.is_file() or not os.access(gcloud_bin, os.X_OK):
         raise SystemExit("configured gcloud binary is not executable")
+    if not str(args.python_bin):
+        raise SystemExit("BP_PHASE15_PYTHON_BIN or --python-bin is required")
+    python_bin = args.python_bin.expanduser().resolve()
+    if not python_bin.is_file() or not os.access(python_bin, os.X_OK):
+        raise SystemExit("configured python binary is not executable")
     if not 2.0 <= args.poll_seconds <= 30.0:
         raise SystemExit("poll seconds must be within 2..30")
 
@@ -573,6 +597,7 @@ def main() -> int:
         repo=args.repo.expanduser().resolve(),
         state_root=args.state_root.expanduser().resolve(),
         gcloud_bin=gcloud_bin,
+        python_bin=python_bin,
         poll_seconds=args.poll_seconds,
         project=os.environ.get("PHASE15_CANARY_PROJECT", DEFAULT_PROJECT),
         recorder_vm=os.environ.get("PHASE15_CANARY_US_VM", DEFAULT_RECORDER_VM),
@@ -604,6 +629,7 @@ def main() -> int:
         main_sha=main_sha,
         poll_seconds=config.poll_seconds,
         gcloud_bin=str(config.gcloud_bin),
+        python_bin=str(config.python_bin),
     )
 
     while True:
