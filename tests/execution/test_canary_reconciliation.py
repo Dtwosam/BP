@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -228,4 +228,110 @@ def test_reconcile_unsubmitted_requires_safe_executor_state(
             observed_at=BASE,
             reason="prepared_market_no_longer_armable",
             executor_health=health,
+        )
+
+
+def test_pre_submission_close_carries_last_clean_account_snapshot() -> None:
+    engine = _engine()
+    repository = LiveReadinessRepository()
+    historical_intent = "live-intent-historical-attempt"
+    historical_time = BASE - timedelta(days=2)
+    reconciliation_time = BASE - timedelta(days=1)
+
+    with engine.begin() as connection:
+        connection.execute(
+            schema.live_order_intents.insert().values(
+                intent_id=historical_intent,
+                prediction_id="h" * 64,
+                policy_version=canary.CANARY_POLICY_VERSION,
+                request_id="live-request-historical",
+                risk_decision_id="live-risk-historical",
+                token_id="token-down",
+                side="BUY",
+                size=Decimal("10"),
+                limit_price=Decimal("0.50"),
+                pre_submit_at=historical_time,
+                evidence={"phase": "phase15_v3_live_canary_v1"},
+                semantic_sha256="b" * 64,
+                created_at=historical_time,
+            )
+        )
+        repository.store_order_event(
+            connection,
+            event_key=f"{historical_intent}:accepted",
+            intent_id=historical_intent,
+            event_type="accepted",
+            observed_at=historical_time,
+            external_order_id="0xhistorical",
+            external_trade_id=None,
+            evidence={"phase": "test"},
+        )
+        prior = repository.store_reconciliation_run(
+            connection,
+            observed_at=reconciliation_time,
+            unresolved_count=0,
+            critical_count=0,
+            evidence={
+                "reconciliation_kind": "post_submission_official_zero_fill",
+                "account_snapshot": {
+                    "total_exposure_usd": "0",
+                    "realized_daily_pnl_usd": "0",
+                    "consecutive_losses": 0,
+                },
+            },
+        )
+        prior_reconciliation_id = str(prior.record["reconciliation_id"])
+
+    result = canary.reconcile_unsubmitted_canary_intent(
+        engine=engine,
+        intent_id=INTENT_ID,
+        observed_at=BASE,
+        reason="prepared_market_no_longer_armable",
+        executor_health=_safe_health(),
+    )
+    assert result["status"] == "reconciled"
+
+    with engine.connect() as connection:
+        latest = connection.execute(
+            select(schema.live_reconciliation_runs)
+            .order_by(
+                schema.live_reconciliation_runs.c.observed_at.desc(),
+                schema.live_reconciliation_runs.c.id.desc(),
+            )
+            .limit(1)
+        ).mappings().one()
+        evidence = dict(latest["evidence"] or {})
+        account = _account_snapshot(connection, observed_at=BASE)
+
+    assert evidence["account_snapshot_carried_from_reconciliation_id"] == (
+        prior_reconciliation_id
+    )
+    assert evidence["account_snapshot"] == {
+        "total_exposure_usd": "0",
+        "realized_daily_pnl_usd": "0",
+        "consecutive_losses": 0,
+    }
+    assert account.unresolved_critical_reconciliation == 0
+    assert account.last_order_at == historical_time
+
+
+def test_pre_submission_close_refuses_dirty_latest_reconciliation() -> None:
+    engine = _engine()
+    repository = LiveReadinessRepository()
+    with engine.begin() as connection:
+        repository.store_reconciliation_run(
+            connection,
+            observed_at=BASE - timedelta(seconds=1),
+            unresolved_count=1,
+            critical_count=1,
+            evidence={"source": "test_dirty_reconciliation"},
+        )
+
+    with pytest.raises(RuntimeError, match="prior_reconciliation_not_clean"):
+        canary.reconcile_unsubmitted_canary_intent(
+            engine=engine,
+            intent_id=INTENT_ID,
+            observed_at=BASE,
+            reason="prepared_market_no_longer_armable",
+            executor_health=_safe_health(),
         )
