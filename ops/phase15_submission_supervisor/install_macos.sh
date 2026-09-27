@@ -64,7 +64,9 @@ launchctl print "gui/$(id -u)/com.bp.telegram-auto-approver" >/dev/null 2>&1 || 
   exit 1
 }
 
-python3 - "$ROOT/PROJECT_STATE.json" <<'PY' || {
+INSTALLER_BLOB=$(git hash-object "$ROOT/ops/phase15_submission_supervisor/install_macos.sh")
+
+python3 - "$ROOT/PROJECT_STATE.json" "$INSTALLER_BLOB" <<'PY' || {
 import json
 import sys
 from pathlib import Path
@@ -90,6 +92,7 @@ assert supervisor["target_notional_usd"] == 5
 assert supervisor["max_network_submission_attempts"] == 1
 assert supervisor["deployment_performed"] is False
 assert supervisor["activation_performed"] is False
+assert supervisor["installer_git_blob_sha"] == sys.argv[2]
 PY
   echo "PHASE15_CONTROLLED_SUBMISSION_SUPERVISOR_INSTALL=FAIL" >&2
   echo "REASON=source_truth_supervisor_authorization_invalid" >&2
