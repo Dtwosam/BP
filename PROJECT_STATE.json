@@ -5566,8 +5566,11 @@
       "reconciliation_safety_rebind_additional_network_attempts_authorized": false
     },
     "reconciliation_account_snapshot_repair": {
-      "status": "READY_NOT_AUTHORIZED",
-      "authorized": false,
+      "status": "AUTHORIZED_NOT_EXECUTED",
+      "authorized": true,
+      "authorization_received_date": "2026-09-27",
+      "authorization_scope": "One-time production reconciliation account-snapshot repair only; no order submission, no network attempt, no executor arm/invoke, no Telegram approval, no live-trading expansion, and no strategy mutation.",
+      "authorization_evidence": "docs/evidence/phase-15-reconciliation-account-snapshot-repair-authorization-20260927.json",
       "diagnosis_date": "2026-09-27",
       "diagnosis": "The latest pre-submission terminal reconciliation for the second-canary Telegram intent is zero-critical but omits account_snapshot. Because the first live canary has a historical submission-attempt event, _account_snapshot conservatively promotes that snapshotless latest reconciliation back to unresolved critical=1, causing later candidates to fail reconciliation_blocked.",
       "observed_trigger_prediction_id": "2013df22eb33d69b2f3c1561873037bb1bf49995371c79cc19273af11383b32c",
