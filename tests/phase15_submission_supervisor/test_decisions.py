@@ -32,7 +32,12 @@ def _prepared(*, market_end: datetime | None = None, notional: object = "5") -> 
     }
 
 
-def _recorder(*, prepared: dict | None = None, status: str = "prepared", active: bool = False) -> dict:
+def _recorder(
+    *,
+    prepared: dict | None = None,
+    status: str = "prepared",
+    active: bool = False,
+) -> dict:
     return {
         "service_active": active,
         "run_dir": "/var/lib/bp/run",
