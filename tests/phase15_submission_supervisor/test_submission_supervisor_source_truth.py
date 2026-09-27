@@ -87,8 +87,8 @@ def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
         "docs/evidence/"
         "phase-15-controlled-submission-supervisor-activation-pass-production-20260927.json"
     )
-    assert supervisor["runtime_health_status"] == "DEGRADED_GCLOUD_NOT_FOUND"
-    assert supervisor["runtime_issue"] == "launchagent_gcloud_not_found"
+    assert supervisor["runtime_health_status"] == "DEGRADED_GCLOUD_PYTHON_PATH"
+    assert supervisor["runtime_issue"] == "launchagent_gcloud_python_path_missing"
     assert supervisor["runtime_repair_authorized"] is True
     assert supervisor["runtime_repair_completed"] is False
     assert supervisor["runtime_repair_additional_network_attempts_authorized"] is False
@@ -222,7 +222,9 @@ def test_macos_installer_is_explicit_and_secret_free() -> None:
         "TARGET_NOTIONAL_USD=5",
         "SuccessfulExit",
         "GCLOUD=$(command -v gcloud || true)",
+        "PYTHON=$(command -v python3 || true)",
         "<string>--gcloud-bin</string>",
+        "<string>--python-bin</string>",
         "DEGRADED_GCLOUD_NOT_FOUND",
         "runtime_repair_authorized",
         "PHASE15_CONTROLLED_SUBMISSION_SUPERVISOR_INSTALL=PASS",
@@ -269,9 +271,37 @@ def test_supervisor_uses_explicit_gcloud_binary() -> None:
     assert "gcloud_bin: Path" in text
     assert 'parser.add_argument(' in text
     assert '"--gcloud-bin"' in text
+    assert '"--python-bin"' in text
     assert "configured gcloud binary is not executable" in text
+    assert "configured python binary is not executable" in text
     assert "str(config.gcloud_bin)" in text
+    assert "str(config.python_bin)" in text
+    assert "def _tool_env(config: Config)" in text
+    assert "str(config.gcloud_bin.parent)" in text
+    assert "str(config.python_bin.parent)" in text
     assert "def _helper_env(config: Config)" in text
-    assert 'env["PATH"] = f"{config.gcloud_bin.parent}:{inherited}"' in text
+    assert "return _tool_env(config)" in text
     assert "env = _helper_env(config)" in text
     assert '["gcloud", "compute"' not in text
+
+
+def test_gcloud_python_path_repair_evidence_matches_source_truth() -> None:
+    evidence_path = (
+        ROOT
+        / "docs"
+        / "evidence"
+        / "phase-15-controlled-submission-supervisor-gcloud-python-path-repair-authorization-20260927.json"
+    )
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    supervisor = state["phase_15_v3_live_canary"]["controlled_submission_supervisor"]
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+
+    assert evidence["source_main"] == "cea0bbfe93e4cec6b11ba620cfe5e5470157c22a"
+    assert evidence["incident"]["runtime_health_status"] == supervisor["runtime_health_status"]
+    assert evidence["incident"]["runtime_issue"] == supervisor["runtime_issue"]
+    assert evidence["authorized_repair"]["exact_gcloud_binary_path_required"] is True
+    assert evidence["authorized_repair"]["exact_python_binary_path_required"] is True
+    assert evidence["authorized_repair"]["propagated_to_child_helpers"] is True
+    assert evidence["authorized_repair"]["additional_network_attempts_authorized"] is False
+    assert evidence["bindings"]["supervisor_git_blob_sha"] == supervisor["supervisor_git_blob_sha"]
+    assert evidence["bindings"]["installer_git_blob_sha"] == supervisor["installer_git_blob_sha"]
