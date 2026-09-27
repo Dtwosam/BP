@@ -587,3 +587,33 @@ def test_phase15_telegram_transport_runtime_repair_completed() -> None:
     assert stage["current_runtime_usable"] is True
     assert stage["second_canary_network_attempt_consumed"] is False
 
+
+
+def test_operator_telegram_auto_approver_is_live_authorized_but_not_yet_deployed() -> None:
+    state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
+    gate = state["phase_15_v3_live_canary"]
+    auto = gate["operator_telegram_auto_approver"]
+
+    assert auto["status"] == "AUTHORIZED_NOT_DEPLOYED"
+    assert auto["implementation_merge_commit"] == "2ef544b5a2af821e4b59fd00bd2615dbab3ca798"
+    assert auto["reviewed_branch_commit"] == "523ba46ec22f8b47b505bf1e767152b49437912b"
+    assert auto["approval_contract_git_blob_sha"] == "930b62514712bd40400550da3ea5bbed533198da"
+    assert auto["live_auto_approve_authorized"] is True
+    assert auto["live_enable_value"] == "BP_TELEGRAM_AUTO_APPROVE=true"
+    assert auto["dry_run_prerequisite_required"] is False
+    assert auto["preserves_existing_second_canary_limits"] is True
+    assert auto["strategy_target_notional_usd"] == 5
+    assert auto["hard_max_trade_size_usd"] == 10
+    assert auto["hard_max_total_exposure_usd"] == 10
+    assert auto["hard_max_daily_loss_usd"] == 10
+    assert auto["max_consecutive_losses"] == 1
+    assert auto["max_network_submission_attempts"] == 1
+    assert auto["order_ttl_seconds"] == 2
+    assert auto["ambiguous_callback_retry_allowed"] is False
+    assert auto["stake_growth_authorized"] is False
+    assert auto["v3_strategy_mutation_authorized"] is False
+    assert auto["v4_mutation_authorized"] is False
+    assert auto["broad_autonomous_live_rollout_authorized"] is False
+    assert auto["bypass_downstream_validation_authorized"] is False
+    assert auto["deployment_performed"] is False
+    assert auto["activation_performed"] is False
