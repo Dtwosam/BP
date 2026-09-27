@@ -1,7 +1,7 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.181",
+  "source_of_truth_version": "0.14.180",
   "updated_at": "2026-09-26",
   "current_phase": 15,
   "current_phase_name": "controlled live launch — second frozen V3 Telegram canary authorized",
