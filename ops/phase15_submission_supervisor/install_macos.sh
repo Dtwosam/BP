@@ -41,8 +41,8 @@ GCLOUD=$(command -v gcloud || true)
   echo "REASON=gcloud_auth_missing" >&2
   exit 1
 }
-PYTHON=$(command -v python3)
-[[ -n "$PYTHON" ]] || {
+PYTHON=$(command -v python3 || true)
+[[ -n "$PYTHON" && -x "$PYTHON" ]] || {
   echo "PHASE15_CONTROLLED_SUBMISSION_SUPERVISOR_INSTALL=FAIL" >&2
   echo "REASON=python3_missing" >&2
   exit 1
@@ -98,10 +98,16 @@ else:
     assert supervisor["status"] == "ACTIVE_WAITING_FOR_REAL_SUBMISSION"
     assert supervisor["deployment_performed"] is True
     assert supervisor["activation_performed"] is True
-    assert supervisor["runtime_health_status"] == "DEGRADED_GCLOUD_NOT_FOUND"
+    assert supervisor["runtime_health_status"] in {
+        "DEGRADED_GCLOUD_NOT_FOUND",
+        "DEGRADED_GCLOUD_PYTHON_PATH",
+    }
     assert supervisor["runtime_repair_authorized"] is True
     assert supervisor["runtime_repair_completed"] is False
-    assert supervisor["runtime_issue"] == "launchagent_gcloud_not_found"
+    assert supervisor["runtime_issue"] in {
+        "launchagent_gcloud_not_found",
+        "launchagent_gcloud_python_path_missing",
+    }
 PY
   echo "PHASE15_CONTROLLED_SUBMISSION_SUPERVISOR_INSTALL=FAIL" >&2
   echo "REASON=source_truth_supervisor_authorization_invalid" >&2
@@ -163,6 +169,8 @@ cat > "$PLIST" <<EOF
     <string>$STATE_ROOT</string>
     <string>--gcloud-bin</string>
     <string>$GCLOUD</string>
+    <string>--python-bin</string>
+    <string>$PYTHON</string>
   </array>
 
   <key>WorkingDirectory</key>
@@ -201,6 +209,7 @@ echo "MANAGED_REPO=$MANAGED_REPO"
 echo "STATE_ROOT=$STATE_ROOT"
 echo "SUPERVISOR_MAIN=$MANAGED_HEAD"
 echo "GCLOUD_BIN=$GCLOUD"
+echo "PYTHON_BIN=$PYTHON"
 echo "AUTO_APPROVER_REQUIRED=true"
 echo "MAX_NETWORK_SUBMISSION_ATTEMPTS=1"
 echo "TARGET_NOTIONAL_USD=5"
