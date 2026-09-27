@@ -6,7 +6,7 @@ US_ZONE="${PHASE15_CANARY_US_ZONE:-us-east1-c}"
 US_VM="${PHASE15_CANARY_US_VM:-bp-recorder}"
 EXEC_ZONE="${PHASE15_CANARY_EXEC_ZONE:-africa-south1-a}"
 EXEC_VM="${PHASE15_CANARY_EXEC_VM:-bp-v3-canary-exec}"
-MAX_WAIT_SECONDS="${PHASE15_CANARY_MAX_WAIT_SECONDS:-7200}"
+MAX_WAIT_SECONDS="${PHASE15_CANARY_MAX_WAIT_SECONDS:-0}"
 POLL_SECONDS="${PHASE15_CANARY_POLL_SECONDS:-0.5}"
 ACCEPT="${PHASE15_ACCEPT_PERSISTENT_PREPARE_WATCH:-}"
 
@@ -18,7 +18,7 @@ fail_local() {
 
 [[ "$ACCEPT" == "yes" ]] || fail_local "explicit_persistent_prepare_authorization_required"
 [[ "$MAX_WAIT_SECONDS" =~ ^[0-9]+$ ]] || fail_local "max_wait_seconds_invalid"
-(( MAX_WAIT_SECONDS >= 1 && MAX_WAIT_SECONDS <= 7200 )) || fail_local "max_wait_seconds_out_of_range"
+(( MAX_WAIT_SECONDS == 0 || (MAX_WAIT_SECONDS >= 1 && MAX_WAIT_SECONDS <= 7200) )) || fail_local "max_wait_seconds_out_of_range"
 python3 - "$POLL_SECONDS" <<'PY' || fail_local "poll_seconds_invalid"
 import sys
 value=float(sys.argv[1])
@@ -85,7 +85,8 @@ assert second.get("requires_official_reconciliation_before_any_third_order") is 
 assert watch["authorized"] is True
 assert watch["start_authorized"] is True
 assert watch.get("runtime_reauthorization_required") is False
-assert watch["max_wait_seconds"] == 7200
+assert watch["max_wait_seconds"] == 0
+assert watch.get("wait_mode") == "until_candidate"
 assert watch["prepare_only"] is True
 assert watch["arm_automated"] is False
 assert watch["submission_automated"] is False

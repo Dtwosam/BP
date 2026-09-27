@@ -311,12 +311,12 @@ def test_unsubmitted_reconciliation_shell_syntax_is_valid() -> None:
     )
 
 
-def test_persistent_prepare_runner_is_prepare_only_and_bounded() -> None:
+def test_persistent_prepare_runner_is_prepare_only_and_supports_until_candidate() -> None:
     text = PERSISTENT_PREPARE_RUNNER.read_text(encoding="utf-8")
     for marker in (
         "prepare_next_canary",
         'prepared_payload["action"] = "submit"',
-        "max wait must be within 1..7200 seconds",
+        "max wait must be 0 (until candidate) or within 1..7200 seconds",
         '"real_order_submitted": False',
         '"arm_attempted": False',
         '"submission_attempt_consumed": False',
@@ -325,6 +325,8 @@ def test_persistent_prepare_runner_is_prepare_only_and_bounded() -> None:
         "wallet material must not be present on prepare watcher",
         'parser.add_argument("--poll-seconds", type=float, default=0.5)',
         '"timing": normalized.get("timing")',
+        '"wait_mode": "until_candidate" if max_wait_seconds == 0 else "bounded"',
+        "deadline is None or time.monotonic() < deadline",
     ):
         assert marker in text
     for forbidden in (
@@ -366,8 +368,7 @@ def test_persistent_prepare_unit_is_research_zero_money_localhost_only() -> None
         "Environment=LIVE_TRADING_ENABLED=false",
         "Environment=MAX_TRADE_SIZE_USD=0",
         "Environment=MAX_DAILY_LOSS_USD=0",
-        "RuntimeMaxSec=2h5min",
-        "NoNewPrivileges=true",
+                "NoNewPrivileges=true",
         "ProtectSystem=full",
         "ReadWritePaths=/var/lib/bp/phase15-canary-prepare-watch",
         "IPAddressDeny=any",
@@ -375,6 +376,7 @@ def test_persistent_prepare_unit_is_research_zero_money_localhost_only() -> None
     ):
         assert marker in text
     assert "ExecStart=" in text
+    assert "RuntimeMaxSec=" not in text
     assert "phase15_v3_canary_arm" not in text
     assert "phase15_v3_canary_executor" not in text
 
@@ -387,10 +389,11 @@ def test_persistent_prepare_start_requires_explicit_scope_and_health_only() -> N
         '{"action":"health"}',
         "persistent_prepare_watch_already_active",
         "bp-phase15-canary-prepare-watch.service",
-        "MAX_WAIT_SECONDS >= 1 && MAX_WAIT_SECONDS <= 7200",
+        "MAX_WAIT_SECONDS == 0 || (MAX_WAIT_SECONDS >= 1 && MAX_WAIT_SECONDS <= 7200)",
         "NO_REAL_ORDER_SUBMITTED=true",
         "ARM_AUTOMATED=false",
         "SUBMISSION_AUTOMATED=false",
+        'MAX_WAIT_SECONDS="${PHASE15_CANARY_MAX_WAIT_SECONDS:-0}"',
         'POLL_SECONDS="${PHASE15_CANARY_POLL_SECONDS:-0.5}"',
         'assert gate["canary_order_submitted"] is True',
         'assert first.get("official_reconciliation_complete") is True',

@@ -43,7 +43,7 @@ def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None
     watch = gate["persistent_prepare_watch"]
     second = gate["second_live_canary_authorization"]
 
-    assert watch["status"] == "AUTHORIZED_FOR_CONTROLLED_CANARY_RESTART"
+    assert watch["status"] == "AUTHORIZED_FOR_UNTIL_CANDIDATE_RESTART"
     assert watch["start_authorized"] is True
     assert watch["service_active"] is False
     assert watch["last_status"] == "expired"
@@ -404,7 +404,9 @@ def test_controlled_canary_fresh_prepare_restart_is_authorized_after_clean_expir
     assert controlled["real_order_submission_observed"] is False
     assert controlled["prepare_watcher_result"] == "expired_no_eligible_candidate"
 
-    assert restart["authorized"] is True
+    assert restart["authorized"] is False
+    assert restart["superseded"] is True
+    assert restart["superseded_by"] == "until_candidate_prepare_authorization"
     assert restart["consumed"] is False
     assert restart["one_shot"] is True
     assert restart["max_wait_seconds"] == 7200
@@ -428,3 +430,52 @@ def test_controlled_canary_fresh_prepare_restart_is_authorized_after_clean_expir
     assert restart["live_git_blob_sha"] == "0617ffeda8365cdd6ab2636af00e58ca8954c4db"
     assert restart["arm_helper_git_blob_sha"] == "692d60cc73438a4703db2d74d56448ce868bd9fe"
     assert restart["executor_git_blob_sha"] == "0a0cdc42882c6de5d8b09d5f630826cd6fab39a3"
+
+
+def test_controlled_canary_until_candidate_watcher_is_authorized() -> None:
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    gate = state["phase_15_v3_live_canary"]
+    watch = gate["persistent_prepare_watch"]
+    controlled = gate["controlled_auto_approved_canary_authorization"]
+    auth = controlled["until_candidate_prepare_authorization"]
+
+    assert watch["status"] == "AUTHORIZED_FOR_UNTIL_CANDIDATE_RESTART"
+    assert watch["start_authorized"] is True
+    assert watch["service_active"] is False
+    assert watch["max_wait_seconds"] == 0
+    assert watch["wait_mode"] == "until_candidate"
+    assert watch["runtime_cap_removed"] is True
+    assert watch["enabled_across_vm_reboot"] is False
+
+    assert controlled["consumed"] is False
+    assert controlled["network_attempt_observed"] is False
+    assert controlled["real_order_submission_observed"] is False
+    assert controlled["prepare_watcher_mode"] == "until_candidate"
+    assert controlled["prepare_watcher_max_wait_seconds"] == 0
+    assert controlled["prepare_watcher_expected_expiry_at"] is None
+
+    assert auth["authorized"] is True
+    assert auth["consumed"] is False
+    assert auth["one_shot"] is True
+    assert auth["wait_mode"] == "until_candidate"
+    assert auth["max_wait_seconds"] == 0
+    assert auth["time_expiry_disabled"] is True
+    assert auth["prepare_only"] is True
+    assert auth["research_mode"] is True
+    assert auth["zero_money"] is True
+    assert auth["requires_new_candidate_after_activation"] is True
+    assert auth["stops_after_one_prepared_candidate"] is True
+    assert auth["stops_on_fail_closed_terminal_condition"] is True
+    assert auth["enabled_across_vm_reboot"] is False
+    assert auth["controlled_canary_authorization_remains_unconsumed"] is True
+    assert auth["auto_approver_may_handle_fresh_valid_prompt"] is True
+    assert auth["max_network_submission_attempts"] == 1
+    assert auth["additional_network_attempts_authorized"] is False
+
+    assert auth["start_helper_git_blob_sha"] == "318479fc6c4059e078be3d2851f89874bda489f5"
+    assert auth["runner_git_blob_sha"] == "ed3ced72c75291a0fd79a15009b0a468561683d9"
+    assert auth["service_unit_git_blob_sha"] == "2f162c9c17658d6917544b056176a56cc50bea46"
+    assert auth["canary_git_blob_sha"] == "df5e60b1b2ba632fd77d65103509fac70187be7d"
+    assert auth["live_git_blob_sha"] == "0617ffeda8365cdd6ab2636af00e58ca8954c4db"
+    assert auth["arm_helper_git_blob_sha"] == "692d60cc73438a4703db2d74d56448ce868bd9fe"
+    assert auth["executor_git_blob_sha"] == "0a0cdc42882c6de5d8b09d5f630826cd6fab39a3"
