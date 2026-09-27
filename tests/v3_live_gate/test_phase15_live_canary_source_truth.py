@@ -268,9 +268,9 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
     assert activation["official_reconciliation_required_before_any_third_order"] is True
     assert activation["broad_autonomous_live_rollout_authorized"] is False
     assert gate["pending_unsubmitted_intent"] is None
-    assert watch["status"] == "AUTHORIZED_FRESH_RESTART_NOT_STARTED"
+    assert watch["status"] == "SAFE_FAIL_PENDING_TERMINAL_INTENT_RECONCILIATION"
     assert watch["authorized"] is True
-    assert watch["start_authorized"] is True
+    assert watch["start_authorized"] is False
     assert watch["runtime_reauthorization_required"] is False
     assert watch["runtime_reauthorization_authorized"] is True
     assert watch["runtime_reauthorization_authorized_at_main"] == (
@@ -295,7 +295,7 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
     assert watch["post_reconciliation_restart_production_performed"] is True
     assert watch["post_reconciliation_restart_result"] == "PASS"
     assert watch["post_reconciliation_restart_run_id"] == (
-        "phase15-prepare-watch-20260926T195409Z-271b35ff"
+        "phase15-prepare-watch-20260927T084202Z-2fccca2c"
     )
     assert watch["post_reconciliation_restart_start_helper_git_blob_sha"] == (
         "0a98b03e35d8019a85063e45d1a979fea96c0532"
@@ -321,27 +321,39 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
     assert watch["submission_automated"] is False
     assert watch["service_active"] is False
     assert watch["start_result"] == "PASS"
-    assert watch["run_id"] == "phase15-prepare-watch-20260926T195409Z-271b35ff"
+    assert watch["run_id"] == "phase15-prepare-watch-20260927T084202Z-2fccca2c"
     assert watch["remote_run_dir"] == (
         "/var/lib/bp/phase15-canary-prepare-watch/runs/"
         "phase15-prepare-watch-20260926T195409Z-271b35ff"
     )
-    assert watch["helper_head"] == "271b35fffdb3ccff1490e213672dfa98b7583d75"
-    assert watch["last_status"] == "prepared"
-    assert watch["last_status_reason"] == (
-        "fresh_second_canary_candidate_prepared_then_terminal_"
-        "telegram_handoff_failed_no_retry"
-    )
+    assert watch["helper_head"] == "2fccca2cbb60bc0286fc77ce7dcd19f8dd80dbb5"
+    assert watch["last_status"] == "failed"
+    assert watch["last_status_reason"] == "canary_prepare_blocked"
     assert watch["current_run_fresh_candidate_required"] is True
     assert watch["current_run_historical_prepared_intents_forbidden"] is True
     assert watch["current_run_second_canary_network_attempt_consumed"] is False
     assert watch["second_canary_network_attempt_consumed"] is False
     assert watch["second_canary_authorization_preserved"] is True
     assert watch["no_real_order_submitted"] is True
-    assert watch["telegram_approval_performed"] is True
+    assert watch["telegram_approval_performed"] is False
     assert watch["executor_armed"] is False
     assert watch["executor_invoked"] is False
     assert watch["order_submission_performed"] is False
+    assert watch["fresh_restart_authorization_consumed"] is True
+    assert watch["fresh_restart_production_performed"] is True
+    assert watch["fresh_restart_result"] == (
+        "SAFE_FAIL_PENDING_TERMINAL_INTENT_RECONCILIATION"
+    )
+    assert watch["fresh_restart_terminal_last_report_reason"] == (
+        "pending_live_intent_requires_reconciliation"
+    )
+    assert watch["fresh_restart_submission_attempt_consumed"] is False
+    assert watch["fresh_restart_no_real_order_submitted"] is True
+    assert watch["fresh_restart_may_not_be_reused"] is True
+    assert watch["fresh_restart_requires_new_authorization_after_reconciliation"] is True
+    assert watch["prepared_intent_reconciled"] is False
+    assert watch["prepared_reconciliation_result_status"] == "required"
+    assert watch["prepared_reconciliation_id_observed"] is None
     assert watch["candidate_start_helper_git_blob_sha"] == (
         "0a98b03e35d8019a85063e45d1a979fea96c0532"
     )
