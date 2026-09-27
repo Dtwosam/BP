@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-terminal-intent-reconciliation-safe-fail-macos-base64",
+  "observed_date": "2026-09-27",
+  "attempted_main": "b14bfa60b13e7c989cd2055e0f6f711e94d43484",
+  "target_intent_id": "live-intent-4cb75bd0f114e378130b28d7699320e9",
+  "result": "SAFE_FAIL_PRE_MUTATION",
+  "failure_reason": "macOS BSD base64 does not support GNU option -w0",
+  "completed_prechecks": {
+    "executor_safety": "PASS",
+    "second_canary_attempt_marker_absent": true
+  },
+  "not_reached": {
+    "database_read_only_precheck": true,
+    "database_mutation": true,
+    "closed_before_submission_write": true,
+    "reconciliation_row_write": true
+  },
+  "safety": {
+    "authorization_consumed": false,
+    "second_canary_network_attempt_consumed": false,
+    "telegram_approval_performed": false,
+    "executor_arm_or_invoke_performed": false,
+    "order_submission_performed": false,
+    "real_order_submitted": false
+  },
+  "repair": {
+    "change": "Replace GNU base64 -w0 usage with Python stdlib base64 encoding for macOS/Linux portability.",
+    "authorization_scope_changed": false,
+    "target_changed": false
+  }
+}

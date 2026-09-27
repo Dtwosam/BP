@@ -48,14 +48,24 @@ def test_terminal_telegram_intent_reconciliation_is_explicitly_authorized() -> N
     assert recon["helper"] == (
         "scripts/deploy/phase15_v3_terminal_telegram_intent_reconcile_cloudshell.sh"
     )
-    assert recon["helper_git_blob_sha"] == "8dd66000c5faa11d162d0cac43e506f19b334ac0"
+    assert recon["helper_git_blob_sha"] == "94f0a3acdaefc03be2b322955101d11427ecf08a"
     assert recon["does_not_authorize_telegram_approve"] is True
     assert recon["does_not_authorize_executor_arm_or_invoke"] is True
     assert recon["does_not_authorize_order_submission"] is True
     assert recon["does_not_consume_second_canary_network_attempt"] is True
     assert recon["failed_intent_retry_allowed"] is False
     assert recon["failed_intent_must_not_be_replayed"] is True
-    assert recon["production_result"] == "PENDING"
+    assert recon["production_result"] == "PENDING_RETRY_AFTER_PRE_MUTATION_SAFE_FAIL"
+    assert recon["last_attempt_result"] == (
+        "SAFE_FAIL_PRE_MUTATION_LOCAL_BASE64_PORTABILITY"
+    )
+    assert recon["last_attempt_executor_safety_passed"] is True
+    assert recon["last_attempt_second_canary_attempt_marker_absent"] is True
+    assert recon["last_attempt_database_precheck_started"] is False
+    assert recon["last_attempt_database_mutation_performed"] is False
+    assert recon["last_attempt_authorization_consumed"] is False
+    assert recon["same_authorization_retry_allowed"] is True
+    assert recon["authorization_scope_changed_by_helper_repair"] is False
 
     assert watch["fresh_restart_authorization_consumed"] is True
     assert watch["fresh_restart_may_not_be_reused"] is True
@@ -85,6 +95,7 @@ def test_terminal_reconciliation_helper_is_explicit_and_fail_closed() -> None:
         "closed_before_submission",
         "SUBMISSION_ATTEMPT_CONSUMED=false",
         "SECOND_CANARY_NETWORK_ATTEMPT_CONSUMED=false",
+        "base64.b64encode",
         "PHASE15_V3_TERMINAL_INTENT_RECONCILIATION=PASS",
     ):
         assert marker in text
@@ -95,6 +106,7 @@ def test_terminal_reconciliation_helper_is_explicit_and_fail_closed() -> None:
         "cancel_order",
         '"action":"submit"',
         "PHASE15_ACCEPT_REAL_MONEY",
+        "base64 -w0",
         "PHASE15_ACCEPT_TELEGRAM_REAL_MONEY",
     ):
         assert forbidden not in text

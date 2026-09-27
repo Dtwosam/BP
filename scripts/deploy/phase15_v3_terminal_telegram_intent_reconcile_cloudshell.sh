@@ -125,8 +125,22 @@ gcloud compute ssh "$EXEC_VM"   --project="$PROJECT"   --zone="$EXEC_ZONE"   --q
   fail "second_canary_attempt_marker_present"
 
 echo "=== READ-ONLY DATABASE PRECHECK ==="
-CANARY_SOURCE_B64=$(base64 -w0 "$ROOT/src/bp_engine/execution/canary.py")
-HEALTH_B64=$(printf '%s' "$HEALTH" | base64 -w0)
+CANARY_SOURCE_B64=$(python3 - "$ROOT/src/bp_engine/execution/canary.py" <<'PY'
+import base64
+import sys
+from pathlib import Path
+
+print(base64.b64encode(Path(sys.argv[1]).read_bytes()).decode("ascii"), end="")
+PY
+)
+
+HEALTH_B64=$(python3 - "$HEALTH" <<'PY'
+import base64
+import sys
+
+print(base64.b64encode(sys.argv[1].encode("utf-8")).decode("ascii"), end="")
+PY
+)
 
 PRECHECK=$(gcloud compute ssh "$US_VM"   --project="$PROJECT"   --zone="$US_ZONE"   --quiet   --command="sudo -u bp env PYTHONPATH='$V3_RUNTIME/src' MODE=research LIVE_TRADING_ENABLED=false MAX_TRADE_SIZE_USD=0 MAX_DAILY_LOSS_USD=0 CANARY_INTENT_ID='$INTENT_ID' CANARY_PREDICTION_ID='$PREDICTION_ID' CANARY_PAPER_ORDER_ID='$PAPER_ORDER_ID' /opt/bp/.venv/bin/python -" <<'PY'
 import json
