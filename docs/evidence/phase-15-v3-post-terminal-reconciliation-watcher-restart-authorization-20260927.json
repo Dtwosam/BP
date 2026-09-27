@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-post-terminal-reconciliation-watcher-restart-authorization",
+  "authorization_date": "2026-09-27",
+  "authorized_at_main": "b7517a2279c8168021a72eb68e5884f1ade80c94",
+  "authorization_source": "User explicitly authorized one fresh 7200-second Phase 15 prepare-only watcher restart for a new candidate, research/zero-money only, excluding Telegram APPROVE, executor arm/invocation, order submission, and live-trading enablement.",
+  "authorized_restart": {
+    "max_wait_seconds": 7200,
+    "prepare_only": true,
+    "research_mode": true,
+    "zero_money": true,
+    "one_shot": true,
+    "survives_cloud_shell_disconnect": true,
+    "fresh_candidate_required": true,
+    "candidate_must_be_created_after_new_activation": true
+  },
+  "bound_artifacts": {
+    "start_helper": {
+      "path": "scripts/deploy/phase15_v3_canary_prepare_watch_start_cloudshell.sh",
+      "git_blob_sha": "0a98b03e35d8019a85063e45d1a979fea96c0532"
+    },
+    "runner": {
+      "path": "scripts/run_phase15_v3_canary_prepare_watch.py",
+      "git_blob_sha": "efe6dc9c3b37f5788b701107366bb634a4b1f357"
+    },
+    "service_unit": {
+      "path": "deploy/bp-phase15-canary-prepare-watch.service",
+      "git_blob_sha": "5e20c65edd57e398d2106c7f6fe93fbb477b7572"
+    },
+    "canary": {
+      "path": "src/bp_engine/execution/canary.py",
+      "git_blob_sha": "df5e60b1b2ba632fd77d65103509fac70187be7d"
+    },
+    "live": {
+      "path": "src/bp_engine/execution/live.py",
+      "git_blob_sha": "0617ffeda8365cdd6ab2636af00e58ca8954c4db"
+    },
+    "arm_helper": {
+      "path": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
+      "git_blob_sha": "692d60cc73438a4703db2d74d56448ce868bd9fe"
+    },
+    "executor": {
+      "path": "scripts/deploy/phase15_v3_canary_executor.py",
+      "git_blob_sha": "0a0cdc42882c6de5d8b09d5f630826cd6fab39a3"
+    }
+  },
+  "reconciled_terminal_candidate": {
+    "intent_id": "live-intent-4cb75bd0f114e378130b28d7699320e9",
+    "prediction_id": "cca4840dcf6034ac624a48ca3e88e91e4f5d3a96b5d334705e4c1694e449c05c",
+    "paper_order_id": "18072fef623e29fa095c433cdd0657958848c5e6a34c194ae6527e532c4dc2ab",
+    "reconciliation_id": "live-reconciliation-745a1e86a0075b4e98cdfbb30517a154",
+    "reconciliation_status": "reconciled",
+    "retry_allowed": false,
+    "must_not_be_reused": true,
+    "network_attempt_consumed": false,
+    "real_order_submitted": false
+  },
+  "current_safety_context": {
+    "global_live_trading_enabled": false,
+    "watcher_service_active": false,
+    "terminal_intent_reconciliation_status": "PRODUCTION_PASS",
+    "second_canary_authorization_status": "AUTHORIZED_NOT_SUBMITTED",
+    "second_canary_network_attempt_consumed": false
+  },
+  "excluded_actions": {
+    "telegram_approve": false,
+    "executor_arm_or_invoke": false,
+    "order_submission": false,
+    "live_trading_enablement": false,
+    "stake_growth": false,
+    "v3_strategy_mutation": false,
+    "v4_mutation": false
+  },
+  "authorization_consumed": false,
+  "production_restart_performed": false
+}
