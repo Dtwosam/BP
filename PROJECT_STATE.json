@@ -4339,7 +4339,7 @@
     "second_order_authorized": true,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "The fresh watcher start authorization was consumed by production run phase15-prepare-watch-20260927T084202Z-2fccca2c, which failed safely before candidate selection because terminal intent live-intent-4cb75bd0f114e378130b28d7699320e9 still lacks a database terminal event. A separate explicit production authorization is now required to reconcile exactly that intent as closed_before_submission using the bound helper. This reconciliation must not consume the second-canary network attempt. After reconciliation PASS, a new watcher restart requires another fresh explicit authorization; the consumed 2026-09-27 restart authorization may not be reused.",
+    "next_action": "Run the explicitly authorized exact terminal-intent reconciliation helper from current main. It may write only closed_before_submission plus the paired zero-unresolved/zero-critical reconciliation row for live-intent-4cb75bd0f114e378130b28d7699320e9 after fail-closed checks. It does not authorize Telegram APPROVE, executor arm/invocation, order submission, network-attempt consumption, or watcher restart. After reconciliation PASS, a separate fresh watcher restart authorization is still required.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
@@ -5118,8 +5118,8 @@
       "pass_evidence": "docs/evidence/phase-15-v3-telegram-transport-runtime-repair-resume-pass-production-20260926.json"
     },
     "terminal_telegram_intent_reconciliation": {
-      "status": "REQUIRED_NOT_AUTHORIZED",
-      "authorized": false,
+      "status": "AUTHORIZED_NOT_RUN",
+      "authorized": true,
       "authorization_consumed": false,
       "target_host": "bp-recorder",
       "intent_id": "live-intent-4cb75bd0f114e378130b28d7699320e9",
@@ -5136,8 +5136,12 @@
       "failed_intent_retry_allowed": false,
       "failed_intent_must_not_be_replayed": true,
       "second_canary_network_attempt_consumed": false,
-      "production_result": "PENDING_AUTHORIZATION",
-      "evidence": "docs/evidence/phase-15-v3-fresh-watcher-safe-fail-pending-terminal-intent-20260927.json"
+      "production_result": "PENDING",
+      "evidence": "docs/evidence/phase-15-v3-fresh-watcher-safe-fail-pending-terminal-intent-20260927.json",
+      "authorization_date": "2026-09-27",
+      "authorization_source": "User explicitly authorized terminal intent reconciliation in chat.",
+      "authorized_at_main": "a06d7520fb0d887d4992bd13c0f3e4b32cb6c208",
+      "explicit_scope": "Reconcile only live-intent-4cb75bd0f114e378130b28d7699320e9 as closed_before_submission using the bound helper, after all fail-closed executor/network-marker/database prechecks pass. Do not approve Telegram, arm/invoke the executor, submit an order, consume the second-canary network attempt, or restart the watcher."
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {
