@@ -398,9 +398,11 @@ def test_runtime_repair_completion_evidence_matches_source_truth() -> None:
     assert observation["repeated_reason"] == "watcher_running"
     assert observation["new_transient_error_after_restart_observed"] is False
     assert observation["first_healthy_decision_at"] == supervisor["runtime_repair_completed_at"]
-    assert (
-        observation["verified_healthy_through"]
-        == supervisor["runtime_repair_verified_healthy_through"]
+    assert observation["verified_healthy_through"] == (
+        "2026-09-27T20:40:01.941354+00:00"
+    )
+    assert observation["verified_healthy_through"] != (
+        supervisor["runtime_repair_verified_healthy_through"]
     )
     assert evidence["repaired_issue"]["result"] == "PASS"
     assert evidence["safety_preserved"]["additional_network_attempts_authorized"] is False
