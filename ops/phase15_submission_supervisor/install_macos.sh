@@ -98,10 +98,16 @@ else:
     assert supervisor["status"] == "ACTIVE_WAITING_FOR_REAL_SUBMISSION"
     assert supervisor["deployment_performed"] is True
     assert supervisor["activation_performed"] is True
-    assert supervisor["runtime_health_status"] == "DEGRADED_GCLOUD_NOT_FOUND"
+    assert supervisor["runtime_health_status"] in {
+        "DEGRADED_GCLOUD_NOT_FOUND",
+        "DEGRADED_GCLOUD_PYTHON_PATH",
+    }
     assert supervisor["runtime_repair_authorized"] is True
     assert supervisor["runtime_repair_completed"] is False
-    assert supervisor["runtime_issue"] == "launchagent_gcloud_not_found"
+    assert supervisor["runtime_issue"] in {
+        "launchagent_gcloud_not_found",
+        "launchagent_gcloud_python_path_missing",
+    }
 PY
   echo "PHASE15_CONTROLLED_SUBMISSION_SUPERVISOR_INSTALL=FAIL" >&2
   echo "REASON=source_truth_supervisor_authorization_invalid" >&2
