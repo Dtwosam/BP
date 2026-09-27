@@ -351,4 +351,8 @@ gcloud compute ssh "$US_VM" \
   --command="printf '%s' '$REMOTE_B64' | base64 -d | sudo env BP_PHASE15_HELPER_HEAD=$HEAD_Q BP_PHASE15_RUN_ID=$RUN_ID_Q BP_PHASE15_ACTIVATED_AT=$ACTIVATED_AT_Q BP_PHASE15_OFFICIAL_OPEN_ORDER_COUNT=$OPEN_Q BP_PHASE15_COLLATERAL_BALANCE_USD=$COLLATERAL_Q BP_PHASE15_MAX_WAIT_SECONDS=$WAIT_Q BP_PHASE15_POLL_SECONDS=$POLL_Q BP_PHASE15_ARCHIVE=$ARCHIVE_Q BP_PHASE15_ARCHIVE_SHA256=$ARCHIVE_SHA_Q bash"
 
 echo "The watcher now runs on bp-recorder independently of Cloud Shell."
-echo "It is prepare-only, bounded to at most $MAX_WAIT_SECONDS seconds, and is not enabled across VM reboot."
+if [[ "$MAX_WAIT_SECONDS" == "0" ]]; then
+  echo "It is prepare-only, waits until one candidate is prepared, and is not enabled across VM reboot."
+else
+  echo "It is prepare-only, bounded to at most $MAX_WAIT_SECONDS seconds, and is not enabled across VM reboot."
+fi
