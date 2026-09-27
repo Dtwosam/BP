@@ -271,4 +271,7 @@ def test_supervisor_uses_explicit_gcloud_binary() -> None:
     assert '"--gcloud-bin"' in text
     assert "configured gcloud binary is not executable" in text
     assert "str(config.gcloud_bin)" in text
+    assert "def _helper_env(config: Config)" in text
+    assert 'env["PATH"] = f"{config.gcloud_bin.parent}:{inherited}"' in text
+    assert "env = _helper_env(config)" in text
     assert '["gcloud", "compute"' not in text
