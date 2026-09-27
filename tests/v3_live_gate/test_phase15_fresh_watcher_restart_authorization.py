@@ -19,17 +19,17 @@ START = (
 )
 
 
-def test_fresh_watcher_restart_is_narrowly_authorized() -> None:
+def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None:
     state = json.loads(STATE.read_text(encoding="utf-8"))
     gate = state["phase_15_v3_live_canary"]
     watch = gate["persistent_prepare_watch"]
     second = gate["second_live_canary_authorization"]
 
-    assert watch["status"] == "AUTHORIZED_FRESH_RESTART_NOT_STARTED"
-    assert watch["start_authorized"] is True
+    assert watch["status"] == "SAFE_FAIL_PENDING_TERMINAL_INTENT_RECONCILIATION"
+    assert watch["start_authorized"] is False
     assert watch["service_active"] is False
     assert watch["fresh_restart_authorized"] is True
-    assert watch["fresh_restart_authorization_consumed"] is False
+    assert watch["fresh_restart_authorization_consumed"] is True
     assert watch["fresh_restart_authorized_at_main"] == (
         "f3afdf940478d487a46244e79e4263ccb5aa02f7"
     )
@@ -38,6 +38,20 @@ def test_fresh_watcher_restart_is_narrowly_authorized() -> None:
     assert watch["fresh_restart_research_mode"] is True
     assert watch["fresh_restart_zero_money"] is True
     assert watch["fresh_restart_requires_new_candidate_after_activation"] is True
+    assert watch["fresh_restart_production_performed"] is True
+    assert watch["fresh_restart_result"] == (
+        "SAFE_FAIL_PENDING_TERMINAL_INTENT_RECONCILIATION"
+    )
+    assert watch["fresh_restart_start_result"] == "PASS"
+    assert watch["fresh_restart_terminal_status"] == "failed"
+    assert watch["fresh_restart_terminal_reason"] == "canary_prepare_blocked"
+    assert watch["fresh_restart_terminal_last_report_reason"] == (
+        "pending_live_intent_requires_reconciliation"
+    )
+    assert watch["fresh_restart_submission_attempt_consumed"] is False
+    assert watch["fresh_restart_no_real_order_submitted"] is True
+    assert watch["fresh_restart_may_not_be_reused"] is True
+    assert watch["fresh_restart_requires_new_authorization_after_reconciliation"] is True
 
     assert watch["fresh_restart_forbidden_intent_id"] == (
         "live-intent-4cb75bd0f114e378130b28d7699320e9"
