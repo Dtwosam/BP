@@ -370,7 +370,10 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
         "b7517a2279c8168021a72eb68e5884f1ade80c94"
     )
     assert watch["post_terminal_reconciliation_restart_production_performed"] is False
-    assert watch["post_terminal_reconciliation_restart_second_canary_network_attempt_consumed"] is False
+    assert (
+        watch["post_terminal_reconciliation_restart_second_canary_network_attempt_consumed"]
+        is False
+    )
     assert watch["candidate_start_helper_git_blob_sha"] == (
         "0a98b03e35d8019a85063e45d1a979fea96c0532"
     )
