@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-fresh-watcher-safe-fail-pending-terminal-intent",
+  "observed_date": "2026-09-27",
+  "source_main": "2fccca2cbb60bc0286fc77ce7dcd19f8dd80dbb5",
+  "run": {
+    "run_id": "phase15-prepare-watch-20260927T084202Z-2fccca2c",
+    "run_dir": "/var/lib/bp/phase15-canary-prepare-watch/runs/phase15-prepare-watch-20260927T084202Z-2fccca2c",
+    "activated_at": "2026-09-27T08:42:02.077722+00:00",
+    "start_result": "PASS",
+    "service_active_after_start": "active",
+    "max_wait_seconds": 7200,
+    "prepare_only": true,
+    "arm_automated": false,
+    "submission_automated": false,
+    "no_real_order_submitted": true
+  },
+  "terminal_status": {
+    "status": "failed",
+    "reason": "canary_prepare_blocked",
+    "service_active": "failed",
+    "updated_at": "2026-09-27T08:42:32.644400+00:00",
+    "last_report": {
+      "status": "blocked",
+      "reason": "pending_live_intent_requires_reconciliation",
+      "intent_id": "live-intent-4cb75bd0f114e378130b28d7699320e9"
+    },
+    "arm_attempted": false,
+    "real_order_submitted": false,
+    "submission_attempt_consumed": false
+  },
+  "diagnosis": {
+    "intent_id": "live-intent-4cb75bd0f114e378130b28d7699320e9",
+    "prediction_id": "cca4840dcf6034ac624a48ca3e88e91e4f5d3a96b5d334705e4c1694e449c05c",
+    "paper_order_id": "18072fef623e29fa095c433cdd0657958848c5e6a34c194ae6527e532c4dc2ab",
+    "source_truth_marks_intent_terminal": true,
+    "telegram_handoff_status": "handoff_failed_no_retry",
+    "retry_allowed": false,
+    "network_attempt_consumed": false,
+    "real_order_submitted": false,
+    "database_problem": "The live_order_intent has no terminal live_order_event, so prepare_next_canary correctly blocks on pending_live_intent_requires_reconciliation.",
+    "existing_generic_reconciliation_helper_usable": false,
+    "existing_generic_reconciliation_helper_problem": "Its source-truth authorization assertions describe the pre-second-canary manual-submission state and fail closed under current second-canary/Telegram transport state."
+  },
+  "safety": {
+    "global_live_trading_enabled": false,
+    "second_canary_network_attempt_consumed": false,
+    "watcher_authorization_consumed": true,
+    "watcher_restart_may_not_be_reused": true,
+    "fresh_restart_required_after_reconciliation": true
+  }
+}
