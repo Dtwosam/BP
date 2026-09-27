@@ -74,6 +74,20 @@ def test_real_prompt_and_keyboard_round_trip() -> None:
     assert not is_exact_approve_callback(keyboard()[0][1].callback_data or b"", NONCE)
 
 
+def test_prompt_accepts_fixed_scale_exact_five_dollar_spend() -> None:
+    observed = datetime(2026, 9, 27, 12, 0, tzinfo=UTC)
+    text = prompt_text(observed).replace(
+        "Maximum spend: $5",
+        "Maximum spend: $5.000000000000000000",
+    )
+    parsed = parse_prompt(text)
+    assert parsed is not None
+    assert parsed.maximum_spend == "5"
+    assert parse_prompt(
+        text.replace("$5.000000000000000000", "$5.010000000000000000")
+    ) is None
+
+
 def test_prompt_rejects_mutation_spend_and_short_window() -> None:
     observed = datetime(2026, 9, 27, 12, 0, tzinfo=UTC)
     text = prompt_text(observed)
