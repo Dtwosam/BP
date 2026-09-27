@@ -5141,7 +5141,8 @@
       "authorization_date": "2026-09-27",
       "authorization_source": "User explicitly authorized terminal intent reconciliation in chat.",
       "authorized_at_main": "a06d7520fb0d887d4992bd13c0f3e4b32cb6c208",
-      "explicit_scope": "Reconcile only live-intent-4cb75bd0f114e378130b28d7699320e9 as closed_before_submission using the bound helper, after all fail-closed executor/network-marker/database prechecks pass. Do not approve Telegram, arm/invoke the executor, submit an order, consume the second-canary network attempt, or restart the watcher."
+      "explicit_scope": "Reconcile only live-intent-4cb75bd0f114e378130b28d7699320e9 as closed_before_submission using the bound helper, after all fail-closed executor/network-marker/database prechecks pass. Do not approve Telegram, arm/invoke the executor, submit an order, consume the second-canary network attempt, or restart the watcher.",
+      "authorization_evidence": "docs/evidence/phase-15-v3-terminal-telegram-intent-reconciliation-authorization-20260927.json"
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {
