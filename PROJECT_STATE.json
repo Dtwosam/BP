@@ -5528,7 +5528,7 @@
       "start_helper_git_blob_sha": "0538ec8d568303fa32fdf4488ecc374dd92d609a",
       "prepare_runner_git_blob_sha": "ed3ced72c75291a0fd79a15009b0a468561683d9",
       "prepare_service_unit_git_blob_sha": "2f162c9c17658d6917544b056176a56cc50bea46",
-      "canary_git_blob_sha": "df5e60b1b2ba632fd77d65103509fac70187be7d",
+      "canary_git_blob_sha": "14c3f508ec1a0c446af4c4ee92572075ffff3753",
       "live_git_blob_sha": "0617ffeda8365cdd6ab2636af00e58ca8954c4db",
       "arm_helper_git_blob_sha": "692d60cc73438a4703db2d74d56448ce868bd9fe",
       "executor_git_blob_sha": "0a0cdc42882c6de5d8b09d5f630826cd6fab39a3",
@@ -5556,7 +5556,11 @@
       "runtime_repair_additional_network_attempts_authorized": false,
       "runtime_repair_live_scope_expansion_authorized": false,
       "runtime_repair_source_main": "cea0bbfe93e4cec6b11ba620cfe5e5470157c22a",
-      "runtime_repair_evidence": "docs/evidence/phase-15-controlled-submission-supervisor-gcloud-python-path-repair-authorization-20260927.json"
+      "runtime_repair_evidence": "docs/evidence/phase-15-controlled-submission-supervisor-gcloud-python-path-repair-authorization-20260927.json",
+      "reconciliation_safety_rebind_performed": true,
+      "reconciliation_safety_rebind_scope": "Bind the existing controlled supervisor/watcher restart contract to the account-snapshot carry-forward safety fix in canary.py; no change to strategy, target notional, attempt count, or live authorization.",
+      "reconciliation_safety_rebind_evidence": "docs/evidence/phase-15-reconciliation-account-snapshot-bug-diagnosis-20260927.json",
+      "reconciliation_safety_rebind_additional_network_attempts_authorized": false
     },
     "reconciliation_account_snapshot_repair": {
       "status": "READY_NOT_AUTHORIZED",
