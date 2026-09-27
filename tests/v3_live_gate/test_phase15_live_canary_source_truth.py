@@ -328,7 +328,10 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
     )
     assert watch["helper_head"] == "271b35fffdb3ccff1490e213672dfa98b7583d75"
     assert watch["last_status"] == "prepared"
-    assert watch["last_status_reason"] == "fresh_second_canary_candidate_prepared_then_terminal_telegram_handoff_failed_no_retry"
+    assert watch["last_status_reason"] == (
+        "fresh_second_canary_candidate_prepared_then_terminal_"
+        "telegram_handoff_failed_no_retry"
+    )
     assert watch["current_run_fresh_candidate_required"] is True
     assert watch["current_run_historical_prepared_intents_forbidden"] is True
     assert watch["current_run_second_canary_network_attempt_consumed"] is False
