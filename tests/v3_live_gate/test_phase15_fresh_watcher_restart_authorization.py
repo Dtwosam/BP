@@ -43,11 +43,11 @@ def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None
     watch = gate["persistent_prepare_watch"]
     second = gate["second_live_canary_authorization"]
 
-    assert watch["status"] == "AUTHORIZED_FOR_UNTIL_CANDIDATE_RESTART"
-    assert watch["start_authorized"] is True
-    assert watch["service_active"] is False
-    assert watch["last_status"] == "expired"
-    assert watch["last_status_reason"] == "no_eligible_v3_trade_within_wait_window"
+    assert watch["status"] == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_CANDIDATE"
+    assert watch["start_authorized"] is False
+    assert watch["service_active"] is True
+    assert watch["last_status"] == "running"
+    assert watch["last_status_reason"] == "waiting_for_new_frozen_v3_trade_order"
     assert watch["post_expiry_restart_authorized"] is True
     assert watch["post_expiry_restart_authorization_consumed"] is True
     assert watch["post_expiry_restart_production_performed"] is True
@@ -439,9 +439,9 @@ def test_controlled_canary_until_candidate_watcher_is_authorized() -> None:
     controlled = gate["controlled_auto_approved_canary_authorization"]
     auth = controlled["until_candidate_prepare_authorization"]
 
-    assert watch["status"] == "AUTHORIZED_FOR_UNTIL_CANDIDATE_RESTART"
-    assert watch["start_authorized"] is True
-    assert watch["service_active"] is False
+    assert watch["status"] == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_CANDIDATE"
+    assert watch["start_authorized"] is False
+    assert watch["service_active"] is True
     assert watch["max_wait_seconds"] == 0
     assert watch["wait_mode"] == "until_candidate"
     assert watch["runtime_cap_removed"] is True
@@ -455,7 +455,7 @@ def test_controlled_canary_until_candidate_watcher_is_authorized() -> None:
     assert controlled["prepare_watcher_expected_expiry_at"] is None
 
     assert auth["authorized"] is True
-    assert auth["consumed"] is False
+    assert auth["consumed"] is True
     assert auth["one_shot"] is True
     assert auth["wait_mode"] == "until_candidate"
     assert auth["max_wait_seconds"] == 0
@@ -471,6 +471,17 @@ def test_controlled_canary_until_candidate_watcher_is_authorized() -> None:
     assert auth["auto_approver_may_handle_fresh_valid_prompt"] is True
     assert auth["max_network_submission_attempts"] == 1
     assert auth["additional_network_attempts_authorized"] is False
+    assert auth["production_restart_performed"] is True
+    assert auth["production_restart_result"] == "PASS"
+    assert auth["run_id"] == "phase15-prepare-watch-20260927T183730Z-fc79d368"
+    assert auth["service_active"] is True
+    assert auth["no_real_order_submitted"] is True
+    assert auth["arm_automated"] is False
+    assert auth["submission_automated"] is False
+    assert auth["submission_attempt_consumed"] is False
+    assert auth["helper_output_zero_seconds_means_until_candidate"] is True
+    assert "hard runtime cap of 2h5m" not in watch["safety"]
+    assert "no time expiry; stops after one prepared candidate or fail-closed terminal condition" in watch["safety"]
 
     assert auth["start_helper_git_blob_sha"] == "318479fc6c4059e078be3d2851f89874bda489f5"
     assert auth["runner_git_blob_sha"] == "ed3ced72c75291a0fd79a15009b0a468561683d9"
