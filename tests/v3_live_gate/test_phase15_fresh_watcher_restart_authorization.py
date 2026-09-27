@@ -94,7 +94,10 @@ def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None
         ]
         is False
     )
-    assert watch["post_terminal_reconciliation_restart_authorization_rebound_for_portability"] is True
+    assert (
+        watch["post_terminal_reconciliation_restart_authorization_rebound_for_portability"]
+        is True
+    )
 
     assert watch["fresh_restart_forbidden_intent_id"] == (
         "live-intent-4cb75bd0f114e378130b28d7699320e9"
