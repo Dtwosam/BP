@@ -268,9 +268,9 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
     assert activation["official_reconciliation_required_before_any_third_order"] is True
     assert activation["broad_autonomous_live_rollout_authorized"] is False
     assert gate["pending_unsubmitted_intent"] is None
-    assert watch["status"] == "AUTHORIZED_FOR_FRESH_POST_EXPIRY_RESTART"
+    assert watch["status"] == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_CANDIDATE"
     assert watch["authorized"] is True
-    assert watch["start_authorized"] is True
+    assert watch["start_authorized"] is False
     assert watch["runtime_reauthorization_required"] is False
     assert watch["runtime_reauthorization_authorized"] is True
     assert watch["runtime_reauthorization_authorized_at_main"] == (
