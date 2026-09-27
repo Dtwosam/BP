@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-telegram-auto-approver-fixed-scale-spend-repair-production",
+  "source_main": "f93d954f08392fc48cacc57b7b500858c7c4a355",
+  "repair_date_utc": "2026-09-27",
+  "incident": {
+    "intent_id": "live-intent-c1e1092765b9fda4bfb0125439e8ee1b",
+    "telegram_message_id": 5450,
+    "prompt_received_at": "2026-09-27T22:59:09.096449Z",
+    "rejection_event": "UNEXPECTED_MESSAGE_FORMAT",
+    "rejection_reason": "prompt_mismatch",
+    "candidate_expired_at": "2026-09-27T22:59:50.926627Z",
+    "handoff_created": false,
+    "network_submission_attempt_consumed": false,
+    "real_order_submitted": false
+  },
+  "root_cause": {
+    "status": "CONFIRMED",
+    "description": "The auto-approver parsed the maximum-spend field numerically but then required its original text to equal the literal canonical string '5'. Frozen-V3 requests can serialize the exact same authorized amount with fixed scale, for example 5.000000000000000000, so a numerically exact five-dollar prompt was rejected before callback dispatch.",
+    "safety_property_preserved": "Only Decimal-equivalent values exactly equal to TARGET_NOTIONAL_USD=5 are accepted; numerically different values remain rejected."
+  },
+  "code_repair": {
+    "pull_request": 358,
+    "merge_commit": "f93d954f08392fc48cacc57b7b500858c7c4a355",
+    "parser_path": "ops/telegram_auto_approver/bp_telegram_auto_approver/contract.py",
+    "regression_test_path": "tests/telegram_auto_approver/test_contract.py",
+    "ci": {
+      "CI": "success",
+      "Live_Recorder_Smoke": "success",
+      "Historical_Backfill_Smoke": "success",
+      "Recorder_Short_Soak": "success"
+    }
+  },
+  "production_runtime": {
+    "target": "operator Telegram user account on the user's Mac",
+    "checkout": "/Users/Dtwo1/Developer/BP-adaptive-188",
+    "verified_head": "f93d954f08392fc48cacc57b7b500858c7c4a355",
+    "worktree_clean_before_update": true,
+    "fixed_scale_five_dollar_prompt_test": "PASS",
+    "non_five_dollar_prompt_rejection_test": "PASS",
+    "live_auto_approve_config": true,
+    "previous_pid": 73154,
+    "current_pid": 1292,
+    "service_state": "running",
+    "last_exit_code": 0,
+    "restarted_at": "2026-09-27T23:41:25.652081Z",
+    "bot_identity_confirmed": true,
+    "bot_user_id": 8544579330,
+    "bot_username": "bp2026bot",
+    "mode": "live-auto-approve",
+    "swept_unconfirmed": 0,
+    "startup_latest_message_id": 5450,
+    "startup_latest_message_result": "rejected_edit_ignored",
+    "stderr_empty": true
+  },
+  "safety": {
+    "global_live_trading_enabled": false,
+    "v3_strategy_mutated": false,
+    "v4_strategy_mutated": false,
+    "stake_growth_authorized": false,
+    "broad_autonomous_live_rollout_authorized": false,
+    "executor_manually_armed_or_invoked": false,
+    "order_submission_performed_by_repair": false,
+    "network_submission_attempt_consumed_by_repair": false,
+    "additional_network_attempts_authorized": false,
+    "existing_second_canary_max_network_submission_attempts": 1
+  },
+  "result": "PASS"
+}
