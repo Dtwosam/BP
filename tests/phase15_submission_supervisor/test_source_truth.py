@@ -26,6 +26,7 @@ EVIDENCE = (
     / "evidence"
     / "phase-15-controlled-submission-supervisor-authorization-20260927.json"
 )
+INSTALLER = ROOT / "ops" / "phase15_submission_supervisor" / "install_macos.sh"
 
 
 def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
@@ -166,3 +167,36 @@ def test_authorization_evidence_matches_source_truth() -> None:
 
     for field, value in evidence["bindings"].items():
         assert supervisor[field] == value
+
+
+def test_macos_installer_is_explicit_and_secret_free() -> None:
+    text = INSTALLER.read_text(encoding="utf-8")
+    for marker in (
+        "PHASE15_ACCEPT_CONTROLLED_SUBMISSION_SUPERVISOR",
+        "explicit_supervisor_install_authorization_required",
+        "BP_TELEGRAM_AUTO_APPROVE=true",
+        "com.bp.telegram-auto-approver",
+        "installer_git_blob_sha",
+        "AUTHORIZED_NOT_DEPLOYED",
+        "MAX_NETWORK_SUBMISSION_ATTEMPTS=1",
+        "TARGET_NOTIONAL_USD=5",
+        "SuccessfulExit",
+        "PHASE15_CONTROLLED_SUBMISSION_SUPERVISOR_INSTALL=PASS",
+    ):
+        assert marker in text
+
+    for forbidden in (
+        "POLYMARKET_PRIVATE_KEY",
+        "POLYMARKET_WALLET_ADDRESS",
+        "BP_TELEGRAM_BOT_TOKEN",
+        "PHASE15_ACCEPT_REAL_MONEY",
+    ):
+        assert forbidden not in text
+
+    completed = subprocess.run(
+        ["bash", "-n", str(INSTALLER)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
