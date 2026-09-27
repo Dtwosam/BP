@@ -43,11 +43,11 @@ def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None
     watch = gate["persistent_prepare_watch"]
     second = gate["second_live_canary_authorization"]
 
-    assert watch["status"] == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_CANDIDATE"
-    assert watch["start_authorized"] is False
-    assert watch["service_active"] is True
-    assert watch["last_status"] == "running"
-    assert watch["last_status_reason"] == "waiting_for_new_frozen_v3_trade_order"
+    assert watch["status"] == "AUTHORIZED_FOR_CONTROLLED_CANARY_RESTART"
+    assert watch["start_authorized"] is True
+    assert watch["service_active"] is False
+    assert watch["last_status"] == "expired"
+    assert watch["last_status_reason"] == "no_eligible_v3_trade_within_wait_window"
     assert watch["post_expiry_restart_authorized"] is True
     assert watch["post_expiry_restart_authorization_consumed"] is True
     assert watch["post_expiry_restart_production_performed"] is True
@@ -390,3 +390,41 @@ def test_second_post_expiry_restart_production_pass_matches_operator_output() ->
     assert evidence["operator_output"]["no_real_order_submitted"] is True
     assert evidence["operator_output"]["arm_automated"] is False
     assert evidence["operator_output"]["submission_automated"] is False
+
+
+def test_controlled_canary_fresh_prepare_restart_is_authorized_after_clean_expiry() -> None:
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    gate = state["phase_15_v3_live_canary"]
+    watch = gate["persistent_prepare_watch"]
+    controlled = gate["controlled_auto_approved_canary_authorization"]
+    restart = controlled["fresh_prepare_restart_authorization"]
+
+    assert controlled["consumed"] is False
+    assert controlled["network_attempt_observed"] is False
+    assert controlled["real_order_submission_observed"] is False
+    assert controlled["prepare_watcher_result"] == "expired_no_eligible_candidate"
+
+    assert restart["authorized"] is True
+    assert restart["consumed"] is False
+    assert restart["one_shot"] is True
+    assert restart["max_wait_seconds"] == 7200
+    assert restart["prepare_only"] is True
+    assert restart["research_mode"] is True
+    assert restart["zero_money"] is True
+    assert restart["requires_new_candidate_after_activation"] is True
+    assert restart["previous_run_id"] == "phase15-prepare-watch-20260927T154458Z-656caf74"
+    assert restart["previous_run_status"] == "expired"
+    assert restart["previous_real_order_submitted"] is False
+    assert restart["previous_arm_attempted"] is False
+    assert restart["previous_submission_attempt_consumed"] is False
+    assert restart["controlled_canary_authorization_remains_unconsumed"] is True
+    assert restart["auto_approver_may_handle_fresh_valid_prompt"] is True
+    assert restart["does_not_authorize_additional_network_attempts_beyond_existing_second_canary_limit"] is True
+
+    assert restart["start_helper_git_blob_sha"] == "3d883da14592f230dc0ea7a51b76991ea898bede"
+    assert restart["runner_git_blob_sha"] == "efe6dc9c3b37f5788b701107366bb634a4b1f357"
+    assert restart["service_unit_git_blob_sha"] == "5e20c65edd57e398d2106c7f6fe93fbb477b7572"
+    assert restart["canary_git_blob_sha"] == "df5e60b1b2ba632fd77d65103509fac70187be7d"
+    assert restart["live_git_blob_sha"] == "0617ffeda8365cdd6ab2636af00e58ca8954c4db"
+    assert restart["arm_helper_git_blob_sha"] == "692d60cc73438a4703db2d74d56448ce868bd9fe"
+    assert restart["executor_git_blob_sha"] == "0a0cdc42882c6de5d8b09d5f630826cd6fab39a3"
