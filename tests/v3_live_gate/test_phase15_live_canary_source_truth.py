@@ -268,9 +268,9 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
     assert activation["official_reconciliation_required_before_any_third_order"] is True
     assert activation["broad_autonomous_live_rollout_authorized"] is False
     assert gate["pending_unsubmitted_intent"] is None
-    assert watch["status"] == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_POST_RECONCILIATION_CANDIDATE"
+    assert watch["status"] == "AUTHORIZED_FRESH_RESTART_NOT_STARTED"
     assert watch["authorized"] is True
-    assert watch["start_authorized"] is False
+    assert watch["start_authorized"] is True
     assert watch["runtime_reauthorization_required"] is False
     assert watch["runtime_reauthorization_authorized"] is True
     assert watch["runtime_reauthorization_authorized_at_main"] == (
@@ -319,7 +319,7 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
     assert watch["prepare_only"] is True
     assert watch["arm_automated"] is False
     assert watch["submission_automated"] is False
-    assert watch["service_active"] is True
+    assert watch["service_active"] is False
     assert watch["start_result"] == "PASS"
     assert watch["run_id"] == "phase15-prepare-watch-20260926T195409Z-271b35ff"
     assert watch["remote_run_dir"] == (
@@ -327,15 +327,18 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
         "phase15-prepare-watch-20260926T195409Z-271b35ff"
     )
     assert watch["helper_head"] == "271b35fffdb3ccff1490e213672dfa98b7583d75"
-    assert watch["last_status"] == "waiting_for_fresh_candidate"
-    assert watch["last_status_reason"] == "post_reconciliation_prepare_only_watcher_restarted"
+    assert watch["last_status"] == "prepared"
+    assert watch["last_status_reason"] == (
+        "fresh_second_canary_candidate_prepared_then_terminal_"
+        "telegram_handoff_failed_no_retry"
+    )
     assert watch["current_run_fresh_candidate_required"] is True
     assert watch["current_run_historical_prepared_intents_forbidden"] is True
     assert watch["current_run_second_canary_network_attempt_consumed"] is False
     assert watch["second_canary_network_attempt_consumed"] is False
     assert watch["second_canary_authorization_preserved"] is True
     assert watch["no_real_order_submitted"] is True
-    assert watch["telegram_approval_performed"] is False
+    assert watch["telegram_approval_performed"] is True
     assert watch["executor_armed"] is False
     assert watch["executor_invoked"] is False
     assert watch["order_submission_performed"] is False
