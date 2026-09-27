@@ -321,14 +321,14 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
     assert watch["submission_automated"] is False
     assert watch["service_active"] is True
     assert watch["start_result"] == "PASS"
-    assert watch["run_id"] == "phase15-prepare-watch-20260927T094843Z-4b584f95"
+    assert watch["run_id"] == "phase15-prepare-watch-20260927T183730Z-fc79d368"
     assert watch["remote_run_dir"] == (
         "/var/lib/bp/phase15-canary-prepare-watch/runs/"
-        "phase15-prepare-watch-20260927T094843Z-4b584f95"
+        "phase15-prepare-watch-20260927T183730Z-fc79d368"
     )
-    assert watch["helper_head"] == "4b584f95256844a1fef42740e5b4008daa1cdd48"
-    assert watch["last_status"] == "failed"
-    assert watch["last_status_reason"] == "canary_prepare_blocked"
+    assert watch["helper_head"] == "fc79d36875a51375635c1f6e193681b4fe88914b"
+    assert watch["last_status"] == "running"
+    assert watch["last_status_reason"] == "waiting_for_new_frozen_v3_trade_order"
     assert watch["current_run_fresh_candidate_required"] is True
     assert watch["current_run_historical_prepared_intents_forbidden"] is True
     assert watch["current_run_second_canary_network_attempt_consumed"] is False
@@ -589,12 +589,12 @@ def test_phase15_telegram_transport_runtime_repair_completed() -> None:
 
 
 
-def test_operator_telegram_auto_approver_is_live_authorized_but_not_yet_deployed() -> None:
+def test_operator_telegram_auto_approver_authorization_is_preserved_after_deploy() -> None:
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     gate = state["phase_15_v3_live_canary"]
     auto = gate["operator_telegram_auto_approver"]
 
-    assert auto["status"] == "AUTHORIZED_NOT_DEPLOYED"
+    assert auto["status"] == "ACTIVE_LIVE_AUTO_APPROVE"
     assert auto["implementation_merge_commit"] == "2ef544b5a2af821e4b59fd00bd2615dbab3ca798"
     assert auto["reviewed_branch_commit"] == "523ba46ec22f8b47b505bf1e767152b49437912b"
     assert auto["approval_contract_git_blob_sha"] == "930b62514712bd40400550da3ea5bbed533198da"
@@ -615,8 +615,8 @@ def test_operator_telegram_auto_approver_is_live_authorized_but_not_yet_deployed
     assert auto["v4_mutation_authorized"] is False
     assert auto["broad_autonomous_live_rollout_authorized"] is False
     assert auto["bypass_downstream_validation_authorized"] is False
-    assert auto["deployment_performed"] is False
-    assert auto["activation_performed"] is False
+    assert auto["deployment_performed"] is True
+    assert auto["activation_performed"] is True
 
 
 def test_operator_telegram_auto_approver_activation_is_recorded() -> None:
@@ -647,7 +647,7 @@ def test_controlled_auto_approved_second_canary_is_explicitly_authorized() -> No
     assert auth["existing_second_canary_authorization_required"] is True
     assert auth["auto_approver_required"] is True
     assert auth["auto_approver_mode_required"] == "live-auto-approve"
-    assert auth["prepare_watcher_run_id"] == "phase15-prepare-watch-20260927T154458Z-656caf74"
+    assert auth["prepare_watcher_run_id"] == "phase15-prepare-watch-20260927T183730Z-fc79d368"
     assert auth["requires_fresh_candidate"] is True
     assert auth["target_notional_usd"] == 5
     assert auth["max_network_submission_attempts"] == 1
