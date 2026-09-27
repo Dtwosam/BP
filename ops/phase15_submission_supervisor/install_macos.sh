@@ -41,8 +41,8 @@ GCLOUD=$(command -v gcloud || true)
   echo "REASON=gcloud_auth_missing" >&2
   exit 1
 }
-PYTHON=$(command -v python3)
-[[ -n "$PYTHON" ]] || {
+PYTHON=$(command -v python3 || true)
+[[ -n "$PYTHON" && -x "$PYTHON" ]] || {
   echo "PHASE15_CONTROLLED_SUBMISSION_SUPERVISOR_INSTALL=FAIL" >&2
   echo "REASON=python3_missing" >&2
   exit 1
@@ -163,6 +163,8 @@ cat > "$PLIST" <<EOF
     <string>$STATE_ROOT</string>
     <string>--gcloud-bin</string>
     <string>$GCLOUD</string>
+    <string>--python-bin</string>
+    <string>$PYTHON</string>
   </array>
 
   <key>WorkingDirectory</key>
@@ -201,6 +203,7 @@ echo "MANAGED_REPO=$MANAGED_REPO"
 echo "STATE_ROOT=$STATE_ROOT"
 echo "SUPERVISOR_MAIN=$MANAGED_HEAD"
 echo "GCLOUD_BIN=$GCLOUD"
+echo "PYTHON_BIN=$PYTHON"
 echo "AUTO_APPROVER_REQUIRED=true"
 echo "MAX_NETWORK_SUBMISSION_ATTEMPTS=1"
 echo "TARGET_NOTIONAL_USD=5"
