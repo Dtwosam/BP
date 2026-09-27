@@ -43,11 +43,11 @@ def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None
     watch = gate["persistent_prepare_watch"]
     second = gate["second_live_canary_authorization"]
 
-    assert watch["status"] == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_CANDIDATE"
-    assert watch["start_authorized"] is False
-    assert watch["service_active"] is True
-    assert watch["last_status"] == "running"
-    assert watch["last_status_reason"] == "waiting_for_new_frozen_v3_trade_order"
+    assert watch["status"] == "AUTHORIZED_FOR_FRESH_POST_EXPIRY_RESTART"
+    assert watch["start_authorized"] is True
+    assert watch["service_active"] is False
+    assert watch["last_status"] == "expired"
+    assert watch["last_status_reason"] == "no_eligible_v3_trade_within_wait_window"
     assert watch["post_expiry_restart_authorized"] is True
     assert watch["post_expiry_restart_authorization_consumed"] is True
     assert watch["post_expiry_restart_production_performed"] is True
@@ -335,3 +335,28 @@ def test_start_helper_remains_prepare_only_and_fail_closed() -> None:
     ):
         assert marker in text
     assert "base64 -w0" not in text
+
+
+def test_second_post_expiry_restart_is_freshly_authorized() -> None:
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    watch = state["phase_15_v3_live_canary"]["persistent_prepare_watch"]
+    auth = watch["second_post_expiry_restart_authorization"]
+
+    assert auth["authorized"] is True
+    assert auth["consumed"] is False
+    assert auth["one_shot"] is True
+    assert auth["max_wait_seconds"] == 7200
+    assert auth["prepare_only"] is True
+    assert auth["research_mode"] is True
+    assert auth["zero_money"] is True
+    assert auth["requires_new_candidate_after_activation"] is True
+    assert auth["previous_run_id"] == "phase15-prepare-watch-20260927T122620Z-31ba83ab"
+    assert auth["previous_run_status"] == "expired"
+    assert auth["previous_run_reason"] == "no_eligible_v3_trade_within_wait_window"
+    assert auth["previous_arm_attempted"] is False
+    assert auth["previous_real_order_submitted"] is False
+    assert auth["previous_submission_attempt_consumed"] is False
+    assert auth["does_not_authorize_telegram_approve"] is True
+    assert auth["does_not_authorize_executor_arm_or_invoke"] is True
+    assert auth["does_not_authorize_order_submission"] is True
+    assert auth["does_not_authorize_live_trading_enablement"] is True
