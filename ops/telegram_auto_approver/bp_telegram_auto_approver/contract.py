@@ -133,15 +133,21 @@ def parse_prompt(text: str | None) -> PromptMatch | None:
         return None
     side, limit_price, shares, spend, remaining_text = match.groups()
     source = approval_source()
-    if spend != format(source.TARGET_NOTIONAL_USD, "f"):
-        return None
     try:
         limit = Decimal(limit_price)
         share_count = Decimal(shares)
+        spend_value = Decimal(spend)
         remaining = Decimal(remaining_text)
     except ArithmeticError:
         return None
-    if not limit.is_finite() or not share_count.is_finite() or not remaining.is_finite():
+    if (
+        not limit.is_finite()
+        or not share_count.is_finite()
+        or not spend_value.is_finite()
+        or not remaining.is_finite()
+    ):
+        return None
+    if spend_value != source.TARGET_NOTIONAL_USD:
         return None
     if not Decimal("0") < limit <= Decimal("1"):
         return None
@@ -153,7 +159,7 @@ def parse_prompt(text: str | None) -> PromptMatch | None:
         side=side,
         limit_price=format(limit, "f"),
         shares=format(share_count, "f"),
-        maximum_spend=spend,
+        maximum_spend=format(source.TARGET_NOTIONAL_USD, "f"),
         time_remaining=remaining,
     )
 
