@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-reconciliation-account-snapshot-repair-authorization",
+  "observed_date": "2026-09-27",
+  "source_main": "5738b56366a256f841c2c04219b4e478c8b95946",
+  "authorization": {
+    "received": true,
+    "source": "explicit user authorization in BP project chat",
+    "scope": "One-time production reconciliation account-snapshot repair only.",
+    "order_submission_authorized": false,
+    "network_submission_attempt_authorized": false,
+    "executor_arm_or_invoke_authorized": false,
+    "telegram_approval_authorized": false,
+    "live_trading_enablement_authorized": false,
+    "strategy_mutation_authorized": false,
+    "additional_network_attempts_authorized": false
+  },
+  "target": {
+    "intent_id": "live-intent-4cb75bd0f114e378130b28d7699320e9",
+    "expected_terminal_reconciliation_id": "live-reconciliation-745a1e86a0075b4e98cdfbb30517a154",
+    "expected_account_snapshot_source_reconciliation_id": "live-reconciliation-81489372163985723f74f2003c7ef1d7"
+  },
+  "bindings": {
+    "helper_git_blob_sha": "c62d97971fef62ca1418363449035cf69d1854aa",
+    "canary_git_blob_sha": "14c3f508ec1a0c446af4c4ee92572075ffff3753"
+  },
+  "production_mutation_performed": false,
+  "status": "AUTHORIZED_NOT_EXECUTED"
+}
