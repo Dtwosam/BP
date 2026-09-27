@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-reconciliation-account-snapshot-repair-production-pass",
+  "observed_date": "2026-09-27",
+  "executed_from_main": "88c14929eeddec51910386aabf18b9d54e8175c5",
+  "result": "PASS",
+  "repair": {
+    "status": "repaired",
+    "target_intent_id": "live-intent-4cb75bd0f114e378130b28d7699320e9",
+    "new_reconciliation_id": "live-reconciliation-5f601ea527ff9776ea905302e862ce27",
+    "carried_from_reconciliation_id": "live-reconciliation-81489372163985723f74f2003c7ef1d7",
+    "before_unresolved_critical_reconciliation": 1,
+    "after_unresolved_critical_reconciliation": 0
+  },
+  "safety": {
+    "order_submission_performed": false,
+    "submission_attempt_consumed_by_repair": false,
+    "network_submission_attempt_consumed_by_repair": false,
+    "live_trading_enablement_performed": false,
+    "strategy_mutation_performed": false
+  },
+  "source": "operator-provided successful helper output",
+  "production_mutation_performed": true
+}
