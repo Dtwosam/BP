@@ -147,7 +147,14 @@ git archive --format=tar.gz --output="$ARCHIVE" "$LOCAL_HEAD" \
   deploy/bp-phase15-canary-prepare-watch.service \
   src/bp_engine/execution/live.py \
   src/bp_engine/execution/canary.py
-ARCHIVE_SHA256=$(sha256sum "$ARCHIVE" | awk '{print $1}')
+ARCHIVE_SHA256=$(python3 - "$ARCHIVE" <<'PY'
+import hashlib
+import sys
+from pathlib import Path
+
+print(hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest())
+PY
+)
 REMOTE_ARCHIVE="/tmp/bp-phase15-prepare-watch-$LOCAL_HEAD.tar.gz"
 gcloud compute scp "$ARCHIVE" "$US_VM:$REMOTE_ARCHIVE" \
   --project="$PROJECT" --zone="$US_ZONE" --quiet
@@ -298,7 +305,12 @@ rm -f "$ARCHIVE"
 REMOTE
 )
 
-REMOTE_B64=$(printf '%s' "$REMOTE_SCRIPT" | base64 -w0)
+REMOTE_B64=$(printf '%s' "$REMOTE_SCRIPT" | python3 -c '
+import base64
+import sys
+
+sys.stdout.write(base64.b64encode(sys.stdin.buffer.read()).decode("ascii"))
+')
 
 gcloud compute ssh "$US_VM" \
   --project="$PROJECT" \

@@ -4339,7 +4339,7 @@
     "second_order_authorized": true,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "Run exactly one newly authorized 7200-second prepare-only watcher restart from current main using the unchanged bound watcher artifacts. The restart is research/zero-money only and must prepare only a NEW paper-derived candidate created after this watcher activation. Do not reuse terminal intent live-intent-4cb75bd0f114e378130b28d7699320e9 or its prediction/order. This authorization does not cover Telegram APPROVE, executor arm/invocation, order submission, or live-trading enablement. The second-canary network submission attempt remains unconsumed.",
+    "next_action": "Run exactly one newly authorized 7200-second prepare-only watcher restart from current main using the portability-fixed bound start helper and otherwise unchanged watcher/runtime artifacts. The restart is research/zero-money only and must prepare only a NEW paper-derived candidate created after this watcher activation. Do not reuse terminal intent live-intent-4cb75bd0f114e378130b28d7699320e9 or its prediction/order. This authorization does not cover Telegram APPROVE, executor arm/invocation, order submission, or live-trading enablement. The second-canary network submission attempt remains unconsumed.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
@@ -4643,7 +4643,8 @@
       "post_terminal_reconciliation_restart_forbidden_intent_id": "live-intent-4cb75bd0f114e378130b28d7699320e9",
       "post_terminal_reconciliation_restart_forbidden_prediction_id": "cca4840dcf6034ac624a48ca3e88e91e4f5d3a96b5d334705e4c1694e449c05c",
       "post_terminal_reconciliation_restart_forbidden_paper_order_id": "18072fef623e29fa095c433cdd0657958848c5e6a34c194ae6527e532c4dc2ab",
-      "post_terminal_reconciliation_restart_start_helper_git_blob_sha": "0a98b03e35d8019a85063e45d1a979fea96c0532",
+      "post_terminal_reconciliation_restart_start_helper_git_blob_sha": "3d883da14592f230dc0ea7a51b76991ea898bede",
+      "post_terminal_reconciliation_restart_original_start_helper_git_blob_sha": "0a98b03e35d8019a85063e45d1a979fea96c0532",
       "post_terminal_reconciliation_restart_runner_git_blob_sha": "efe6dc9c3b37f5788b701107366bb634a4b1f357",
       "post_terminal_reconciliation_restart_service_unit_git_blob_sha": "5e20c65edd57e398d2106c7f6fe93fbb477b7572",
       "post_terminal_reconciliation_restart_canary_git_blob_sha": "df5e60b1b2ba632fd77d65103509fac70187be7d",
@@ -4656,7 +4657,12 @@
       "post_terminal_reconciliation_restart_does_not_authorize_live_trading_enablement": true,
       "post_terminal_reconciliation_restart_second_canary_network_attempt_consumed": false,
       "post_terminal_reconciliation_restart_production_performed": false,
-      "post_terminal_reconciliation_restart_evidence": "docs/evidence/phase-15-v3-post-terminal-reconciliation-watcher-restart-authorization-20260927.json"
+      "post_terminal_reconciliation_restart_evidence": "docs/evidence/phase-15-v3-post-terminal-reconciliation-watcher-restart-authorization-20260927.json",
+      "post_terminal_reconciliation_restart_portability_repair": "Replace local GNU-only base64 -w0 and sha256sum usage with Python stdlib base64/hashlib so the authorized watcher start helper runs on both macOS and Linux. Remote Linux-only decoding/hash verification is unchanged.",
+      "post_terminal_reconciliation_restart_portability_repair_base_main": "91d1564790378fc3d7fc3efbb1b972cc7a6feee9",
+      "post_terminal_reconciliation_restart_authorization_scope_changed_by_helper_repair": false,
+      "post_terminal_reconciliation_restart_authorization_rebound_for_portability": true,
+      "post_terminal_reconciliation_restart_portability_repair_evidence": "docs/evidence/phase-15-v3-post-terminal-reconciliation-watcher-restart-macos-portability-20260927.json"
     },
     "transient_risk_retry_fix": {
       "status": "PRODUCTION_ACTIVE",
