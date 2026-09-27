@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-controlled-submission-supervisor-activation-pass-production",
+  "observed_date": "2026-09-27",
+  "source_main": "0c146fa0dc502c1855c5636f89e363667a1f71f3",
+  "source": "operator-provided installer output",
+  "installer_result": "PASS",
+  "installer_output": {
+    "supervisor_main": "0c146fa0dc502c1855c5636f89e363667a1f71f3",
+    "auto_approver_required": true,
+    "max_network_submission_attempts": 1,
+    "target_notional_usd": 5,
+    "result_marker": "PHASE15_CONTROLLED_SUBMISSION_SUPERVISOR_INSTALL=PASS"
+  },
+  "verified_by_installer_contract": {
+    "managed_repository_at_current_main": true,
+    "telegram_auto_approver_env_live_enabled": true,
+    "telegram_auto_approver_launch_agent_running": true,
+    "submission_supervisor_launch_agent_bootstrapped": true,
+    "submission_supervisor_launch_agent_kickstarted": true,
+    "submission_supervisor_launch_agent_visible_to_launchctl": true
+  },
+  "resulting_source_truth": {
+    "status": "ACTIVE_WAITING_FOR_REAL_SUBMISSION",
+    "deployment_performed": true,
+    "activation_performed": true,
+    "activation_result": "PASS",
+    "completed": false,
+    "target_notional_usd": 5,
+    "max_network_submission_attempts": 1
+  },
+  "safety_preserved": {
+    "additional_network_attempts_authorized": false,
+    "global_live_trading_enablement_authorized": false,
+    "third_order_authorized": false,
+    "stake_growth_authorized": false,
+    "v3_strategy_mutation_authorized": false,
+    "v4_strategy_mutation_authorized": false,
+    "broad_autonomous_live_rollout_authorized": false,
+    "official_reconciliation_required_after_success": true
+  },
+  "note": "Installer PASS proves the launch agent passed its install-time launchctl verification. This evidence does not claim a real order was submitted or that the second-canary network attempt was consumed."
+}
