@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-controlled-submission-supervisor-gcloud-python-path-repair-authorization",
+  "observed_date": "2026-09-27",
+  "source_main": "cea0bbfe93e4cec6b11ba620cfe5e5470157c22a",
+  "incident": {
+    "observed_at": "2026-09-27T20:06:39.599538+00:00",
+    "runtime_health_status": "DEGRADED_GCLOUD_PYTHON_PATH",
+    "runtime_issue": "launchagent_gcloud_python_path_missing",
+    "symptom": "The LaunchAgent found the exact Homebrew gcloud executable, but the Cloud SDK process still failed immediately under launchd and emitted the Google Cloud CLI install documentation URL."
+  },
+  "diagnosis": {
+    "summary": "The Homebrew Cloud SDK launcher requires a supported Python runtime discoverable in its process environment. The LaunchAgent environment did not include the Homebrew Python directory.",
+    "official_reference": "Google Cloud CLI startup/install documentation requires supported Python on macOS; Homebrew installs should use their installation environment rather than forcing CLOUDSDK_PYTHON.",
+    "watcher_affected": false,
+    "telegram_auto_approver_affected": false,
+    "network_submission_attempt_observed": false,
+    "real_order_submission_observed": false
+  },
+  "authorized_repair": {
+    "exact_gcloud_binary_path_required": true,
+    "exact_python_binary_path_required": true,
+    "both_discovered_by": "command -v",
+    "supervisor_args": [
+      "--gcloud-bin",
+      "--python-bin"
+    ],
+    "deterministic_path_components": [
+      "gcloud_bin.parent",
+      "python_bin.parent",
+      "/usr/bin",
+      "/bin",
+      "/usr/sbin",
+      "/sbin"
+    ],
+    "propagated_to_child_helpers": true,
+    "additional_network_attempts_authorized": false,
+    "live_scope_expansion_authorized": false
+  },
+  "bindings": {
+    "supervisor_git_blob_sha": "0f3e0f01cb26225524d2007347708ac502f7f396",
+    "installer_git_blob_sha": "a9ec9346ab5ec38f355134ad0379f55c04416e7d"
+  },
+  "repair_completed": false
+}
