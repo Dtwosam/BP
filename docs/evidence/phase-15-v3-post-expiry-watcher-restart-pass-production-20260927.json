@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-post-expiry-watcher-restart-pass-production",
+  "source_main": "31ba83abdd76a061dc4e3f6f0ce28fa09fa39587",
+  "authorization_evidence": "docs/evidence/phase-15-v3-post-expiry-watcher-restart-authorization-20260927.json",
+  "run": {
+    "run_id": "phase15-prepare-watch-20260927T122620Z-31ba83ab",
+    "remote_run_dir": "/var/lib/bp/phase15-canary-prepare-watch/runs/phase15-prepare-watch-20260927T122620Z-31ba83ab",
+    "service_active": true,
+    "max_wait_seconds": 7200,
+    "prepare_only": true
+  },
+  "operator_output": {
+    "start_result": "PASS",
+    "no_real_order_submitted": true,
+    "arm_automated": false,
+    "submission_automated": false
+  },
+  "safety": {
+    "live_trading_enabled": false,
+    "real_order_submitted": false,
+    "arm_attempted": false,
+    "submission_attempt_consumed": false,
+    "v3_strategy_changed": false,
+    "v4_changed": false
+  },
+  "authorization_consumed": true,
+  "result": "PASS"
+}
