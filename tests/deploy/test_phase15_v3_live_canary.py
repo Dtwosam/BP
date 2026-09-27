@@ -415,6 +415,8 @@ def test_persistent_prepare_start_requires_explicit_scope_and_health_only() -> N
         'watch.get("runtime_reauthorization_required") is False',
         "BP_PHASE15_PREPARE_AUTHORIZED_SUBMISSION_ATTEMPT_LIMIT=2",
         "BP_PHASE15_PREPARE_AUTHORIZED_ACCEPTED_ORDER_LIMIT=2",
+        "hashlib.sha256",
+        "base64.b64encode",
     ):
         assert marker in text
     assert "deploy/bp-phase15-canary-prepare-watch.service" in text
@@ -446,6 +448,7 @@ def test_persistent_prepare_start_requires_explicit_scope_and_health_only() -> N
         "create_limit_order",
         "PHASE15_ACCEPT_REAL_MONEY",
         "systemctl enable",
+        "base64 -w0",
     ):
         assert forbidden not in text
 
