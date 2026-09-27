@@ -33,6 +33,12 @@ ACTIVATION_EVIDENCE = (
     / "evidence"
     / "phase-15-controlled-submission-supervisor-activation-pass-production-20260927.json"
 )
+RUNTIME_REPAIR_COMPLETION_EVIDENCE = (
+    ROOT
+    / "docs"
+    / "evidence"
+    / "phase-15-controlled-submission-supervisor-runtime-repair-completion-20260927.json"
+)
 
 
 def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
@@ -87,10 +93,18 @@ def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
         "docs/evidence/"
         "phase-15-controlled-submission-supervisor-activation-pass-production-20260927.json"
     )
-    assert supervisor["runtime_health_status"] == "DEGRADED_GCLOUD_PYTHON_PATH"
+    assert supervisor["runtime_health_status"] == "HEALTHY"
     assert supervisor["runtime_issue"] == "launchagent_gcloud_python_path_missing"
     assert supervisor["runtime_repair_authorized"] is True
-    assert supervisor["runtime_repair_completed"] is False
+    assert supervisor["runtime_repair_completed"] is True
+    assert supervisor["runtime_repair_completed_at"] == "2026-09-27T20:30:28.267707+00:00"
+    assert supervisor["runtime_repair_verified_healthy_through"] == (
+        "2026-09-27T20:40:01.941354+00:00"
+    )
+    assert supervisor["runtime_repair_completion_evidence"] == (
+        "docs/evidence/"
+        "phase-15-controlled-submission-supervisor-runtime-repair-completion-20260927.json"
+    )
     assert supervisor["runtime_repair_additional_network_attempts_authorized"] is False
     assert supervisor["runtime_repair_live_scope_expansion_authorized"] is False
 
@@ -258,6 +272,7 @@ def test_macos_installer_is_explicit_and_secret_free() -> None:
         "<string>--gcloud-bin</string>",
         "<string>--python-bin</string>",
         "DEGRADED_GCLOUD_NOT_FOUND",
+        '"HEALTHY"',
         "runtime_repair_authorized",
         "PHASE15_CONTROLLED_SUBMISSION_SUPERVISOR_INSTALL=PASS",
     ):
@@ -332,11 +347,44 @@ def test_gcloud_python_path_repair_evidence_matches_source_truth() -> None:
     evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
 
     assert evidence["source_main"] == "cea0bbfe93e4cec6b11ba620cfe5e5470157c22a"
-    assert evidence["incident"]["runtime_health_status"] == supervisor["runtime_health_status"]
+    assert evidence["incident"]["runtime_health_status"] == "DEGRADED_GCLOUD_PYTHON_PATH"
     assert evidence["incident"]["runtime_issue"] == supervisor["runtime_issue"]
     assert evidence["authorized_repair"]["exact_gcloud_binary_path_required"] is True
     assert evidence["authorized_repair"]["exact_python_binary_path_required"] is True
     assert evidence["authorized_repair"]["propagated_to_child_helpers"] is True
     assert evidence["authorized_repair"]["additional_network_attempts_authorized"] is False
     assert evidence["bindings"]["supervisor_git_blob_sha"] == supervisor["supervisor_git_blob_sha"]
-    assert evidence["bindings"]["installer_git_blob_sha"] == supervisor["installer_git_blob_sha"]
+    assert evidence["bindings"]["installer_git_blob_sha"] == (
+        "a9ec9346ab5ec38f355134ad0379f55c04416e7d"
+    )
+    assert evidence["bindings"]["installer_git_blob_sha"] != supervisor["installer_git_blob_sha"]
+
+
+def test_runtime_repair_completion_evidence_matches_source_truth() -> None:
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    supervisor = state["phase_15_v3_live_canary"]["controlled_submission_supervisor"]
+    evidence = json.loads(
+        RUNTIME_REPAIR_COMPLETION_EVIDENCE.read_text(encoding="utf-8")
+    )
+
+    assert evidence["repo_main_at_recording"] == (
+        "ac6b7078d6470d9c9e46c72cfc86ad856664a79b"
+    )
+    assert evidence["repaired_supervisor_main"] == (
+        "d95ef3b4e908aa059df178b73be196bc9bd83fbf"
+    )
+    observation = evidence["operator_observation"]
+    assert observation["launch_agent_state"] == "running"
+    assert observation["healthy_decision_count"] == 42
+    assert observation["repeated_action"] == "wait"
+    assert observation["repeated_reason"] == "watcher_running"
+    assert observation["new_transient_error_after_restart_observed"] is False
+    assert observation["first_healthy_decision_at"] == supervisor["runtime_repair_completed_at"]
+    assert (
+        observation["verified_healthy_through"]
+        == supervisor["runtime_repair_verified_healthy_through"]
+    )
+    assert evidence["repaired_issue"]["result"] == "PASS"
+    assert evidence["safety_preserved"]["additional_network_attempts_authorized"] is False
+    assert evidence["safety_preserved"]["production_database_mutation_performed"] is False
+    assert evidence["safety_preserved"]["order_submission_performed_by_repair"] is False
