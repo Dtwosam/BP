@@ -43,13 +43,22 @@ def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None
     watch = gate["persistent_prepare_watch"]
     second = gate["second_live_canary_authorization"]
 
-    assert watch["status"] == "AUTHORIZED_FOR_FRESH_POST_EXPIRY_RESTART"
-    assert watch["start_authorized"] is True
-    assert watch["service_active"] is False
-    assert watch["last_status"] == "expired"
-    assert watch["last_status_reason"] == "no_eligible_v3_trade_within_wait_window"
+    assert watch["status"] == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_CANDIDATE"
+    assert watch["start_authorized"] is False
+    assert watch["service_active"] is True
+    assert watch["last_status"] == "running"
+    assert watch["last_status_reason"] == "waiting_for_new_frozen_v3_trade_order"
     assert watch["post_expiry_restart_authorized"] is True
-    assert watch["post_expiry_restart_authorization_consumed"] is False
+    assert watch["post_expiry_restart_authorization_consumed"] is True
+    assert watch["post_expiry_restart_production_performed"] is True
+    assert watch["post_expiry_restart_result"] == "PASS"
+    assert watch["post_expiry_restart_run_id"] == (
+        "phase15-prepare-watch-20260927T122620Z-31ba83ab"
+    )
+    assert watch["post_expiry_restart_service_active"] is True
+    assert watch["post_expiry_restart_no_real_order_submitted"] is True
+    assert watch["post_expiry_restart_arm_automated"] is False
+    assert watch["post_expiry_restart_submission_automated"] is False
     assert watch["post_expiry_restart_one_shot"] is True
     assert watch["post_expiry_restart_max_wait_seconds"] == 7200
     assert watch["post_expiry_restart_prepare_only"] is True
