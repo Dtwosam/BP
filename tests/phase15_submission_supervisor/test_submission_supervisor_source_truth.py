@@ -87,6 +87,12 @@ def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
         "docs/evidence/"
         "phase-15-controlled-submission-supervisor-activation-pass-production-20260927.json"
     )
+    assert supervisor["runtime_health_status"] == "DEGRADED_GCLOUD_NOT_FOUND"
+    assert supervisor["runtime_issue"] == "launchagent_gcloud_not_found"
+    assert supervisor["runtime_repair_authorized"] is True
+    assert supervisor["runtime_repair_completed"] is False
+    assert supervisor["runtime_repair_additional_network_attempts_authorized"] is False
+    assert supervisor["runtime_repair_live_scope_expansion_authorized"] is False
 
     bindings = {
         "installer_git_blob_sha": (
@@ -215,6 +221,10 @@ def test_macos_installer_is_explicit_and_secret_free() -> None:
         "MAX_NETWORK_SUBMISSION_ATTEMPTS=1",
         "TARGET_NOTIONAL_USD=5",
         "SuccessfulExit",
+        "GCLOUD=$(command -v gcloud || true)",
+        "<string>--gcloud-bin</string>",
+        "DEGRADED_GCLOUD_NOT_FOUND",
+        "runtime_repair_authorized",
         "PHASE15_CONTROLLED_SUBMISSION_SUPERVISOR_INSTALL=PASS",
     ):
         assert marker in text
@@ -252,3 +262,16 @@ def test_activation_evidence_matches_active_supervisor_state() -> None:
     assert evidence["resulting_source_truth"]["completed"] is False
     assert evidence["safety_preserved"]["additional_network_attempts_authorized"] is False
     assert evidence["safety_preserved"]["third_order_authorized"] is False
+
+
+def test_supervisor_uses_explicit_gcloud_binary() -> None:
+    text = SUPERVISOR.read_text(encoding="utf-8")
+    assert "gcloud_bin: Path" in text
+    assert 'parser.add_argument(' in text
+    assert '"--gcloud-bin"' in text
+    assert "configured gcloud binary is not executable" in text
+    assert "str(config.gcloud_bin)" in text
+    assert "def _helper_env(config: Config)" in text
+    assert 'env["PATH"] = f"{config.gcloud_bin.parent}:{inherited}"' in text
+    assert "env = _helper_env(config)" in text
+    assert '["gcloud", "compute"' not in text

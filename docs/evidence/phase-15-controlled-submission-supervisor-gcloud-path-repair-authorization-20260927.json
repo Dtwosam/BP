@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-controlled-submission-supervisor-gcloud-path-repair-authorization",
+  "observed_date": "2026-09-27",
+  "source_main": "d1f81b2b091492ae53ee5387c3216d927c661eaa",
+  "incident": {
+    "first_observed_at": "2026-09-27T19:47:33.162485+00:00",
+    "last_observed_at": "2026-09-27T19:54:15.798909+00:00",
+    "runtime_health_status": "DEGRADED_GCLOUD_NOT_FOUND",
+    "runtime_issue": "launchagent_gcloud_not_found",
+    "symptom": "The macOS LaunchAgent supervisor repeatedly raised FileNotFoundError for gcloud."
+  },
+  "root_cause": {
+    "summary": "The installer validated gcloud in the interactive shell but the LaunchAgent invoked the supervisor without an absolute gcloud path; launchd did not inherit the shell path containing gcloud.",
+    "scope": "operator-side supervisor process only",
+    "watcher_affected": false,
+    "telegram_auto_approver_affected": false,
+    "network_submission_attempt_observed": false,
+    "real_order_submission_observed": false
+  },
+  "authorized_repair": {
+    "exact_gcloud_binary_path_required": true,
+    "discovered_by": "command -v gcloud",
+    "passed_to_supervisor_as": "--gcloud-bin",
+    "source_truth_binding_required": true,
+    "additional_network_attempts_authorized": false,
+    "live_scope_expansion_authorized": false,
+    "helper_scripts_inherit_verified_gcloud_directory": true
+  },
+  "bindings": {
+    "supervisor_git_blob_sha": "d73de98fe97be467b845e9a63ca6eeec1b907c6d",
+    "installer_git_blob_sha": "6550750baaa9dac63a5ddfca4eea797431401b5f"
+  },
+  "repair_completed": false
+}

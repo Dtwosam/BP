@@ -53,6 +53,7 @@ class Decision:
 class Config:
     repo: Path
     state_root: Path
+    gcloud_bin: Path
     poll_seconds: float
     project: str
     recorder_vm: str
@@ -196,7 +197,7 @@ def _gcloud_ssh(
 ) -> str:
     return _run(
         [
-            "gcloud",
+            str(config.gcloud_bin),
             "compute",
             "ssh",
             vm,
@@ -483,8 +484,15 @@ def _auto_approver_ready() -> bool:
     return any(line == "BP_TELEGRAM_AUTO_APPROVE=true" for line in lines)
 
 
-def _reconcile(config: Config, intent_id: str) -> None:
+def _helper_env(config: Config) -> dict[str, str]:
     env = os.environ.copy()
+    inherited = env.get("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
+    env["PATH"] = f"{config.gcloud_bin.parent}:{inherited}"
+    return env
+
+
+def _reconcile(config: Config, intent_id: str) -> None:
+    env = _helper_env(config)
     env["PHASE15_ACCEPT_CONTROLLED_CANARY_RECONCILIATION"] = "yes"
     env["PHASE15_EXPECT_INTENT_ID"] = intent_id
     completed = _run(
@@ -504,7 +512,7 @@ def _reconcile(config: Config, intent_id: str) -> None:
 
 
 def _start_watcher(config: Config) -> None:
-    env = os.environ.copy()
+    env = _helper_env(config)
     env["PHASE15_ACCEPT_PERSISTENT_PREPARE_WATCH"] = "yes"
     env.pop("PHASE15_CANARY_MAX_WAIT_SECONDS", None)
     completed = _run(
@@ -540,6 +548,11 @@ def _parse_args() -> argparse.Namespace:
         type=Path,
         default=Path.home() / ".local" / "state" / "bp-phase15-submission-supervisor",
     )
+    parser.add_argument(
+        "--gcloud-bin",
+        type=Path,
+        default=Path(os.environ.get("BP_PHASE15_GCLOUD_BIN", "")),
+    )
     parser.add_argument("--poll-seconds", type=float, default=5.0)
     return parser.parse_args()
 
@@ -548,12 +561,18 @@ def main() -> int:
     args = _parse_args()
     if not str(args.repo):
         raise SystemExit("BP_PHASE15_SUPERVISOR_REPO or --repo is required")
+    if not str(args.gcloud_bin):
+        raise SystemExit("BP_PHASE15_GCLOUD_BIN or --gcloud-bin is required")
+    gcloud_bin = args.gcloud_bin.expanduser().resolve()
+    if not gcloud_bin.is_file() or not os.access(gcloud_bin, os.X_OK):
+        raise SystemExit("configured gcloud binary is not executable")
     if not 2.0 <= args.poll_seconds <= 30.0:
         raise SystemExit("poll seconds must be within 2..30")
 
     config = Config(
         repo=args.repo.expanduser().resolve(),
         state_root=args.state_root.expanduser().resolve(),
+        gcloud_bin=gcloud_bin,
         poll_seconds=args.poll_seconds,
         project=os.environ.get("PHASE15_CANARY_PROJECT", DEFAULT_PROJECT),
         recorder_vm=os.environ.get("PHASE15_CANARY_US_VM", DEFAULT_RECORDER_VM),
@@ -580,7 +599,12 @@ def main() -> int:
         return 0
 
     main_sha = sync_repo(config.repo)
-    _emit("SUPERVISOR_STARTED", main_sha=main_sha, poll_seconds=config.poll_seconds)
+    _emit(
+        "SUPERVISOR_STARTED",
+        main_sha=main_sha,
+        poll_seconds=config.poll_seconds,
+        gcloud_bin=str(config.gcloud_bin),
+    )
 
     while True:
         try:
