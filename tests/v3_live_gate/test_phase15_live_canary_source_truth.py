@@ -268,7 +268,7 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
     assert activation["official_reconciliation_required_before_any_third_order"] is True
     assert activation["broad_autonomous_live_rollout_authorized"] is False
     assert gate["pending_unsubmitted_intent"] is None
-    assert watch["status"] == "AUTHORIZED_FOR_CONTROLLED_CANARY_RESTART"
+    assert watch["status"] == "AUTHORIZED_FOR_UNTIL_CANDIDATE_RESTART"
     assert watch["authorized"] is True
     assert watch["start_authorized"] is True
     assert watch["runtime_reauthorization_required"] is False
@@ -660,3 +660,14 @@ def test_controlled_auto_approved_second_canary_is_explicitly_authorized() -> No
     assert auth["broad_autonomous_live_rollout_authorized"] is False
     assert auth["consumed"] is False
     assert auth["network_attempt_observed"] is False
+    assert auth["prepare_watcher_mode"] == "until_candidate"
+    assert auth["prepare_watcher_max_wait_seconds"] == 0
+    assert auth["prepare_watcher_expected_expiry_at"] is None
+    until = auth["until_candidate_prepare_authorization"]
+    assert until["authorized"] is True
+    assert until["consumed"] is False
+    assert until["wait_mode"] == "until_candidate"
+    assert until["max_wait_seconds"] == 0
+    assert until["time_expiry_disabled"] is True
+    assert until["stops_after_one_prepared_candidate"] is True
+    assert until["max_network_submission_attempts"] == 1
