@@ -20,6 +20,12 @@ SAFE_FAIL_EVIDENCE = (
     / "evidence"
     / "phase-15-v3-fresh-watcher-safe-fail-pending-terminal-intent-20260927.json"
 )
+PASS_EVIDENCE = (
+    ROOT
+    / "docs"
+    / "evidence"
+    / "phase-15-v3-terminal-telegram-intent-reconciliation-pass-production-20260927.json"
+)
 
 
 def test_terminal_telegram_intent_reconciliation_is_explicitly_authorized() -> None:
@@ -28,9 +34,9 @@ def test_terminal_telegram_intent_reconciliation_is_explicitly_authorized() -> N
     recon = gate["terminal_telegram_intent_reconciliation"]
     watch = gate["persistent_prepare_watch"]
 
-    assert recon["status"] == "AUTHORIZED_NOT_RUN"
+    assert recon["status"] == "PRODUCTION_PASS"
     assert recon["authorized"] is True
-    assert recon["authorization_consumed"] is False
+    assert recon["authorization_consumed"] is True
     assert recon["authorization_date"] == "2026-09-27"
     assert recon["authorized_at_main"] == (
         "a06d7520fb0d887d4992bd13c0f3e4b32cb6c208"
@@ -55,22 +61,71 @@ def test_terminal_telegram_intent_reconciliation_is_explicitly_authorized() -> N
     assert recon["does_not_consume_second_canary_network_attempt"] is True
     assert recon["failed_intent_retry_allowed"] is False
     assert recon["failed_intent_must_not_be_replayed"] is True
-    assert recon["production_result"] == "PENDING_RETRY_AFTER_PRE_MUTATION_SAFE_FAIL"
-    assert recon["last_attempt_result"] == (
-        "SAFE_FAIL_PRE_MUTATION_LOCAL_BASE64_PORTABILITY"
-    )
+    assert recon["production_result"] == "PASS"
+    assert recon["last_attempt_result"] == "PASS"
     assert recon["last_attempt_executor_safety_passed"] is True
     assert recon["last_attempt_second_canary_attempt_marker_absent"] is True
-    assert recon["last_attempt_database_precheck_started"] is False
-    assert recon["last_attempt_database_mutation_performed"] is False
-    assert recon["last_attempt_authorization_consumed"] is False
-    assert recon["same_authorization_retry_allowed"] is True
+    assert recon["last_attempt_database_precheck_started"] is True
+    assert recon["last_attempt_database_mutation_performed"] is True
+    assert recon["last_attempt_authorization_consumed"] is True
+    assert recon["same_authorization_retry_allowed"] is False
     assert recon["authorization_scope_changed_by_helper_repair"] is False
+    assert recon["production_run_source_main"] == (
+        "6b26f5e1356ee7465a1e38b93e19f996d5dab9e7"
+    )
+    assert recon["database_precheck_read_only"] is True
+    assert recon["database_precheck_existing_event_count"] == 0
+    assert recon["database_precheck_submission_attempt_event_count"] == 0
+    assert recon["database_precheck_closed_before_submission_count"] == 0
+    assert recon["event_type"] == "closed_before_submission"
+    assert recon["reconciliation_id"] == (
+        "live-reconciliation-745a1e86a0075b4e98cdfbb30517a154"
+    )
+    assert recon["reconciliation_status"] == "reconciled"
+    assert recon["submission_attempt_consumed"] is False
+    assert recon["post_reconciliation_kill_switch_engaged"] is True
+    assert recon["post_reconciliation_live_order_submitted"] is False
+    assert recon["post_reconciliation_second_canary_network_attempt_consumed"] is False
+    assert recon["production_evidence"] == (
+        "docs/evidence/phase-15-v3-terminal-telegram-intent-reconciliation-pass-production-20260927.json"
+    )
+    assert watch["status"] == "SAFE_FAIL_RECONCILED_REQUIRES_FRESH_AUTHORIZATION"
+    assert watch["terminal_intent_reconciliation_completed"] is True
+    assert watch["terminal_intent_reconciliation_id"] == recon["reconciliation_id"]
+    assert watch["fresh_restart_authorization_required_now"] is True
+    assert watch["fresh_restart_authorized_now"] is False
 
     assert watch["fresh_restart_authorization_consumed"] is True
     assert watch["fresh_restart_may_not_be_reused"] is True
     assert watch["fresh_restart_requires_new_authorization_after_reconciliation"] is True
     assert watch["second_canary_network_attempt_consumed"] is False
+
+
+def test_terminal_reconciliation_pass_evidence_matches_operator_output() -> None:
+    evidence = json.loads(PASS_EVIDENCE.read_text(encoding="utf-8"))
+    assert evidence["status"] == "PASS"
+    assert evidence["source_main"] == "6b26f5e1356ee7465a1e38b93e19f996d5dab9e7"
+    assert evidence["binding"]["intent_id"] == (
+        "live-intent-4cb75bd0f114e378130b28d7699320e9"
+    )
+    assert evidence["database_precheck"]["database_read_only"] is True
+    assert evidence["database_precheck"]["existing_events"] == []
+    assert evidence["database_precheck"]["submission_attempt_event_count"] == 0
+    assert evidence["reconciliation"]["status"] == "reconciled"
+    assert evidence["reconciliation"]["event_type"] == "closed_before_submission"
+    assert evidence["reconciliation"]["reconciliation_id"] == (
+        "live-reconciliation-745a1e86a0075b4e98cdfbb30517a154"
+    )
+    assert evidence["reconciliation"]["submission_attempt_consumed"] is False
+    assert evidence["post_mutation_safety"]["kill_switch_engaged"] is True
+    assert evidence["post_mutation_safety"]["live_order_submitted"] is False
+    assert evidence["post_mutation_safety"]["second_canary_network_attempt_consumed"] is False
+    assert evidence["authorization_boundary"]["reconciliation_authorization_consumed"] is True
+    assert evidence["authorization_boundary"]["watcher_restart_authorized"] is False
+    assert (
+        evidence["authorization_boundary"]["fresh_watcher_restart_authorization_required"]
+        is True
+    )
 
 
 def test_terminal_reconciliation_helper_is_explicit_and_fail_closed() -> None:

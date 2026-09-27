@@ -268,7 +268,7 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
     assert activation["official_reconciliation_required_before_any_third_order"] is True
     assert activation["broad_autonomous_live_rollout_authorized"] is False
     assert gate["pending_unsubmitted_intent"] is None
-    assert watch["status"] == "SAFE_FAIL_PENDING_TERMINAL_INTENT_RECONCILIATION"
+    assert watch["status"] == "SAFE_FAIL_RECONCILED_REQUIRES_FRESH_AUTHORIZATION"
     assert watch["authorized"] is True
     assert watch["start_authorized"] is False
     assert watch["runtime_reauthorization_required"] is False
@@ -351,9 +351,14 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
     assert watch["fresh_restart_no_real_order_submitted"] is True
     assert watch["fresh_restart_may_not_be_reused"] is True
     assert watch["fresh_restart_requires_new_authorization_after_reconciliation"] is True
-    assert watch["prepared_intent_reconciled"] is False
-    assert watch["prepared_reconciliation_result_status"] == "required"
-    assert watch["prepared_reconciliation_id_observed"] is None
+    assert watch["prepared_intent_reconciled"] is True
+    assert watch["prepared_reconciliation_result_status"] == "reconciled"
+    assert watch["prepared_reconciliation_id_observed"] == (
+        "live-reconciliation-745a1e86a0075b4e98cdfbb30517a154"
+    )
+    assert watch["blocked_pending_intent_id"] is None
+    assert watch["fresh_restart_authorization_required_now"] is True
+    assert watch["fresh_restart_authorized_now"] is False
     assert watch["candidate_start_helper_git_blob_sha"] == (
         "0a98b03e35d8019a85063e45d1a979fea96c0532"
     )

@@ -25,7 +25,7 @@ def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None
     watch = gate["persistent_prepare_watch"]
     second = gate["second_live_canary_authorization"]
 
-    assert watch["status"] == "SAFE_FAIL_PENDING_TERMINAL_INTENT_RECONCILIATION"
+    assert watch["status"] == "SAFE_FAIL_RECONCILED_REQUIRES_FRESH_AUTHORIZATION"
     assert watch["start_authorized"] is False
     assert watch["service_active"] is False
     assert watch["fresh_restart_authorized"] is True
@@ -52,6 +52,15 @@ def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None
     assert watch["fresh_restart_no_real_order_submitted"] is True
     assert watch["fresh_restart_may_not_be_reused"] is True
     assert watch["fresh_restart_requires_new_authorization_after_reconciliation"] is True
+    assert watch["prepared_intent_reconciled"] is True
+    assert watch["prepared_reconciliation_result_status"] == "reconciled"
+    assert watch["prepared_reconciliation_id_observed"] == (
+        "live-reconciliation-745a1e86a0075b4e98cdfbb30517a154"
+    )
+    assert watch["blocked_pending_intent_id"] is None
+    assert watch["terminal_intent_reconciliation_completed"] is True
+    assert watch["fresh_restart_authorization_required_now"] is True
+    assert watch["fresh_restart_authorized_now"] is False
 
     assert watch["fresh_restart_forbidden_intent_id"] == (
         "live-intent-4cb75bd0f114e378130b28d7699320e9"
