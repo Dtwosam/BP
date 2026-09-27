@@ -17,6 +17,12 @@ POST_TERMINAL_EVIDENCE = (
     / "evidence"
     / "phase-15-v3-post-terminal-reconciliation-watcher-restart-authorization-20260927.json"
 )
+PORTABILITY_EVIDENCE = (
+    ROOT
+    / "docs"
+    / "evidence"
+    / "phase-15-v3-post-terminal-reconciliation-watcher-restart-macos-portability-20260927.json"
+)
 START = (
     ROOT
     / "scripts"
@@ -82,6 +88,13 @@ def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None
         "b7517a2279c8168021a72eb68e5884f1ade80c94"
     )
     assert watch["post_terminal_reconciliation_restart_production_performed"] is False
+    assert (
+        watch[
+            "post_terminal_reconciliation_restart_authorization_scope_changed_by_helper_repair"
+        ]
+        is False
+    )
+    assert watch["post_terminal_reconciliation_restart_authorization_rebound_for_portability"] is True
 
     assert watch["fresh_restart_forbidden_intent_id"] == (
         "live-intent-4cb75bd0f114e378130b28d7699320e9"
@@ -134,6 +147,9 @@ def test_fresh_watcher_restart_is_bound_to_unchanged_runtime_artifacts() -> None
         "0a0cdc42882c6de5d8b09d5f630826cd6fab39a3"
     )
     assert watch["post_terminal_reconciliation_restart_start_helper_git_blob_sha"] == (
+        "3d883da14592f230dc0ea7a51b76991ea898bede"
+    )
+    assert watch["post_terminal_reconciliation_restart_original_start_helper_git_blob_sha"] == (
         "0a98b03e35d8019a85063e45d1a979fea96c0532"
     )
     assert watch["post_terminal_reconciliation_restart_runner_git_blob_sha"] == (
@@ -202,6 +218,29 @@ def test_post_terminal_reconciliation_restart_evidence_matches_authorization() -
     assert evidence["excluded_actions"]["live_trading_enablement"] is False
 
 
+def test_post_terminal_restart_portability_rebind_preserves_scope() -> None:
+    evidence = json.loads(PORTABILITY_EVIDENCE.read_text(encoding="utf-8"))
+
+    assert evidence["source_main"] == "91d1564790378fc3d7fc3efbb1b972cc7a6feee9"
+    assert evidence["authorization_scope_changed"] is False
+    assert evidence["authorization_consumed"] is False
+    assert evidence["production_restart_performed"] is False
+    assert evidence["repair"]["previous_git_blob_sha"] == (
+        "0a98b03e35d8019a85063e45d1a979fea96c0532"
+    )
+    assert evidence["repair"]["repaired_git_blob_sha"] == (
+        "3d883da14592f230dc0ea7a51b76991ea898bede"
+    )
+    assert evidence["preserved_authorization"]["max_wait_seconds"] == 7200
+    assert evidence["preserved_authorization"]["prepare_only"] is True
+    assert evidence["preserved_authorization"]["research_mode"] is True
+    assert evidence["preserved_authorization"]["zero_money"] is True
+    assert evidence["excluded_actions"]["telegram_approve"] is False
+    assert evidence["excluded_actions"]["executor_arm_or_invoke"] is False
+    assert evidence["excluded_actions"]["order_submission"] is False
+    assert evidence["excluded_actions"]["live_trading_enablement"] is False
+
+
 def test_start_helper_remains_prepare_only_and_fail_closed() -> None:
     text = START.read_text(encoding="utf-8")
     for marker in (
@@ -216,5 +255,8 @@ def test_start_helper_remains_prepare_only_and_fail_closed() -> None:
         'payload["kill_switch_engaged"] is True',
         'payload["submission_ready"] is False',
         'payload["live_order_submitted"] is False',
+        "hashlib.sha256",
+        "base64.b64encode",
     ):
         assert marker in text
+    assert "base64 -w0" not in text
