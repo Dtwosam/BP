@@ -484,8 +484,15 @@ def _auto_approver_ready() -> bool:
     return any(line == "BP_TELEGRAM_AUTO_APPROVE=true" for line in lines)
 
 
-def _reconcile(config: Config, intent_id: str) -> None:
+def _helper_env(config: Config) -> dict[str, str]:
     env = os.environ.copy()
+    inherited = env.get("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
+    env["PATH"] = f"{config.gcloud_bin.parent}:{inherited}"
+    return env
+
+
+def _reconcile(config: Config, intent_id: str) -> None:
+    env = _helper_env(config)
     env["PHASE15_ACCEPT_CONTROLLED_CANARY_RECONCILIATION"] = "yes"
     env["PHASE15_EXPECT_INTENT_ID"] = intent_id
     completed = _run(
@@ -505,7 +512,7 @@ def _reconcile(config: Config, intent_id: str) -> None:
 
 
 def _start_watcher(config: Config) -> None:
-    env = os.environ.copy()
+    env = _helper_env(config)
     env["PHASE15_ACCEPT_PERSISTENT_PREPARE_WATCH"] = "yes"
     env.pop("PHASE15_CANARY_MAX_WAIT_SECONDS", None)
     completed = _run(
