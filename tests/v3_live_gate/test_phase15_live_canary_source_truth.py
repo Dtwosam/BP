@@ -636,3 +636,27 @@ def test_operator_telegram_auto_approver_activation_is_recorded() -> None:
     assert auto["preserves_existing_second_canary_limits"] is True
     assert auto["ambiguous_callback_retry_allowed"] is False
     assert auto["bypass_downstream_validation_authorized"] is False
+
+
+def test_controlled_auto_approved_second_canary_is_explicitly_authorized() -> None:
+    state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
+    auth = state["phase_15_v3_live_canary"]["controlled_auto_approved_canary_authorization"]
+
+    assert auth["status"] == "AUTHORIZED_WAITING_FOR_ELIGIBLE_CANDIDATE"
+    assert auth["authorized_at_main"] == "00b3e06e14d35d68a6e0ac9b59ce60221d561c44"
+    assert auth["existing_second_canary_authorization_required"] is True
+    assert auth["auto_approver_required"] is True
+    assert auth["auto_approver_mode_required"] == "live-auto-approve"
+    assert auth["prepare_watcher_run_id"] == "phase15-prepare-watch-20260927T154458Z-656caf74"
+    assert auth["requires_fresh_candidate"] is True
+    assert auth["target_notional_usd"] == 5
+    assert auth["max_network_submission_attempts"] == 1
+    assert auth["order_ttl_seconds"] == 2
+    assert auth["retry_on_missing_malformed_or_ambiguous_result"] is False
+    assert auth["official_reconciliation_required_after_attempt"] is True
+    assert auth["stake_growth_authorized"] is False
+    assert auth["v3_strategy_mutation_authorized"] is False
+    assert auth["v4_mutation_authorized"] is False
+    assert auth["broad_autonomous_live_rollout_authorized"] is False
+    assert auth["consumed"] is False
+    assert auth["network_attempt_observed"] is False
