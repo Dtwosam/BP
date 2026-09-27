@@ -22,15 +22,22 @@ SAFE_FAIL_EVIDENCE = (
 )
 
 
-def test_terminal_telegram_intent_reconciliation_is_required_but_not_authorized() -> None:
+def test_terminal_telegram_intent_reconciliation_is_explicitly_authorized() -> None:
     state = json.loads(STATE.read_text(encoding="utf-8"))
     gate = state["phase_15_v3_live_canary"]
     recon = gate["terminal_telegram_intent_reconciliation"]
     watch = gate["persistent_prepare_watch"]
 
-    assert recon["status"] == "REQUIRED_NOT_AUTHORIZED"
-    assert recon["authorized"] is False
+    assert recon["status"] == "AUTHORIZED_NOT_RUN"
+    assert recon["authorized"] is True
     assert recon["authorization_consumed"] is False
+    assert recon["authorization_date"] == "2026-09-27"
+    assert recon["authorized_at_main"] == (
+        "a06d7520fb0d887d4992bd13c0f3e4b32cb6c208"
+    )
+    assert recon["authorization_evidence"] == (
+        "docs/evidence/phase-15-v3-terminal-telegram-intent-reconciliation-authorization-20260927.json"
+    )
     assert recon["intent_id"] == "live-intent-4cb75bd0f114e378130b28d7699320e9"
     assert recon["prediction_id"] == (
         "cca4840dcf6034ac624a48ca3e88e91e4f5d3a96b5d334705e4c1694e449c05c"
@@ -48,7 +55,7 @@ def test_terminal_telegram_intent_reconciliation_is_required_but_not_authorized(
     assert recon["does_not_consume_second_canary_network_attempt"] is True
     assert recon["failed_intent_retry_allowed"] is False
     assert recon["failed_intent_must_not_be_replayed"] is True
-    assert recon["production_result"] == "PENDING_AUTHORIZATION"
+    assert recon["production_result"] == "PENDING"
 
     assert watch["fresh_restart_authorization_consumed"] is True
     assert watch["fresh_restart_may_not_be_reused"] is True
