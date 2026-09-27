@@ -1,0 +1,129 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+STATE = ROOT / "PROJECT_STATE.json"
+EVIDENCE = (
+    ROOT
+    / "docs"
+    / "evidence"
+    / "phase-15-v3-fresh-watcher-restart-authorization-20260927.json"
+)
+START = (
+    ROOT
+    / "scripts"
+    / "deploy"
+    / "phase15_v3_canary_prepare_watch_start_cloudshell.sh"
+)
+
+
+def test_fresh_watcher_restart_is_narrowly_authorized() -> None:
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    gate = state["phase_15_v3_live_canary"]
+    watch = gate["persistent_prepare_watch"]
+    second = gate["second_live_canary_authorization"]
+
+    assert watch["status"] == "AUTHORIZED_FRESH_RESTART_NOT_STARTED"
+    assert watch["start_authorized"] is True
+    assert watch["service_active"] is False
+    assert watch["fresh_restart_authorized"] is True
+    assert watch["fresh_restart_authorization_consumed"] is False
+    assert watch["fresh_restart_authorized_at_main"] == (
+        "f3afdf940478d487a46244e79e4263ccb5aa02f7"
+    )
+    assert watch["fresh_restart_max_wait_seconds"] == 7200
+    assert watch["fresh_restart_prepare_only"] is True
+    assert watch["fresh_restart_research_mode"] is True
+    assert watch["fresh_restart_zero_money"] is True
+    assert watch["fresh_restart_requires_new_candidate_after_activation"] is True
+
+    assert watch["fresh_restart_forbidden_intent_id"] == (
+        "live-intent-4cb75bd0f114e378130b28d7699320e9"
+    )
+    assert watch["fresh_restart_forbidden_prediction_id"] == (
+        "cca4840dcf6034ac624a48ca3e88e91e4f5d3a96b5d334705e4c1694e449c05c"
+    )
+    assert watch["fresh_restart_forbidden_paper_order_id"] == (
+        "18072fef623e29fa095c433cdd0657958848c5e6a34c194ae6527e532c4dc2ab"
+    )
+    assert watch["latest_prepared_intent_terminal"] is True
+    assert watch["latest_prepared_intent_retry_allowed"] is False
+    assert watch["latest_prepared_intent_network_attempt_consumed"] is False
+    assert watch["latest_prepared_intent_real_order_submitted"] is False
+
+    assert watch["fresh_restart_does_not_authorize_telegram_approve"] is True
+    assert watch["fresh_restart_does_not_authorize_executor_arm_or_invoke"] is True
+    assert watch["fresh_restart_does_not_authorize_order_submission"] is True
+    assert watch["fresh_restart_does_not_authorize_live_trading_enablement"] is True
+    assert watch["second_canary_network_attempt_consumed"] is False
+    assert second["status"] == "AUTHORIZED_NOT_SUBMITTED"
+    assert second["max_network_submission_attempts"] == 1
+    assert state["live_trading_enabled"] is False
+    assert gate["live_trading_enabled"] is False
+
+
+def test_fresh_watcher_restart_is_bound_to_unchanged_runtime_artifacts() -> None:
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    watch = state["phase_15_v3_live_canary"]["persistent_prepare_watch"]
+
+    assert watch["fresh_restart_start_helper_git_blob_sha"] == (
+        "0a98b03e35d8019a85063e45d1a979fea96c0532"
+    )
+    assert watch["fresh_restart_runner_git_blob_sha"] == (
+        "efe6dc9c3b37f5788b701107366bb634a4b1f357"
+    )
+    assert watch["fresh_restart_service_unit_git_blob_sha"] == (
+        "5e20c65edd57e398d2106c7f6fe93fbb477b7572"
+    )
+    assert watch["fresh_restart_canary_git_blob_sha"] == (
+        "df5e60b1b2ba632fd77d65103509fac70187be7d"
+    )
+    assert watch["fresh_restart_live_git_blob_sha"] == (
+        "0617ffeda8365cdd6ab2636af00e58ca8954c4db"
+    )
+    assert watch["fresh_restart_arm_helper_git_blob_sha"] == (
+        "692d60cc73438a4703db2d74d56448ce868bd9fe"
+    )
+    assert watch["fresh_restart_executor_git_blob_sha"] == (
+        "0a0cdc42882c6de5d8b09d5f630826cd6fab39a3"
+    )
+
+
+def test_fresh_watcher_restart_evidence_matches_authorization() -> None:
+    evidence = json.loads(EVIDENCE.read_text(encoding="utf-8"))
+
+    assert evidence["authorized_at_main"] == (
+        "f3afdf940478d487a46244e79e4263ccb5aa02f7"
+    )
+    assert evidence["authorized_restart"]["max_wait_seconds"] == 7200
+    assert evidence["authorized_restart"]["prepare_only"] is True
+    assert evidence["authorized_restart"]["research_mode"] is True
+    assert evidence["authorized_restart"]["zero_money"] is True
+    assert evidence["authorized_restart"]["fresh_candidate_required"] is True
+    assert evidence["authorization_consumed"] is False
+    assert evidence["production_restart_performed"] is False
+    assert evidence["previous_terminal_candidate"]["retry_allowed"] is False
+    assert evidence["previous_terminal_candidate"]["must_not_be_reused"] is True
+    assert evidence["previous_terminal_candidate"]["network_attempt_consumed"] is False
+    assert evidence["excluded_actions"]["telegram_approve"] is False
+    assert evidence["excluded_actions"]["executor_arm_or_invoke"] is False
+    assert evidence["excluded_actions"]["order_submission"] is False
+    assert evidence["excluded_actions"]["live_trading_enablement"] is False
+
+
+def test_start_helper_remains_prepare_only_and_fail_closed() -> None:
+    text = START.read_text(encoding="utf-8")
+    for marker in (
+        "PHASE15_ACCEPT_PERSISTENT_PREPARE_WATCH",
+        'watch["start_authorized"] is True',
+        'watch["prepare_only"] is True',
+        'watch["arm_automated"] is False',
+        'watch["submission_automated"] is False',
+        'settings.live_trading_enabled is False',
+        'payload["kill_switch_engaged"] is True',
+        'payload["submission_ready"] is False',
+        'payload["live_order_submitted"] is False',
+    ):
+        assert marker in text
