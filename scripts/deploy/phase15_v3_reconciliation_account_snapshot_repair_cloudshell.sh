@@ -34,9 +34,10 @@ gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q . ||
 
 HELPER_BLOB=$(git hash-object "$ROOT/scripts/deploy/phase15_v3_reconciliation_account_snapshot_repair_cloudshell.sh")
 CANARY_BLOB=$(git hash-object "$ROOT/src/bp_engine/execution/canary.py")
+LIVE_BLOB=$(git hash-object "$ROOT/src/bp_engine/execution/live.py")
 
 CONFIG=$(
-python3 - "$ROOT/PROJECT_STATE.json" "$HELPER_BLOB" "$CANARY_BLOB" <<'PY'
+python3 - "$ROOT/PROJECT_STATE.json" "$HELPER_BLOB" "$CANARY_BLOB" "$LIVE_BLOB" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -61,6 +62,7 @@ assert repair["additional_network_attempts_authorized"] is False
 assert repair["order_submission_authorized"] is False
 assert repair["helper_git_blob_sha"] == sys.argv[2]
 assert repair["canary_git_blob_sha"] == sys.argv[3]
+assert repair["live_git_blob_sha"] == sys.argv[4]
 
 print("TARGET_INTENT_ID=" + repair["target_terminal_intent_id"])
 print("EXPECTED_TERMINAL_RECONCILIATION_ID=" + repair["expected_terminal_reconciliation_id"])
@@ -109,24 +111,52 @@ import sys
 print(base64.b64encode(sys.argv[1].encode("utf-8")).decode("ascii"), end="")
 PY
 )
+LIVE_SOURCE_B64=$(python3 - "$ROOT/src/bp_engine/execution/live.py" <<'PY'
+import base64
+import sys
+from pathlib import Path
+print(base64.b64encode(Path(sys.argv[1]).read_bytes()).decode("ascii"), end="")
+PY
+)
+CANARY_SOURCE_B64=$(python3 - "$ROOT/src/bp_engine/execution/canary.py" <<'PY'
+import base64
+import sys
+from pathlib import Path
+print(base64.b64encode(Path(sys.argv[1]).read_bytes()).decode("ascii"), end="")
+PY
+)
 
 RESULT=$(
-  gcloud compute ssh "$US_VM"     --project="$PROJECT"     --zone="$US_ZONE"     --quiet     --command="sudo -u bp env PYTHONPATH='$V3_RUNTIME/src' TARGET_INTENT_ID='$TARGET_INTENT_ID' EXPECTED_TERMINAL_RECONCILIATION_ID='$EXPECTED_TERMINAL_RECONCILIATION_ID' EXPECTED_ACCOUNT_SNAPSHOT_SOURCE_RECONCILIATION_ID='$EXPECTED_ACCOUNT_SNAPSHOT_SOURCE_RECONCILIATION_ID' EXECUTOR_HEALTH_B64='$HEALTH_B64' /opt/bp/.venv/bin/python -" <<'PY'
+  gcloud compute ssh "$US_VM"     --project="$PROJECT"     --zone="$US_ZONE"     --quiet     --command="sudo -u bp env PYTHONPATH='$V3_RUNTIME/src' TARGET_INTENT_ID='$TARGET_INTENT_ID' EXPECTED_TERMINAL_RECONCILIATION_ID='$EXPECTED_TERMINAL_RECONCILIATION_ID' EXPECTED_ACCOUNT_SNAPSHOT_SOURCE_RECONCILIATION_ID='$EXPECTED_ACCOUNT_SNAPSHOT_SOURCE_RECONCILIATION_ID' EXECUTOR_HEALTH_B64='$HEALTH_B64' LIVE_SOURCE_B64='$LIVE_SOURCE_B64' CANARY_SOURCE_B64='$CANARY_SOURCE_B64' /opt/bp/.venv/bin/python -" <<'PY'
 from __future__ import annotations
 
 import base64
 import json
 import os
+import sys
+import types
 from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import create_engine, select
 
+import bp_engine.execution as execution_package
 from bp_engine.config import Settings
-from bp_engine.execution import canary
-from bp_engine.execution.live import _account_snapshot
 from bp_engine.live_readiness.repository import LiveReadinessRepository
 from bp_engine.storage import schema
+
+live_module = types.ModuleType("bp_engine.execution.live")
+live_module.__package__ = "bp_engine.execution"
+sys.modules[live_module.__name__] = live_module
+execution_package.live = live_module
+live_source = base64.b64decode(os.environ["LIVE_SOURCE_B64"]).decode("utf-8")
+exec(compile(live_source, "<phase15_repair_live_inline>", "exec"), live_module.__dict__)
+
+canary = types.ModuleType("phase15_repair_canary_inline")
+sys.modules[canary.__name__] = canary
+canary_source = base64.b64decode(os.environ["CANARY_SOURCE_B64"]).decode("utf-8")
+exec(compile(canary_source, "<phase15_repair_canary_inline>", "exec"), canary.__dict__)
+_account_snapshot = live_module._account_snapshot
 
 target_intent_id = os.environ["TARGET_INTENT_ID"]
 expected_terminal_reconciliation_id = os.environ["EXPECTED_TERMINAL_RECONCILIATION_ID"]

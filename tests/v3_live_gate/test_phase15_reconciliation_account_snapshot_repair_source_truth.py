@@ -13,6 +13,7 @@ HELPER = (
     / "phase15_v3_reconciliation_account_snapshot_repair_cloudshell.sh"
 )
 CANARY = ROOT / "src" / "bp_engine" / "execution" / "canary.py"
+LIVE = ROOT / "src" / "bp_engine" / "execution" / "live.py"
 EVIDENCE = (
     ROOT
     / "docs"
@@ -24,6 +25,12 @@ AUTHORIZATION_EVIDENCE = (
     / "docs"
     / "evidence"
     / "phase-15-reconciliation-account-snapshot-repair-authorization-20260927.json"
+)
+RUNTIME_COMPAT_EVIDENCE = (
+    ROOT
+    / "docs"
+    / "evidence"
+    / "phase-15-reconciliation-account-snapshot-repair-runtime-compat-20260927.json"
 )
 
 
@@ -77,6 +84,7 @@ def test_reconciliation_account_snapshot_repair_is_authorized_not_executed() -> 
     bindings = {
         "helper_git_blob_sha": HELPER,
         "canary_git_blob_sha": CANARY,
+        "live_git_blob_sha": LIVE,
     }
     for field, path in bindings.items():
         actual = subprocess.run(
@@ -104,6 +112,10 @@ def test_reconciliation_repair_helper_is_fail_closed_and_not_self_authorizing() 
         "after.unresolved_critical_reconciliation == 0",
         "submission_attempt_consumed_by_repair",
         "network_submission_attempt_consumed_by_repair",
+        "LIVE_SOURCE_B64",
+        "CANARY_SOURCE_B64",
+        'types.ModuleType("bp_engine.execution.live")',
+        'types.ModuleType("phase15_repair_canary_inline")',
         "ORDER_SUBMISSION_PERFORMED=false",
         "PHASE15_RECONCILIATION_ACCOUNT_SNAPSHOT_REPAIR=PASS",
     ):
@@ -116,6 +128,7 @@ def test_reconciliation_repair_helper_is_fail_closed_and_not_self_authorizing() 
         "submit_limit_buy",
         "create_limit_order",
         "post_order",
+        "from bp_engine.execution import canary",
     ):
         assert forbidden not in text
 
@@ -141,7 +154,10 @@ def test_bug_diagnosis_evidence_matches_source_truth() -> None:
     assert evidence["repair_design"]["current_db_repair_requires_explicit_authorization"] is True
     assert evidence["repair_design"]["additional_network_attempts_authorized"] is False
     assert evidence["repair_design"]["order_submission_authorized"] is False
-    assert evidence["bindings"]["helper_git_blob_sha"] == repair["helper_git_blob_sha"]
+    assert evidence["bindings"]["helper_git_blob_sha"] == (
+        "c62d97971fef62ca1418363449035cf69d1854aa"
+    )
+    assert evidence["bindings"]["helper_git_blob_sha"] != repair["helper_git_blob_sha"]
     assert evidence["bindings"]["canary_git_blob_sha"] == repair["canary_git_blob_sha"]
     assert evidence["production_mutation_performed"] is False
 
@@ -162,6 +178,33 @@ def test_reconciliation_repair_authorization_evidence_matches_source_truth() -> 
     assert evidence["authorization"]["strategy_mutation_authorized"] is False
     assert evidence["authorization"]["additional_network_attempts_authorized"] is False
     assert evidence["target"]["intent_id"] == repair["target_terminal_intent_id"]
-    assert evidence["bindings"]["helper_git_blob_sha"] == repair["helper_git_blob_sha"]
+    assert evidence["bindings"]["helper_git_blob_sha"] == (
+        "c62d97971fef62ca1418363449035cf69d1854aa"
+    )
+    assert evidence["bindings"]["helper_git_blob_sha"] != repair["helper_git_blob_sha"]
     assert evidence["bindings"]["canary_git_blob_sha"] == repair["canary_git_blob_sha"]
     assert evidence["production_mutation_performed"] is False
+
+
+def test_reconciliation_repair_runtime_compat_evidence_matches_source_truth() -> None:
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    repair = state["phase_15_v3_live_canary"]["reconciliation_account_snapshot_repair"]
+    evidence = json.loads(RUNTIME_COMPAT_EVIDENCE.read_text(encoding="utf-8"))
+
+    assert evidence["source_main_before_repair"] == (
+        "f7ad4b0ae17dc0c0e7b313a8436ba2f659549001"
+    )
+    failed = evidence["failed_execution"]
+    assert failed["helper_result"] == "FAIL"
+    assert failed["reason"] == "database_repair_failed"
+    assert failed["production_mutation_performed"] is False
+    assert failed["reconciliation_row_written"] is False
+    assert failed["order_submission_performed"] is False
+    assert failed["network_submission_attempt_consumed"] is False
+    assert evidence["authorization_preserved"]["status"] == repair["status"]
+    assert evidence["authorization_preserved"]["scope_changed"] is False
+    assert evidence["bindings"]["repaired_helper_git_blob_sha"] == repair["helper_git_blob_sha"]
+    assert evidence["bindings"]["canary_git_blob_sha"] == repair["canary_git_blob_sha"]
+    assert evidence["bindings"]["live_git_blob_sha"] == repair["live_git_blob_sha"]
+    assert repair["last_execution_attempt_status"] == "FAILED_PRE_MUTATION"
+    assert repair["last_execution_attempt_production_mutation_performed"] is False
