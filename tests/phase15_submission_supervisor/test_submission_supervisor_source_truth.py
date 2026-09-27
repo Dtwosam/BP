@@ -305,7 +305,10 @@ def test_gcloud_python_path_repair_evidence_matches_source_truth() -> None:
         ROOT
         / "docs"
         / "evidence"
-        / "phase-15-controlled-submission-supervisor-gcloud-python-path-repair-authorization-20260927.json"
+        / (
+            "phase-15-controlled-submission-supervisor-"
+            "gcloud-python-path-repair-authorization-20260927.json"
+        )
     )
     state = json.loads(STATE.read_text(encoding="utf-8"))
     supervisor = state["phase_15_v3_live_canary"]["controlled_submission_supervisor"]
