@@ -295,7 +295,7 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
     assert watch["post_reconciliation_restart_production_performed"] is True
     assert watch["post_reconciliation_restart_result"] == "PASS"
     assert watch["post_reconciliation_restart_run_id"] == (
-        "phase15-prepare-watch-20260927T084202Z-2fccca2c"
+        "phase15-prepare-watch-20260926T195409Z-271b35ff"
     )
     assert watch["post_reconciliation_restart_start_helper_git_blob_sha"] == (
         "0a98b03e35d8019a85063e45d1a979fea96c0532"
@@ -324,7 +324,7 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
     assert watch["run_id"] == "phase15-prepare-watch-20260927T084202Z-2fccca2c"
     assert watch["remote_run_dir"] == (
         "/var/lib/bp/phase15-canary-prepare-watch/runs/"
-        "phase15-prepare-watch-20260926T195409Z-271b35ff"
+        "phase15-prepare-watch-20260927T084202Z-2fccca2c"
     )
     assert watch["helper_head"] == "2fccca2cbb60bc0286fc77ce7dcd19f8dd80dbb5"
     assert watch["last_status"] == "failed"
