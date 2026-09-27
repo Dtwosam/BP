@@ -408,7 +408,8 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
         "docs/evidence/phase-15-v3-second-telegram-prepare-watch-runtime-reauthorization-20260926.json"
     )
     assert watch["current_run_evidence"] == (
-        "docs/evidence/phase-15-v3-post-reconciliation-watcher-restart-pass-production-20260926.json"
+        "docs/evidence/"
+        "phase-15-controlled-canary-until-candidate-watcher-start-pass-production-20260927.json"
     )
     assert watch["previous_run_id"] == "phase15-prepare-watch-20260926T155010Z-f3de8c00"
     assert watch["previous_last_status"] == "expired"
@@ -665,7 +666,7 @@ def test_controlled_auto_approved_second_canary_is_explicitly_authorized() -> No
     assert auth["prepare_watcher_expected_expiry_at"] is None
     until = auth["until_candidate_prepare_authorization"]
     assert until["authorized"] is True
-    assert until["consumed"] is False
+    assert until["consumed"] is True
     assert until["wait_mode"] == "until_candidate"
     assert until["max_wait_seconds"] == 0
     assert until["time_expiry_disabled"] is True
