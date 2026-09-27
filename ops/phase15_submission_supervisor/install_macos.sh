@@ -30,12 +30,13 @@ REMOTE_MAIN=$(git ls-remote origin refs/heads/main | awk 'NR==1 {print $1}')
   exit 1
 }
 
-command -v gcloud >/dev/null 2>&1 || {
+GCLOUD=$(command -v gcloud || true)
+[[ -n "$GCLOUD" && -x "$GCLOUD" ]] || {
   echo "PHASE15_CONTROLLED_SUBMISSION_SUPERVISOR_INSTALL=FAIL" >&2
   echo "REASON=gcloud_missing" >&2
   exit 1
 }
-gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q . || {
+"$GCLOUD" auth list --filter=status:ACTIVE --format='value(account)' | grep -q . || {
   echo "PHASE15_CONTROLLED_SUBMISSION_SUPERVISOR_INSTALL=FAIL" >&2
   echo "REASON=gcloud_auth_missing" >&2
   exit 1
@@ -85,14 +86,22 @@ assert second["max_network_submission_attempts"] == 1
 assert controlled["consumed"] is False
 assert auto["status"] == "ACTIVE_LIVE_AUTO_APPROVE"
 assert auto["mode"] == "live-auto-approve"
-assert supervisor["status"] == "AUTHORIZED_NOT_DEPLOYED"
 assert supervisor["authorized"] is True
 assert supervisor["completed"] is False
 assert supervisor["target_notional_usd"] == 5
 assert supervisor["max_network_submission_attempts"] == 1
-assert supervisor["deployment_performed"] is False
-assert supervisor["activation_performed"] is False
 assert supervisor["installer_git_blob_sha"] == sys.argv[2]
+if supervisor["status"] == "AUTHORIZED_NOT_DEPLOYED":
+    assert supervisor["deployment_performed"] is False
+    assert supervisor["activation_performed"] is False
+else:
+    assert supervisor["status"] == "ACTIVE_WAITING_FOR_REAL_SUBMISSION"
+    assert supervisor["deployment_performed"] is True
+    assert supervisor["activation_performed"] is True
+    assert supervisor["runtime_health_status"] == "DEGRADED_GCLOUD_NOT_FOUND"
+    assert supervisor["runtime_repair_authorized"] is True
+    assert supervisor["runtime_repair_completed"] is False
+    assert supervisor["runtime_issue"] == "launchagent_gcloud_not_found"
 PY
   echo "PHASE15_CONTROLLED_SUBMISSION_SUPERVISOR_INSTALL=FAIL" >&2
   echo "REASON=source_truth_supervisor_authorization_invalid" >&2
@@ -152,6 +161,8 @@ cat > "$PLIST" <<EOF
     <string>$MANAGED_REPO</string>
     <string>--state-root</string>
     <string>$STATE_ROOT</string>
+    <string>--gcloud-bin</string>
+    <string>$GCLOUD</string>
   </array>
 
   <key>WorkingDirectory</key>
@@ -189,6 +200,7 @@ launchctl print "gui/$(id -u)/com.bp.phase15-submission-supervisor" >/dev/null
 echo "MANAGED_REPO=$MANAGED_REPO"
 echo "STATE_ROOT=$STATE_ROOT"
 echo "SUPERVISOR_MAIN=$MANAGED_HEAD"
+echo "GCLOUD_BIN=$GCLOUD"
 echo "AUTO_APPROVER_REQUIRED=true"
 echo "MAX_NETWORK_SUBMISSION_ATTEMPTS=1"
 echo "TARGET_NOTIONAL_USD=5"
