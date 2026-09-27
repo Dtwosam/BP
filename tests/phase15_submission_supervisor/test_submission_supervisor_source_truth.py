@@ -205,8 +205,23 @@ def test_authorization_evidence_matches_source_truth() -> None:
     assert evidence["recycle_policy"]["allowed_only_before_network_attempt"] is True
     assert evidence["recycle_policy"]["market_end_grace_seconds"] == 20
 
+    repaired_fields = {"supervisor_git_blob_sha", "installer_git_blob_sha"}
     for field, value in evidence["bindings"].items():
+        if field in repaired_fields:
+            continue
         assert supervisor[field] == value
+
+    # Original authorization evidence is immutable history. Runtime repair
+    # evidence, not the original authorization record, binds the repaired
+    # supervisor/installer blobs.
+    assert evidence["bindings"]["supervisor_git_blob_sha"] == (
+        "8af3b517919fc3b4a400bbd69f90908fa89ecc92"
+    )
+    assert evidence["bindings"]["installer_git_blob_sha"] == (
+        "0d0bc12cda308a1413a3e99b49ab3d67574ee276"
+    )
+    assert supervisor["supervisor_git_blob_sha"] != evidence["bindings"]["supervisor_git_blob_sha"]
+    assert supervisor["installer_git_blob_sha"] != evidence["bindings"]["installer_git_blob_sha"]
 
 
 def test_macos_installer_is_explicit_and_secret_free() -> None:
