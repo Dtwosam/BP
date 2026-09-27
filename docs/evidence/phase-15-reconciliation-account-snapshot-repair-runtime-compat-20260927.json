@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-reconciliation-account-snapshot-repair-runtime-compat",
+  "observed_date": "2026-09-27",
+  "source_main_before_repair": "f7ad4b0ae17dc0c0e7b313a8436ba2f659549001",
+  "failed_execution": {
+    "helper_result": "FAIL",
+    "reason": "database_repair_failed",
+    "exception": "ImportError: cannot import name 'canary' from 'bp_engine.execution'",
+    "failing_runtime": "/var/lib/bp/runtime/v3-paper-9d52eb753355365848a637ffa6663928664bf770",
+    "failure_stage": "remote Python module import before Settings/engine creation and before transaction entry",
+    "production_mutation_performed": false,
+    "reconciliation_row_written": false,
+    "order_submission_performed": false,
+    "network_submission_attempt_consumed": false
+  },
+  "diagnosis": {
+    "summary": "The repair helper imported current Phase 15 canary symbols from the frozen V3 runtime, but that runtime predates bp_engine.execution.canary. Existing Phase 15 prepare/reconcile helpers solve this by injecting current live.py and canary.py source into the frozen runtime.",
+    "repair": "Inline and bind current live.py and canary.py in the repair helper before any database logic."
+  },
+  "authorization_preserved": {
+    "status": "AUTHORIZED_NOT_EXECUTED",
+    "user_reauthorization_required": false,
+    "scope_changed": false,
+    "order_submission_authorized": false,
+    "network_submission_attempt_authorized": false,
+    "executor_arm_or_invoke_authorized": false,
+    "live_trading_enablement_authorized": false,
+    "strategy_mutation_authorized": false
+  },
+  "bindings": {
+    "previous_helper_git_blob_sha": "c62d97971fef62ca1418363449035cf69d1854aa",
+    "repaired_helper_git_blob_sha": "8c88d428f24cee409767265bbf92a948002c9c76",
+    "canary_git_blob_sha": "14c3f508ec1a0c446af4c4ee92572075ffff3753",
+    "live_git_blob_sha": "0617ffeda8365cdd6ab2636af00e58ca8954c4db"
+  }
+}
