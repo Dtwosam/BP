@@ -19,15 +19,31 @@ EVIDENCE = (
     / "evidence"
     / "phase-15-reconciliation-account-snapshot-bug-diagnosis-20260927.json"
 )
+AUTHORIZATION_EVIDENCE = (
+    ROOT
+    / "docs"
+    / "evidence"
+    / "phase-15-reconciliation-account-snapshot-repair-authorization-20260927.json"
+)
 
 
-def test_reconciliation_account_snapshot_repair_is_ready_but_not_authorized() -> None:
+def test_reconciliation_account_snapshot_repair_is_authorized_not_executed() -> None:
     state = json.loads(STATE.read_text(encoding="utf-8"))
     gate = state["phase_15_v3_live_canary"]
     repair = gate["reconciliation_account_snapshot_repair"]
 
-    assert repair["status"] == "READY_NOT_AUTHORIZED"
-    assert repair["authorized"] is False
+    assert repair["status"] == "AUTHORIZED_NOT_EXECUTED"
+    assert repair["authorized"] is True
+    assert repair["authorization_received_date"] == "2026-09-27"
+    assert repair["authorization_scope"] == (
+        "One-time production reconciliation account-snapshot repair only; no order "
+        "submission, no network attempt, no executor arm/invoke, no Telegram approval, "
+        "no live-trading expansion, and no strategy mutation."
+    )
+    assert repair["authorization_evidence"] == (
+        "docs/evidence/"
+        "phase-15-reconciliation-account-snapshot-repair-authorization-20260927.json"
+    )
     assert repair["requires_explicit_production_mutation_authorization"] is True
     assert repair["production_mutation_performed"] is False
     assert repair["additional_network_attempts_authorized"] is False
@@ -125,6 +141,27 @@ def test_bug_diagnosis_evidence_matches_source_truth() -> None:
     assert evidence["repair_design"]["current_db_repair_requires_explicit_authorization"] is True
     assert evidence["repair_design"]["additional_network_attempts_authorized"] is False
     assert evidence["repair_design"]["order_submission_authorized"] is False
+    assert evidence["bindings"]["helper_git_blob_sha"] == repair["helper_git_blob_sha"]
+    assert evidence["bindings"]["canary_git_blob_sha"] == repair["canary_git_blob_sha"]
+    assert evidence["production_mutation_performed"] is False
+
+
+def test_reconciliation_repair_authorization_evidence_matches_source_truth() -> None:
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    repair = state["phase_15_v3_live_canary"]["reconciliation_account_snapshot_repair"]
+    evidence = json.loads(AUTHORIZATION_EVIDENCE.read_text(encoding="utf-8"))
+
+    assert evidence["source_main"] == "5738b56366a256f841c2c04219b4e478c8b95946"
+    assert evidence["status"] == repair["status"]
+    assert evidence["authorization"]["received"] is True
+    assert evidence["authorization"]["order_submission_authorized"] is False
+    assert evidence["authorization"]["network_submission_attempt_authorized"] is False
+    assert evidence["authorization"]["executor_arm_or_invoke_authorized"] is False
+    assert evidence["authorization"]["telegram_approval_authorized"] is False
+    assert evidence["authorization"]["live_trading_enablement_authorized"] is False
+    assert evidence["authorization"]["strategy_mutation_authorized"] is False
+    assert evidence["authorization"]["additional_network_attempts_authorized"] is False
+    assert evidence["target"]["intent_id"] == repair["target_terminal_intent_id"]
     assert evidence["bindings"]["helper_git_blob_sha"] == repair["helper_git_blob_sha"]
     assert evidence["bindings"]["canary_git_blob_sha"] == repair["canary_git_blob_sha"]
     assert evidence["production_mutation_performed"] is False
