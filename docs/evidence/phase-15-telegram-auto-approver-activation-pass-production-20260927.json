@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-telegram-auto-approver-activation-pass-production",
+  "source_main": "7ff1ebc240ddac39444aa3a903eca4beb841d73d",
+  "authorization_evidence": "docs/evidence/phase-15-telegram-auto-approver-live-authorization-20260927.json",
+  "deployment": {
+    "target": "operator Telegram user account on the user's Mac",
+    "service_state": "running",
+    "service_pid": 73154,
+    "mode": "live-auto-approve",
+    "activated_at": "2026-09-27T17:20:10.784007Z",
+    "live_auto_approve_enabled": true
+  },
+  "startup_observation": {
+    "bot_identity_confirmed": true,
+    "startup_latest_message_id": 5447,
+    "startup_latest_message_reason": "edit_without_reservation",
+    "startup_latest_message_action": "rejected",
+    "swept_unconfirmed": 0,
+    "stderr_empty": true
+  },
+  "safety": {
+    "existing_phase15_second_canary_limits_remain_in_force": true,
+    "strategy_target_notional_usd": 5,
+    "hard_max_trade_size_usd": 10,
+    "hard_max_total_exposure_usd": 10,
+    "hard_max_daily_loss_usd": 10,
+    "max_consecutive_losses": 1,
+    "max_network_submission_attempts": 1,
+    "order_ttl_seconds": 2,
+    "ambiguous_callback_retry_allowed": false,
+    "bypass_downstream_validation_authorized": false,
+    "broad_autonomous_live_rollout_authorized": false
+  },
+  "live_callback_observed_during_activation": false,
+  "real_order_submission_observed_during_activation": false,
+  "result": "PASS"
+}

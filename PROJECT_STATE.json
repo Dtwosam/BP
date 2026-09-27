@@ -5313,7 +5313,7 @@
       "production_evidence": "docs/evidence/phase-15-v3-terminal-telegram-intent-reconciliation-pass-production-20260927.json"
     },
     "operator_telegram_auto_approver": {
-      "status": "AUTHORIZED_NOT_DEPLOYED",
+      "status": "ACTIVE_LIVE_AUTO_APPROVE",
       "authorization_date": "2026-09-27",
       "authorization_source": "User explicitly authorized merging and deploying the reviewed Telegram auto-approver so it can automatically approve eligible BP canary prompts.",
       "implementation_merge_commit": "2ef544b5a2af821e4b59fd00bd2615dbab3ca798",
@@ -5339,10 +5339,18 @@
       "v4_mutation_authorized": false,
       "broad_autonomous_live_rollout_authorized": false,
       "bypass_downstream_validation_authorized": false,
-      "deployment_performed": false,
-      "activation_performed": false,
-      "production_evidence": null,
-      "authorization_evidence": "docs/evidence/phase-15-telegram-auto-approver-live-authorization-20260927.json"
+      "deployment_performed": true,
+      "activation_performed": true,
+      "production_evidence": "docs/evidence/phase-15-telegram-auto-approver-activation-pass-production-20260927.json",
+      "authorization_evidence": "docs/evidence/phase-15-telegram-auto-approver-live-authorization-20260927.json",
+      "activated_at": "2026-09-27T17:20:10.784007Z",
+      "service_state": "running",
+      "service_pid": 73154,
+      "mode": "live-auto-approve",
+      "swept_unconfirmed": 0,
+      "startup_latest_message_id": 5447,
+      "startup_latest_message_result": "rejected_edit_without_reservation",
+      "startup_errors_present": false
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {

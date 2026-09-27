@@ -617,3 +617,22 @@ def test_operator_telegram_auto_approver_is_live_authorized_but_not_yet_deployed
     assert auto["bypass_downstream_validation_authorized"] is False
     assert auto["deployment_performed"] is False
     assert auto["activation_performed"] is False
+
+
+def test_operator_telegram_auto_approver_activation_is_recorded() -> None:
+    state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
+    auto = state["phase_15_v3_live_canary"]["operator_telegram_auto_approver"]
+
+    assert auto["status"] == "ACTIVE_LIVE_AUTO_APPROVE"
+    assert auto["deployment_performed"] is True
+    assert auto["activation_performed"] is True
+    assert auto["service_state"] == "running"
+    assert auto["service_pid"] == 73154
+    assert auto["mode"] == "live-auto-approve"
+    assert auto["swept_unconfirmed"] == 0
+    assert auto["startup_latest_message_id"] == 5447
+    assert auto["startup_latest_message_result"] == "rejected_edit_without_reservation"
+    assert auto["startup_errors_present"] is False
+    assert auto["preserves_existing_second_canary_limits"] is True
+    assert auto["ambiguous_callback_retry_allowed"] is False
+    assert auto["bypass_downstream_validation_authorized"] is False
