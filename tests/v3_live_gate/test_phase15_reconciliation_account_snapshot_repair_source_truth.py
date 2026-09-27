@@ -32,15 +32,22 @@ RUNTIME_COMPAT_EVIDENCE = (
     / "evidence"
     / "phase-15-reconciliation-account-snapshot-repair-runtime-compat-20260927.json"
 )
+COMPLETION_EVIDENCE = (
+    ROOT
+    / "docs"
+    / "evidence"
+    / "phase-15-reconciliation-account-snapshot-repair-production-pass-20260927.json"
+)
 
 
-def test_reconciliation_account_snapshot_repair_is_authorized_not_executed() -> None:
+def test_reconciliation_account_snapshot_repair_production_pass() -> None:
     state = json.loads(STATE.read_text(encoding="utf-8"))
     gate = state["phase_15_v3_live_canary"]
     repair = gate["reconciliation_account_snapshot_repair"]
 
-    assert repair["status"] == "AUTHORIZED_NOT_EXECUTED"
-    assert repair["authorized"] is True
+    assert repair["status"] == "PRODUCTION_PASS"
+    assert repair["authorized"] is False
+    assert repair["authorization_consumed"] is True
     assert repair["authorization_received_date"] == "2026-09-27"
     assert repair["authorization_scope"] == (
         "One-time production reconciliation account-snapshot repair only; no order "
@@ -52,7 +59,7 @@ def test_reconciliation_account_snapshot_repair_is_authorized_not_executed() -> 
         "phase-15-reconciliation-account-snapshot-repair-authorization-20260927.json"
     )
     assert repair["requires_explicit_production_mutation_authorization"] is True
-    assert repair["production_mutation_performed"] is False
+    assert repair["production_mutation_performed"] is True
     assert repair["additional_network_attempts_authorized"] is False
     assert repair["order_submission_authorized"] is False
     assert repair["telegram_approval_authorized_by_repair"] is False
@@ -60,6 +67,20 @@ def test_reconciliation_account_snapshot_repair_is_authorized_not_executed() -> 
     assert repair["live_trading_enablement_authorized"] is False
     assert repair["strategy_mutation_authorized"] is False
     assert repair["network_submission_attempt_consumed_by_repair"] is False
+    assert repair["completion_evidence"] == (
+        "docs/evidence/"
+        "phase-15-reconciliation-account-snapshot-repair-production-pass-20260927.json"
+    )
+    assert repair["new_reconciliation_id"] == (
+        "live-reconciliation-5f601ea527ff9776ea905302e862ce27"
+    )
+    assert repair["carried_from_reconciliation_id"] == (
+        "live-reconciliation-81489372163985723f74f2003c7ef1d7"
+    )
+    assert repair["before_unresolved_critical_reconciliation"] == 1
+    assert repair["after_unresolved_critical_reconciliation"] == 0
+    assert repair["last_execution_attempt_status"] == "PRODUCTION_PASS"
+    assert repair["last_execution_attempt_production_mutation_performed"] is True
 
     assert repair["observed_trigger_prediction_id"] == (
         "2013df22eb33d69b2f3c1561873037bb1bf49995371c79cc19273af11383b32c"
@@ -168,7 +189,7 @@ def test_reconciliation_repair_authorization_evidence_matches_source_truth() -> 
     evidence = json.loads(AUTHORIZATION_EVIDENCE.read_text(encoding="utf-8"))
 
     assert evidence["source_main"] == "5738b56366a256f841c2c04219b4e478c8b95946"
-    assert evidence["status"] == repair["status"]
+    assert evidence["status"] == "AUTHORIZED_NOT_EXECUTED"
     assert evidence["authorization"]["received"] is True
     assert evidence["authorization"]["order_submission_authorized"] is False
     assert evidence["authorization"]["network_submission_attempt_authorized"] is False
@@ -201,10 +222,43 @@ def test_reconciliation_repair_runtime_compat_evidence_matches_source_truth() ->
     assert failed["reconciliation_row_written"] is False
     assert failed["order_submission_performed"] is False
     assert failed["network_submission_attempt_consumed"] is False
-    assert evidence["authorization_preserved"]["status"] == repair["status"]
+    assert evidence["authorization_preserved"]["status"] == "AUTHORIZED_NOT_EXECUTED"
     assert evidence["authorization_preserved"]["scope_changed"] is False
     assert evidence["bindings"]["repaired_helper_git_blob_sha"] == repair["helper_git_blob_sha"]
     assert evidence["bindings"]["canary_git_blob_sha"] == repair["canary_git_blob_sha"]
     assert evidence["bindings"]["live_git_blob_sha"] == repair["live_git_blob_sha"]
-    assert repair["last_execution_attempt_status"] == "FAILED_PRE_MUTATION"
-    assert repair["last_execution_attempt_production_mutation_performed"] is False
+    assert repair["last_execution_attempt_status"] == "PRODUCTION_PASS"
+    assert repair["last_execution_attempt_production_mutation_performed"] is True
+
+
+def test_reconciliation_repair_completion_evidence_matches_source_truth() -> None:
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    repair = state["phase_15_v3_live_canary"]["reconciliation_account_snapshot_repair"]
+    evidence = json.loads(COMPLETION_EVIDENCE.read_text(encoding="utf-8"))
+
+    assert evidence["executed_from_main"] == (
+        "88c14929eeddec51910386aabf18b9d54e8175c5"
+    )
+    assert evidence["result"] == "PASS"
+    result = evidence["repair"]
+    assert result["status"] == "repaired"
+    assert result["target_intent_id"] == repair["target_terminal_intent_id"]
+    assert result["new_reconciliation_id"] == repair["new_reconciliation_id"]
+    assert (
+        result["carried_from_reconciliation_id"]
+        == repair["carried_from_reconciliation_id"]
+    )
+    assert (
+        result["before_unresolved_critical_reconciliation"]
+        == repair["before_unresolved_critical_reconciliation"]
+    )
+    assert (
+        result["after_unresolved_critical_reconciliation"]
+        == repair["after_unresolved_critical_reconciliation"]
+    )
+    assert evidence["safety"]["order_submission_performed"] is False
+    assert evidence["safety"]["submission_attempt_consumed_by_repair"] is False
+    assert evidence["safety"]["network_submission_attempt_consumed_by_repair"] is False
+    assert evidence["safety"]["live_trading_enablement_performed"] is False
+    assert evidence["safety"]["strategy_mutation_performed"] is False
+    assert evidence["production_mutation_performed"] is True
