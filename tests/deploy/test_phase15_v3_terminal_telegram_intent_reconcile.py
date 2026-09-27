@@ -122,7 +122,10 @@ def test_terminal_reconciliation_pass_evidence_matches_operator_output() -> None
     assert evidence["post_mutation_safety"]["second_canary_network_attempt_consumed"] is False
     assert evidence["authorization_boundary"]["reconciliation_authorization_consumed"] is True
     assert evidence["authorization_boundary"]["watcher_restart_authorized"] is False
-    assert evidence["authorization_boundary"]["fresh_watcher_restart_authorization_required"] is True
+    assert (
+        evidence["authorization_boundary"]["fresh_watcher_restart_authorization_required"]
+        is True
+    )
 
 
 def test_terminal_reconciliation_helper_is_explicit_and_fail_closed() -> None:
