@@ -1,0 +1,24 @@
+# User-level systemd unit for the operator Telegram account.
+# Install under ~/.config/systemd/user/ and control it with systemctl --user.
+# Do not install this as a system unit and do not run it as root.
+# The Telegram session file must stay mode 0600 and owned by that same user.
+
+[Unit]
+Description=BP operator Telegram auto-approver (dry-run unless explicitly enabled)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/BP
+Environment=PYTHONPATH=%h/BP/ops/telegram_auto_approver:%h/BP/src
+EnvironmentFile=%h/.config/bp/telegram-auto-approver.env
+ExecStart=%h/.local/share/bp-telegram-auto-approver/venv/bin/python -m bp_telegram_auto_approver
+Restart=on-failure
+RestartSec=2s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target
