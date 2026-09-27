@@ -66,6 +66,7 @@ def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
     assert supervisor["official_reconciliation_required_after_success"] is True
 
     bindings = {
+        "installer_git_blob_sha": ROOT / "ops" / "phase15_submission_supervisor" / "install_macos.sh",
         "supervisor_git_blob_sha": SUPERVISOR,
         "reconcile_helper_git_blob_sha": RECONCILE,
         "start_helper_git_blob_sha": START,
