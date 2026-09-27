@@ -67,17 +67,29 @@ def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
     assert supervisor["official_reconciliation_required_after_success"] is True
 
     bindings = {
-        "installer_git_blob_sha": ROOT / "ops" / "phase15_submission_supervisor" / "install_macos.sh",
+        "installer_git_blob_sha": (
+            ROOT / "ops" / "phase15_submission_supervisor" / "install_macos.sh"
+        ),
         "supervisor_git_blob_sha": SUPERVISOR,
         "reconcile_helper_git_blob_sha": RECONCILE,
         "start_helper_git_blob_sha": START,
-        "prepare_runner_git_blob_sha": ROOT / "scripts" / "run_phase15_v3_canary_prepare_watch.py",
-        "prepare_service_unit_git_blob_sha": ROOT / "deploy" / "bp-phase15-canary-prepare-watch.service",
+        "prepare_runner_git_blob_sha": (
+            ROOT / "scripts" / "run_phase15_v3_canary_prepare_watch.py"
+        ),
+        "prepare_service_unit_git_blob_sha": (
+            ROOT / "deploy" / "bp-phase15-canary-prepare-watch.service"
+        ),
         "canary_git_blob_sha": ROOT / "src" / "bp_engine" / "execution" / "canary.py",
         "live_git_blob_sha": ROOT / "src" / "bp_engine" / "execution" / "live.py",
-        "arm_helper_git_blob_sha": ROOT / "scripts" / "deploy" / "phase15_v3_canary_arm_cloudshell.sh",
-        "executor_git_blob_sha": ROOT / "scripts" / "deploy" / "phase15_v3_canary_executor.py",
-        "telegram_approval_contract_git_blob_sha": ROOT / "src" / "bp_engine" / "execution" / "telegram_approval.py",
+        "arm_helper_git_blob_sha": (
+            ROOT / "scripts" / "deploy" / "phase15_v3_canary_arm_cloudshell.sh"
+        ),
+        "executor_git_blob_sha": (
+            ROOT / "scripts" / "deploy" / "phase15_v3_canary_executor.py"
+        ),
+        "telegram_approval_contract_git_blob_sha": (
+            ROOT / "src" / "bp_engine" / "execution" / "telegram_approval.py"
+        ),
     }
     for field, path in bindings.items():
         actual = subprocess.run(
