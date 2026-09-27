@@ -6,12 +6,12 @@ import fcntl
 import json
 import os
 import subprocess
-import sys
 import time
 from dataclasses import dataclass
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 DEFAULT_PROJECT = "project-4397f2c0-7098-4c1c-abb"
 DEFAULT_RECORDER_VM = "bp-recorder"
@@ -23,8 +23,12 @@ MARKET_END_GRACE_SECONDS = 20
 AMBIGUOUS_ATTEMPT_GRACE_SECONDS = 45
 
 BINDINGS = {
-    "start_helper_git_blob_sha": "scripts/deploy/phase15_v3_canary_prepare_watch_start_cloudshell.sh",
-    "reconcile_helper_git_blob_sha": "scripts/deploy/phase15_v3_controlled_canary_reconcile_unsubmitted_cloudshell.sh",
+    "start_helper_git_blob_sha": (
+        "scripts/deploy/phase15_v3_canary_prepare_watch_start_cloudshell.sh"
+    ),
+    "reconcile_helper_git_blob_sha": (
+        "scripts/deploy/phase15_v3_controlled_canary_reconcile_unsubmitted_cloudshell.sh"
+    ),
     "supervisor_git_blob_sha": "ops/phase15_submission_supervisor/run.py",
     "prepare_runner_git_blob_sha": "scripts/run_phase15_v3_canary_prepare_watch.py",
     "prepare_service_unit_git_blob_sha": "deploy/bp-phase15-canary-prepare-watch.service",
@@ -104,8 +108,7 @@ def _run(
         cwd=cwd,
         env=dict(env) if env is not None else None,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         check=False,
         timeout=timeout,
     )
@@ -143,7 +146,10 @@ def verify_authorization(repo: Path) -> dict[str, Any]:
     auto = gate["operator_telegram_auto_approver"]
     supervisor = gate["controlled_submission_supervisor"]
 
-    if state.get("live_trading_enabled") is not False or gate.get("live_trading_enabled") is not False:
+    if (
+        state.get("live_trading_enabled") is not False
+        or gate.get("live_trading_enabled") is not False
+    ):
         raise SupervisorError("global live-trading source truth changed")
     if second.get("status") != "AUTHORIZED_NOT_SUBMITTED":
         raise SupervisorError("second-canary authorization is not available")
@@ -157,7 +163,11 @@ def verify_authorization(repo: Path) -> dict[str, Any]:
         raise SupervisorError("Telegram auto-approver mode changed")
     if supervisor.get("authorized") is not True:
         raise SupervisorError("submission supervisor is not authorized")
-    if supervisor.get("status") not in {"AUTHORIZED_NOT_DEPLOYED", "ACTIVE_WAITING_FOR_REAL_SUBMISSION"}:
+    allowed_statuses = {
+        "AUTHORIZED_NOT_DEPLOYED",
+        "ACTIVE_WAITING_FOR_REAL_SUBMISSION",
+    }
+    if supervisor.get("status") not in allowed_statuses:
         raise SupervisorError("submission supervisor is terminal or unavailable")
     if supervisor.get("completed") is not False:
         raise SupervisorError("submission supervisor already completed")
@@ -486,7 +496,11 @@ def _reconcile(config: Config, intent_id: str) -> None:
         env=env,
         timeout=180,
     )
-    _emit("CANDIDATE_RECONCILED_WITHOUT_NETWORK_ATTEMPT", intent_id=intent_id, output=completed.stdout[-1200:])
+    _emit(
+        "CANDIDATE_RECONCILED_WITHOUT_NETWORK_ATTEMPT",
+        intent_id=intent_id,
+        output=completed.stdout[-1200:],
+    )
 
 
 def _start_watcher(config: Config) -> None:
@@ -552,7 +566,8 @@ def main() -> int:
 
     terminal_path = config.state_root / "terminal.json"
     if terminal_path.is_file():
-        _emit("SUPERVISOR_ALREADY_TERMINAL", terminal=json.loads(terminal_path.read_text(encoding="utf-8")))
+        terminal = json.loads(terminal_path.read_text(encoding="utf-8"))
+        _emit("SUPERVISOR_ALREADY_TERMINAL", terminal=terminal)
         return 0
 
     lock_path = config.state_root / "supervisor.lock"
@@ -588,7 +603,11 @@ def main() -> int:
                 action=decision.action,
                 reason=decision.reason,
                 run_dir=recorder.get("run_dir"),
-                intent_id=(prepared or {}).get("intent_id") if isinstance(prepared, Mapping) else None,
+                intent_id=(
+                    (prepared or {}).get("intent_id")
+                    if isinstance(prepared, Mapping)
+                    else None
+                ),
             )
 
             if decision.action == "wait":
@@ -608,7 +627,11 @@ def main() -> int:
                     config,
                     "halted_fail_closed",
                     decision.reason,
-                    intent_id=str((prepared or {}).get("intent_id") or "") if isinstance(prepared, Mapping) else None,
+                    intent_id=(
+                        str((prepared or {}).get("intent_id") or "")
+                        if isinstance(prepared, Mapping)
+                        else None
+                    ),
                     recorder=recorder,
                     executor=executor,
                 )
