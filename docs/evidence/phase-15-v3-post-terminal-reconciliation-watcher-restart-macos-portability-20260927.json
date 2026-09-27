@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-post-terminal-reconciliation-watcher-restart-macos-portability-rebind",
+  "date": "2026-09-27",
+  "source_main": "91d1564790378fc3d7fc3efbb1b972cc7a6feee9",
+  "authorization_scope_changed": false,
+  "authorization_consumed": false,
+  "production_restart_performed": false,
+  "repair": {
+    "helper": "scripts/deploy/phase15_v3_canary_prepare_watch_start_cloudshell.sh",
+    "previous_git_blob_sha": "0a98b03e35d8019a85063e45d1a979fea96c0532",
+    "repaired_git_blob_sha": "3d883da14592f230dc0ea7a51b76991ea898bede",
+    "changes": [
+      "Replace local GNU-only base64 -w0 encoding with Python stdlib base64.",
+      "Replace local sha256sum archive hashing with Python stdlib hashlib."
+    ],
+    "unchanged_remote_linux_operations": [
+      "Remote archive SHA-256 verification still uses sha256sum on bp-recorder.",
+      "Remote command decoding still uses base64 -d on bp-recorder."
+    ]
+  },
+  "preserved_authorization": {
+    "max_wait_seconds": 7200,
+    "prepare_only": true,
+    "research_mode": true,
+    "zero_money": true,
+    "one_shot": true,
+    "fresh_candidate_required": true,
+    "terminal_intent_must_not_be_reused": true
+  },
+  "excluded_actions": {
+    "telegram_approve": false,
+    "executor_arm_or_invoke": false,
+    "order_submission": false,
+    "live_trading_enablement": false
+  },
+  "safety": {
+    "second_canary_network_attempt_consumed": false,
+    "live_order_submitted": false
+  }
+}
