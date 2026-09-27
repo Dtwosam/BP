@@ -24,10 +24,11 @@
     "passed_to_supervisor_as": "--gcloud-bin",
     "source_truth_binding_required": true,
     "additional_network_attempts_authorized": false,
-    "live_scope_expansion_authorized": false
+    "live_scope_expansion_authorized": false,
+    "helper_scripts_inherit_verified_gcloud_directory": true
   },
   "bindings": {
-    "supervisor_git_blob_sha": "73f0b8f875f1184a2c5d9d4e2a2e08799295de54",
+    "supervisor_git_blob_sha": "d73de98fe97be467b845e9a63ca6eeec1b907c6d",
     "installer_git_blob_sha": "6550750baaa9dac63a5ddfca4eea797431401b5f"
   },
   "repair_completed": false
