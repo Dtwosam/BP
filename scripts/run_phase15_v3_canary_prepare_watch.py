@@ -66,6 +66,7 @@ def _status_base(
         "helper_head": helper_head,
         "activated_at": activated_at.isoformat(),
         "max_wait_seconds": max_wait_seconds,
+        "wait_mode": "until_candidate" if max_wait_seconds == 0 else "bounded",
         "updated_at": _utc_now().isoformat(),
         "live_trading_enabled": False,
         "real_order_submitted": False,
@@ -83,7 +84,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--activated-at", required=True)
     parser.add_argument("--official-open-order-count", type=int, required=True)
     parser.add_argument("--collateral-balance-usd", required=True)
-    parser.add_argument("--max-wait-seconds", type=int, default=7200)
+    parser.add_argument("--max-wait-seconds", type=int, default=0)
     parser.add_argument("--poll-seconds", type=float, default=0.5)
     parser.add_argument("--authorized-submission-attempt-limit", type=int, default=1)
     parser.add_argument("--authorized-accepted-order-limit", type=int, default=1)
@@ -104,8 +105,8 @@ def main() -> int:
         raise SystemExit("MAX_DAILY_LOSS_USD must be 0")
     if "POLYMARKET_PRIVATE_KEY" in os.environ:
         raise SystemExit("wallet material must not be present on prepare watcher")
-    if not 1 <= args.max_wait_seconds <= 7200:
-        raise SystemExit("max wait must be within 1..7200 seconds")
+    if not 0 <= args.max_wait_seconds <= 7200:
+        raise SystemExit("max wait must be 0 (until candidate) or within 1..7200 seconds")
     if not 0.5 <= args.poll_seconds <= 10:
         raise SystemExit("poll seconds must be within 0.5..10")
     if args.official_open_order_count != 0:
@@ -134,7 +135,11 @@ def main() -> int:
 
     settings = Settings(_env_file=args.env_file)
     engine = create_engine(settings.database_url, pool_pre_ping=True)
-    deadline = time.monotonic() + args.max_wait_seconds
+    deadline = (
+        None
+        if args.max_wait_seconds == 0
+        else time.monotonic() + args.max_wait_seconds
+    )
     base = _status_base(
         run_id=args.run_id,
         helper_head=helper_head,
@@ -152,7 +157,7 @@ def main() -> int:
 
     persisted_intent: dict[str, Any] | None = None
     try:
-        while time.monotonic() < deadline:
+        while deadline is None or time.monotonic() < deadline:
             report = canary_module.prepare_next_canary(
                 engine=engine,
                 activated_at=activated_at,
