@@ -31,3 +31,7 @@ docker-compose.override.yml
 # Worktrees
 .worktrees/
 worktrees/
+
+# Operator Telegram auto-approver session. Never commit this.
+*.session
+*.session-journal

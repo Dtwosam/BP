@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.bp.telegram-auto-approver</string>
+  <key>WorkingDirectory</key>
+  <string>/ABSOLUTE/PATH/BP</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/ABSOLUTE/PATH/venv/bin/python</string>
+    <string>-m</string>
+    <string>bp_telegram_auto_approver</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PYTHONPATH</key>
+    <string>/ABSOLUTE/PATH/BP/ops/telegram_auto_approver:/ABSOLUTE/PATH/BP/src</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>KeepAlive</key>
+  <true/>
+</dict>
+</plist>
