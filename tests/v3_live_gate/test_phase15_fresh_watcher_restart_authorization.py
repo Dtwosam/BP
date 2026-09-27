@@ -43,9 +43,30 @@ def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None
     watch = gate["persistent_prepare_watch"]
     second = gate["second_live_canary_authorization"]
 
-    assert watch["status"] == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_CANDIDATE"
-    assert watch["start_authorized"] is False
-    assert watch["service_active"] is True
+    assert watch["status"] == "AUTHORIZED_FOR_FRESH_POST_EXPIRY_RESTART"
+    assert watch["start_authorized"] is True
+    assert watch["service_active"] is False
+    assert watch["last_status"] == "expired"
+    assert watch["last_status_reason"] == "no_eligible_v3_trade_within_wait_window"
+    assert watch["post_expiry_restart_authorized"] is True
+    assert watch["post_expiry_restart_authorization_consumed"] is False
+    assert watch["post_expiry_restart_one_shot"] is True
+    assert watch["post_expiry_restart_max_wait_seconds"] == 7200
+    assert watch["post_expiry_restart_prepare_only"] is True
+    assert watch["post_expiry_restart_research_mode"] is True
+    assert watch["post_expiry_restart_zero_money"] is True
+    assert watch["post_expiry_restart_requires_new_candidate_after_activation"] is True
+    assert watch["post_expiry_restart_previous_run_id"] == (
+        "phase15-prepare-watch-20260927T094843Z-4b584f95"
+    )
+    assert watch["post_expiry_restart_previous_run_status"] == "expired"
+    assert watch["post_expiry_restart_previous_submission_attempt_consumed"] is False
+    assert watch["post_expiry_restart_previous_real_order_submitted"] is False
+    assert watch["post_expiry_restart_previous_arm_attempted"] is False
+    assert watch["post_expiry_restart_does_not_authorize_telegram_approve"] is True
+    assert watch["post_expiry_restart_does_not_authorize_executor_arm_or_invoke"] is True
+    assert watch["post_expiry_restart_does_not_authorize_order_submission"] is True
+    assert watch["post_expiry_restart_does_not_authorize_live_trading_enablement"] is True
     assert watch["fresh_restart_authorized"] is True
     assert watch["fresh_restart_authorization_consumed"] is True
     assert watch["fresh_restart_authorized_at_main"] == (
