@@ -5486,7 +5486,7 @@
       "supervisor_evidence": "docs/evidence/phase-15-controlled-submission-supervisor-authorization-20260927.json"
     },
     "controlled_submission_supervisor": {
-      "status": "AUTHORIZED_NOT_DEPLOYED",
+      "status": "ACTIVE_WAITING_FOR_REAL_SUBMISSION",
       "authorized": true,
       "completed": false,
       "authorization_date": "2026-09-27",
@@ -5521,8 +5521,8 @@
       "third_order_authorized": false,
       "official_reconciliation_required_after_success": true,
       "managed_operator_host": "Mac",
-      "deployment_performed": false,
-      "activation_performed": false,
+      "deployment_performed": true,
+      "activation_performed": true,
       "supervisor_git_blob_sha": "8af3b517919fc3b4a400bbd69f90908fa89ecc92",
       "reconcile_helper_git_blob_sha": "804c5a8d356209c7be57797940a711399f37dbad",
       "start_helper_git_blob_sha": "0538ec8d568303fa32fdf4488ecc374dd92d609a",
@@ -5534,7 +5534,17 @@
       "executor_git_blob_sha": "0a0cdc42882c6de5d8b09d5f630826cd6fab39a3",
       "telegram_approval_contract_git_blob_sha": "930b62514712bd40400550da3ea5bbed533198da",
       "evidence": "docs/evidence/phase-15-controlled-submission-supervisor-authorization-20260927.json",
-      "installer_git_blob_sha": "0d0bc12cda308a1413a3e99b49ab3d67574ee276"
+      "installer_git_blob_sha": "0d0bc12cda308a1413a3e99b49ab3d67574ee276",
+      "activation_result": "PASS",
+      "activated_at_date": "2026-09-27",
+      "activated_from_main": "0c146fa0dc502c1855c5636f89e363667a1f71f3",
+      "installation_authorization_consumed": true,
+      "launch_agent_label": "com.bp.phase15-submission-supervisor",
+      "launch_agent_verified_running_at_install": true,
+      "waiting_for_real_submission": true,
+      "real_order_submission_observed": false,
+      "network_submission_attempt_observed": false,
+      "activation_evidence": "docs/evidence/phase-15-controlled-submission-supervisor-activation-pass-production-20260927.json"
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {
