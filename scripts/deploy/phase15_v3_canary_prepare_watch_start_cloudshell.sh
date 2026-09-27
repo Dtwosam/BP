@@ -37,7 +37,15 @@ command -v python3 >/dev/null 2>&1 || fail_local "python3_missing"
 gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q . \
   || fail_local "gcloud_auth_missing"
 
-python3 - "$ROOT/PROJECT_STATE.json" <<'PY' || fail_local "source_truth_not_authorized"
+START_HELPER_BLOB=$(git hash-object "$ROOT/scripts/deploy/phase15_v3_canary_prepare_watch_start_cloudshell.sh")
+RUNNER_BLOB=$(git hash-object "$ROOT/scripts/run_phase15_v3_canary_prepare_watch.py")
+SERVICE_UNIT_BLOB=$(git hash-object "$ROOT/deploy/bp-phase15-canary-prepare-watch.service")
+CANARY_BLOB=$(git hash-object "$ROOT/src/bp_engine/execution/canary.py")
+LIVE_BLOB=$(git hash-object "$ROOT/src/bp_engine/execution/live.py")
+ARM_HELPER_BLOB=$(git hash-object "$ROOT/scripts/deploy/phase15_v3_canary_arm_cloudshell.sh")
+EXECUTOR_BLOB=$(git hash-object "$ROOT/scripts/deploy/phase15_v3_canary_executor.py")
+
+python3 - "$ROOT/PROJECT_STATE.json" "$START_HELPER_BLOB" "$RUNNER_BLOB" "$SERVICE_UNIT_BLOB" "$CANARY_BLOB" "$LIVE_BLOB" "$ARM_HELPER_BLOB" "$EXECUTOR_BLOB" <<'PY' || fail_local "source_truth_not_authorized"
 import json
 import sys
 from pathlib import Path
@@ -48,6 +56,19 @@ second=gate.get("second_live_canary_authorization") or {}
 stage=gate.get("telegram_transport_stage") or {}
 activation=gate.get("telegram_transport_activation_authorization") or {}
 watch=gate["persistent_prepare_watch"]
+controlled=gate.get("controlled_auto_approved_canary_authorization") or {}
+supervisor=gate.get("controlled_submission_supervisor") or {}
+supervisor_start_authorized=(
+    supervisor.get("authorized") is True
+    and supervisor.get("completed") is False
+    and supervisor.get("status") in {
+        "AUTHORIZED_NOT_DEPLOYED",
+        "ACTIVE_WAITING_FOR_REAL_SUBMISSION",
+    }
+    and controlled.get("consumed") is False
+    and controlled.get("network_attempt_observed") is False
+    and controlled.get("real_order_submission_observed") is False
+)
 master=state["phase_14_checkpoint"]["master_live_gate"]
 assert state["source_of_truth_version"] == "0.14.180"
 assert state["live_trading_enabled"] is False
@@ -83,7 +104,17 @@ assert second.get("max_network_submission_attempts") == 1
 assert second.get("requires_fresh_telegram_approval") is True
 assert second.get("requires_official_reconciliation_before_any_third_order") is True
 assert watch["authorized"] is True
-assert watch["start_authorized"] is True
+assert watch["start_authorized"] is True or supervisor_start_authorized
+if supervisor_start_authorized:
+    assert supervisor.get("max_network_submission_attempts") == 1
+    assert supervisor.get("target_notional_usd") == 5
+    assert supervisor.get("start_helper_git_blob_sha") == sys.argv[2]
+    assert supervisor.get("prepare_runner_git_blob_sha") == sys.argv[3]
+    assert supervisor.get("prepare_service_unit_git_blob_sha") == sys.argv[4]
+    assert supervisor.get("canary_git_blob_sha") == sys.argv[5]
+    assert supervisor.get("live_git_blob_sha") == sys.argv[6]
+    assert supervisor.get("arm_helper_git_blob_sha") == sys.argv[7]
+    assert supervisor.get("executor_git_blob_sha") == sys.argv[8]
 assert watch.get("runtime_reauthorization_required") is False
 assert watch["max_wait_seconds"] == 0
 assert watch.get("wait_mode") == "until_candidate"
