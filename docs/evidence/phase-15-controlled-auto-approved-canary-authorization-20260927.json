@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-controlled-auto-approved-canary-authorization",
+  "authorization_date": "2026-09-27",
+  "authorized_at_main": "00b3e06e14d35d68a6e0ac9b59ce60221d561c44",
+  "scope": "Allow exactly one fresh frozen-V3 second-canary candidate to use the active operator Telegram auto-approver for the required fresh private APPROVE and then continue through the already-active guarded Telegram transport/handoff/executor path.",
+  "watcher": {
+    "run_id": "phase15-prepare-watch-20260927T154458Z-656caf74",
+    "started_at": "2026-09-27T15:44:58Z",
+    "max_wait_seconds": 7200,
+    "expected_expiry_at": "2026-09-27T17:44:58Z"
+  },
+  "limits": {
+    "target_notional_usd": 5,
+    "hard_max_trade_size_usd": 10,
+    "hard_max_total_exposure_usd": 10,
+    "hard_max_daily_loss_usd": 10,
+    "max_consecutive_losses": 1,
+    "max_network_submission_attempts": 1,
+    "order_ttl_seconds": 2,
+    "retry_on_ambiguous_result": false
+  },
+  "prerequisites": {
+    "fresh_frozen_v3_candidate": true,
+    "active_live_auto_approver": true,
+    "exact_request_binding": true,
+    "source_truth_attestation": true,
+    "execution_package_verifier": true,
+    "privileged_handoff_contract_verifier": true,
+    "fresh_geoblock_account_and_safe_idle_checks": true,
+    "official_reconciliation_after_attempt": true
+  },
+  "prohibited": {
+    "stake_growth": true,
+    "v3_strategy_mutation": true,
+    "v4_mutation": true,
+    "broad_autonomous_live_rollout": true
+  },
+  "consumed": false,
+  "network_attempt_observed": false,
+  "real_order_submission_observed": false
+}
