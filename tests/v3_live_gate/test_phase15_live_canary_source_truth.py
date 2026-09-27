@@ -628,7 +628,8 @@ def test_operator_telegram_auto_approver_activation_is_recorded() -> None:
     assert auto["deployment_performed"] is True
     assert auto["activation_performed"] is True
     assert auto["service_state"] == "running"
-    assert auto["service_pid"] == 73154
+    assert auto["service_pid"] == 1292
+    assert auto["runtime_repair_previous_service_pid"] == 73154
     assert auto["mode"] == "live-auto-approve"
     assert auto["swept_unconfirmed"] == 0
     assert auto["startup_latest_message_id"] == 5447
