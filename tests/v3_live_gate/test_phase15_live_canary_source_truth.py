@@ -268,9 +268,9 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
     assert activation["official_reconciliation_required_before_any_third_order"] is True
     assert activation["broad_autonomous_live_rollout_authorized"] is False
     assert gate["pending_unsubmitted_intent"] is None
-    assert watch["status"] == "SAFE_FAIL_RECONCILED_REQUIRES_FRESH_AUTHORIZATION"
+    assert watch["status"] == "AUTHORIZED_POST_TERMINAL_RECONCILIATION_RESTART_NOT_STARTED"
     assert watch["authorized"] is True
-    assert watch["start_authorized"] is False
+    assert watch["start_authorized"] is True
     assert watch["runtime_reauthorization_required"] is False
     assert watch["runtime_reauthorization_authorized"] is True
     assert watch["runtime_reauthorization_authorized_at_main"] == (
@@ -357,8 +357,20 @@ def test_phase15_telegram_transport_runtime_repair_resume_passed() -> None:
         "live-reconciliation-745a1e86a0075b4e98cdfbb30517a154"
     )
     assert watch["blocked_pending_intent_id"] is None
-    assert watch["fresh_restart_authorization_required_now"] is True
-    assert watch["fresh_restart_authorized_now"] is False
+    assert watch["fresh_restart_authorization_required_now"] is False
+    assert watch["fresh_restart_authorized_now"] is True
+    assert watch["post_terminal_reconciliation_restart_authorized"] is True
+    assert watch["post_terminal_reconciliation_restart_authorization_consumed"] is False
+    assert watch["post_terminal_reconciliation_restart_one_shot"] is True
+    assert watch["post_terminal_reconciliation_restart_max_wait_seconds"] == 7200
+    assert watch["post_terminal_reconciliation_restart_prepare_only"] is True
+    assert watch["post_terminal_reconciliation_restart_research_mode"] is True
+    assert watch["post_terminal_reconciliation_restart_zero_money"] is True
+    assert watch["post_terminal_reconciliation_restart_authorized_at_main"] == (
+        "b7517a2279c8168021a72eb68e5884f1ade80c94"
+    )
+    assert watch["post_terminal_reconciliation_restart_production_performed"] is False
+    assert watch["post_terminal_reconciliation_restart_second_canary_network_attempt_consumed"] is False
     assert watch["candidate_start_helper_git_blob_sha"] == (
         "0a98b03e35d8019a85063e45d1a979fea96c0532"
     )
