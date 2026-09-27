@@ -39,6 +39,12 @@ RUNTIME_REPAIR_COMPLETION_EVIDENCE = (
     / "evidence"
     / "phase-15-controlled-submission-supervisor-runtime-repair-completion-20260927.json"
 )
+RECOVERED_TRANSIENT_EVIDENCE = (
+    ROOT
+    / "docs"
+    / "evidence"
+    / "phase-15-controlled-submission-supervisor-recovered-transient-20260927.json"
+)
 
 
 def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
@@ -99,7 +105,19 @@ def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
     assert supervisor["runtime_repair_completed"] is True
     assert supervisor["runtime_repair_completed_at"] == "2026-09-27T20:30:28.267707+00:00"
     assert supervisor["runtime_repair_verified_healthy_through"] == (
-        "2026-09-27T20:40:01.941354+00:00"
+        "2026-09-27T21:25:11.482332+00:00"
+    )
+    assert supervisor["runtime_issue_last_observed_at"] == (
+        "2026-09-27T21:23:28.997342+00:00"
+    )
+    assert supervisor["runtime_transient_recurrence_observed"] is True
+    assert supervisor["runtime_transient_recurrence_count_observed"] == 1
+    assert supervisor["runtime_transient_recovered_at"] == (
+        "2026-09-27T21:23:55.116475+00:00"
+    )
+    assert supervisor["runtime_transient_observation_evidence"] == (
+        "docs/evidence/"
+        "phase-15-controlled-submission-supervisor-recovered-transient-20260927.json"
     )
     assert supervisor["runtime_repair_completion_evidence"] == (
         "docs/evidence/"
@@ -380,11 +398,49 @@ def test_runtime_repair_completion_evidence_matches_source_truth() -> None:
     assert observation["repeated_reason"] == "watcher_running"
     assert observation["new_transient_error_after_restart_observed"] is False
     assert observation["first_healthy_decision_at"] == supervisor["runtime_repair_completed_at"]
-    assert (
-        observation["verified_healthy_through"]
-        == supervisor["runtime_repair_verified_healthy_through"]
+    assert observation["verified_healthy_through"] == (
+        "2026-09-27T20:40:01.941354+00:00"
+    )
+    assert observation["verified_healthy_through"] != (
+        supervisor["runtime_repair_verified_healthy_through"]
     )
     assert evidence["repaired_issue"]["result"] == "PASS"
     assert evidence["safety_preserved"]["additional_network_attempts_authorized"] is False
     assert evidence["safety_preserved"]["production_database_mutation_performed"] is False
     assert evidence["safety_preserved"]["order_submission_performed_by_repair"] is False
+
+
+def test_supervisor_recovered_transient_evidence_matches_source_truth() -> None:
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    supervisor = state["phase_15_v3_live_canary"]["controlled_submission_supervisor"]
+    evidence = json.loads(RECOVERED_TRANSIENT_EVIDENCE.read_text(encoding="utf-8"))
+
+    assert evidence["source_main"] == "39e5233fea5f34564cdcdfd1925e634321c4b5e1"
+    observation = evidence["operator_observation"]
+    assert observation["launch_agent_state"] == "running"
+    assert observation["launch_agent_pid"] == 83085
+    assert observation["telegram_auto_approver_state"] == "running"
+    assert observation["telegram_auto_approver_pid"] == 73154
+    assert observation["supervisor_decision_count"] == 79
+    assert observation["supervisor_transient_error_count"] == 1
+    assert observation["repeated_action"] == "wait"
+    assert observation["repeated_reason"] == "watcher_running"
+    assert observation["intent_id"] is None
+    assert observation["stderr_empty"] is True
+
+    recovered = evidence["recovered_transient"]
+    assert recovered["observed_at"] == supervisor["runtime_issue_last_observed_at"]
+    assert recovered["next_healthy_decision_at"] == supervisor["runtime_transient_recovered_at"]
+    assert recovered["subsequent_healthy_decisions_observed"] is True
+    assert recovered["terminal_failure"] is False
+    assert recovered["supervisor_restart_observed"] is False
+    assert evidence["interpretation"]["runtime_health_status"] == (
+        supervisor["runtime_health_status"]
+    )
+    assert evidence["safety_preserved"]["controlled_canary_authorization_consumed"] is False
+    assert evidence["safety_preserved"]["network_submission_attempt_observed"] is False
+    assert evidence["safety_preserved"]["real_order_submission_observed"] is False
+    assert evidence["safety_preserved"]["additional_network_attempts_authorized"] is False
+    assert evidence["safety_preserved"]["live_scope_expansion_authorized"] is False
+    assert evidence["safety_preserved"]["strategy_mutation_authorized"] is False
+    assert evidence["safety_preserved"]["production_mutation_performed"] is False
