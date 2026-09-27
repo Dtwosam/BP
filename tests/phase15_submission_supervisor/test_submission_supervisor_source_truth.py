@@ -27,6 +27,12 @@ EVIDENCE = (
     / "phase-15-controlled-submission-supervisor-authorization-20260927.json"
 )
 INSTALLER = ROOT / "ops" / "phase15_submission_supervisor" / "install_macos.sh"
+ACTIVATION_EVIDENCE = (
+    ROOT
+    / "docs"
+    / "evidence"
+    / "phase-15-controlled-submission-supervisor-activation-pass-production-20260927.json"
+)
 
 
 def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
@@ -43,7 +49,7 @@ def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
     assert controlled["candidate_preparation_is_completion"] is False
     assert controlled["pre_network_candidate_recycling_authorized"] is True
 
-    assert supervisor["status"] == "AUTHORIZED_NOT_DEPLOYED"
+    assert supervisor["status"] == "ACTIVE_WAITING_FOR_REAL_SUBMISSION"
     assert supervisor["authorized"] is True
     assert supervisor["completed"] is False
     assert supervisor["target_notional_usd"] == 5
@@ -65,6 +71,22 @@ def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
     assert supervisor["broad_autonomous_live_rollout_authorized"] is False
     assert supervisor["third_order_authorized"] is False
     assert supervisor["official_reconciliation_required_after_success"] is True
+    assert supervisor["deployment_performed"] is True
+    assert supervisor["activation_performed"] is True
+    assert supervisor["activation_result"] == "PASS"
+    assert supervisor["activated_from_main"] == (
+        "0c146fa0dc502c1855c5636f89e363667a1f71f3"
+    )
+    assert supervisor["installation_authorization_consumed"] is True
+    assert supervisor["launch_agent_label"] == "com.bp.phase15-submission-supervisor"
+    assert supervisor["launch_agent_verified_running_at_install"] is True
+    assert supervisor["waiting_for_real_submission"] is True
+    assert supervisor["real_order_submission_observed"] is False
+    assert supervisor["network_submission_attempt_observed"] is False
+    assert supervisor["activation_evidence"] == (
+        "docs/evidence/"
+        "phase-15-controlled-submission-supervisor-activation-pass-production-20260927.json"
+    )
 
     bindings = {
         "installer_git_blob_sha": (
@@ -212,3 +234,21 @@ def test_macos_installer_is_explicit_and_secret_free() -> None:
         text=True,
     )
     assert completed.returncode == 0, completed.stderr
+
+
+def test_activation_evidence_matches_active_supervisor_state() -> None:
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    supervisor = state["phase_15_v3_live_canary"]["controlled_submission_supervisor"]
+    evidence = json.loads(ACTIVATION_EVIDENCE.read_text(encoding="utf-8"))
+
+    assert evidence["installer_result"] == "PASS"
+    assert evidence["source_main"] == supervisor["activated_from_main"]
+    assert evidence["installer_output"]["supervisor_main"] == supervisor["activated_from_main"]
+    assert evidence["installer_output"]["max_network_submission_attempts"] == 1
+    assert evidence["installer_output"]["target_notional_usd"] == 5
+    assert evidence["resulting_source_truth"]["status"] == supervisor["status"]
+    assert evidence["resulting_source_truth"]["deployment_performed"] is True
+    assert evidence["resulting_source_truth"]["activation_performed"] is True
+    assert evidence["resulting_source_truth"]["completed"] is False
+    assert evidence["safety_preserved"]["additional_network_attempts_authorized"] is False
+    assert evidence["safety_preserved"]["third_order_authorized"] is False
