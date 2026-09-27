@@ -43,11 +43,11 @@ def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None
     watch = gate["persistent_prepare_watch"]
     second = gate["second_live_canary_authorization"]
 
-    assert watch["status"] == "AUTHORIZED_FOR_FRESH_POST_EXPIRY_RESTART"
-    assert watch["start_authorized"] is True
-    assert watch["service_active"] is False
-    assert watch["last_status"] == "expired"
-    assert watch["last_status_reason"] == "no_eligible_v3_trade_within_wait_window"
+    assert watch["status"] == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_CANDIDATE"
+    assert watch["start_authorized"] is False
+    assert watch["service_active"] is True
+    assert watch["last_status"] == "running"
+    assert watch["last_status_reason"] == "waiting_for_new_frozen_v3_trade_order"
     assert watch["post_expiry_restart_authorized"] is True
     assert watch["post_expiry_restart_authorization_consumed"] is True
     assert watch["post_expiry_restart_production_performed"] is True
@@ -343,7 +343,7 @@ def test_second_post_expiry_restart_is_freshly_authorized() -> None:
     auth = watch["second_post_expiry_restart_authorization"]
 
     assert auth["authorized"] is True
-    assert auth["consumed"] is False
+    assert auth["consumed"] is True
     assert auth["one_shot"] is True
     assert auth["max_wait_seconds"] == 7200
     assert auth["prepare_only"] is True
@@ -360,3 +360,33 @@ def test_second_post_expiry_restart_is_freshly_authorized() -> None:
     assert auth["does_not_authorize_executor_arm_or_invoke"] is True
     assert auth["does_not_authorize_order_submission"] is True
     assert auth["does_not_authorize_live_trading_enablement"] is True
+
+
+def test_second_post_expiry_restart_production_pass_matches_operator_output() -> None:
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    watch = state["phase_15_v3_live_canary"]["persistent_prepare_watch"]
+    auth = watch["second_post_expiry_restart_authorization"]
+    evidence_path = (
+        ROOT
+        / "docs"
+        / "evidence"
+        / "phase-15-v3-second-post-expiry-watcher-restart-pass-production-20260927.json"
+    )
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+
+    assert auth["production_restart_performed"] is True
+    assert auth["production_restart_result"] == "PASS"
+    assert auth["run_id"] == "phase15-prepare-watch-20260927T154458Z-656caf74"
+    assert auth["source_main"] == "656caf74aaf17b52af8b5844fddf7c7a9d4b0d30"
+    assert auth["service_active"] is True
+    assert auth["no_real_order_submitted"] is True
+    assert auth["arm_automated"] is False
+    assert auth["submission_automated"] is False
+
+    assert evidence["result"] == "PASS"
+    assert evidence["authorization_consumed"] is True
+    assert evidence["run"]["service_active"] is True
+    assert evidence["operator_output"]["start_result"] == "PASS"
+    assert evidence["operator_output"]["no_real_order_submitted"] is True
+    assert evidence["operator_output"]["arm_automated"] is False
+    assert evidence["operator_output"]["submission_automated"] is False
