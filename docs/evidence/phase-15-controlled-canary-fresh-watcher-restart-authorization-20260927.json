@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-controlled-canary-fresh-watcher-restart-authorization",
+  "authorized_at_main": "f9d41b4abe446c9a6a09744a9795072d332607a3",
+  "authorization_date": "2026-09-27",
+  "prior_run": {
+    "run_id": "phase15-prepare-watch-20260927T154458Z-656caf74",
+    "status": "expired",
+    "reason": "no_eligible_v3_trade_within_wait_window",
+    "updated_at": "2026-09-27T17:45:36.298302+00:00",
+    "real_order_submitted": false,
+    "arm_attempted": false,
+    "submission_attempt_consumed": false
+  },
+  "controlled_canary": {
+    "authorization_consumed": false,
+    "network_attempt_observed": false,
+    "real_order_submission_observed": false,
+    "target_notional_usd": 5,
+    "max_network_submission_attempts": 1,
+    "auto_approver_active": true
+  },
+  "authorized_restart": {
+    "one_shot": true,
+    "max_wait_seconds": 7200,
+    "prepare_only": true,
+    "research_mode": true,
+    "zero_money": true,
+    "fresh_candidate_required": true
+  },
+  "binding": {
+    "start_helper_git_blob_sha": "3d883da14592f230dc0ea7a51b76991ea898bede",
+    "runner_git_blob_sha": "efe6dc9c3b37f5788b701107366bb634a4b1f357",
+    "service_unit_git_blob_sha": "5e20c65edd57e398d2106c7f6fe93fbb477b7572",
+    "canary_git_blob_sha": "df5e60b1b2ba632fd77d65103509fac70187be7d",
+    "live_git_blob_sha": "0617ffeda8365cdd6ab2636af00e58ca8954c4db",
+    "arm_helper_git_blob_sha": "692d60cc73438a4703db2d74d56448ce868bd9fe",
+    "executor_git_blob_sha": "0a0cdc42882c6de5d8b09d5f630826cd6fab39a3"
+  },
+  "authorization_consumed": false,
+  "production_restart_performed": false
+}
