@@ -45,9 +45,8 @@ def test_only_exact_true_enables_live_mode(tmp_path) -> None:
     assert dry.live is False
     assert dry.bot_username == "exampleapprovalbot"
     assert load_config(_env(tmp_path, live="true"), root).live is True
-    for value in ("True", "TRUE", "1", "yes", " true "):
-        expected = value.strip() == "true"
-        assert load_config(_env(tmp_path, live=value), root).live is expected
+    for value in ("True", "TRUE", "1", "yes", " true", "true ", " true "):
+        assert load_config(_env(tmp_path, live=value), root).live is False
 
 
 def test_paths_inside_the_repo_and_bad_identity_are_rejected(tmp_path) -> None:

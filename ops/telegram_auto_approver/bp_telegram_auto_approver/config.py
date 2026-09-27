@@ -81,7 +81,7 @@ def load_config(
     )
     if operator_user_id == bot_user_id:
         raise ConfigError("operator_user_id_invalid")
-    live = (env.get(ENV_LIVE) or "").strip() == "true"
+    live = env.get(ENV_LIVE) == "true"
     return ServiceConfig(
         api_id=api_id,
         api_hash=api_hash,

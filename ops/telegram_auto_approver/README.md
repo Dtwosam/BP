@@ -48,13 +48,13 @@ A second message, a replay, or a restart cannot move a row back to `reserved`. T
 
 On startup, leftover `reserved` rows become `failed_or_unknown` with reason `startup_found_unconfirmed_reservation` before any message is handled.
 
-Messages dated at or before process start are ignored and are not written to the database. After handlers are registered, and again after each reconnect, the service evaluates only the single latest message in the bound bot chat. Older history is not read. An expired prompt seen after a disconnect is recorded as `rejected` and is not clicked.
+Messages dated at or before process start are ignored and are not written to the database. New messages are handled as Telegram delivers them. While the client is connected, the service also re-reads only the single latest message in the bound bot chat, including after a disconnect that was too short for the connection poll to observe. A message already recorded in SQLite is not clicked again, and a failed callback is not retried. Older history is not read. An expired prompt is recorded as `rejected` and is not clicked.
 
 An edited `BP V3 trade APPROVED / Intent:` message updates the existing row's intent ID. It never creates a row and never clicks.
 
 ## Disconnects
 
-Telethon is started with automatic reconnects. A dropped connection logs `TELEGRAM_DISCONNECTED`. When the client connects again, the service logs `TELEGRAM_RECONNECTED` and evaluates only the latest message in the bot chat. History is not scanned. `SIGINT` and `SIGTERM` stop the loop and disconnect.
+Telethon is started with automatic reconnects. A dropped connection that the poll observes logs `TELEGRAM_DISCONNECTED`, and the following connected sample logs `TELEGRAM_RECONNECTED` and checks the latest message again. The same one-message check also runs on each connected poll, so a prompt that arrives during a disconnect the poll never sees is still eligible once it is the latest message. `SIGINT` and `SIGTERM` stop the loop and disconnect.
 
 `APPROVAL_TRIGGERED` means the callback RPC returned. It does not by itself prove the listener wrote `approval.json`. The later edited message is that observation. A timeout is `APPROVAL_FAILED_OR_UNKNOWN` even if the listener may already have received the click.
 
@@ -104,9 +104,9 @@ BP_TELEGRAM_AUTO_APPROVE=true \
   /absolute/path/outside/repo/venv/bin/python -m bp_telegram_auto_approver
 ```
 
-`True`, `1`, and `yes` stay in dry-run. Only the exact lowercase value `true` clicks.
+Only the raw environment value `true` clicks. `True`, `TRUE`, `1`, `yes`, and any value with surrounding spaces stay in dry-run. The comparison does not trim the value.
 
-Example unit files are in `deploy/`. They are placeholders. Do not load them as part of this change. Copy a unit outside the repo, point it at the private env file, and do not commit filled secrets. The sample unit does not set `BP_TELEGRAM_AUTO_APPROVE`.
+The Linux example is a user systemd unit: `deploy/bp-telegram-auto-approver.service`. Install it under `~/.config/systemd/user/`, edit the `%h` paths if the checkout or virtualenv is elsewhere, and start it with `systemctl --user`. Do not install it as a system service and do not run it as root. The Telegram session is a full user credential and must remain mode `0600`, owned by that operator account. The unit does not set `BP_TELEGRAM_AUTO_APPROVE`. The macOS plist is a user agent for `~/Library/LaunchAgents`, not a system daemon. Do not load either file as part of this change.
 
 ## Tests
 

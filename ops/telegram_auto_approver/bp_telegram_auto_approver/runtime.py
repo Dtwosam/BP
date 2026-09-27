@@ -30,6 +30,29 @@ class HistoryScanRefused(RuntimeError):
     pass
 
 
+def recovery_action(*, connected: bool, was_connected: bool) -> tuple[str | None, bool]:
+    """Decide whether to reconcile the single latest message.
+
+    A connected sample always reconciles. A disconnect that starts and ends
+    between polls never clears ``was_connected``, so the next connected sample
+    must still look at the latest message. Returns ``(reason, disconnected_edge)``.
+    """
+    if not connected:
+        return None, was_connected
+    if not was_connected:
+        return "reconnect", False
+    return "connected_reconcile", False
+
+
+def should_consume_latest(*, previous_id: int | None, latest_id: int | None, force: bool) -> bool:
+    """Consume a newly seen latest message. Never walk older history."""
+    if not isinstance(latest_id, int) or latest_id <= 0:
+        return False
+    if force:
+        return True
+    return latest_id != previous_id
+
+
 def only_latest(found: object) -> object | None:
     """Accept one reconnect candidate. Refuse a history batch."""
     if found is None:
@@ -260,18 +283,36 @@ async def serve(config: ServiceConfig) -> int:
         client.add_event_handler(on_new, events.NewMessage(chats=bot_id, incoming=True))
         client.add_event_handler(on_edit, events.MessageEdited(chats=bot_id))
 
-        async def consider_latest(reason: str) -> None:
-            found = await client.get_messages(bot_id, limit=1)
-            latest = only_latest(found)
-            logger.emit("LATEST_MESSAGE_CHECKED", reason=reason, found=latest is not None)
-            if latest is None:
+        last_reconciled_id: int | None = None
+
+        async def consider_latest(reason: str, *, force: bool) -> None:
+            nonlocal last_reconciled_id
+            try:
+                found = await client.get_messages(bot_id, limit=1)
+                latest = only_latest(found)
+            except Exception as exc:
+                logger.emit(
+                    "LATEST_MESSAGE_CHECK_FAILED",
+                    reason=reason,
+                    error_type=type(exc).__name__,
+                )
                 return
+            latest_id = getattr(latest, "id", None) if latest is not None else None
+            if not should_consume_latest(
+                previous_id=last_reconciled_id,
+                latest_id=latest_id if isinstance(latest_id, int) else None,
+                force=force,
+            ):
+                return
+            logger.emit("LATEST_MESSAGE_CHECKED", reason=reason, telegram_message_id=latest_id)
             await consume(
                 adapt_message(latest, chat_id=bot_id, is_private=True),
                 edited=False,
             )
+            if isinstance(latest_id, int):
+                last_reconciled_id = latest_id
 
-        await consider_latest("startup")
+        await consider_latest("startup", force=True)
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):
             try:
@@ -288,11 +329,17 @@ async def serve(config: ServiceConfig) -> int:
         was_connected = True
         while not stop.is_set():
             connected = client.is_connected()
-            if connected and not was_connected:
-                logger.emit("TELEGRAM_RECONNECTED")
-                await consider_latest("reconnect")
-            elif not connected and was_connected:
+            reason, disconnected = recovery_action(
+                connected=connected,
+                was_connected=was_connected,
+            )
+            if disconnected:
                 logger.emit("TELEGRAM_DISCONNECTED")
+            if reason == "reconnect":
+                logger.emit("TELEGRAM_RECONNECTED")
+                await consider_latest(reason, force=True)
+            elif reason == "connected_reconcile":
+                await consider_latest(reason, force=False)
             was_connected = connected
             try:
                 await asyncio.wait_for(stop.wait(), timeout=1)

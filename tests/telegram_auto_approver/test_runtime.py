@@ -9,7 +9,11 @@ from bp_telegram_auto_approver.runtime import (
     buttons_from_markup,
     only_latest,
     operator_matches,
+    recovery_action,
+    should_consume_latest,
 )
+
+from tests.telegram_auto_approver.support import BOT_ID, ClickRecorder, incoming, open_decider
 
 
 class _Button:
@@ -53,6 +57,57 @@ class _Message:
             )
         ]
     )
+
+
+def test_unobserved_gap_reconciles_a_new_prompt_once(tmp_path) -> None:
+    was_connected = True
+    reasons: list[str | None] = []
+    for connected in (True, True, True):
+        reason, disconnected = recovery_action(
+            connected=connected,
+            was_connected=was_connected,
+        )
+        assert disconnected is False
+        reasons.append(reason)
+        was_connected = connected
+    assert reasons == ["connected_reconcile", "connected_reconcile", "connected_reconcile"]
+
+    observed_gap, disconnected = recovery_action(connected=False, was_connected=True)
+    assert observed_gap is None
+    assert disconnected is True
+    resumed, disconnected = recovery_action(connected=True, was_connected=False)
+    assert resumed == "reconnect"
+    assert disconnected is False
+
+    previous_id = 10
+    fresh = incoming(message_id=11)
+    assert should_consume_latest(
+        previous_id=previous_id,
+        latest_id=fresh.message_id,
+        force=False,
+    )
+    decider, _logger, _clock, store = open_decider(tmp_path / "state.sqlite", live=True)
+    clicker = ClickRecorder()
+    first = decider.handle_message(fresh, clicker)
+    assert first.event == "APPROVAL_TRIGGERED"
+    assert len(clicker.calls) == 1
+
+    assert not should_consume_latest(
+        previous_id=fresh.message_id,
+        latest_id=fresh.message_id,
+        force=False,
+    )
+    assert should_consume_latest(
+        previous_id=fresh.message_id,
+        latest_id=fresh.message_id,
+        force=True,
+    )
+    second = decider.handle_message(fresh, clicker)
+    assert second.event == "APPROVAL_ALREADY_PROCESSED"
+    assert len(clicker.calls) == 1
+    assert store.get_by_message(BOT_ID, 11)["status"] == "clicked"
+    with pytest.raises(HistoryScanRefused):
+        only_latest([fresh, fresh])
 
 
 def test_only_latest_refuses_a_history_batch() -> None:
