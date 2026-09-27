@@ -432,7 +432,9 @@ def test_supervisor_recovered_transient_evidence_matches_source_truth() -> None:
     assert recovered["subsequent_healthy_decisions_observed"] is True
     assert recovered["terminal_failure"] is False
     assert recovered["supervisor_restart_observed"] is False
-    assert evidence["interpretation"]["runtime_health_status"] == supervisor["runtime_health_status"]
+    assert evidence["interpretation"]["runtime_health_status"] == (
+        supervisor["runtime_health_status"]
+    )
     assert evidence["safety_preserved"]["controlled_canary_authorization_consumed"] is False
     assert evidence["safety_preserved"]["network_submission_attempt_observed"] is False
     assert evidence["safety_preserved"]["real_order_submission_observed"] is False
