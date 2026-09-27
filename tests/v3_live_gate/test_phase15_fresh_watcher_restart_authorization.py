@@ -23,6 +23,12 @@ PORTABILITY_EVIDENCE = (
     / "evidence"
     / "phase-15-v3-post-terminal-reconciliation-watcher-restart-macos-portability-20260927.json"
 )
+POST_TERMINAL_PASS_EVIDENCE = (
+    ROOT
+    / "docs"
+    / "evidence"
+    / "phase-15-v3-post-terminal-reconciliation-watcher-restart-pass-production-20260927.json"
+)
 START = (
     ROOT
     / "scripts"
@@ -37,9 +43,9 @@ def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None
     watch = gate["persistent_prepare_watch"]
     second = gate["second_live_canary_authorization"]
 
-    assert watch["status"] == "AUTHORIZED_POST_TERMINAL_RECONCILIATION_RESTART_NOT_STARTED"
-    assert watch["start_authorized"] is True
-    assert watch["service_active"] is False
+    assert watch["status"] == "PRODUCTION_ACTIVE_WAITING_FOR_FRESH_CANDIDATE"
+    assert watch["start_authorized"] is False
+    assert watch["service_active"] is True
     assert watch["fresh_restart_authorized"] is True
     assert watch["fresh_restart_authorization_consumed"] is True
     assert watch["fresh_restart_authorized_at_main"] == (
@@ -72,9 +78,9 @@ def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None
     assert watch["blocked_pending_intent_id"] is None
     assert watch["terminal_intent_reconciliation_completed"] is True
     assert watch["fresh_restart_authorization_required_now"] is False
-    assert watch["fresh_restart_authorized_now"] is True
+    assert watch["fresh_restart_authorized_now"] is False
     assert watch["post_terminal_reconciliation_restart_authorized"] is True
-    assert watch["post_terminal_reconciliation_restart_authorization_consumed"] is False
+    assert watch["post_terminal_reconciliation_restart_authorization_consumed"] is True
     assert watch["post_terminal_reconciliation_restart_one_shot"] is True
     assert watch["post_terminal_reconciliation_restart_max_wait_seconds"] == 7200
     assert watch["post_terminal_reconciliation_restart_prepare_only"] is True
@@ -87,7 +93,7 @@ def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None
     assert watch["post_terminal_reconciliation_restart_authorized_at_main"] == (
         "b7517a2279c8168021a72eb68e5884f1ade80c94"
     )
-    assert watch["post_terminal_reconciliation_restart_production_performed"] is False
+    assert watch["post_terminal_reconciliation_restart_production_performed"] is True
     assert (
         watch[
             "post_terminal_reconciliation_restart_authorization_scope_changed_by_helper_repair"
@@ -242,6 +248,42 @@ def test_post_terminal_restart_portability_rebind_preserves_scope() -> None:
     assert evidence["excluded_actions"]["executor_arm_or_invoke"] is False
     assert evidence["excluded_actions"]["order_submission"] is False
     assert evidence["excluded_actions"]["live_trading_enablement"] is False
+
+
+def test_post_terminal_restart_production_pass_matches_operator_output() -> None:
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    watch = state["phase_15_v3_live_canary"]["persistent_prepare_watch"]
+    evidence = json.loads(POST_TERMINAL_PASS_EVIDENCE.read_text(encoding="utf-8"))
+
+    assert watch["post_terminal_reconciliation_restart_result"] == "PASS"
+    assert watch["post_terminal_reconciliation_restart_source_main"] == (
+        "4b584f95256844a1fef42740e5b4008daa1cdd48"
+    )
+    assert watch["post_terminal_reconciliation_restart_run_id"] == (
+        "phase15-prepare-watch-20260927T094843Z-4b584f95"
+    )
+    assert watch["post_terminal_reconciliation_restart_service_active"] is True
+    assert watch["post_terminal_reconciliation_restart_no_real_order_submitted"] is True
+    assert watch["post_terminal_reconciliation_restart_arm_automated"] is False
+    assert watch["post_terminal_reconciliation_restart_submission_automated"] is False
+    assert watch["second_canary_network_attempt_consumed"] is False
+
+    assert evidence["source_main"] == "4b584f95256844a1fef42740e5b4008daa1cdd48"
+    assert evidence["run"]["run_id"] == (
+        "phase15-prepare-watch-20260927T094843Z-4b584f95"
+    )
+    assert evidence["run"]["service_active"] is True
+    assert evidence["operator_output"]["start_result"] == "PASS"
+    assert evidence["operator_output"]["no_real_order_submitted"] is True
+    assert evidence["operator_output"]["arm_automated"] is False
+    assert evidence["operator_output"]["submission_automated"] is False
+    assert evidence["safety"]["telegram_approval_performed"] is False
+    assert evidence["safety"]["executor_armed"] is False
+    assert evidence["safety"]["executor_invoked"] is False
+    assert evidence["safety"]["order_submission_performed"] is False
+    assert evidence["safety"]["second_canary_network_attempt_consumed"] is False
+    assert evidence["authorization_consumed"] is True
+    assert evidence["result"] == "PASS"
 
 
 def test_start_helper_remains_prepare_only_and_fail_closed() -> None:
