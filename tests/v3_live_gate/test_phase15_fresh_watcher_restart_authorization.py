@@ -395,14 +395,13 @@ def test_second_post_expiry_restart_production_pass_matches_operator_output() ->
 def test_controlled_canary_fresh_prepare_restart_is_authorized_after_clean_expiry() -> None:
     state = json.loads(STATE.read_text(encoding="utf-8"))
     gate = state["phase_15_v3_live_canary"]
-    watch = gate["persistent_prepare_watch"]
     controlled = gate["controlled_auto_approved_canary_authorization"]
     restart = controlled["fresh_prepare_restart_authorization"]
 
     assert controlled["consumed"] is False
     assert controlled["network_attempt_observed"] is False
     assert controlled["real_order_submission_observed"] is False
-    assert controlled["prepare_watcher_result"] == "expired_no_eligible_candidate"
+    assert controlled["prepare_watcher_result"] == "running_until_candidate"
 
     assert restart["authorized"] is False
     assert restart["superseded"] is True
@@ -421,7 +420,12 @@ def test_controlled_canary_fresh_prepare_restart_is_authorized_after_clean_expir
     assert restart["previous_submission_attempt_consumed"] is False
     assert restart["controlled_canary_authorization_remains_unconsumed"] is True
     assert restart["auto_approver_may_handle_fresh_valid_prompt"] is True
-    assert restart["does_not_authorize_additional_network_attempts_beyond_existing_second_canary_limit"] is True
+    assert (
+        restart[
+            "does_not_authorize_additional_network_attempts_beyond_existing_second_canary_limit"
+        ]
+        is True
+    )
 
     assert restart["start_helper_git_blob_sha"] == "3d883da14592f230dc0ea7a51b76991ea898bede"
     assert restart["runner_git_blob_sha"] == "efe6dc9c3b37f5788b701107366bb634a4b1f357"
@@ -481,7 +485,10 @@ def test_controlled_canary_until_candidate_watcher_is_authorized() -> None:
     assert auth["submission_attempt_consumed"] is False
     assert auth["helper_output_zero_seconds_means_until_candidate"] is True
     assert "hard runtime cap of 2h5m" not in watch["safety"]
-    assert "no time expiry; stops after one prepared candidate or fail-closed terminal condition" in watch["safety"]
+    assert (
+        "no time expiry; stops after one prepared candidate or fail-closed terminal condition"
+        in watch["safety"]
+    )
 
     assert auth["start_helper_git_blob_sha"] == "318479fc6c4059e078be3d2851f89874bda489f5"
     assert auth["runner_git_blob_sha"] == "ed3ced72c75291a0fd79a15009b0a468561683d9"
