@@ -1,0 +1,47 @@
+{
+  "date": "2026-09-27",
+  "status": "PASS",
+  "source_main": "6b26f5e1356ee7465a1e38b93e19f996d5dab9e7",
+  "helper": "scripts/deploy/phase15_v3_terminal_telegram_intent_reconcile_cloudshell.sh",
+  "helper_git_blob_sha": "94f0a3acdaefc03be2b322955101d11427ecf08a",
+  "binding": {
+    "intent_id": "live-intent-4cb75bd0f114e378130b28d7699320e9",
+    "prediction_id": "cca4840dcf6034ac624a48ca3e88e91e4f5d3a96b5d334705e4c1694e449c05c",
+    "paper_order_id": "18072fef623e29fa095c433cdd0657958848c5e6a34c194ae6527e532c4dc2ab"
+  },
+  "pre_mutation_executor_safety": {
+    "result": "PASS_BY_HELPER_CONTINUATION",
+    "second_canary_attempt_marker_absent": true
+  },
+  "database_precheck": {
+    "database_read_only": true,
+    "existing_events": [],
+    "closed_before_submission_count": 0,
+    "submission_attempt_event_count": 0,
+    "has_any_terminal_event": false
+  },
+  "reconciliation": {
+    "status": "reconciled",
+    "event_type": "closed_before_submission",
+    "reconciliation_id": "live-reconciliation-745a1e86a0075b4e98cdfbb30517a154",
+    "submission_attempt_consumed": false
+  },
+  "post_mutation_safety": {
+    "kill_switch_engaged": true,
+    "live_order_submitted": false,
+    "submission_attempt_consumed": false,
+    "second_canary_network_attempt_consumed": false,
+    "helper_result": "PHASE15_V3_TERMINAL_INTENT_RECONCILIATION=PASS"
+  },
+  "authorization_boundary": {
+    "reconciliation_authorization_consumed": true,
+    "same_reconciliation_authorization_retry_allowed": false,
+    "watcher_restart_authorized": false,
+    "fresh_watcher_restart_authorization_required": true,
+    "telegram_approve_authorized_by_this_record": false,
+    "executor_arm_or_invoke_authorized_by_this_record": false,
+    "order_submission_authorized_by_this_record": false,
+    "live_trading_enablement_authorized_by_this_record": false
+  },
+  "interpretation": "The exact terminal Telegram intent was reconciled as closed_before_submission after the helper's fail-closed safety and read-only database prechecks passed. No live order was submitted, no submission attempt was consumed, the kill switch remained engaged, and the second-canary network attempt remains unused. The consumed watcher restart may not be reused; a fresh watcher restart requires separate explicit authorization."
+}
