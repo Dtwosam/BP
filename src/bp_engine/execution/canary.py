@@ -473,6 +473,52 @@ def prepare_next_canary(
     }
 
 
+def _latest_clean_account_snapshot(
+    connection,
+    *,
+    observed_at: datetime,
+) -> tuple[str, dict[str, object]] | None:
+    rows = connection.execute(
+        select(schema.live_reconciliation_runs)
+        .where(schema.live_reconciliation_runs.c.observed_at <= observed_at)
+        .order_by(
+            schema.live_reconciliation_runs.c.observed_at.desc(),
+            schema.live_reconciliation_runs.c.id.desc(),
+        )
+    ).mappings().all()
+    if not rows:
+        return None
+
+    latest = rows[0]
+    if int(latest["unresolved_count"]) != 0 or int(latest["critical_count"]) != 0:
+        raise RuntimeError("prior_reconciliation_not_clean")
+
+    for row in rows:
+        if int(row["unresolved_count"]) != 0 or int(row["critical_count"]) != 0:
+            continue
+        evidence = dict(row["evidence"] or {})
+        raw_account = evidence.get("account_snapshot")
+        if not isinstance(raw_account, Mapping):
+            continue
+        try:
+            total_exposure = Decimal(str(raw_account["total_exposure_usd"]))
+            realized_pnl = Decimal(str(raw_account["realized_daily_pnl_usd"]))
+            consecutive_losses = int(raw_account["consecutive_losses"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if total_exposure < 0 or consecutive_losses < 0:
+            continue
+        return (
+            str(row["reconciliation_id"]),
+            {
+                "total_exposure_usd": str(total_exposure),
+                "realized_daily_pnl_usd": str(realized_pnl),
+                "consecutive_losses": consecutive_losses,
+            },
+        )
+    return None
+
+
 def reconcile_unsubmitted_canary_intent(
     *,
     engine: Engine,
@@ -553,6 +599,11 @@ def reconcile_unsubmitted_canary_intent(
                 "submission_attempt_consumed": False,
             }
 
+        carried_account = _latest_clean_account_snapshot(
+            connection,
+            observed_at=observed,
+        )
+
         repository.store_order_event(
             connection,
             event_key=f"{intent_id}:{CANARY_PRE_SUBMISSION_CLOSED_EVENT}",
@@ -586,6 +637,16 @@ def reconcile_unsubmitted_canary_intent(
                 "submission_attempt_consumed": False,
                 "official_open_order_count": 0,
                 "collateral_balance_usd": collateral,
+                **(
+                    {
+                        "account_snapshot_carried_from_reconciliation_id": (
+                            carried_account[0]
+                        ),
+                        "account_snapshot": carried_account[1],
+                    }
+                    if carried_account is not None
+                    else {}
+                ),
             },
         )
 
