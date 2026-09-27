@@ -11,6 +11,12 @@ EVIDENCE = (
     / "evidence"
     / "phase-15-v3-fresh-watcher-restart-authorization-20260927.json"
 )
+POST_TERMINAL_EVIDENCE = (
+    ROOT
+    / "docs"
+    / "evidence"
+    / "phase-15-v3-post-terminal-reconciliation-watcher-restart-authorization-20260927.json"
+)
 START = (
     ROOT
     / "scripts"
@@ -25,8 +31,8 @@ def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None
     watch = gate["persistent_prepare_watch"]
     second = gate["second_live_canary_authorization"]
 
-    assert watch["status"] == "SAFE_FAIL_RECONCILED_REQUIRES_FRESH_AUTHORIZATION"
-    assert watch["start_authorized"] is False
+    assert watch["status"] == "AUTHORIZED_POST_TERMINAL_RECONCILIATION_RESTART_NOT_STARTED"
+    assert watch["start_authorized"] is True
     assert watch["service_active"] is False
     assert watch["fresh_restart_authorized"] is True
     assert watch["fresh_restart_authorization_consumed"] is True
@@ -59,8 +65,23 @@ def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None
     )
     assert watch["blocked_pending_intent_id"] is None
     assert watch["terminal_intent_reconciliation_completed"] is True
-    assert watch["fresh_restart_authorization_required_now"] is True
-    assert watch["fresh_restart_authorized_now"] is False
+    assert watch["fresh_restart_authorization_required_now"] is False
+    assert watch["fresh_restart_authorized_now"] is True
+    assert watch["post_terminal_reconciliation_restart_authorized"] is True
+    assert watch["post_terminal_reconciliation_restart_authorization_consumed"] is False
+    assert watch["post_terminal_reconciliation_restart_one_shot"] is True
+    assert watch["post_terminal_reconciliation_restart_max_wait_seconds"] == 7200
+    assert watch["post_terminal_reconciliation_restart_prepare_only"] is True
+    assert watch["post_terminal_reconciliation_restart_research_mode"] is True
+    assert watch["post_terminal_reconciliation_restart_zero_money"] is True
+    assert (
+        watch["post_terminal_reconciliation_restart_requires_new_candidate_after_activation"]
+        is True
+    )
+    assert watch["post_terminal_reconciliation_restart_authorized_at_main"] == (
+        "b7517a2279c8168021a72eb68e5884f1ade80c94"
+    )
+    assert watch["post_terminal_reconciliation_restart_production_performed"] is False
 
     assert watch["fresh_restart_forbidden_intent_id"] == (
         "live-intent-4cb75bd0f114e378130b28d7699320e9"
@@ -112,6 +133,27 @@ def test_fresh_watcher_restart_is_bound_to_unchanged_runtime_artifacts() -> None
     assert watch["fresh_restart_executor_git_blob_sha"] == (
         "0a0cdc42882c6de5d8b09d5f630826cd6fab39a3"
     )
+    assert watch["post_terminal_reconciliation_restart_start_helper_git_blob_sha"] == (
+        "0a98b03e35d8019a85063e45d1a979fea96c0532"
+    )
+    assert watch["post_terminal_reconciliation_restart_runner_git_blob_sha"] == (
+        "efe6dc9c3b37f5788b701107366bb634a4b1f357"
+    )
+    assert watch["post_terminal_reconciliation_restart_service_unit_git_blob_sha"] == (
+        "5e20c65edd57e398d2106c7f6fe93fbb477b7572"
+    )
+    assert watch["post_terminal_reconciliation_restart_canary_git_blob_sha"] == (
+        "df5e60b1b2ba632fd77d65103509fac70187be7d"
+    )
+    assert watch["post_terminal_reconciliation_restart_live_git_blob_sha"] == (
+        "0617ffeda8365cdd6ab2636af00e58ca8954c4db"
+    )
+    assert watch["post_terminal_reconciliation_restart_arm_helper_git_blob_sha"] == (
+        "692d60cc73438a4703db2d74d56448ce868bd9fe"
+    )
+    assert watch["post_terminal_reconciliation_restart_executor_git_blob_sha"] == (
+        "0a0cdc42882c6de5d8b09d5f630826cd6fab39a3"
+    )
 
 
 def test_fresh_watcher_restart_evidence_matches_authorization() -> None:
@@ -130,6 +172,30 @@ def test_fresh_watcher_restart_evidence_matches_authorization() -> None:
     assert evidence["previous_terminal_candidate"]["retry_allowed"] is False
     assert evidence["previous_terminal_candidate"]["must_not_be_reused"] is True
     assert evidence["previous_terminal_candidate"]["network_attempt_consumed"] is False
+    assert evidence["excluded_actions"]["telegram_approve"] is False
+    assert evidence["excluded_actions"]["executor_arm_or_invoke"] is False
+    assert evidence["excluded_actions"]["order_submission"] is False
+    assert evidence["excluded_actions"]["live_trading_enablement"] is False
+
+
+def test_post_terminal_reconciliation_restart_evidence_matches_authorization() -> None:
+    evidence = json.loads(POST_TERMINAL_EVIDENCE.read_text(encoding="utf-8"))
+
+    assert evidence["authorized_at_main"] == (
+        "b7517a2279c8168021a72eb68e5884f1ade80c94"
+    )
+    assert evidence["authorized_restart"]["max_wait_seconds"] == 7200
+    assert evidence["authorized_restart"]["prepare_only"] is True
+    assert evidence["authorized_restart"]["research_mode"] is True
+    assert evidence["authorized_restart"]["zero_money"] is True
+    assert evidence["authorized_restart"]["one_shot"] is True
+    assert evidence["authorized_restart"]["fresh_candidate_required"] is True
+    assert evidence["authorization_consumed"] is False
+    assert evidence["production_restart_performed"] is False
+    assert evidence["reconciled_terminal_candidate"]["reconciliation_status"] == "reconciled"
+    assert evidence["reconciled_terminal_candidate"]["retry_allowed"] is False
+    assert evidence["reconciled_terminal_candidate"]["must_not_be_reused"] is True
+    assert evidence["reconciled_terminal_candidate"]["network_attempt_consumed"] is False
     assert evidence["excluded_actions"]["telegram_approve"] is False
     assert evidence["excluded_actions"]["executor_arm_or_invoke"] is False
     assert evidence["excluded_actions"]["order_submission"] is False

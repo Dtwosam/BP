@@ -89,11 +89,16 @@ def test_terminal_telegram_intent_reconciliation_is_explicitly_authorized() -> N
     assert recon["production_evidence"] == (
         "docs/evidence/phase-15-v3-terminal-telegram-intent-reconciliation-pass-production-20260927.json"
     )
-    assert watch["status"] == "SAFE_FAIL_RECONCILED_REQUIRES_FRESH_AUTHORIZATION"
+    assert watch["status"] == "AUTHORIZED_POST_TERMINAL_RECONCILIATION_RESTART_NOT_STARTED"
     assert watch["terminal_intent_reconciliation_completed"] is True
     assert watch["terminal_intent_reconciliation_id"] == recon["reconciliation_id"]
-    assert watch["fresh_restart_authorization_required_now"] is True
-    assert watch["fresh_restart_authorized_now"] is False
+    assert watch["fresh_restart_authorization_required_now"] is False
+    assert watch["fresh_restart_authorized_now"] is True
+    assert watch["post_terminal_reconciliation_restart_authorized"] is True
+    assert watch["post_terminal_reconciliation_restart_authorization_consumed"] is False
+    assert watch["post_terminal_reconciliation_restart_authorized_at_main"] == (
+        "b7517a2279c8168021a72eb68e5884f1ade80c94"
+    )
 
     assert watch["fresh_restart_authorization_consumed"] is True
     assert watch["fresh_restart_may_not_be_reused"] is True
