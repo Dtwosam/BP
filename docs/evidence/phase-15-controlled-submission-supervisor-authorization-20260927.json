@@ -31,7 +31,7 @@
     "ambiguous_attempt_grace_seconds": 45
   },
   "bindings": {
-    "supervisor_git_blob_sha": "6a3404f38041efd181916cc7a46cf263402db5e2",
+    "supervisor_git_blob_sha": "8af3b517919fc3b4a400bbd69f90908fa89ecc92",
     "reconcile_helper_git_blob_sha": "804c5a8d356209c7be57797940a711399f37dbad",
     "start_helper_git_blob_sha": "0538ec8d568303fa32fdf4488ecc374dd92d609a",
     "prepare_runner_git_blob_sha": "ed3ced72c75291a0fd79a15009b0a468561683d9",
