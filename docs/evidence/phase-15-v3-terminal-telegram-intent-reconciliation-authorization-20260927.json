@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-v3-terminal-telegram-intent-reconciliation-authorization",
+  "authorization_date": "2026-09-27",
+  "authorized_at_main": "a06d7520fb0d887d4992bd13c0f3e4b32cb6c208",
+  "authorization_source": "User explicitly authorized terminal intent reconciliation in chat.",
+  "target": {
+    "intent_id": "live-intent-4cb75bd0f114e378130b28d7699320e9",
+    "prediction_id": "cca4840dcf6034ac624a48ca3e88e91e4f5d3a96b5d334705e4c1694e449c05c",
+    "paper_order_id": "18072fef623e29fa095c433cdd0657958848c5e6a34c194ae6527e532c4dc2ab",
+    "reconciliation_reason": "telegram_handoff_failed_no_retry_before_executor_submission"
+  },
+  "bound_helper": {
+    "path": "scripts/deploy/phase15_v3_terminal_telegram_intent_reconcile_cloudshell.sh",
+    "git_blob_sha": "8dd66000c5faa11d162d0cac43e506f19b334ac0"
+  },
+  "authorized_mutation": [
+    "verify executor safe-idle and zero official open orders",
+    "verify the second-canary global attempt marker is absent",
+    "read-only bind the exact intent, prediction, and paper order and verify no DB submission-attempt event exists",
+    "write closed_before_submission for the exact intent using the existing reconciliation primitive",
+    "write the paired zero-unresolved/zero-critical reconciliation row",
+    "verify executor safe-idle and absent second-canary attempt marker afterward"
+  ],
+  "excluded_actions": {
+    "telegram_approve": false,
+    "executor_arm_or_invoke": false,
+    "order_submission": false,
+    "second_canary_network_attempt_consumption": false,
+    "watcher_restart": false,
+    "live_trading_enablement": false
+  },
+  "authorization_consumed": false,
+  "production_result": "PENDING"
+}
