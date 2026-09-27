@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-controlled-canary-until-candidate-watcher-start-pass-production",
+  "source_main": "fc79d36875a51375635c1f6e193681b4fe88914b",
+  "authorization_evidence": "docs/evidence/phase-15-controlled-canary-until-candidate-watcher-authorization-20260927.json",
+  "run": {
+    "run_id": "phase15-prepare-watch-20260927T183730Z-fc79d368",
+    "remote_run_dir": "/var/lib/bp/phase15-canary-prepare-watch/runs/phase15-prepare-watch-20260927T183730Z-fc79d368",
+    "started_at_from_run_id": "2026-09-27T18:37:30Z",
+    "helper_head": "fc79d36875a51375635c1f6e193681b4fe88914b",
+    "service_active": true,
+    "wait_mode": "until_candidate",
+    "max_wait_seconds": 0,
+    "time_expiry_disabled": true,
+    "enabled_across_vm_reboot": false
+  },
+  "operator_output": {
+    "start_result": "PASS",
+    "no_real_order_submitted": true,
+    "arm_automated": false,
+    "submission_automated": false
+  },
+  "semantics": {
+    "zero_seconds_is_until_candidate_sentinel": true,
+    "legacy_output_line": "It is prepare-only, bounded to at most 0 seconds, and is not enabled across VM reboot.",
+    "legacy_output_interpretation": "The 0 value disables time expiry; it is not an immediate timeout.",
+    "stops_after_one_prepared_candidate": true,
+    "stops_on_fail_closed_terminal_condition": true
+  },
+  "controlled_canary": {
+    "authorization_consumed": false,
+    "network_attempt_observed": false,
+    "real_order_submission_observed": false,
+    "max_network_submission_attempts": 1
+  },
+  "result": "PASS"
+}
