@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-controlled-submission-supervisor-recovered-transient",
+  "observed_date": "2026-09-27",
+  "source_main": "39e5233fea5f34564cdcdfd1925e634321c4b5e1",
+  "operator_observation": {
+    "launch_agent_state": "running",
+    "launch_agent_pid": 83085,
+    "telegram_auto_approver_state": "running",
+    "telegram_auto_approver_pid": 73154,
+    "observation_window_start": "2026-09-27T21:04:05.654187+00:00",
+    "observation_window_end": "2026-09-27T21:25:11.482332+00:00",
+    "supervisor_decision_count": 79,
+    "supervisor_transient_error_count": 1,
+    "repeated_action": "wait",
+    "repeated_reason": "watcher_running",
+    "intent_id": null,
+    "stderr_empty": true
+  },
+  "recovered_transient": {
+    "observed_at": "2026-09-27T21:23:28.997342+00:00",
+    "error_type": "SupervisorError",
+    "error": "command_failed:/opt/homebrew/share/google-cloud-sdk/bin/gcloud: gcloud info --run-diagnostics",
+    "next_healthy_decision_at": "2026-09-27T21:23:55.116475+00:00",
+    "subsequent_healthy_decisions_observed": true,
+    "terminal_failure": false,
+    "supervisor_restart_observed": false
+  },
+  "interpretation": {
+    "runtime_health_status": "HEALTHY",
+    "note": "A single gcloud transient recurred after the earlier runtime-path repair, but the supervisor recovered automatically on the next poll and continued normal watcher_running decisions. This observation supersedes only the earlier no-recurrence wording; it does not invalidate the runtime-path repair."
+  },
+  "safety_preserved": {
+    "controlled_canary_authorization_consumed": false,
+    "network_submission_attempt_observed": false,
+    "real_order_submission_observed": false,
+    "additional_network_attempts_authorized": false,
+    "live_scope_expansion_authorized": false,
+    "strategy_mutation_authorized": false,
+    "production_mutation_performed": false
+  },
+  "source": "operator-provided launchctl status and supervisor stdout/stderr log"
+}
