@@ -89,7 +89,7 @@ def test_terminal_telegram_intent_reconciliation_is_explicitly_authorized() -> N
     assert recon["production_evidence"] == (
         "docs/evidence/phase-15-v3-terminal-telegram-intent-reconciliation-pass-production-20260927.json"
     )
-    assert watch["status"] == "AUTHORIZED_FOR_CONTROLLED_CANARY_RESTART"
+    assert watch["status"] == "AUTHORIZED_FOR_UNTIL_CANDIDATE_RESTART"
     assert watch["terminal_intent_reconciliation_completed"] is True
     assert watch["terminal_intent_reconciliation_id"] == recon["reconciliation_id"]
     assert watch["fresh_restart_authorization_required_now"] is False
