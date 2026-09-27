@@ -5528,7 +5528,7 @@
       "start_helper_git_blob_sha": "0538ec8d568303fa32fdf4488ecc374dd92d609a",
       "prepare_runner_git_blob_sha": "ed3ced72c75291a0fd79a15009b0a468561683d9",
       "prepare_service_unit_git_blob_sha": "2f162c9c17658d6917544b056176a56cc50bea46",
-      "canary_git_blob_sha": "df5e60b1b2ba632fd77d65103509fac70187be7d",
+      "canary_git_blob_sha": "14c3f508ec1a0c446af4c4ee92572075ffff3753",
       "live_git_blob_sha": "0617ffeda8365cdd6ab2636af00e58ca8954c4db",
       "arm_helper_git_blob_sha": "692d60cc73438a4703db2d74d56448ce868bd9fe",
       "executor_git_blob_sha": "0a0cdc42882c6de5d8b09d5f630826cd6fab39a3",
@@ -5556,7 +5556,41 @@
       "runtime_repair_additional_network_attempts_authorized": false,
       "runtime_repair_live_scope_expansion_authorized": false,
       "runtime_repair_source_main": "cea0bbfe93e4cec6b11ba620cfe5e5470157c22a",
-      "runtime_repair_evidence": "docs/evidence/phase-15-controlled-submission-supervisor-gcloud-python-path-repair-authorization-20260927.json"
+      "runtime_repair_evidence": "docs/evidence/phase-15-controlled-submission-supervisor-gcloud-python-path-repair-authorization-20260927.json",
+      "reconciliation_safety_rebind_performed": true,
+      "reconciliation_safety_rebind_scope": "Bind the existing controlled supervisor/watcher restart contract to the account-snapshot carry-forward safety fix in canary.py; no change to strategy, target notional, attempt count, or live authorization.",
+      "reconciliation_safety_rebind_evidence": "docs/evidence/phase-15-reconciliation-account-snapshot-bug-diagnosis-20260927.json",
+      "reconciliation_safety_rebind_additional_network_attempts_authorized": false
+    },
+    "reconciliation_account_snapshot_repair": {
+      "status": "READY_NOT_AUTHORIZED",
+      "authorized": false,
+      "diagnosis_date": "2026-09-27",
+      "diagnosis": "The latest pre-submission terminal reconciliation for the second-canary Telegram intent is zero-critical but omits account_snapshot. Because the first live canary has a historical submission-attempt event, _account_snapshot conservatively promotes that snapshotless latest reconciliation back to unresolved critical=1, causing later candidates to fail reconciliation_blocked.",
+      "observed_trigger_prediction_id": "2013df22eb33d69b2f3c1561873037bb1bf49995371c79cc19273af11383b32c",
+      "observed_trigger_paper_order_id": "fa92910d12283d266dbd091d1b99f8064905f201c1a7fa6a4358b302b59b61dd",
+      "observed_risk_reasons": [
+        "liquidity_missing",
+        "reconciliation_blocked"
+      ],
+      "target_terminal_intent_id": "live-intent-4cb75bd0f114e378130b28d7699320e9",
+      "expected_terminal_reconciliation_id": "live-reconciliation-745a1e86a0075b4e98cdfbb30517a154",
+      "expected_account_snapshot_source_reconciliation_id": "live-reconciliation-81489372163985723f74f2003c7ef1d7",
+      "future_code_fix": "Carry forward the latest prior clean verified account_snapshot into future pre_submission_intent_close reconciliation rows without weakening the reconciliation rule.",
+      "current_state_repair": "Append a new zero-unresolved/zero-critical reconciliation row carrying forward the verified account_snapshot only after exact DB-history checks, executor safe-idle, zero official open orders, and absent second-canary network-attempt marker.",
+      "helper_path": "scripts/deploy/phase15_v3_reconciliation_account_snapshot_repair_cloudshell.sh",
+      "helper_git_blob_sha": "c62d97971fef62ca1418363449035cf69d1854aa",
+      "canary_git_blob_sha": "14c3f508ec1a0c446af4c4ee92572075ffff3753",
+      "additional_network_attempts_authorized": false,
+      "order_submission_authorized": false,
+      "telegram_approval_authorized_by_repair": false,
+      "executor_arm_or_invoke_authorized_by_repair": false,
+      "live_trading_enablement_authorized": false,
+      "strategy_mutation_authorized": false,
+      "production_mutation_performed": false,
+      "network_submission_attempt_consumed_by_repair": false,
+      "requires_explicit_production_mutation_authorization": true,
+      "evidence": "docs/evidence/phase-15-reconciliation-account-snapshot-bug-diagnosis-20260927.json"
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {
