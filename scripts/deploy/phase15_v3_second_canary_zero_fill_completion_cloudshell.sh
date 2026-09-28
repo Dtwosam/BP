@@ -59,7 +59,7 @@ assert canary["official_fill_state"] == "zero_fill_observed"
 assert canary["confirmed_filled_shares"] == 0
 assert canary["confirmed_filled_notional_usd"] == 0
 assert canary["live_risk_ledger_reconciliation_complete"] is False
-assert repair["status"] == "AUTHORIZED_READY_WITH_RUNTIME_FIX"
+assert repair["status"] == "AUTHORIZED_READY"
 assert repair["authorized"] is True
 assert repair["authorization_consumed"] is False
 assert repair["helper_git_blob_sha"] == recon_blob
