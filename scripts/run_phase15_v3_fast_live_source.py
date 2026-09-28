@@ -59,7 +59,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--transport-key-file",
         type=Path,
-        default=Path("/etc/bp-telegram-transport/transport.key"),
+        default=Path("/etc/bp-fast-live/transport.key"),
     )
     parser.add_argument("--transport-key-id", required=True)
     parser.add_argument("--expected-main", required=True)
