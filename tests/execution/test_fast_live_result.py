@@ -6,6 +6,7 @@ from decimal import Decimal
 from sqlalchemy import create_engine, select
 
 from bp_engine.execution.fast_live_result import (
+    fast_live_account_snapshot,
     record_fast_live_official_reconciliation,
     record_fast_live_result,
     settle_fast_live_position_if_resolved,
@@ -310,7 +311,7 @@ def test_confirmed_fill_win_settles_and_resets_loss_counter() -> None:
     assert settled["consecutive_losses"] == 0
 
     with engine.begin() as connection:
-        account = _account_snapshot(
+        account = fast_live_account_snapshot(
             connection,
             observed_at=BASE + timedelta(minutes=5, seconds=3),
         )
@@ -364,7 +365,7 @@ def test_confirmed_fill_loss_settles_into_one_loss_stop() -> None:
     assert settled["consecutive_losses"] == 1
 
     with engine.begin() as connection:
-        account = _account_snapshot(
+        account = fast_live_account_snapshot(
             connection,
             observed_at=BASE + timedelta(minutes=5, seconds=3),
         )
