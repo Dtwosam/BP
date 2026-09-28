@@ -24,19 +24,19 @@ WATCHER_RESTART_PASS_EVIDENCE = (
 )
 
 
-def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -> None:
+def test_phase15_second_live_canary_is_submitted_zero_fill_reconciliation_pending() -> None:
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     gate = state["phase_15_v3_live_canary"]
     master = state["phase_14_checkpoint"]["master_live_gate"]
 
     assert state["source_of_truth_version"] == "0.14.180"
     assert state["current_phase"] == 15
-    assert state["status"] == "PHASE_15_SECOND_LIVE_CANARY_TELEGRAM_AUTHORIZED_NOT_SUBMITTED"
+    assert state["status"] == "PHASE_15_SECOND_LIVE_CANARY_SUBMITTED_RECONCILIATION_REQUIRED"
     assert all(value == "pass" for value in master.values())
     assert state["phase_14_checkpoint"]["overall_live_gate"] == "pass"
     assert state["phase_14_checkpoint"]["phase15_permitted"] is True
 
-    assert gate["status"] == "SECOND_LIVE_CANARY_TELEGRAM_AUTHORIZED_NOT_SUBMITTED"
+    assert gate["status"] == "SECOND_LIVE_CANARY_SUBMITTED_RECONCILIATION_REQUIRED"
     assert gate["phase15_canary_authorized"] is True
     assert gate["source_prediction_version"] == "v3-frozen-paper-v1"
     assert gate["source_execution_version"] == "paper-execution-v3-frozen-v1"
@@ -80,12 +80,12 @@ def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -
     assert gate["live_trading_enabled"] is False
     assert gate["canary_order_submitted"] is True
     assert gate["reconciliation_required_before_second_order"] is True
-    assert gate["second_order_authorized"] is True
+    assert gate["second_order_authorized"] is False
     assert gate["telegram_one_tap_submission_authorized"] is True
     assert gate["telegram_persistent_execution_transport_authorized"] is True
     assert gate["telegram_pubsub_transport_authorized"] is True
     second = gate["second_live_canary_authorization"]
-    assert second["status"] == "AUTHORIZED_NOT_SUBMITTED"
+    assert second["status"] == "CONSUMED_SUBMITTED_RECONCILIATION_REQUIRED"
     assert second["strategy_target_notional_usd"] == 5
     assert second["hard_max_trade_size_usd"] == 10
     assert second["max_network_submission_attempts"] == 1
@@ -102,6 +102,46 @@ def test_phase15_second_live_canary_is_telegram_authorized_but_not_submitted() -
     assert second["v3_strategy_mutation_authorized"] is False
     assert second["v4_mutation_authorized"] is False
     assert second["broad_autonomous_live_rollout_authorized"] is False
+    assert second["consumed"] is True
+    assert second["network_submission_attempt_consumed"] is True
+    assert second["authorization_slot_consumed"] is True
+    assert second["real_order_submitted"] is True
+    assert second["accepted"] is True
+    assert second["third_order_authorized"] is False
+
+    second_canary = gate["second_live_canary"]
+    assert second_canary["status"] == "SUBMITTED_ZERO_FILL_OBSERVED_RECONCILIATION_PENDING"
+    assert second_canary["intent_id"] == "live-intent-48e0149edbed67572c6e7fab69269dae"
+    assert second_canary["external_order_id"] == (
+        "0x127aa37d011dc0d96b5c941e61a6f5fefcd5b7fa56e3eb30f5f6bc77d5eaf4d6"
+    )
+    assert second_canary["selected_side"] == "up"
+    assert second_canary["limit_price"] == 0.59
+    assert second_canary["requested_shares"] == 8.238141
+    assert second_canary["target_notional_usd"] == 5
+    assert second_canary["network_submission_attempt_consumed"] is True
+    assert second_canary["authorization_slot_consumed"] is True
+    assert second_canary["retry_authorized"] is False
+    assert second_canary["third_order_authorized"] is False
+    assert second_canary["official_fill_state"] == "zero_fill_observed"
+    assert second_canary["confirmed_filled_shares"] == 0
+    assert second_canary["confirmed_filled_notional_usd"] == 0
+    assert second_canary["realized_trade_pnl_usd"] == 0
+    assert second_canary["open_order_count"] == 0
+    assert second_canary["order_still_open"] is False
+    assert second_canary["external_official_reconciliation_complete"] is True
+    assert second_canary["live_risk_ledger_reconciliation_complete"] is False
+    assert second_canary["db_reconciliation_required"] is True
+
+    second_recon = gate["second_canary_db_reconciliation"]
+    assert second_recon["status"] == "ENGINEERING_READY_AUTHORIZATION_REQUIRED"
+    assert second_recon["authorized"] is False
+    assert second_recon["authorization_consumed"] is False
+    assert second_recon["helper_git_blob_sha"] == (
+        "5e52ba161c2d2a23592dfa52d4245074b12f5a1c"
+    )
+    assert second_recon["third_order_authorized"] is False
+
     first = gate["first_live_canary"]
     assert first["status"] == "RECONCILED_ZERO_FILL"
     assert first["intent_id"] == "live-intent-6cdfcfd28d0eb52f1ee0762bfd351409"
@@ -628,7 +668,7 @@ def test_operator_telegram_auto_approver_activation_is_recorded() -> None:
     assert auto["deployment_performed"] is True
     assert auto["activation_performed"] is True
     assert auto["service_state"] == "running"
-    assert auto["service_pid"] == 1292
+    assert auto["service_pid"] == 86988
     assert auto["runtime_repair_previous_service_pid"] == 73154
     assert auto["mode"] == "live-auto-approve"
     assert auto["swept_unconfirmed"] == 0
