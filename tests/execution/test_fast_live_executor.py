@@ -35,6 +35,16 @@ class FakeCancelResponse:
         self.not_canceled: dict[str, str] = {}
 
 
+class FakeBookCache:
+    def __init__(self, levels: tuple[tuple[str, str], ...] | None) -> None:
+        self.levels = levels
+        self.calls: list[str] = []
+
+    def snapshot(self, token_id: str):
+        self.calls.append(token_id)
+        return self.levels
+
+
 class FakeClient:
     def __init__(self, asks: tuple[tuple[str, str], ...]) -> None:
         self.asks = asks
@@ -135,6 +145,34 @@ def test_marketable_fast_path_consumes_once_then_posts(
     duplicate = executor.execute(_verified(now))
     assert duplicate["status"] == "already_terminal"
     assert client.calls == ["sign", "book", "post", "cancel"]
+
+
+def test_streamed_book_skips_http_quote_round_trip(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(module.polymarket, "AcceptedOrder", FakeAccepted)
+    monkeypatch.setattr(module.polymarket, "RejectedOrder", FakeRejected)
+    monkeypatch.setattr(module.polymarket, "CancelOrdersResponse", FakeCancelResponse)
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    client = FakeClient((("0.99", "1"),))
+    book_cache = FakeBookCache((("0.58", "20"),))
+    executor = FastLiveExecutor(
+        client=client,
+        safety_cache=_cache(now),
+        book_cache=book_cache,
+        state_root=tmp_path / "state",
+        kill_switch_path=tmp_path / "KILL",
+        order_ttl_seconds=Decimal("0"),
+        now_fn=lambda: now,
+    )
+
+    result = executor.execute(_verified(now))
+
+    assert result["status"] == "accepted"
+    assert result["quote_source"] == "stream"
+    assert client.calls == ["sign", "post", "cancel"]
+    assert book_cache.calls == ["token-fast-1"]
 
 
 def test_stale_or_thin_book_never_consumes_attempt(tmp_path: Path) -> None:

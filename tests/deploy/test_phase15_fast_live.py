@@ -15,6 +15,7 @@ def test_fast_live_runtime_dependencies_are_pinned() -> None:
     assert REQUIREMENTS.read_text(encoding="utf-8").splitlines() == [
         "polymarket-client==0.7.1",
         "google-cloud-pubsub==2.41.0",
+        "websockets==15.0.1",
     ]
 
 
@@ -52,6 +53,7 @@ def test_fast_live_receiver_is_preauthorized_one_shot_and_fail_closed() -> None:
         assert marker in unit
     receiver = RECEIVER.read_text(encoding="utf-8")
     assert "SubscriberClient()" in receiver
+    assert "StreamingBookCache()" in receiver
     assert "SafetyRefresher" in receiver
     assert "verify_runtime_authorization" in receiver
     assert "verify_envelope" in receiver

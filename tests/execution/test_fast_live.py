@@ -10,11 +10,13 @@ import pytest
 from bp_engine.execution.fast_live import (
     FastLiveError,
     create_envelope,
+    create_warmup_message,
     marketable_depth,
     project_state_sha256,
     verify_envelope,
     verify_runtime_authorization,
     verify_source_authorization,
+    verify_warmup_message,
 )
 
 MAIN = "a" * 40
@@ -200,6 +202,40 @@ def test_envelope_is_exact_bound_short_lived_and_tamper_evident() -> None:
             key=KEY,
             expected_key_id=KEY_ID,
             observed_at=now + timedelta(seconds=3),
+        )
+
+
+def test_warmup_message_is_authenticated_and_short_lived() -> None:
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    state = _state(now)
+    runtime = _runtime(state, now)
+    warmup = create_warmup_message(
+        condition_id="condition-warm-1",
+        token_ids=("up-token-warm", "down-token-warm"),
+        runtime_authorization=runtime,
+        key=KEY,
+        key_id=KEY_ID,
+        created_at=now,
+    )
+    verified = verify_warmup_message(
+        warmup,
+        runtime_authorization=runtime,
+        key=KEY,
+        expected_key_id=KEY_ID,
+        observed_at=now + timedelta(seconds=1),
+    )
+    assert verified["condition_id"] == "condition-warm-1"
+    assert verified["token_ids"] == ("up-token-warm", "down-token-warm")
+
+    tampered = copy.deepcopy(warmup)
+    tampered["token_ids"] = ["other-up", "other-down"]
+    with pytest.raises(FastLiveError, match="hmac mismatch"):
+        verify_warmup_message(
+            tampered,
+            runtime_authorization=runtime,
+            key=KEY,
+            expected_key_id=KEY_ID,
+            observed_at=now + timedelta(seconds=1),
         )
 
 
