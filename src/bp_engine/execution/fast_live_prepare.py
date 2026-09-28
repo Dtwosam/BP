@@ -7,8 +7,6 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.engine import Engine
 
-from bp_engine.execution.fast_live import payload_sha256
-from bp_engine.execution.fast_live_result import fast_live_account_snapshot
 from bp_engine.execution.canary import (
     CANARY_INTENT_TERMINAL_EVENTS,
     CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS,
@@ -20,6 +18,8 @@ from bp_engine.execution.canary import (
     _retryable_risk_reasons,
     canary_policy,
 )
+from bp_engine.execution.fast_live import payload_sha256
+from bp_engine.execution.fast_live_result import fast_live_account_snapshot
 from bp_engine.execution.live import (
     InterlockDecision,
     _decimal,
