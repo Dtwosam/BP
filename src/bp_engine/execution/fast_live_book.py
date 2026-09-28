@@ -32,15 +32,18 @@ class StreamingBookCache:
         url: str = MARKET_WS_URL,
         heartbeat_seconds: float = 10.0,
         healthy_seconds: float = 15.0,
+        quote_fresh_seconds: float = 0.5,
     ) -> None:
         self._url = url
         self._heartbeat_seconds = heartbeat_seconds
         self._healthy_seconds = healthy_seconds
+        self._quote_fresh_seconds = quote_fresh_seconds
         self._lock = threading.Lock()
         self._desired: set[str] = set()
         self._subscribed: set[str] = set()
         self._asks: dict[str, dict[Decimal, Decimal]] = {}
         self._initialized: set[str] = set()
+        self._token_activity: dict[str, float] = {}
         self._connected = False
         self._last_activity = 0.0
         self._wake = threading.Event()
@@ -75,10 +78,13 @@ class StreamingBookCache:
         token = str(token_id).strip()
         now = time.monotonic()
         with self._lock:
+            token_activity = self._token_activity.get(token)
             healthy = (
                 self._connected
                 and token in self._initialized
+                and token_activity is not None
                 and now - self._last_activity <= self._healthy_seconds
+                and now - token_activity <= self._quote_fresh_seconds
             )
             if not healthy:
                 return None
@@ -95,6 +101,7 @@ class StreamingBookCache:
             self._subscribed.clear()
             self._initialized.clear()
             self._asks.clear()
+            self._token_activity.clear()
 
     def _desired_tokens(self) -> tuple[str, ...]:
         with self._lock:
@@ -126,15 +133,17 @@ class StreamingBookCache:
                 levels[price] = size
         with self._lock:
             if token in self._desired:
+                observed = time.monotonic()
                 self._asks[token] = levels
                 self._initialized.add(token)
-                self._last_activity = time.monotonic()
+                self._token_activity[token] = observed
+                self._last_activity = observed
 
     def _apply_price_changes(self, payload: dict[str, Any]) -> None:
         changes = payload.get("price_changes")
         if not isinstance(changes, list):
             return
-        touched = False
+        touched_tokens: set[str] = set()
         with self._lock:
             for change in changes:
                 if not isinstance(change, dict):
@@ -156,9 +165,12 @@ class StreamingBookCache:
                     levels.pop(price, None)
                 else:
                     levels[price] = size
-                touched = True
-            if touched:
-                self._last_activity = time.monotonic()
+                touched_tokens.add(token)
+            if touched_tokens:
+                observed = time.monotonic()
+                for token in touched_tokens:
+                    self._token_activity[token] = observed
+                self._last_activity = observed
 
     def _handle_payload(self, raw: str) -> None:
         if raw == "PONG":
