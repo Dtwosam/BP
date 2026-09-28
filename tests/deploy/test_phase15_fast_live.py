@@ -41,7 +41,7 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert "SubscriberClient()" in source
     assert "verify_result_message" in source
     assert "record_fast_live_result" in source
-    assert 'default=0.05' in source
+    assert 'default=0.02' in source
     assert "POLYMARKET_PRIVATE_KEY" in source
     assert "must not be present in fast live source" in source
     assert "Telegram" not in source
