@@ -18,6 +18,7 @@ from bp_engine.execution.fast_live import (
     FAST_LIVE_PURPOSE,
     FAST_LIVE_WARMUP_PURPOSE,
     FastLiveError,
+    create_result_message,
     load_private_json,
     verify_envelope,
     verify_runtime_authorization,
@@ -63,6 +64,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--expected-main", required=True)
     parser.add_argument("--gcp-project", required=True)
     parser.add_argument("--subscription-id", required=True)
+    parser.add_argument("--result-topic-id", required=True)
     parser.add_argument(
         "--state-root",
         type=Path,
@@ -268,9 +270,46 @@ def main() -> int:
         args.gcp_project,
         args.subscription_id,
     )
+    result_publisher = pubsub_v1.PublisherClient()
+    result_topic_path = result_publisher.topic_path(
+        args.gcp_project,
+        args.result_topic_id,
+    )
+
+    def publish_result(
+        result: dict[str, Any],
+        *,
+        runtime_authorization: dict[str, Any],
+    ) -> str:
+        result_message = create_result_message(
+            result,
+            key=key,
+            key_id=args.transport_key_id,
+            authorization_id=str(runtime_authorization["authorization_id"]),
+            created_at=_utc_now(),
+        )
+        data = json.dumps(
+            result_message,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+            allow_nan=False,
+            default=str,
+        ).encode()
+        future = result_publisher.publish(
+            result_topic_path,
+            data,
+            purpose=str(result_message["purpose"]),
+            key_id=str(result_message["key_id"]),
+            authorization_id=str(result_message["authorization_id"]),
+            intent_id=str(result_message["intent_id"]),
+            request_sha256=str(result_message["request_sha256"]),
+        )
+        return str(future.result(timeout=2.0))
 
     def callback(message: object) -> None:
         received_at = _utc_now()
+        order_verified = False
         try:
             state_now = _load_state(args.project_state)
             runtime_now = load_private_json(
@@ -332,6 +371,7 @@ def main() -> int:
                 expected_key_id=args.transport_key_id,
                 observed_at=received_at,
             )
+            order_verified = True
             result = execute_with_bounded_pre_attempt_retry(
                 executor,
                 verified,
@@ -342,6 +382,32 @@ def main() -> int:
             result["source_to_receive_ms"] = (
                 received_at - created
             ).total_seconds() * 1000
+            try:
+                result_message_id = publish_result(
+                    result,
+                    runtime_authorization=runtime_now,
+                )
+            except Exception as exc:
+                print(
+                    json.dumps(
+                        {
+                            "status": "fast_live_result_publish_failed",
+                            "error": type(exc).__name__,
+                            "intent_id": result.get("intent_id"),
+                            "request_sha256": result.get("request_sha256"),
+                            "network_submission_attempt_consumed": result.get(
+                                "network_submission_attempt_consumed"
+                            )
+                            is True,
+                            "observed_at": _utc_now().isoformat(),
+                        },
+                        sort_keys=True,
+                    ),
+                    flush=True,
+                )
+                message.nack()
+                return
+            result["result_message_id"] = result_message_id
             print(json.dumps(result, sort_keys=True, default=str), flush=True)
             message.ack()
         except Exception as exc:
@@ -360,7 +426,10 @@ def main() -> int:
                 ),
                 flush=True,
             )
-            message.ack()
+            if order_verified and executor.attempt_path.exists():
+                message.nack()
+            else:
+                message.ack()
 
     future = subscriber.subscribe(subscription_path, callback=callback)
     try:
@@ -371,6 +440,7 @@ def main() -> int:
         book_cache.stop()
         refresher.stop()
         subscriber.close()
+        result_publisher.stop()
     return 0
 
 
