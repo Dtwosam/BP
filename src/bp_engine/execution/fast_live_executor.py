@@ -206,6 +206,19 @@ class FastLiveExecutor:
             raise FastLiveError("fast live target changed")
 
         received_at = self._now_fn()
+        sign_started_ns = time.monotonic_ns()
+        signed_order = self._client.create_limit_order(
+            token_id=token_id,
+            price=limit_price,
+            size=shares,
+            side="BUY",
+        )
+        sign_completed_ns = time.monotonic_ns()
+
+        self._require_fresh_safety()
+        if self._kill_switch_engaged():
+            raise FastLiveError("fast live kill switch engaged before quote")
+
         quote_started_ns = time.monotonic_ns()
         book = self._client.get_order_book(token_id=token_id)
         quote_completed_ns = time.monotonic_ns()
@@ -233,6 +246,9 @@ class FastLiveExecutor:
                 "quote_latency_ms": (
                     quote_completed_ns - quote_started_ns
                 ) / 1_000_000,
+                "sign_latency_ms": (
+                    sign_completed_ns - sign_started_ns
+                ) / 1_000_000,
             }
 
         self._require_fresh_safety()
@@ -251,14 +267,6 @@ class FastLiveExecutor:
         _write_exclusive_json(self.attempt_path, attempt)
         self._reengage_kill_switch("fast-live-one-shot-attempt-consumed")
 
-        sign_started_ns = time.monotonic_ns()
-        signed_order = self._client.create_limit_order(
-            token_id=token_id,
-            price=limit_price,
-            size=shares,
-            side="BUY",
-        )
-        sign_completed_ns = time.monotonic_ns()
         post_started_at = self._now_fn()
         post_started_ns = time.monotonic_ns()
         try:
