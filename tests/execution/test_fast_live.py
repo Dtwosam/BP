@@ -72,6 +72,7 @@ def _prepared(now: datetime) -> dict[str, object]:
         "status": "prepared",
         "intent_id": "live-intent-fast-1",
         "request_id": "live-request-fast-1",
+        "risk_decision_id": "risk-fast-1",
         "prediction_id": "prediction-fast-1",
         "paper_order_id": "paper-fast-1",
         "market_end_at": (now + timedelta(seconds=50)).isoformat(),
@@ -113,7 +114,7 @@ def test_repository_source_truth_remains_fail_closed() -> None:
     with pytest.raises(FastLiveError, match="source-truth authorization missing"):
         verify_source_authorization(
             state,
-            expected_main="ea55c206665e15fa09d194fd3e826e1d653f79b1",
+            expected_main=MAIN,
             observed_at=datetime(2026, 9, 28, 20, 0, tzinfo=UTC),
         )
 
@@ -202,7 +203,7 @@ def test_envelope_is_exact_bound_short_lived_and_tamper_evident() -> None:
         )
 
 
-def test_marketable_depth_requires_full_size_at_or_better_than_limit() -> None:
+def test_marketable_depth_allows_partial_immediate_fill_at_limit() -> None:
     result = marketable_depth(
         (("0.57", "3"), ("0.58", "4"), ("0.59", "10"), ("0.60", "50")),
         limit_price="0.59",

@@ -237,7 +237,13 @@ def validate_prepared(
         raise FastLiveError("prepared limit price invalid")
     if shares <= 0 or price * shares > FAST_LIVE_MAX_TRADE_SIZE_USD:
         raise FastLiveError("prepared size exceeds live limit")
-    for name in ("intent_id", "prediction_id", "paper_order_id", "request_id"):
+    for name in (
+        "intent_id",
+        "prediction_id",
+        "paper_order_id",
+        "request_id",
+        "risk_decision_id",
+    ):
         if not str(prepared.get(name) or ""):
             raise FastLiveError(f"prepared {name} missing")
     market_end = _utc(datetime.fromisoformat(str(prepared.get("market_end_at") or "")))
@@ -252,6 +258,7 @@ def validate_prepared(
     return {
         "intent_id": str(prepared["intent_id"]),
         "request_id": str(prepared["request_id"]),
+        "risk_decision_id": str(prepared["risk_decision_id"]),
         "prediction_id": str(prepared["prediction_id"]),
         "paper_order_id": str(prepared["paper_order_id"]),
         "market_end_at": market_end.isoformat(),
@@ -299,6 +306,7 @@ def create_envelope(
         "authorization_id": auth_id,
         "intent_id": validated["intent_id"],
         "request_id": validated["request_id"],
+        "risk_decision_id": validated["risk_decision_id"],
         "prediction_id": validated["prediction_id"],
         "paper_order_id": validated["paper_order_id"],
         "request_sha256": validated["request_sha256"],
@@ -346,6 +354,7 @@ def verify_envelope(
     for name in (
         "intent_id",
         "request_id",
+        "risk_decision_id",
         "prediction_id",
         "paper_order_id",
         "request_sha256",

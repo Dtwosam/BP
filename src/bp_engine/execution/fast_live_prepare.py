@@ -258,6 +258,7 @@ def prepare_fast_live_candidate(
         "status": "prepared",
         "intent_id": str(intent_store.record["intent_id"]),
         "request_id": request_id,
+        "risk_decision_id": str(risk_store.record["decision_id"]),
         "prediction_id": request.prediction_id,
         "paper_order_id": str(order["paper_order_id"]),
         "market_end_at": market_end_at.isoformat(),
