@@ -115,6 +115,12 @@ def test_second_canary_db_reconciliation_helper_is_explicit_and_fail_closed() ->
         'repair["authorization_consumed"] is False',
         'authorization["third_order_authorized"] is False',
         'canary["official_fill_state"] == "zero_fill_observed"',
+        "*.result.json",
+        "expected exactly one exact executor receipt",
+        'payload["accepted"] is True',
+        'cancellation["cancelled"] is True',
+        "absent_verified_by_executor_receipt",
+        "normalized order event history is partial or ambiguous",
         "list_open_orders",
         "list_account_trades",
         "snapshot_stable_across_3_seconds",
@@ -134,6 +140,7 @@ def test_second_canary_db_reconciliation_helper_is_explicit_and_fail_closed() ->
         "create_limit_order(",
         "post_order(",
         "cancel_order(",
+        "store_order_event(",
         "PHASE15_ACCEPT_REAL_MONEY",
     ):
         assert forbidden not in text
