@@ -157,6 +157,19 @@ print(hashlib.sha256(sys.argv[1].encode()).hexdigest()[:12])
 PY
 )"
 KEY_ID="fast-live-$AUTH_SUFFIX"
+TRANSPORT_KEY="$TMP_DIR/transport.key"
+python3 - "$TRANSPORT_KEY" <<'PY'
+import base64
+import os
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+encoded = base64.urlsafe_b64encode(os.urandom(32)).decode("ascii").rstrip("=")
+path.write_text(encoded + "\n", encoding="utf-8")
+os.chmod(path, 0o600)
+PY
+
 ORDER_TOPIC="bp-phase15-fast-live-orders-$AUTH_SUFFIX"
 ORDER_SUB="bp-phase15-fast-live-orders-$AUTH_SUFFIX-jhb"
 RESULT_TOPIC="bp-phase15-fast-live-results-$AUTH_SUFFIX"
@@ -175,13 +188,13 @@ EXEC_SA="$(gcloud compute instances describe "$EXEC_VM"   --project="$PROJECT" -
 gcloud compute ssh "$US_VM"   --project="$PROJECT" --zone="$US_ZONE" --quiet   --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$HEAD' &&
              sudo systemctl is-active --quiet bp-phase15-fast-live-source.service && exit 20 || true;
              sudo systemctl is-enabled --quiet bp-phase15-fast-live-source.service && exit 21 || true;
-             sudo test -r /etc/bp-telegram-transport/transport.key" ||
+             sudo test ! -e /etc/bp-fast-live/transport.key" ||
   fail "recorder_stage_not_ready"
 
 gcloud compute ssh "$EXEC_VM"   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet   --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$HEAD' &&
              sudo systemctl is-active --quiet bp-phase15-fast-live-receiver.service && exit 22 || true;
              sudo systemctl is-enabled --quiet bp-phase15-fast-live-receiver.service && exit 23 || true;
-             sudo test -r /etc/bp-telegram-transport/transport.key;
+             sudo test ! -e /etc/bp-fast-live/transport.key;
              sudo test -f /var/lib/bp-canary/fast-live/KILL;
              sudo test ! -e /var/lib/bp-canary/fast-live/attempt.json;
              sudo test ! -e /var/lib/bp-canary/fast-live/result.json" ||
@@ -269,14 +282,14 @@ BP_FAST_LIVE_RESULT_TOPIC_ID=$RESULT_TOPIC
 EOF
 chmod 0600 "$SOURCE_ENV" "$RECEIVER_ENV"
 
-for item in   "$STATE:project-state.json"   "$RUNTIME_AUTH:authorization.json"   "$SOURCE_ENV:source.env"
+for item in   "$STATE:project-state.json"   "$RUNTIME_AUTH:authorization.json"   "$TRANSPORT_KEY:transport.key"   "$SOURCE_ENV:source.env"
 do
   src="${item%%:*}"
   name="${item##*:}"
   gcloud compute scp "$src" "$US_VM:/tmp/bp-fast-live-$name"     --project="$PROJECT" --zone="$US_ZONE" --quiet >/dev/null ||
     fail "recorder_upload_failed:$name"
 done
-for item in   "$STATE:project-state.json"   "$RUNTIME_AUTH:authorization.json"   "$RECEIVER_ENV:receiver.env"
+for item in   "$STATE:project-state.json"   "$RUNTIME_AUTH:authorization.json"   "$TRANSPORT_KEY:transport.key"   "$RECEIVER_ENV:receiver.env"
 do
   src="${item%%:*}"
   name="${item##*:}"
@@ -286,29 +299,34 @@ done
 
 gcloud compute ssh "$US_VM"   --project="$PROJECT" --zone="$US_ZONE" --quiet   --command="sudo install -o root -g bp -m 0640 /tmp/bp-fast-live-project-state.json /etc/bp-fast-live/PROJECT_STATE.json &&
              sudo install -o root -g bp -m 0640 /tmp/bp-fast-live-authorization.json /etc/bp-fast-live/authorization.json &&
+             sudo install -o root -g bp -m 0640 /tmp/bp-fast-live-transport.key /etc/bp-fast-live/transport.key &&
              sudo install -o root -g bp -m 0640 /tmp/bp-fast-live-source.env /etc/bp/phase15-fast-live-source.env &&
-             rm -f /tmp/bp-fast-live-project-state.json /tmp/bp-fast-live-authorization.json /tmp/bp-fast-live-source.env" ||
+             rm -f /tmp/bp-fast-live-project-state.json /tmp/bp-fast-live-authorization.json /tmp/bp-fast-live-transport.key /tmp/bp-fast-live-source.env" ||
   fail "recorder_runtime_install_failed"
 
 gcloud compute ssh "$EXEC_VM"   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet   --command="sudo install -o root -g root -m 0600 /tmp/bp-fast-live-project-state.json /etc/bp-fast-live/PROJECT_STATE.json &&
              sudo install -o root -g root -m 0600 /tmp/bp-fast-live-authorization.json /etc/bp-fast-live/authorization.json &&
+             sudo install -o root -g root -m 0600 /tmp/bp-fast-live-transport.key /etc/bp-fast-live/transport.key &&
              sudo install -o root -g root -m 0600 /tmp/bp-fast-live-receiver.env /etc/bp-fast-live/receiver.env &&
-             rm -f /tmp/bp-fast-live-project-state.json /tmp/bp-fast-live-authorization.json /tmp/bp-fast-live-receiver.env" ||
+             rm -f /tmp/bp-fast-live-project-state.json /tmp/bp-fast-live-authorization.json /tmp/bp-fast-live-transport.key /tmp/bp-fast-live-receiver.env" ||
   fail "executor_runtime_install_failed"
 
 # Validate exact state/auth bytes after installation.
 LOCAL_STATE_SHA="$(sha256sum "$STATE" | awk '{print $1}')"
 LOCAL_AUTH_SHA="$(sha256sum "$RUNTIME_AUTH" | awk '{print $1}')"
+LOCAL_KEY_SHA="$(sha256sum "$TRANSPORT_KEY" | awk '{print $1}')"
 for spec in "$US_VM:$US_ZONE" "$EXEC_VM:$EXEC_ZONE"; do
   vm="${spec%%:*}"
   zone="${spec##*:}"
-  read -r remote_state remote_auth < <(
-    gcloud compute ssh "$vm" --project="$PROJECT" --zone="$zone" --quiet       --command="sudo sha256sum /etc/bp-fast-live/PROJECT_STATE.json /etc/bp-fast-live/authorization.json | awk '{print \$1}' | xargs"
+  read -r remote_state remote_auth remote_key < <(
+    gcloud compute ssh "$vm" --project="$PROJECT" --zone="$zone" --quiet       --command="sudo sha256sum /etc/bp-fast-live/PROJECT_STATE.json /etc/bp-fast-live/authorization.json /etc/bp-fast-live/transport.key | awk '{print \$1}' | xargs"
   ) || fail "runtime_hash_read_failed:$vm"
   [[ "$remote_state" == "$LOCAL_STATE_SHA" ]] ||
     fail "project_state_hash_mismatch:$vm"
   [[ "$remote_auth" == "$LOCAL_AUTH_SHA" ]] ||
     fail "runtime_authorization_hash_mismatch:$vm"
+  [[ "$remote_key" == "$LOCAL_KEY_SHA" ]] ||
+    fail "transport_key_hash_mismatch:$vm"
 done
 
 activated=false
