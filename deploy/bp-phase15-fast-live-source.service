@@ -17,7 +17,7 @@ Environment=MAX_TRADE_SIZE_USD=0
 Environment=MAX_DAILY_LOSS_USD=0
 Environment=BP_PHASE15_FAST_LIVE_SOURCE_ENABLED=yes
 Environment=PYTHONPATH=/opt/bp-fast-live/current/src
-PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONDONTWRITEBYTECODE=1
 Environment=PYTHONUNBUFFERED=1
 UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS
 ExecStart=/opt/bp/.venv/bin/python /opt/bp-fast-live/current/scripts/run_phase15_v3_fast_live_source.py
