@@ -173,7 +173,7 @@ def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
     repair = gate["second_canary_db_reconciliation"]
     assert current_live == repair["live_account_snapshot_runtime_fix_git_blob_sha"]
     assert current_live != supervisor["live_git_blob_sha"]
-    assert repair["live_account_snapshot_runtime_fix_deployed"] is False
+    assert repair["live_account_snapshot_runtime_fix_deployed"] is True
 
 
 def test_supervisor_and_reconcile_helper_have_no_direct_order_path() -> None:
