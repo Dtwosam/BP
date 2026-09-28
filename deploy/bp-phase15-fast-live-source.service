@@ -1,0 +1,40 @@
+[Unit]
+Description=BP Phase 15 pre-authorized fast-live V3 source
+After=bp-postgres.service bp-v3-paper-execution.service network-online.target
+Wants=network-online.target
+Requires=bp-postgres.service bp-v3-paper-execution.service
+
+[Service]
+Type=simple
+User=bp
+Group=bp
+WorkingDirectory=/opt/bp-fast-live/current
+EnvironmentFile=/etc/bp/bp.env
+EnvironmentFile=/etc/bp/phase15-fast-live-source.env
+Environment=MODE=research
+Environment=LIVE_TRADING_ENABLED=false
+Environment=MAX_TRADE_SIZE_USD=0
+Environment=MAX_DAILY_LOSS_USD=0
+Environment=BP_PHASE15_FAST_LIVE_SOURCE_ENABLED=yes
+Environment=PYTHONPATH=/opt/bp-fast-live/current/src
+PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS
+ExecStart=/opt/bp/.venv/bin/python /opt/bp-fast-live/current/scripts/run_phase15_v3_fast_live_source.py
+Restart=on-failure
+RestartSec=1s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=full
+ReadOnlyPaths=/opt/bp-fast-live
+ReadWritePaths=/var/lib/bp/phase15-fast-live
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-phase15-fast-live-source
+
+[Install]
+WantedBy=multi-user.target
