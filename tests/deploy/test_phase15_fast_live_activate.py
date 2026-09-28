@@ -46,12 +46,17 @@ def test_fast_live_activation_uses_fresh_per_authorization_transport() -> None:
         'ORDER_SUB="bp-phase15-fast-live-orders-$AUTH_SUFFIX-jhb"',
         'RESULT_TOPIC="bp-phase15-fast-live-results-$AUTH_SUFFIX"',
         'RESULT_SUB="bp-phase15-fast-live-results-$AUTH_SUFFIX-us"',
+        'TRANSPORT_KEY="$TMP_DIR/transport.key"',
+        "os.urandom(32)",
+        "transport_key_hash_mismatch",
+        "/etc/bp-fast-live/transport.key",
         'roles/pubsub.publisher',
         'roles/pubsub.subscriber',
     ):
         assert marker in text
     assert text.count("gcloud pubsub topics add-iam-policy-binding") == 2
     assert text.count("gcloud pubsub subscriptions add-iam-policy-binding") == 2
+    assert "/etc/bp-telegram-transport/transport.key" not in text
 
 
 def test_fast_live_activation_starts_receiver_armed_then_releases_and_starts_source() -> None:
