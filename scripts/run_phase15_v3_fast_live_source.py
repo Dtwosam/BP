@@ -30,6 +30,7 @@ from bp_engine.execution.fast_live_prepare import prepare_fast_live_candidate
 from bp_engine.execution.fast_live_result import (
     record_fast_live_official_reconciliation,
     record_fast_live_result,
+    settle_fast_live_position_if_resolved,
 )
 from bp_engine.execution.live import InterlockDecision
 from bp_engine.execution.telegram_transport import load_transport_key_file
@@ -319,6 +320,8 @@ def main() -> int:
     result_state: dict[str, Any] = {
         "network_submission_attempt_consumed": None,
         "result": None,
+        "settlement_required": False,
+        "settlement_intent_id": "",
     }
 
     def result_callback(message: object) -> None:
@@ -406,6 +409,16 @@ def main() -> int:
                 result.get("network_submission_attempt_consumed") is True
             )
             result_state["result"] = result
+            result_state["settlement_required"] = (
+                isinstance(official_recorded, dict)
+                and official_recorded.get(
+                    "settlement_reconciliation_required"
+                )
+                is True
+            )
+            result_state["settlement_intent_id"] = str(
+                result.get("intent_id") or ""
+            )
             result_event.set()
             print(
                 json.dumps(
@@ -452,9 +465,39 @@ def main() -> int:
         publisher.stop()
         return 0
     waiting_for_result = publication_state == "waiting_for_result"
+    settlement_intent_id = ""
 
     try:
         while True:
+            if settlement_intent_id:
+                settlement = settle_fast_live_position_if_resolved(
+                    engine=engine,
+                    intent_id=settlement_intent_id,
+                    observed_at=_utc_now(),
+                )
+                settlement_status = str(settlement.get("status") or "")
+                if settlement_status in {"settled", "already_settled"}:
+                    print(
+                        json.dumps(
+                            settlement,
+                            sort_keys=True,
+                            default=str,
+                        ),
+                        flush=True,
+                    )
+                    return 0
+                if settlement_status != "waiting":
+                    print(
+                        json.dumps(
+                            settlement,
+                            sort_keys=True,
+                            default=str,
+                        ),
+                        flush=True,
+                    )
+                    return 2
+                time.sleep(max(args.poll_seconds, 0.25))
+                continue
             if waiting_for_result:
                 if not result_event.wait(timeout=args.poll_seconds):
                     continue
@@ -463,6 +506,11 @@ def main() -> int:
                     result_state["network_submission_attempt_consumed"] is True
                 )
                 if consumed:
+                    if result_state["settlement_required"] is True:
+                        settlement_intent_id = str(
+                            result_state["settlement_intent_id"]
+                        )
+                        continue
                     return 0
                 waiting_for_result = False
                 continue
