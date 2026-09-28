@@ -5709,7 +5709,7 @@
       "authorized": true,
       "authorization_consumed": false,
       "helper": "scripts/deploy/phase15_v3_second_canary_db_reconciliation_cloudshell.sh",
-      "helper_git_blob_sha": "5e52ba161c2d2a23592dfa52d4245074b12f5a1c",
+      "helper_git_blob_sha": "4b40c3e8694b383757d760b29432ac8bbfb7a48d",
       "target_intent_id": "live-intent-48e0149edbed67572c6e7fab69269dae",
       "target_external_order_id": "0x127aa37d011dc0d96b5c941e61a6f5fefcd5b7fa56e3eb30f5f6bc77d5eaf4d6",
       "repair_scope": "Freshly re-verify the exact second live canary as official zero-fill from the Johannesburg account, then idempotently persist exactly one post_submission_official_zero_fill reconciliation row with unresolved_count=0, critical_count=0, and a zero-exposure account snapshot on bp-recorder.",
