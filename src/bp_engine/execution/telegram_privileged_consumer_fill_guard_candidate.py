@@ -273,7 +273,12 @@ def execute_authorized_package_once(
             "executor_invoked": False,
             "real_order_submitted": False,
         }
-    if result_path.exists() or failure_path.exists() or attempt_path.exists() or fill_guard_path.exists():
+    if (
+        result_path.exists()
+        or failure_path.exists()
+        or attempt_path.exists()
+        or fill_guard_path.exists()
+    ):
         return {
             "status": "already_terminal",
             "terminal_reason": (
