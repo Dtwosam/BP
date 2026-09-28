@@ -1,0 +1,38 @@
+{
+  "evidence_type": "phase15-v3-second-canary-db-reconciliation-authorization",
+  "authorization_date": "2026-09-28",
+  "authorization_source": "User explicitly authorized the exact second-canary zero-fill DB reconciliation scope in chat.",
+  "target": {
+    "intent_id": "live-intent-48e0149edbed67572c6e7fab69269dae",
+    "external_order_id": "0x127aa37d011dc0d96b5c941e61a6f5fefcd5b7fa56e3eb30f5f6bc77d5eaf4d6",
+    "official_fill_state": "zero_fill_observed",
+    "confirmed_filled_shares": "0",
+    "confirmed_filled_notional_usd": "0",
+    "open_order_count": 0
+  },
+  "authorized_action": {
+    "helper": "scripts/deploy/phase15_v3_second_canary_db_reconciliation_cloudshell.sh",
+    "helper_git_blob_sha": "4b40c3e8694b383757d760b29432ac8bbfb7a48d",
+    "fresh_official_zero_fill_reverification_required": true,
+    "idempotent_db_reconciliation_write": true,
+    "unresolved_count": 0,
+    "critical_count": 0,
+    "account_snapshot": {
+      "total_exposure_usd": "0",
+      "realized_daily_pnl_usd": "0",
+      "consecutive_losses": 0
+    }
+  },
+  "excluded_actions": {
+    "telegram_approval": false,
+    "executor_arm_or_invoke": false,
+    "order_submission": false,
+    "retry": false,
+    "additional_network_attempt": false,
+    "third_order": false,
+    "strategy_mutation": false,
+    "stake_growth": false,
+    "global_live_enablement": false
+  },
+  "one_time": true
+}

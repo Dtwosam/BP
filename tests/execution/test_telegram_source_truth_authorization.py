@@ -101,7 +101,7 @@ def _origin(
     )
 
 
-def test_current_source_truth_is_signed_as_authorized_for_one_second_canary() -> None:
+def test_current_source_truth_is_signed_as_blocked_after_second_canary() -> None:
     now = datetime(2026, 9, 25, 12, 0, tzinfo=UTC)
     state = json.loads(STATE.read_text(encoding="utf-8"))
     prepared = _prepared(now)
@@ -126,14 +126,14 @@ def test_current_source_truth_is_signed_as_authorized_for_one_second_canary() ->
         key=key,
         expected_key_id=ORIGIN_KEY_ID,
         observed_at=now + timedelta(seconds=4),
-        require_authorized=True,
+        require_authorized=False,
     )
 
-    assert verified["authorized"] is True
-    assert verified["blockers"] == []
+    assert verified["authorized"] is False
+    assert verified["blockers"] == ["second_order_not_authorized"]
     assert verified["project_state_sha256"] == source_truth_sha256(state)
     snapshot = verified["authorization_snapshot"]
-    assert snapshot["second_order_authorized"] is True
+    assert snapshot["second_order_authorized"] is False
     assert snapshot["automated_real_money_submission"] is True
     assert snapshot["manual_real_money_submission_required"] is False
     assert snapshot["telegram_one_tap_submission_authorized"] is True

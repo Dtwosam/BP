@@ -154,7 +154,7 @@ def test_fresh_watcher_restart_authorization_was_consumed_by_safe_fail() -> None
     assert watch["fresh_restart_does_not_authorize_order_submission"] is True
     assert watch["fresh_restart_does_not_authorize_live_trading_enablement"] is True
     assert watch["second_canary_network_attempt_consumed"] is False
-    assert second["status"] == "AUTHORIZED_NOT_SUBMITTED"
+    assert second["status"] == "CONSUMED_SUBMITTED_RECONCILIATION_REQUIRED"
     assert second["max_network_submission_attempts"] == 1
     assert state["live_trading_enabled"] is False
     assert gate["live_trading_enabled"] is False
@@ -398,9 +398,9 @@ def test_controlled_canary_fresh_prepare_restart_is_authorized_after_clean_expir
     controlled = gate["controlled_auto_approved_canary_authorization"]
     restart = controlled["fresh_prepare_restart_authorization"]
 
-    assert controlled["consumed"] is False
-    assert controlled["network_attempt_observed"] is False
-    assert controlled["real_order_submission_observed"] is False
+    assert controlled["consumed"] is True
+    assert controlled["network_attempt_observed"] is True
+    assert controlled["real_order_submission_observed"] is True
     assert controlled["prepare_watcher_result"] == "running_until_candidate"
 
     assert restart["authorized"] is False
@@ -451,9 +451,9 @@ def test_controlled_canary_until_candidate_watcher_is_authorized() -> None:
     assert watch["runtime_cap_removed"] is True
     assert watch["enabled_across_vm_reboot"] is False
 
-    assert controlled["consumed"] is False
-    assert controlled["network_attempt_observed"] is False
-    assert controlled["real_order_submission_observed"] is False
+    assert controlled["consumed"] is True
+    assert controlled["network_attempt_observed"] is True
+    assert controlled["real_order_submission_observed"] is True
     assert controlled["prepare_watcher_mode"] == "until_candidate"
     assert controlled["prepare_watcher_max_wait_seconds"] == 0
     assert controlled["prepare_watcher_expected_expiry_at"] is None

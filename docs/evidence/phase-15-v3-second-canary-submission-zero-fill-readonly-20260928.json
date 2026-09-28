@@ -1,0 +1,73 @@
+{
+  "evidence_type": "phase15-v3-second-canary-submission-zero-fill-readonly",
+  "observed_date": "2026-09-28",
+  "source_main_at_runtime": "b6e99ba023c347c86a8c70f431772bb8d3833f2c",
+  "observation_mode": "read_only_after_authorized_submission",
+  "telegram_approval": {
+    "telegram_message_id": 5469,
+    "selected_side": "UP",
+    "limit_price": "0.590000000000000000",
+    "requested_shares": "8.238141000000000000",
+    "maximum_spend_usd": "5",
+    "validation_passed": true,
+    "reservation_passed": true,
+    "callback_result": "rpc_returned:Approved."
+  },
+  "submission": {
+    "intent_id": "live-intent-48e0149edbed67572c6e7fab69269dae",
+    "prediction_id": "84c4ea86963590cff83eac89d8d76a3520d863849abd24ce8389b37d23612f75",
+    "paper_order_id": "e92abd33929ada75cd1b41819cbe3df28c9cce4c755f931e7c6e7a2794dfe014",
+    "request_sha256": "639cc9945bab2a203715678ca330cb56a900f193acba3711d3ae8b0aa6152633",
+    "external_order_id": "0x127aa37d011dc0d96b5c941e61a6f5fefcd5b7fa56e3eb30f5f6bc77d5eaf4d6",
+    "accepted": true,
+    "real_order_submitted": true,
+    "cancellation": {
+      "cancelled": true,
+      "status": "cancelled",
+      "message": ""
+    },
+    "network_submission_attempt_consumed": true,
+    "authorization_slot_consumed": true,
+    "retry_allowed": false,
+    "completed_at": "2026-09-28T13:54:29.198434+00:00"
+  },
+  "supervisor": {
+    "terminal_status": "real_submission_succeeded",
+    "terminal_reason": "real_five_dollar_submission_recorded",
+    "terminal_at": "2026-09-28T13:54:50.010762+00:00"
+  },
+  "official_fill_probe": {
+    "read_only": true,
+    "external_order_id": "0x127aa37d011dc0d96b5c941e61a6f5fefcd5b7fa56e3eb30f5f6bc77d5eaf4d6",
+    "fill_state": "zero_fill_observed",
+    "official_reconciliation_complete": true,
+    "snapshot_stable_across_3_seconds": true,
+    "order_still_open": false,
+    "open_order_count": 0,
+    "matching_trade_count": 0,
+    "observed_matched_shares": "0",
+    "observed_matched_notional_usd": "0",
+    "confirmed_filled_shares": "0",
+    "confirmed_filled_notional_usd": "0",
+    "confirmed_fill_fraction_of_requested": "0"
+  },
+  "interpretation": {
+    "realized_trade_pnl_usd": "0",
+    "exposure_usd": "0",
+    "live_risk_ledger_reconciliation_persisted": false,
+    "production_db_reconciliation_required": true
+  },
+  "safety": {
+    "second_canary_authorization_consumed": true,
+    "additional_network_attempts_authorized": false,
+    "retry_authorized": false,
+    "third_order_authorized": false,
+    "global_live_trading_enabled": false,
+    "production_db_mutation_performed_by_this_record": false
+  },
+  "prepared_reconciliation": {
+    "helper": "scripts/deploy/phase15_v3_second_canary_db_reconciliation_cloudshell.sh",
+    "helper_git_blob_sha": "4b40c3e8694b383757d760b29432ac8bbfb7a48d",
+    "status": "ENGINEERING_READY_AUTHORIZATION_REQUIRED"
+  }
+}

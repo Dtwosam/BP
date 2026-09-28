@@ -146,8 +146,8 @@ def test_source_truth_attest_cli_writes_current_authorized_proof_once(
     assert module.main() == 0
     result = json.loads(capsys.readouterr().out)
     assert result["status"] == "source_truth_authorization_written"
-    assert result["authorized"] is True
-    assert result["blockers"] == []
+    assert result["authorized"] is False
+    assert result["blockers"] == ["second_order_not_authorized"]
     assert result["network_action_performed"] is False
     assert result["executor_invoked"] is False
     assert result["real_order_submitted"] is False

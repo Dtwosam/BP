@@ -52,21 +52,25 @@ def test_telegram_handoff_requires_full_source_truth_and_dispatch_claim() -> Non
     assert text.count("validate_approved_handoff") >= 2
 
 
-def test_current_source_truth_enables_only_the_bounded_telegram_handoff() -> None:
+def test_current_source_truth_blocks_further_telegram_handoff_after_second_canary() -> None:
     state = json.loads(STATE.read_text(encoding="utf-8"))
     gate = state["phase_15_v3_live_canary"]
     assert state["live_trading_enabled"] is False
     assert gate["live_trading_enabled"] is False
     assert gate["canary_order_submitted"] is True
-    assert gate["second_order_authorized"] is True
+    assert gate["second_order_authorized"] is False
     assert gate["automated_real_money_submission"] is True
     assert gate["manual_real_money_submission_required"] is False
     assert gate["telegram_one_tap_submission_authorized"] is True
     assert gate["telegram_persistent_execution_transport_authorized"] is True
     assert gate["telegram_pubsub_transport_authorized"] is True
     second = gate["second_live_canary_authorization"]
+    assert second["status"] == "CONSUMED_SUBMITTED_RECONCILIATION_REQUIRED"
+    assert second["consumed"] is True
+    assert second["network_submission_attempt_consumed"] is True
     assert second["max_network_submission_attempts"] == 1
     assert second["broad_autonomous_live_rollout_authorized"] is False
+    assert second["third_order_authorized"] is False
 
 
 def test_dispatch_claim_and_submission_markers_precede_executor_call() -> None:
