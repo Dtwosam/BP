@@ -126,7 +126,7 @@ def test_marketable_fast_path_consumes_once_then_posts(
     assert result["external_order_id"] == "order-fast-1"
     assert result["network_submission_attempt_consumed"] is True
     assert result["real_order_submitted"] is True
-    assert client.calls == ["book", "sign", "post", "cancel"]
+    assert client.calls == ["sign", "book", "post", "cancel"]
     assert executor.attempt_path.is_file()
     assert kill.is_file()
     attempt = json.loads(executor.attempt_path.read_text(encoding="utf-8"))
@@ -134,7 +134,7 @@ def test_marketable_fast_path_consumes_once_then_posts(
 
     duplicate = executor.execute(_verified(now))
     assert duplicate["status"] == "already_terminal"
-    assert client.calls == ["book", "sign", "post", "cancel"]
+    assert client.calls == ["sign", "book", "post", "cancel"]
 
 
 def test_stale_or_thin_book_never_consumes_attempt(tmp_path: Path) -> None:
@@ -154,7 +154,7 @@ def test_stale_or_thin_book_never_consumes_attempt(tmp_path: Path) -> None:
     assert result["status"] == "fresh_book_rejected"
     assert result["network_submission_attempt_consumed"] is False
     assert result["real_order_submitted"] is False
-    assert client.calls == ["book"]
+    assert client.calls == ["sign", "book"]
     assert not executor.attempt_path.exists()
 
 
