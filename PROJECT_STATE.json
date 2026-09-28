@@ -5744,7 +5744,7 @@
       "live_account_snapshot_runtime_fix_deployment_authorized": true,
       "live_account_snapshot_runtime_fix_scope": "Treat only clean post_submission_official_zero_fill reconciliation evidence for an exact intent as terminal zero exposure; malformed or unrelated evidence leaves the intent unresolved and critical.",
       "completion_helper": "scripts/deploy/phase15_v3_second_canary_zero_fill_completion_cloudshell.sh",
-      "completion_helper_git_blob_sha": "240b607c6e81297e4ac82d2eff603a1186bc5624",
+      "completion_helper_git_blob_sha": "272313d9bda1712a9d5afa7fd9b0ea634cde2267",
       "live_account_snapshot_runtime_fix_deployment_scope": "Stage a complete prepare-watch sidecar release with unchanged runner/unit/canary and repaired live.py; require watcher inactive; switch only the sidecar current symlink; do not start/restart the watcher; preserve recorder/predictor/paper-executor PIDs; do not mutate the frozen V3 runtime.",
       "sidecar_runner_git_blob_sha": "ed3ced72c75291a0fd79a15009b0a468561683d9",
       "sidecar_service_unit_git_blob_sha": "2f162c9c17658d6917544b056176a56cc50bea46",
