@@ -105,7 +105,6 @@ def test_reconciliation_account_snapshot_repair_production_pass() -> None:
     bindings = {
         "helper_git_blob_sha": HELPER,
         "canary_git_blob_sha": CANARY,
-        "live_git_blob_sha": LIVE,
     }
     for field, path in bindings.items():
         actual = subprocess.run(
@@ -116,6 +115,21 @@ def test_reconciliation_account_snapshot_repair_production_pass() -> None:
             text=True,
         ).stdout.strip()
         assert repair[field] == actual
+
+    assert repair["live_git_blob_sha"] == (
+        "0617ffeda8365cdd6ab2636af00e58ca8954c4db"
+    )
+    current_live = subprocess.run(
+        ["git", "hash-object", str(LIVE)],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    second_repair = gate["second_canary_db_reconciliation"]
+    assert current_live == second_repair["live_account_snapshot_runtime_fix_git_blob_sha"]
+    assert current_live != repair["live_git_blob_sha"]
+    assert second_repair["live_account_snapshot_runtime_fix_deployed"] is False
 
 
 def test_reconciliation_repair_helper_is_fail_closed_and_not_self_authorizing() -> None:

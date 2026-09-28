@@ -460,6 +460,59 @@ def _replay_submission_ack(
     )
 
 
+def _official_zero_fill_reconciled_intents(
+    connection: Connection,
+    *,
+    observed_at: datetime,
+) -> set[str]:
+    rows = connection.execute(
+        select(schema.live_reconciliation_runs)
+        .where(schema.live_reconciliation_runs.c.observed_at <= observed_at)
+        .order_by(
+            schema.live_reconciliation_runs.c.observed_at.desc(),
+            schema.live_reconciliation_runs.c.id.desc(),
+        )
+    ).mappings().all()
+    resolved: set[str] = set()
+    for row in rows:
+        if int(row["unresolved_count"]) != 0 or int(row["critical_count"]) != 0:
+            continue
+        evidence = dict(row["evidence"] or {})
+        if evidence.get("reconciliation_kind") != "post_submission_official_zero_fill":
+            continue
+        intent_id = str(evidence.get("intent_id") or "")
+        external_order_id = str(evidence.get("external_order_id") or "")
+        account = evidence.get("account_snapshot")
+        if not intent_id or not external_order_id or not isinstance(account, dict):
+            continue
+        try:
+            official_open_orders = int(evidence.get("official_open_order_count"))
+            filled_shares = _decimal(
+                evidence.get("confirmed_filled_shares"),
+                "reconciliation.confirmed_filled_shares",
+            )
+            filled_notional = _decimal(
+                evidence.get("confirmed_filled_notional_usd"),
+                "reconciliation.confirmed_filled_notional_usd",
+            )
+            account_exposure = _decimal(
+                account.get("total_exposure_usd"),
+                "reconciliation.account_snapshot.total_exposure_usd",
+            )
+        except (TypeError, ValueError):
+            continue
+        if (
+            official_open_orders == 0
+            and filled_shares == 0
+            and filled_notional == 0
+            and account_exposure == 0
+            and evidence.get("official_fill_state") == "zero_fill_observed"
+            and evidence.get("network_submission_attempt_consumed") is True
+        ):
+            resolved.add(intent_id)
+    return resolved
+
+
 def _account_snapshot(connection: Connection, *, observed_at: datetime) -> LiveAccountSnapshot:
     intents = connection.execute(
         select(schema.live_order_intents).where(
@@ -472,8 +525,18 @@ def _account_snapshot(connection: Connection, *, observed_at: datetime) -> LiveA
     unresolved_intent_seen = False
     submission_attempt_events = ("accepted", "rejected", "submission_unknown")
     terminal_events = (*submission_attempt_events, "closed_before_submission")
+    official_zero_fill_intents = _official_zero_fill_reconciled_intents(
+        connection,
+        observed_at=observed_at,
+    )
     for intent in intents:
         pre_submit_at = _stored_utc(intent["pre_submit_at"], "intent.pre_submit_at")
+        intent_id = str(intent["intent_id"])
+        if intent_id in official_zero_fill_intents:
+            submission_attempt_seen = True
+            if last_order_at is None or pre_submit_at > last_order_at:
+                last_order_at = pre_submit_at
+            continue
         outcome = connection.execute(
             select(schema.live_order_events.c.event_type)
             .where(
@@ -539,7 +602,9 @@ def _account_snapshot(connection: Connection, *, observed_at: datetime) -> LiveA
         and not submission_attempt_seen
         and not unresolved_intent_seen
     )
-    if intents and not account_evidence and not safe_pre_submission_close:
+    if unresolved_intent_seen:
+        critical_count = max(critical_count, 1)
+    elif intents and not account_evidence and not safe_pre_submission_close:
         critical_count = max(critical_count, 1)
     return LiveAccountSnapshot(
         total_exposure_usd=total_exposure,

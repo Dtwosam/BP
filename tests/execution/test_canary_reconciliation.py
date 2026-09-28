@@ -110,6 +110,79 @@ def test_closed_before_submission_clears_exposure_cooldown_and_reconciliation() 
     assert account.unresolved_critical_reconciliation == 0
 
 
+def test_official_zero_fill_reconciliation_resolves_intent_without_order_events() -> None:
+    engine = _engine()
+    repository = LiveReadinessRepository()
+    with engine.begin() as connection:
+        repository.store_reconciliation_run(
+            connection,
+            observed_at=BASE + timedelta(seconds=1),
+            unresolved_count=0,
+            critical_count=0,
+            evidence={
+                "reconciliation_kind": "post_submission_official_zero_fill",
+                "intent_id": INTENT_ID,
+                "external_order_id": "0xzero-fill",
+                "official_open_order_count": 0,
+                "confirmed_filled_shares": "0",
+                "confirmed_filled_notional_usd": "0",
+                "official_fill_state": "zero_fill_observed",
+                "network_submission_attempt_consumed": True,
+                "account_snapshot": {
+                    "total_exposure_usd": "0",
+                    "realized_daily_pnl_usd": "0",
+                    "consecutive_losses": 0,
+                },
+            },
+        )
+
+    with engine.connect() as connection:
+        account = _account_snapshot(
+            connection,
+            observed_at=BASE + timedelta(seconds=2),
+        )
+
+    assert account.total_exposure_usd == Decimal("0")
+    assert account.last_order_at == BASE
+    assert account.unresolved_critical_reconciliation == 0
+
+
+def test_malformed_zero_fill_reconciliation_does_not_mask_unresolved_intent() -> None:
+    engine = _engine()
+    repository = LiveReadinessRepository()
+    with engine.begin() as connection:
+        repository.store_reconciliation_run(
+            connection,
+            observed_at=BASE + timedelta(seconds=1),
+            unresolved_count=0,
+            critical_count=0,
+            evidence={
+                "reconciliation_kind": "post_submission_official_zero_fill",
+                "intent_id": INTENT_ID,
+                "external_order_id": "0xzero-fill",
+                "official_open_order_count": 0,
+                "confirmed_filled_shares": "0",
+                "confirmed_filled_notional_usd": "0",
+                "official_fill_state": "zero_fill_observed",
+                "account_snapshot": {
+                    "total_exposure_usd": "0",
+                    "realized_daily_pnl_usd": "0",
+                    "consecutive_losses": 0,
+                },
+            },
+        )
+
+    with engine.connect() as connection:
+        account = _account_snapshot(
+            connection,
+            observed_at=BASE + timedelta(seconds=2),
+        )
+
+    assert account.total_exposure_usd > Decimal("4.83")
+    assert account.last_order_at is None
+    assert account.unresolved_critical_reconciliation == 1
+
+
 def test_pre_submission_reconciliation_cannot_mask_real_attempt() -> None:
     engine = _engine()
     repository = LiveReadinessRepository()

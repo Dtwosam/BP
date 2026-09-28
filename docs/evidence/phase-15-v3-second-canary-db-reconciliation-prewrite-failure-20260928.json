@@ -1,0 +1,45 @@
+{
+  "evidence_type": "phase15-v3-second-canary-db-reconciliation-prewrite-failure",
+  "observed_date": "2026-09-28",
+  "source_main_at_attempt": "b4e59b6f968ffb4453faeaae869d19867205dfe0",
+  "authorized_helper_git_blob_sha": "4b40c3e8694b383757d760b29432ac8bbfb7a48d",
+  "target": {
+    "intent_id": "live-intent-48e0149edbed67572c6e7fab69269dae",
+    "external_order_id": "0x127aa37d011dc0d96b5c941e61a6f5fefcd5b7fa56e3eb30f5f6bc77d5eaf4d6"
+  },
+  "attempt_result": {
+    "status": "FAIL_PREWRITE",
+    "error": "RuntimeError: expected exactly one accepted and one cancelled event",
+    "helper_terminal": "PHASE15_V3_SECOND_CANARY_DB_RECONCILIATION=FAIL",
+    "reason": "db_reconciliation_write_failed",
+    "source_truth_authorization_passed": true,
+    "exact_helper_binding_passed": true
+  },
+  "mutation_analysis": {
+    "production_db_mutation_performed": false,
+    "basis": "The exception occurs inside engine.begin() before the first store_reconciliation_run() call. Context-manager rollback applies on exception.",
+    "telegram_approval_performed": false,
+    "executor_arm_or_invoke_performed": false,
+    "order_submission_performed": false,
+    "additional_network_attempt_consumed": false
+  },
+  "root_cause": {
+    "privileged_consumer_contract": "The Telegram privileged consumer persists the exact executor result to /var/lib/bp-canary/telegram-live-handoff/*.result.json.",
+    "missing_behavior": "The privileged consumer does not call record_canary_submission() and does not write accepted/cancelled live_order_events.",
+    "incorrect_helper_assumption": "The second-canary helper inherited the first-canary prerequisite that recorder DB already contains exactly one accepted and one cancelled event."
+  },
+  "engineering_repair": {
+    "helper_git_blob_sha": "1fa22dae91f8ffde5c26c0096f1bf5c53547098e",
+    "live_account_snapshot_git_blob_sha": "3dd9d1ed6821a126e9075f72b2a2e0d6d1f969a6",
+    "helper_behavior": "Verify exactly one exact executor result receipt. Accept either exactly one accepted+cancelled normalized pair or a completely empty normalized event history; empty history is allowed only when the executor receipt is exact. Any partial or ambiguous event history fails closed.",
+    "account_snapshot_behavior": "A clean exact post_submission_official_zero_fill reconciliation resolves that intent to zero exposure. Malformed evidence does not clear exposure and leaves the intent critical."
+  },
+  "authorization_boundary": {
+    "previous_authorization_consumed_by_successful_mutation": false,
+    "repaired_helper_authorized": false,
+    "runtime_fix_deployment_authorized": false,
+    "fresh_authorization_rebind_required": true,
+    "third_order_authorized": false,
+    "global_live_trading_enabled": false
+  }
+}
