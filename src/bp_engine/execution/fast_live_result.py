@@ -12,6 +12,8 @@ from bp_engine.execution.canary import (
     CANARY_POLICY_VERSION,
     _latest_clean_account_snapshot,
 )
+from bp_engine.execution.live import _account_snapshot
+from bp_engine.live_readiness.models import LiveAccountSnapshot
 from bp_engine.live_readiness.repository import LiveReadinessRepository
 from bp_engine.storage import schema
 
@@ -51,6 +53,56 @@ def _validate_binding(intent: Mapping[str, Any], result: Mapping[str, Any]) -> N
     for name, value in expected.items():
         if not value or str(result.get(name) or "") != value:
             raise FastLiveResultError(f"fast-live result binding mismatch: {name}")
+
+
+def fast_live_account_snapshot(
+    connection,
+    *,
+    observed_at: datetime,
+) -> LiveAccountSnapshot:
+    base = _account_snapshot(connection, observed_at=observed_at)
+    rows = connection.execute(
+        select(schema.live_reconciliation_runs)
+        .where(schema.live_reconciliation_runs.c.observed_at <= observed_at)
+        .order_by(
+            schema.live_reconciliation_runs.c.observed_at.desc(),
+            schema.live_reconciliation_runs.c.id.desc(),
+        )
+    ).mappings().all()
+    settled_intents: set[str] = set()
+    for row in rows:
+        evidence = dict(row["evidence"] or {})
+        if evidence.get("reconciliation_kind") != "fast_live_official_settlement":
+            continue
+        intent_id = str(evidence.get("intent_id") or "")
+        if intent_id:
+            settled_intents.add(intent_id)
+
+    settled_nominal = Decimal("0")
+    if settled_intents:
+        intents = connection.execute(
+            select(schema.live_order_intents).where(
+                schema.live_order_intents.c.intent_id.in_(settled_intents)
+            )
+        ).mappings().all()
+        for intent in intents:
+            settled_nominal += (
+                Decimal(str(intent["size"]))
+                * Decimal(str(intent["limit_price"]))
+            )
+
+    return LiveAccountSnapshot(
+        total_exposure_usd=max(
+            Decimal("0"),
+            base.total_exposure_usd - settled_nominal,
+        ),
+        realized_daily_pnl_usd=base.realized_daily_pnl_usd,
+        consecutive_losses=base.consecutive_losses,
+        last_order_at=base.last_order_at,
+        unresolved_critical_reconciliation=(
+            base.unresolved_critical_reconciliation
+        ),
+    )
 
 
 def _carry_clean_account(
