@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import stat
+import threading
 import time
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -17,13 +18,16 @@ from sqlalchemy import create_engine, select
 from bp_engine.config import Settings
 from bp_engine.execution.fast_live import (
     FAST_LIVE_PURPOSE,
+    FAST_LIVE_RESULT_PURPOSE,
     FAST_LIVE_WARMUP_PURPOSE,
     create_envelope,
     create_warmup_message,
     load_private_json,
+    verify_result_message,
     verify_runtime_authorization,
 )
 from bp_engine.execution.fast_live_prepare import prepare_fast_live_candidate
+from bp_engine.execution.fast_live_result import record_fast_live_result
 from bp_engine.execution.live import InterlockDecision
 from bp_engine.execution.telegram_transport import load_transport_key_file
 from bp_engine.storage import schema
@@ -57,6 +61,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--expected-main", required=True)
     parser.add_argument("--gcp-project", required=True)
     parser.add_argument("--topic-id", required=True)
+    parser.add_argument("--result-subscription-id", required=True)
     parser.add_argument("--official-open-order-count", type=int, required=True)
     parser.add_argument("--collateral-balance-usd", required=True)
     parser.add_argument("--poll-seconds", type=float, default=0.05)
@@ -109,6 +114,44 @@ def _write_receipt(path: Path, payload: dict[str, Any]) -> None:
         os.fsync(fd)
     finally:
         os.close(fd)
+
+
+def _load_json(path: Path) -> dict[str, Any]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise RuntimeError("fast live receipt must contain an object")
+    return payload
+
+
+def _result_receipt_path(
+    root: Path,
+    intent_id: str,
+    request_sha256: str,
+) -> Path:
+    return _receipt_path(root / "results", intent_id, request_sha256)
+
+
+def _publication_state(root: Path) -> str:
+    attempted = False
+    unresolved = False
+    for path in root.glob("*.json"):
+        receipt = _load_json(path)
+        intent_id = str(receipt.get("intent_id") or "")
+        request_hash = str(receipt.get("request_sha256") or "")
+        if not intent_id or not request_hash:
+            continue
+        result_path = _result_receipt_path(root, intent_id, request_hash)
+        if not result_path.exists():
+            unresolved = True
+            continue
+        result_receipt = _load_json(result_path)
+        if result_receipt.get("network_submission_attempt_consumed") is True:
+            attempted = True
+    if attempted:
+        return "attempt_consumed"
+    if unresolved:
+        return "waiting_for_result"
+    return "ready"
 
 
 def _publish_once(
@@ -259,13 +302,162 @@ def main() -> int:
     engine = create_engine(settings.database_url, pool_pre_ping=True)
     publisher = pubsub_v1.PublisherClient()
     topic_path = publisher.topic_path(args.gcp_project, args.topic_id)
+    result_subscriber = pubsub_v1.SubscriberClient()
+    result_subscription_path = result_subscriber.subscription_path(
+        args.gcp_project,
+        args.result_subscription_id,
+    )
     _ensure_private_dir(args.receipt_dir)
+    _ensure_private_dir(args.receipt_dir / "results")
     interlock = InterlockDecision(eligible=True, reasons=())
     warmed_condition_id = ""
     next_warmup_check = 0.0
+    result_event = threading.Event()
+    result_state: dict[str, Any] = {
+        "network_submission_attempt_consumed": None,
+        "result": None,
+    }
+
+    def result_callback(message: object) -> None:
+        observed = _utc_now()
+        try:
+            data = bytes(getattr(message, "data", b""))
+            if not data or len(data) > 256 * 1024:
+                raise RuntimeError("fast live result message size invalid")
+            payload = json.loads(data.decode("utf-8"))
+            if not isinstance(payload, dict):
+                raise RuntimeError("fast live result message invalid")
+            attributes = {
+                str(key): str(value)
+                for key, value in dict(
+                    getattr(message, "attributes", {}) or {}
+                ).items()
+            }
+            if attributes.get("purpose") != FAST_LIVE_RESULT_PURPOSE:
+                raise RuntimeError("fast live result purpose mismatch")
+            for name in (
+                "key_id",
+                "authorization_id",
+                "intent_id",
+                "request_sha256",
+            ):
+                if attributes.get(name) != str(payload.get(name) or ""):
+                    raise RuntimeError(
+                        f"fast live result attribute mismatch: {name}"
+                    )
+
+            state_now = _load_state(args.project_state)
+            runtime_now = load_private_json(
+                args.runtime_authorization,
+                label="fast live runtime authorization",
+            )
+            verified_runtime_now = verify_runtime_authorization(
+                runtime_now,
+                state=state_now,
+                expected_main=args.expected_main,
+                observed_at=observed,
+            )
+            result = verify_result_message(
+                payload,
+                key=key,
+                expected_key_id=args.transport_key_id,
+                expected_authorization_id=str(
+                    verified_runtime_now["authorization_id"]
+                ),
+                observed_at=observed,
+            )
+            result_observed_at = datetime.fromisoformat(
+                str(payload["created_at"])
+            ).astimezone(UTC)
+            recorded = record_fast_live_result(
+                engine=engine,
+                result=result,
+                observed_at=result_observed_at,
+            )
+            result_path = _result_receipt_path(
+                args.receipt_dir,
+                str(result["intent_id"]),
+                str(result["request_sha256"]),
+            )
+            if not result_path.exists():
+                _write_receipt(
+                    result_path,
+                    {
+                        "status": "fast_live_result_recorded",
+                        "intent_id": result["intent_id"],
+                        "request_sha256": result["request_sha256"],
+                        "network_submission_attempt_consumed": result.get(
+                            "network_submission_attempt_consumed"
+                        )
+                        is True,
+                        "execution_status": result.get("status"),
+                        "recorded": recorded,
+                        "recorded_at": observed.isoformat(),
+                    },
+                )
+            result_state["network_submission_attempt_consumed"] = (
+                result.get("network_submission_attempt_consumed") is True
+            )
+            result_state["result"] = result
+            result_event.set()
+            print(
+                json.dumps(
+                    {
+                        "status": "fast_live_result_recorded",
+                        "execution_status": result.get("status"),
+                        "intent_id": result.get("intent_id"),
+                        "network_submission_attempt_consumed": result.get(
+                            "network_submission_attempt_consumed"
+                        )
+                        is True,
+                        "recorded": recorded,
+                    },
+                    sort_keys=True,
+                    default=str,
+                ),
+                flush=True,
+            )
+            message.ack()
+        except Exception as exc:
+            print(
+                json.dumps(
+                    {
+                        "status": "fast_live_result_record_failed",
+                        "error": type(exc).__name__,
+                        "observed_at": observed.isoformat(),
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+            message.nack()
+
+    result_future = result_subscriber.subscribe(
+        result_subscription_path,
+        callback=result_callback,
+    )
+    publication_state = _publication_state(args.receipt_dir)
+    if publication_state == "attempt_consumed":
+        result_future.cancel()
+        result_subscriber.close()
+        engine.dispose()
+        publisher.stop()
+        return 0
+    waiting_for_result = publication_state == "waiting_for_result"
 
     try:
         while True:
+            if waiting_for_result:
+                if not result_event.wait(timeout=args.poll_seconds):
+                    continue
+                result_event.clear()
+                consumed = (
+                    result_state["network_submission_attempt_consumed"] is True
+                )
+                if consumed:
+                    return 0
+                waiting_for_result = False
+                continue
             observed = _utc_now()
             now_monotonic = time.monotonic()
             if now_monotonic >= next_warmup_check:
@@ -389,8 +581,10 @@ def main() -> int:
             }
             _write_receipt(receipt_path, receipt)
             print(json.dumps(receipt, sort_keys=True), flush=True)
-            return 0
+            waiting_for_result = True
     finally:
+        result_future.cancel()
+        result_subscriber.close()
         engine.dispose()
         publisher.stop()
 
