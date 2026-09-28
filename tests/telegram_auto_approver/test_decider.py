@@ -135,8 +135,8 @@ def test_reordered_and_extra_buttons_are_not_clicked(tmp_path) -> None:
         incoming(message_id=11, buttons=((approve, skip, skip),)),
         clicker,
     )
-    assert reordered.reason == "keyboard_mismatch"
-    assert extra.reason == "keyboard_mismatch"
+    assert reordered.reason == "keyboard_text_mismatch"
+    assert extra.reason == "keyboard_shape_mismatch"
     assert clicker.calls == []
 
 
