@@ -16,11 +16,14 @@ from google.cloud import pubsub_v1
 
 from bp_engine.execution.fast_live import (
     FAST_LIVE_PURPOSE,
+    FAST_LIVE_WARMUP_PURPOSE,
     FastLiveError,
     load_private_json,
     verify_envelope,
     verify_runtime_authorization,
+    verify_warmup_message,
 )
+from bp_engine.execution.fast_live_book import StreamingBookCache
 from bp_engine.execution.fast_live_executor import (
     FastLiveExecutor,
     SafetyCache,
@@ -195,7 +198,9 @@ class SafetyRefresher:
             self._stop.wait(max(0.01, self._refresh_seconds - elapsed))
 
 
-def _decode_message(message: object) -> dict[str, Any]:
+def _decode_message(
+    message: object,
+) -> tuple[dict[str, Any], dict[str, str]]:
     data = bytes(getattr(message, "data", b""))
     if not data or len(data) > 256 * 1024:
         raise FastLiveError("fast live message data size invalid")
@@ -209,16 +214,14 @@ def _decode_message(message: object) -> dict[str, Any]:
         str(key): str(value)
         for key, value in dict(getattr(message, "attributes", {}) or {}).items()
     }
-    required = {
-        "purpose": FAST_LIVE_PURPOSE,
+    common = {
+        "purpose": str(payload.get("purpose") or ""),
         "key_id": str(payload.get("key_id") or ""),
         "authorization_id": str(payload.get("authorization_id") or ""),
-        "intent_id": str(payload.get("intent_id") or ""),
-        "request_sha256": str(payload.get("request_sha256") or ""),
     }
-    if any(attributes.get(name) != value for name, value in required.items()):
+    if any(attributes.get(name) != value for name, value in common.items()):
         raise FastLiveError("fast live message attributes mismatch")
-    return payload
+    return payload, attributes
 
 
 def main() -> int:
@@ -249,10 +252,13 @@ def main() -> int:
         refresh_seconds=args.safety_refresh_seconds,
     )
     refresher.start()
+    book_cache = StreamingBookCache()
+    book_cache.start()
 
     executor = FastLiveExecutor(
         client=execution_client,
         safety_cache=cache,
+        book_cache=book_cache,
         state_root=args.state_root,
         kill_switch_path=args.kill_switch,
     )
@@ -276,9 +282,50 @@ def main() -> int:
                 expected_main=args.expected_main,
                 observed_at=received_at,
             )
-            envelope = _decode_message(message)
+            payload, attributes = _decode_message(message)
+            purpose = str(payload.get("purpose") or "")
+            if purpose == FAST_LIVE_WARMUP_PURPOSE:
+                if attributes.get("condition_id") != str(
+                    payload.get("condition_id") or ""
+                ):
+                    raise FastLiveError("fast live warmup attributes mismatch")
+                warmup = verify_warmup_message(
+                    payload,
+                    runtime_authorization=runtime_now,
+                    key=key,
+                    expected_key_id=args.transport_key_id,
+                    observed_at=received_at,
+                )
+                book_cache.subscribe(list(warmup["token_ids"]))
+                print(
+                    json.dumps(
+                        {
+                            "status": "fast_live_books_warming",
+                            "condition_id": warmup["condition_id"],
+                            "token_ids": warmup["token_ids"],
+                            "observed_at": received_at.isoformat(),
+                            "network_submission_attempt_consumed": False,
+                            "real_order_submitted": False,
+                        },
+                        sort_keys=True,
+                    ),
+                    flush=True,
+                )
+                getattr(message, "ack")()
+                return
+            if purpose != FAST_LIVE_PURPOSE:
+                raise FastLiveError("fast live message purpose invalid")
+            required_attributes = {
+                "intent_id": str(payload.get("intent_id") or ""),
+                "request_sha256": str(payload.get("request_sha256") or ""),
+            }
+            if any(
+                attributes.get(name) != value
+                for name, value in required_attributes.items()
+            ):
+                raise FastLiveError("fast live order attributes mismatch")
             verified = verify_envelope(
-                envelope,
+                payload,
                 runtime_authorization=runtime_now,
                 key=key,
                 expected_key_id=args.transport_key_id,
@@ -317,6 +364,7 @@ def main() -> int:
     except KeyboardInterrupt:
         future.cancel()
     finally:
+        book_cache.stop()
         refresher.stop()
         subscriber.close()
     return 0
