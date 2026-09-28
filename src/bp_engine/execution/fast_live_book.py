@@ -141,7 +141,11 @@ class StreamingBookCache:
                     continue
                 token = str(change.get("asset_id") or "").strip()
                 side = str(change.get("side") or "").upper()
-                if token not in self._desired or side != "SELL":
+                if (
+                    token not in self._desired
+                    or token not in self._initialized
+                    or side != "SELL"
+                ):
                     continue
                 price = _decimal(change.get("price"), "price change price")
                 size = _decimal(change.get("size"), "price change size")
@@ -152,7 +156,6 @@ class StreamingBookCache:
                     levels.pop(price, None)
                 else:
                     levels[price] = size
-                self._initialized.add(token)
                 touched = True
             if touched:
                 self._last_activity = time.monotonic()
