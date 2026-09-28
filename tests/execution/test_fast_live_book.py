@@ -99,7 +99,7 @@ def test_stream_book_falls_back_when_exact_token_quote_is_stale(monkeypatch) -> 
     )
     assert cache.snapshot("token-1") == (("0.59", "8"),)
 
-    clock["now"] += 0.51
+    clock["now"] += 0.26
     cache._mark_activity()
     assert cache.snapshot("token-1") is None
 
