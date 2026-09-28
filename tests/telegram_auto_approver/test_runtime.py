@@ -7,6 +7,7 @@ from bp_telegram_auto_approver.runtime import (
     HistoryScanRefused,
     adapt_message,
     buttons_from_markup,
+    keyboard_metadata,
     only_latest,
     operator_matches,
     recovery_action,
@@ -117,6 +118,24 @@ def test_only_latest_refuses_a_history_batch() -> None:
     assert only_latest("one") == "one"
     with pytest.raises(HistoryScanRefused):
         only_latest(["old", "new"])
+
+
+def test_keyboard_metadata_never_includes_callback_value() -> None:
+    metadata = keyboard_metadata(_Message())
+    assert metadata["reply_markup_type"] == "_Markup"
+    raw = metadata["raw_rows"]
+    assert isinstance(raw, list)
+    assert raw[0][0]["class"] == "_Button"
+    assert raw[0][0]["text"] == "APPROVE"
+    assert raw[0][0]["data"] == {
+        "present": True,
+        "type": "bytes",
+        "length": len(b"approve:Abcdefghijklmnop"),
+    }
+    assert raw[0][0]["url_present"] is False
+    serialized = repr(metadata)
+    assert "approve:Abcdefghijklmnop" not in serialized
+    assert "skip:Abcdefghijklmnop" not in serialized
 
 
 def test_adapt_message_reads_private_callback_keyboard() -> None:
