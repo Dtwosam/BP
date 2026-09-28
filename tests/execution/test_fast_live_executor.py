@@ -173,7 +173,16 @@ def test_marketable_fast_path_consumes_once_then_posts(
     assert duplicate["status"] == "accepted"
     assert duplicate["external_order_id"] == "order-fast-1"
     assert duplicate["replayed_result"] is True
-    assert client.calls == ["sign", "book", "post", "cancel"]
+    assert client.calls == [
+        "sign",
+        "book",
+        "post",
+        "cancel",
+        "open_orders",
+        "trades",
+        "open_orders",
+        "trades",
+    ]
 
 
 def test_streamed_book_skips_http_quote_round_trip(
