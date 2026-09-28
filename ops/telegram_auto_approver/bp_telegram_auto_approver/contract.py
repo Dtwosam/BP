@@ -195,34 +195,36 @@ def classify_keyboard(
     if not _contains_approve(buttons):
         return None, "no_approve_button"
     if len(buttons) != 1 or len(buttons[0]) != 2:
-        return None, "keyboard_mismatch"
+        return None, "keyboard_shape_mismatch"
     approve, skip = buttons[0]
     if approve.text != "APPROVE" or skip.text != "SKIP":
-        return None, "keyboard_mismatch"
+        return None, "keyboard_text_mismatch"
     if approve.url or skip.url:
-        return None, "keyboard_mismatch"
+        return None, "keyboard_url_present"
     if not isinstance(approve.callback_data, bytes) or not isinstance(skip.callback_data, bytes):
-        return None, "keyboard_mismatch"
+        return None, "keyboard_callback_type_mismatch"
     try:
         approve_text = approve.callback_data.decode("utf-8")
         skip_text = skip.callback_data.decode("utf-8")
     except UnicodeError:
-        return None, "keyboard_mismatch"
+        return None, "keyboard_callback_decode_failed"
     nonce = _nonce_from_approve(approve_text)
     if nonce is None:
-        return None, "keyboard_mismatch"
+        return None, "keyboard_approve_nonce_mismatch"
     source = approval_source()
     try:
         expected_approve = source.callback_data("approve", nonce)
         expected_skip = source.callback_data("skip", nonce)
     except Exception:
-        return None, "keyboard_mismatch"
-    if approve_text != expected_approve or skip_text != expected_skip:
-        return None, "keyboard_mismatch"
+        return None, "keyboard_expected_callback_error"
+    if approve_text != expected_approve:
+        return None, "keyboard_approve_callback_mismatch"
+    if skip_text != expected_skip:
+        return None, "keyboard_skip_callback_mismatch"
     if approve.callback_data != expected_approve.encode("ascii"):
-        return None, "keyboard_mismatch"
+        return None, "keyboard_approve_bytes_mismatch"
     if skip.callback_data != expected_skip.encode("ascii"):
-        return None, "keyboard_mismatch"
+        return None, "keyboard_skip_bytes_mismatch"
     return nonce, ""
 
 
