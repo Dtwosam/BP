@@ -126,9 +126,12 @@ def record_fast_live_result(
         _validate_binding(intent, result)
 
         if not attempt_consumed:
-            if status != "fresh_book_rejected":
+            if status not in {
+                "fresh_book_rejected",
+                "pre_attempt_retry_exhausted",
+            }:
                 raise FastLiveResultError(
-                    "non-attempt fast-live result must be fresh_book_rejected"
+                    "unsupported non-attempt fast-live result"
                 )
             repository.store_order_event(
                 connection,
@@ -141,7 +144,7 @@ def record_fast_live_result(
                 evidence={
                     "phase": "phase15_v3_fast_live_v1",
                     "status": status,
-                    "reason": "fresh_book_not_marketable_at_frozen_limit",
+                    "reason": status,
                     "marketability": result.get("marketability"),
                     "submission_attempt_consumed": False,
                 },
