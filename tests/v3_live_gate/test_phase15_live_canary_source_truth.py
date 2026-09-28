@@ -31,7 +31,7 @@ def test_phase15_second_live_canary_is_submitted_zero_fill_reconciliation_pendin
 
     assert state["source_of_truth_version"] == "0.14.180"
     assert state["current_phase"] == 15
-    assert state["status"] == "PHASE_15_SECOND_LIVE_CANARY_SUBMITTED_RECONCILIATION_REQUIRED"
+    assert state["status"] == "PHASE_15_SECOND_LIVE_CANARY_RECONCILED_ZERO_FILL"
     assert all(value == "pass" for value in master.values())
     assert state["phase_14_checkpoint"]["overall_live_gate"] == "pass"
     assert state["phase_14_checkpoint"]["phase15_permitted"] is True
@@ -110,7 +110,7 @@ def test_phase15_second_live_canary_is_submitted_zero_fill_reconciliation_pendin
     assert second["third_order_authorized"] is False
 
     second_canary = gate["second_live_canary"]
-    assert second_canary["status"] == "SUBMITTED_ZERO_FILL_OBSERVED_RECONCILIATION_PENDING"
+    assert second_canary["status"] == "RECONCILED_ZERO_FILL"
     assert second_canary["intent_id"] == "live-intent-48e0149edbed67572c6e7fab69269dae"
     assert second_canary["external_order_id"] == (
         "0x127aa37d011dc0d96b5c941e61a6f5fefcd5b7fa56e3eb30f5f6bc77d5eaf4d6"
@@ -130,13 +130,13 @@ def test_phase15_second_live_canary_is_submitted_zero_fill_reconciliation_pendin
     assert second_canary["open_order_count"] == 0
     assert second_canary["order_still_open"] is False
     assert second_canary["external_official_reconciliation_complete"] is True
-    assert second_canary["live_risk_ledger_reconciliation_complete"] is False
-    assert second_canary["db_reconciliation_required"] is True
+    assert second_canary["live_risk_ledger_reconciliation_complete"] is True
+    assert second_canary["db_reconciliation_required"] is False
 
     second_recon = gate["second_canary_db_reconciliation"]
-    assert second_recon["status"] == "AUTHORIZED_READY"
-    assert second_recon["authorized"] is True
-    assert second_recon["authorization_consumed"] is False
+    assert second_recon["status"] == "COMPLETED_PASS"
+    assert second_recon["authorized"] is False
+    assert second_recon["authorization_consumed"] is True
     assert second_recon["helper_git_blob_sha"] == (
         "1fa22dae91f8ffde5c26c0096f1bf5c53547098e"
     )
@@ -146,7 +146,7 @@ def test_phase15_second_live_canary_is_submitted_zero_fill_reconciliation_pendin
     assert second_recon["live_account_snapshot_runtime_fix_git_blob_sha"] == (
         "3dd9d1ed6821a126e9075f72b2a2e0d6d1f969a6"
     )
-    assert second_recon["live_account_snapshot_runtime_fix_deployed"] is False
+    assert second_recon["live_account_snapshot_runtime_fix_deployed"] is True
     assert second_recon["live_account_snapshot_runtime_fix_deployment_authorized"] is True
     assert second_recon["completion_helper_git_blob_sha"] == (
         "272313d9bda1712a9d5afa7fd9b0ea634cde2267"
@@ -154,6 +154,13 @@ def test_phase15_second_live_canary_is_submitted_zero_fill_reconciliation_pendin
     assert second_recon["prepare_watcher_start_or_restart_authorized"] is False
     assert second_recon["core_service_restart_authorized"] is False
     assert second_recon["frozen_v3_runtime_mutation_authorized"] is False
+    assert second_recon["production_db_mutation_performed"] is True
+    assert second_recon["production_db_reconciliation_id"] == (
+        "live-reconciliation-50ac17663fa46ba96b7d341a68c03c53"
+    )
+    assert second_recon["post_completion_total_exposure_usd"] == 0
+    assert second_recon["post_completion_unresolved_critical_reconciliation"] == 0
+    assert second_recon["completion_result"] == "PASS"
     assert second_recon["third_order_authorized"] is False
 
     first = gate["first_live_canary"]
