@@ -369,6 +369,9 @@ def main() -> int:
         expected_main=args.expected_main,
         observed_at=_utc_now(),
     )
+    runtime_expires_at = datetime.fromisoformat(
+        str(verified_runtime["expires_at"])
+    ).astimezone(UTC)
     activated_at = datetime.fromisoformat(str(verified_runtime["issued_at"]))
     if activated_at.tzinfo is None or activated_at.utcoffset() is None:
         raise SystemExit("runtime authorization issued_at must be timezone-aware")
@@ -553,6 +556,20 @@ def main() -> int:
                 waiting_for_result = False
                 continue
             observed = _utc_now()
+            if observed >= runtime_expires_at:
+                print(
+                    json.dumps(
+                        {
+                            "status": "fast_live_authorization_expired",
+                            "network_submission_attempt_consumed": False,
+                            "real_order_submitted": False,
+                            "observed_at": observed.isoformat(),
+                        },
+                        sort_keys=True,
+                    ),
+                    flush=True,
+                )
+                return 0
             now_monotonic = time.monotonic()
             if now_monotonic >= next_warmup_check:
                 next_warmup_check = now_monotonic + 0.5
