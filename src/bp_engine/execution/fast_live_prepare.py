@@ -318,6 +318,13 @@ def prepare_fast_live_candidate(
                 "time_to_expiry_seconds": arm_window,
             }
 
+        edge_config = prediction.get("edge_config")
+        if not isinstance(edge_config, dict):
+            raise RuntimeError("frozen prediction edge config missing")
+        modeled_fee_rate = Decimal(str(edge_config.get("fee_rate")))
+        if not Decimal("0") <= modeled_fee_rate <= Decimal("1"):
+            raise RuntimeError("frozen prediction fee rate invalid")
+
         intent_store = repository.store_order_intent(
             connection,
             prediction_id=request.prediction_id,
@@ -340,6 +347,7 @@ def prepare_fast_live_candidate(
                 "execution_config_sha256": request.execution_config_sha256,
                 "paper_order_id": paper_order_id,
                 "request_sha256": payload_sha256(request.as_mapping()),
+                "modeled_fee_rate": str(modeled_fee_rate),
                 "fast_live": True,
             },
         )
