@@ -116,6 +116,16 @@ def _write_replace_json(path: Path, payload: dict[str, Any]) -> None:
     os.replace(temp, path)
 
 
+def _read_json(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise FastLiveError("fast live state JSON invalid") from exc
+    if not isinstance(payload, dict):
+        raise FastLiveError("fast live state JSON must contain an object")
+    return payload
+
+
 def execute_with_bounded_pre_attempt_retry(
     executor: FastLiveExecutor,
     verified: dict[str, Any],
@@ -225,10 +235,19 @@ class FastLiveExecutor:
 
     def execute(self, verified: dict[str, Any]) -> dict[str, Any]:
         if self.attempt_path.exists():
+            if self.result_path.exists():
+                replayed = _read_json(self.result_path)
+                replayed["replayed_result"] = True
+                return replayed
+            attempt = _read_json(self.attempt_path)
             return {
-                "status": "already_terminal",
+                **attempt,
+                "status": "submission_unknown",
+                "accepted": False,
+                "external_order_id": None,
                 "network_submission_attempt_consumed": True,
-                "real_order_submitted": False,
+                "real_order_submitted": True,
+                "recovered_from_attempt_marker": True,
             }
         if self._kill_switch_engaged():
             raise FastLiveError("fast live kill switch engaged")
@@ -337,7 +356,8 @@ class FastLiveExecutor:
                 "accepted": False,
                 "external_order_id": None,
                 "network_submission_attempt_consumed": True,
-                "real_order_submitted": False,
+                "real_order_submitted": True,
+                "submission_outcome_known": False,
                 "marketability": marketability,
                 "safety_observed_at": safety.observed_at.isoformat(),
                 "received_at": received_at.isoformat(),
@@ -384,6 +404,36 @@ class FastLiveExecutor:
             return result
 
         order_id = str(response.order_id)
+        preliminary = {
+            **attempt,
+            "status": "accepted",
+            "accepted": True,
+            "external_order_id": order_id,
+            "initial_order_status": str(response.status),
+            "network_submission_attempt_consumed": True,
+            "real_order_submitted": True,
+            "cancellation_pending": True,
+            "marketability": marketability,
+            "safety_observed_at": safety.observed_at.isoformat(),
+            "received_at": received_at.isoformat(),
+            "post_started_at": post_started_at.isoformat(),
+            "post_completed_at": post_completed_at.isoformat(),
+            "quote_latency_ms": (
+                quote_completed_ns - quote_started_ns
+            ) / 1_000_000,
+            "quote_source": quote_source,
+            "sign_latency_ms": (
+                sign_completed_ns - sign_started_ns
+            ) / 1_000_000,
+            "post_latency_ms": (
+                post_completed_ns - post_started_ns
+            ) / 1_000_000,
+            "quote_to_post_ms": (
+                post_started_ns - quote_completed_ns
+            ) / 1_000_000,
+        }
+        _write_replace_json(self.result_path, preliminary)
+
         cancellation: dict[str, Any]
         time.sleep(float(self._order_ttl_seconds))
         try:
@@ -412,6 +462,7 @@ class FastLiveExecutor:
             "initial_order_status": str(response.status),
             "network_submission_attempt_consumed": True,
             "real_order_submitted": True,
+            "cancellation_pending": False,
             "marketability": marketability,
             "cancellation": cancellation,
             "safety_observed_at": safety.observed_at.isoformat(),
