@@ -378,3 +378,35 @@ def test_attempt_without_result_recovers_as_submission_unknown_without_repost(
     assert result["recovered_from_attempt_marker"] is True
     assert client.calls == []
 
+def test_official_probe_confirms_partial_fill_without_assuming_settlement() -> None:
+    trade = SimpleNamespace(
+        id="trade-fast-1",
+        taker_order_id="order-fast-1",
+        size="4",
+        price="0.58",
+        status="CONFIRMED",
+        maker_orders=(),
+    )
+
+    class FillClient(FakeClient):
+        def list_account_trades(self):
+            self.calls.append("trades")
+            return FakeItems((trade,))
+
+    client = FillClient(())
+    official = module.probe_official_order_state(
+        client,
+        order_id="order-fast-1",
+        requested_shares=Decimal("8.238141"),
+        stability_seconds=0,
+    )
+
+    assert official["snapshot_stable"] is True
+    assert official["order_still_open"] is False
+    assert official["open_order_count"] == 0
+    assert official["matching_trade_count"] == 1
+    assert official["confirmed_filled_shares"] == "4"
+    assert official["confirmed_filled_notional_usd"] == "2.32"
+    assert official["fill_state"] == "confirmed_fill"
+    assert official["official_reconciliation_complete"] is True
+
