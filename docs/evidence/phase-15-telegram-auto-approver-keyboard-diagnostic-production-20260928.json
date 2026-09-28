@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "evidence_type": "phase15-telegram-auto-approver-keyboard-diagnostic-production",
+  "source_main": "85286e91f903797b02aa064742dcbae79fd06a94",
+  "deployed_at_utc": "2026-09-28T10:43:37.560430Z",
+  "deployment": {
+    "checkout": "/Users/Dtwo1/Developer/BP-adaptive-188",
+    "verified_head": "85286e91f903797b02aa064742dcbae79fd06a94",
+    "pre_restart_pid": 1292,
+    "post_restart_pid": 69385,
+    "service_state": "running",
+    "last_exit_code": 0,
+    "program": "/Users/Dtwo1/.local/share/bp-telegram-auto-approver/run.sh",
+    "diagnostic_contract_checks": {
+      "valid_keyboard": "PASS",
+      "text_mismatch_diagnostic": "PASS",
+      "shape_mismatch_diagnostic": "PASS"
+    }
+  },
+  "runtime": {
+    "bot_identity_confirmed": true,
+    "service_started": true,
+    "mode": "live-auto-approve",
+    "swept_unconfirmed": 0,
+    "startup_latest_message_id": 5465,
+    "startup_latest_message_result": "rejected_edit_ignored",
+    "tcp_connection": {
+      "state": "ESTABLISHED",
+      "remote_address": "149.154.167.92",
+      "remote_port": 443
+    },
+    "telegram_session": {
+      "dc_id": 4,
+      "server_address": "149.154.167.92",
+      "port": 443
+    },
+    "stderr": {
+      "startup_timeout_errors_observed": true,
+      "classified_as_transient": true,
+      "reason": "service subsequently confirmed bot identity, completed startup reconciliation, emitted SERVICE_STARTED, and held an established Telegram TCP connection"
+    }
+  },
+  "safety": {
+    "keyboard_acceptance_rules_relaxed": false,
+    "order_submission_performed_by_deployment": false,
+    "network_submission_attempt_consumed_by_deployment": false,
+    "executor_manually_armed_or_invoked": false,
+    "global_live_trading_enabled": false,
+    "strategy_mutation_performed": false,
+    "additional_network_attempts_authorized": false,
+    "existing_max_network_submission_attempts": 1
+  },
+  "result": "PASS"
+}
