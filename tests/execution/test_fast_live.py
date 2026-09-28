@@ -209,6 +209,7 @@ def test_marketable_depth_requires_full_size_at_or_better_than_limit() -> None:
         requested_shares="8.238141",
     )
     assert result["marketable"] is True
+    assert result["full_size_marketable"] is True
     assert result["best_ask"] == "0.57"
     assert result["marketable_depth"] == "17"
 
@@ -224,4 +225,5 @@ def test_marketable_depth_requires_full_size_at_or_better_than_limit() -> None:
         limit_price="0.59",
         requested_shares="8.238141",
     )
-    assert thin["marketable"] is False
+    assert thin["marketable"] is True
+    assert thin["full_size_marketable"] is False
