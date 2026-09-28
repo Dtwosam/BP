@@ -293,6 +293,7 @@ class FastLiveExecutor:
         kill_switch_path: Path,
         max_safety_age_seconds: Decimal = Decimal("1"),
         order_ttl_seconds: Decimal = Decimal("2"),
+        official_stability_seconds: float = 3.0,
         now_fn=_utc_now,
     ) -> None:
         self._client = client
@@ -302,6 +303,7 @@ class FastLiveExecutor:
         self._kill_switch_path = kill_switch_path
         self._max_safety_age_seconds = max_safety_age_seconds
         self._order_ttl_seconds = order_ttl_seconds
+        self._official_stability_seconds = official_stability_seconds
         self._now_fn = now_fn
         _ensure_private_dir(state_root)
 
@@ -384,6 +386,7 @@ class FastLiveExecutor:
                 self._client,
                 order_id=order_id,
                 requested_shares=requested_shares,
+                stability_seconds=self._official_stability_seconds,
             )
         except Exception as exc:
             official = {
