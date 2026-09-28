@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.engine import Engine
 
 from bp_engine.execution.fast_live import payload_sha256
+from bp_engine.execution.fast_live_result import fast_live_account_snapshot
 from bp_engine.execution.canary import (
     CANARY_INTENT_TERMINAL_EVENTS,
     CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS,
@@ -21,7 +22,6 @@ from bp_engine.execution.canary import (
 )
 from bp_engine.execution.live import (
     InterlockDecision,
-    _account_snapshot,
     _decimal,
     _decimal_or_negative_one,
     _optional_decimal,
@@ -219,7 +219,10 @@ def prepare_fast_live_candidate(
         if not _source_request_matches(prediction, request):
             raise RuntimeError("frozen paper order no longer matches source prediction")
 
-        account = _account_snapshot(connection, observed_at=observed_at)
+        account = fast_live_account_snapshot(
+            connection,
+            observed_at=observed_at,
+        )
         selected_liquidity = _selected_liquidity_usd(
             connection,
             prediction=prediction,
