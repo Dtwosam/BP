@@ -20,7 +20,7 @@ Environment=PYTHONPATH=/opt/bp-fast-live/current/src
 Environment=PYTHONDONTWRITEBYTECODE=1
 Environment=PYTHONUNBUFFERED=1
 UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS
-ExecStart=/opt/bp/.venv/bin/python /opt/bp-fast-live/current/scripts/run_phase15_v3_fast_live_source.py
+ExecStart=/opt/bp/.venv/bin/python /opt/bp-fast-live/current/scripts/run_phase15_v3_fast_live_source.py --transport-key-id ${BP_FAST_LIVE_TRANSPORT_KEY_ID} --expected-main ${BP_FAST_LIVE_EXPECTED_MAIN} --gcp-project ${BP_FAST_LIVE_GCP_PROJECT} --topic-id ${BP_FAST_LIVE_TOPIC_ID} --official-open-order-count ${BP_FAST_LIVE_OFFICIAL_OPEN_ORDER_COUNT} --collateral-balance-usd ${BP_FAST_LIVE_COLLATERAL_BALANCE_USD}
 Restart=on-failure
 RestartSec=1s
 UMask=0077
