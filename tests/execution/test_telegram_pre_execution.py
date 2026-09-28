@@ -90,16 +90,16 @@ def _ready_v2(state: dict[str, object]) -> dict[str, object]:
     return ready
 
 
-def test_current_source_truth_authorizes_only_the_pre_execution_boundary() -> None:
+def test_current_source_truth_blocks_pre_execution_after_second_canary() -> None:
     state = json.loads(STATE.read_text(encoding="utf-8"))
     result = evaluate_pre_execution_authorization(
         ready_verification=_ready(),
         project_state=state,
     )
 
-    assert result["status"] == "pre_execution_authorized"
-    assert result["authorized"] is True
-    assert result["blockers"] == []
+    assert result["status"] == "pre_execution_blocked"
+    assert result["authorized"] is False
+    assert result["blockers"] == ["second_order_not_authorized"]
     assert result["purpose"] == PRE_EXECUTION_PURPOSE
     assert result["retry_allowed"] is False
     assert result["mutation_performed"] is False
