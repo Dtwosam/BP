@@ -5705,8 +5705,8 @@
       "evidence": "docs/evidence/phase-15-v3-second-canary-submission-zero-fill-readonly-20260928.json"
     },
     "second_canary_db_reconciliation": {
-      "status": "ENGINEERING_READY_AUTHORIZATION_REQUIRED",
-      "authorized": false,
+      "status": "AUTHORIZED_READY",
+      "authorized": true,
       "authorization_consumed": false,
       "helper": "scripts/deploy/phase15_v3_second_canary_db_reconciliation_cloudshell.sh",
       "helper_git_blob_sha": "5e52ba161c2d2a23592dfa52d4245074b12f5a1c",
@@ -5721,7 +5721,11 @@
       "does_not_authorize_order_submission": true,
       "does_not_authorize_additional_network_attempt": true,
       "third_order_authorized": false,
-      "discovery_evidence": "docs/evidence/phase-15-v3-second-canary-submission-zero-fill-readonly-20260928.json"
+      "discovery_evidence": "docs/evidence/phase-15-v3-second-canary-submission-zero-fill-readonly-20260928.json",
+      "authorization_date": "2026-09-28",
+      "authorization_source": "User explicitly authorized the exact second-canary zero-fill DB reconciliation scope in chat.",
+      "authorization_scope": "Freshly re-verify the exact second live canary as official zero-fill from the Johannesburg account, then idempotently persist exactly one post_submission_official_zero_fill reconciliation row with unresolved_count=0, critical_count=0, and a zero-exposure account snapshot on bp-recorder. No Telegram approval, executor arm/invocation, order submission, retry, additional network attempt, third order, strategy mutation, stake growth, or global-live enablement is authorized.",
+      "authorization_evidence": "docs/evidence/phase-15-v3-second-canary-db-reconciliation-authorization-20260928.json"
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {
