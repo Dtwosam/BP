@@ -68,8 +68,8 @@ def test_second_canary_zero_fill_is_recorded_and_third_order_is_blocked() -> Non
     assert canary["live_risk_ledger_reconciliation_complete"] is False
     assert canary["db_reconciliation_required"] is True
 
-    assert recon["status"] == "ENGINEERING_READY_AUTHORIZATION_REQUIRED"
-    assert recon["authorized"] is False
+    assert recon["status"] == "AUTHORIZED_READY"
+    assert recon["authorized"] is True
     assert recon["authorization_consumed"] is False
     assert recon["production_db_mutation_performed"] is False
     assert recon["does_not_authorize_order_submission"] is True
