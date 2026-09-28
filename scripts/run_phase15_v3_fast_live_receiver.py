@@ -18,6 +18,7 @@ from bp_engine.execution.fast_live import (
     FAST_LIVE_PURPOSE,
     FAST_LIVE_WARMUP_PURPOSE,
     FastLiveError,
+    FastLiveRetryableError,
     load_private_json,
     verify_envelope,
     verify_runtime_authorization,
@@ -340,6 +341,30 @@ def main() -> int:
             ).total_seconds() * 1000
             print(json.dumps(result, sort_keys=True, default=str), flush=True)
             message.ack()
+        except FastLiveRetryableError as exc:
+            if executor.attempt_path.exists():
+                getattr(message, "ack")()
+                action = "acked_after_attempt"
+            else:
+                getattr(message, "nack")()
+                action = "nacked_for_bounded_redelivery"
+            print(
+                json.dumps(
+                    {
+                        "status": "fast_live_pre_attempt_retryable",
+                        "error": type(exc).__name__,
+                        "reason": str(exc),
+                        "message_id": str(getattr(message, "message_id", "") or ""),
+                        "observed_at": received_at.isoformat(),
+                        "delivery_action": action,
+                        "network_submission_attempt_consumed": (
+                            executor.attempt_path.exists()
+                        ),
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
         except Exception as exc:
             print(
                 json.dumps(
