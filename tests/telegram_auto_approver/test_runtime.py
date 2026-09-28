@@ -7,6 +7,7 @@ from bp_telegram_auto_approver.runtime import (
     HistoryScanRefused,
     adapt_message,
     buttons_from_markup,
+    buttons_from_wrapped,
     keyboard_metadata,
     only_latest,
     operator_matches,
@@ -58,6 +59,37 @@ class _Message:
             )
         ]
     )
+
+
+class _WrappedButton:
+    def __init__(
+        self,
+        text: str,
+        data: bytes | None = None,
+        url: str | None = None,
+    ) -> None:
+        self.text = text
+        self.data = data
+        self.url = url
+
+
+class _TelethonMessage(_Message):
+    reply_markup = _Markup(
+        [
+            _Row(
+                [
+                    _Button("APPROVE"),
+                    _Button("SKIP"),
+                ]
+            )
+        ]
+    )
+    buttons = [
+        [
+            _WrappedButton("APPROVE", b"approve:Abcdefghijklmnop"),
+            _WrappedButton("SKIP", b"skip:Abcdefghijklmnop"),
+        ]
+    ]
 
 
 def test_unobserved_gap_reconciles_a_new_prompt_once(tmp_path) -> None:
@@ -136,6 +168,29 @@ def test_keyboard_metadata_never_includes_callback_value() -> None:
     serialized = repr(metadata)
     assert "approve:Abcdefghijklmnop" not in serialized
     assert "skip:Abcdefghijklmnop" not in serialized
+
+
+def test_wrapped_buttons_preserve_callback_payloads() -> None:
+    parsed = buttons_from_wrapped(_TelethonMessage.buttons)
+    assert parsed is not None
+    assert parsed[0][0].text == "APPROVE"
+    assert parsed[0][0].callback_data == b"approve:Abcdefghijklmnop"
+    assert parsed[0][1].text == "SKIP"
+    assert parsed[0][1].callback_data == b"skip:Abcdefghijklmnop"
+
+
+def test_adapt_message_prefers_telethon_wrapped_buttons() -> None:
+    adapted = adapt_message(_TelethonMessage(), chat_id=424242, is_private=True)
+    assert adapted.buttons is not None
+    assert adapted.buttons[0][0].callback_data == b"approve:Abcdefghijklmnop"
+    assert adapted.buttons[0][1].callback_data == b"skip:Abcdefghijklmnop"
+
+
+def test_malformed_wrapped_buttons_fail_closed_without_raw_fallback() -> None:
+    message = _TelethonMessage()
+    message.buttons = [[_WrappedButton("APPROVE", "approve:Abcdefghijklmnop")]]
+    adapted = adapt_message(message, chat_id=424242, is_private=True)
+    assert adapted.buttons is None
 
 
 def test_adapt_message_reads_private_callback_keyboard() -> None:
