@@ -67,7 +67,7 @@
   },
   "prepared_reconciliation": {
     "helper": "scripts/deploy/phase15_v3_second_canary_db_reconciliation_cloudshell.sh",
-    "helper_git_blob_sha": "5e52ba161c2d2a23592dfa52d4245074b12f5a1c",
+    "helper_git_blob_sha": "4b40c3e8694b383757d760b29432ac8bbfb7a48d",
     "status": "ENGINEERING_READY_AUTHORIZATION_REQUIRED"
   }
 }
