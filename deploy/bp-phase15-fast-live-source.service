@@ -4,6 +4,7 @@ After=bp-postgres.service bp-v3-paper-execution.service network-online.target
 Wants=network-online.target
 Requires=bp-postgres.service bp-v3-paper-execution.service
 ConditionPathExists=/etc/bp-fast-live/authorization.json
+ConditionPathExists=/etc/bp-fast-live/PROJECT_STATE.json
 ConditionPathExists=/etc/bp/phase15-fast-live-source.env
 ConditionPathExists=/etc/bp-telegram-transport/transport.key
 
