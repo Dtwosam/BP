@@ -7,7 +7,7 @@ import os
 import stat
 import threading
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -27,7 +27,10 @@ from bp_engine.execution.fast_live import (
     verify_runtime_authorization,
 )
 from bp_engine.execution.fast_live_prepare import prepare_fast_live_candidate
-from bp_engine.execution.fast_live_result import record_fast_live_result
+from bp_engine.execution.fast_live_result import (
+    record_fast_live_official_reconciliation,
+    record_fast_live_result,
+)
 from bp_engine.execution.live import InterlockDecision
 from bp_engine.execution.telegram_transport import load_transport_key_file
 from bp_engine.storage import schema
@@ -363,6 +366,20 @@ def main() -> int:
                 result=result,
                 observed_at=result_observed_at,
             )
+            official_recorded: dict[str, object] | None = None
+            official = result.get("official_reconciliation")
+            if (
+                isinstance(official, dict)
+                and official.get("official_reconciliation_complete") is True
+                and result.get("status") == "accepted"
+            ):
+                official_recorded = record_fast_live_official_reconciliation(
+                    engine=engine,
+                    result=result,
+                    official=official,
+                    observed_at=result_observed_at
+                    + timedelta(microseconds=1),
+                )
             result_path = _result_receipt_path(
                 args.receipt_dir,
                 str(result["intent_id"]),
@@ -381,6 +398,7 @@ def main() -> int:
                         is True,
                         "execution_status": result.get("status"),
                         "recorded": recorded,
+                        "official_recorded": official_recorded,
                         "recorded_at": observed.isoformat(),
                     },
                 )
@@ -400,6 +418,7 @@ def main() -> int:
                         )
                         is True,
                         "recorded": recorded,
+                        "official_recorded": official_recorded,
                     },
                     sort_keys=True,
                     default=str,
