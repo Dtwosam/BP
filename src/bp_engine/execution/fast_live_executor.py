@@ -116,6 +116,42 @@ def _write_replace_json(path: Path, payload: dict[str, Any]) -> None:
     os.replace(temp, path)
 
 
+def execute_with_bounded_pre_attempt_retry(
+    executor: "FastLiveExecutor",
+    verified: dict[str, Any],
+    *,
+    now_fn=_utc_now,
+    sleep_fn=time.sleep,
+    retry_sleep_seconds: float = 0.02,
+) -> dict[str, Any]:
+    expires = datetime.fromisoformat(str(verified.get("expires_at") or "")).astimezone(UTC)
+    retries = 0
+    last_reason = ""
+    while True:
+        try:
+            result = executor.execute(verified)
+            result["pre_attempt_retry_count"] = retries
+            return result
+        except FastLiveRetryableError as exc:
+            if executor.attempt_path.exists():
+                raise
+            retries += 1
+            last_reason = str(exc)
+            remaining = (expires - now_fn()).total_seconds()
+            if remaining <= max(0.01, retry_sleep_seconds):
+                return {
+                    "status": "pre_attempt_retry_exhausted",
+                    "intent_id": str(verified.get("intent_id") or ""),
+                    "request_sha256": str(verified.get("request_sha256") or ""),
+                    "reason": last_reason,
+                    "pre_attempt_retry_count": retries,
+                    "network_submission_attempt_consumed": False,
+                    "real_order_submitted": False,
+                    "external_order_id": None,
+                }
+            sleep_fn(min(retry_sleep_seconds, max(0.0, remaining - 0.01)))
+
+
 class FastLiveExecutor:
     def __init__(
         self,
