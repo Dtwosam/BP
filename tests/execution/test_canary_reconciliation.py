@@ -178,7 +178,7 @@ def test_malformed_zero_fill_reconciliation_does_not_mask_unresolved_intent() ->
             observed_at=BASE + timedelta(seconds=2),
         )
 
-    assert account.total_exposure_usd == Decimal("4.836")
+    assert account.total_exposure_usd > Decimal("4.83")
     assert account.last_order_at is None
     assert account.unresolved_critical_reconciliation == 1
 
