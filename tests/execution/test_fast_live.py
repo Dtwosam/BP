@@ -10,10 +10,12 @@ import pytest
 from bp_engine.execution.fast_live import (
     FastLiveError,
     create_envelope,
+    create_result_message,
     create_warmup_message,
     marketable_depth,
     project_state_sha256,
     verify_envelope,
+    verify_result_message,
     verify_runtime_authorization,
     verify_source_authorization,
     verify_warmup_message,
@@ -264,3 +266,43 @@ def test_marketable_depth_allows_partial_immediate_fill_at_limit() -> None:
     )
     assert thin["marketable"] is True
     assert thin["full_size_marketable"] is False
+
+def test_result_message_is_authenticated_and_exact_bound() -> None:
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    result = {
+        "status": "fresh_book_rejected",
+        "intent_id": "live-intent-fast-1",
+        "request_sha256": "3" * 64,
+        "network_submission_attempt_consumed": False,
+        "real_order_submitted": False,
+        "external_order_id": None,
+    }
+    message = create_result_message(
+        result,
+        key=KEY,
+        key_id=KEY_ID,
+        authorization_id="fast-live-auth-1",
+        created_at=now,
+    )
+    verified = verify_result_message(
+        message,
+        key=KEY,
+        expected_key_id=KEY_ID,
+        expected_authorization_id="fast-live-auth-1",
+        observed_at=now + timedelta(seconds=1),
+    )
+    assert verified == result
+
+    tampered = copy.deepcopy(message)
+    nested = tampered["result"]
+    assert isinstance(nested, dict)
+    nested["network_submission_attempt_consumed"] = True
+    with pytest.raises(FastLiveError, match="hmac mismatch"):
+        verify_result_message(
+            tampered,
+            key=KEY,
+            expected_key_id=KEY_ID,
+            expected_authorization_id="fast-live-auth-1",
+            observed_at=now + timedelta(seconds=1),
+        )
+
