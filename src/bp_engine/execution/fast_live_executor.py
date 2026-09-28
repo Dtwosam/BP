@@ -37,6 +37,8 @@ class FastLiveClient(Protocol):
     ) -> object: ...
     def post_order(self, signed_order: object) -> object: ...
     def cancel_order(self, *, order_id: str) -> object: ...
+    def list_open_orders(self) -> object: ...
+    def list_account_trades(self) -> object: ...
 
 
 @dataclass(frozen=True)
@@ -78,6 +80,124 @@ def _decimal(value: object, name: str) -> Decimal:
     if not result.is_finite():
         raise FastLiveError(f"{name} must be finite")
     return result
+
+
+def _trade_status_text(value: object) -> str:
+    raw = getattr(value, "value", value)
+    text = str(raw).upper()
+    if text.startswith("TRADE_STATUS_"):
+        text = text[len("TRADE_STATUS_") :]
+    return text
+
+
+def _official_order_sample(
+    client: FastLiveClient,
+    *,
+    order_id: str,
+) -> dict[str, Any]:
+    open_orders = tuple(client.list_open_orders().iter_items())
+    trades = tuple(client.list_account_trades().iter_items())
+    matches: list[dict[str, str]] = []
+    for trade in trades:
+        hit: dict[str, object] | None = None
+        if str(trade.taker_order_id) == order_id:
+            hit = {
+                "shares": _decimal(trade.size, "trade size"),
+                "price": _decimal(trade.price, "trade price"),
+                "status": _trade_status_text(trade.status),
+            }
+        for maker in trade.maker_orders:
+            if str(maker.order_id) != order_id:
+                continue
+            if hit is not None:
+                raise FastLiveError(
+                    "order appears more than once in a single official trade"
+                )
+            hit = {
+                "shares": _decimal(maker.matched_amount, "maker matched amount"),
+                "price": _decimal(maker.price, "maker price"),
+                "status": _trade_status_text(trade.status),
+            }
+        if hit is None:
+            continue
+        matches.append(
+            {
+                "trade_id": str(trade.id),
+                "shares": format(Decimal(hit["shares"]), "f"),
+                "price": format(Decimal(hit["price"]), "f"),
+                "status": str(hit["status"]),
+            }
+        )
+    matches.sort(key=lambda row: row["trade_id"])
+    open_ids = sorted(str(order.id) for order in open_orders)
+    return {
+        "order_still_open": order_id in open_ids,
+        "open_order_count": len(open_ids),
+        "matching_trades": matches,
+    }
+
+
+def probe_official_order_state(
+    client: FastLiveClient,
+    *,
+    order_id: str,
+    requested_shares: Decimal,
+    stability_seconds: float = 3.0,
+    sleep_fn=time.sleep,
+) -> dict[str, Any]:
+    first = _official_order_sample(client, order_id=order_id)
+    sleep_fn(stability_seconds)
+    second = _official_order_sample(client, order_id=order_id)
+    stable = first == second
+    confirmed = [
+        row for row in second["matching_trades"]
+        if row["status"] == "CONFIRMED"
+    ]
+    nonfinal = [
+        row for row in second["matching_trades"]
+        if row["status"] != "CONFIRMED"
+    ]
+    confirmed_shares = sum(
+        (Decimal(row["shares"]) for row in confirmed),
+        Decimal("0"),
+    )
+    confirmed_notional = sum(
+        (
+            Decimal(row["shares"]) * Decimal(row["price"])
+            for row in confirmed
+        ),
+        Decimal("0"),
+    )
+    if confirmed_shares > requested_shares:
+        raise FastLiveError("confirmed fill exceeds requested shares")
+    fill_state = (
+        "order_still_open"
+        if second["order_still_open"]
+        else "fill_observed_not_final"
+        if nonfinal
+        else "confirmed_fill"
+        if confirmed
+        else "zero_fill_observed"
+    )
+    return {
+        "snapshot_stable": stable,
+        "order_still_open": second["order_still_open"],
+        "open_order_count": second["open_order_count"],
+        "matching_trade_count": len(second["matching_trades"]),
+        "matching_trades": second["matching_trades"],
+        "confirmed_filled_shares": format(confirmed_shares, "f"),
+        "confirmed_filled_notional_usd": format(
+            confirmed_notional,
+            "f",
+        ),
+        "fill_state": fill_state,
+        "official_reconciliation_complete": (
+            stable
+            and not second["order_still_open"]
+            and not nonfinal
+            and second["open_order_count"] == 0
+        ),
+    }
 
 
 def _ensure_private_dir(path: Path) -> None:
