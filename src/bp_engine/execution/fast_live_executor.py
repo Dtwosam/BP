@@ -16,6 +16,7 @@ import polymarket
 from bp_engine.execution.fast_live import (
     FAST_LIVE_TARGET_NOTIONAL_USD,
     FastLiveError,
+    FastLiveRetryableError,
     marketable_depth,
 )
 
@@ -171,11 +172,11 @@ class FastLiveExecutor:
     def _require_fresh_safety(self) -> SafetySnapshot:
         snapshot = self._safety_cache.current()
         if snapshot is None:
-            raise FastLiveError("fast live safety snapshot missing")
+            raise FastLiveRetryableError("fast live safety snapshot missing")
         now = self._now_fn()
         age = Decimal(str((now - snapshot.observed_at.astimezone(UTC)).total_seconds()))
         if age < 0 or age > self._max_safety_age_seconds:
-            raise FastLiveError("fast live safety snapshot stale")
+            raise FastLiveRetryableError("fast live safety snapshot stale")
         if snapshot.geoblock_blocked:
             raise FastLiveError("fast live geoblock blocked")
         if snapshot.geoblock_country != "ZA":
@@ -235,7 +236,12 @@ class FastLiveExecutor:
             levels = cached_levels
             quote_source = "stream"
         else:
-            book = self._client.get_order_book(token_id=token_id)
+            try:
+                book = self._client.get_order_book(token_id=token_id)
+            except Exception as exc:
+                raise FastLiveRetryableError(
+                    "fast live fresh order book unavailable"
+                ) from exc
             asks = tuple(getattr(book, "asks", ()) or ())
             levels = tuple(
                 (
