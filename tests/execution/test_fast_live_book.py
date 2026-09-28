@@ -88,7 +88,7 @@ def test_stream_book_falls_back_when_exact_token_quote_is_stale(monkeypatch) -> 
         "bp_engine.execution.fast_live_book.time.monotonic",
         lambda: clock["now"],
     )
-    cache = StreamingBookCache(quote_fresh_seconds=0.5)
+    cache = StreamingBookCache(quote_fresh_seconds=0.25)
     cache.subscribe(["token-1"])
     cache._mark_connected()
     cache._replace_book(
