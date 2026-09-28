@@ -119,6 +119,65 @@ def _carry_clean_account(
     return latest
 
 
+def _carry_pending_fast_account(
+    connection,
+    *,
+    intent_id: str,
+    observed_at: datetime,
+) -> tuple[str, dict[str, object]]:
+    rows = connection.execute(
+        select(schema.live_reconciliation_runs)
+        .where(schema.live_reconciliation_runs.c.observed_at <= observed_at)
+        .order_by(
+            schema.live_reconciliation_runs.c.observed_at.desc(),
+            schema.live_reconciliation_runs.c.id.desc(),
+        )
+    ).mappings().all()
+    for row in rows:
+        evidence = dict(row["evidence"] or {})
+        if evidence.get("source") != "phase15_v3_fast_live_result":
+            continue
+        if evidence.get("intent_id") != intent_id:
+            continue
+        if (
+            evidence.get("reconciliation_kind")
+            != "fast_live_submission_pending_official_reconciliation"
+        ):
+            continue
+        raw_account = evidence.get("account_snapshot")
+        if not isinstance(raw_account, Mapping):
+            raise FastLiveResultError(
+                "pending fast-live account snapshot missing"
+            )
+        try:
+            total_exposure = Decimal(
+                str(raw_account["total_exposure_usd"])
+            )
+            realized_pnl = Decimal(
+                str(raw_account["realized_daily_pnl_usd"])
+            )
+            consecutive_losses = int(raw_account["consecutive_losses"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise FastLiveResultError(
+                "pending fast-live account snapshot invalid"
+            ) from exc
+        if total_exposure < 0 or consecutive_losses < 0:
+            raise FastLiveResultError(
+                "pending fast-live account snapshot invalid"
+            )
+        return (
+            str(row["reconciliation_id"]),
+            {
+                "total_exposure_usd": format(total_exposure, "f"),
+                "realized_daily_pnl_usd": format(realized_pnl, "f"),
+                "consecutive_losses": consecutive_losses,
+            },
+        )
+    raise FastLiveResultError(
+        "pending fast-live reconciliation snapshot unavailable"
+    )
+
+
 def _store_reconciliation(
     repository: LiveReadinessRepository,
     connection,
@@ -357,8 +416,9 @@ def record_fast_live_official_reconciliation(
         if accepted is None:
             raise FastLiveResultError("accepted event missing before reconciliation")
 
-        carried_from, account_snapshot = _carry_clean_account(
+        carried_from, account_snapshot = _carry_pending_fast_account(
             connection,
+            intent_id=intent_id,
             observed_at=observed,
         )
         prior_pnl = Decimal(str(account_snapshot["realized_daily_pnl_usd"]))
