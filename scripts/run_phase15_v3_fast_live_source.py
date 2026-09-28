@@ -12,18 +12,21 @@ from pathlib import Path
 from typing import Any
 
 from google.cloud import pubsub_v1
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 
 from bp_engine.config import Settings
 from bp_engine.execution.fast_live import (
     FAST_LIVE_PURPOSE,
+    FAST_LIVE_WARMUP_PURPOSE,
     create_envelope,
+    create_warmup_message,
     load_private_json,
     verify_runtime_authorization,
 )
 from bp_engine.execution.fast_live_prepare import prepare_fast_live_candidate
 from bp_engine.execution.live import InterlockDecision
 from bp_engine.execution.telegram_transport import load_transport_key_file
+from bp_engine.storage import schema
 
 
 def _utc_now() -> datetime:
@@ -165,6 +168,61 @@ def _publish_with_bounded_retry(
     ) from last_error
 
 
+def _current_warmup_market(
+    engine,
+    *,
+    observed_at: datetime,
+) -> dict[str, str] | None:
+    with engine.connect() as connection:
+        row = connection.execute(
+            select(
+                schema.polymarket_markets.c.condition_id,
+                schema.polymarket_markets.c.up_token_id,
+                schema.polymarket_markets.c.down_token_id,
+            )
+            .where(
+                schema.polymarket_markets.c.horizon_seconds == 300,
+                schema.polymarket_markets.c.active.is_(True),
+                schema.polymarket_markets.c.closed.is_(False),
+                schema.polymarket_markets.c.accepting_orders.is_(True),
+                schema.polymarket_markets.c.start_at <= observed_at,
+                schema.polymarket_markets.c.end_at > observed_at,
+            )
+            .order_by(schema.polymarket_markets.c.start_at.desc())
+            .limit(1)
+        ).mappings().one_or_none()
+    if row is None:
+        return None
+    return {
+        "condition_id": str(row["condition_id"]),
+        "up_token_id": str(row["up_token_id"]),
+        "down_token_id": str(row["down_token_id"]),
+    }
+
+
+def _publish_warmup_async(
+    publisher: pubsub_v1.PublisherClient,
+    *,
+    topic_path: str,
+    warmup: dict[str, Any],
+) -> None:
+    data = json.dumps(
+        warmup,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode()
+    publisher.publish(
+        topic_path,
+        data,
+        purpose=FAST_LIVE_WARMUP_PURPOSE,
+        key_id=str(warmup["key_id"]),
+        authorization_id=str(warmup["authorization_id"]),
+        condition_id=str(warmup["condition_id"]),
+    )
+
+
 def main() -> int:
     args = _parse_args()
     _require_runtime()
@@ -203,10 +261,52 @@ def main() -> int:
     topic_path = publisher.topic_path(args.gcp_project, args.topic_id)
     _ensure_private_dir(args.receipt_dir)
     interlock = InterlockDecision(eligible=True, reasons=())
+    warmed_condition_id = ""
+    next_warmup_check = 0.0
 
     try:
         while True:
             observed = _utc_now()
+            now_monotonic = time.monotonic()
+            if now_monotonic >= next_warmup_check:
+                next_warmup_check = now_monotonic + 0.5
+                warm_market = _current_warmup_market(
+                    engine,
+                    observed_at=observed,
+                )
+                if (
+                    warm_market is not None
+                    and warm_market["condition_id"] != warmed_condition_id
+                ):
+                    state_now = _load_state(args.project_state)
+                    runtime_now = load_private_json(
+                        args.runtime_authorization,
+                        label="fast live runtime authorization",
+                    )
+                    verify_runtime_authorization(
+                        runtime_now,
+                        state=state_now,
+                        expected_main=args.expected_main,
+                        observed_at=observed,
+                    )
+                    warmup = create_warmup_message(
+                        condition_id=warm_market["condition_id"],
+                        token_ids=(
+                            warm_market["up_token_id"],
+                            warm_market["down_token_id"],
+                        ),
+                        runtime_authorization=runtime_now,
+                        key=key,
+                        key_id=args.transport_key_id,
+                        created_at=observed,
+                    )
+                    _publish_warmup_async(
+                        publisher,
+                        topic_path=topic_path,
+                        warmup=warmup,
+                    )
+                    warmed_condition_id = warm_market["condition_id"]
+
             report = prepare_fast_live_candidate(
                 engine=engine,
                 activated_at=activated_at,
