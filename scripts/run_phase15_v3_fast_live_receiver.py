@@ -1,0 +1,326 @@
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import threading
+import time
+import urllib.request
+from datetime import UTC, datetime
+from decimal import Decimal
+from pathlib import Path
+from typing import Any
+
+import polymarket
+from google.cloud import pubsub_v1
+
+from bp_engine.execution.fast_live import (
+    FAST_LIVE_PURPOSE,
+    FastLiveError,
+    load_private_json,
+    verify_envelope,
+    verify_runtime_authorization,
+)
+from bp_engine.execution.fast_live_executor import (
+    FastLiveExecutor,
+    SafetyCache,
+    SafetySnapshot,
+)
+from bp_engine.execution.telegram_transport import load_transport_key_file
+
+GEOBLOCK_URL = "https://polymarket.com/api/geoblock"
+COLLATERAL_BASE_UNITS_PER_USD = Decimal("1000000")
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Receive and execute one pre-authorized fast-live V3 order."
+    )
+    parser.add_argument(
+        "--project-state",
+        type=Path,
+        default=Path("/opt/bp-fast-live/current/PROJECT_STATE.json"),
+    )
+    parser.add_argument(
+        "--runtime-authorization",
+        type=Path,
+        default=Path("/etc/bp-fast-live/authorization.json"),
+    )
+    parser.add_argument(
+        "--transport-key-file",
+        type=Path,
+        default=Path("/etc/bp-telegram-transport/transport.key"),
+    )
+    parser.add_argument("--transport-key-id", required=True)
+    parser.add_argument("--expected-main", required=True)
+    parser.add_argument("--gcp-project", required=True)
+    parser.add_argument("--subscription-id", required=True)
+    parser.add_argument(
+        "--state-root",
+        type=Path,
+        default=Path("/var/lib/bp-canary/fast-live"),
+    )
+    parser.add_argument(
+        "--kill-switch",
+        type=Path,
+        default=Path("/etc/bp-fast-live/KILL"),
+    )
+    parser.add_argument("--safety-refresh-seconds", type=float, default=0.25)
+    return parser.parse_args()
+
+
+def _require_runtime() -> None:
+    if os.environ.get("BP_PHASE15_FAST_LIVE_EXECUTOR_ENABLED", "no") != "yes":
+        raise SystemExit("fast live executor is not explicitly enabled")
+    if not os.environ.get("POLYMARKET_PRIVATE_KEY", "").strip():
+        raise SystemExit("POLYMARKET_PRIVATE_KEY is required")
+
+
+def _load_state(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise FastLiveError("project state is not readable") from exc
+    if not isinstance(payload, dict):
+        raise FastLiveError("project state must contain an object")
+    return payload
+
+
+def _secure_client() -> object:
+    private_key = os.environ["POLYMARKET_PRIVATE_KEY"].strip()
+    wallet = os.environ.get("POLYMARKET_WALLET_ADDRESS", "").strip()
+    kwargs: dict[str, str] = {"private_key": private_key}
+    if wallet:
+        kwargs["wallet"] = wallet
+    return polymarket.SecureClient.create(**kwargs)
+
+
+def _geoblock() -> tuple[bool, str]:
+    request = urllib.request.Request(
+        GEOBLOCK_URL,
+        headers={"User-Agent": "BP-phase15-fast-live/1"},
+    )
+    with urllib.request.urlopen(request, timeout=3) as response:
+        if response.status != 200:
+            raise FastLiveError("geoblock request failed")
+        payload = json.loads(response.read().decode("utf-8"))
+    if type(payload.get("blocked")) is not bool:
+        raise FastLiveError("geoblock response invalid")
+    country = str(payload.get("country") or "")
+    if not country:
+        raise FastLiveError("geoblock country missing")
+    return bool(payload["blocked"]), country
+
+
+def _account_snapshot(client: object) -> tuple[int, Decimal]:
+    balance = client.get_balance_allowance(asset_type="COLLATERAL")
+    open_orders = tuple(client.list_open_orders().iter_items())
+    balance_usd = (
+        Decimal(int(balance.balance)) / COLLATERAL_BASE_UNITS_PER_USD
+    )
+    return len(open_orders), balance_usd
+
+
+class SafetyRefresher:
+    def __init__(
+        self,
+        *,
+        client: object,
+        cache: SafetyCache,
+        refresh_seconds: float,
+    ) -> None:
+        self._client = client
+        self._cache = cache
+        self._refresh_seconds = refresh_seconds
+        self._stop = threading.Event()
+        self._thread = threading.Thread(
+            target=self._run,
+            name="bp-fast-live-safety",
+            daemon=True,
+        )
+        self._geo_blocked = True
+        self._geo_country = ""
+        self._geo_updated_monotonic = 0.0
+
+    def refresh_once(self) -> None:
+        now_monotonic = time.monotonic()
+        if now_monotonic - self._geo_updated_monotonic >= 10:
+            blocked, country = _geoblock()
+            self._geo_blocked = blocked
+            self._geo_country = country
+            self._geo_updated_monotonic = now_monotonic
+        if now_monotonic - self._geo_updated_monotonic > 30:
+            raise FastLiveError("geoblock safety snapshot stale")
+        open_orders, collateral = _account_snapshot(self._client)
+        self._cache.replace(
+            SafetySnapshot(
+                observed_at=_utc_now(),
+                geoblock_blocked=self._geo_blocked,
+                geoblock_country=self._geo_country,
+                open_order_count=open_orders,
+                collateral_balance_usd=collateral,
+            )
+        )
+
+    def start(self) -> None:
+        self.refresh_once()
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        self._thread.join(timeout=2)
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            started = time.monotonic()
+            try:
+                self.refresh_once()
+            except Exception as exc:
+                print(
+                    json.dumps(
+                        {
+                            "status": "safety_refresh_failed",
+                            "error": type(exc).__name__,
+                            "observed_at": _utc_now().isoformat(),
+                        },
+                        sort_keys=True,
+                    ),
+                    flush=True,
+                )
+            elapsed = time.monotonic() - started
+            self._stop.wait(max(0.01, self._refresh_seconds - elapsed))
+
+
+def _decode_message(message: object) -> dict[str, Any]:
+    data = bytes(getattr(message, "data", b""))
+    if not data or len(data) > 256 * 1024:
+        raise FastLiveError("fast live message data size invalid")
+    try:
+        payload = json.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise FastLiveError("fast live message JSON invalid") from exc
+    if not isinstance(payload, dict):
+        raise FastLiveError("fast live message must contain an object")
+    attributes = {
+        str(key): str(value)
+        for key, value in dict(getattr(message, "attributes", {}) or {}).items()
+    }
+    required = {
+        "purpose": FAST_LIVE_PURPOSE,
+        "key_id": str(payload.get("key_id") or ""),
+        "authorization_id": str(payload.get("authorization_id") or ""),
+        "intent_id": str(payload.get("intent_id") or ""),
+        "request_sha256": str(payload.get("request_sha256") or ""),
+    }
+    if any(attributes.get(name) != value for name, value in required.items()):
+        raise FastLiveError("fast live message attributes mismatch")
+    return payload
+
+
+def main() -> int:
+    args = _parse_args()
+    _require_runtime()
+    if not 0.1 <= args.safety_refresh_seconds <= 1:
+        raise SystemExit("safety refresh seconds must be within 0.1..1")
+
+    state = _load_state(args.project_state)
+    runtime = load_private_json(
+        args.runtime_authorization,
+        label="fast live runtime authorization",
+    )
+    verify_runtime_authorization(
+        runtime,
+        state=state,
+        expected_main=args.expected_main,
+        observed_at=_utc_now(),
+    )
+    key = load_transport_key_file(args.transport_key_file)
+
+    execution_client = _secure_client()
+    safety_client = _secure_client()
+    cache = SafetyCache()
+    refresher = SafetyRefresher(
+        client=safety_client,
+        cache=cache,
+        refresh_seconds=args.safety_refresh_seconds,
+    )
+    refresher.start()
+
+    executor = FastLiveExecutor(
+        client=execution_client,
+        safety_cache=cache,
+        state_root=args.state_root,
+        kill_switch_path=args.kill_switch,
+    )
+    subscriber = pubsub_v1.SubscriberClient()
+    subscription_path = subscriber.subscription_path(
+        args.gcp_project,
+        args.subscription_id,
+    )
+
+    def callback(message: object) -> None:
+        received_at = _utc_now()
+        try:
+            state_now = _load_state(args.project_state)
+            runtime_now = load_private_json(
+                args.runtime_authorization,
+                label="fast live runtime authorization",
+            )
+            verify_runtime_authorization(
+                runtime_now,
+                state=state_now,
+                expected_main=args.expected_main,
+                observed_at=received_at,
+            )
+            envelope = _decode_message(message)
+            verified = verify_envelope(
+                envelope,
+                runtime_authorization=runtime_now,
+                key=key,
+                expected_key_id=args.transport_key_id,
+                observed_at=received_at,
+            )
+            result = executor.execute(verified)
+            result["envelope_created_at"] = verified["created_at"]
+            result["message_received_at"] = received_at.isoformat()
+            created = datetime.fromisoformat(str(verified["created_at"])).astimezone(UTC)
+            result["source_to_receive_ms"] = (
+                received_at - created
+            ).total_seconds() * 1000
+            print(json.dumps(result, sort_keys=True, default=str), flush=True)
+            getattr(message, "ack")()
+        except Exception as exc:
+            print(
+                json.dumps(
+                    {
+                        "status": "fast_live_message_failed_closed",
+                        "error": type(exc).__name__,
+                        "message_id": str(getattr(message, "message_id", "") or ""),
+                        "observed_at": received_at.isoformat(),
+                        "network_submission_attempt_consumed": (
+                            executor.attempt_path.exists()
+                        ),
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+            getattr(message, "ack")()
+
+    future = subscriber.subscribe(subscription_path, callback=callback)
+    try:
+        future.result()
+    except KeyboardInterrupt:
+        future.cancel()
+    finally:
+        refresher.stop()
+        subscriber.close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
