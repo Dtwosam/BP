@@ -453,6 +453,7 @@ def record_fast_live_official_reconciliation(
                 "confirmed_filled_shares": format(filled_shares, "f"),
                 "confirmed_filled_notional_usd": format(filled_notional, "f"),
                 "official_fill_state": str(official.get("fill_state") or ""),
+                "network_submission_attempt_consumed": True,
                 "matching_trade_count": int(
                     official.get("matching_trade_count") or 0
                 ),
