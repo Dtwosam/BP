@@ -14,6 +14,7 @@ from bp_engine.execution.fast_live_executor import (
     FastLiveExecutor,
     SafetyCache,
     SafetySnapshot,
+    execute_with_bounded_pre_attempt_retry,
 )
 
 
@@ -265,4 +266,44 @@ def test_http_quote_failure_is_retryable_before_attempt(tmp_path: Path) -> None:
 
     assert client.calls == ["sign", "book"]
     assert not executor.attempt_path.exists()
+
+def test_bounded_pre_attempt_retry_stays_local_and_unconsumed(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    clock = {"now": now}
+    calls = {"count": 0}
+
+    class RetryExecutor:
+        attempt_path = tmp_path / "attempt.json"
+
+        def execute(self, verified):
+            calls["count"] += 1
+            if calls["count"] < 3:
+                raise FastLiveRetryableError("temporary pre-attempt condition")
+            return {
+                "status": "fresh_book_rejected",
+                "intent_id": verified["intent_id"],
+                "request_sha256": verified["request_sha256"],
+                "network_submission_attempt_consumed": False,
+                "real_order_submitted": False,
+            }
+
+    verified = _verified(now)
+    verified["expires_at"] = (now + timedelta(seconds=1)).isoformat()
+
+    def sleep_fn(seconds: float) -> None:
+        clock["now"] += timedelta(seconds=seconds)
+
+    result = execute_with_bounded_pre_attempt_retry(
+        RetryExecutor(),
+        verified,
+        now_fn=lambda: clock["now"],
+        sleep_fn=sleep_fn,
+        retry_sleep_seconds=0.02,
+    )
+
+    assert calls["count"] == 3
+    assert result["status"] == "fresh_book_rejected"
+    assert result["pre_attempt_retry_count"] == 2
+    assert result["network_submission_attempt_consumed"] is False
+    assert not (tmp_path / "attempt.json").exists()
 
