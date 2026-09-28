@@ -32,7 +32,7 @@ class StreamingBookCache:
         url: str = MARKET_WS_URL,
         heartbeat_seconds: float = 10.0,
         healthy_seconds: float = 15.0,
-        quote_fresh_seconds: float = 0.5,
+        quote_fresh_seconds: float = 0.25,
     ) -> None:
         self._url = url
         self._heartbeat_seconds = heartbeat_seconds
