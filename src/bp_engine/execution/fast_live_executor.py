@@ -353,10 +353,73 @@ class FastLiveExecutor:
             raise FastLiveError("fast live insufficient collateral")
         return snapshot
 
+    def _cancel_and_probe(
+        self,
+        *,
+        order_id: str,
+        requested_shares: Decimal,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        try:
+            cancel = self._client.cancel_order(order_id=order_id)
+            if isinstance(cancel, polymarket.CancelOrdersResponse):
+                cancellation = {
+                    "cancelled": order_id in cancel.canceled,
+                    "not_cancelled": str(
+                        cancel.not_canceled.get(order_id, "")
+                    ),
+                }
+            else:
+                cancellation = {
+                    "cancelled": False,
+                    "not_cancelled": "unexpected cancellation response",
+                }
+        except Exception:
+            cancellation = {
+                "cancelled": False,
+                "not_cancelled": "cancellation failed",
+            }
+
+        try:
+            official = probe_official_order_state(
+                self._client,
+                order_id=order_id,
+                requested_shares=requested_shares,
+            )
+        except Exception as exc:
+            official = {
+                "official_reconciliation_complete": False,
+                "fill_state": "official_probe_failed",
+                "error": type(exc).__name__,
+            }
+        return cancellation, official
+
     def execute(self, verified: dict[str, Any]) -> dict[str, Any]:
         if self.attempt_path.exists():
             if self.result_path.exists():
                 replayed = _read_json(self.result_path)
+                if (
+                    replayed.get("status") == "accepted"
+                    and replayed.get("cancellation_pending") is True
+                    and str(replayed.get("external_order_id") or "")
+                ):
+                    order_id = str(replayed["external_order_id"])
+                    marketability = replayed.get("marketability")
+                    if not isinstance(marketability, dict):
+                        raise FastLiveError(
+                            "accepted replay missing marketability"
+                        )
+                    requested_shares = _decimal(
+                        marketability.get("requested_shares"),
+                        "replayed requested shares",
+                    )
+                    cancellation, official = self._cancel_and_probe(
+                        order_id=order_id,
+                        requested_shares=requested_shares,
+                    )
+                    replayed["cancellation"] = cancellation
+                    replayed["cancellation_pending"] = False
+                    replayed["official_reconciliation"] = official
+                    _write_replace_json(self.result_path, replayed)
                 replayed["replayed_result"] = True
                 return replayed
             attempt = _read_json(self.attempt_path)
@@ -554,25 +617,11 @@ class FastLiveExecutor:
         }
         _write_replace_json(self.result_path, preliminary)
 
-        cancellation: dict[str, Any]
         time.sleep(float(self._order_ttl_seconds))
-        try:
-            cancel = self._client.cancel_order(order_id=order_id)
-            if isinstance(cancel, polymarket.CancelOrdersResponse):
-                cancellation = {
-                    "cancelled": order_id in cancel.canceled,
-                    "not_cancelled": str(cancel.not_canceled.get(order_id, "")),
-                }
-            else:
-                cancellation = {
-                    "cancelled": False,
-                    "not_cancelled": "unexpected cancellation response",
-                }
-        except Exception:
-            cancellation = {
-                "cancelled": False,
-                "not_cancelled": "cancellation failed",
-            }
+        cancellation, official = self._cancel_and_probe(
+            order_id=order_id,
+            requested_shares=shares,
+        )
 
         result = {
             **attempt,
@@ -585,6 +634,7 @@ class FastLiveExecutor:
             "cancellation_pending": False,
             "marketability": marketability,
             "cancellation": cancellation,
+            "official_reconciliation": official,
             "safety_observed_at": safety.observed_at.isoformat(),
             "received_at": received_at.isoformat(),
             "post_started_at": post_started_at.isoformat(),
