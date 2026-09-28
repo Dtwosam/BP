@@ -14,6 +14,12 @@ HELPER = (
     / "deploy"
     / "phase15_v3_second_canary_zero_fill_completion_cloudshell.sh"
 )
+EVIDENCE = (
+    ROOT
+    / "docs"
+    / "evidence"
+    / "phase-15-v3-second-canary-zero-fill-completion-pass-production-20260928.json"
+)
 
 
 def test_zero_fill_completion_is_recorded_and_non_trading() -> None:
@@ -62,6 +68,36 @@ def test_zero_fill_completion_is_recorded_and_non_trading() -> None:
     assert repair["post_completion_unresolved_critical_reconciliation"] == 0
     assert repair["completion_result"] == "PASS"
     assert repair["third_order_authorized"] is False
+
+
+def test_zero_fill_completion_production_evidence_matches_source_truth() -> None:
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    gate = state["phase_15_v3_live_canary"]
+    canary = gate["second_live_canary"]
+    repair = gate["second_canary_db_reconciliation"]
+    evidence = json.loads(EVIDENCE.read_text(encoding="utf-8"))
+
+    assert evidence["source_main"] == "4632b9240a761d578e950bbef51d4dd185f717ec"
+    assert evidence["runtime_fix"]["result"] == "PASS"
+    assert evidence["runtime_fix"]["prepare_watcher_active"] is False
+    assert evidence["runtime_fix"]["core_service_pids_preserved"] is True
+    assert evidence["runtime_fix"]["frozen_v3_runtime_mutated"] is False
+    assert evidence["official_fill_probe"]["fill_state"] == "zero_fill_observed"
+    assert evidence["official_fill_probe"]["open_order_count"] == 0
+    assert evidence["reconciliation"]["reconciliation_id"] == canary["db_reconciliation_id"]
+    assert evidence["reconciliation"]["unresolved_count"] == 0
+    assert evidence["reconciliation"]["critical_count"] == 0
+    assert evidence["reconciliation"]["normalized_event_state"] == (
+        "absent_verified_by_executor_receipt"
+    )
+    assert evidence["post_completion_account_snapshot"]["total_exposure_usd"] == "0"
+    assert evidence["post_completion_account_snapshot"][
+        "unresolved_critical_reconciliation"
+    ] == 0
+    assert evidence["safety"]["third_order_authorized"] is False
+    assert evidence["safety"]["global_live_trading_enabled"] is False
+    assert repair["completion_result"] == "PASS"
+    assert repair["authorization_consumed"] is True
 
 
 def test_zero_fill_completion_helper_is_fail_closed_and_does_not_start_trading() -> None:
