@@ -41,7 +41,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--project-state",
         type=Path,
-        default=Path("/opt/bp-fast-live/current/PROJECT_STATE.json"),
+        default=Path("/etc/bp-fast-live/PROJECT_STATE.json"),
     )
     parser.add_argument(
         "--runtime-authorization",
