@@ -108,7 +108,7 @@ def _write_receipt(path: Path, payload: dict[str, Any]) -> None:
         os.close(fd)
 
 
-def _publish(
+def _publish_once(
     publisher: pubsub_v1.PublisherClient,
     *,
     topic_path: str,
@@ -130,7 +130,39 @@ def _publish(
         intent_id=str(envelope["intent_id"]),
         request_sha256=str(envelope["request_sha256"]),
     )
-    return str(future.result(timeout=2.0))
+    return str(future.result(timeout=0.45))
+
+
+def _publish_with_bounded_retry(
+    publisher: pubsub_v1.PublisherClient,
+    *,
+    topic_path: str,
+    envelope: dict[str, Any],
+) -> tuple[str, int]:
+    expires_at = datetime.fromisoformat(str(envelope["expires_at"])).astimezone(UTC)
+    attempts = 0
+    last_error: Exception | None = None
+    while attempts < 3:
+        attempts += 1
+        now = _utc_now()
+        if (expires_at - now).total_seconds() <= 0.15:
+            break
+        try:
+            return (
+                _publish_once(
+                    publisher,
+                    topic_path=topic_path,
+                    envelope=envelope,
+                ),
+                attempts,
+            )
+        except Exception as exc:
+            last_error = exc
+            if attempts < 3:
+                time.sleep(0.025)
+    raise RuntimeError(
+        f"fast live publish failed after {attempts} bounded attempts"
+    ) from last_error
 
 
 def main() -> int:
@@ -234,7 +266,7 @@ def main() -> int:
                 return 0
 
             publish_started = time.monotonic_ns()
-            message_id = _publish(
+            message_id, publish_attempts = _publish_with_bounded_retry(
                 publisher,
                 topic_path=topic_path,
                 envelope=envelope,
@@ -251,6 +283,7 @@ def main() -> int:
                 "publish_latency_ms": (
                     publish_completed - publish_started
                 ) / 1_000_000,
+                "publish_attempts": publish_attempts,
                 "network_submission_attempt_consumed": False,
                 "real_order_submitted": False,
             }
