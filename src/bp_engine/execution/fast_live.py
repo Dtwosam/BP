@@ -352,7 +352,12 @@ def verify_envelope(
     ):
         if str(envelope.get(name) or "") != str(validated[name]):
             raise FastLiveError(f"fast live envelope binding mismatch: {name}")
-    return {**validated, "created_at": created.isoformat(), "expires_at": expires.isoformat()}
+    return {
+        **validated,
+        "authorization_id": str(envelope["authorization_id"]),
+        "created_at": created.isoformat(),
+        "expires_at": expires.isoformat(),
+    }
 
 
 def marketable_depth(
