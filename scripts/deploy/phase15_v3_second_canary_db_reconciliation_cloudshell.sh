@@ -49,7 +49,7 @@ assert state["status"] == "PHASE_15_SECOND_LIVE_CANARY_SUBMITTED_RECONCILIATION_
 assert gate["status"] == "SECOND_LIVE_CANARY_SUBMITTED_RECONCILIATION_REQUIRED"
 assert gate["live_trading_enabled"] is False
 assert gate["canary_order_submitted"] is True
-assert gate["second_order_authorized"] is True
+assert gate["second_order_authorized"] is False
 assert gate["pending_unsubmitted_intent"] is None
 assert canary["status"] == "SUBMITTED_ZERO_FILL_OBSERVED_RECONCILIATION_PENDING"
 assert canary["network_submission_attempt_consumed"] is True
