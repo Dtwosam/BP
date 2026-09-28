@@ -20,6 +20,10 @@ from bp_engine.execution.fast_live import (
 )
 
 
+class FastBookCache(Protocol):
+    def snapshot(self, token_id: str) -> tuple[tuple[str, str], ...] | None: ...
+
+
 class FastLiveClient(Protocol):
     def get_order_book(self, *, token_id: str) -> object: ...
     def create_limit_order(
@@ -117,6 +121,7 @@ class FastLiveExecutor:
         *,
         client: FastLiveClient,
         safety_cache: SafetyCache,
+        book_cache: FastBookCache | None = None,
         state_root: Path,
         kill_switch_path: Path,
         max_safety_age_seconds: Decimal = Decimal("1"),
@@ -125,6 +130,7 @@ class FastLiveExecutor:
     ) -> None:
         self._client = client
         self._safety_cache = safety_cache
+        self._book_cache = book_cache
         self._state_root = state_root
         self._kill_switch_path = kill_switch_path
         self._max_safety_age_seconds = max_safety_age_seconds
@@ -220,16 +226,26 @@ class FastLiveExecutor:
             raise FastLiveError("fast live kill switch engaged before quote")
 
         quote_started_ns = time.monotonic_ns()
-        book = self._client.get_order_book(token_id=token_id)
-        quote_completed_ns = time.monotonic_ns()
-        asks = tuple(getattr(book, "asks", ()) or ())
-        levels = tuple(
-            (
-                getattr(level, "price", None),
-                getattr(level, "size", None),
-            )
-            for level in asks
+        cached_levels = (
+            self._book_cache.snapshot(token_id)
+            if self._book_cache is not None
+            else None
         )
+        if cached_levels is not None:
+            levels = cached_levels
+            quote_source = "stream"
+        else:
+            book = self._client.get_order_book(token_id=token_id)
+            asks = tuple(getattr(book, "asks", ()) or ())
+            levels = tuple(
+                (
+                    getattr(level, "price", None),
+                    getattr(level, "size", None),
+                )
+                for level in asks
+            )
+            quote_source = "http"
+        quote_completed_ns = time.monotonic_ns()
         marketability = marketable_depth(
             levels,
             limit_price=limit_price,
@@ -246,6 +262,7 @@ class FastLiveExecutor:
                 "quote_latency_ms": (
                     quote_completed_ns - quote_started_ns
                 ) / 1_000_000,
+                "quote_source": quote_source,
                 "sign_latency_ms": (
                     sign_completed_ns - sign_started_ns
                 ) / 1_000_000,
@@ -286,6 +303,7 @@ class FastLiveExecutor:
                 "quote_latency_ms": (
                     quote_completed_ns - quote_started_ns
                 ) / 1_000_000,
+                "quote_source": quote_source,
                 "sign_latency_ms": (
                     sign_completed_ns - sign_started_ns
                 ) / 1_000_000,
@@ -361,6 +379,7 @@ class FastLiveExecutor:
             "quote_latency_ms": (
                 quote_completed_ns - quote_started_ns
             ) / 1_000_000,
+            "quote_source": quote_source,
             "sign_latency_ms": (
                 sign_completed_ns - sign_started_ns
             ) / 1_000_000,
