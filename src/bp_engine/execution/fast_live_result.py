@@ -447,19 +447,9 @@ def settle_fast_live_position_if_resolved(
                 "intent_id": normalized_intent_id,
             }
 
-        prediction = connection.execute(
-            select(schema.live_predictions)
-            .where(schema.live_predictions.c.prediction_id == prediction_id)
-            .limit(1)
-        ).mappings().one_or_none()
-        if prediction is None:
-            raise FastLiveResultError("source prediction missing at settlement")
-        edge_config = prediction.get("edge_config")
-        if not isinstance(edge_config, Mapping):
-            raise FastLiveResultError("source edge config missing at settlement")
-        fee_rate = Decimal(str(edge_config.get("fee_rate")))
+        fee_rate = Decimal(str(evidence.get("modeled_fee_rate") or ""))
         if not Decimal("0") <= fee_rate <= Decimal("1"):
-            raise FastLiveResultError("source fee rate invalid at settlement")
+            raise FastLiveResultError("bound modeled fee rate invalid")
 
         fill_evidence = dict(fill_reconciliation["evidence"] or {})
         filled_shares = Decimal(
