@@ -29,7 +29,7 @@ def test_telegram_auto_approver_fixed_scale_runtime_repair_is_recorded() -> None
     )
     assert auto["runtime_repair_status"] == "PASS"
     assert auto["service_state"] == "running"
-    assert auto["service_pid"] == 1292
+    assert auto["service_pid"] == 86988
     assert auto["runtime_repair_previous_service_pid"] == 73154
     assert auto["fixed_scale_five_dollar_prompt_verified"] is True
     assert auto["non_five_dollar_prompt_rejected_verified"] is True
@@ -39,10 +39,15 @@ def test_telegram_auto_approver_fixed_scale_runtime_repair_is_recorded() -> None
     assert auto["runtime_repair_real_order_submitted"] is False
     assert auto["runtime_repair_global_live_trading_enabled"] is False
     assert auto["runtime_repair_scope_expanded"] is False
+    assert auto["wrapped_callback_adapter_merge_commit"] == (
+        "b6e99ba023c347c86a8c70f431772bb8d3833f2c"
+    )
+    assert auto["wrapped_callback_adapter_status"] == "PRODUCTION_PASS"
+    assert auto["last_successful_approval_message_id"] == 5469
 
-    assert controlled["consumed"] is False
-    assert controlled["network_attempt_observed"] is False
-    assert controlled["real_order_submission_observed"] is False
+    assert controlled["consumed"] is True
+    assert controlled["network_attempt_observed"] is True
+    assert controlled["real_order_submission_observed"] is True
     assert controlled["max_network_submission_attempts"] == 1
 
     assert evidence["result"] == "PASS"
