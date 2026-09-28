@@ -70,7 +70,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--kill-switch",
         type=Path,
-        default=Path("/etc/bp-fast-live/KILL"),
+        default=Path("/var/lib/bp-canary/fast-live/KILL"),
     )
     parser.add_argument("--safety-refresh-seconds", type=float, default=0.25)
     return parser.parse_args()
