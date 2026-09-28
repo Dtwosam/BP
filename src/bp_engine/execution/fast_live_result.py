@@ -314,17 +314,21 @@ def record_fast_live_official_reconciliation(
             realized_pnl = prior_pnl
             consecutive_losses = prior_losses
             kind = "post_submission_official_zero_fill"
+            unresolved_count = 0
+            critical_count = 0
         else:
-            exposure = Decimal("0")
+            exposure = filled_notional
             realized_pnl = prior_pnl
             consecutive_losses = prior_losses
-            kind = "post_submission_official_fill_reconciled"
+            kind = "post_submission_official_fill_open_exposure"
+            unresolved_count = 1
+            critical_count = 1
 
         stored = repository.store_reconciliation_run(
             connection,
             observed_at=observed,
-            unresolved_count=0,
-            critical_count=0,
+            unresolved_count=unresolved_count,
+            critical_count=critical_count,
             evidence={
                 "source": "phase15_v3_fast_live_official_reconciliation",
                 "reconciliation_kind": kind,
@@ -353,4 +357,5 @@ def record_fast_live_official_reconciliation(
         "reconciliation_id": str(stored.record["reconciliation_id"]),
         "confirmed_filled_shares": format(filled_shares, "f"),
         "confirmed_filled_notional_usd": format(filled_notional, "f"),
+        "settlement_reconciliation_required": filled_shares > 0,
     }
