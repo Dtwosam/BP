@@ -68,6 +68,9 @@ Johannesburg execution host:
     recorded as a pre-attempt exhaustion; no order is submitted and the one-shot network
     attempt remains unconsumed.
 11. Submission ambiguity never retries after the attempt marker exists.
+12. After the two-second rest/cancel window, official open orders and account trades are
+    sampled repeatedly outside the hot path. Zero-fill/fill state is committed only from
+    a stable final snapshot; transient MATCHED/nonfinal trade states remain blocked.
 12. Johannesburg publishes an HMAC-authenticated result only after execution processing.
     The order message is ACKed only after that result publish succeeds. If result publish
     fails, Pub/Sub redelivery replays the durable executor result; the one-shot marker
@@ -103,8 +106,17 @@ some price/amount combinations that can itself create non-fills.
 
 Partial fills are acceptable. The fast-live ledger keeps accepted or ambiguous submissions
 reconciliation-blocking until official account state is known. A confirmed zero-fill can
-clear exposure; a confirmed fill remains exposure/settlement-blocking until the market
-settlement and realized PnL are reconciled.
+clear exposure; a confirmed fill remains exposure/settlement-blocking until the official
+Up/Down outcome is present.
+
+For a confirmed live fill, final risk accounting uses the actual confirmed live shares and
+notional plus the immutable prediction's frozen V3 fee-rate assumption and the same
+per-share fee formula used by paper execution. The evidence explicitly labels that fee as
+modeled rather than wallet-audited. A winning settlement clears exposure and resets
+`consecutive_losses` to zero; a losing settlement clears exposure and increments the
+counter, so the existing one-loss stop blocks the next trade. The source stays alive in
+settlement-only mode after a fill and can resume settlement-only recovery after a service
+restart without reopening live order authorization.
 
 ## Authorization model
 
