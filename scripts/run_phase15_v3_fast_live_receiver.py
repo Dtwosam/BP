@@ -58,7 +58,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--transport-key-file",
         type=Path,
-        default=Path("/etc/bp-telegram-transport/transport.key"),
+        default=Path("/etc/bp-fast-live/transport.key"),
     )
     parser.add_argument("--transport-key-id", required=True)
     parser.add_argument("--expected-main", required=True)
@@ -254,12 +254,15 @@ def main() -> int:
         args.runtime_authorization,
         label="fast live runtime authorization",
     )
-    verify_runtime_authorization(
+    verified_runtime = verify_runtime_authorization(
         runtime,
         state=state,
         expected_main=args.expected_main,
         observed_at=_utc_now(),
     )
+    runtime_expires_at = datetime.fromisoformat(
+        str(verified_runtime["expires_at"])
+    ).astimezone(UTC)
     key = load_transport_key_file(args.transport_key_file)
 
     execution_client = _secure_client()
@@ -291,6 +294,7 @@ def main() -> int:
         args.gcp_project,
         args.result_topic_id,
     )
+    terminal_event = threading.Event()
 
     def publish_result(
         result: dict[str, Any],
@@ -434,6 +438,8 @@ def main() -> int:
             result["result_message_id"] = result_message_id
             print(json.dumps(result, sort_keys=True, default=str), flush=True)
             message.ack()
+            if result.get("network_submission_attempt_consumed") is True:
+                terminal_event.set()
         except Exception as exc:
             print(
                 json.dumps(
@@ -457,7 +463,16 @@ def main() -> int:
 
     future = subscriber.subscribe(subscription_path, callback=callback)
     try:
-        future.result()
+        while True:
+            if terminal_event.wait(timeout=0.25):
+                future.cancel()
+                break
+            if _utc_now() >= runtime_expires_at:
+                future.cancel()
+                break
+            if future.done():
+                future.result()
+                break
     except KeyboardInterrupt:
         future.cancel()
     finally:

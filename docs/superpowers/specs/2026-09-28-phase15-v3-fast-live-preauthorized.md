@@ -167,3 +167,56 @@ authorization, Pub/Sub resources, or remove the fast-live kill switch. Its deter
 release builder explicitly excludes source truth, authorization, environment files, and
 keys. It must be staged and latency-tested first. A real-money canary remains a separate
 explicit authorization and reconciliation boundary.
+
+## One-shot activation procedure
+
+The reviewed activation helper is:
+
+`scripts/deploy/phase15_v3_fast_live_activate_cloudshell.sh`
+
+It is deliberately separate from the stage helper. It must not be run unless
+`PROJECT_STATE.json` already contains a fresh `fast_live_preauthorization`
+object for exactly one real-money network submission attempt.
+
+The helper requires the exact acceptance value:
+
+`PHASE15_ACCEPT_FAST_LIVE_ACTIVATION=I_ACCEPT_ONE_REAL_MONEY_ATTEMPT`
+
+It then:
+
+1. requires a clean checkout exactly equal to current `origin/main`;
+2. validates the source-truth authorization with the fast-live verifier;
+3. creates a short-lived runtime authorization bound to the exact main commit
+   and canonical `PROJECT_STATE.json` hash;
+4. derives unique order/result Pub/Sub resources from the authorization ID;
+5. generates a new 32-byte fast-live transport key used only by this
+   authorization, rather than reusing Telegram transport key material;
+6. verifies the staged release on the recorder and Johannesburg hosts is the
+   exact authorized main commit and both fast-live services are inactive and
+   disabled;
+7. performs a read-only Johannesburg account/geoblock preflight and requires
+   ZA eligibility, zero open orders, a clean canary account and at least $5
+   collateral;
+8. installs identical source truth, runtime authorization and transport key
+   material on both hosts and verifies their SHA-256 bindings;
+9. starts the Johannesburg receiver while its kill switch is still engaged;
+10. removes the fast-live kill switch only immediately before starting the
+    recorder source service.
+
+The helper never enables either service at boot.
+
+The source exits normally when its runtime authorization expires before a
+trade. The receiver also exits at runtime expiry. After a network submission
+attempt, the executor writes the one-shot attempt marker and re-engages the
+kill switch before the POST. After the authenticated attempted result is
+published, the receiver exits; its systemd `ExecStopPost` re-engages the kill
+switch again. This gives redundant fail-closed re-locking.
+
+A fresh-book rejection does not consume the attempt. The source may continue
+within the same short authorization window looking for another eligible V3
+candidate. An accepted, rejected, or ambiguous network submission consumes the
+single attempt and cannot be retried automatically.
+
+Production activation remains a separate authorization boundary from merging
+or staging this code.
+

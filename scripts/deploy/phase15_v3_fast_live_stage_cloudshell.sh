@@ -114,6 +114,7 @@ install -d -o bp -g bp -m 0700 /var/lib/bp/phase15-fast-live
 
 [[ ! -e /etc/bp-fast-live/authorization.json ]]
 [[ ! -e /etc/bp-fast-live/PROJECT_STATE.json ]]
+[[ ! -e /etc/bp-fast-live/transport.key ]]
 [[ ! -e /etc/bp/phase15-fast-live-source.env ]]
 systemctl is-active --quiet "$unit" && exit 34 || true
 systemctl is-enabled --quiet "$unit" && exit 35 || true
@@ -195,6 +196,7 @@ chmod 0600 "$kill"
 
 [[ ! -e /etc/bp-fast-live/authorization.json ]]
 [[ ! -e /etc/bp-fast-live/PROJECT_STATE.json ]]
+[[ ! -e /etc/bp-fast-live/transport.key ]]
 [[ ! -e /etc/bp-fast-live/receiver.env ]]
 systemctl is-active --quiet "$unit" && exit 44 || true
 systemctl is-enabled --quiet "$unit" && exit 45 || true

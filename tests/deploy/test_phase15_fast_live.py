@@ -30,7 +30,7 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
         "BP_PHASE15_FAST_LIVE_SOURCE_ENABLED=yes",
         "ConditionPathExists=/etc/bp-fast-live/authorization.json",
         "ConditionPathExists=/etc/bp-fast-live/PROJECT_STATE.json",
-        "ConditionPathExists=/etc/bp-telegram-transport/transport.key",
+        "ConditionPathExists=/etc/bp-fast-live/transport.key",
         "--expected-main ${BP_FAST_LIVE_EXPECTED_MAIN}",
         "--topic-id ${BP_FAST_LIVE_TOPIC_ID}",
         "--result-subscription-id ${BP_FAST_LIVE_RESULT_SUBSCRIPTION_ID}",
@@ -45,6 +45,8 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert "POLYMARKET_PRIVATE_KEY" in source
     assert "must not be present in fast live source" in source
     assert "Telegram" not in source
+    assert "/etc/bp-telegram-transport/transport.key" not in text
+    assert "/etc/bp-telegram-transport/transport.key" not in source
 
 
 def test_fast_live_receiver_is_preauthorized_one_shot_and_fail_closed() -> None:
@@ -60,6 +62,7 @@ def test_fast_live_receiver_is_preauthorized_one_shot_and_fail_closed() -> None:
         "fast-live-service-stop > /var/lib/bp-canary/fast-live/KILL",
     ):
         assert marker in unit
+    assert "ConditionPathExists=/etc/bp-fast-live/transport.key" in unit
     assert "ReadOnlyPaths=/opt/bp-fast-live /etc/bp-fast-live" in unit
     assert "ReadWritePaths=/var/lib/bp-canary/fast-live" in unit
     receiver = RECEIVER.read_text(encoding="utf-8")
@@ -73,6 +76,8 @@ def test_fast_live_receiver_is_preauthorized_one_shot_and_fail_closed() -> None:
     assert "result_publisher.publish" in receiver
     assert "message.nack()" in receiver
     assert "if order_verified and executor.attempt_path.exists()" in receiver
+    assert "/etc/bp-telegram-transport/transport.key" not in unit
+    assert "/etc/bp-telegram-transport/transport.key" not in receiver
 
 
 def test_fast_live_executor_quotes_before_attempt_and_post() -> None:

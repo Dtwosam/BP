@@ -6,7 +6,7 @@ ConditionPathExists=/etc/bp-fast-live/authorization.json
 ConditionPathExists=/etc/bp-fast-live/PROJECT_STATE.json
 ConditionPathExists=/etc/bp-fast-live/receiver.env
 ConditionPathExists=/etc/bp-canary/live.env
-ConditionPathExists=/etc/bp-telegram-transport/transport.key
+ConditionPathExists=/etc/bp-fast-live/transport.key
 
 [Service]
 Type=simple
@@ -36,7 +36,7 @@ ProtectControlGroups=true
 RestrictNamespaces=true
 RestrictSUIDSGID=true
 LockPersonality=true
-ReadOnlyPaths=/opt/bp-fast-live /etc/bp-fast-live /etc/bp-canary/live.env /etc/bp-telegram-transport/transport.key
+ReadOnlyPaths=/opt/bp-fast-live /etc/bp-fast-live /etc/bp-canary/live.env /etc/bp-fast-live/transport.key
 ReadWritePaths=/var/lib/bp-canary/fast-live
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 StandardOutput=journal

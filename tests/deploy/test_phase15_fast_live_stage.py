@@ -19,6 +19,7 @@ def test_fast_live_stage_installer_cannot_activate_or_authorize() -> None:
         "EXECUTOR_KILL_SWITCH_ENGAGED=true",
         "[[ ! -e /etc/bp-fast-live/authorization.json ]]",
         "[[ ! -e /etc/bp-fast-live/PROJECT_STATE.json ]]",
+        "[[ ! -e /etc/bp-fast-live/transport.key ]]",
     ):
         assert marker in text
 
