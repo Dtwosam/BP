@@ -362,3 +362,240 @@ def record_fast_live_official_reconciliation(
         "confirmed_filled_notional_usd": format(filled_notional, "f"),
         "settlement_reconciliation_required": filled_shares > 0,
     }
+
+def settle_fast_live_position_if_resolved(
+    *,
+    engine: Engine,
+    intent_id: str,
+    observed_at: datetime,
+) -> dict[str, object]:
+    observed = _utc(observed_at)
+    repository = LiveReadinessRepository()
+    normalized_intent_id = str(intent_id).strip()
+    if not normalized_intent_id:
+        raise FastLiveResultError("settlement intent id missing")
+
+    with engine.begin() as connection:
+        intent = _intent(connection, normalized_intent_id)
+        evidence = dict(intent["evidence"] or {})
+        prediction_id = str(intent["prediction_id"])
+        paper_order_id = str(evidence.get("paper_order_id") or "")
+        selected_side = str(evidence.get("selected_side") or "").strip().lower()
+        if selected_side not in {"up", "down"}:
+            raise FastLiveResultError("fast-live selected side missing")
+        if not paper_order_id:
+            raise FastLiveResultError("fast-live paper order id missing")
+
+        reconciliation_rows = connection.execute(
+            select(schema.live_reconciliation_runs).order_by(
+                schema.live_reconciliation_runs.c.observed_at.desc(),
+                schema.live_reconciliation_runs.c.id.desc(),
+            )
+        ).mappings().all()
+
+        fill_reconciliation: Mapping[str, Any] | None = None
+        for row in reconciliation_rows:
+            reconciliation_evidence = dict(row["evidence"] or {})
+            if (
+                reconciliation_evidence.get("intent_id") == normalized_intent_id
+                and reconciliation_evidence.get("reconciliation_kind")
+                == "fast_live_official_settlement"
+            ):
+                return {
+                    "status": "already_settled",
+                    "intent_id": normalized_intent_id,
+                    "reconciliation_id": str(row["reconciliation_id"]),
+                    "risk_realized_pnl_usd": str(
+                        reconciliation_evidence.get(
+                            "risk_realized_pnl_usd",
+                            "0",
+                        )
+                    ),
+                }
+            if (
+                fill_reconciliation is None
+                and reconciliation_evidence.get("intent_id")
+                == normalized_intent_id
+                and reconciliation_evidence.get("reconciliation_kind")
+                == "post_submission_official_fill_open_exposure"
+            ):
+                fill_reconciliation = row
+
+        if fill_reconciliation is None:
+            return {
+                "status": "waiting",
+                "reason": "confirmed_live_fill_not_available",
+                "intent_id": normalized_intent_id,
+            }
+
+        evaluation = connection.execute(
+            select(schema.live_prediction_evaluations)
+            .where(
+                schema.live_prediction_evaluations.c.prediction_id
+                == prediction_id
+            )
+            .order_by(
+                schema.live_prediction_evaluations.c.evaluated_at.desc(),
+                schema.live_prediction_evaluations.c.id.desc(),
+            )
+            .limit(1)
+        ).mappings().one_or_none()
+        if evaluation is None:
+            return {
+                "status": "waiting",
+                "reason": "official_outcome_not_available",
+                "intent_id": normalized_intent_id,
+            }
+
+        prediction = connection.execute(
+            select(schema.live_predictions)
+            .where(schema.live_predictions.c.prediction_id == prediction_id)
+            .limit(1)
+        ).mappings().one_or_none()
+        if prediction is None:
+            raise FastLiveResultError("source prediction missing at settlement")
+        edge_config = prediction.get("edge_config")
+        if not isinstance(edge_config, Mapping):
+            raise FastLiveResultError("source edge config missing at settlement")
+        fee_rate = Decimal(str(edge_config.get("fee_rate")))
+        if not Decimal("0") <= fee_rate <= Decimal("1"):
+            raise FastLiveResultError("source fee rate invalid at settlement")
+
+        fill_evidence = dict(fill_reconciliation["evidence"] or {})
+        filled_shares = Decimal(
+            str(fill_evidence.get("confirmed_filled_shares") or "0")
+        )
+        filled_notional = Decimal(
+            str(fill_evidence.get("confirmed_filled_notional_usd") or "0")
+        )
+        if filled_shares <= 0 or filled_notional <= 0:
+            raise FastLiveResultError("settlement requires positive confirmed fill")
+        average_fill_price = filled_notional / filled_shares
+        if not Decimal("0") < average_fill_price <= Decimal("1"):
+            raise FastLiveResultError("average live fill price invalid")
+
+        official_outcome = str(evaluation["official_outcome"]).strip().lower()
+        if official_outcome not in {"up", "down"}:
+            raise FastLiveResultError("official outcome invalid")
+        payout = (
+            filled_shares
+            if selected_side == official_outcome
+            else Decimal("0")
+        )
+        modeled_fee = (
+            filled_shares
+            * fee_rate
+            * average_fill_price
+            * (Decimal("1") - average_fill_price)
+        )
+        risk_realized_pnl = payout - filled_notional - modeled_fee
+
+        prior_account_raw = fill_evidence.get("account_snapshot")
+        if not isinstance(prior_account_raw, Mapping):
+            raise FastLiveResultError(
+                "fill reconciliation account snapshot missing"
+            )
+        prior_pnl = Decimal(
+            str(prior_account_raw.get("realized_daily_pnl_usd") or "0")
+        )
+        prior_losses = int(
+            prior_account_raw.get("consecutive_losses") or 0
+        )
+        next_pnl = prior_pnl + risk_realized_pnl
+        next_losses = prior_losses + 1 if risk_realized_pnl < 0 else 0
+
+        external_order_id = str(
+            fill_evidence.get("external_order_id") or ""
+        ) or None
+        label_version = str(evaluation["label_version"])
+        repository.store_order_event(
+            connection,
+            event_key=f"{normalized_intent_id}:settled:{label_version}",
+            intent_id=normalized_intent_id,
+            event_type="settled",
+            observed_at=observed,
+            external_order_id=external_order_id,
+            external_trade_id=None,
+            evidence={
+                "phase": "phase15_v3_fast_live_v1",
+                "paper_order_id": paper_order_id,
+                "label_version": label_version,
+                "official_outcome": str(evaluation["official_outcome"]),
+                "selected_side": selected_side,
+                "confirmed_filled_shares": format(filled_shares, "f"),
+                "confirmed_filled_notional_usd": format(
+                    filled_notional,
+                    "f",
+                ),
+                "modeled_fee_usd": format(modeled_fee, "f"),
+                "risk_realized_pnl_usd": format(
+                    risk_realized_pnl,
+                    "f",
+                ),
+            },
+        )
+        stored = repository.store_reconciliation_run(
+            connection,
+            observed_at=observed,
+            unresolved_count=0,
+            critical_count=0,
+            evidence={
+                "source": "phase15_v3_fast_live_settlement",
+                "reconciliation_kind": "fast_live_official_settlement",
+                "intent_id": normalized_intent_id,
+                "external_order_id": external_order_id,
+                "paper_order_id": paper_order_id,
+                "label_version": label_version,
+                "official_outcome": str(evaluation["official_outcome"]),
+                "selected_side": selected_side,
+                "confirmed_filled_shares": format(
+                    filled_shares,
+                    "f",
+                ),
+                "confirmed_filled_notional_usd": format(
+                    filled_notional,
+                    "f",
+                ),
+                "average_fill_price": format(
+                    average_fill_price,
+                    "f",
+                ),
+                "modeled_fee_rate": format(fee_rate, "f"),
+                "modeled_fee_usd": format(modeled_fee, "f"),
+                "risk_realized_pnl_usd": format(
+                    risk_realized_pnl,
+                    "f",
+                ),
+                "fee_accounting_basis": (
+                    "frozen_v3_signal_fee_formula_not_wallet_audited"
+                ),
+                "account_snapshot": {
+                    "total_exposure_usd": "0",
+                    "realized_daily_pnl_usd": format(next_pnl, "f"),
+                    "consecutive_losses": next_losses,
+                },
+                "account_snapshot_carried_from_reconciliation_id": str(
+                    fill_reconciliation["reconciliation_id"]
+                ),
+            },
+        )
+
+    return {
+        "status": "settled",
+        "intent_id": normalized_intent_id,
+        "reconciliation_id": str(stored.record["reconciliation_id"]),
+        "official_outcome": str(evaluation["official_outcome"]),
+        "selected_side": selected_side,
+        "confirmed_filled_shares": format(filled_shares, "f"),
+        "confirmed_filled_notional_usd": format(
+            filled_notional,
+            "f",
+        ),
+        "modeled_fee_usd": format(modeled_fee, "f"),
+        "risk_realized_pnl_usd": format(
+            risk_realized_pnl,
+            "f",
+        ),
+        "consecutive_losses": next_losses,
+    }
+
