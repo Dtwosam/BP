@@ -22,7 +22,10 @@ US recorder host:
 
 1. A one-shot source-truth authorization and matching root-owned runtime authorization must
    already exist.
-2. A dedicated preparer watches only new frozen-V3 paper orders after authorization.
+2. A dedicated preparer watches new frozen-V3 trade predictions after authorization and
+   derives the exact order through the same frozen `build_paper_order` formula and config.
+   A parity test requires the resulting request to equal the ordinary frozen paper request.
+   This removes the paper-order persistence/poll hop without changing the order economics.
 3. The preparer runs the existing V3 live-risk policy and persists the exact risk decision
    and live intent.
 4. If eligible, the source creates an HMAC-bound envelope containing the exact request,
@@ -38,18 +41,23 @@ Johannesburg execution host:
 2. The receiver independently validates source truth, runtime authorization, HMAC, exact
    request bindings, two-second transit age, fresh safety state, country ZA, zero open
    orders, and collateral.
-3. The exact frozen limit order is signed **before** the final order-book query. Signing
+3. Warm-up messages subscribe the Johannesburg book stream to both tokens for the active
+   five-minute market before an eligible signal exists.
+4. The exact frozen limit order is signed **before** the final order-book query. Signing
    does not submit or consume the one-shot authorization.
-4. The receiver obtains the latest Polymarket book immediately before submission.
-5. If any ask liquidity exists at or below the frozen V3 limit, the receiver atomically
+5. The receiver uses the streamed book only when the exact token has updated within 0.5
+   seconds; otherwise it performs a fresh HTTP order-book read immediately before submission.
+6. If any ask liquidity exists at or below the frozen V3 limit, the receiver atomically
    creates the one-shot network-attempt marker, immediately re-engages the kill switch,
    and posts the already-signed crossing limit order.
-6. The full requested size is submitted. Visible depth need not cover the full order:
+7. The full requested size is submitted. Visible depth need not cover the full order:
    immediately executable shares may fill at once and the remainder retains the existing
    two-second resting/cancel window. The limit price is never raised.
-7. A stale book with no executable ask at or below the V3 limit does not consume the
+8. A stale book with no executable ask at or below the V3 limit does not consume the
    network-attempt marker.
-8. Submission ambiguity never retries after the attempt marker exists.
+9. A transient safety-cache or HTTP-quote failure before the attempt marker may be nacked
+   for bounded Pub/Sub redelivery while the two-second envelope remains valid.
+10. Submission ambiguity never retries after the attempt marker exists.
 
 ## Critical-path design
 
@@ -63,7 +71,7 @@ Slow or reusable work is removed from the post-quote window:
 - the order is pre-signed before the final book read.
 - the final sequence is therefore approximately:
 
-  `fresh book -> one-shot marker -> HTTP order POST`
+  `pre-signed order -> token-fresh stream/HTTP book -> one-shot marker -> HTTP order POST`
 
 Instrumentation records source-to-receive, quote, sign, post, and quote-to-post latency.
 
@@ -81,7 +89,9 @@ shares, confirmed notional, and fill fraction rather than assuming all-or-nothin
 
 The source truth must later contain a new `fast_live_preauthorization` object. The
 current repository intentionally does not contain that object, and tests require the
-current state to fail closed.
+current state to fail closed. The exact authorized source-truth snapshot is installed
+separately under `/etc/bp-fast-live/PROJECT_STATE.json`; it is not embedded in the code
+release.
 
 A root-owned runtime authorization additionally binds:
 
@@ -92,7 +102,8 @@ A root-owned runtime authorization additionally binds:
 - one network submission attempt;
 - authorization issue/expiry times.
 
-The execution host also has a separate `/etc/bp-fast-live/KILL` switch. A network
+The execution host also has a separate
+`/var/lib/bp-canary/fast-live/KILL` switch. A network
 attempt is consumed before the POST and re-engages that switch immediately, so duplicate
 delivery or process restart cannot produce a second order.
 
@@ -119,6 +130,7 @@ does not silently loosen trade frequency.
 ## Production boundary
 
 This engineering candidate does not create the source-truth authorization, runtime
-authorization, Pub/Sub resources, or remove the fast-live kill switch. It must be staged
-and latency-tested first. A real-money canary remains a separate explicit authorization
-and reconciliation boundary.
+authorization, Pub/Sub resources, or remove the fast-live kill switch. Its deterministic
+release builder explicitly excludes source truth, authorization, environment files, and
+keys. It must be staged and latency-tested first. A real-money canary remains a separate
+explicit authorization and reconciliation boundary.
