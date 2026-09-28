@@ -65,7 +65,7 @@ def test_fast_live_receiver_is_preauthorized_one_shot_and_fail_closed() -> None:
     assert "verify_envelope" in receiver
     assert "executor.execute(verified)" in receiver
     assert "nacked_for_bounded_redelivery" in receiver
-    assert 'getattr(message, "nack")()' in receiver
+    assert "message.nack()" in receiver
 
 
 def test_fast_live_executor_quotes_before_attempt_and_post() -> None:
