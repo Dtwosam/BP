@@ -158,6 +158,59 @@ def _publication_state(root: Path) -> str:
     return "ready"
 
 
+def _pending_settlement_intent(root: Path) -> str:
+    results_root = root / "results"
+    if not results_root.is_dir():
+        return ""
+    for path in sorted(results_root.glob("*.json")):
+        receipt = _load_json(path)
+        official = receipt.get("official_recorded")
+        if not isinstance(official, dict):
+            continue
+        if official.get("settlement_reconciliation_required") is not True:
+            continue
+        intent_id = str(receipt.get("intent_id") or "").strip()
+        if intent_id:
+            return intent_id
+    return ""
+
+
+def _settle_until_terminal(
+    *,
+    engine,
+    intent_id: str,
+    poll_seconds: float,
+) -> int:
+    while True:
+        settlement = settle_fast_live_position_if_resolved(
+            engine=engine,
+            intent_id=intent_id,
+            observed_at=_utc_now(),
+        )
+        status = str(settlement.get("status") or "")
+        if status in {"settled", "already_settled"}:
+            print(
+                json.dumps(
+                    settlement,
+                    sort_keys=True,
+                    default=str,
+                ),
+                flush=True,
+            )
+            return 0
+        if status != "waiting":
+            print(
+                json.dumps(
+                    settlement,
+                    sort_keys=True,
+                    default=str,
+                ),
+                flush=True,
+            )
+            return 2
+        time.sleep(max(poll_seconds, 0.25))
+
+
 def _publish_once(
     publisher: pubsub_v1.PublisherClient,
     *,
@@ -281,6 +334,29 @@ def main() -> int:
     if collateral < Decimal("5"):
         raise SystemExit("official collateral must be at least 5")
 
+    _ensure_private_dir(args.receipt_dir)
+    _ensure_private_dir(args.receipt_dir / "results")
+    settings = (
+        Settings(_env_file=args.env_file)
+        if args.env_file
+        else Settings()
+    )
+    engine = create_engine(settings.database_url, pool_pre_ping=True)
+    publication_state = _publication_state(args.receipt_dir)
+    if publication_state == "attempt_consumed":
+        pending_settlement = _pending_settlement_intent(args.receipt_dir)
+        if pending_settlement:
+            try:
+                return _settle_until_terminal(
+                    engine=engine,
+                    intent_id=pending_settlement,
+                    poll_seconds=args.poll_seconds,
+                )
+            finally:
+                engine.dispose()
+        engine.dispose()
+        return 0
+
     key = load_transport_key_file(args.transport_key_file)
     state = _load_state(args.project_state)
     runtime = load_private_json(
@@ -298,12 +374,6 @@ def main() -> int:
         raise SystemExit("runtime authorization issued_at must be timezone-aware")
     activated_at = activated_at.astimezone(UTC)
 
-    settings = (
-        Settings(_env_file=args.env_file)
-        if args.env_file
-        else Settings()
-    )
-    engine = create_engine(settings.database_url, pool_pre_ping=True)
     publisher = pubsub_v1.PublisherClient()
     topic_path = publisher.topic_path(args.gcp_project, args.topic_id)
     result_subscriber = pubsub_v1.SubscriberClient()
@@ -311,8 +381,6 @@ def main() -> int:
         args.gcp_project,
         args.result_subscription_id,
     )
-    _ensure_private_dir(args.receipt_dir)
-    _ensure_private_dir(args.receipt_dir / "results")
     interlock = InterlockDecision(eligible=True, reasons=())
     warmed_condition_id = ""
     next_warmup_check = 0.0
@@ -457,47 +525,17 @@ def main() -> int:
         result_subscription_path,
         callback=result_callback,
     )
-    publication_state = _publication_state(args.receipt_dir)
-    if publication_state == "attempt_consumed":
-        result_future.cancel()
-        result_subscriber.close()
-        engine.dispose()
-        publisher.stop()
-        return 0
     waiting_for_result = publication_state == "waiting_for_result"
     settlement_intent_id = ""
 
     try:
         while True:
             if settlement_intent_id:
-                settlement = settle_fast_live_position_if_resolved(
+                return _settle_until_terminal(
                     engine=engine,
                     intent_id=settlement_intent_id,
-                    observed_at=_utc_now(),
+                    poll_seconds=args.poll_seconds,
                 )
-                settlement_status = str(settlement.get("status") or "")
-                if settlement_status in {"settled", "already_settled"}:
-                    print(
-                        json.dumps(
-                            settlement,
-                            sort_keys=True,
-                            default=str,
-                        ),
-                        flush=True,
-                    )
-                    return 0
-                if settlement_status != "waiting":
-                    print(
-                        json.dumps(
-                            settlement,
-                            sort_keys=True,
-                            default=str,
-                        ),
-                        flush=True,
-                    )
-                    return 2
-                time.sleep(max(args.poll_seconds, 0.25))
-                continue
             if waiting_for_result:
                 if not result_event.wait(timeout=args.poll_seconds):
                     continue
