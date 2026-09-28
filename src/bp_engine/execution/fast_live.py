@@ -33,6 +33,12 @@ class FastLiveError(RuntimeError):
     pass
 
 
+class FastLiveRetryableError(FastLiveError):
+    """Transient pre-attempt condition that may recover within the envelope lifetime."""
+
+    pass
+
+
 def _utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise FastLiveError("timestamp must be timezone-aware")
