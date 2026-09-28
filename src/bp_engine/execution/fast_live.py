@@ -382,9 +382,10 @@ def marketable_depth(
             best = price
         if price <= limit:
             depth += size
-    marketable = best is not None and best <= limit and depth >= requested
+    marketable = best is not None and best <= limit and depth > 0
     return {
         "marketable": marketable,
+        "full_size_marketable": depth >= requested,
         "best_ask": None if best is None else format(best, "f"),
         "marketable_depth": format(depth, "f"),
         "requested_shares": format(requested, "f"),
