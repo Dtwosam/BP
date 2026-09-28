@@ -14,7 +14,7 @@
     "reconciliation_helper": "scripts/deploy/phase15_v3_second_canary_db_reconciliation_cloudshell.sh",
     "reconciliation_helper_git_blob_sha": "1fa22dae91f8ffde5c26c0096f1bf5c53547098e",
     "completion_helper": "scripts/deploy/phase15_v3_second_canary_zero_fill_completion_cloudshell.sh",
-    "completion_helper_git_blob_sha": "240b607c6e81297e4ac82d2eff603a1186bc5624",
+    "completion_helper_git_blob_sha": "272313d9bda1712a9d5afa7fd9b0ea634cde2267",
     "live_account_snapshot_git_blob_sha": "3dd9d1ed6821a126e9075f72b2a2e0d6d1f969a6",
     "sidecar_runner_git_blob_sha": "ed3ced72c75291a0fd79a15009b0a468561683d9",
     "sidecar_service_unit_git_blob_sha": "2f162c9c17658d6917544b056176a56cc50bea46",
