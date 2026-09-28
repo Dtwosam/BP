@@ -14,6 +14,7 @@ from bp_engine.execution.canary import (
     CANARY_TARGET_NOTIONAL_USD,
     _ensure_initial_reconciliation,
     _evaluated_prediction_ids,
+    _latest_clean_account_snapshot,
     _retryable_risk_reasons,
     canary_policy,
 )
@@ -389,3 +390,198 @@ def prepare_fast_live_candidate(
             "max_submission_attempts": 1,
         },
     }
+
+def record_fast_live_result(
+    *,
+    engine: Engine,
+    result: dict[str, object],
+    observed_at: datetime,
+) -> dict[str, object]:
+    intent_id = str(result.get("intent_id") or "").strip()
+    request_hash = str(result.get("request_sha256") or "").strip()
+    status = str(result.get("status") or "").strip()
+    if not intent_id or not request_hash or not status:
+        raise RuntimeError("fast live result binding missing")
+
+    network_attempt = result.get("network_submission_attempt_consumed") is True
+    real_order_submitted = result.get("real_order_submitted") is True
+    if not network_attempt and real_order_submitted:
+        raise RuntimeError("fast live result claims order without network attempt")
+
+    repository = LiveReadinessRepository()
+    with engine.begin() as connection:
+        intent = connection.execute(
+            select(schema.live_order_intents).where(
+                schema.live_order_intents.c.intent_id == intent_id,
+                schema.live_order_intents.c.policy_version == CANARY_POLICY_VERSION,
+            )
+        ).mappings().one_or_none()
+        if intent is None:
+            raise RuntimeError("unknown fast live intent")
+
+        if network_attempt:
+            existing = connection.execute(
+                select(schema.live_order_events.c.event_type)
+                .where(
+                    schema.live_order_events.c.intent_id == intent_id,
+                    schema.live_order_events.c.event_type.in_(
+                        ("accepted", "rejected", "submission_unknown")
+                    ),
+                )
+                .order_by(schema.live_order_events.c.id.desc())
+                .limit(1)
+            ).scalar_one_or_none()
+            if existing is not None:
+                return {
+                    "status": "already_recorded",
+                    "intent_id": intent_id,
+                    "event_type": str(existing),
+                    "network_submission_attempt_consumed": True,
+                    "recycle_allowed": False,
+                }
+
+            accepted = result.get("accepted") is True
+            external_order_id = (
+                str(result.get("external_order_id") or "").strip() or None
+            )
+            if accepted and external_order_id:
+                event_type = "accepted"
+            elif status == "rejected":
+                event_type = "rejected"
+            else:
+                event_type = "submission_unknown"
+
+            repository.store_order_event(
+                connection,
+                event_key=f"{intent_id}:{event_type}",
+                intent_id=intent_id,
+                event_type=event_type,
+                observed_at=observed_at,
+                external_order_id=external_order_id,
+                external_trade_id=None,
+                evidence={
+                    "phase": "phase15_v3_fast_live_v1",
+                    "request_sha256": request_hash,
+                    "executor_result": result,
+                    "network_submission_attempt_consumed": True,
+                    "real_order_submitted": real_order_submitted,
+                },
+            )
+
+            cancellation = result.get("cancellation")
+            if accepted and external_order_id and isinstance(cancellation, dict):
+                if cancellation.get("cancelled") is True:
+                    cancel_event = "cancelled"
+                elif str(cancellation.get("not_cancelled") or "").strip():
+                    cancel_event = "cancel_rejected"
+                else:
+                    cancel_event = "cancellation_unknown"
+                repository.store_order_event(
+                    connection,
+                    event_key=f"{intent_id}:{cancel_event}",
+                    intent_id=intent_id,
+                    event_type=cancel_event,
+                    observed_at=observed_at,
+                    external_order_id=external_order_id,
+                    external_trade_id=None,
+                    evidence={
+                        "phase": "phase15_v3_fast_live_v1",
+                        "request_sha256": request_hash,
+                        "cancellation": cancellation,
+                        "ttl_seconds": 2,
+                    },
+                )
+
+            return {
+                "status": "recorded_network_attempt",
+                "intent_id": intent_id,
+                "event_type": event_type,
+                "external_order_id": external_order_id,
+                "network_submission_attempt_consumed": True,
+                "recycle_allowed": False,
+            }
+
+        existing_closed = connection.execute(
+            select(schema.live_order_events.c.event_type)
+            .where(
+                schema.live_order_events.c.intent_id == intent_id,
+                schema.live_order_events.c.event_type == "closed_before_submission",
+            )
+            .order_by(schema.live_order_events.c.id.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if existing_closed is not None:
+            return {
+                "status": "already_closed_before_submission",
+                "intent_id": intent_id,
+                "event_type": "closed_before_submission",
+                "network_submission_attempt_consumed": False,
+                "recycle_allowed": True,
+            }
+
+        attempted = connection.execute(
+            select(schema.live_order_events.c.event_type)
+            .where(
+                schema.live_order_events.c.intent_id == intent_id,
+                schema.live_order_events.c.event_type.in_(
+                    ("accepted", "rejected", "submission_unknown")
+                ),
+            )
+            .order_by(schema.live_order_events.c.id.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if attempted is not None:
+            raise RuntimeError("cannot recycle fast live intent after network attempt")
+
+        carried = _latest_clean_account_snapshot(
+            connection,
+            observed_at=observed_at,
+        )
+        repository.store_order_event(
+            connection,
+            event_key=f"{intent_id}:closed_before_submission",
+            intent_id=intent_id,
+            event_type="closed_before_submission",
+            observed_at=observed_at,
+            external_order_id=None,
+            external_trade_id=None,
+            evidence={
+                "phase": "phase15_v3_fast_live_v1",
+                "reason": status,
+                "request_sha256": request_hash,
+                "executor_result": result,
+                "network_submission_attempt_consumed": False,
+                "real_order_submitted": False,
+            },
+        )
+        reconciliation = repository.store_reconciliation_run(
+            connection,
+            observed_at=observed_at,
+            unresolved_count=0,
+            critical_count=0,
+            evidence={
+                "phase": "phase15_v3_fast_live_v1",
+                "intent_id": intent_id,
+                "reconciliation_kind": "fast_live_pre_submission_close",
+                "reason": status,
+                "request_sha256": request_hash,
+                "network_submission_attempt_consumed": False,
+                **(
+                    {
+                        "account_snapshot_carried_from_reconciliation_id": carried[0],
+                        "account_snapshot": carried[1],
+                    }
+                    if carried is not None
+                    else {}
+                ),
+            },
+        )
+        return {
+            "status": "closed_before_submission",
+            "intent_id": intent_id,
+            "event_type": "closed_before_submission",
+            "reconciliation_id": str(reconciliation.record["reconciliation_id"]),
+            "network_submission_attempt_consumed": False,
+            "recycle_allowed": True,
+        }
+
