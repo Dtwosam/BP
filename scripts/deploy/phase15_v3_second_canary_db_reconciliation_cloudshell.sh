@@ -31,7 +31,7 @@ command -v python3 >/dev/null 2>&1 || fail "python3_missing"
 
 SELF_BLOB=$(git hash-object "$ROOT/scripts/deploy/phase15_v3_second_canary_db_reconciliation_cloudshell.sh")
 
-read -r INTENT_ID ORDER_ID REQUESTED_SHARES EXPECTED_BLOB < <(
+read -r INTENT_ID ORDER_ID REQUESTED_SHARES PREDICTION_ID PAPER_ORDER_ID EXPECTED_BLOB < <(
 python3 - "$ROOT/PROJECT_STATE.json" "$SELF_BLOB" <<'PY'
 import json
 import sys
@@ -73,12 +73,70 @@ print(
     canary["intent_id"],
     canary["external_order_id"],
     canary["requested_shares"],
+    canary["prediction_id"],
+    canary["paper_order_id"],
     repair["helper_git_blob_sha"],
 )
 PY
 ) || fail "source_truth_not_authorized_for_exact_repair_helper"
 
 [[ "$SELF_BLOB" == "$EXPECTED_BLOB" ]] || fail "repair_helper_blob_mismatch"
+
+RECEIPT=$(gcloud compute ssh "$EXEC_VM" \
+  --project="$PROJECT" \
+  --zone="$EXEC_ZONE" \
+  --quiet \
+  --command="sudo env CANARY_INTENT_ID='$INTENT_ID' CANARY_ORDER_ID='$ORDER_ID' python3 -" <<'PY'
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+
+intent_id = os.environ["CANARY_INTENT_ID"]
+order_id = os.environ["CANARY_ORDER_ID"]
+root = Path("/var/lib/bp-canary/telegram-live-handoff")
+matches = []
+for path in sorted(root.glob("*.result.json")):
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        continue
+    if str(payload.get("intent_id") or "") != intent_id:
+        continue
+    if str(payload.get("external_order_id") or "") != order_id:
+        continue
+    matches.append(payload)
+if len(matches) != 1:
+    raise SystemExit(f"expected exactly one exact executor receipt, got {len(matches)}")
+print(json.dumps(matches[0], sort_keys=True))
+PY
+) || fail "executor_receipt_lookup_failed"
+
+if ! python3 - "$RECEIPT" "$INTENT_ID" "$ORDER_ID" "$PREDICTION_ID" "$PAPER_ORDER_ID" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+assert payload["status"] == "executor_result_recorded"
+assert payload["intent_id"] == sys.argv[2]
+assert payload["external_order_id"] == sys.argv[3]
+assert payload["prediction_id"] == sys.argv[4]
+assert payload["paper_order_id"] == sys.argv[5]
+assert payload["accepted"] is True
+assert payload["real_order_submitted"] is True
+assert payload["network_submission_attempt_consumed"] is True
+assert payload["authorization_slot_consumed"] is True
+assert payload["retry_allowed"] is False
+assert payload["official_reconciliation_required"] is True
+cancellation = payload["cancellation"]
+assert isinstance(cancellation, dict)
+assert cancellation["cancelled"] is True
+assert cancellation["status"] == "cancelled"
+PY
+then
+  fail "executor_receipt_not_exact_accepted_cancelled_canary"
+fi
 
 EXECUTOR_SHA256=$(python3 - "$ROOT/scripts/deploy/phase15_v3_canary_executor.py" <<'PY'
 import hashlib
@@ -273,12 +331,13 @@ fi
 
 HEALTH_B64=$(printf '%s' "$HEALTH" | base64 -w0)
 SNAPSHOT_B64=$(printf '%s' "$SNAPSHOT" | base64 -w0)
+RECEIPT_B64=$(printf '%s' "$RECEIPT" | base64 -w0)
 
 RECONCILED=$(gcloud compute ssh "$US_VM" \
   --project="$PROJECT" \
   --zone="$US_ZONE" \
   --quiet \
-  --command="sudo -u bp env PYTHONPATH='$V3_RUNTIME/src' MODE=research LIVE_TRADING_ENABLED=false MAX_TRADE_SIZE_USD=0 MAX_DAILY_LOSS_USD=0 CANARY_HEALTH_B64='$HEALTH_B64' CANARY_SNAPSHOT_B64='$SNAPSHOT_B64' CANARY_INTENT_ID='$INTENT_ID' CANARY_ORDER_ID='$ORDER_ID' /opt/bp/.venv/bin/python -" <<'PY'
+  --command="sudo -u bp env PYTHONPATH='$V3_RUNTIME/src' MODE=research LIVE_TRADING_ENABLED=false MAX_TRADE_SIZE_USD=0 MAX_DAILY_LOSS_USD=0 CANARY_HEALTH_B64='$HEALTH_B64' CANARY_SNAPSHOT_B64='$SNAPSHOT_B64' CANARY_RECEIPT_B64='$RECEIPT_B64' CANARY_INTENT_ID='$INTENT_ID' CANARY_ORDER_ID='$ORDER_ID' /opt/bp/.venv/bin/python -" <<'PY'
 from __future__ import annotations
 
 import base64
@@ -295,6 +354,7 @@ from bp_engine.storage import schema
 
 health = json.loads(base64.b64decode(os.environ["CANARY_HEALTH_B64"]).decode("utf-8"))
 snapshot = json.loads(base64.b64decode(os.environ["CANARY_SNAPSHOT_B64"]).decode("utf-8"))
+receipt = json.loads(base64.b64decode(os.environ["CANARY_RECEIPT_B64"]).decode("utf-8"))
 intent_id = os.environ["CANARY_INTENT_ID"]
 order_id = os.environ["CANARY_ORDER_ID"]
 
@@ -319,12 +379,32 @@ try:
         event_types = [str(row["event_type"]) for row in events]
         accepted = [row for row in events if row["event_type"] == "accepted"]
         cancelled = [row for row in events if row["event_type"] == "cancelled"]
-        if len(accepted) != 1 or len(cancelled) != 1:
-            raise RuntimeError("expected exactly one accepted and one cancelled event")
-        if str(accepted[0]["external_order_id"]) != order_id:
-            raise RuntimeError("accepted event external order mismatch")
-        if str(cancelled[0]["external_order_id"]) != order_id:
-            raise RuntimeError("cancelled event external order mismatch")
+        if len(accepted) == 1 and len(cancelled) == 1:
+            if len(events) != 2:
+                raise RuntimeError("unexpected extra normalized order events")
+            if str(accepted[0]["external_order_id"]) != order_id:
+                raise RuntimeError("accepted event external order mismatch")
+            if str(cancelled[0]["external_order_id"]) != order_id:
+                raise RuntimeError("cancelled event external order mismatch")
+            normalized_event_state = "accepted_cancelled_present"
+        elif not events:
+            if (
+                receipt.get("status") != "executor_result_recorded"
+                or receipt.get("accepted") is not True
+                or receipt.get("real_order_submitted") is not True
+                or receipt.get("network_submission_attempt_consumed") is not True
+                or receipt.get("authorization_slot_consumed") is not True
+                or receipt.get("retry_allowed") is not False
+                or str(receipt.get("intent_id") or "") != intent_id
+                or str(receipt.get("external_order_id") or "") != order_id
+                or not isinstance(receipt.get("cancellation"), dict)
+                or receipt["cancellation"].get("cancelled") is not True
+                or receipt["cancellation"].get("status") != "cancelled"
+            ):
+                raise RuntimeError("normalized events absent without exact executor receipt")
+            normalized_event_state = "absent_verified_by_executor_receipt"
+        else:
+            raise RuntimeError("normalized order event history is partial or ambiguous")
 
         existing = None
         for row in connection.execute(
@@ -382,8 +462,12 @@ try:
                     "confirmed_filled_notional_usd": "0",
                     "official_fill_state": "zero_fill_observed",
                     "network_submission_attempt_consumed": True,
-                    "accepted_event_present": True,
-                    "cancelled_event_present": True,
+                    "accepted_event_present": bool(accepted),
+                    "cancelled_event_present": bool(cancelled),
+                    "normalized_event_state": normalized_event_state,
+                    "executor_receipt_status": str(receipt["status"]),
+                    "executor_receipt_accepted": True,
+                    "executor_receipt_cancelled": True,
                     "account_snapshot": {
                         "total_exposure_usd": "0",
                         "realized_daily_pnl_usd": "0",
@@ -400,6 +484,7 @@ try:
                 "unresolved_count": int(record["unresolved_count"]),
                 "critical_count": int(record["critical_count"]),
                 "event_types": event_types,
+                "normalized_event_state": normalized_event_state,
             }
 
         print(json.dumps(result, sort_keys=True))
