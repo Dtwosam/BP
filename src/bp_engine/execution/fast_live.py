@@ -560,14 +560,12 @@ def verify_result_message(
     for name in ("intent_id", "request_sha256", "status"):
         if str(message.get(name) or "") != str(result.get(name) or ""):
             raise FastLiveError(f"fast live result binding mismatch: {name}")
-    if (
-        message.get("network_submission_attempt_consumed") is True
-        != (result.get("network_submission_attempt_consumed") is True)
+    if (message.get("network_submission_attempt_consumed") is True) != (
+        result.get("network_submission_attempt_consumed") is True
     ):
         raise FastLiveError("fast live result attempt flag mismatch")
-    if (
-        message.get("real_order_submitted") is True
-        != (result.get("real_order_submitted") is True)
+    if (message.get("real_order_submitted") is True) != (
+        result.get("real_order_submitted") is True
     ):
         raise FastLiveError("fast live result order flag mismatch")
     return dict(result)
