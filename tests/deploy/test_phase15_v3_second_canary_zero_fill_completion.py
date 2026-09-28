@@ -35,7 +35,7 @@ def test_zero_fill_completion_authorization_is_exact_and_non_trading() -> None:
         "1fa22dae91f8ffde5c26c0096f1bf5c53547098e"
     )
     assert repair["completion_helper_git_blob_sha"] == (
-        "240b607c6e81297e4ac82d2eff603a1186bc5624"
+        "272313d9bda1712a9d5afa7fd9b0ea634cde2267"
     )
     assert repair["live_account_snapshot_runtime_fix_git_blob_sha"] == (
         "3dd9d1ed6821a126e9075f72b2a2e0d6d1f969a6"
