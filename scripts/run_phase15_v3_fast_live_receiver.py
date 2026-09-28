@@ -311,7 +311,7 @@ def main() -> int:
                     ),
                     flush=True,
                 )
-                getattr(message, "ack")()
+                message.ack()
                 return
             if purpose != FAST_LIVE_PURPOSE:
                 raise FastLiveError("fast live message purpose invalid")
@@ -339,7 +339,7 @@ def main() -> int:
                 received_at - created
             ).total_seconds() * 1000
             print(json.dumps(result, sort_keys=True, default=str), flush=True)
-            getattr(message, "ack")()
+            message.ack()
         except Exception as exc:
             print(
                 json.dumps(
@@ -356,7 +356,7 @@ def main() -> int:
                 ),
                 flush=True,
             )
-            getattr(message, "ack")()
+            message.ack()
 
     future = subscriber.subscribe(subscription_path, callback=callback)
     try:
