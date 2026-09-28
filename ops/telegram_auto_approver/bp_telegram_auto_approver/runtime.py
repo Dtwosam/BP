@@ -70,6 +70,77 @@ def operator_matches(*, user_id: int, is_bot: bool, expected_user_id: int) -> bo
     return (not is_bot) and int(user_id) == int(expected_user_id)
 
 
+def keyboard_metadata(message: object) -> dict[str, object]:
+    """Return non-secret structural metadata for Telegram button diagnostics."""
+
+    def data_info(value: object) -> dict[str, object]:
+        return {
+            "present": value is not None,
+            "type": type(value).__name__ if value is not None else "NoneType",
+            "length": (
+                len(value)
+                if isinstance(value, (bytes, bytearray, str))
+                else None
+            ),
+        }
+
+    markup = getattr(message, "reply_markup", None)
+    raw_rows = getattr(markup, "rows", None) if markup is not None else None
+    raw: list[list[dict[str, object]]] | None = None
+    if raw_rows is not None:
+        raw = []
+        for row in raw_rows:
+            raw_buttons = getattr(row, "buttons", None)
+            if raw_buttons is None:
+                raw.append([])
+                continue
+            raw.append(
+                [
+                    {
+                        "class": type(button).__name__,
+                        "text": getattr(button, "text", None),
+                        "data": data_info(getattr(button, "data", None)),
+                        "url_present": getattr(button, "url", None) is not None,
+                    }
+                    for button in raw_buttons
+                ]
+            )
+
+    wrapped_rows = getattr(message, "buttons", None)
+    wrapped: list[list[dict[str, object]]] | None = None
+    if wrapped_rows is not None:
+        wrapped = []
+        for row in wrapped_rows:
+            wrapped_row: list[dict[str, object]] = []
+            for button in row:
+                original = getattr(button, "button", None)
+                wrapped_row.append(
+                    {
+                        "class": type(button).__name__,
+                        "original_class": (
+                            type(original).__name__ if original is not None else None
+                        ),
+                        "text": getattr(button, "text", None),
+                        "data": data_info(getattr(button, "data", None)),
+                        "original_data": data_info(
+                            getattr(original, "data", None)
+                            if original is not None
+                            else None
+                        ),
+                        "url_present": getattr(button, "url", None) is not None,
+                    }
+                )
+            wrapped.append(wrapped_row)
+
+    return {
+        "reply_markup_type": (
+            type(markup).__name__ if markup is not None else "NoneType"
+        ),
+        "raw_rows": raw,
+        "wrapped_rows": wrapped,
+    }
+
+
 def adapt_message(message: object, *, chat_id: int, is_private: bool) -> IncomingMessage:
     sender = getattr(message, "sender", None)
     username = getattr(sender, "username", None) if sender is not None else None
@@ -261,9 +332,16 @@ async def serve(config: ServiceConfig) -> int:
                     await click(outcome)
 
         async def on_new(event: object) -> None:
+            message = event.message
+            logger.emit(
+                "TELEGRAM_KEYBOARD_METADATA",
+                telegram_message_id=getattr(message, "id", None),
+                observation="new_message",
+                keyboard=keyboard_metadata(message),
+            )
             await consume(
                 adapt_message(
-                    event.message,
+                    message,
                     chat_id=bot_id,
                     is_private=bool(getattr(event, "is_private", False)),
                 ),
@@ -305,6 +383,12 @@ async def serve(config: ServiceConfig) -> int:
             ):
                 return
             logger.emit("LATEST_MESSAGE_CHECKED", reason=reason, telegram_message_id=latest_id)
+            logger.emit(
+                "TELEGRAM_KEYBOARD_METADATA",
+                telegram_message_id=latest_id,
+                observation=reason,
+                keyboard=keyboard_metadata(latest),
+            )
             await consume(
                 adapt_message(latest, chat_id=bot_id, is_private=True),
                 edited=False,
