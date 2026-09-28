@@ -7,6 +7,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.engine import Engine
 
+from bp_engine.execution.fast_live import payload_sha256
 from bp_engine.execution.canary import (
     CANARY_INTENT_TERMINAL_EVENTS,
     CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS,
@@ -338,6 +339,7 @@ def prepare_fast_live_candidate(
                 "execution_version": request.execution_version,
                 "execution_config_sha256": request.execution_config_sha256,
                 "paper_order_id": paper_order_id,
+                "request_sha256": payload_sha256(request.as_mapping()),
                 "fast_live": True,
             },
         )
