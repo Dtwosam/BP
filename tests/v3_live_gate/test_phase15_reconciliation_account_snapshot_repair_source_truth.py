@@ -129,7 +129,7 @@ def test_reconciliation_account_snapshot_repair_production_pass() -> None:
     second_repair = gate["second_canary_db_reconciliation"]
     assert current_live == second_repair["live_account_snapshot_runtime_fix_git_blob_sha"]
     assert current_live != repair["live_git_blob_sha"]
-    assert second_repair["live_account_snapshot_runtime_fix_deployed"] is False
+    assert second_repair["live_account_snapshot_runtime_fix_deployed"] is True
 
 
 def test_reconciliation_repair_helper_is_fail_closed_and_not_self_authorizing() -> None:
