@@ -85,7 +85,7 @@ def test_second_canary_zero_fill_is_recorded_and_third_order_is_blocked() -> Non
     assert recon["live_account_snapshot_runtime_fix_deployed"] is False
     assert recon["live_account_snapshot_runtime_fix_deployment_authorized"] is True
     assert recon["completion_helper_git_blob_sha"] == (
-        "240b607c6e81297e4ac82d2eff603a1186bc5624"
+        "272313d9bda1712a9d5afa7fd9b0ea634cde2267"
     )
     assert recon["sidecar_runner_git_blob_sha"] == (
         "ed3ced72c75291a0fd79a15009b0a468561683d9"
