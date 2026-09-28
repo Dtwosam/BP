@@ -1,0 +1,47 @@
+[Unit]
+Description=BP Phase 15 pre-authorized fast-live Johannesburg receiver
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/bp-fast-live/authorization.json
+ConditionPathExists=/etc/bp-fast-live/PROJECT_STATE.json
+ConditionPathExists=/etc/bp-fast-live/receiver.env
+ConditionPathExists=/etc/bp-canary/live.env
+ConditionPathExists=/etc/bp-telegram-transport/transport.key
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/bp-fast-live/current
+EnvironmentFile=/etc/bp-canary/live.env
+EnvironmentFile=/etc/bp-fast-live/receiver.env
+Environment=BP_PHASE15_FAST_LIVE_EXECUTOR_ENABLED=yes
+Environment=PYTHONPATH=/opt/bp-fast-live/current/src
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/bp-fast-live/.venv/bin/python /opt/bp-fast-live/current/scripts/run_phase15_v3_fast_live_receiver.py --transport-key-id ${BP_FAST_LIVE_TRANSPORT_KEY_ID} --expected-main ${BP_FAST_LIVE_EXPECTED_MAIN} --gcp-project ${BP_FAST_LIVE_GCP_PROJECT} --subscription-id ${BP_FAST_LIVE_SUBSCRIPTION_ID} --result-topic-id ${BP_FAST_LIVE_RESULT_TOPIC_ID}
+ExecStopPost=/bin/sh -c 'umask 077; mkdir -p /var/lib/bp-canary/fast-live; printf "%s\n" fast-live-service-stop > /var/lib/bp-canary/fast-live/KILL'
+Restart=on-failure
+RestartSec=1s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadOnlyPaths=/opt/bp-fast-live /etc/bp-fast-live /etc/bp-canary/live.env /etc/bp-telegram-transport/transport.key
+ReadWritePaths=/var/lib/bp-canary/fast-live
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-phase15-fast-live-receiver
+
+[Install]
+WantedBy=multi-user.target

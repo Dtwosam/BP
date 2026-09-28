@@ -1,0 +1,44 @@
+[Unit]
+Description=BP Phase 15 pre-authorized fast-live V3 source
+After=bp-postgres.service bp-v3-paper-execution.service network-online.target
+Wants=network-online.target
+Requires=bp-postgres.service bp-v3-paper-execution.service
+ConditionPathExists=/etc/bp-fast-live/authorization.json
+ConditionPathExists=/etc/bp-fast-live/PROJECT_STATE.json
+ConditionPathExists=/etc/bp/phase15-fast-live-source.env
+ConditionPathExists=/etc/bp-telegram-transport/transport.key
+
+[Service]
+Type=simple
+User=bp
+Group=bp
+WorkingDirectory=/opt/bp-fast-live/current
+EnvironmentFile=/etc/bp/bp.env
+EnvironmentFile=/etc/bp/phase15-fast-live-source.env
+Environment=MODE=research
+Environment=LIVE_TRADING_ENABLED=false
+Environment=MAX_TRADE_SIZE_USD=0
+Environment=MAX_DAILY_LOSS_USD=0
+Environment=BP_PHASE15_FAST_LIVE_SOURCE_ENABLED=yes
+Environment=PYTHONPATH=/opt/bp-fast-live/current/src
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS
+ExecStart=/opt/bp/.venv/bin/python /opt/bp-fast-live/current/scripts/run_phase15_v3_fast_live_source.py --transport-key-id ${BP_FAST_LIVE_TRANSPORT_KEY_ID} --expected-main ${BP_FAST_LIVE_EXPECTED_MAIN} --gcp-project ${BP_FAST_LIVE_GCP_PROJECT} --topic-id ${BP_FAST_LIVE_TOPIC_ID} --result-subscription-id ${BP_FAST_LIVE_RESULT_SUBSCRIPTION_ID} --official-open-order-count ${BP_FAST_LIVE_OFFICIAL_OPEN_ORDER_COUNT} --collateral-balance-usd ${BP_FAST_LIVE_COLLATERAL_BALANCE_USD}
+Restart=on-failure
+RestartSec=1s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=full
+ReadOnlyPaths=/opt/bp-fast-live /etc/bp-fast-live /etc/bp/phase15-fast-live-source.env /etc/bp-telegram-transport/transport.key
+ReadWritePaths=/var/lib/bp/phase15-fast-live
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bp-phase15-fast-live-source
+
+[Install]
+WantedBy=multi-user.target
