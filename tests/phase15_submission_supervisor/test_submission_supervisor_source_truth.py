@@ -140,7 +140,6 @@ def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
             ROOT / "deploy" / "bp-phase15-canary-prepare-watch.service"
         ),
         "canary_git_blob_sha": ROOT / "src" / "bp_engine" / "execution" / "canary.py",
-        "live_git_blob_sha": ROOT / "src" / "bp_engine" / "execution" / "live.py",
         "arm_helper_git_blob_sha": (
             ROOT / "scripts" / "deploy" / "phase15_v3_canary_arm_cloudshell.sh"
         ),
@@ -160,6 +159,21 @@ def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
             text=True,
         ).stdout.strip()
         assert supervisor[field] == actual
+
+    assert supervisor["live_git_blob_sha"] == (
+        "0617ffeda8365cdd6ab2636af00e58ca8954c4db"
+    )
+    current_live = subprocess.run(
+        ["git", "hash-object", str(ROOT / "src" / "bp_engine" / "execution" / "live.py")],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    repair = gate["second_canary_db_reconciliation"]
+    assert current_live == repair["live_account_snapshot_runtime_fix_git_blob_sha"]
+    assert current_live != supervisor["live_git_blob_sha"]
+    assert repair["live_account_snapshot_runtime_fix_deployed"] is False
 
 
 def test_supervisor_and_reconcile_helper_have_no_direct_order_path() -> None:
