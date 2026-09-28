@@ -18,7 +18,6 @@ from bp_engine.execution.fast_live import (
     FAST_LIVE_PURPOSE,
     FAST_LIVE_WARMUP_PURPOSE,
     FastLiveError,
-    FastLiveRetryableError,
     load_private_json,
     verify_envelope,
     verify_runtime_authorization,
@@ -29,6 +28,7 @@ from bp_engine.execution.fast_live_executor import (
     FastLiveExecutor,
     SafetyCache,
     SafetySnapshot,
+    execute_with_bounded_pre_attempt_retry,
 )
 from bp_engine.execution.telegram_transport import load_transport_key_file
 
@@ -332,7 +332,10 @@ def main() -> int:
                 expected_key_id=args.transport_key_id,
                 observed_at=received_at,
             )
-            result = executor.execute(verified)
+            result = execute_with_bounded_pre_attempt_retry(
+                executor,
+                verified,
+            )
             result["envelope_created_at"] = verified["created_at"]
             result["message_received_at"] = received_at.isoformat()
             created = datetime.fromisoformat(str(verified["created_at"])).astimezone(UTC)
@@ -341,30 +344,6 @@ def main() -> int:
             ).total_seconds() * 1000
             print(json.dumps(result, sort_keys=True, default=str), flush=True)
             message.ack()
-        except FastLiveRetryableError as exc:
-            if executor.attempt_path.exists():
-                message.ack()
-                action = "acked_after_attempt"
-            else:
-                message.nack()
-                action = "nacked_for_bounded_redelivery"
-            print(
-                json.dumps(
-                    {
-                        "status": "fast_live_pre_attempt_retryable",
-                        "error": type(exc).__name__,
-                        "reason": str(exc),
-                        "message_id": str(getattr(message, "message_id", "") or ""),
-                        "observed_at": received_at.isoformat(),
-                        "delivery_action": action,
-                        "network_submission_attempt_consumed": (
-                            executor.attempt_path.exists()
-                        ),
-                    },
-                    sort_keys=True,
-                ),
-                flush=True,
-            )
         except Exception as exc:
             print(
                 json.dumps(
