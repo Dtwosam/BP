@@ -12,10 +12,10 @@ from bp_engine.execution.canary import (
     CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS,
     CANARY_POLICY_VERSION,
     CANARY_TARGET_NOTIONAL_USD,
+    canary_policy,
     _ensure_initial_reconciliation,
     _evaluated_prediction_ids,
     _retryable_risk_reasons,
-    canary_policy,
 )
 from bp_engine.execution.live import (
     InterlockDecision,
