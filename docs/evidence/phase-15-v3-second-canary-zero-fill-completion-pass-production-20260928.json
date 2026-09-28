@@ -1,0 +1,70 @@
+{
+  "evidence_type": "phase15-v3-second-canary-zero-fill-completion-pass-production",
+  "observed_date": "2026-09-28",
+  "source_main": "4632b9240a761d578e950bbef51d4dd185f717ec",
+  "bindings": {
+    "completion_helper_git_blob_sha": "272313d9bda1712a9d5afa7fd9b0ea634cde2267",
+    "reconciliation_helper_git_blob_sha": "1fa22dae91f8ffde5c26c0096f1bf5c53547098e",
+    "live_account_snapshot_git_blob_sha": "3dd9d1ed6821a126e9075f72b2a2e0d6d1f969a6"
+  },
+  "runtime_fix": {
+    "result": "PASS",
+    "runtime_release": "/opt/bp-phase15-canary-prepare-watch/releases/4632b9240a761d578e950bbef51d4dd185f717ec-zero-fill-accounting",
+    "runtime_current": "/opt/bp-phase15-canary-prepare-watch/releases/4632b9240a761d578e950bbef51d4dd185f717ec-zero-fill-accounting",
+    "prepare_watcher_active": false,
+    "core_service_pids_preserved": true,
+    "frozen_v3_runtime_mutated": false,
+    "order_submission_performed": false,
+    "network_submission_attempt_consumed": false
+  },
+  "official_health": {
+    "clean_for_canary": true,
+    "collateral_balance_usd": "30",
+    "open_order_count": 0,
+    "activation_valid": false,
+    "kill_switch_engaged": true,
+    "live_order_submitted": false,
+    "submission_ready": false,
+    "geoblock_blocked": false,
+    "geoblock_country": "ZA",
+    "geoblock_region": "GP"
+  },
+  "official_fill_probe": {
+    "fill_state": "zero_fill_observed",
+    "official_reconciliation_complete": true,
+    "open_order_count": 0,
+    "order_still_open": false,
+    "matching_trade_count": 0,
+    "confirmed_filled_shares": "0",
+    "confirmed_filled_notional_usd": "0",
+    "snapshot_stable_across_3_seconds": true,
+    "sdk_version": "0.7.1"
+  },
+  "reconciliation": {
+    "status": "reconciled",
+    "reconciliation_id": "live-reconciliation-50ac17663fa46ba96b7d341a68c03c53",
+    "unresolved_count": 0,
+    "critical_count": 0,
+    "event_types": [],
+    "normalized_event_state": "absent_verified_by_executor_receipt",
+    "intent_id": "live-intent-48e0149edbed67572c6e7fab69269dae",
+    "external_order_id": "0x127aa37d011dc0d96b5c941e61a6f5fefcd5b7fa56e3eb30f5f6bc77d5eaf4d6"
+  },
+  "post_completion_account_snapshot": {
+    "total_exposure_usd": "0",
+    "realized_daily_pnl_usd": "0",
+    "consecutive_losses": 0,
+    "last_order_at": "2026-09-28T13:54:11.790812+00:00",
+    "unresolved_critical_reconciliation": 0
+  },
+  "safety": {
+    "telegram_approval_performed": false,
+    "executor_armed": false,
+    "executor_invoked": false,
+    "order_submission_performed": false,
+    "additional_network_attempt_consumed": false,
+    "third_order_authorized": false,
+    "global_live_trading_enabled": false
+  },
+  "terminal_marker": "PHASE15_V3_SECOND_CANARY_ZERO_FILL_COMPLETION=PASS"
+}
