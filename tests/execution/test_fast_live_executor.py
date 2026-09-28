@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import pytest
 
 from bp_engine.execution import fast_live_executor as module
-from bp_engine.execution.fast_live import FastLiveError
+from bp_engine.execution.fast_live import FastLiveError, FastLiveRetryableError
 from bp_engine.execution.fast_live_executor import (
     FastLiveExecutor,
     SafetyCache,
@@ -239,3 +239,30 @@ def test_existing_kill_switch_blocks_before_quote(tmp_path: Path) -> None:
     with pytest.raises(FastLiveError, match="kill switch engaged"):
         executor.execute(_verified(now))
     assert client.calls == []
+
+def test_http_quote_failure_is_retryable_before_attempt(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+
+    class QuoteFailClient(FakeClient):
+        def get_order_book(self, *, token_id: str):
+            self.calls.append("book")
+            raise RuntimeError("temporary quote failure")
+
+    client = QuoteFailClient(())
+    executor = FastLiveExecutor(
+        client=client,
+        safety_cache=_cache(now),
+        state_root=tmp_path / "state",
+        kill_switch_path=tmp_path / "KILL",
+        now_fn=lambda: now,
+    )
+
+    with pytest.raises(
+        FastLiveRetryableError,
+        match="fresh order book unavailable",
+    ):
+        executor.execute(_verified(now))
+
+    assert client.calls == ["sign", "book"]
+    assert not executor.attempt_path.exists()
+
