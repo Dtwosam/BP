@@ -97,7 +97,6 @@ def verify_source_authorization(
         "status": "AUTHORIZED_NOT_CONSUMED",
         "authorized": True,
         "consumed": False,
-        "source_main": expected_main,
         "target_notional_usd": 5,
         "max_trade_size_usd": 10,
         "max_total_exposure_usd": 10,
@@ -116,6 +115,9 @@ def verify_source_authorization(
     authorization_id = str(authorization.get("authorization_id") or "")
     if not authorization_id or len(authorization_id) > 128:
         raise FastLiveError("fast live authorization id invalid")
+    authorized_at_main = str(authorization.get("authorized_at_main") or "")
+    if _COMMIT_RE.fullmatch(authorized_at_main) is None:
+        raise FastLiveError("fast live authorization base commit invalid")
     max_transit = _decimal(
         authorization.get("max_transit_seconds"),
         "max_transit_seconds",
@@ -169,8 +171,8 @@ def verify_runtime_authorization(
         raise FastLiveError("runtime authorization not authorized")
     if str(runtime.get("authorization_id") or "") != str(source["authorization_id"]):
         raise FastLiveError("runtime authorization id mismatch")
-    if str(runtime.get("source_main") or "") != expected_main:
-        raise FastLiveError("runtime authorization main mismatch")
+    if str(runtime.get("release_main") or "") != expected_main:
+        raise FastLiveError("runtime authorization release mismatch")
     if str(runtime.get("project_state_sha256") or "") != project_state_sha256(state):
         raise FastLiveError("runtime authorization source-truth hash mismatch")
     if runtime.get("max_network_submission_attempts") != 1:
