@@ -107,13 +107,13 @@ def test_keyboard_rejects_missing_reordered_and_extra_buttons() -> None:
     skip = CallbackButton("SKIP", source.callback_data("skip", NONCE).encode())
     assert classify_keyboard(()) == (None, "no_approve_button")
     assert classify_keyboard(((skip,),))[1] == "no_approve_button"
-    assert classify_keyboard(((skip, approve),))[1] == "keyboard_mismatch"
-    assert classify_keyboard(((approve, skip, approve),))[1] == "keyboard_mismatch"
-    assert classify_keyboard(((approve,), (skip,)))[1] == "keyboard_mismatch"
+    assert classify_keyboard(((skip, approve),))[1] == "keyboard_text_mismatch"
+    assert classify_keyboard(((approve, skip, approve),))[1] == "keyboard_shape_mismatch"
+    assert classify_keyboard(((approve,), (skip,)))[1] == "keyboard_shape_mismatch"
     url = CallbackButton("APPROVE", approve.callback_data, url="https://example.invalid")
-    assert classify_keyboard(((url, skip),))[1] == "keyboard_mismatch"
+    assert classify_keyboard(((url, skip),))[1] == "keyboard_url_present"
     other = CallbackButton("SKIP", source.callback_data("skip", "ZZZZZZZZZZZZZZZZ").encode())
-    assert classify_keyboard(((approve, other),))[1] == "keyboard_mismatch"
+    assert classify_keyboard(((approve, other),))[1] == "keyboard_skip_callback_mismatch"
 
 
 def test_deadline_uses_prompt_snapshot_phase15_caps_and_two_second_margin() -> None:
