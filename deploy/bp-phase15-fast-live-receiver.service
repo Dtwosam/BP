@@ -3,6 +3,7 @@ Description=BP Phase 15 pre-authorized fast-live Johannesburg receiver
 After=network-online.target
 Wants=network-online.target
 ConditionPathExists=/etc/bp-fast-live/authorization.json
+ConditionPathExists=/etc/bp-fast-live/PROJECT_STATE.json
 ConditionPathExists=/etc/bp-fast-live/receiver.env
 ConditionPathExists=/etc/bp-canary/live.env
 ConditionPathExists=/etc/bp-telegram-transport/transport.key
