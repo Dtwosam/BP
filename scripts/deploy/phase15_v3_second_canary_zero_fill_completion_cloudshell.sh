@@ -36,8 +36,7 @@ UNIT_BLOB=$(git hash-object "$ROOT/deploy/bp-phase15-canary-prepare-watch.servic
 CANARY_BLOB=$(git hash-object "$ROOT/src/bp_engine/execution/canary.py")
 LIVE_BLOB=$(git hash-object "$ROOT/src/bp_engine/execution/live.py")
 
-python3 - "$ROOT/PROJECT_STATE.json"   "$SELF_BLOB" "$RECON_BLOB" "$RUNNER_BLOB" "$UNIT_BLOB" "$CANARY_BLOB" "$LIVE_BLOB" <<'PY' ||
-  fail "source_truth_not_authorized_for_exact_zero_fill_completion"
+if ! python3 - "$ROOT/PROJECT_STATE.json"   "$SELF_BLOB" "$RECON_BLOB" "$RUNNER_BLOB" "$UNIT_BLOB" "$CANARY_BLOB" "$LIVE_BLOB" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -76,6 +75,9 @@ assert repair["does_not_authorize_order_submission"] is True
 assert repair["does_not_authorize_additional_network_attempt"] is True
 assert repair["third_order_authorized"] is False
 PY
+then
+  fail "source_truth_not_authorized_for_exact_zero_fill_completion"
+fi
 
 file_sha256() {
   python3 - "$1" <<'PY'
@@ -317,8 +319,7 @@ finally:
 PY
 ) || fail "post_reconciliation_account_snapshot_verification_failed"
 
-python3 - "$ACCOUNT_VERIFY" <<'PY' ||
-  fail "post_reconciliation_account_snapshot_not_clean"
+if ! python3 - "$ACCOUNT_VERIFY" <<'PY'
 import json
 import sys
 from decimal import Decimal
@@ -327,6 +328,9 @@ payload = json.loads(sys.argv[1])
 assert Decimal(payload["total_exposure_usd"]) == 0
 assert payload["unresolved_critical_reconciliation"] == 0
 PY
+then
+  fail "post_reconciliation_account_snapshot_not_clean"
+fi
 
 echo "$ACCOUNT_VERIFY"
 echo "TELEGRAM_APPROVAL_PERFORMED=false"
