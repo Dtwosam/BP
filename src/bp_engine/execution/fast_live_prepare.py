@@ -12,10 +12,10 @@ from bp_engine.execution.canary import (
     CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS,
     CANARY_POLICY_VERSION,
     CANARY_TARGET_NOTIONAL_USD,
-    canary_policy,
     _ensure_initial_reconciliation,
     _evaluated_prediction_ids,
     _retryable_risk_reasons,
+    canary_policy,
 )
 from bp_engine.execution.live import (
     InterlockDecision,
@@ -28,13 +28,13 @@ from bp_engine.execution.live import (
     _stored_utc,
 )
 from bp_engine.execution.models import (
-    PaperExecutionConfig,
     V3_FROZEN_PAPER_EXECUTION_VERSION,
     V3_FROZEN_PAPER_LATENCY_MS,
     V3_FROZEN_PAPER_ORDER_TTL_MS,
     V3_FROZEN_PAPER_SHARE_PRECISION,
     V3_FROZEN_PAPER_STARTING_CASH_USD,
     V3_FROZEN_PAPER_TARGET_NOTIONAL_USD,
+    PaperExecutionConfig,
 )
 from bp_engine.execution.paper import PaperOrderDraft, PaperTerminalDraft, build_paper_order
 from bp_engine.execution.service import derive_paper_cash
