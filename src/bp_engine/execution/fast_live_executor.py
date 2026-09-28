@@ -1,0 +1,367 @@
+from __future__ import annotations
+
+import json
+import os
+import stat
+import time
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from decimal import Decimal
+from pathlib import Path
+from threading import Lock
+from typing import Any, Protocol
+
+import polymarket
+
+from bp_engine.execution.fast_live import (
+    FAST_LIVE_TARGET_NOTIONAL_USD,
+    FastLiveError,
+    marketable_depth,
+)
+
+
+class FastLiveClient(Protocol):
+    def get_order_book(self, *, token_id: str) -> object: ...
+    def create_limit_order(
+        self,
+        *,
+        token_id: str,
+        price: Decimal,
+        size: Decimal,
+        side: str,
+    ) -> object: ...
+    def post_order(self, signed_order: object) -> object: ...
+    def cancel_order(self, *, order_id: str) -> object: ...
+
+
+@dataclass(frozen=True)
+class SafetySnapshot:
+    observed_at: datetime
+    geoblock_blocked: bool
+    geoblock_country: str
+    open_order_count: int
+    collateral_balance_usd: Decimal
+
+    def __post_init__(self) -> None:
+        if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
+            raise ValueError("safety snapshot timestamp must be timezone-aware")
+
+
+class SafetyCache:
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self._snapshot: SafetySnapshot | None = None
+
+    def replace(self, snapshot: SafetySnapshot) -> None:
+        with self._lock:
+            self._snapshot = snapshot
+
+    def current(self) -> SafetySnapshot | None:
+        with self._lock:
+            return self._snapshot
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+def _decimal(value: object, name: str) -> Decimal:
+    try:
+        result = value if isinstance(value, Decimal) else Decimal(str(value))
+    except Exception as exc:
+        raise FastLiveError(f"{name} must be numeric") from exc
+    if not result.is_finite():
+        raise FastLiveError(f"{name} must be finite")
+    return result
+
+
+def _ensure_private_dir(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    info = path.lstat()
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+        raise FastLiveError("fast live state directory invalid")
+    os.chmod(path, 0o700)
+
+
+def _write_exclusive_json(path: Path, payload: dict[str, Any]) -> None:
+    encoded = (
+        json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+        + "\n"
+    ).encode()
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        os.write(fd, encoded)
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _write_replace_json(path: Path, payload: dict[str, Any]) -> None:
+    encoded = (
+        json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+        + "\n"
+    ).encode()
+    temp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        os.write(fd, encoded)
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    os.replace(temp, path)
+
+
+class FastLiveExecutor:
+    def __init__(
+        self,
+        *,
+        client: FastLiveClient,
+        safety_cache: SafetyCache,
+        state_root: Path,
+        kill_switch_path: Path,
+        max_safety_age_seconds: Decimal = Decimal("1"),
+        order_ttl_seconds: Decimal = Decimal("2"),
+        now_fn=_utc_now,
+    ) -> None:
+        self._client = client
+        self._safety_cache = safety_cache
+        self._state_root = state_root
+        self._kill_switch_path = kill_switch_path
+        self._max_safety_age_seconds = max_safety_age_seconds
+        self._order_ttl_seconds = order_ttl_seconds
+        self._now_fn = now_fn
+        _ensure_private_dir(state_root)
+
+    @property
+    def attempt_path(self) -> Path:
+        return self._state_root / "attempt.json"
+
+    @property
+    def result_path(self) -> Path:
+        return self._state_root / "result.json"
+
+    def _kill_switch_engaged(self) -> bool:
+        try:
+            return self._kill_switch_path.exists()
+        except OSError:
+            return True
+
+    def _reengage_kill_switch(self, reason: str) -> None:
+        self._kill_switch_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            fd = os.open(
+                self._kill_switch_path,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o600,
+            )
+        except FileExistsError:
+            return
+        try:
+            os.write(fd, (reason.strip() + "\n").encode())
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
+    def _require_fresh_safety(self) -> SafetySnapshot:
+        snapshot = self._safety_cache.current()
+        if snapshot is None:
+            raise FastLiveError("fast live safety snapshot missing")
+        now = self._now_fn()
+        age = Decimal(str((now - snapshot.observed_at.astimezone(UTC)).total_seconds()))
+        if age < 0 or age > self._max_safety_age_seconds:
+            raise FastLiveError("fast live safety snapshot stale")
+        if snapshot.geoblock_blocked:
+            raise FastLiveError("fast live geoblock blocked")
+        if snapshot.geoblock_country != "ZA":
+            raise FastLiveError("fast live executor country mismatch")
+        if snapshot.open_order_count != 0:
+            raise FastLiveError("fast live official open orders present")
+        if snapshot.collateral_balance_usd < FAST_LIVE_TARGET_NOTIONAL_USD:
+            raise FastLiveError("fast live insufficient collateral")
+        return snapshot
+
+    def execute(self, verified: dict[str, Any]) -> dict[str, Any]:
+        if self.attempt_path.exists():
+            return {
+                "status": "already_terminal",
+                "network_submission_attempt_consumed": True,
+                "real_order_submitted": False,
+            }
+        if self._kill_switch_engaged():
+            raise FastLiveError("fast live kill switch engaged")
+        safety = self._require_fresh_safety()
+        request = verified.get("request")
+        if not isinstance(request, dict):
+            raise FastLiveError("fast live request missing")
+
+        token_id = str(request.get("token_id") or "")
+        limit_price = _decimal(request.get("limit_price"), "limit_price")
+        shares = _decimal(request.get("requested_shares"), "requested_shares")
+        target = _decimal(request.get("target_notional_usd"), "target_notional_usd")
+        if not token_id:
+            raise FastLiveError("fast live token id missing")
+        if str(request.get("action") or "") != "BUY":
+            raise FastLiveError("fast live action must be BUY")
+        if target != FAST_LIVE_TARGET_NOTIONAL_USD:
+            raise FastLiveError("fast live target changed")
+
+        received_at = self._now_fn()
+        quote_started_ns = time.monotonic_ns()
+        book = self._client.get_order_book(token_id=token_id)
+        quote_completed_ns = time.monotonic_ns()
+        asks = tuple(getattr(book, "asks", ()) or ())
+        levels = tuple(
+            (
+                getattr(level, "price", None),
+                getattr(level, "size", None),
+            )
+            for level in asks
+        )
+        marketability = marketable_depth(
+            levels,
+            limit_price=limit_price,
+            requested_shares=shares,
+        )
+        if marketability["marketable"] is not True:
+            return {
+                "status": "fresh_book_rejected",
+                "intent_id": verified["intent_id"],
+                "request_sha256": verified["request_sha256"],
+                "marketability": marketability,
+                "network_submission_attempt_consumed": False,
+                "real_order_submitted": False,
+                "quote_latency_ms": (
+                    quote_completed_ns - quote_started_ns
+                ) / 1_000_000,
+            }
+
+        self._require_fresh_safety()
+        if self._kill_switch_engaged():
+            raise FastLiveError("fast live kill switch engaged before attempt")
+        attempt = {
+            "schema_version": 1,
+            "status": "network_submission_attempt_starting",
+            "authorization_id": verified["authorization_id"],
+            "intent_id": verified["intent_id"],
+            "prediction_id": verified["prediction_id"],
+            "paper_order_id": verified["paper_order_id"],
+            "request_sha256": verified["request_sha256"],
+            "started_at": self._now_fn().isoformat(),
+        }
+        _write_exclusive_json(self.attempt_path, attempt)
+        self._reengage_kill_switch("fast-live-one-shot-attempt-consumed")
+
+        sign_started_ns = time.monotonic_ns()
+        signed_order = self._client.create_limit_order(
+            token_id=token_id,
+            price=limit_price,
+            size=shares,
+            side="BUY",
+        )
+        sign_completed_ns = time.monotonic_ns()
+        post_started_at = self._now_fn()
+        post_started_ns = time.monotonic_ns()
+        try:
+            response = self._client.post_order(signed_order)
+        except Exception:
+            result = {
+                **attempt,
+                "status": "submission_unknown",
+                "accepted": False,
+                "external_order_id": None,
+                "network_submission_attempt_consumed": True,
+                "real_order_submitted": False,
+                "marketability": marketability,
+                "safety_observed_at": safety.observed_at.isoformat(),
+                "received_at": received_at.isoformat(),
+                "post_started_at": post_started_at.isoformat(),
+                "quote_latency_ms": (
+                    quote_completed_ns - quote_started_ns
+                ) / 1_000_000,
+                "sign_latency_ms": (
+                    sign_completed_ns - sign_started_ns
+                ) / 1_000_000,
+                "quote_to_post_ms": (
+                    post_started_ns - quote_completed_ns
+                ) / 1_000_000,
+            }
+            _write_replace_json(self.result_path, result)
+            return result
+        post_completed_ns = time.monotonic_ns()
+        post_completed_at = self._now_fn()
+
+        if isinstance(response, polymarket.RejectedOrder):
+            result = {
+                **attempt,
+                "status": "rejected",
+                "accepted": False,
+                "external_order_id": None,
+                "code": str(response.code),
+                "message": str(response.message),
+                "network_submission_attempt_consumed": True,
+                "real_order_submitted": True,
+            }
+            _write_replace_json(self.result_path, result)
+            return result
+        if not isinstance(response, polymarket.AcceptedOrder):
+            result = {
+                **attempt,
+                "status": "submission_unknown",
+                "accepted": False,
+                "external_order_id": None,
+                "network_submission_attempt_consumed": True,
+                "real_order_submitted": True,
+            }
+            _write_replace_json(self.result_path, result)
+            return result
+
+        order_id = str(response.order_id)
+        cancellation: dict[str, Any]
+        time.sleep(float(self._order_ttl_seconds))
+        try:
+            cancel = self._client.cancel_order(order_id=order_id)
+            if isinstance(cancel, polymarket.CancelOrdersResponse):
+                cancellation = {
+                    "cancelled": order_id in cancel.canceled,
+                    "not_cancelled": str(cancel.not_canceled.get(order_id, "")),
+                }
+            else:
+                cancellation = {
+                    "cancelled": False,
+                    "not_cancelled": "unexpected cancellation response",
+                }
+        except Exception:
+            cancellation = {
+                "cancelled": False,
+                "not_cancelled": "cancellation failed",
+            }
+
+        result = {
+            **attempt,
+            "status": "accepted",
+            "accepted": True,
+            "external_order_id": order_id,
+            "initial_order_status": str(response.status),
+            "network_submission_attempt_consumed": True,
+            "real_order_submitted": True,
+            "marketability": marketability,
+            "cancellation": cancellation,
+            "safety_observed_at": safety.observed_at.isoformat(),
+            "received_at": received_at.isoformat(),
+            "post_started_at": post_started_at.isoformat(),
+            "post_completed_at": post_completed_at.isoformat(),
+            "quote_latency_ms": (
+                quote_completed_ns - quote_started_ns
+            ) / 1_000_000,
+            "sign_latency_ms": (
+                sign_completed_ns - sign_started_ns
+            ) / 1_000_000,
+            "post_latency_ms": (
+                post_completed_ns - post_started_ns
+            ) / 1_000_000,
+            "quote_to_post_ms": (
+                post_started_ns - quote_completed_ns
+            ) / 1_000_000,
+        }
+        _write_replace_json(self.result_path, result)
+        return result
