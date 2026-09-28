@@ -134,11 +134,11 @@ def test_phase15_second_live_canary_is_submitted_zero_fill_reconciliation_pendin
     assert second_canary["db_reconciliation_required"] is True
 
     second_recon = gate["second_canary_db_reconciliation"]
-    assert second_recon["status"] == "ENGINEERING_READY_AUTHORIZATION_REQUIRED"
-    assert second_recon["authorized"] is False
+    assert second_recon["status"] == "AUTHORIZED_READY"
+    assert second_recon["authorized"] is True
     assert second_recon["authorization_consumed"] is False
     assert second_recon["helper_git_blob_sha"] == (
-        "5e52ba161c2d2a23592dfa52d4245074b12f5a1c"
+        "4b40c3e8694b383757d760b29432ac8bbfb7a48d"
     )
     assert second_recon["third_order_authorized"] is False
 
