@@ -13,6 +13,8 @@ from typing import Any
 
 FAST_LIVE_PURPOSE = "phase15-v3-fast-live-v1"
 FAST_LIVE_WARMUP_PURPOSE = "phase15-v3-fast-live-warmup-v1"
+FAST_LIVE_RESULT_PURPOSE = "phase15-v3-fast-live-result-v1"
+FAST_LIVE_RESULT_MAX_AGE_SECONDS = Decimal("15")
 FAST_LIVE_SOURCE_KEY = "fast_live_preauthorization"
 FAST_LIVE_POLICY_VERSION = "v3-live-canary-v1"
 FAST_LIVE_PREDICTION_VERSION = "v3-frozen-paper-v1"
@@ -485,6 +487,90 @@ def marketable_depth(
         "requested_shares": format(requested, "f"),
         "limit_price": format(limit, "f"),
     }
+
+
+def create_result_message(
+    result: Mapping[str, Any],
+    *,
+    key: bytes,
+    key_id: str,
+    authorization_id: str,
+    created_at: datetime,
+) -> dict[str, Any]:
+    created = _utc(created_at)
+    intent_id = str(result.get("intent_id") or "")
+    request_hash = str(result.get("request_sha256") or "")
+    status = str(result.get("status") or "")
+    if not intent_id or _SHA256_RE.fullmatch(request_hash) is None or not status:
+        raise FastLiveError("fast live result binding invalid")
+    body = {
+        "schema_version": 1,
+        "purpose": FAST_LIVE_RESULT_PURPOSE,
+        "key_id": key_id,
+        "authorization_id": authorization_id,
+        "intent_id": intent_id,
+        "request_sha256": request_hash,
+        "status": status,
+        "network_submission_attempt_consumed": (
+            result.get("network_submission_attempt_consumed") is True
+        ),
+        "real_order_submitted": result.get("real_order_submitted") is True,
+        "external_order_id": str(result.get("external_order_id") or ""),
+        "result": dict(result),
+        "created_at": created.isoformat(),
+        "expires_at": (
+            created
+            + timedelta(seconds=float(FAST_LIVE_RESULT_MAX_AGE_SECONDS))
+        ).isoformat(),
+    }
+    return {**body, "hmac_sha256": _mac(body, key)}
+
+
+def verify_result_message(
+    message: Mapping[str, Any],
+    *,
+    key: bytes,
+    expected_key_id: str,
+    expected_authorization_id: str,
+    observed_at: datetime,
+) -> dict[str, Any]:
+    observed = _utc(observed_at)
+    supplied = str(message.get("hmac_sha256") or "")
+    if _SHA256_RE.fullmatch(supplied) is None:
+        raise FastLiveError("fast live result hmac invalid")
+    body = {name: value for name, value in message.items() if name != "hmac_sha256"}
+    if not hmac.compare_digest(supplied, _mac(body, key)):
+        raise FastLiveError("fast live result hmac mismatch")
+    if (
+        message.get("schema_version") != 1
+        or message.get("purpose") != FAST_LIVE_RESULT_PURPOSE
+    ):
+        raise FastLiveError("fast live result schema invalid")
+    if str(message.get("key_id") or "") != expected_key_id:
+        raise FastLiveError("fast live result key id mismatch")
+    if str(message.get("authorization_id") or "") != expected_authorization_id:
+        raise FastLiveError("fast live result authorization mismatch")
+    created = _utc(datetime.fromisoformat(str(message.get("created_at") or "")))
+    expires = _utc(datetime.fromisoformat(str(message.get("expires_at") or "")))
+    if created > observed or observed >= expires:
+        raise FastLiveError("fast live result expired or future")
+    result = message.get("result")
+    if not isinstance(result, Mapping):
+        raise FastLiveError("fast live result payload missing")
+    for name in ("intent_id", "request_sha256", "status"):
+        if str(message.get(name) or "") != str(result.get(name) or ""):
+            raise FastLiveError(f"fast live result binding mismatch: {name}")
+    if (
+        message.get("network_submission_attempt_consumed") is True
+        != (result.get("network_submission_attempt_consumed") is True)
+    ):
+        raise FastLiveError("fast live result attempt flag mismatch")
+    if (
+        message.get("real_order_submitted") is True
+        != (result.get("real_order_submitted") is True)
+    ):
+        raise FastLiveError("fast live result order flag mismatch")
+    return dict(result)
 
 
 def load_transport_key(path: Path) -> bytes:
