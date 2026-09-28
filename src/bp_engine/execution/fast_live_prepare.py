@@ -12,8 +12,8 @@ from bp_engine.execution.canary import (
     CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS,
     CANARY_POLICY_VERSION,
     CANARY_TARGET_NOTIONAL_USD,
-    _candidate,
     _ensure_initial_reconciliation,
+    _evaluated_prediction_ids,
     _retryable_risk_reasons,
     canary_policy,
 )
@@ -27,12 +27,124 @@ from bp_engine.execution.live import (
     _source_request_matches,
     _stored_utc,
 )
-from bp_engine.execution.service import _draft_from_rows
+from bp_engine.execution.models import (
+    PaperExecutionConfig,
+    V3_FROZEN_PAPER_EXECUTION_VERSION,
+    V3_FROZEN_PAPER_LATENCY_MS,
+    V3_FROZEN_PAPER_ORDER_TTL_MS,
+    V3_FROZEN_PAPER_SHARE_PRECISION,
+    V3_FROZEN_PAPER_STARTING_CASH_USD,
+    V3_FROZEN_PAPER_TARGET_NOTIONAL_USD,
+)
+from bp_engine.execution.paper import PaperOrderDraft, PaperTerminalDraft, build_paper_order
+from bp_engine.execution.service import derive_paper_cash
+from bp_engine.features.hashing import canonical_hash
 from bp_engine.live_readiness.hashing import derive_id, semantic_sha256
 from bp_engine.live_readiness.models import LiveRiskContext
 from bp_engine.live_readiness.repository import LiveReadinessRepository
 from bp_engine.live_readiness.risk import evaluate_live_risk
 from bp_engine.storage import schema
+
+
+def frozen_v3_paper_config() -> PaperExecutionConfig:
+    return PaperExecutionConfig(
+        starting_cash_usd=V3_FROZEN_PAPER_STARTING_CASH_USD,
+        target_notional_usd=V3_FROZEN_PAPER_TARGET_NOTIONAL_USD,
+        latency_ms=V3_FROZEN_PAPER_LATENCY_MS,
+        order_ttl_ms=V3_FROZEN_PAPER_ORDER_TTL_MS,
+        share_precision=V3_FROZEN_PAPER_SHARE_PRECISION,
+        execution_version=V3_FROZEN_PAPER_EXECUTION_VERSION,
+        prediction_version="v3-frozen-paper-v1",
+    )
+
+
+def _current_frozen_paper_cash(connection) -> Decimal:
+    config = frozen_v3_paper_config()
+    fill_costs = connection.execute(
+        select(schema.paper_fills.c.total_cost)
+        .select_from(
+            schema.paper_fills.join(
+                schema.paper_orders,
+                schema.paper_fills.c.paper_order_id
+                == schema.paper_orders.c.paper_order_id,
+            )
+        )
+        .where(
+            schema.paper_orders.c.execution_version
+            == V3_FROZEN_PAPER_EXECUTION_VERSION
+        )
+    ).scalars().all()
+    payouts = connection.execute(
+        select(schema.paper_settlements.c.payout)
+        .select_from(
+            schema.paper_settlements.join(
+                schema.paper_orders,
+                schema.paper_settlements.c.paper_order_id
+                == schema.paper_orders.c.paper_order_id,
+            )
+        )
+        .where(
+            schema.paper_orders.c.execution_version
+            == V3_FROZEN_PAPER_EXECUTION_VERSION
+        )
+    ).scalars().all()
+    return derive_paper_cash(
+        starting_cash=config.starting_cash_usd,
+        fill_costs=(_decimal(value, "paper_fill_cost") for value in fill_costs),
+        settlement_payouts=(
+            _decimal(value, "paper_settlement_payout") for value in payouts
+        ),
+    )
+
+
+def _prediction_candidate(
+    connection,
+    *,
+    activated_at: datetime,
+) -> dict[str, object] | None:
+    evaluated = _evaluated_prediction_ids(connection)
+    rows = connection.execute(
+        select(schema.live_predictions)
+        .where(
+            schema.live_predictions.c.prediction_version
+            == "v3-frozen-paper-v1",
+            schema.live_predictions.c.trade.is_(True),
+            schema.live_predictions.c.executable.is_(True),
+            schema.live_predictions.c.recorded_at >= activated_at,
+        )
+        .order_by(
+            schema.live_predictions.c.recorded_at,
+            schema.live_predictions.c.id,
+        )
+    ).mappings()
+    for row in rows:
+        prediction_id = str(row["prediction_id"])
+        if prediction_id not in evaluated:
+            return dict(row)
+    return None
+
+
+def build_fast_live_draft(
+    prediction: dict[str, object],
+    *,
+    available_paper_cash: Decimal,
+) -> tuple[str, PaperOrderDraft]:
+    draft = build_paper_order(
+        prediction,
+        frozen_v3_paper_config(),
+        available_paper_cash,
+    )
+    if isinstance(draft, PaperTerminalDraft):
+        raise RuntimeError(
+            f"frozen V3 prediction cannot build live-equivalent order: {draft.reason}"
+        )
+    paper_order_id = canonical_hash(
+        {
+            "prediction_id": draft.request.prediction_id,
+            "execution_version": draft.request.execution_version,
+        }
+    )
+    return paper_order_id, draft
 
 
 def prepare_fast_live_candidate(
@@ -82,15 +194,21 @@ def prepare_fast_live_candidate(
                     "intent_id": str(pending["intent_id"]),
                 }
 
-        candidate = _candidate(connection, activated_at=activated_at)
-        if candidate is None:
+        prediction = _prediction_candidate(
+            connection,
+            activated_at=activated_at,
+        )
+        if prediction is None:
             return {
                 "status": "waiting",
-                "reason": "no_new_frozen_v3_trade_order",
+                "reason": "no_new_frozen_v3_trade_prediction",
             }
 
-        order, prediction = candidate
-        draft = _draft_from_rows(order, prediction)
+        available_paper_cash = _current_frozen_paper_cash(connection)
+        paper_order_id, draft = build_fast_live_draft(
+            prediction,
+            available_paper_cash=available_paper_cash,
+        )
         request = draft.request
         if request.target_notional_usd != CANARY_TARGET_NOTIONAL_USD:
             raise RuntimeError("frozen paper order target changed")
@@ -156,7 +274,7 @@ def prepare_fast_live_candidate(
             evidence={
                 "phase": "phase15_v3_fast_live_v1",
                 "request_id": request_id,
-                "paper_order_id": str(order["paper_order_id"]),
+                "paper_order_id": paper_order_id,
                 "condition_id": request.condition_id,
                 "token_id": request.token_id,
                 "selected_side": request.selected_side,
@@ -182,7 +300,7 @@ def prepare_fast_live_candidate(
                 "reasons": decision.reasons,
                 "retryable": _retryable_risk_reasons(decision.reasons),
                 "prediction_id": request.prediction_id,
-                "paper_order_id": str(order["paper_order_id"]),
+                "paper_order_id": paper_order_id,
             }
 
         arm_window = Decimal(
@@ -194,7 +312,7 @@ def prepare_fast_live_candidate(
                 "reason": "insufficient_arm_window",
                 "reasons": ("insufficient_arm_window",),
                 "prediction_id": request.prediction_id,
-                "paper_order_id": str(order["paper_order_id"]),
+                "paper_order_id": paper_order_id,
                 "time_to_expiry_seconds": arm_window,
             }
 
@@ -218,7 +336,7 @@ def prepare_fast_live_candidate(
                 "selected_side": request.selected_side,
                 "execution_version": request.execution_version,
                 "execution_config_sha256": request.execution_config_sha256,
-                "paper_order_id": str(order["paper_order_id"]),
+                "paper_order_id": paper_order_id,
                 "fast_live": True,
             },
         )
@@ -231,10 +349,7 @@ def prepare_fast_live_candidate(
         prediction["recorded_at"],
         "prediction.recorded_at",
     )
-    paper_order_submitted_at = _stored_utc(
-        order["submitted_at"],
-        "paper_order.submitted_at",
-    )
+    paper_order_submitted_at = request.submitted_at
     market_end_at = _stored_utc(
         prediction["market_end_at"],
         "market_end_at",
@@ -250,6 +365,7 @@ def prepare_fast_live_candidate(
         "paper_after_prediction_seconds": str(
             (paper_order_submitted_at - prediction_recorded_at).total_seconds()
         ),
+        "fast_live_order_derived_directly_from_prediction": True,
         "prepare_after_paper_seconds": str(
             (observed_at - paper_order_submitted_at).total_seconds()
         ),
@@ -260,7 +376,7 @@ def prepare_fast_live_candidate(
         "request_id": request_id,
         "risk_decision_id": str(risk_store.record["decision_id"]),
         "prediction_id": request.prediction_id,
-        "paper_order_id": str(order["paper_order_id"]),
+        "paper_order_id": paper_order_id,
         "market_end_at": market_end_at.isoformat(),
         "timing": timing,
         "request": request.as_mapping(),
