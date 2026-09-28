@@ -36,6 +36,14 @@ class FakeCancelResponse:
         self.not_canceled: dict[str, str] = {}
 
 
+class FakeItems:
+    def __init__(self, items=()) -> None:
+        self.items = tuple(items)
+
+    def iter_items(self):
+        return iter(self.items)
+
+
 class FakeBookCache:
     def __init__(self, levels: tuple[tuple[str, str], ...] | None) -> None:
         self.levels = levels
@@ -73,6 +81,14 @@ class FakeClient:
     def cancel_order(self, *, order_id: str):
         self.calls.append("cancel")
         return FakeCancelResponse(order_id)
+
+    def list_open_orders(self):
+        self.calls.append("open_orders")
+        return FakeItems()
+
+    def list_account_trades(self):
+        self.calls.append("trades")
+        return FakeItems()
 
 
 def _verified(now: datetime) -> dict[str, object]:
@@ -127,6 +143,7 @@ def test_marketable_fast_path_consumes_once_then_posts(
         state_root=tmp_path / "state",
         kill_switch_path=kill,
         order_ttl_seconds=Decimal("0"),
+        official_stability_seconds=0,
         now_fn=lambda: now,
     )
 
@@ -137,7 +154,16 @@ def test_marketable_fast_path_consumes_once_then_posts(
     assert result["external_order_id"] == "order-fast-1"
     assert result["network_submission_attempt_consumed"] is True
     assert result["real_order_submitted"] is True
-    assert client.calls == ["sign", "book", "post", "cancel"]
+    assert client.calls == [
+        "sign",
+        "book",
+        "post",
+        "cancel",
+        "open_orders",
+        "trades",
+        "open_orders",
+        "trades",
+    ]
     assert executor.attempt_path.is_file()
     assert kill.is_file()
     attempt = json.loads(executor.attempt_path.read_text(encoding="utf-8"))
@@ -174,7 +200,15 @@ def test_streamed_book_skips_http_quote_round_trip(
 
     assert result["status"] == "accepted"
     assert result["quote_source"] == "stream"
-    assert client.calls == ["sign", "post", "cancel"]
+    assert client.calls == [
+        "sign",
+        "post",
+        "cancel",
+        "open_orders",
+        "trades",
+        "open_orders",
+        "trades",
+    ]
     assert book_cache.calls == ["token-fast-1"]
 
 
