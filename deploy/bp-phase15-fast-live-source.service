@@ -3,6 +3,9 @@ Description=BP Phase 15 pre-authorized fast-live V3 source
 After=bp-postgres.service bp-v3-paper-execution.service network-online.target
 Wants=network-online.target
 Requires=bp-postgres.service bp-v3-paper-execution.service
+ConditionPathExists=/etc/bp-fast-live/authorization.json
+ConditionPathExists=/etc/bp/phase15-fast-live-source.env
+ConditionPathExists=/etc/bp-telegram-transport/transport.key
 
 [Service]
 Type=simple
@@ -29,7 +32,7 @@ PrivateTmp=true
 PrivateDevices=true
 ProtectHome=true
 ProtectSystem=full
-ReadOnlyPaths=/opt/bp-fast-live
+ReadOnlyPaths=/opt/bp-fast-live /etc/bp-fast-live /etc/bp/phase15-fast-live-source.env /etc/bp-telegram-transport/transport.key
 ReadWritePaths=/var/lib/bp/phase15-fast-live
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 StandardOutput=journal
