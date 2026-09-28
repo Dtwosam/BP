@@ -8,6 +8,7 @@ from sqlalchemy import create_engine, select
 from bp_engine.execution.fast_live_result import (
     record_fast_live_official_reconciliation,
     record_fast_live_result,
+    settle_fast_live_position_if_resolved,
 )
 from bp_engine.execution.live import _account_snapshot
 from bp_engine.live_readiness.repository import LiveReadinessRepository
@@ -54,6 +55,8 @@ def _engine():
                     "phase": "phase15_v3_fast_live_v1",
                     "paper_order_id": PAPER_ORDER_ID,
                     "request_sha256": REQUEST_SHA,
+                    "selected_side": "up",
+                    "modeled_fee_rate": "0.07",
                 },
                 semantic_sha256="4" * 64,
                 created_at=BASE + timedelta(seconds=1),
@@ -88,6 +91,31 @@ def _result(
         "quote_to_post_ms": 0.5,
         "post_latency_ms": 18.0,
     }
+
+
+def _add_evaluation(engine, official_outcome: str) -> None:
+    target = 1 if official_outcome == "Up" else 0
+    with engine.begin() as connection:
+        connection.execute(
+            schema.live_prediction_evaluations.insert().values(
+                prediction_id=PREDICTION_ID,
+                label_version="official-outcome-v1",
+                official_outcome=official_outcome,
+                official_target=target,
+                label_source="polymarket_gamma_snapshot",
+                label_source_snapshot_sha256="5" * 64,
+                label_source_observed_at=BASE + timedelta(minutes=5),
+                evaluated_at=BASE + timedelta(minutes=5, seconds=1),
+                correct=True,
+                raw_log_loss=Decimal("0.1"),
+                raw_brier=Decimal("0.01"),
+                calibrated_log_loss=Decimal("0.1"),
+                calibrated_brier=Decimal("0.01"),
+                hypothetical_gross_pnl=None,
+                hypothetical_assumed_cost_pnl=None,
+                semantic_sha256="6" * 64,
+            )
+        )
 
 
 def _latest_reconciliation(engine):
@@ -237,3 +265,151 @@ def test_submission_unknown_is_critical_and_never_clean() -> None:
     assert latest is not None
     assert latest["unresolved_count"] == 1
     assert latest["critical_count"] == 1
+
+def test_confirmed_fill_win_settles_and_resets_loss_counter() -> None:
+    engine = _engine()
+    result = _result("accepted", attempted=True, order_id="order-fast-win")
+    result["accepted"] = True
+    result["cancellation"] = {"cancelled": True, "not_cancelled": ""}
+    record_fast_live_result(
+        engine=engine,
+        result=result,
+        observed_at=BASE + timedelta(seconds=2),
+    )
+    official = {
+        "order_still_open": False,
+        "open_order_count": 0,
+        "matching_trade_count": 1,
+        "confirmed_filled_shares": "4",
+        "confirmed_filled_notional_usd": "2.32",
+        "fill_state": "confirmed_fill",
+    }
+    record_fast_live_official_reconciliation(
+        engine=engine,
+        result=result,
+        official=official,
+        observed_at=BASE + timedelta(seconds=4),
+    )
+    _add_evaluation(engine, "Up")
+
+    settled = settle_fast_live_position_if_resolved(
+        engine=engine,
+        intent_id=INTENT_ID,
+        observed_at=BASE + timedelta(minutes=5, seconds=2),
+    )
+
+    expected_fee = (
+        Decimal("4")
+        * Decimal("0.07")
+        * Decimal("0.58")
+        * Decimal("0.42")
+    )
+    expected_pnl = Decimal("4") - Decimal("2.32") - expected_fee
+    assert settled["status"] == "settled"
+    assert Decimal(str(settled["risk_realized_pnl_usd"])) == expected_pnl
+    assert settled["consecutive_losses"] == 0
+
+    with engine.begin() as connection:
+        account = _account_snapshot(
+            connection,
+            observed_at=BASE + timedelta(minutes=5, seconds=3),
+        )
+    assert account.total_exposure_usd == 0
+    assert account.realized_daily_pnl_usd == expected_pnl
+    assert account.consecutive_losses == 0
+    assert account.unresolved_critical_reconciliation == 0
+
+
+def test_confirmed_fill_loss_settles_into_one_loss_stop() -> None:
+    engine = _engine()
+    result = _result("accepted", attempted=True, order_id="order-fast-loss")
+    result["accepted"] = True
+    result["cancellation"] = {"cancelled": True, "not_cancelled": ""}
+    record_fast_live_result(
+        engine=engine,
+        result=result,
+        observed_at=BASE + timedelta(seconds=2),
+    )
+    official = {
+        "order_still_open": False,
+        "open_order_count": 0,
+        "matching_trade_count": 1,
+        "confirmed_filled_shares": "4",
+        "confirmed_filled_notional_usd": "2.32",
+        "fill_state": "confirmed_fill",
+    }
+    record_fast_live_official_reconciliation(
+        engine=engine,
+        result=result,
+        official=official,
+        observed_at=BASE + timedelta(seconds=4),
+    )
+    _add_evaluation(engine, "Down")
+
+    settled = settle_fast_live_position_if_resolved(
+        engine=engine,
+        intent_id=INTENT_ID,
+        observed_at=BASE + timedelta(minutes=5, seconds=2),
+    )
+
+    expected_fee = (
+        Decimal("4")
+        * Decimal("0.07")
+        * Decimal("0.58")
+        * Decimal("0.42")
+    )
+    expected_pnl = -Decimal("2.32") - expected_fee
+    assert settled["status"] == "settled"
+    assert Decimal(str(settled["risk_realized_pnl_usd"])) == expected_pnl
+    assert settled["consecutive_losses"] == 1
+
+    with engine.begin() as connection:
+        account = _account_snapshot(
+            connection,
+            observed_at=BASE + timedelta(minutes=5, seconds=3),
+        )
+    assert account.total_exposure_usd == 0
+    assert account.realized_daily_pnl_usd == expected_pnl
+    assert account.consecutive_losses == 1
+    assert account.unresolved_critical_reconciliation == 0
+
+
+def test_fast_live_settlement_is_idempotent() -> None:
+    engine = _engine()
+    result = _result("accepted", attempted=True, order_id="order-fast-idempotent")
+    result["accepted"] = True
+    result["cancellation"] = {"cancelled": True, "not_cancelled": ""}
+    record_fast_live_result(
+        engine=engine,
+        result=result,
+        observed_at=BASE + timedelta(seconds=2),
+    )
+    official = {
+        "order_still_open": False,
+        "open_order_count": 0,
+        "matching_trade_count": 1,
+        "confirmed_filled_shares": "4",
+        "confirmed_filled_notional_usd": "2.32",
+        "fill_state": "confirmed_fill",
+    }
+    record_fast_live_official_reconciliation(
+        engine=engine,
+        result=result,
+        official=official,
+        observed_at=BASE + timedelta(seconds=4),
+    )
+    _add_evaluation(engine, "Up")
+    first = settle_fast_live_position_if_resolved(
+        engine=engine,
+        intent_id=INTENT_ID,
+        observed_at=BASE + timedelta(minutes=5, seconds=2),
+    )
+    second = settle_fast_live_position_if_resolved(
+        engine=engine,
+        intent_id=INTENT_ID,
+        observed_at=BASE + timedelta(minutes=5, seconds=3),
+    )
+    assert first["status"] == "settled"
+    assert second["status"] == "already_settled"
+    assert first["reconciliation_id"] == second["reconciliation_id"]
+
