@@ -68,14 +68,14 @@ def test_second_canary_zero_fill_is_recorded_and_third_order_is_blocked() -> Non
     assert canary["live_risk_ledger_reconciliation_complete"] is False
     assert canary["db_reconciliation_required"] is True
 
-    assert recon["status"] == "FAILED_PREWRITE_REPAIR_READY_AUTHORIZATION_REQUIRED"
-    assert recon["authorized"] is False
+    assert recon["status"] == "AUTHORIZED_READY"
+    assert recon["authorized"] is True
     assert recon["authorization_consumed"] is False
     assert recon["production_db_mutation_performed"] is False
     assert recon["last_execution_attempt_status"] == "FAIL_PREWRITE"
     assert recon["last_execution_attempt_production_db_mutation_performed"] is False
-    assert recon["fresh_authorization_required_for_rebound_helper"] is True
-    assert recon["authorization_rebind_required"] is True
+    assert recon["fresh_authorization_required_for_rebound_helper"] is False
+    assert recon["authorization_rebind_required"] is False
     assert recon["helper_git_blob_sha"] == (
         "1fa22dae91f8ffde5c26c0096f1bf5c53547098e"
     )
@@ -83,7 +83,22 @@ def test_second_canary_zero_fill_is_recorded_and_third_order_is_blocked() -> Non
         "3dd9d1ed6821a126e9075f72b2a2e0d6d1f969a6"
     )
     assert recon["live_account_snapshot_runtime_fix_deployed"] is False
-    assert recon["live_account_snapshot_runtime_fix_deployment_authorized"] is False
+    assert recon["live_account_snapshot_runtime_fix_deployment_authorized"] is True
+    assert recon["completion_helper_git_blob_sha"] == (
+        "240b607c6e81297e4ac82d2eff603a1186bc5624"
+    )
+    assert recon["sidecar_runner_git_blob_sha"] == (
+        "ed3ced72c75291a0fd79a15009b0a468561683d9"
+    )
+    assert recon["sidecar_service_unit_git_blob_sha"] == (
+        "2f162c9c17658d6917544b056176a56cc50bea46"
+    )
+    assert recon["sidecar_canary_git_blob_sha"] == (
+        "14c3f508ec1a0c446af4c4ee92572075ffff3753"
+    )
+    assert recon["prepare_watcher_start_or_restart_authorized"] is False
+    assert recon["core_service_restart_authorized"] is False
+    assert recon["frozen_v3_runtime_mutation_authorized"] is False
     assert recon["does_not_authorize_order_submission"] is True
     assert recon["does_not_authorize_additional_network_attempt"] is True
     assert recon["third_order_authorized"] is False
