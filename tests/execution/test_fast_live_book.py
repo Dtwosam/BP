@@ -81,3 +81,25 @@ def test_buy_side_change_does_not_mutate_asks() -> None:
         }
     )
     assert cache.snapshot("token-1") == (("0.59", "8"),)
+
+def test_stream_book_falls_back_when_exact_token_quote_is_stale(monkeypatch) -> None:
+    clock = {"now": 100.0}
+    monkeypatch.setattr(
+        "bp_engine.execution.fast_live_book.time.monotonic",
+        lambda: clock["now"],
+    )
+    cache = StreamingBookCache(quote_fresh_seconds=0.5)
+    cache.subscribe(["token-1"])
+    cache._mark_connected()
+    cache._replace_book(
+        {
+            "asset_id": "token-1",
+            "asks": [{"price": "0.59", "size": "8"}],
+        }
+    )
+    assert cache.snapshot("token-1") == (("0.59", "8"),)
+
+    clock["now"] += 0.51
+    cache._mark_activity()
+    assert cache.snapshot("token-1") is None
+
