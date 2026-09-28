@@ -1,0 +1,45 @@
+{
+  "evidence_type": "phase15-v3-second-canary-zero-fill-completion-authorization",
+  "authorization_date": "2026-09-28",
+  "authorization_source": "User explicitly replied 'authorize both' after being offered the exact repaired reconciliation helper plus live-account runtime fix scope.",
+  "source_main_before_authorization": "75ff30a82a08f0194a0d2cb1e68ee2998558ce4a",
+  "target": {
+    "intent_id": "live-intent-48e0149edbed67572c6e7fab69269dae",
+    "external_order_id": "0x127aa37d011dc0d96b5c941e61a6f5fefcd5b7fa56e3eb30f5f6bc77d5eaf4d6",
+    "official_fill_state": "zero_fill_observed",
+    "confirmed_filled_shares": "0",
+    "confirmed_filled_notional_usd": "0"
+  },
+  "bindings": {
+    "reconciliation_helper": "scripts/deploy/phase15_v3_second_canary_db_reconciliation_cloudshell.sh",
+    "reconciliation_helper_git_blob_sha": "1fa22dae91f8ffde5c26c0096f1bf5c53547098e",
+    "completion_helper": "scripts/deploy/phase15_v3_second_canary_zero_fill_completion_cloudshell.sh",
+    "completion_helper_git_blob_sha": "272313d9bda1712a9d5afa7fd9b0ea634cde2267",
+    "live_account_snapshot_git_blob_sha": "3dd9d1ed6821a126e9075f72b2a2e0d6d1f969a6",
+    "sidecar_runner_git_blob_sha": "ed3ced72c75291a0fd79a15009b0a468561683d9",
+    "sidecar_service_unit_git_blob_sha": "2f162c9c17658d6917544b056176a56cc50bea46",
+    "sidecar_canary_git_blob_sha": "14c3f508ec1a0c446af4c4ee92572075ffff3753"
+  },
+  "authorized_actions": {
+    "stage_inactive_sidecar_runtime_fix": true,
+    "switch_sidecar_current_symlink": true,
+    "start_or_restart_prepare_watcher": false,
+    "restart_core_services": false,
+    "mutate_frozen_v3_runtime": false,
+    "fresh_official_zero_fill_reverification": true,
+    "idempotent_zero_fill_reconciliation_write": true,
+    "post_write_account_snapshot_verification": true
+  },
+  "excluded_actions": {
+    "telegram_approval": false,
+    "executor_arm_or_invoke": false,
+    "order_submission": false,
+    "retry": false,
+    "additional_network_attempt": false,
+    "third_order": false,
+    "stake_growth": false,
+    "strategy_mutation": false,
+    "global_live_enablement": false
+  },
+  "one_time": true
+}
