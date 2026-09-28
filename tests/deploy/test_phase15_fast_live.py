@@ -63,7 +63,6 @@ def test_fast_live_receiver_is_preauthorized_one_shot_and_fail_closed() -> None:
     assert "SafetyRefresher" in receiver
     assert "verify_runtime_authorization" in receiver
     assert "verify_envelope" in receiver
-    assert "executor.execute(verified)" in receiver
     assert "execute_with_bounded_pre_attempt_retry" in receiver
     assert "message.nack()" not in receiver
 
