@@ -33,10 +33,14 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
         "ConditionPathExists=/etc/bp-telegram-transport/transport.key",
         "--expected-main ${BP_FAST_LIVE_EXPECTED_MAIN}",
         "--topic-id ${BP_FAST_LIVE_TOPIC_ID}",
+        "--result-subscription-id ${BP_FAST_LIVE_RESULT_SUBSCRIPTION_ID}",
     ):
         assert marker in text
     source = SOURCE.read_text(encoding="utf-8")
     assert "PublisherClient()" in source
+    assert "SubscriberClient()" in source
+    assert "verify_result_message" in source
+    assert "record_fast_live_result" in source
     assert 'default=0.05' in source
     assert "POLYMARKET_PRIVATE_KEY" in source
     assert "must not be present in fast live source" in source
@@ -52,6 +56,7 @@ def test_fast_live_receiver_is_preauthorized_one_shot_and_fail_closed() -> None:
         "BP_PHASE15_FAST_LIVE_EXECUTOR_ENABLED=yes",
         "--expected-main ${BP_FAST_LIVE_EXPECTED_MAIN}",
         "--subscription-id ${BP_FAST_LIVE_SUBSCRIPTION_ID}",
+        "--result-topic-id ${BP_FAST_LIVE_RESULT_TOPIC_ID}",
         "fast-live-service-stop > /var/lib/bp-canary/fast-live/KILL",
     ):
         assert marker in unit
@@ -64,7 +69,10 @@ def test_fast_live_receiver_is_preauthorized_one_shot_and_fail_closed() -> None:
     assert "verify_runtime_authorization" in receiver
     assert "verify_envelope" in receiver
     assert "execute_with_bounded_pre_attempt_retry" in receiver
-    assert "message.nack()" not in receiver
+    assert "create_result_message" in receiver
+    assert "result_publisher.publish" in receiver
+    assert "message.nack()" in receiver
+    assert "if order_verified and executor.attempt_path.exists()" in receiver
 
 
 def test_fast_live_executor_quotes_before_attempt_and_post() -> None:
