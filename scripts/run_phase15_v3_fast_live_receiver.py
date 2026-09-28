@@ -343,10 +343,10 @@ def main() -> int:
             message.ack()
         except FastLiveRetryableError as exc:
             if executor.attempt_path.exists():
-                getattr(message, "ack")()
+                message.ack()
                 action = "acked_after_attempt"
             else:
-                getattr(message, "nack")()
+                message.nack()
                 action = "nacked_for_bounded_redelivery"
             print(
                 json.dumps(
