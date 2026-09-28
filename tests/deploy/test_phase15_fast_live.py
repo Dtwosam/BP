@@ -56,11 +56,11 @@ def test_fast_live_receiver_is_preauthorized_one_shot_and_fail_closed() -> None:
 
 def test_fast_live_executor_quotes_before_attempt_and_post() -> None:
     text = EXECUTOR.read_text(encoding="utf-8")
-    quote = text.index("get_order_book")
+    sign = text.index("create_limit_order")
+    quote = text.index("get_order_book", sign)
     marketability = text.index("marketable_depth", quote)
     attempt = text.index("_write_exclusive_json(self.attempt_path", marketability)
-    sign = text.index("create_limit_order", attempt)
-    post = text.index("post_order", sign)
-    assert quote < marketability < attempt < sign < post
+    post = text.index("post_order", attempt)
+    assert sign < quote < marketability < attempt < post
     assert "time.sleep(float(self._order_ttl_seconds))" in text
     assert "fast-live-one-shot-attempt-consumed" in text
