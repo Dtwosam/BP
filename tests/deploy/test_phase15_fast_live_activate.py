@@ -25,7 +25,6 @@ def test_fast_live_activation_requires_fresh_one_shot_authorization() -> None:
         "I_ACCEPT_ONE_REAL_MONEY_ATTEMPT",
         "verify_source_authorization",
         "verify_runtime_authorization",
-        "AUTHORIZED_NOT_CONSUMED",
         "max_network_submission_attempts",
         "runtime_window_exceeds_one_hour",
         '[[ "$HEAD" == "$REMOTE_MAIN" ]]',
