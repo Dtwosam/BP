@@ -54,16 +54,16 @@ def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
     controlled = gate["controlled_auto_approved_canary_authorization"]
     supervisor = gate["controlled_submission_supervisor"]
 
-    assert second["status"] == "AUTHORIZED_NOT_SUBMITTED"
+    assert second["status"] == "CONSUMED_SUBMITTED_RECONCILIATION_REQUIRED"
     assert second["max_network_submission_attempts"] == 1
-    assert controlled["consumed"] is False
+    assert controlled["consumed"] is True
     assert controlled["completion_condition"] == "real_five_dollar_submission_recorded"
     assert controlled["candidate_preparation_is_completion"] is False
     assert controlled["pre_network_candidate_recycling_authorized"] is True
 
-    assert supervisor["status"] == "ACTIVE_WAITING_FOR_REAL_SUBMISSION"
+    assert supervisor["status"] == "TERMINAL_REAL_SUBMISSION_SUCCEEDED"
     assert supervisor["authorized"] is True
-    assert supervisor["completed"] is False
+    assert supervisor["completed"] is True
     assert supervisor["target_notional_usd"] == 5
     assert supervisor["max_network_submission_attempts"] == 1
     assert supervisor["candidate_recycle_allowed_before_network_attempt"] is True
@@ -92,9 +92,9 @@ def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
     assert supervisor["installation_authorization_consumed"] is True
     assert supervisor["launch_agent_label"] == "com.bp.phase15-submission-supervisor"
     assert supervisor["launch_agent_verified_running_at_install"] is True
-    assert supervisor["waiting_for_real_submission"] is True
-    assert supervisor["real_order_submission_observed"] is False
-    assert supervisor["network_submission_attempt_observed"] is False
+    assert supervisor["waiting_for_real_submission"] is False
+    assert supervisor["real_order_submission_observed"] is True
+    assert supervisor["network_submission_attempt_observed"] is True
     assert supervisor["activation_evidence"] == (
         "docs/evidence/"
         "phase-15-controlled-submission-supervisor-activation-pass-production-20260927.json"
@@ -323,7 +323,8 @@ def test_activation_evidence_matches_active_supervisor_state() -> None:
     assert evidence["installer_output"]["supervisor_main"] == supervisor["activated_from_main"]
     assert evidence["installer_output"]["max_network_submission_attempts"] == 1
     assert evidence["installer_output"]["target_notional_usd"] == 5
-    assert evidence["resulting_source_truth"]["status"] == supervisor["status"]
+    assert evidence["resulting_source_truth"]["status"] == "ACTIVE_WAITING_FOR_REAL_SUBMISSION"
+    assert supervisor["status"] == "TERMINAL_REAL_SUBMISSION_SUCCEEDED"
     assert evidence["resulting_source_truth"]["deployment_performed"] is True
     assert evidence["resulting_source_truth"]["activation_performed"] is True
     assert evidence["resulting_source_truth"]["completed"] is False
