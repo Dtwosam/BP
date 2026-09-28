@@ -33,6 +33,12 @@ US recorder host:
    transit expiry.
 5. A persistent Pub/Sub publisher sends that envelope immediately on a dedicated fast-live
    topic.
+6. A separate authenticated result subscription receives Johannesburg execution outcomes
+   asynchronously. Result accounting never sits in the order-submission hot path.
+7. If Johannesburg rejects a stale/non-marketable book before consuming the network
+   attempt, the source closes that intent and may reuse the still-valid pre-authorization
+   for the next eligible V3 signal. Any actual network submission consumes the one-shot
+   authorization.
 
 Johannesburg execution host:
 
@@ -62,6 +68,12 @@ Johannesburg execution host:
     recorded as a pre-attempt exhaustion; no order is submitted and the one-shot network
     attempt remains unconsumed.
 11. Submission ambiguity never retries after the attempt marker exists.
+12. Johannesburg publishes an HMAC-authenticated result only after execution processing.
+    The order message is ACKed only after that result publish succeeds. If result publish
+    fails, Pub/Sub redelivery replays the durable executor result; the one-shot marker
+    prevents a second POST.
+13. An accepted order ID is persisted before the two-second rest/cancel wait. A crash
+    during that wait therefore cannot lose the live order identity.
 
 ## Critical-path design
 
@@ -79,6 +91,8 @@ Slow or reusable work is removed from the post-quote window:
   `pre-signed order -> token-fresh stream/HTTP book -> one-shot marker -> HTTP order POST`
 
 Instrumentation records source-to-receive, quote, sign, post, and quote-to-post latency.
+The authenticated return channel records the execution result in the live ledger
+asynchronously, so accounting reliability does not lengthen quote-to-POST latency.
 
 ## Price and fill semantics
 
@@ -87,8 +101,10 @@ chasing the book. It does not switch to a protected market FAK/FOK order because
 pinned `polymarket-client==0.7.1` has a documented protected BUY rounding problem at
 some price/amount combinations that can itself create non-fills.
 
-Partial fills are acceptable. Existing official fill probing already measures confirmed
-shares, confirmed notional, and fill fraction rather than assuming all-or-nothing fills.
+Partial fills are acceptable. The fast-live ledger keeps accepted or ambiguous submissions
+reconciliation-blocking until official account state is known. A confirmed zero-fill can
+clear exposure; a confirmed fill remains exposure/settlement-blocking until the market
+settlement and realized PnL are reconciled.
 
 ## Authorization model
 
