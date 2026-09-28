@@ -68,7 +68,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--result-subscription-id", required=True)
     parser.add_argument("--official-open-order-count", type=int, required=True)
     parser.add_argument("--collateral-balance-usd", required=True)
-    parser.add_argument("--poll-seconds", type=float, default=0.05)
+    parser.add_argument("--poll-seconds", type=float, default=0.02)
     parser.add_argument(
         "--receipt-dir",
         type=Path,
