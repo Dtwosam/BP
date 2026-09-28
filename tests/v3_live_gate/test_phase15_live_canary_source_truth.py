@@ -134,12 +134,20 @@ def test_phase15_second_live_canary_is_submitted_zero_fill_reconciliation_pendin
     assert second_canary["db_reconciliation_required"] is True
 
     second_recon = gate["second_canary_db_reconciliation"]
-    assert second_recon["status"] == "AUTHORIZED_READY"
-    assert second_recon["authorized"] is True
+    assert second_recon["status"] == "FAILED_PREWRITE_REPAIR_READY_AUTHORIZATION_REQUIRED"
+    assert second_recon["authorized"] is False
     assert second_recon["authorization_consumed"] is False
     assert second_recon["helper_git_blob_sha"] == (
-        "4b40c3e8694b383757d760b29432ac8bbfb7a48d"
+        "1fa22dae91f8ffde5c26c0096f1bf5c53547098e"
     )
+    assert second_recon["last_execution_attempt_status"] == "FAIL_PREWRITE"
+    assert second_recon["last_execution_attempt_production_db_mutation_performed"] is False
+    assert second_recon["fresh_authorization_required_for_rebound_helper"] is True
+    assert second_recon["live_account_snapshot_runtime_fix_git_blob_sha"] == (
+        "3dd9d1ed6821a126e9075f72b2a2e0d6d1f969a6"
+    )
+    assert second_recon["live_account_snapshot_runtime_fix_deployed"] is False
+    assert second_recon["live_account_snapshot_runtime_fix_deployment_authorized"] is False
     assert second_recon["third_order_authorized"] is False
 
     first = gate["first_live_canary"]
