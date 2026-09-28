@@ -29,6 +29,7 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
         "UnsetEnvironment=POLYMARKET_PRIVATE_KEY POLYMARKET_WALLET_ADDRESS",
         "BP_PHASE15_FAST_LIVE_SOURCE_ENABLED=yes",
         "ConditionPathExists=/etc/bp-fast-live/authorization.json",
+        "ConditionPathExists=/etc/bp-fast-live/PROJECT_STATE.json",
         "ConditionPathExists=/etc/bp-telegram-transport/transport.key",
         "--expected-main ${BP_FAST_LIVE_EXPECTED_MAIN}",
         "--topic-id ${BP_FAST_LIVE_TOPIC_ID}",
@@ -46,6 +47,7 @@ def test_fast_live_receiver_is_preauthorized_one_shot_and_fail_closed() -> None:
     unit = RECEIVER_UNIT.read_text(encoding="utf-8")
     for marker in (
         "ConditionPathExists=/etc/bp-fast-live/authorization.json",
+        "ConditionPathExists=/etc/bp-fast-live/PROJECT_STATE.json",
         "ConditionPathExists=/etc/bp-canary/live.env",
         "BP_PHASE15_FAST_LIVE_EXECUTOR_ENABLED=yes",
         "--expected-main ${BP_FAST_LIVE_EXPECTED_MAIN}",
