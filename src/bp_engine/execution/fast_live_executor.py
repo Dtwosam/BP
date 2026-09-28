@@ -117,7 +117,7 @@ def _write_replace_json(path: Path, payload: dict[str, Any]) -> None:
 
 
 def execute_with_bounded_pre_attempt_retry(
-    executor: "FastLiveExecutor",
+    executor: FastLiveExecutor,
     verified: dict[str, Any],
     *,
     now_fn=_utc_now,
