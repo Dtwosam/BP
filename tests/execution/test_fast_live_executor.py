@@ -144,7 +144,9 @@ def test_marketable_fast_path_consumes_once_then_posts(
     assert attempt["intent_id"] == "intent-fast-1"
 
     duplicate = executor.execute(_verified(now))
-    assert duplicate["status"] == "already_terminal"
+    assert duplicate["status"] == "accepted"
+    assert duplicate["external_order_id"] == "order-fast-1"
+    assert duplicate["replayed_result"] is True
     assert client.calls == ["sign", "book", "post", "cancel"]
 
 
@@ -306,4 +308,39 @@ def test_bounded_pre_attempt_retry_stays_local_and_unconsumed(tmp_path: Path) ->
     assert result["pre_attempt_retry_count"] == 2
     assert result["network_submission_attempt_consumed"] is False
     assert not (tmp_path / "attempt.json").exists()
+
+def test_attempt_without_result_recovers_as_submission_unknown_without_repost(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    client = FakeClient((("0.58", "20"),))
+    executor = FastLiveExecutor(
+        client=client,
+        safety_cache=_cache(now),
+        state_root=tmp_path / "state",
+        kill_switch_path=tmp_path / "KILL",
+        now_fn=lambda: now,
+    )
+    attempt = {
+        "schema_version": 1,
+        "status": "network_submission_attempt_starting",
+        "authorization_id": "fast-auth-1",
+        "intent_id": "intent-fast-1",
+        "prediction_id": "prediction-fast-1",
+        "paper_order_id": "paper-fast-1",
+        "request_sha256": "1" * 64,
+        "started_at": now.isoformat(),
+    }
+    executor.attempt_path.write_text(
+        json.dumps(attempt),
+        encoding="utf-8",
+    )
+
+    result = executor.execute(_verified(now))
+
+    assert result["status"] == "submission_unknown"
+    assert result["network_submission_attempt_consumed"] is True
+    assert result["real_order_submitted"] is True
+    assert result["recovered_from_attempt_marker"] is True
+    assert client.calls == []
 
