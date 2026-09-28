@@ -1,0 +1,2 @@
+polymarket-client==0.7.1
+google-cloud-pubsub==2.41.0
