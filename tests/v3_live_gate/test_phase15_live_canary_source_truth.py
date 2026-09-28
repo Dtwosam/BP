@@ -24,7 +24,7 @@ WATCHER_RESTART_PASS_EVIDENCE = (
 )
 
 
-def test_phase15_second_live_canary_is_submitted_zero_fill_reconciliation_pending() -> None:
+def test_phase15_second_live_canary_is_reconciled_zero_fill() -> None:
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     gate = state["phase_15_v3_live_canary"]
     master = state["phase_14_checkpoint"]["master_live_gate"]
@@ -36,7 +36,7 @@ def test_phase15_second_live_canary_is_submitted_zero_fill_reconciliation_pendin
     assert state["phase_14_checkpoint"]["overall_live_gate"] == "pass"
     assert state["phase_14_checkpoint"]["phase15_permitted"] is True
 
-    assert gate["status"] == "SECOND_LIVE_CANARY_SUBMITTED_RECONCILIATION_REQUIRED"
+    assert gate["status"] == "SECOND_LIVE_CANARY_RECONCILED_ZERO_FILL"
     assert gate["phase15_canary_authorized"] is True
     assert gate["source_prediction_version"] == "v3-frozen-paper-v1"
     assert gate["source_execution_version"] == "paper-execution-v3-frozen-v1"
