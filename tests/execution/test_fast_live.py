@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import copy
+import json
+from pathlib import Path
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -18,6 +20,8 @@ from bp_engine.execution.fast_live import (
 MAIN = "a" * 40
 KEY = bytes(range(32))
 KEY_ID = "phase15-fast-live-v1"
+ROOT = Path(__file__).resolve().parents[2]
+STATE = ROOT / "PROJECT_STATE.json"
 
 
 def _state(now: datetime) -> dict[str, object]:
@@ -102,6 +106,16 @@ def _prepared(now: datetime) -> dict[str, object]:
             "max_submission_attempts": 1,
         },
     }
+
+
+def test_repository_source_truth_remains_fail_closed() -> None:
+    state = json.loads(STATE.read_text(encoding="utf-8"))
+    with pytest.raises(FastLiveError, match="source-truth authorization missing"):
+        verify_source_authorization(
+            state,
+            expected_main="ea55c206665e15fa09d194fd3e826e1d653f79b1",
+            observed_at=datetime(2026, 9, 28, 20, 0, tzinfo=UTC),
+        )
 
 
 def test_current_source_truth_shape_is_required() -> None:
