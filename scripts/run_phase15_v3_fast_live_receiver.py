@@ -122,6 +122,22 @@ def _geoblock() -> tuple[bool, str]:
     return bool(payload["blocked"]), country
 
 
+def _warm_execution_metadata(
+    client: object,
+    token_ids: list[str],
+) -> float:
+    started = time.monotonic_ns()
+    for token_id in token_ids:
+        client.create_limit_order(
+            token_id=token_id,
+            price=Decimal("0.50"),
+            size=Decimal("1"),
+            side="BUY",
+        )
+    completed = time.monotonic_ns()
+    return (completed - started) / 1_000_000
+
+
 def _account_snapshot(client: object) -> tuple[int, Decimal]:
     balance = client.get_balance_allowance(asset_type="COLLATERAL")
     open_orders = tuple(client.list_open_orders().iter_items())
@@ -336,13 +352,21 @@ def main() -> int:
                     expected_key_id=args.transport_key_id,
                     observed_at=received_at,
                 )
-                book_cache.subscribe(list(warmup["token_ids"]))
+                warm_tokens = list(warmup["token_ids"])
+                book_cache.subscribe(warm_tokens)
+                metadata_warm_latency_ms = _warm_execution_metadata(
+                    execution_client,
+                    warm_tokens,
+                )
                 print(
                     json.dumps(
                         {
-                            "status": "fast_live_books_warming",
+                            "status": "fast_live_books_and_metadata_warming",
                             "condition_id": warmup["condition_id"],
                             "token_ids": warmup["token_ids"],
+                            "metadata_warm_latency_ms": (
+                                metadata_warm_latency_ms
+                            ),
                             "observed_at": received_at.isoformat(),
                             "network_submission_attempt_consumed": False,
                             "real_order_submitted": False,
