@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 FAST_LIVE_PURPOSE = "phase15-v3-fast-live-v1"
+FAST_LIVE_WARMUP_PURPOSE = "phase15-v3-fast-live-warmup-v1"
 FAST_LIVE_SOURCE_KEY = "fast_live_preauthorization"
 FAST_LIVE_POLICY_VERSION = "v3-live-canary-v1"
 FAST_LIVE_PREDICTION_VERSION = "v3-frozen-paper-v1"
@@ -365,6 +366,84 @@ def verify_envelope(
     return {
         **validated,
         "authorization_id": str(envelope["authorization_id"]),
+        "created_at": created.isoformat(),
+        "expires_at": expires.isoformat(),
+    }
+
+
+def create_warmup_message(
+    *,
+    condition_id: str,
+    token_ids: tuple[str, str],
+    runtime_authorization: Mapping[str, Any],
+    key: bytes,
+    key_id: str,
+    created_at: datetime,
+) -> dict[str, Any]:
+    created = _utc(created_at)
+    condition = str(condition_id).strip()
+    tokens = tuple(str(token).strip() for token in token_ids)
+    if not condition or len(tokens) != 2 or not all(tokens) or tokens[0] == tokens[1]:
+        raise FastLiveError("fast live warmup market identity invalid")
+    auth_id = str(runtime_authorization.get("authorization_id") or "")
+    auth_expires = _utc(
+        datetime.fromisoformat(str(runtime_authorization.get("expires_at") or ""))
+    )
+    expires = min(created + timedelta(seconds=30), auth_expires)
+    if expires <= created:
+        raise FastLiveError("fast live warmup window closed")
+    body = {
+        "schema_version": 1,
+        "purpose": FAST_LIVE_WARMUP_PURPOSE,
+        "key_id": key_id,
+        "authorization_id": auth_id,
+        "condition_id": condition,
+        "token_ids": list(tokens),
+        "created_at": created.isoformat(),
+        "expires_at": expires.isoformat(),
+    }
+    return {**body, "hmac_sha256": _mac(body, key)}
+
+
+def verify_warmup_message(
+    payload: Mapping[str, Any],
+    *,
+    runtime_authorization: Mapping[str, Any],
+    key: bytes,
+    expected_key_id: str,
+    observed_at: datetime,
+) -> dict[str, Any]:
+    observed = _utc(observed_at)
+    supplied = str(payload.get("hmac_sha256") or "")
+    if not _SHA256_RE.fullmatch(supplied):
+        raise FastLiveError("fast live warmup hmac invalid")
+    body = {name: value for name, value in payload.items() if name != "hmac_sha256"}
+    if not hmac.compare_digest(supplied, _mac(body, key)):
+        raise FastLiveError("fast live warmup hmac mismatch")
+    if payload.get("schema_version") != 1:
+        raise FastLiveError("fast live warmup schema invalid")
+    if payload.get("purpose") != FAST_LIVE_WARMUP_PURPOSE:
+        raise FastLiveError("fast live warmup purpose invalid")
+    if str(payload.get("key_id") or "") != expected_key_id:
+        raise FastLiveError("fast live warmup key id mismatch")
+    if str(payload.get("authorization_id") or "") != str(
+        runtime_authorization.get("authorization_id") or ""
+    ):
+        raise FastLiveError("fast live warmup authorization mismatch")
+    created = _utc(datetime.fromisoformat(str(payload.get("created_at") or "")))
+    expires = _utc(datetime.fromisoformat(str(payload.get("expires_at") or "")))
+    if created > observed or observed >= expires:
+        raise FastLiveError("fast live warmup expired or future")
+    condition = str(payload.get("condition_id") or "").strip()
+    raw_tokens = payload.get("token_ids")
+    if not condition or not isinstance(raw_tokens, list) or len(raw_tokens) != 2:
+        raise FastLiveError("fast live warmup identity invalid")
+    tokens = tuple(str(token).strip() for token in raw_tokens)
+    if not all(tokens) or tokens[0] == tokens[1]:
+        raise FastLiveError("fast live warmup token ids invalid")
+    return {
+        "condition_id": condition,
+        "token_ids": tokens,
         "created_at": created.isoformat(),
         "expires_at": expires.isoformat(),
     }
