@@ -55,9 +55,13 @@ Johannesburg execution host:
    two-second resting/cancel window. The limit price is never raised.
 8. A stale book with no executable ask at or below the V3 limit does not consume the
    network-attempt marker.
-9. A transient safety-cache or HTTP-quote failure before the attempt marker may be nacked
-   for bounded Pub/Sub redelivery while the two-second envelope remains valid.
-10. Submission ambiguity never retries after the attempt marker exists.
+9. A transient safety-cache or HTTP-quote failure before the attempt marker is retried
+   locally in Johannesburg at approximately 20 ms cadence while the same two-second
+   envelope is still valid. This avoids another Pub/Sub round trip.
+10. If that local retry window expires without a network attempt, the result is explicitly
+    recorded as a pre-attempt exhaustion; no order is submitted and the one-shot network
+    attempt remains unconsumed.
+11. Submission ambiguity never retries after the attempt marker exists.
 
 ## Critical-path design
 
@@ -65,6 +69,7 @@ Slow or reusable work is removed from the post-quote window:
 
 - Telegram and the Mac auto-approver are absent from the critical path.
 - Google Pub/Sub clients stay connected.
+- transient pre-attempt checks retry locally rather than waiting for cloud redelivery.
 - Polymarket clients stay initialized.
 - geoblock/account/open-order/collateral checks refresh in the background and must be
   fresh at execution.
