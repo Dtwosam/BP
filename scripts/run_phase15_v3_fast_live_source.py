@@ -346,23 +346,12 @@ def main() -> int:
                         f"fast live result attribute mismatch: {name}"
                     )
 
-            state_now = _load_state(args.project_state)
-            runtime_now = load_private_json(
-                args.runtime_authorization,
-                label="fast live runtime authorization",
-            )
-            verified_runtime_now = verify_runtime_authorization(
-                runtime_now,
-                state=state_now,
-                expected_main=args.expected_main,
-                observed_at=observed,
-            )
             result = verify_result_message(
                 payload,
                 key=key,
                 expected_key_id=args.transport_key_id,
                 expected_authorization_id=str(
-                    verified_runtime_now["authorization_id"]
+                    verified_runtime["authorization_id"]
                 ),
                 observed_at=observed,
             )
