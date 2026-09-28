@@ -162,6 +162,12 @@ def adapt_message(message: object, *, chat_id: int, is_private: bool) -> Incomin
         edit_date = datetime.now(UTC)
     message_id = getattr(message, "id", None)
     sender_id = getattr(message, "sender_id", None)
+    wrapped_buttons = getattr(message, "buttons", None)
+    buttons = (
+        buttons_from_wrapped(wrapped_buttons)
+        if wrapped_buttons is not None
+        else buttons_from_markup(getattr(message, "reply_markup", None))
+    )
     return IncomingMessage(
         message_id=message_id if isinstance(message_id, int) else -1,
         chat_id=chat_id,
@@ -176,8 +182,39 @@ def adapt_message(message: object, *, chat_id: int, is_private: bool) -> Incomin
         reply=bool(getattr(message, "reply_to", None) or getattr(message, "is_reply", False)),
         outgoing=bool(getattr(message, "out", False)),
         is_private=is_private,
-        buttons=buttons_from_markup(getattr(message, "reply_markup", None)),
+        buttons=buttons,
     )
+
+
+def buttons_from_wrapped(
+    rows: object,
+) -> tuple[tuple[CallbackButton, ...], ...] | None:
+    if not isinstance(rows, (list, tuple)):
+        return None
+    parsed: list[tuple[CallbackButton, ...]] = []
+    for row in rows:
+        if not isinstance(row, (list, tuple)):
+            return None
+        parsed_row: list[CallbackButton] = []
+        for button in row:
+            text = getattr(button, "text", None)
+            data = getattr(button, "data", None)
+            url = getattr(button, "url", None)
+            if not isinstance(text, str):
+                return None
+            if data is not None and not isinstance(data, (bytes, bytearray)):
+                return None
+            if url is not None and not isinstance(url, str):
+                return None
+            parsed_row.append(
+                CallbackButton(
+                    text=text,
+                    callback_data=bytes(data) if data is not None else None,
+                    url=url,
+                )
+            )
+        parsed.append(tuple(parsed_row))
+    return tuple(parsed)
 
 
 def buttons_from_markup(
