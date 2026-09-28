@@ -680,11 +680,11 @@ def test_operator_telegram_auto_approver_activation_is_recorded() -> None:
     assert auto["bypass_downstream_validation_authorized"] is False
 
 
-def test_controlled_auto_approved_second_canary_is_explicitly_authorized() -> None:
+def test_controlled_auto_approved_second_canary_is_consumed() -> None:
     state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
     auth = state["phase_15_v3_live_canary"]["controlled_auto_approved_canary_authorization"]
 
-    assert auth["status"] == "AUTHORIZED_WAITING_FOR_ELIGIBLE_CANDIDATE"
+    assert auth["status"] == "CONSUMED_REAL_SUBMISSION_RECORDED"
     assert auth["authorized_at_main"] == "00b3e06e14d35d68a6e0ac9b59ce60221d561c44"
     assert auth["existing_second_canary_authorization_required"] is True
     assert auth["auto_approver_required"] is True
@@ -700,8 +700,9 @@ def test_controlled_auto_approved_second_canary_is_explicitly_authorized() -> No
     assert auth["v3_strategy_mutation_authorized"] is False
     assert auth["v4_mutation_authorized"] is False
     assert auth["broad_autonomous_live_rollout_authorized"] is False
-    assert auth["consumed"] is False
-    assert auth["network_attempt_observed"] is False
+    assert auth["consumed"] is True
+    assert auth["network_attempt_observed"] is True
+    assert auth["real_order_submission_observed"] is True
     assert auth["prepare_watcher_mode"] == "until_candidate"
     assert auth["prepare_watcher_max_wait_seconds"] == 0
     assert auth["prepare_watcher_expected_expiry_at"] is None
