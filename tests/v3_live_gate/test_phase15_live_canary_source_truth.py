@@ -149,7 +149,7 @@ def test_phase15_second_live_canary_is_submitted_zero_fill_reconciliation_pendin
     assert second_recon["live_account_snapshot_runtime_fix_deployed"] is False
     assert second_recon["live_account_snapshot_runtime_fix_deployment_authorized"] is True
     assert second_recon["completion_helper_git_blob_sha"] == (
-        "240b607c6e81297e4ac82d2eff603a1186bc5624"
+        "272313d9bda1712a9d5afa7fd9b0ea634cde2267"
     )
     assert second_recon["prepare_watcher_start_or_restart_authorized"] is False
     assert second_recon["core_service_restart_authorized"] is False
