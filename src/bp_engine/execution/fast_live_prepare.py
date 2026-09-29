@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime
 from decimal import Decimal
 
@@ -46,6 +46,13 @@ from bp_engine.live_readiness.models import LiveRiskContext
 from bp_engine.live_readiness.repository import LiveReadinessRepository
 from bp_engine.live_readiness.risk import evaluate_live_risk
 from bp_engine.storage import schema
+
+
+def continuous_fast_live_policy():
+    return replace(
+        canary_policy(),
+        cooldown_seconds=Decimal("0"),
+    )
 
 
 def frozen_v3_paper_config() -> PaperExecutionConfig:
@@ -160,7 +167,7 @@ def prepare_fast_live_candidate(
     collateral_balance_usd: Decimal,
 ) -> dict[str, object]:
     repository = LiveReadinessRepository()
-    policy = canary_policy()
+    policy = continuous_fast_live_policy()
 
     with engine.begin() as connection:
         _ensure_initial_reconciliation(
