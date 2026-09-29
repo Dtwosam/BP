@@ -171,6 +171,7 @@ _RESULT_REPLAY_VOLATILE_FIELDS = frozenset(
         "approval_received_at",
         "approval_to_receive_ms",
         "prepare_recovered_after_restart",
+        "prepare_created_at",
         "message_received_at",
         "source_to_receive_ms",
         "replayed_result",
