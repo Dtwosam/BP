@@ -74,6 +74,20 @@ Source truth must carry:
 Runtime authorization repeats the continuous-session constraints and is bound to
 the exact release main SHA and source-truth hash.
 
+Manual continuous mode is mutually exclusive with the operator Telegram
+auto-approver. Source truth must show that auto-approval is disabled
+(`live_auto_approve_authorized != true` and no `ACTIVE_*` status) before a
+continuous authorization is valid. This is not a paperwork-only guard: the
+operator-side auto-approver must actually be stopped before source truth is
+updated. The fast-live risk-pending prompt also uses the distinct
+`BP V3 LIVE TRADE CANDIDATE` grammar, and the legacy auto-approver has a
+regression test proving it rejects that grammar and sends no callback.
+
+The current pre-continuous production source truth still records the old
+operator auto-approver as active and contains no continuous
+`fast_live_preauthorization`. Therefore this engineering candidate is not
+itself activation-ready source truth.
+
 Activation requires:
 
 `PHASE15_ACCEPT_FAST_LIVE_ACTIVATION=I_ACCEPT_CONTINUOUS_TELEGRAM_APPROVED_LIVE_SESSION`
