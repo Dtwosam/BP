@@ -117,14 +117,28 @@ def build_prompt(prepared: Mapping[str, Any], *, observed_at: datetime) -> str:
     validated = validate_prepared(prepared, observed_at=observed_at)
     side = validated["selected_side"].upper()
     remaining = float(validated["seconds_remaining"])
+    risk_pending = str(prepared.get("risk_status") or "") == "pending"
+    heading = (
+        "BP V3 LIVE TRADE CANDIDATE"
+        if risk_pending
+        else "BP V3 LIVE TRADE READY"
+    )
+    gate_note = (
+        "Final live risk and Johannesburg execution checks are still running. "
+        "Approval does not bypass them.\n\n"
+        if risk_pending
+        else ""
+    )
     return (
-        "BP V3 LIVE TRADE READY\n\n"
+        f"{heading}\n\n"
         f"Side: {side}\n"
         f"Limit: {validated['limit_price']}\n"
         f"Shares: {validated['requested_shares']}\n"
         f"Maximum spend: ${validated['target_notional_usd']}\n"
         f"Time remaining: {remaining:.1f}s\n\n"
-        "Approve only if you want this exact real-money order submitted."
+        f"{gate_note}"
+        "Approve only if you want this exact real-money order submitted "
+        "when every final gate passes."
     )
 
 
