@@ -185,6 +185,59 @@ def test_marketable_fast_path_consumes_once_then_posts(
     ]
 
 
+def test_continuous_session_uses_one_attempt_marker_per_intent(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(module.polymarket, "AcceptedOrder", FakeAccepted)
+    monkeypatch.setattr(module.polymarket, "RejectedOrder", FakeRejected)
+    monkeypatch.setattr(module.polymarket, "CancelOrdersResponse", FakeCancelResponse)
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    client = FakeClient((("0.58", "20"),))
+    kill = tmp_path / "KILL"
+    executor = FastLiveExecutor(
+        client=client,
+        safety_cache=_cache(now),
+        state_root=tmp_path / "state",
+        kill_switch_path=kill,
+        order_ttl_seconds=Decimal("0"),
+        official_stability_seconds=0,
+        continuous_session=True,
+        now_fn=lambda: now,
+    )
+
+    first = _verified(now)
+    first_result = executor.execute(first)
+    assert first_result["status"] == "accepted"
+    assert executor.attempt_path_for(first).is_file()
+    assert executor.result_path_for(first).is_file()
+    assert not executor.attempt_path.exists()
+    assert not kill.exists()
+
+    replay = executor.execute(first)
+    assert replay["replayed_result"] is True
+    assert client.calls.count("post") == 1
+
+    second = _verified(now)
+    second["intent_id"] = "intent-fast-2"
+    second["request_id"] = "request-fast-2"
+    second["prediction_id"] = "prediction-fast-2"
+    second["paper_order_id"] = "paper-fast-2"
+    second["request_sha256"] = "3" * 64
+    second["prepared_sha256"] = "4" * 64
+    second_request = dict(second["request"])
+    second_request["token_id"] = "token-fast-2"
+    second["request"] = second_request
+
+    second_result = executor.execute(second)
+    assert second_result["status"] == "accepted"
+    assert executor.attempt_path_for(second).is_file()
+    assert executor.result_path_for(second).is_file()
+    assert executor.attempt_path_for(second) != executor.attempt_path_for(first)
+    assert client.calls.count("post") == 2
+    assert not kill.exists()
+
+
 def test_streamed_book_skips_http_quote_round_trip(
     tmp_path: Path,
     monkeypatch,
