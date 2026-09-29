@@ -278,6 +278,31 @@ Staging installs exact release bytes and the dormant Telegram sidecar only. It
 does not start/enable fast-live services, unarm Johannesburg, create runtime
 authorization, or submit an order.
 
+If the historical one-shot Telegram transport remains active, fast-live
+preflight deliberately fails closed while
+`/etc/bp/telegram-approval-handoff.env` is present. The reviewed transition
+helper is:
+
+`scripts/deploy/phase15_v3_fast_live_retire_legacy_transport_cloudshell.sh`
+
+It may run only after the completed second canary is proven terminal and
+reconciled. It binds the historical global attempt marker to the exact consumed
+second-canary intent/request and terminal executor result, requires canceled
+zero-fill completion, zero exposure/open orders, zero unresolved/critical
+reconciliation, and both Johannesburg kill switches engaged. It also refuses
+to retire the transport while an unpublished recorder outbox item or unresolved
+executor delivery exists.
+
+The helper stops/disables only the legacy Telegram transport publisher and four
+Johannesburg transport workers, removes only their runtime env/key material,
+preserves the three-key Telegram bot credential env, restarts the private
+listener with handoff absent, and atomically archives the consumed
+`second-canary.attempt.json` marker under the same root. Historical transport
+state, executor result/attempt receipts, Pub/Sub resources/IAM, and reconciliation
+evidence are preserved. It does not create fast-live runtime authorization,
+start fast-live services, remove the fast-live kill switch, or submit a new
+order.
+
 Before activation, run the read-only readiness helper:
 
 `scripts/deploy/phase15_v3_fast_live_preflight_cloudshell.sh`
