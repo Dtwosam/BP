@@ -108,6 +108,17 @@ def test_fast_live_receiver_is_continuous_approval_gated_and_fail_closed() -> No
     assert "/etc/bp-telegram-transport/transport.key" not in receiver
 
 
+def test_fast_live_source_starts_approval_and_johannesburg_before_risk_join() -> None:
+    source = SOURCE.read_text(encoding="utf-8")
+    preview = source.index("preview = preview_fast_live_candidate")
+    prepare = source.index("prepare_message = create_prepare_message", preview)
+    finalize = source.index("finalized = prepare_fast_live_candidate", prepare)
+    approve = source.index("approval_message = create_approval_message", finalize)
+    assert preview < prepare < finalize < approve
+    assert "approval_prepared=preview" in source
+    assert "fast live finalized risk candidate changed" in source
+
+
 def test_fast_live_executor_quotes_before_attempt_and_post() -> None:
     text = EXECUTOR.read_text(encoding="utf-8")
     sign = text.index("create_limit_order")
