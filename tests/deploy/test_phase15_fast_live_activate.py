@@ -115,6 +115,9 @@ def test_fast_live_services_run_until_session_expiry_or_operator_stop() -> None:
     assert "terminal_event.set()" in receiver
     assert "if _utc_now() >= runtime_expires_at:" in receiver
     assert "future.cancel()" in receiver
+    assert "result_reconciliation_deadline" in source
+    assert "fast_live_result_reconciliation_grace" in source
+    assert "fast_live_result_reconciliation_timeout" in source
 
     assert "if not continuous_session:" in source
     assert 'status in {"skipped", "blocked"}' in source
