@@ -1,4 +1,3 @@
-from bp_engine.execution.live import InterlockDecision, PolymarketLiveExecutionGateway
 from bp_engine.execution.models import (
     PAPER_EXECUTION_VERSION,
     ExecutionCancelAck,
@@ -18,3 +17,15 @@ __all__ = [
     "PaperExecutionConfig",
     "PolymarketLiveExecutionGateway",
 ]
+
+
+def __getattr__(name: str) -> object:
+    if name == "InterlockDecision":
+        from bp_engine.execution.live import InterlockDecision
+
+        return InterlockDecision
+    if name == "PolymarketLiveExecutionGateway":
+        from bp_engine.execution.live import PolymarketLiveExecutionGateway
+
+        return PolymarketLiveExecutionGateway
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
