@@ -165,9 +165,28 @@ def _load_json(path: Path) -> dict[str, Any]:
     return payload
 
 
+_RESULT_REPLAY_VOLATILE_FIELDS = frozenset(
+    {
+        "approval_decision_replayed",
+        "approval_received_at",
+        "approval_to_receive_ms",
+        "prepare_recovered_after_restart",
+        "message_received_at",
+        "source_to_receive_ms",
+        "replayed_result",
+        "result_message_id",
+    }
+)
+
+
 def _result_sha256(result: dict[str, Any]) -> str:
+    stable_result = {
+        name: value
+        for name, value in result.items()
+        if name not in _RESULT_REPLAY_VOLATILE_FIELDS
+    }
     encoded = json.dumps(
-        result,
+        stable_result,
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=True,
