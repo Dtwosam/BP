@@ -383,6 +383,8 @@ def test_parallel_telegram_prepare_and_approval_are_exact_bound() -> None:
     assert verified_approval["intent_id"] == verified_prepare["intent_id"]
     assert verified_approval["request_sha256"] == verified_prepare["request_sha256"]
     assert verified_approval["prepared_sha256"] == verified_prepare["prepared_sha256"]
+    assert verified_approval["prepared"]["intent_id"] == "live-intent-fast-1"
+    assert verified_approval["request"]["limit_price"] == "0.59"
 
     tampered = copy.deepcopy(message)
     tampered["prepared_sha256"] = "f" * 64
@@ -433,4 +435,56 @@ def test_manual_telegram_mode_rejects_active_auto_approver() -> None:
             expected_main=MAIN,
             observed_at=now,
             requires_telegram_approval=True,
+        )
+
+
+def test_approval_prepared_payload_is_hmac_bound() -> None:
+    from bp_engine.execution.telegram_approval import approval_record, new_pending
+
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    state = _state(now)
+    phase = state["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    authorization = phase["fast_live_preauthorization"]
+    assert isinstance(authorization, dict)
+    authorization["requires_telegram_approval"] = True
+    runtime = _runtime(state, now)
+    runtime["requires_telegram_approval"] = True
+    prepared = _prepared(now)
+    prepared["action"] = "submit"
+    pending = new_pending(
+        prepared,
+        telegram_user_id=111,
+        telegram_chat_id=222,
+        created_at=now,
+        nonce="restart-recovery",
+    )
+    approval = approval_record(
+        action="approve",
+        pending=pending,
+        callback_query_id="callback-human-restart",
+        approved_at=now + timedelta(seconds=1),
+    )
+    message = create_approval_message(
+        prepared,
+        approval=approval,
+        runtime_authorization=runtime,
+        key=KEY,
+        key_id=KEY_ID,
+        created_at=now + timedelta(seconds=1),
+    )
+    tampered = copy.deepcopy(message)
+    embedded = tampered["prepared"]
+    assert isinstance(embedded, dict)
+    request = embedded["request"]
+    assert isinstance(request, dict)
+    request["limit_price"] = "0.60"
+
+    with pytest.raises(FastLiveError, match="hmac mismatch"):
+        verify_approval_message(
+            tampered,
+            runtime_authorization=runtime,
+            key=KEY,
+            expected_key_id=KEY_ID,
+            observed_at=now + timedelta(seconds=1, milliseconds=100),
         )
