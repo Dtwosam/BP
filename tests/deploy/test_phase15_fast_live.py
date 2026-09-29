@@ -45,7 +45,9 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert 'default=0.02' in source
     assert "POLYMARKET_PRIVATE_KEY" in source
     assert "must not be present in fast live source" in source
-    assert "Telegram" not in source
+    assert "create_prepare_message" in source
+    assert "create_approval_message" in source
+    assert "BP_FAST_LIVE_TELEGRAM_APPROVAL_REQUIRED" in source
     assert "/etc/bp-telegram-transport/transport.key" not in text
     assert "ExecStart=/opt/bp/.venv/bin/python" not in text
     assert "/etc/bp-telegram-transport/transport.key" not in source
@@ -73,6 +75,10 @@ def test_fast_live_receiver_is_preauthorized_one_shot_and_fail_closed() -> None:
     assert "SafetyRefresher" in receiver
     assert "verify_runtime_authorization" in receiver
     assert "verify_envelope" in receiver
+    assert "verify_prepare_message" in receiver
+    assert "verify_approval_message" in receiver
+    assert "prepare_order" in receiver
+    assert "prepared_order=cached[\"prepared_order\"]" in receiver
     assert "execute_with_bounded_pre_attempt_retry" in receiver
     assert "create_result_message" in receiver
     assert "result_publisher.publish" in receiver
