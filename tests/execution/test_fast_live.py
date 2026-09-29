@@ -409,3 +409,28 @@ def test_telegram_approval_mode_rejects_non_telegram_authorization() -> None:
             observed_at=now,
             requires_telegram_approval=True,
         )
+
+
+def test_manual_telegram_mode_rejects_active_auto_approver() -> None:
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    state = _state(now)
+    phase = state["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    authorization = phase["fast_live_preauthorization"]
+    assert isinstance(authorization, dict)
+    authorization["requires_telegram_approval"] = True
+    phase["operator_telegram_auto_approver"] = {
+        "status": "ACTIVE_LIVE_AUTO_APPROVE",
+        "live_auto_approve_authorized": True,
+    }
+    runtime = _runtime(state, now)
+    runtime["requires_telegram_approval"] = True
+
+    with pytest.raises(FastLiveError, match="auto-approver disabled"):
+        verify_runtime_authorization(
+            runtime,
+            state=state,
+            expected_main=MAIN,
+            observed_at=now,
+            requires_telegram_approval=True,
+        )
