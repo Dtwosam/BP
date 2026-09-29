@@ -16,10 +16,10 @@ from bp_telegram_auto_approver.decider import ClickResult, IdentityMismatch
 from tests.telegram_auto_approver.support import (
     BOT_ID,
     BOT_USERNAME,
-    candidate_prompt_text,
     NONCE,
     STARTED,
     ClickRecorder,
+    candidate_prompt_text,
     incoming,
     keyboard,
     open_decider,
