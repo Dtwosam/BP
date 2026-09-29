@@ -48,6 +48,11 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert "create_prepare_message" in source
     assert "create_approval_message" in source
     assert "BP_FAST_LIVE_TELEGRAM_APPROVAL_REQUIRED" in source
+    assert "BP_FAST_LIVE_CONTINUOUS_SESSION" in source
+    assert "_pending_result_binding" in source
+    assert "awaited_intent_id" in source
+    assert "result_state_lock" in source
+    assert 'status in {"skipped", "blocked"}' in source
     assert "fast_live_result_wait_expired" in source
     assert "/etc/bp-telegram-transport/transport.key" not in text
     assert "ExecStart=/opt/bp/.venv/bin/python" not in text
