@@ -109,6 +109,35 @@ def test_continuous_restart_recovers_exact_unresolved_result_binding(
     )
 
 
+def test_pending_result_deadline_is_recovered_from_publication_receipt(
+    tmp_path: Path,
+) -> None:
+    module = _module()
+    root = tmp_path / "published"
+    (root / "results").mkdir(parents=True)
+
+    intent_id = "intent-waiting"
+    request_hash = "4" * 64
+    published_at = "2026-09-29T12:00:00+00:00"
+    _write(
+        module._receipt_path(root, intent_id, request_hash),
+        {
+            "status": "fast_live_approval_published",
+            "intent_id": intent_id,
+            "request_sha256": request_hash,
+            "published_at": published_at,
+        },
+    )
+
+    deadline = module._result_wait_deadline(
+        root,
+        intent_id,
+        request_hash,
+    )
+
+    assert deadline.isoformat() == "2026-09-29T12:00:20+00:00"
+
+
 def test_final_live_intent_clears_provisional_telegram_run(
     tmp_path: Path,
 ) -> None:
