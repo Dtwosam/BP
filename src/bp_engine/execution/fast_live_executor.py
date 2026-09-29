@@ -263,6 +263,7 @@ def execute_with_bounded_pre_attempt_retry(
     executor: FastLiveExecutor,
     verified: dict[str, Any],
     *,
+    prepared_order: PreparedFastLiveOrder | None = None,
     now_fn=_utc_now,
     sleep_fn=time.sleep,
     retry_sleep_seconds: float = 0.02,
@@ -272,7 +273,7 @@ def execute_with_bounded_pre_attempt_retry(
     last_reason = ""
     while True:
         try:
-            result = executor.execute(verified)
+            result = executor.execute(verified, prepared_order=prepared_order)
             result["pre_attempt_retry_count"] = retries
             return result
         except FastLiveRetryableError as exc:
