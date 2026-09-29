@@ -18,6 +18,11 @@ EVIDENCE="$BP_TELEGRAM_AUTO_APPROVER_DEACTIVATION_EVIDENCE"
 [[ ! -e "$EVIDENCE" ]] || fail "evidence_path_already_exists"
 mkdir -p "$(dirname "$EVIDENCE")"
 chmod 0700 "$(dirname "$EVIDENCE")"
+EVIDENCE_DIR="$(cd "$(dirname "$EVIDENCE")" && pwd)"
+case "$EVIDENCE_DIR/" in
+  "$ROOT/docs/evidence/"*) ;;
+  *) fail "evidence_path_must_be_under_repo_docs_evidence" ;;
+esac
 
 command -v git >/dev/null 2>&1 || fail "git_missing"
 command -v python3 >/dev/null 2>&1 || fail "python3_missing"
