@@ -244,6 +244,7 @@ if [[ -n "$PYTHONPATH_VALUE" ]]; then
   [[ -x "$PYTHON_BIN" ]] || fail "auto_approver_python_missing"
   [[ "$ARG1" == "-m" && "$ARG2" == "bp_telegram_auto_approver" ]] ||
     fail "auto_approver_program_arguments_invalid"
+  RUNTIME_PYTHONPATH_EXPECTED="$PYTHONPATH_VALUE"
   LAUNCHER_MODE="direct-python"
 else
   [[ "$PROGRAM0" == "$EXPECTED_WRAPPER" ]] ||
@@ -269,6 +270,7 @@ EOF
     fail "auto_approver_wrapper_python_missing"
   PYTHON_BIN="$EXPECTED_WRAPPER_PYTHON"
   PYTHONPATH_VALUE="$EXPECTED_PYTHONPATH_ABSOLUTE"
+  RUNTIME_PYTHONPATH_EXPECTED="$EXPECTED_PYTHONPATH_ABSOLUTE"
   LAUNCHER_MODE="wrapper"
 fi
 
@@ -283,7 +285,7 @@ kill -0 "$OLD_PID" 2>/dev/null || fail "auto_approver_old_process_not_alive"
 PROCESS_ENV_BEFORE="$(ps eww -p "$OLD_PID" -o command= 2>/dev/null || true)"
 [[ " $PROCESS_ENV_BEFORE " == *" BP_TELEGRAM_AUTO_APPROVE=true "* ]] ||
   fail "auto_approver_runtime_not_live_enabled_before"
-[[ " $PROCESS_ENV_BEFORE " == *" PYTHONPATH=$EXPECTED_PYTHONPATH_ABSOLUTE "* ]] ||
+[[ " $PROCESS_ENV_BEFORE " == *" PYTHONPATH=$RUNTIME_PYTHONPATH_EXPECTED "* ]] ||
   fail "auto_approver_runtime_pythonpath_mismatch_before"
 
 CHECK_OUTPUT="$(mktemp)"
@@ -338,7 +340,7 @@ LAUNCH_STATE_AFTER="$(launchctl print "$DOMAIN/$LABEL" 2>/dev/null)" ||
 PROCESS_ENV_AFTER="$(ps eww -p "$STABLE_PID" -o command= 2>/dev/null || true)"
 [[ " $PROCESS_ENV_AFTER " == *" BP_TELEGRAM_AUTO_APPROVE=true "* ]] ||
   fail "auto_approver_runtime_not_live_enabled_after"
-[[ " $PROCESS_ENV_AFTER " == *" PYTHONPATH=$EXPECTED_PYTHONPATH_ABSOLUTE "* ]] ||
+[[ " $PROCESS_ENV_AFTER " == *" PYTHONPATH=$RUNTIME_PYTHONPATH_EXPECTED "* ]] ||
   fail "auto_approver_runtime_pythonpath_mismatch_after"
 
 BP_PHASE15_AUTO_APPROVER_LAUNCHER_MODE="$LAUNCHER_MODE" \
