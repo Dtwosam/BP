@@ -121,6 +121,11 @@ def _parse_args() -> argparse.Namespace:
         "--approval-state-root",
         default="/var/lib/bp/phase15-canary-telegram-approval",
     )
+    parser.add_argument(
+        "--additional-prepare-state-root",
+        action="append",
+        default=[],
+    )
     parser.add_argument("--poll-seconds", type=float, default=0.25)
     return parser.parse_args()
 
@@ -440,14 +445,22 @@ def main() -> int:
             "BP_TELEGRAM_USER_ID and BP_TELEGRAM_CHAT_ID are required integers"
         ) from exc
 
-    prepare_root = Path(args.prepare_state_root)
+    prepare_roots = [
+        Path(value) for value in args.additional_prepare_state_root
+    ]
+    prepare_roots.append(Path(args.prepare_state_root))
     approval_root = Path(args.approval_state_root)
     approval_root.mkdir(parents=True, exist_ok=True)
     os.chmod(approval_root, 0o700)
     handoff_command = _handoff_command()
 
     while True:
-        run_dir = _current_run(prepare_root)
+        run_dir = None
+        for prepare_root in prepare_roots:
+            candidate = _current_run(prepare_root)
+            if candidate is not None and (candidate / "prepared.json").is_file():
+                run_dir = candidate
+                break
         if run_dir is None:
             time.sleep(args.poll_seconds)
             continue
