@@ -209,7 +209,8 @@ gcloud compute ssh "$EXEC_VM"   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet
              sudo test ! -e /etc/bp-fast-live/transport.key;
              sudo test -f /var/lib/bp-canary/fast-live/KILL;
              sudo test ! -e /var/lib/bp-canary/fast-live/attempt.json;
-             sudo test ! -e /var/lib/bp-canary/fast-live/result.json" ||
+             sudo test ! -e /var/lib/bp-canary/fast-live/result.json;
+             sudo sh -c '! grep -R -E -q "\"(cancellation_pending|recovery_result_publish_pending)\":true" /var/lib/bp-canary/fast-live/attempts 2>/dev/null'" ||
   fail "executor_stage_not_ready"
 
 HEALTH="$TMP_DIR/health.json"
