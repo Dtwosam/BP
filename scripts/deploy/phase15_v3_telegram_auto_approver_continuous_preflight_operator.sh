@@ -118,10 +118,13 @@ EXPECTED_PYTHONPATH="$ROOT/ops/telegram_auto_approver:$ROOT/src"
 [[ "$PYTHONPATH_VALUE" == "$EXPECTED_PYTHONPATH" ]] ||
   fail "auto_approver_plist_pythonpath_mismatch"
 
-launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1 ||
+LAUNCH_STATE="$(launchctl print "$DOMAIN/$LABEL" 2>/dev/null)" ||
   fail "auto_approver_service_not_running"
+printf '%s\n' "$LAUNCH_STATE" |
+  grep -F -q '"BP_TELEGRAM_AUTO_APPROVE" => "true"' ||
+  fail "auto_approver_launchd_not_live_enabled"
 SERVICE_PID="$(
-  launchctl print "$DOMAIN/$LABEL" |
+  printf '%s\n' "$LAUNCH_STATE" |
     awk -F'= ' '/^[[:space:]]*pid = / {gsub(/[^0-9]/, "", $2); print $2; exit}'
 )"
 [[ "$SERVICE_PID" =~ ^[0-9]+$ ]] || fail "auto_approver_pid_missing"
@@ -134,6 +137,7 @@ printf 'APPROVAL_CONTRACT_GIT_BLOB_SHA=%s\n' "$CONTRACT_SHA"
 printf 'AUTO_APPROVER_SERVICE_ACTIVE=true\n'
 printf 'AUTO_APPROVER_SERVICE_PID=%s\n' "$SERVICE_PID"
 printf 'AUTO_APPROVE_RUNTIME_CONFIGURED=true\n'
+printf 'AUTO_APPROVE_LAUNCHD_ENVIRONMENT=true\n'
 printf 'EXACT_CANDIDATE_PROMPT_ACCEPTED=true\n'
 printf 'MUTATED_CANDIDATE_PROMPT_REJECTED=true\n'
 printf 'RESTART_REQUIRED_FOR_RUNNING_PROCESS_UPGRADE=true\n'
