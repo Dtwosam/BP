@@ -63,7 +63,7 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert "result_state_lock" in source
     assert 'status in {"skipped", "blocked"}' in source
     assert "fast_live_result_reconciliation_grace" in source
-    assert "fast_live_result_reconciliation_timeout" in source
+    assert "fast_live_result_reconciliation_stalled" in source
     assert "_result_wait_deadline" in source
     assert "awaited_result_deadline" in source
     assert '"result_wait_deadline"' in source
@@ -137,7 +137,7 @@ def test_fast_live_source_recovers_reconciliation_after_session_expiry() -> None
     assert "runtime_expires_at - timedelta(microseconds=1)" in source
     assert "fast_live_result_reconciliation_only" in source
     assert "pending_result_deadline" in source
-    assert "fast_live_result_reconciliation_timeout" in source
+    assert "fast_live_result_reconciliation_stalled" in source
 
 
 def test_fast_live_source_starts_approval_and_johannesburg_before_risk_join() -> None:
