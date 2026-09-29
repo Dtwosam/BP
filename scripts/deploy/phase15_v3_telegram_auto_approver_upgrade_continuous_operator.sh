@@ -299,7 +299,7 @@ payload = {
     "service_active_after": True,
     "service_pid_stable_after_seconds": 3,
     "live_auto_approve_runtime_effective_after": True,
-    "exact_candidate_prompt_auto_approved_verified": True,
+    "exact_candidate_prompt_auto_click_prepared_verified": True,
     "mutated_candidate_prompt_rejected_verified": True,
     "telegram_session_deleted": False,
     "telegram_credentials_replaced": False,
@@ -336,7 +336,7 @@ printf 'PREVIOUS_SERVICE_PID=%s\n' "$OLD_PID"
 printf 'CURRENT_SERVICE_PID=%s\n' "$NEW_PID"
 printf 'SERVICE_ACTIVE_AFTER=true\n'
 printf 'AUTO_APPROVE_RUNTIME_EFFECTIVE_AFTER=true\n'
-printf 'EXACT_CANDIDATE_PROMPT_AUTO_APPROVED_VERIFIED=true\n'
+printf 'EXACT_CANDIDATE_PROMPT_AUTO_CLICK_PREPARED_VERIFIED=true\n'
 printf 'MUTATED_CANDIDATE_PROMPT_REJECTED_VERIFIED=true\n'
 printf 'EVIDENCE_PATH=%s\n' "$EVIDENCE"
 printf 'PROJECT_STATE_MUTATED=false\n'
