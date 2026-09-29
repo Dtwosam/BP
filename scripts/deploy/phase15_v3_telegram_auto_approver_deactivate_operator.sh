@@ -33,7 +33,7 @@ command -v python3 >/dev/null 2>&1 || fail "python3_missing"
 
 git -C "$ROOT" fetch origin main --quiet || fail "fetch_main_failed"
 HEAD="$(git -C "$ROOT" rev-parse HEAD)"
-REMOTE_MAIN="$(git -C "$ROOT" rev-parse origin/main)"
+REMOTE_MAIN="$(git -C "$ROOT" rev-parse FETCH_HEAD)"
 [[ "$HEAD" =~ ^[0-9a-f]{40}$ ]] || fail "head_invalid"
 [[ "$HEAD" == "$REMOTE_MAIN" ]] || fail "checkout_is_not_current_main"
 
