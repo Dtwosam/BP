@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from bp_engine.execution.fast_live import (
+    FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA,
     FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE,
     FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE,
     FastLiveError,
@@ -603,6 +604,10 @@ def test_continuous_auto_telegram_mode_requires_active_auto_approver() -> None:
     phase["operator_telegram_auto_approver"] = {
         "status": "ACTIVE_LIVE_AUTO_APPROVE",
         "live_auto_approve_authorized": True,
+        "approval_contract_git_blob_sha": (
+            FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA
+        ),
+        "continuous_candidate_prompt_authorized": True,
     }
 
     runtime = _runtime(state, now)
@@ -637,6 +642,51 @@ def test_continuous_auto_telegram_mode_requires_active_auto_approver() -> None:
         verify_runtime_authorization(
             inactive_runtime,
             state=inactive,
+            expected_main=MAIN,
+            observed_at=now + timedelta(seconds=1),
+            requires_telegram_approval=True,
+            continuous_session=True,
+        )
+
+    wrong_contract = copy.deepcopy(state)
+    wrong_contract_phase = wrong_contract["phase_15_v3_live_canary"]
+    assert isinstance(wrong_contract_phase, dict)
+    wrong_contract_auto = wrong_contract_phase["operator_telegram_auto_approver"]
+    assert isinstance(wrong_contract_auto, dict)
+    wrong_contract_auto["approval_contract_git_blob_sha"] = "0" * 40
+    wrong_contract_runtime = copy.deepcopy(runtime)
+    wrong_contract_runtime["project_state_sha256"] = project_state_sha256(
+        wrong_contract
+    )
+    with pytest.raises(FastLiveError, match="approval contract mismatch"):
+        verify_runtime_authorization(
+            wrong_contract_runtime,
+            state=wrong_contract,
+            expected_main=MAIN,
+            observed_at=now + timedelta(seconds=1),
+            requires_telegram_approval=True,
+            continuous_session=True,
+        )
+
+    not_authorized = copy.deepcopy(state)
+    not_authorized_phase = not_authorized["phase_15_v3_live_canary"]
+    assert isinstance(not_authorized_phase, dict)
+    not_authorized_auto = not_authorized_phase[
+        "operator_telegram_auto_approver"
+    ]
+    assert isinstance(not_authorized_auto, dict)
+    not_authorized_auto["continuous_candidate_prompt_authorized"] = False
+    not_authorized_runtime = copy.deepcopy(runtime)
+    not_authorized_runtime["project_state_sha256"] = project_state_sha256(
+        not_authorized
+    )
+    with pytest.raises(
+        FastLiveError,
+        match="candidate auto-approval not authorized",
+    ):
+        verify_runtime_authorization(
+            not_authorized_runtime,
+            state=not_authorized,
             expected_main=MAIN,
             observed_at=now + timedelta(seconds=1),
             requires_telegram_approval=True,
