@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from bp_engine.execution.fast_live_prepare import (
+    _has_preview_arm_window,
     build_fast_live_draft,
     continuous_fast_live_policy,
     frozen_v3_paper_config,
@@ -81,3 +82,17 @@ def test_continuous_fast_live_policy_has_no_canary_cooldown() -> None:
     assert policy.max_daily_loss_usd == Decimal("10")
     assert policy.max_consecutive_losses == 1
     assert policy.min_edge == Decimal("0.075")
+
+
+
+def test_preview_arm_window_rejects_too_late_signal() -> None:
+    prediction = _prediction()
+
+    assert _has_preview_arm_window(
+        prediction,
+        observed_at=BASE + timedelta(seconds=44),
+    ) is True
+    assert _has_preview_arm_window(
+        prediction,
+        observed_at=BASE + timedelta(seconds=46),
+    ) is False
