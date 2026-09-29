@@ -154,6 +154,23 @@ def test_fresh_book_rejection_closes_without_consuming_attempt() -> None:
     assert account.unresolved_critical_reconciliation == 0
 
 
+def test_approval_recovery_blocked_closes_without_consuming_attempt() -> None:
+    engine = _engine()
+    result = _result("approval_recovery_blocked", attempted=False)
+    recorded = record_fast_live_result(
+        engine=engine,
+        result=result,
+        observed_at=BASE + timedelta(seconds=2),
+    )
+
+    assert recorded["event_type"] == "closed_before_submission"
+    assert recorded["official_reconciliation_required"] is False
+    latest = _latest_reconciliation(engine)
+    assert latest is not None
+    assert latest["unresolved_count"] == 0
+    assert latest["critical_count"] == 0
+
+
 def test_accepted_order_blocks_until_official_zero_fill() -> None:
     engine = _engine()
     result = _result("accepted", attempted=True, order_id="order-fast-1")
