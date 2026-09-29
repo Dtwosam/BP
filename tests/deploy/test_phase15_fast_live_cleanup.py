@@ -130,3 +130,27 @@ def test_fast_live_cleanup_zero_activity_abort_is_exactly_scoped() -> None:
     )
     assert '[[ "$LIVE_ATTEMPTS" == "0" && "$EXEC_RESULTS" == "0" &&' in text
     assert 'ZERO_ACTIVITY_VERIFIED=true' in text
+
+
+def test_fast_live_cleanup_runtime_rm_commands_are_single_shell_commands() -> None:
+    text = CLEANUP.read_text(encoding="utf-8")
+
+    assert (
+        'sudo rm -f /etc/bp-fast-live/authorization.json '
+        '/etc/bp-fast-live/PROJECT_STATE.json '
+        '/etc/bp-fast-live/transport.key '
+        '/etc/bp/phase15-fast-live-source.env'
+        in text
+    )
+    assert (
+        'sudo rm -f /etc/bp-fast-live/authorization.json '
+        '/etc/bp-fast-live/PROJECT_STATE.json '
+        '/etc/bp-fast-live/transport.key '
+        '/etc/bp-fast-live/receiver.env;'
+        in text
+    )
+    assert (
+        'sudo rm -f /etc/bp-fast-live/authorization.json\n'
+        '                    /etc/bp-fast-live/PROJECT_STATE.json'
+        not in text
+    )
