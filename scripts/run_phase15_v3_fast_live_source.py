@@ -18,6 +18,7 @@ from sqlalchemy import create_engine, select
 from bp_engine.config import Settings
 from bp_engine.execution.fast_live import (
     FAST_LIVE_PURPOSE,
+    FAST_LIVE_RESULT_MAX_AGE_SECONDS,
     FAST_LIVE_RESULT_PURPOSE,
     FAST_LIVE_WARMUP_PURPOSE,
     create_approval_message,
@@ -629,6 +630,9 @@ def main() -> int:
     runtime_expires_at = datetime.fromisoformat(
         str(verified_runtime["expires_at"])
     ).astimezone(UTC)
+    result_reconciliation_deadline = runtime_expires_at + timedelta(
+        seconds=float(FAST_LIVE_RESULT_MAX_AGE_SECONDS) + 5.0
+    )
     activated_at = datetime.fromisoformat(str(verified_runtime["issued_at"]))
     if activated_at.tzinfo is None or activated_at.utcoffset() is None:
         raise SystemExit("runtime authorization issued_at must be timezone-aware")
@@ -824,20 +828,51 @@ def main() -> int:
                 waiting_for_result = False
                 continue
             if waiting_for_result:
-                if _utc_now() >= runtime_expires_at:
+                now = _utc_now()
+                if now >= result_reconciliation_deadline:
                     print(
                         json.dumps(
                             {
-                                "status": "fast_live_result_wait_expired",
-                                "network_submission_attempt_consumed": False,
-                                "real_order_submitted": False,
-                                "observed_at": _utc_now().isoformat(),
+                                "status": "fast_live_result_reconciliation_timeout",
+                                "authorization_expired": (
+                                    now >= runtime_expires_at
+                                ),
+                                "intent_id": str(
+                                    result_state["awaited_intent_id"]
+                                ),
+                                "request_sha256": str(
+                                    result_state[
+                                        "awaited_request_sha256"
+                                    ]
+                                ),
+                                "network_submission_attempt_consumed": None,
+                                "real_order_submitted": None,
+                                "observed_at": now.isoformat(),
                             },
                             sort_keys=True,
                         ),
                         flush=True,
                     )
                     return 0
+                if now >= runtime_expires_at:
+                    print(
+                        json.dumps(
+                            {
+                                "status": (
+                                    "fast_live_result_reconciliation_grace"
+                                ),
+                                "authorization_expired": True,
+                                "grace_deadline": (
+                                    result_reconciliation_deadline.isoformat()
+                                ),
+                                "network_submission_attempt_consumed": None,
+                                "real_order_submitted": None,
+                                "observed_at": now.isoformat(),
+                            },
+                            sort_keys=True,
+                        ),
+                        flush=True,
+                    )
                 if not result_event.wait(timeout=args.poll_seconds):
                     continue
                 result_event.clear()
@@ -1139,11 +1174,48 @@ def main() -> int:
 
                 while True:
                     now = _utc_now()
-                    if now >= runtime_expires_at:
-                        return 0
                     market_end = datetime.fromisoformat(
                         str(finalized["market_end_at"])
                     ).astimezone(UTC)
+                    if now >= runtime_expires_at:
+                        closed = {
+                            "status": "telegram_expired",
+                            "intent_id": str(finalized["intent_id"]),
+                            "prediction_id": str(
+                                finalized["prediction_id"]
+                            ),
+                            "paper_order_id": str(
+                                finalized["paper_order_id"]
+                            ),
+                            "request_sha256": str(
+                                prepare_message["request_sha256"]
+                            ),
+                            "reason": "live_session_authorization_expired",
+                            "network_submission_attempt_consumed": False,
+                            "real_order_submitted": False,
+                            "external_order_id": None,
+                        }
+                        recorded = record_fast_live_result(
+                            engine=engine,
+                            result=closed,
+                            observed_at=now,
+                        )
+                        _clear_staged_telegram_candidate(
+                            args.telegram_prepare_state_root,
+                            preview_intent_id,
+                        )
+                        print(
+                            json.dumps(
+                                {
+                                    **closed,
+                                    "recorded": recorded,
+                                },
+                                sort_keys=True,
+                                default=str,
+                            ),
+                            flush=True,
+                        )
+                        break
                     approval_path = _approval_record_path(
                         args.telegram_approval_state_root,
                         preview_intent_id,
