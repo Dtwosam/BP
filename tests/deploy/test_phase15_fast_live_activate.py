@@ -19,14 +19,16 @@ def test_fast_live_activation_helper_is_shell_valid() -> None:
     assert completed.returncode == 0, completed.stderr
 
 
-def test_fast_live_activation_requires_fresh_one_shot_authorization() -> None:
+def test_fast_live_activation_requires_continuous_manual_session_authorization() -> None:
     text = ACTIVATE.read_text(encoding="utf-8")
     for marker in (
-        "I_ACCEPT_ONE_REAL_MONEY_ATTEMPT",
+        "I_ACCEPT_CONTINUOUS_TELEGRAM_APPROVED_LIVE_SESSION",
         "verify_source_authorization",
         "verify_runtime_authorization",
-        "max_network_submission_attempts",
-        "runtime_window_exceeds_one_hour",
+        "manual-telegram-continuous-v1",
+        "max_network_submission_attempts_per_intent",
+        "BP_FAST_LIVE_TELEGRAM_APPROVAL_REQUIRED=yes",
+        "BP_FAST_LIVE_CONTINUOUS_SESSION=yes",
         '[[ "$HEAD" == "$REMOTE_MAIN" ]]',
         "working_tree_not_clean",
     ):
@@ -89,7 +91,7 @@ def test_fast_live_activation_starts_receiver_armed_then_releases_and_starts_sou
     assert "systemctl enable --now bp-phase15-fast-live" not in text
 
 
-def test_fast_live_services_self_expire_after_authorization_or_attempt() -> None:
+def test_fast_live_services_run_until_session_expiry_or_operator_stop() -> None:
     source = SOURCE.read_text(encoding="utf-8")
     receiver = RECEIVER.read_text(encoding="utf-8")
 
@@ -100,6 +102,11 @@ def test_fast_live_services_self_expire_after_authorization_or_attempt() -> None
     assert "runtime_expires_at" in receiver
     assert "terminal_event = threading.Event()" in receiver
     assert 'result.get("network_submission_attempt_consumed") is True' in receiver
+    assert "not continuous_session" in receiver
     assert "terminal_event.set()" in receiver
     assert "if _utc_now() >= runtime_expires_at:" in receiver
     assert "future.cancel()" in receiver
+
+    assert "if not continuous_session:" in source
+    assert 'status in {"skipped", "blocked"}' in source
+    assert "waiting_for_result = False" in source
