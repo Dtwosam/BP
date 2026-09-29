@@ -115,6 +115,7 @@ def build_candidate(
     required_true = (
         "service_active_after",
         "live_auto_approve_runtime_effective_after",
+        "launchd_live_auto_approve_environment_verified",
         "exact_candidate_prompt_auto_click_prepared_verified",
         "mutated_candidate_prompt_rejected_verified",
     )
