@@ -7,7 +7,7 @@ import os
 import threading
 import time
 import urllib.request
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -355,58 +355,42 @@ def main() -> int:
         args.runtime_authorization,
         label="fast live runtime authorization",
     )
+    runtime_expires_raw = datetime.fromisoformat(
+        str(runtime.get("expires_at") or "")
+    )
+    if (
+        runtime_expires_raw.tzinfo is None
+        or runtime_expires_raw.utcoffset() is None
+    ):
+        raise SystemExit(
+            "runtime authorization expires_at must be timezone-aware"
+        )
+    runtime_expires_at = runtime_expires_raw.astimezone(UTC)
+    startup_observed_at = _utc_now()
+    authorization_validation_observed_at = startup_observed_at
+    if startup_observed_at >= runtime_expires_at:
+        authorization_validation_observed_at = (
+            runtime_expires_at - timedelta(microseconds=1)
+        )
     verified_runtime = verify_runtime_authorization(
         runtime,
         state=state,
         expected_main=args.expected_main,
-        observed_at=_utc_now(),
+        observed_at=authorization_validation_observed_at,
         requires_telegram_approval=approval_required,
         continuous_session=continuous_session,
     )
-    runtime_expires_at = datetime.fromisoformat(
-        str(verified_runtime["expires_at"])
-    ).astimezone(UTC)
+    runtime_expired_at_startup = (
+        startup_observed_at >= runtime_expires_at
+    )
     key = load_transport_key_file(args.transport_key_file)
 
     execution_client = _secure_client()
-    safety_client = _secure_client()
-    cache = SafetyCache()
-    refresher = SafetyRefresher(
-        client=safety_client,
-        cache=cache,
-        refresh_seconds=args.safety_refresh_seconds,
-    )
-    refresher.start()
-    book_cache = StreamingBookCache()
-    book_cache.start()
-
-    executor = FastLiveExecutor(
-        client=execution_client,
-        safety_cache=cache,
-        book_cache=book_cache,
-        state_root=args.state_root,
-        kill_switch_path=args.kill_switch,
-        continuous_session=continuous_session,
-    )
-    subscriber = pubsub_v1.SubscriberClient()
-    subscription_path = subscriber.subscription_path(
-        args.gcp_project,
-        args.subscription_id,
-    )
     result_publisher = pubsub_v1.PublisherClient()
     result_topic_path = result_publisher.topic_path(
         args.gcp_project,
         args.result_topic_id,
     )
-    terminal_event = threading.Event()
-    prepared_lock = threading.Lock()
-    approval_execution_lock = threading.Lock()
-    callback_activity_lock = threading.Lock()
-    callback_idle = threading.Event()
-    callback_idle.set()
-    active_callbacks = 0
-    accepting_callbacks = True
-    prepared_orders: dict[tuple[str, str], dict[str, Any]] = {}
 
     def publish_result(
         result: dict[str, Any],
@@ -438,6 +422,95 @@ def main() -> int:
             request_sha256=str(result_message["request_sha256"]),
         )
         return str(future.result(timeout=2.0))
+
+    recovery_executor = FastLiveExecutor(
+        client=execution_client,
+        safety_cache=SafetyCache(),
+        state_root=args.state_root,
+        kill_switch_path=args.kill_switch,
+        continuous_session=continuous_session,
+    )
+    recovered_results = (
+        recovery_executor.recover_pending_cancellations()
+    )
+    for recovered in recovered_results:
+        if str(recovered.get("authorization_id") or "") != str(
+            verified_runtime["authorization_id"]
+        ):
+            raise FastLiveError(
+                "recovered result authorization mismatch"
+            )
+        message_id = publish_result(
+            recovered,
+            runtime_authorization=verified_runtime,
+        )
+        recovery_executor.mark_recovery_result_published(recovered)
+        print(
+            json.dumps(
+                {
+                    "status": "fast_live_pending_cancellation_recovered",
+                    "intent_id": recovered.get("intent_id"),
+                    "request_sha256": recovered.get("request_sha256"),
+                    "result_message_id": message_id,
+                    "authorization_expired": runtime_expired_at_startup,
+                    "network_submission_attempt_consumed": True,
+                    "real_order_submitted": True,
+                    "observed_at": _utc_now().isoformat(),
+                },
+                sort_keys=True,
+            ),
+            flush=True,
+        )
+
+    if runtime_expired_at_startup:
+        print(
+            json.dumps(
+                {
+                    "status": "fast_live_receiver_recovery_only_complete",
+                    "recovered_result_count": len(recovered_results),
+                    "authorization_expired": True,
+                    "observed_at": _utc_now().isoformat(),
+                },
+                sort_keys=True,
+            ),
+            flush=True,
+        )
+        result_publisher.stop()
+        return 0
+
+    safety_client = _secure_client()
+    cache = SafetyCache()
+    refresher = SafetyRefresher(
+        client=safety_client,
+        cache=cache,
+        refresh_seconds=args.safety_refresh_seconds,
+    )
+    refresher.start()
+    book_cache = StreamingBookCache()
+    book_cache.start()
+
+    executor = FastLiveExecutor(
+        client=execution_client,
+        safety_cache=cache,
+        book_cache=book_cache,
+        state_root=args.state_root,
+        kill_switch_path=args.kill_switch,
+        continuous_session=continuous_session,
+    )
+    subscriber = pubsub_v1.SubscriberClient()
+    subscription_path = subscriber.subscription_path(
+        args.gcp_project,
+        args.subscription_id,
+    )
+    terminal_event = threading.Event()
+    prepared_lock = threading.Lock()
+    approval_execution_lock = threading.Lock()
+    callback_activity_lock = threading.Lock()
+    callback_idle = threading.Event()
+    callback_idle.set()
+    active_callbacks = 0
+    accepting_callbacks = True
+    prepared_orders: dict[tuple[str, str], dict[str, Any]] = {}
 
     def callback(message: object) -> None:
         nonlocal active_callbacks
