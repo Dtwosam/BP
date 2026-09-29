@@ -73,6 +73,8 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert '"result_wait_deadline"' in source
     assert "live_session_authorization_expired" in source
     assert "FAST_LIVE_RESULT_MAX_AGE_SECONDS" in source
+    assert "FAST_LIVE_RESULT_STALL_SECONDS" in source
+    assert "FAST_LIVE_RESULT_STALL_SECONDS" in receiver
     assert "/etc/bp-telegram-transport/transport.key" not in text
     assert "ExecStart=/opt/bp/.venv/bin/python" not in text
     assert "/etc/bp-telegram-transport/transport.key" not in source
