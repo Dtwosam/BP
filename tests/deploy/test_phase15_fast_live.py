@@ -121,6 +121,19 @@ def test_fast_live_receiver_is_continuous_approval_gated_and_fail_closed() -> No
     assert "/etc/bp-telegram-transport/transport.key" not in receiver
 
 
+def test_fast_live_source_recovers_reconciliation_after_session_expiry() -> None:
+    source = SOURCE.read_text(encoding="utf-8")
+    settlement = source.index("if pending_settlement:")
+    transport_key = source.index("key = load_transport_key_file", settlement)
+    assert settlement < transport_key
+    assert "reconciliation_only = False" in source
+    assert "authorization_validation_observed_at" in source
+    assert "runtime_expires_at - timedelta(microseconds=1)" in source
+    assert "fast_live_result_reconciliation_only" in source
+    assert "pending_result_deadline" in source
+    assert "fast_live_result_reconciliation_timeout" in source
+
+
 def test_fast_live_source_starts_approval_and_johannesburg_before_risk_join() -> None:
     source = SOURCE.read_text(encoding="utf-8")
     preview = source.index("preview = preview_fast_live_candidate")
