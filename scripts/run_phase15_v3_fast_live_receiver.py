@@ -100,6 +100,15 @@ def _telegram_approval_required() -> bool:
     )
 
 
+def _continuous_session() -> bool:
+    return (
+        os.environ.get("BP_FAST_LIVE_CONTINUOUS_SESSION", "no")
+        .strip()
+        .lower()
+        == "yes"
+    )
+
+
 def _approval_decision_paths(
     state_root: Path,
     approved: dict[str, Any],
@@ -335,6 +344,11 @@ def main() -> int:
         raise SystemExit("safety refresh seconds must be within 0.1..1")
 
     approval_required = _telegram_approval_required()
+    continuous_session = _continuous_session()
+    if continuous_session and not approval_required:
+        raise SystemExit(
+            "continuous fast live requires Telegram approval"
+        )
     state = _load_state(args.project_state)
     runtime = load_private_json(
         args.runtime_authorization,
@@ -346,6 +360,7 @@ def main() -> int:
         expected_main=args.expected_main,
         observed_at=_utc_now(),
         requires_telegram_approval=approval_required,
+        continuous_session=continuous_session,
     )
     runtime_expires_at = datetime.fromisoformat(
         str(verified_runtime["expires_at"])
@@ -370,6 +385,7 @@ def main() -> int:
         book_cache=book_cache,
         state_root=args.state_root,
         kill_switch_path=args.kill_switch,
+        continuous_session=continuous_session,
     )
     subscriber = pubsub_v1.SubscriberClient()
     subscription_path = subscriber.subscription_path(
@@ -420,6 +436,7 @@ def main() -> int:
     def callback(message: object) -> None:
         received_at = _utc_now()
         order_verified = False
+        verified: dict[str, Any] | None = None
         try:
             state_now = _load_state(args.project_state)
             runtime_now = load_private_json(
@@ -432,6 +449,7 @@ def main() -> int:
                 expected_main=args.expected_main,
                 observed_at=received_at,
                 requires_telegram_approval=approval_required,
+                continuous_session=continuous_session,
             )
             payload, attributes = _decode_message(message)
             with prepared_lock:
@@ -607,7 +625,7 @@ def main() -> int:
                         result = _load_approval_result(approval_result_path)
                         result["approval_decision_replayed"] = True
                     elif not claimed:
-                        if executor.attempt_path.exists():
+                        if executor.attempt_path_for(verified).exists():
                             order_verified = True
                             result = executor.execute(verified)
                             result["approval_decision_recovered"] = True
@@ -685,7 +703,10 @@ def main() -> int:
                 result["result_message_id"] = result_message_id
                 print(json.dumps(result, sort_keys=True, default=str), flush=True)
                 message.ack()
-                if result.get("network_submission_attempt_consumed") is True:
+                if (
+                    not continuous_session
+                    and result.get("network_submission_attempt_consumed") is True
+                ):
                     terminal_event.set()
                 return
             if purpose != FAST_LIVE_PURPOSE:
@@ -749,7 +770,10 @@ def main() -> int:
             result["result_message_id"] = result_message_id
             print(json.dumps(result, sort_keys=True, default=str), flush=True)
             message.ack()
-            if result.get("network_submission_attempt_consumed") is True:
+            if (
+                not continuous_session
+                and result.get("network_submission_attempt_consumed") is True
+            ):
                 terminal_event.set()
         except Exception as exc:
             print(
@@ -760,14 +784,20 @@ def main() -> int:
                         "message_id": str(getattr(message, "message_id", "") or ""),
                         "observed_at": received_at.isoformat(),
                         "network_submission_attempt_consumed": (
-                            executor.attempt_path.exists()
+                            executor.attempt_path_for(verified).exists()
+                            if verified is not None
+                            else False
                         ),
                     },
                     sort_keys=True,
                 ),
                 flush=True,
             )
-            if order_verified and executor.attempt_path.exists():
+            if (
+                order_verified
+                and verified is not None
+                and executor.attempt_path_for(verified).exists()
+            ):
                 message.nack()
             else:
                 message.ack()
