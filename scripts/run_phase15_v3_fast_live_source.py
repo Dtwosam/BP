@@ -51,7 +51,7 @@ def _utc_now() -> datetime:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Prepare and immediately publish one pre-authorized fast-live V3 candidate."
+        description="Run the continuous Telegram-approved fast-live V3 source."
     )
     parser.add_argument("--env-file", default=None)
     parser.add_argument(
