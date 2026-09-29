@@ -18,6 +18,7 @@ FAST_LIVE_WARMUP_PURPOSE = "phase15-v3-fast-live-warmup-v1"
 FAST_LIVE_RESULT_PURPOSE = "phase15-v3-fast-live-result-v1"
 FAST_LIVE_PREPARE_PURPOSE = "phase15-v3-fast-live-prepare-v1"
 FAST_LIVE_APPROVAL_PURPOSE = "phase15-v3-fast-live-approval-v1"
+FAST_LIVE_CONTINUOUS_SCOPE = "telegram-manual-continuous-v1"
 FAST_LIVE_PREPARE_MAX_AGE_SECONDS = Decimal("45")
 FAST_LIVE_RESULT_MAX_AGE_SECONDS = Decimal("15")
 FAST_LIVE_SOURCE_KEY = "fast_live_preauthorization"
@@ -103,8 +104,13 @@ def verify_source_authorization(
     expected_main: str,
     observed_at: datetime,
     requires_telegram_approval: bool = False,
+    continuous_manual_session: bool = False,
 ) -> dict[str, Any]:
     observed = _utc(observed_at)
+    if continuous_manual_session and not requires_telegram_approval:
+        raise FastLiveError(
+            "fast live continuous session requires Telegram approval"
+        )
     if not _COMMIT_RE.fullmatch(expected_main):
         raise FastLiveError("expected main commit invalid")
     authorization = _source_authorization(state)
@@ -127,6 +133,15 @@ def verify_source_authorization(
     for name, expected in required.items():
         if authorization.get(name) != expected:
             raise FastLiveError(f"fast live source truth mismatch: {name}")
+    if continuous_manual_session:
+        if authorization.get("authorization_scope") != FAST_LIVE_CONTINUOUS_SCOPE:
+            raise FastLiveError(
+                "fast live continuous authorization scope mismatch"
+            )
+        if authorization.get("max_network_submission_attempts_per_intent") != 1:
+            raise FastLiveError(
+                "fast live continuous per-intent attempt limit changed"
+            )
     if requires_telegram_approval:
         phase = state.get("phase_15_v3_live_canary")
         assert isinstance(phase, Mapping)
@@ -183,6 +198,7 @@ def verify_runtime_authorization(
     expected_main: str,
     observed_at: datetime,
     requires_telegram_approval: bool = False,
+    continuous_manual_session: bool = False,
 ) -> dict[str, Any]:
     observed = _utc(observed_at)
     source = verify_source_authorization(
@@ -190,6 +206,7 @@ def verify_runtime_authorization(
         expected_main=expected_main,
         observed_at=observed,
         requires_telegram_approval=requires_telegram_approval,
+        continuous_manual_session=continuous_manual_session,
     )
     if runtime.get("schema_version") != 1:
         raise FastLiveError("runtime authorization schema invalid")
@@ -207,6 +224,15 @@ def verify_runtime_authorization(
         raise FastLiveError("runtime authorization attempt limit changed")
     if bool(runtime.get("requires_telegram_approval", False)) != requires_telegram_approval:
         raise FastLiveError("runtime Telegram approval mode mismatch")
+    if bool(runtime.get("continuous_manual_session", False)) != continuous_manual_session:
+        raise FastLiveError("runtime continuous session mode mismatch")
+    if continuous_manual_session:
+        if runtime.get("authorization_scope") != FAST_LIVE_CONTINUOUS_SCOPE:
+            raise FastLiveError("runtime continuous authorization scope mismatch")
+        if runtime.get("max_network_submission_attempts_per_intent") != 1:
+            raise FastLiveError(
+                "runtime continuous per-intent attempt limit changed"
+            )
     if _decimal(runtime.get("target_notional_usd"), "target_notional_usd") != (
         FAST_LIVE_TARGET_NOTIONAL_USD
     ):
