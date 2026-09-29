@@ -62,6 +62,9 @@ def test_fast_live_activation_uses_fresh_per_authorization_transport() -> None:
 
 def test_fast_live_activation_starts_receiver_armed_then_releases_and_starts_source() -> None:
     text = ACTIVATE.read_text(encoding="utf-8")
+    telegram_start = text.index(
+        "sudo systemctl restart bp-phase15-canary-telegram-approval.service"
+    )
     receiver_start = text.index(
         "sudo systemctl start bp-phase15-fast-live-receiver.service"
     )
@@ -71,7 +74,7 @@ def test_fast_live_activation_starts_receiver_armed_then_releases_and_starts_sou
     source_start = text.index(
         "sudo systemctl start bp-phase15-fast-live-source.service"
     )
-    assert receiver_start < kill_release < source_start
+    assert telegram_start < receiver_start < kill_release < source_start
 
     for marker in (
         "safe_stop()",
@@ -84,6 +87,12 @@ def test_fast_live_activation_starts_receiver_armed_then_releases_and_starts_sou
         'geo.get("country") != "ZA"',
         "open_orders != 0",
         'collateral < Decimal("5")',
+        "/opt/bp-phase15-telegram-approval/releases/$HEAD",
+        "/etc/bp/telegram-approval.env",
+        "/etc/bp/telegram-approval-handoff.env",
+        "telegram_approval_listener_start_failed",
+        "TELEGRAM_APPROVAL_ACTIVE=true",
+        "TELEGRAM_APPROVAL_RELEASE_MAIN=%s",
     ):
         assert marker in text
 
