@@ -54,6 +54,19 @@ class SafetySnapshot:
             raise ValueError("safety snapshot timestamp must be timezone-aware")
 
 
+@dataclass(frozen=True)
+class PreparedFastLiveOrder:
+    intent_id: str
+    request_sha256: str
+    token_id: str
+    limit_price: Decimal
+    requested_shares: Decimal
+    target_notional_usd: Decimal
+    signed_order: object
+    prepared_at: datetime
+    sign_latency_ms: float
+
+
 class SafetyCache:
     def __init__(self) -> None:
         self._lock = Lock()
@@ -409,7 +422,50 @@ class FastLiveExecutor:
                 break
         return cancellation, official
 
-    def execute(self, verified: dict[str, Any]) -> dict[str, Any]:
+    def prepare_order(self, verified: dict[str, Any]) -> PreparedFastLiveOrder:
+        if self.attempt_path.exists():
+            raise FastLiveError("fast live attempt already exists")
+        self._require_fresh_safety()
+        request = verified.get("request")
+        if not isinstance(request, dict):
+            raise FastLiveError("fast live request missing")
+        token_id = str(request.get("token_id") or "")
+        limit_price = _decimal(request.get("limit_price"), "limit_price")
+        shares = _decimal(request.get("requested_shares"), "requested_shares")
+        target = _decimal(request.get("target_notional_usd"), "target_notional_usd")
+        if not token_id:
+            raise FastLiveError("fast live token id missing")
+        if str(request.get("action") or "") != "BUY":
+            raise FastLiveError("fast live action must be BUY")
+        if target != FAST_LIVE_TARGET_NOTIONAL_USD:
+            raise FastLiveError("fast live target changed")
+        prepared_at = self._now_fn()
+        sign_started_ns = time.monotonic_ns()
+        signed_order = self._client.create_limit_order(
+            token_id=token_id,
+            price=limit_price,
+            size=shares,
+            side="BUY",
+        )
+        sign_completed_ns = time.monotonic_ns()
+        return PreparedFastLiveOrder(
+            intent_id=str(verified["intent_id"]),
+            request_sha256=str(verified["request_sha256"]),
+            token_id=token_id,
+            limit_price=limit_price,
+            requested_shares=shares,
+            target_notional_usd=target,
+            signed_order=signed_order,
+            prepared_at=prepared_at,
+            sign_latency_ms=(sign_completed_ns - sign_started_ns) / 1_000_000,
+        )
+
+    def execute(
+        self,
+        verified: dict[str, Any],
+        *,
+        prepared_order: PreparedFastLiveOrder | None = None,
+    ) -> dict[str, Any]:
         if self.attempt_path.exists():
             if self.result_path.exists():
                 replayed = _read_json(self.result_path)
@@ -467,14 +523,32 @@ class FastLiveExecutor:
             raise FastLiveError("fast live target changed")
 
         received_at = self._now_fn()
-        sign_started_ns = time.monotonic_ns()
-        signed_order = self._client.create_limit_order(
-            token_id=token_id,
-            price=limit_price,
-            size=shares,
-            side="BUY",
-        )
-        sign_completed_ns = time.monotonic_ns()
+        if prepared_order is None:
+            sign_started_ns = time.monotonic_ns()
+            signed_order = self._client.create_limit_order(
+                token_id=token_id,
+                price=limit_price,
+                size=shares,
+                side="BUY",
+            )
+            sign_completed_ns = time.monotonic_ns()
+            sign_latency_ms = (
+                sign_completed_ns - sign_started_ns
+            ) / 1_000_000
+        else:
+            if prepared_order.intent_id != str(verified["intent_id"]):
+                raise FastLiveError("prepared order intent mismatch")
+            if prepared_order.request_sha256 != str(verified["request_sha256"]):
+                raise FastLiveError("prepared order request hash mismatch")
+            if (
+                prepared_order.token_id != token_id
+                or prepared_order.limit_price != limit_price
+                or prepared_order.requested_shares != shares
+                or prepared_order.target_notional_usd != target
+            ):
+                raise FastLiveError("prepared order request changed")
+            signed_order = prepared_order.signed_order
+            sign_latency_ms = prepared_order.sign_latency_ms
 
         self._require_fresh_safety()
         if self._kill_switch_engaged():
@@ -523,9 +597,7 @@ class FastLiveExecutor:
                     quote_completed_ns - quote_started_ns
                 ) / 1_000_000,
                 "quote_source": quote_source,
-                "sign_latency_ms": (
-                    sign_completed_ns - sign_started_ns
-                ) / 1_000_000,
+                "sign_latency_ms": sign_latency_ms,
             }
 
         self._require_fresh_safety()
@@ -565,9 +637,7 @@ class FastLiveExecutor:
                     quote_completed_ns - quote_started_ns
                 ) / 1_000_000,
                 "quote_source": quote_source,
-                "sign_latency_ms": (
-                    sign_completed_ns - sign_started_ns
-                ) / 1_000_000,
+                "sign_latency_ms": sign_latency_ms,
                 "quote_to_post_ms": (
                     post_started_ns - quote_completed_ns
                 ) / 1_000_000,
@@ -621,9 +691,7 @@ class FastLiveExecutor:
                 quote_completed_ns - quote_started_ns
             ) / 1_000_000,
             "quote_source": quote_source,
-            "sign_latency_ms": (
-                sign_completed_ns - sign_started_ns
-            ) / 1_000_000,
+            "sign_latency_ms": sign_latency_ms,
             "post_latency_ms": (
                 post_completed_ns - post_started_ns
             ) / 1_000_000,
@@ -659,9 +727,7 @@ class FastLiveExecutor:
                 quote_completed_ns - quote_started_ns
             ) / 1_000_000,
             "quote_source": quote_source,
-            "sign_latency_ms": (
-                sign_completed_ns - sign_started_ns
-            ) / 1_000_000,
+            "sign_latency_ms": sign_latency_ms,
             "post_latency_ms": (
                 post_completed_ns - post_started_ns
             ) / 1_000_000,
