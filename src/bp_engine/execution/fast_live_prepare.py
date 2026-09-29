@@ -247,6 +247,7 @@ def preview_fast_live_candidate(
                     "prediction_id": request.prediction_id,
                     "paper_order_id": paper_order_id,
                     "request": request.as_mapping(raw=True),
+                    "preview_observed_at": observed_at.isoformat(),
                 }
             ),
         )
