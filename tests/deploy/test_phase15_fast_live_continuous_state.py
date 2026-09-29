@@ -138,6 +138,31 @@ def test_pending_result_deadline_is_recovered_from_publication_receipt(
     assert deadline.isoformat() == "2026-09-29T12:00:20+00:00"
 
 
+def test_stale_telegram_preview_is_not_reused_across_live_sessions(
+    tmp_path: Path,
+) -> None:
+    module = _module()
+    root = tmp_path / "telegram"
+    preview = {
+        "intent_id": "candidate-preview-stale",
+        "prediction_id": "prediction-stale",
+        "paper_order_id": "paper-stale",
+    }
+    module._stage_telegram_candidate(
+        root,
+        preview,
+        authorization_id="auth-old",
+    )
+
+    loaded = module._load_staged_telegram_candidate(
+        root,
+        expected_authorization_id="auth-new",
+    )
+
+    assert loaded is None
+    assert not (root / "current-run").exists()
+
+
 def test_final_live_intent_clears_provisional_telegram_run(
     tmp_path: Path,
 ) -> None:
@@ -148,7 +173,11 @@ def test_final_live_intent_clears_provisional_telegram_run(
         "prediction_id": "prediction-1",
         "paper_order_id": "paper-1",
     }
-    module._stage_telegram_candidate(root, preview)
+    module._stage_telegram_candidate(
+        root,
+        preview,
+        authorization_id="auth-session-1",
+    )
     module._write_telegram_state_once(
         root,
         "candidate-preview-1",
