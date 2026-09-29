@@ -44,7 +44,7 @@ _LISTENER_APPROVAL_EDIT = re.compile(
 )
 # git hash-object of the reviewed src/bp_engine/execution/telegram_approval.py.
 # A later edit must update this pin only after the auto-approver is reviewed again.
-APPROVAL_CONTRACT_BLOB_SHA = "930b62514712bd40400550da3ea5bbed533198da"
+APPROVAL_CONTRACT_BLOB_SHA = "5676efcb60840f4533a7f43b3c6a7efab9e97541"
 LOCAL_DEADLINE_SAFETY_MARGIN_SECONDS = 2
 
 
@@ -116,6 +116,7 @@ def _load_approval_module() -> ModuleType:
         "MIN_APPROVAL_WINDOW_SECONDS",
         "SUBMIT_SAFETY_FLOOR_SECONDS",
         "TARGET_NOTIONAL_USD",
+        "build_candidate_prompt",
         "callback_data",
     )
     for name in required:
