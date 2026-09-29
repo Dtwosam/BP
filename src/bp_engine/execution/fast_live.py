@@ -29,6 +29,9 @@ FAST_LIVE_CONTINUOUS_AUTHORIZATION_MODES = frozenset(
         FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE,
     }
 )
+FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA = (
+    "5676efcb60840f4533a7f43b3c6a7efab9e97541"
+)
 FAST_LIVE_PREPARE_MAX_AGE_SECONDS = Decimal("45")
 FAST_LIVE_RESULT_MAX_AGE_SECONDS = Decimal("300")
 FAST_LIVE_RESULT_STALL_SECONDS = Decimal("20")
@@ -188,11 +191,22 @@ def verify_source_authorization(
             if (
                 authorization_mode
                 == FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE
-                and not auto_active
             ):
-                raise FastLiveError(
-                    "fast live auto Telegram approval requires auto-approver active"
-                )
+                if not auto_active:
+                    raise FastLiveError(
+                        "fast live auto Telegram approval requires auto-approver active"
+                    )
+                assert isinstance(auto, Mapping)
+                if auto.get("approval_contract_git_blob_sha") != (
+                    FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA
+                ):
+                    raise FastLiveError(
+                        "fast live auto Telegram approval contract mismatch"
+                    )
+                if auto.get("continuous_candidate_prompt_authorized") is not True:
+                    raise FastLiveError(
+                        "fast live continuous candidate auto-approval not authorized"
+                    )
         elif auto_active:
             raise FastLiveError(
                 "fast live manual Telegram approval requires auto-approver disabled"
