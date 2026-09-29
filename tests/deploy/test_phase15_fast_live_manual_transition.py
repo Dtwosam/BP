@@ -92,6 +92,7 @@ def test_manual_transition_preflight_is_read_only() -> None:
     for marker in (
         "source_truth_not_in_pretransition_state",
         "checkout_is_not_current_main",
+        'rev-parse FETCH_HEAD',
         "AUTO_APPROVER_SOURCE_TRUTH_STATUS",
         "FAST_LIVE_PREAUTHORIZATION_PRESENT",
         "SERVICE_ACTIVE",
@@ -113,6 +114,7 @@ def test_manual_transition_preflight_is_read_only() -> None:
         "pkill ",
         "kill -9",
         "gcloud ",
+        "rev-parse origin/main",
     ):
         assert forbidden not in text
 
@@ -133,6 +135,7 @@ def test_operator_auto_approver_deactivation_is_explicit_and_scoped() -> None:
     for marker in (
         "I_ACCEPT_STOP_LEGACY_TELEGRAM_AUTO_APPROVER",
         "checkout_is_not_current_main",
+        'rev-parse FETCH_HEAD',
         "working_tree_not_clean",
         "auto_approver_source_truth_not_active",
         "evidence_path_must_be_under_repo_docs_evidence",
@@ -170,6 +173,7 @@ def test_operator_auto_approver_deactivation_is_explicit_and_scoped() -> None:
         "PROJECT_STATE.json.tmp",
         "gcloud ",
         "post_order",
+        "rev-parse origin/main",
     ):
         assert forbidden not in text
 
