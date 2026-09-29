@@ -36,6 +36,7 @@ def test_fast_live_status_helper_is_read_only_and_complete() -> None:
         "RUNTIME_EXPIRED",
         "RUNTIME_CONTINUOUS_SESSION",
         "TELEGRAM_CURRENT_RUN_PRESENT",
+        "RESULT_INTEGRITY_FAULT_PRESENT",
         "LIVE_PUBLICATION_COUNT",
         "LIVE_RESULT_COUNT",
         "LIVE_SETTLEMENT_COUNT",
