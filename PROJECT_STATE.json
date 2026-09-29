@@ -4339,7 +4339,7 @@
     "second_order_authorized": false,
     "v3_strategy_mutation_performed": false,
     "v4_mutation_performed": false,
-    "next_action": "Stage main de58649ea7d8e3612630223804f43a65ac675ec9-derived fast-live release once production connector is reachable, then activate exactly one $5 V3 fast-live attempt under fast_live_preauthorization.",
+    "next_action": "After this source-truth authorization merges, stage that exact current main commit on the recorder and Johannesburg hosts, then activate exactly one $5 V3 fast-live attempt while this authorization remains valid.",
     "arm_helper": "scripts/deploy/phase15_v3_canary_arm_cloudshell.sh",
     "kill_switch_path": "/etc/bp-canary/KILL",
     "kill_switch_default_engaged": true,
