@@ -931,9 +931,13 @@ def main() -> int:
                             )
                             waiting_for_result = True
                             break
-                        if approval_status == "skipped":
+                        if approval_status in {"skipped", "expired"}:
                             closed = {
-                                "status": "telegram_skipped",
+                                "status": (
+                                    "telegram_skipped"
+                                    if approval_status == "skipped"
+                                    else "telegram_expired"
+                                ),
                                 "intent_id": str(report["intent_id"]),
                                 "prediction_id": str(report["prediction_id"]),
                                 "paper_order_id": str(report["paper_order_id"]),
