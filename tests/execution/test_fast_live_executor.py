@@ -311,7 +311,14 @@ def test_cancel_only_startup_recovery_scans_pending_continuous_results(
     assert "post" not in client.calls
 
     second = executor.recover_pending_cancellations()
-    assert second == []
+    assert len(second) == 1
+    assert second[0]["recovery_result_publish_pending"] is True
+    assert client.calls.count("cancel") == 1
+
+    executor.mark_recovery_result_published(second[0])
+
+    third = executor.recover_pending_cancellations()
+    assert third == []
     assert client.calls.count("cancel") == 1
 
 
