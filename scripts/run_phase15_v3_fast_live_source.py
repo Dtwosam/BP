@@ -106,6 +106,15 @@ def _telegram_approval_required() -> bool:
     )
 
 
+def _continuous_session() -> bool:
+    return (
+        os.environ.get("BP_FAST_LIVE_CONTINUOUS_SESSION", "no")
+        .strip()
+        .lower()
+        == "yes"
+    )
+
+
 def _load_state(path: Path) -> dict[str, Any]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -291,7 +300,11 @@ def _result_receipt_path(
     return _receipt_path(root / "results", intent_id, request_sha256)
 
 
-def _publication_state(root: Path) -> str:
+def _publication_state(
+    root: Path,
+    *,
+    continuous_session: bool = False,
+) -> str:
     attempted = False
     unresolved = False
     for path in root.glob("*.json"):
@@ -307,7 +320,7 @@ def _publication_state(root: Path) -> str:
         result_receipt = _load_json(result_path)
         if result_receipt.get("network_submission_attempt_consumed") is True:
             attempted = True
-    if attempted:
+    if attempted and not continuous_session:
         return "attempt_consumed"
     if unresolved:
         return "waiting_for_result"
@@ -483,6 +496,11 @@ def main() -> int:
     args = _parse_args()
     _require_runtime()
     approval_required = _telegram_approval_required()
+    continuous_session = _continuous_session()
+    if continuous_session and not approval_required:
+        raise SystemExit(
+            "continuous fast live requires Telegram approval"
+        )
     if not 0.02 <= args.poll_seconds <= 1:
         raise SystemExit("poll seconds must be within 0.02..1")
     if args.official_open_order_count != 0:
@@ -501,9 +519,12 @@ def main() -> int:
         else Settings()
     )
     engine = create_engine(settings.database_url, pool_pre_ping=True)
-    publication_state = _publication_state(args.receipt_dir)
+    publication_state = _publication_state(
+        args.receipt_dir,
+        continuous_session=continuous_session,
+    )
+    pending_settlement = _pending_settlement_intent(args.receipt_dir)
     if publication_state == "attempt_consumed":
-        pending_settlement = _pending_settlement_intent(args.receipt_dir)
         if pending_settlement:
             try:
                 return _settle_until_terminal(
@@ -528,6 +549,7 @@ def main() -> int:
         expected_main=args.expected_main,
         observed_at=_utc_now(),
         requires_telegram_approval=approval_required,
+        continuous_session=continuous_session,
     )
     runtime_expires_at = datetime.fromisoformat(
         str(verified_runtime["expires_at"])
@@ -689,16 +711,23 @@ def main() -> int:
         callback=result_callback,
     )
     waiting_for_result = publication_state == "waiting_for_result"
-    settlement_intent_id = ""
+    settlement_intent_id = (
+        pending_settlement if continuous_session else ""
+    )
 
     try:
         while True:
             if settlement_intent_id:
-                return _settle_until_terminal(
+                settlement_status = _settle_until_terminal(
                     engine=engine,
                     intent_id=settlement_intent_id,
                     poll_seconds=args.poll_seconds,
                 )
+                if settlement_status != 0:
+                    return settlement_status
+                settlement_intent_id = ""
+                waiting_for_result = False
+                continue
             if waiting_for_result:
                 if _utc_now() >= runtime_expires_at:
                     print(
@@ -720,19 +749,24 @@ def main() -> int:
                 consumed = (
                     result_state["network_submission_attempt_consumed"] is True
                 )
+                if approval_required:
+                    _clear_staged_telegram_candidate(
+                        args.telegram_prepare_state_root,
+                        str(result_state["settlement_intent_id"]),
+                    )
                 if consumed:
                     if result_state["settlement_required"] is True:
                         settlement_intent_id = str(
                             result_state["settlement_intent_id"]
                         )
                         continue
-                    return 0
-                if approval_required:
-                    _clear_staged_telegram_candidate(
-                        args.telegram_prepare_state_root,
-                        str(result_state["settlement_intent_id"]),
-                    )
+                    if not continuous_session:
+                        return 0
                 waiting_for_result = False
+                result_state["network_submission_attempt_consumed"] = None
+                result_state["result"] = None
+                result_state["settlement_required"] = False
+                result_state["settlement_intent_id"] = ""
                 continue
             observed = _utc_now()
             if observed >= runtime_expires_at:
@@ -771,6 +805,7 @@ def main() -> int:
                         expected_main=args.expected_main,
                         observed_at=observed,
                         requires_telegram_approval=approval_required,
+                        continuous_session=continuous_session,
                     )
                     warmup = create_warmup_message(
                         condition_id=warm_market["condition_id"],
@@ -811,7 +846,7 @@ def main() -> int:
             if status == "waiting":
                 time.sleep(args.poll_seconds)
                 continue
-            if status == "skipped":
+            if status in {"skipped", "blocked"}:
                 print(json.dumps(report, sort_keys=True, default=str), flush=True)
                 time.sleep(args.poll_seconds)
                 continue
@@ -830,6 +865,7 @@ def main() -> int:
                 expected_main=args.expected_main,
                 observed_at=_utc_now(),
                 requires_telegram_approval=approval_required,
+                continuous_session=continuous_session,
             )
             if approval_required:
                 prepared_path = _stage_telegram_candidate(
@@ -892,6 +928,7 @@ def main() -> int:
                                 expected_main=args.expected_main,
                                 observed_at=now,
                                 requires_telegram_approval=True,
+                                continuous_session=continuous_session,
                             )
                             approval_message = create_approval_message(
                                 report,
@@ -1040,7 +1077,10 @@ def main() -> int:
                     ),
                     flush=True,
                 )
-                return 0
+                if not continuous_session:
+                    return 0
+                time.sleep(args.poll_seconds)
+                continue
 
             publish_started = time.monotonic_ns()
             message_id, publish_attempts = _publish_with_bounded_retry(
