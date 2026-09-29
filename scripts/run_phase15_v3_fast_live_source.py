@@ -824,6 +824,34 @@ def main() -> int:
                 result_replayed = result_path.is_file()
                 if result_replayed:
                     durable_receipt = _load_json(result_path)
+                    durable_attempted = (
+                        durable_receipt.get(
+                            "network_submission_attempt_consumed"
+                        )
+                        is True
+                    )
+                    incoming_attempted = (
+                        result.get(
+                            "network_submission_attempt_consumed"
+                        )
+                        is True
+                    )
+                    if (
+                        str(durable_receipt.get("intent_id") or "")
+                        != str(result["intent_id"])
+                        or str(
+                            durable_receipt.get("request_sha256") or ""
+                        )
+                        != str(result["request_sha256"])
+                        or str(
+                            durable_receipt.get("execution_status") or ""
+                        )
+                        != str(result.get("status") or "")
+                        or durable_attempted != incoming_attempted
+                    ):
+                        raise RuntimeError(
+                            "fast live replayed result changed"
+                        )
                     recorded = durable_receipt.get("recorded")
                     official_recorded = durable_receipt.get(
                         "official_recorded"
