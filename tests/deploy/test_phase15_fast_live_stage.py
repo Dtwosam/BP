@@ -46,5 +46,11 @@ def test_fast_live_stage_installs_exact_release_and_full_runtime() -> None:
         'version("google-cloud-pubsub") == "2.41.0"',
         'version("websockets") == "15.0.1"',
         "import bp_engine.execution.fast_live_executor",
+        'command -v python3.12 >/dev/null',
+        'python3.12 -c',
+        'executor_python312_unavailable',
+        '"$python312" -m venv "$venv"',
+        "sys.version_info >= (3, 12)",
+        'rm -rf "$venv"',
     ):
         assert marker in text
