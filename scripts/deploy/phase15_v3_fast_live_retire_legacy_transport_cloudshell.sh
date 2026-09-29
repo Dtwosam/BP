@@ -142,7 +142,7 @@ HEALTH=$(
     --command="printf '%s' '{\"action\":\"health\"}' | sudo /opt/bp-canary/executor.sh"
 ) || fail "executor_health_probe_failed"
 
-python3 - "$HEALTH" <<'PY' || fail "executor_not_safe_idle"
+if ! python3 - "$HEALTH" <<'PY'
 import json
 import sys
 
@@ -158,6 +158,9 @@ account = health.get("account") or {}
 assert account.get("clean_for_canary") is True
 assert int(account.get("open_order_count", -1)) == 0
 PY
+then
+  fail "executor_not_safe_idle"
+fi
 
 gcloud compute ssh "$EXEC_VM" \
   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
@@ -242,9 +245,9 @@ echo "LEGACY_MARKER_SHA256=$MARKER_SHA256"
 echo "TERMINAL_LEGACY_ATTEMPT=PASS"
 
 echo "=== VERIFY NO PENDING LEGACY RECORDER DELIVERY ==="
-gcloud compute ssh "$US_VM" \
+if ! gcloud compute ssh "$US_VM" \
   --project="$PROJECT" --zone="$US_ZONE" --quiet \
-  --command="sudo python3 -" <<'PY' || fail "legacy_recorder_delivery_pending"
+  --command="sudo python3 -" <<'PY'
 from pathlib import Path
 
 root = Path("/var/lib/bp/phase15-canary-telegram-transport")
@@ -259,12 +262,14 @@ if outbox.is_dir():
 print(f"LEGACY_PENDING_OUTBOX_COUNT={len(pending)}")
 assert not pending
 PY
+then
+  fail "legacy_recorder_delivery_pending"
+fi
 
 echo "=== VERIFY NO PENDING LEGACY EXECUTOR DELIVERY ==="
-gcloud compute ssh "$EXEC_VM" \
+if ! gcloud compute ssh "$EXEC_VM" \
   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
-  --command="sudo python3 - '$PACKAGE_IDENTITY'" <<'PY' ||
-  fail "legacy_executor_delivery_pending"
+  --command="sudo python3 - '$PACKAGE_IDENTITY'" <<'PY'
 from pathlib import Path
 import sys
 
@@ -303,11 +308,14 @@ print(f"LEGACY_PENDING_AUTHORIZED_COUNT={len(pending_authorized)}")
 assert not pending_ready
 assert not pending_authorized
 PY
+then
+  fail "legacy_executor_delivery_pending"
+fi
 
 echo "=== RETIRE LEGACY EXECUTOR TRANSPORT ==="
-gcloud compute ssh "$EXEC_VM" \
+if ! gcloud compute ssh "$EXEC_VM" \
   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
-  --command="sudo bash -s" <<'REMOTE' || fail "executor_legacy_transport_retirement_failed"
+  --command="sudo bash -s" <<'REMOTE'
 set -Eeuo pipefail
 umask 077
 
@@ -341,11 +349,14 @@ done
 test -f /etc/bp-canary/KILL
 test -f /var/lib/bp-canary/fast-live/KILL
 REMOTE
+then
+  fail "executor_legacy_transport_retirement_failed"
+fi
 
 echo "=== RETIRE LEGACY RECORDER TRANSPORT ==="
-gcloud compute ssh "$US_VM" \
+if ! gcloud compute ssh "$US_VM" \
   --project="$PROJECT" --zone="$US_ZONE" --quiet \
-  --command="sudo bash -s" <<'REMOTE' || fail "recorder_legacy_transport_retirement_failed"
+  --command="sudo bash -s" <<'REMOTE'
 set -Eeuo pipefail
 
 test -f /etc/bp/telegram-approval.env
@@ -371,6 +382,9 @@ systemctl is-enabled --quiet bp-phase15-canary-telegram-approval.service
 test "$(systemctl is-active bp-phase15-telegram-pubsub-publisher.service 2>/dev/null || true)" != active
 test "$(systemctl is-enabled bp-phase15-telegram-pubsub-publisher.service 2>/dev/null || true)" != enabled
 REMOTE
+then
+  fail "recorder_legacy_transport_retirement_failed"
+fi
 
 echo "=== ARCHIVE CONSUMED LEGACY GLOBAL MARKER ==="
 ARCHIVE_PATH=$(
@@ -438,7 +452,7 @@ POST_HEALTH=$(
     --command="printf '%s' '{\"action\":\"health\"}' | sudo /opt/bp-canary/executor.sh"
 ) || fail "post_retirement_executor_health_failed"
 
-python3 - "$POST_HEALTH" <<'PY' || fail "post_retirement_executor_not_safe_idle"
+if ! python3 - "$POST_HEALTH" <<'PY'
 import json
 import sys
 health = json.loads(sys.argv[1])
@@ -451,6 +465,9 @@ account = health.get("account") or {}
 assert account.get("clean_for_canary") is True
 assert int(account.get("open_order_count", -1)) == 0
 PY
+then
+  fail "post_retirement_executor_not_safe_idle"
+fi
 
 gcloud compute ssh "$EXEC_VM" \
   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
