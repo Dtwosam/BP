@@ -221,22 +221,20 @@ design already merged in PR #374:
 - result-integrity faults latch persistently and stop new trading;
 - ordinary completed trades do not stop the continuous session.
 
-## Activation blocker remains fail-closed
+## Activation mode inheritance
 
-At the time of this engineering change,
-`scripts/deploy/phase15_v3_fast_live_activate_cloudshell.sh` still creates a
-runtime authorization with
-`authorization_mode=manual-telegram-continuous-v1`.
+`scripts/deploy/phase15_v3_fast_live_activate_cloudshell.sh` reads the reviewed
+continuous authorization mode from source truth and carries that exact mode into
+the runtime authorization.
 
-The runtime verifier now requires runtime approval mode to equal reviewed source
-truth. Therefore an auto-mode source authorization cannot be activated through
-that helper: runtime authorization validation fails before service activation.
+The helper accepts only the two reviewed continuous modes:
 
-That mismatch is intentional fail-closed behavior until the
-production-sensitive activation helper is separately updated to inherit the
-source-truth approval mode.
+- `manual-telegram-continuous-v1`;
+- `auto-telegram-continuous-v1`.
 
-Do not weaken the runtime verifier to work around this mismatch.
+It does not select or override the mode independently. The runtime verifier still
+requires runtime approval mode to equal reviewed source truth exactly, preserving
+the fail-closed boundary if either artifact is changed or mismatched.
 
 ## Production boundary
 

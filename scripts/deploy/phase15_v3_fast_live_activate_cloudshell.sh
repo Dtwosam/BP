@@ -35,7 +35,7 @@ REMOTE_MAIN="$(git -C "$ROOT" rev-parse origin/main)"
 [[ "$HEAD" =~ ^[0-9a-f]{40}$ ]] || fail "head_invalid"
 [[ "$HEAD" == "$REMOTE_MAIN" ]] || fail "checkout_is_not_current_main"
 
-read -r AUTH_ID AUTH_EXPIRES STATE_SHA < <(
+read -r AUTH_ID AUTH_EXPIRES AUTH_MODE STATE_SHA < <(
   PYTHONPATH="$ROOT/src" python3 - "$STATE" "$HEAD" <<'PY'
 import hashlib
 import json
@@ -59,6 +59,7 @@ auth = verify_source_authorization(
 print(
     str(auth["authorization_id"]),
     str(auth["expires_at"]),
+    str(auth["authorization_mode"]),
     hashlib.sha256(
         json.dumps(
             state,
@@ -82,7 +83,7 @@ cleanup_local() {
 trap cleanup_local EXIT
 
 RUNTIME_AUTH="$TMP_DIR/authorization.json"
-python3 - "$STATE" "$HEAD" "$AUTH_ID" "$BP_FAST_LIVE_RUNTIME_EXPIRES_AT" "$RUNTIME_AUTH" <<'PY'
+python3 - "$STATE" "$HEAD" "$AUTH_ID" "$AUTH_MODE" "$BP_FAST_LIVE_RUNTIME_EXPIRES_AT" "$RUNTIME_AUTH" <<'PY'
 import hashlib
 import json
 import os
@@ -93,12 +94,18 @@ from pathlib import Path
 state_path = Path(sys.argv[1])
 release_main = sys.argv[2]
 authorization_id = sys.argv[3]
-runtime_expires = datetime.fromisoformat(sys.argv[4]).astimezone(UTC)
-output = Path(sys.argv[5])
+authorization_mode = sys.argv[4]
+runtime_expires = datetime.fromisoformat(sys.argv[5]).astimezone(UTC)
+output = Path(sys.argv[6])
 state = json.loads(state_path.read_text(encoding="utf-8"))
 source = state["phase_15_v3_live_canary"]["fast_live_preauthorization"]
 source_expires = datetime.fromisoformat(str(source["expires_at"])).astimezone(UTC)
 now = datetime.now(UTC)
+if authorization_mode not in {
+    "manual-telegram-continuous-v1",
+    "auto-telegram-continuous-v1",
+}:
+    raise SystemExit("authorization_mode_invalid")
 if runtime_expires <= now:
     raise SystemExit("runtime_expired")
 if runtime_expires > source_expires:
@@ -119,7 +126,7 @@ payload = {
     "authorization_id": authorization_id,
     "release_main": release_main,
     "project_state_sha256": state_hash,
-    "authorization_mode": "manual-telegram-continuous-v1",
+    "authorization_mode": authorization_mode,
     "continuous_session": True,
     "requires_telegram_approval": True,
     "max_network_submission_attempts_per_intent": 1,
@@ -444,6 +451,7 @@ trap cleanup_local EXIT
 printf 'PHASE15_FAST_LIVE_ACTIVATE=PASS\n'
 printf 'RELEASE_MAIN=%s\n' "$HEAD"
 printf 'AUTHORIZATION_ID=%s\n' "$AUTH_ID"
+printf 'AUTHORIZATION_MODE=%s\n' "$AUTH_MODE"
 printf 'RUNTIME_EXPIRES_AT=%s\n' "$BP_FAST_LIVE_RUNTIME_EXPIRES_AT"
 printf 'ORDER_TOPIC=%s\n' "$ORDER_TOPIC"
 printf 'ORDER_SUBSCRIPTION=%s\n' "$ORDER_SUB"

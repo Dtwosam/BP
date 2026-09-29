@@ -19,13 +19,18 @@ def test_fast_live_activation_helper_is_shell_valid() -> None:
     assert completed.returncode == 0, completed.stderr
 
 
-def test_fast_live_activation_requires_continuous_manual_session_authorization() -> None:
+def test_fast_live_activation_inherits_continuous_session_authorization_mode() -> None:
     text = ACTIVATE.read_text(encoding="utf-8")
     for marker in (
         "I_ACCEPT_CONTINUOUS_TELEGRAM_APPROVED_LIVE_SESSION",
         "verify_source_authorization",
         "verify_runtime_authorization",
-        "manual-telegram-continuous-v1",
+        'str(auth["authorization_mode"])',
+        'authorization_mode = sys.argv[4]',
+        '"manual-telegram-continuous-v1"',
+        '"auto-telegram-continuous-v1"',
+        '"authorization_mode": authorization_mode',
+        "AUTHORIZATION_MODE=%s",
         "max_network_submission_attempts_per_intent",
         "BP_FAST_LIVE_TELEGRAM_APPROVAL_REQUIRED=yes",
         "BP_FAST_LIVE_CONTINUOUS_SESSION=yes",
@@ -34,6 +39,8 @@ def test_fast_live_activation_requires_continuous_manual_session_authorization()
         "working_tree_not_clean",
     ):
         assert marker in text
+    assert '"authorization_mode": "manual-telegram-continuous-v1"' not in text
+    assert '"authorization_mode": "auto-telegram-continuous-v1"' not in text
     assert "PROJECT_STATE.json" in text
     assert "jq" not in text
     assert "update_ref" not in text
