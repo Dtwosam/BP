@@ -175,7 +175,6 @@ def test_auto_approver_continuous_upgrade_is_explicit_and_scoped() -> None:
         "auto_approver_process_not_stable_after_restart",
         "UPGRADED_VERIFIED",
         "live_auto_approve_runtime_effective_after",
-        "launchd_live_auto_approve_environment_verified",
         "process_live_auto_approve_environment_verified",
         '"launcher_mode": os.environ.get',
         "exact_candidate_prompt_auto_click_prepared_verified",
