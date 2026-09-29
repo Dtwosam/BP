@@ -218,7 +218,7 @@ ARG2="$(plutil -extract ProgramArguments.2 raw -o - "$PLIST" 2>/dev/null || true
 LAUNCH_STATE_BEFORE="$(launchctl print "$DOMAIN/$LABEL" 2>/dev/null)" ||
   fail "auto_approver_service_not_running_before"
 printf '%s\n' "$LAUNCH_STATE_BEFORE" |
-  grep -F -q '"BP_TELEGRAM_AUTO_APPROVE" => "true"' ||
+  grep -E -q '(^|[[:space:]])"?BP_TELEGRAM_AUTO_APPROVE"?[[:space:]]*=>[[:space:]]*"?true"?([[:space:]]|$)' ||
   fail "auto_approver_launchd_not_live_enabled_before"
 OLD_PID="$(
   printf '%s\n' "$LAUNCH_STATE_BEFORE" |
@@ -277,7 +277,7 @@ kill -0 "$STABLE_PID" 2>/dev/null ||
 LAUNCH_STATE_AFTER="$(launchctl print "$DOMAIN/$LABEL" 2>/dev/null)" ||
   fail "auto_approver_service_not_running_after"
 printf '%s\n' "$LAUNCH_STATE_AFTER" |
-  grep -F -q '"BP_TELEGRAM_AUTO_APPROVE" => "true"' ||
+  grep -E -q '(^|[[:space:]])"?BP_TELEGRAM_AUTO_APPROVE"?[[:space:]]*=>[[:space:]]*"?true"?([[:space:]]|$)' ||
   fail "auto_approver_launchd_not_live_enabled_after"
 
 python3 - "$STATE" "$EVIDENCE" "$HEAD" "$AUTO_STATUS" "$CONTRACT_SHA"   "$OLD_PID" "$NEW_PID" <<'PY'
