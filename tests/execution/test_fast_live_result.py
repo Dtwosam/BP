@@ -171,6 +171,37 @@ def test_approval_recovery_blocked_closes_without_consuming_attempt() -> None:
     assert latest["critical_count"] == 0
 
 
+def test_pre_submission_blocked_closes_without_consuming_attempt() -> None:
+    engine = _engine()
+    result = _result("pre_submission_blocked", attempted=False)
+    result["reason"] = "fast live kill switch engaged"
+    result["error_type"] = "FastLiveError"
+    recorded = record_fast_live_result(
+        engine=engine,
+        result=result,
+        observed_at=BASE + timedelta(seconds=2),
+    )
+
+    assert recorded["event_type"] == "closed_before_submission"
+    assert recorded["official_reconciliation_required"] is False
+    latest = _latest_reconciliation(engine)
+    assert latest is not None
+    assert latest["unresolved_count"] == 0
+    assert latest["critical_count"] == 0
+
+    with engine.begin() as connection:
+        event = connection.execute(
+            select(schema.live_order_events).where(
+                schema.live_order_events.c.intent_id == INTENT_ID,
+                schema.live_order_events.c.event_type
+                == "closed_before_submission",
+            )
+        ).mappings().one()
+    assert event["evidence"]["status"] == "pre_submission_blocked"
+    assert event["evidence"]["reason"] == "fast live kill switch engaged"
+    assert event["evidence"]["error_type"] == "FastLiveError"
+
+
 def test_accepted_order_blocks_until_official_zero_fill() -> None:
     engine = _engine()
     result = _result("accepted", attempted=True, order_id="order-fast-1")
