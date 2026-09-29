@@ -15,12 +15,16 @@ import polymarket
 from google.cloud import pubsub_v1
 
 from bp_engine.execution.fast_live import (
+    FAST_LIVE_APPROVAL_PURPOSE,
+    FAST_LIVE_PREPARE_PURPOSE,
     FAST_LIVE_PURPOSE,
     FAST_LIVE_WARMUP_PURPOSE,
     FastLiveError,
     create_result_message,
     load_private_json,
+    verify_approval_message,
     verify_envelope,
+    verify_prepare_message,
     verify_runtime_authorization,
     verify_warmup_message,
 )
@@ -84,6 +88,15 @@ def _require_runtime() -> None:
         raise SystemExit("fast live executor is not explicitly enabled")
     if not os.environ.get("POLYMARKET_PRIVATE_KEY", "").strip():
         raise SystemExit("POLYMARKET_PRIVATE_KEY is required")
+
+
+def _telegram_approval_required() -> bool:
+    return (
+        os.environ.get("BP_FAST_LIVE_TELEGRAM_APPROVAL_REQUIRED", "no")
+        .strip()
+        .lower()
+        == "yes"
+    )
 
 
 def _load_state(path: Path) -> dict[str, Any]:
@@ -249,6 +262,7 @@ def main() -> int:
     if not 0.1 <= args.safety_refresh_seconds <= 1:
         raise SystemExit("safety refresh seconds must be within 0.1..1")
 
+    approval_required = _telegram_approval_required()
     state = _load_state(args.project_state)
     runtime = load_private_json(
         args.runtime_authorization,
@@ -259,6 +273,7 @@ def main() -> int:
         state=state,
         expected_main=args.expected_main,
         observed_at=_utc_now(),
+        requires_telegram_approval=approval_required,
     )
     runtime_expires_at = datetime.fromisoformat(
         str(verified_runtime["expires_at"])
@@ -295,6 +310,8 @@ def main() -> int:
         args.result_topic_id,
     )
     terminal_event = threading.Event()
+    prepared_lock = threading.Lock()
+    prepared_orders: dict[tuple[str, str], dict[str, Any]] = {}
 
     def publish_result(
         result: dict[str, Any],
@@ -341,6 +358,7 @@ def main() -> int:
                 state=state_now,
                 expected_main=args.expected_main,
                 observed_at=received_at,
+                requires_telegram_approval=approval_required,
             )
             payload, attributes = _decode_message(message)
             purpose = str(payload.get("purpose") or "")
@@ -381,8 +399,148 @@ def main() -> int:
                 )
                 message.ack()
                 return
+            if purpose == FAST_LIVE_PREPARE_PURPOSE:
+                if not approval_required:
+                    raise FastLiveError(
+                        "fast live prepare received outside Telegram approval mode"
+                    )
+                required_attributes = {
+                    "intent_id": str(payload.get("intent_id") or ""),
+                    "request_sha256": str(payload.get("request_sha256") or ""),
+                }
+                if any(
+                    attributes.get(name) != value
+                    for name, value in required_attributes.items()
+                ):
+                    raise FastLiveError("fast live prepare attributes mismatch")
+                verified = verify_prepare_message(
+                    payload,
+                    runtime_authorization=runtime_now,
+                    key=key,
+                    expected_key_id=args.transport_key_id,
+                    observed_at=received_at,
+                )
+                prepared_order = executor.prepare_order(verified)
+                cache_key = (
+                    str(verified["intent_id"]),
+                    str(verified["request_sha256"]),
+                )
+                with prepared_lock:
+                    prepared_orders[cache_key] = {
+                        "verified": verified,
+                        "prepared_order": prepared_order,
+                        "prepared_sha256": str(verified["prepared_sha256"]),
+                    }
+                print(
+                    json.dumps(
+                        {
+                            "status": "fast_live_prepared_waiting_for_telegram",
+                            "intent_id": verified["intent_id"],
+                            "request_sha256": verified["request_sha256"],
+                            "prepared_sha256": verified["prepared_sha256"],
+                            "sign_latency_ms": prepared_order.sign_latency_ms,
+                            "network_submission_attempt_consumed": False,
+                            "real_order_submitted": False,
+                        },
+                        sort_keys=True,
+                    ),
+                    flush=True,
+                )
+                message.ack()
+                return
+            if purpose == FAST_LIVE_APPROVAL_PURPOSE:
+                if not approval_required:
+                    raise FastLiveError(
+                        "fast live approval received outside Telegram approval mode"
+                    )
+                required_attributes = {
+                    "intent_id": str(payload.get("intent_id") or ""),
+                    "request_sha256": str(payload.get("request_sha256") or ""),
+                }
+                if any(
+                    attributes.get(name) != value
+                    for name, value in required_attributes.items()
+                ):
+                    raise FastLiveError("fast live approval attributes mismatch")
+                approved = verify_approval_message(
+                    payload,
+                    runtime_authorization=runtime_now,
+                    key=key,
+                    expected_key_id=args.transport_key_id,
+                    observed_at=received_at,
+                )
+                cache_key = (
+                    str(approved["intent_id"]),
+                    str(approved["request_sha256"]),
+                )
+                with prepared_lock:
+                    cached = prepared_orders.pop(cache_key, None)
+                if cached is None:
+                    raise FastLiveError(
+                        "fast live approval has no matching prepared order"
+                    )
+                if str(cached["prepared_sha256"]) != str(
+                    approved["prepared_sha256"]
+                ):
+                    raise FastLiveError(
+                        "fast live approval prepared hash mismatch"
+                    )
+                verified = dict(cached["verified"])
+                verified["expires_at"] = str(approved["expires_at"])
+                order_verified = True
+                result = execute_with_bounded_pre_attempt_retry(
+                    executor,
+                    verified,
+                    prepared_order=cached["prepared_order"],
+                )
+                result["prepare_created_at"] = str(
+                    cached["verified"]["created_at"]
+                )
+                result["approval_created_at"] = str(approved["created_at"])
+                result["approval_received_at"] = received_at.isoformat()
+                approval_created = datetime.fromisoformat(
+                    str(approved["created_at"])
+                ).astimezone(UTC)
+                result["approval_to_receive_ms"] = (
+                    received_at - approval_created
+                ).total_seconds() * 1000
+                try:
+                    result_message_id = publish_result(
+                        result,
+                        runtime_authorization=runtime_now,
+                    )
+                except Exception as exc:
+                    print(
+                        json.dumps(
+                            {
+                                "status": "fast_live_result_publish_failed",
+                                "error": type(exc).__name__,
+                                "intent_id": result.get("intent_id"),
+                                "request_sha256": result.get("request_sha256"),
+                                "network_submission_attempt_consumed": result.get(
+                                    "network_submission_attempt_consumed"
+                                )
+                                is True,
+                                "observed_at": _utc_now().isoformat(),
+                            },
+                            sort_keys=True,
+                        ),
+                        flush=True,
+                    )
+                    message.nack()
+                    return
+                result["result_message_id"] = result_message_id
+                print(json.dumps(result, sort_keys=True, default=str), flush=True)
+                message.ack()
+                if result.get("network_submission_attempt_consumed") is True:
+                    terminal_event.set()
+                return
             if purpose != FAST_LIVE_PURPOSE:
                 raise FastLiveError("fast live message purpose invalid")
+            if approval_required:
+                raise FastLiveError(
+                    "direct fast live order forbidden in Telegram approval mode"
+                )
             required_attributes = {
                 "intent_id": str(payload.get("intent_id") or ""),
                 "request_sha256": str(payload.get("request_sha256") or ""),
