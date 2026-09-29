@@ -617,7 +617,7 @@ def main() -> int:
         continuous_session=continuous_session,
     )
     pending_settlement = _pending_settlement_intent(args.receipt_dir)
-    if publication_state == "attempt_consumed":
+    if publication_state == "attempt_consumed" and not continuous_session:
         if pending_settlement:
             try:
                 return _settle_until_terminal(
@@ -630,25 +630,105 @@ def main() -> int:
         engine.dispose()
         return 0
 
+    if pending_settlement:
+        settlement_status = _settle_until_terminal(
+            engine=engine,
+            intent_id=pending_settlement,
+            poll_seconds=args.poll_seconds,
+        )
+        if settlement_status != 0:
+            engine.dispose()
+            return settlement_status
+        pending_settlement = ""
+
+    pending_result_binding = _pending_result_binding(args.receipt_dir)
+    pending_result_deadline = (
+        _result_wait_deadline(
+            args.receipt_dir,
+            pending_result_binding[0],
+            pending_result_binding[1],
+        )
+        if pending_result_binding is not None
+        else None
+    )
+
     key = load_transport_key_file(args.transport_key_file)
     state = _load_state(args.project_state)
     runtime = load_private_json(
         args.runtime_authorization,
         label="fast live runtime authorization",
     )
+    runtime_expires_raw = datetime.fromisoformat(
+        str(runtime.get("expires_at") or "")
+    )
+    if (
+        runtime_expires_raw.tzinfo is None
+        or runtime_expires_raw.utcoffset() is None
+    ):
+        engine.dispose()
+        raise SystemExit(
+            "runtime authorization expires_at must be timezone-aware"
+        )
+    runtime_expires_at = runtime_expires_raw.astimezone(UTC)
+    startup_observed_at = _utc_now()
+    result_reconciliation_deadline = runtime_expires_at + timedelta(
+        seconds=float(FAST_LIVE_RESULT_MAX_AGE_SECONDS) + 5.0
+    )
+    reconciliation_only = False
+    if startup_observed_at >= runtime_expires_at:
+        if pending_result_binding is None:
+            print(
+                json.dumps(
+                    {
+                        "status": "fast_live_authorization_expired",
+                        "reconciliation_only": False,
+                        "observed_at": startup_observed_at.isoformat(),
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+            engine.dispose()
+            return 0
+        if (
+            pending_result_deadline is None
+            or startup_observed_at
+            >= min(
+                pending_result_deadline,
+                result_reconciliation_deadline,
+            )
+        ):
+            print(
+                json.dumps(
+                    {
+                        "status": "fast_live_result_reconciliation_timeout",
+                        "authorization_expired": True,
+                        "intent_id": pending_result_binding[0],
+                        "request_sha256": pending_result_binding[1],
+                        "network_submission_attempt_consumed": None,
+                        "real_order_submitted": None,
+                        "observed_at": startup_observed_at.isoformat(),
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+            engine.dispose()
+            return 0
+        reconciliation_only = True
+        authorization_validation_observed_at = (
+            runtime_expires_at - timedelta(microseconds=1)
+        )
+    else:
+        authorization_validation_observed_at = startup_observed_at
+
     verified_runtime = verify_runtime_authorization(
         runtime,
         state=state,
         expected_main=args.expected_main,
-        observed_at=_utc_now(),
+        observed_at=authorization_validation_observed_at,
         requires_telegram_approval=approval_required,
         continuous_session=continuous_session,
-    )
-    runtime_expires_at = datetime.fromisoformat(
-        str(verified_runtime["expires_at"])
-    ).astimezone(UTC)
-    result_reconciliation_deadline = runtime_expires_at + timedelta(
-        seconds=float(FAST_LIVE_RESULT_MAX_AGE_SECONDS) + 5.0
     )
     activated_at = datetime.fromisoformat(str(verified_runtime["issued_at"]))
     if activated_at.tzinfo is None or activated_at.utcoffset() is None:
@@ -667,16 +747,6 @@ def main() -> int:
     next_warmup_check = 0.0
     result_event = threading.Event()
     result_state_lock = threading.Lock()
-    pending_result_binding = _pending_result_binding(args.receipt_dir)
-    pending_result_deadline = (
-        _result_wait_deadline(
-            args.receipt_dir,
-            pending_result_binding[0],
-            pending_result_binding[1],
-        )
-        if pending_result_binding is not None
-        else None
-    )
     result_state: dict[str, Any] = {
         "awaited_intent_id": (
             pending_result_binding[0]
@@ -837,9 +907,28 @@ def main() -> int:
         callback=result_callback,
     )
     waiting_for_result = publication_state == "waiting_for_result"
-    settlement_intent_id = (
-        pending_settlement if continuous_session else ""
-    )
+    settlement_intent_id = ""
+    if reconciliation_only:
+        print(
+            json.dumps(
+                {
+                    "status": "fast_live_result_reconciliation_only",
+                    "authorization_expired": True,
+                    "intent_id": str(result_state["awaited_intent_id"]),
+                    "request_sha256": str(
+                        result_state["awaited_request_sha256"]
+                    ),
+                    "result_deadline": (
+                        pending_result_deadline.isoformat()
+                        if pending_result_deadline is not None
+                        else None
+                    ),
+                    "observed_at": _utc_now().isoformat(),
+                },
+                sort_keys=True,
+            ),
+            flush=True,
+        )
 
     try:
         while True:
