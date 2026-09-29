@@ -84,6 +84,7 @@ def test_fast_live_activation_starts_receiver_armed_then_releases_and_starts_sou
         "sudo systemctl stop bp-phase15-fast-live-source.service",
         "sudo test ! -e /var/lib/bp-canary/fast-live/attempt.json",
         "sudo test ! -e /var/lib/bp-canary/fast-live/result.json",
+        "cancellation_pending|recovery_result_publish_pending",
         "clean_for_canary",
         'geo.get("country") != "ZA"',
         "open_orders != 0",
