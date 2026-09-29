@@ -193,6 +193,10 @@ def verify_source_authorization(
                 raise FastLiveError(
                     "fast live auto Telegram approval requires auto-approver active"
                 )
+        elif auto_active:
+            raise FastLiveError(
+                "fast live manual Telegram approval requires auto-approver disabled"
+            )
     authorization_id = str(authorization.get("authorization_id") or "")
     if not authorization_id or len(authorization_id) > 128:
         raise FastLiveError("fast live authorization id invalid")
