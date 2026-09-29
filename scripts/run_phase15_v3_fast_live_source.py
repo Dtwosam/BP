@@ -977,6 +977,13 @@ def main() -> int:
                                 key_id=args.transport_key_id,
                                 created_at=now,
                             )
+                            with result_state_lock:
+                                result_state["awaited_intent_id"] = str(
+                                    approval_message["intent_id"]
+                                )
+                                result_state["awaited_request_sha256"] = str(
+                                    approval_message["request_sha256"]
+                                )
                             message_id, publish_attempts = (
                                 _publish_control_with_bounded_retry(
                                     publisher,
@@ -1019,13 +1026,6 @@ def main() -> int:
                                 ),
                                 flush=True,
                             )
-                            with result_state_lock:
-                                result_state["awaited_intent_id"] = str(
-                                    approval_message["intent_id"]
-                                )
-                                result_state["awaited_request_sha256"] = str(
-                                    approval_message["request_sha256"]
-                                )
                             waiting_for_result = True
                             break
                         if approval_status in {"skipped", "expired"}:
@@ -1128,6 +1128,11 @@ def main() -> int:
                 time.sleep(args.poll_seconds)
                 continue
 
+            with result_state_lock:
+                result_state["awaited_intent_id"] = str(envelope["intent_id"])
+                result_state["awaited_request_sha256"] = str(
+                    envelope["request_sha256"]
+                )
             publish_started = time.monotonic_ns()
             message_id, publish_attempts = _publish_with_bounded_retry(
                 publisher,
@@ -1152,11 +1157,6 @@ def main() -> int:
             }
             _write_receipt(receipt_path, receipt)
             print(json.dumps(receipt, sort_keys=True), flush=True)
-            with result_state_lock:
-                result_state["awaited_intent_id"] = str(envelope["intent_id"])
-                result_state["awaited_request_sha256"] = str(
-                    envelope["request_sha256"]
-                )
             waiting_for_result = True
     finally:
         result_future.cancel()
