@@ -89,6 +89,8 @@ def test_fast_live_activation_starts_receiver_armed_then_releases_and_starts_sou
         "recorder_prior_live_recovery_pending",
         "/var/lib/bp/phase15-fast-live/published",
         "settlement_reconciliation_required",
+        "\\${receipt##*/}",
+        "\\${result##*/}",
         "\\$root/results/\\$base",
         "\\$root/settlements/\\$base",
         "clean_for_canary",
