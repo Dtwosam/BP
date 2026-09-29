@@ -155,6 +155,7 @@ if [[ -n "$PYTHONPATH_VALUE" ]]; then
   [[ -x "$PROGRAM0" ]] || fail "auto_approver_python_missing"
   [[ "$ARG1" == "-m" && "$ARG2" == "bp_telegram_auto_approver" ]] ||
     fail "auto_approver_program_arguments_invalid"
+  RUNTIME_PYTHONPATH_EXPECTED="$PYTHONPATH_VALUE"
   LAUNCHER_MODE="direct-python"
 else
   [[ "$PROGRAM0" == "$EXPECTED_WRAPPER" ]] ||
@@ -179,6 +180,7 @@ EOF
   [[ -x "$EXPECTED_WRAPPER_PYTHON" ]] ||
     fail "auto_approver_wrapper_python_missing"
   PYTHONPATH_VALUE="$EXPECTED_PYTHONPATH_ABSOLUTE"
+  RUNTIME_PYTHONPATH_EXPECTED="$EXPECTED_PYTHONPATH_ABSOLUTE"
   LAUNCHER_MODE="wrapper"
 fi
 
@@ -193,7 +195,7 @@ kill -0 "$SERVICE_PID" 2>/dev/null || fail "auto_approver_process_not_alive"
 PROCESS_ENV="$(ps eww -p "$SERVICE_PID" -o command= 2>/dev/null || true)"
 [[ " $PROCESS_ENV " == *" BP_TELEGRAM_AUTO_APPROVE=true "* ]] ||
   fail "auto_approver_runtime_not_live_enabled"
-[[ " $PROCESS_ENV " == *" PYTHONPATH=$EXPECTED_PYTHONPATH_ABSOLUTE "* ]] ||
+[[ " $PROCESS_ENV " == *" PYTHONPATH=$RUNTIME_PYTHONPATH_EXPECTED "* ]] ||
   fail "auto_approver_runtime_pythonpath_mismatch"
 
 printf 'PHASE15_TELEGRAM_AUTO_APPROVER_CONTINUOUS_PREFLIGHT=PASS\n'
