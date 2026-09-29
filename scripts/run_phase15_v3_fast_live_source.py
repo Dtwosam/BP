@@ -165,6 +165,17 @@ def _load_json(path: Path) -> dict[str, Any]:
     return payload
 
 
+def _result_sha256(result: dict[str, Any]) -> str:
+    encoded = json.dumps(
+        result,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 
 def _atomic_text(path: Path, value: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -858,6 +869,7 @@ def main() -> int:
                 ),
                 observed_at=observed,
             )
+            incoming_result_sha256 = _result_sha256(result)
             result_path = _result_receipt_path(
                 args.receipt_dir,
                 str(result["intent_id"]),
@@ -891,6 +903,10 @@ def main() -> int:
                         )
                         != str(result.get("status") or "")
                         or durable_attempted != incoming_attempted
+                        or str(
+                            durable_receipt.get("result_sha256") or ""
+                        )
+                        != incoming_result_sha256
                     ):
                         raise RuntimeError(
                             "fast live replayed result changed"
@@ -938,6 +954,7 @@ def main() -> int:
                             )
                             is True,
                             "execution_status": result.get("status"),
+                            "result_sha256": incoming_result_sha256,
                             "recorded": recorded,
                             "official_recorded": official_recorded,
                             "recorded_at": observed.isoformat(),
