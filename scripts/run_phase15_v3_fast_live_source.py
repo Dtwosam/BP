@@ -726,31 +726,6 @@ def main() -> int:
             )
             engine.dispose()
             return 0
-        if (
-            pending_result_deadline is None
-            or startup_observed_at
-            >= min(
-                pending_result_deadline,
-                result_reconciliation_deadline,
-            )
-        ):
-            print(
-                json.dumps(
-                    {
-                        "status": "fast_live_result_reconciliation_timeout",
-                        "authorization_expired": True,
-                        "intent_id": pending_result_binding[0],
-                        "request_sha256": pending_result_binding[1],
-                        "network_submission_attempt_consumed": None,
-                        "real_order_submitted": None,
-                        "observed_at": startup_observed_at.isoformat(),
-                    },
-                    sort_keys=True,
-                ),
-                flush=True,
-            )
-            engine.dispose()
-            return 0
         reconciliation_only = True
         authorization_validation_observed_at = (
             runtime_expires_at - timedelta(microseconds=1)
@@ -795,6 +770,7 @@ def main() -> int:
             else ""
         ),
         "awaited_result_deadline": pending_result_deadline,
+        "result_stall_reported": False,
         "network_submission_attempt_consumed": None,
         "result": None,
         "settlement_required": False,
@@ -992,34 +968,42 @@ def main() -> int:
                         awaited_result_deadline,
                     )
                 if now >= effective_result_deadline:
-                    print(
-                        json.dumps(
-                            {
-                                "status": "fast_live_result_reconciliation_timeout",
-                                "authorization_expired": (
-                                    now >= runtime_expires_at
-                                ),
-                                "intent_id": str(
-                                    result_state["awaited_intent_id"]
-                                ),
-                                "request_sha256": str(
-                                    result_state[
-                                        "awaited_request_sha256"
-                                    ]
-                                ),
-                                "result_deadline": (
-                                    effective_result_deadline.isoformat()
-                                ),
-                                "network_submission_attempt_consumed": None,
-                                "real_order_submitted": None,
-                                "observed_at": now.isoformat(),
-                            },
-                            sort_keys=True,
-                        ),
-                        flush=True,
-                    )
-                    return 0
-                if now >= runtime_expires_at:
+                    with result_state_lock:
+                        stall_reported = bool(
+                            result_state["result_stall_reported"]
+                        )
+                        if not stall_reported:
+                            result_state["result_stall_reported"] = True
+                    if not stall_reported:
+                        print(
+                            json.dumps(
+                                {
+                                    "status": (
+                                        "fast_live_result_reconciliation_stalled"
+                                    ),
+                                    "authorization_expired": (
+                                        now >= runtime_expires_at
+                                    ),
+                                    "intent_id": str(
+                                        result_state["awaited_intent_id"]
+                                    ),
+                                    "request_sha256": str(
+                                        result_state[
+                                            "awaited_request_sha256"
+                                        ]
+                                    ),
+                                    "result_deadline": (
+                                        effective_result_deadline.isoformat()
+                                    ),
+                                    "network_submission_attempt_consumed": None,
+                                    "real_order_submitted": None,
+                                    "observed_at": now.isoformat(),
+                                },
+                                sort_keys=True,
+                            ),
+                            flush=True,
+                        )
+                elif now >= runtime_expires_at:
                     print(
                         json.dumps(
                             {
@@ -1054,6 +1038,7 @@ def main() -> int:
                     result_state["awaited_intent_id"] = ""
                     result_state["awaited_request_sha256"] = ""
                     result_state["awaited_result_deadline"] = None
+                    result_state["result_stall_reported"] = False
                     result_state["network_submission_attempt_consumed"] = None
                     result_state["result"] = None
                     result_state["settlement_required"] = False
@@ -1453,6 +1438,7 @@ def main() -> int:
                                 result_state["awaited_result_deadline"] = (
                                     approval_result_deadline
                                 )
+                                result_state["result_stall_reported"] = False
                             message_id, publish_attempts = (
                                 _publish_control_with_bounded_retry(
                                     publisher,
@@ -1683,6 +1669,7 @@ def main() -> int:
                 result_state["awaited_result_deadline"] = (
                     direct_result_deadline
                 )
+                result_state["result_stall_reported"] = False
             publish_started = time.monotonic_ns()
             message_id, publish_attempts = _publish_with_bounded_retry(
                 publisher,
