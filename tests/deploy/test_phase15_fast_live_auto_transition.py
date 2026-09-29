@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -18,6 +19,18 @@ CANDIDATE = (
     / "scripts"
     / "deploy"
     / "phase15_v3_fast_live_build_auto_authorization_candidate.py"
+)
+PREFLIGHT = (
+    ROOT
+    / "scripts"
+    / "deploy"
+    / "phase15_v3_telegram_auto_approver_continuous_preflight_operator.sh"
+)
+UPGRADE = (
+    ROOT
+    / "scripts"
+    / "deploy"
+    / "phase15_v3_telegram_auto_approver_upgrade_continuous_operator.sh"
 )
 
 
@@ -78,6 +91,83 @@ def _upgrade(main: str) -> dict[str, object]:
         "real_order_submitted_by_upgrade": False,
         "observed_at": "2026-09-29T16:00:00+00:00",
     }
+
+
+def test_auto_approver_continuous_preflight_is_read_only() -> None:
+    completed = subprocess.run(
+        ["bash", "-n", str(PREFLIGHT)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    text = PREFLIGHT.read_text(encoding="utf-8")
+    for marker in (
+        "PHASE15_TELEGRAM_AUTO_APPROVER_CONTINUOUS_PREFLIGHT=PASS",
+        "checkout_is_not_current_main",
+        "BP_TELEGRAM_AUTO_APPROVE=true",
+        "approval_contract_fast_live_pin_mismatch",
+        "exact_candidate_prompt_not_accepted",
+        "mutated_candidate_prompt_not_rejected",
+        "auto_approver_plist_wrong_checkout",
+        "AUTO_APPROVER_SERVICE_ACTIVE=true",
+        "RESTART_REQUIRED_FOR_RUNNING_PROCESS_UPGRADE=true",
+        "MUTATIONS_PERFORMED=false",
+        "PROJECT_STATE_MUTATED=false",
+        "LIVE_TRADING_ENABLED=false",
+        "REAL_ORDER_SUBMITTED=false",
+    ):
+        assert marker in text
+    for forbidden in (
+        "launchctl kickstart",
+        "launchctl bootout",
+        "launchctl disable",
+        "systemctl ",
+        "gcloud ",
+        "post_order",
+        "KILL_SWITCH_REMOVED=true",
+    ):
+        assert forbidden not in text
+
+
+def test_auto_approver_continuous_upgrade_is_explicit_and_scoped() -> None:
+    completed = subprocess.run(
+        ["bash", "-n", str(UPGRADE)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    text = UPGRADE.read_text(encoding="utf-8")
+    for marker in (
+        "I_ACCEPT_RESTART_AUTO_APPROVER_WITH_CONTINUOUS_CANDIDATE_CONTRACT",
+        "evidence_path_must_be_under_repo_docs_evidence",
+        "BP_TELEGRAM_AUTO_APPROVE=true",
+        "exact_candidate_prompt_not_prepared_for_auto_click",
+        "candidate_approve_callback_changed",
+        "launchctl kickstart -k",
+        "auto_approver_pid_did_not_change",
+        "auto_approver_process_not_stable_after_restart",
+        "UPGRADED_VERIFIED",
+        "live_auto_approve_runtime_effective_after",
+        "exact_candidate_prompt_auto_approved_verified",
+        "mutated_candidate_prompt_rejected_verified",
+        "project_state_mutated",
+        "real_order_submitted_by_upgrade",
+        "recorder_or_executor_mutated",
+    ):
+        assert marker in text
+    for forbidden in (
+        "launchctl disable",
+        "launchctl bootout",
+        "systemctl ",
+        "gcloud ",
+        "post_order",
+        "executor.sh",
+        "rm -f $HOME/.config/bp",
+        "rm -rf $HOME/.config/bp",
+    ):
+        assert forbidden not in text
 
 
 def test_auto_candidate_preserves_auto_approval_and_live_flags() -> None:
