@@ -215,10 +215,13 @@ ARG2="$(plutil -extract ProgramArguments.2 raw -o - "$PLIST" 2>/dev/null || true
 [[ "$ARG1" == "-m" && "$ARG2" == "bp_telegram_auto_approver" ]] ||
   fail "auto_approver_program_arguments_invalid"
 
-launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1 ||
+LAUNCH_STATE_BEFORE="$(launchctl print "$DOMAIN/$LABEL" 2>/dev/null)" ||
   fail "auto_approver_service_not_running_before"
+printf '%s\n' "$LAUNCH_STATE_BEFORE" |
+  grep -F -q '"BP_TELEGRAM_AUTO_APPROVE" => "true"' ||
+  fail "auto_approver_launchd_not_live_enabled_before"
 OLD_PID="$(
-  launchctl print "$DOMAIN/$LABEL" |
+  printf '%s\n' "$LAUNCH_STATE_BEFORE" |
     awk -F'= ' '/^[[:space:]]*pid = / {gsub(/[^0-9]/, "", $2); print $2; exit}'
 )"
 [[ "$OLD_PID" =~ ^[0-9]+$ ]] || fail "auto_approver_old_pid_missing"
@@ -271,6 +274,11 @@ STABLE_PID="$(
   fail "auto_approver_process_not_stable_after_restart"
 kill -0 "$STABLE_PID" 2>/dev/null ||
   fail "auto_approver_stable_process_not_alive"
+LAUNCH_STATE_AFTER="$(launchctl print "$DOMAIN/$LABEL" 2>/dev/null)" ||
+  fail "auto_approver_service_not_running_after"
+printf '%s\n' "$LAUNCH_STATE_AFTER" |
+  grep -F -q '"BP_TELEGRAM_AUTO_APPROVE" => "true"' ||
+  fail "auto_approver_launchd_not_live_enabled_after"
 
 python3 - "$STATE" "$EVIDENCE" "$HEAD" "$AUTO_STATUS" "$CONTRACT_SHA"   "$OLD_PID" "$NEW_PID" <<'PY'
 import hashlib
@@ -299,6 +307,7 @@ payload = {
     "service_active_after": True,
     "service_pid_stable_after_seconds": 3,
     "live_auto_approve_runtime_effective_after": True,
+    "launchd_live_auto_approve_environment_verified": True,
     "exact_candidate_prompt_auto_click_prepared_verified": True,
     "mutated_candidate_prompt_rejected_verified": True,
     "telegram_session_deleted": False,
@@ -336,6 +345,7 @@ printf 'PREVIOUS_SERVICE_PID=%s\n' "$OLD_PID"
 printf 'CURRENT_SERVICE_PID=%s\n' "$NEW_PID"
 printf 'SERVICE_ACTIVE_AFTER=true\n'
 printf 'AUTO_APPROVE_RUNTIME_EFFECTIVE_AFTER=true\n'
+printf 'LAUNCHD_LIVE_AUTO_APPROVE_ENVIRONMENT_VERIFIED=true\n'
 printf 'EXACT_CANDIDATE_PROMPT_AUTO_CLICK_PREPARED_VERIFIED=true\n'
 printf 'MUTATED_CANDIDATE_PROMPT_REJECTED_VERIFIED=true\n'
 printf 'EVIDENCE_PATH=%s\n' "$EVIDENCE"
