@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import stat
@@ -283,7 +284,12 @@ def execute_with_bounded_pre_attempt_retry(
             result["pre_attempt_retry_count"] = retries
             return result
         except FastLiveRetryableError as exc:
-            if executor.attempt_path.exists():
+            attempt_path = (
+                executor.attempt_path_for(verified)
+                if hasattr(executor, "attempt_path_for")
+                else executor.attempt_path
+            )
+            if attempt_path.exists():
                 raise
             retries += 1
             last_reason = str(exc)
@@ -315,6 +321,7 @@ class FastLiveExecutor:
         order_ttl_seconds: Decimal = Decimal("2"),
         official_stability_seconds: float = 3.0,
         official_probe_attempts: int = 3,
+        continuous_session: bool = False,
         now_fn=_utc_now,
     ) -> None:
         self._client = client
@@ -328,6 +335,7 @@ class FastLiveExecutor:
         if official_probe_attempts < 1 or official_probe_attempts > 5:
             raise ValueError("official_probe_attempts must be within 1..5")
         self._official_probe_attempts = official_probe_attempts
+        self._continuous_session = continuous_session
         self._now_fn = now_fn
         _ensure_private_dir(state_root)
 
@@ -338,6 +346,28 @@ class FastLiveExecutor:
     @property
     def result_path(self) -> Path:
         return self._state_root / "result.json"
+
+    def _intent_state_root(self, verified: dict[str, Any]) -> Path:
+        if not self._continuous_session:
+            return self._state_root
+        intent_id = str(verified.get("intent_id") or "").strip()
+        request_hash = str(verified.get("request_sha256") or "").strip()
+        if not intent_id or not request_hash:
+            raise FastLiveError("fast live attempt identity missing")
+        key = hashlib.sha256(
+            (intent_id + "\0" + request_hash).encode("utf-8")
+        ).hexdigest()
+        attempts_root = self._state_root / "attempts"
+        _ensure_private_dir(attempts_root)
+        intent_root = attempts_root / key
+        _ensure_private_dir(intent_root)
+        return intent_root
+
+    def attempt_path_for(self, verified: dict[str, Any]) -> Path:
+        return self._intent_state_root(verified) / "attempt.json"
+
+    def result_path_for(self, verified: dict[str, Any]) -> Path:
+        return self._intent_state_root(verified) / "result.json"
 
     def _kill_switch_engaged(self) -> bool:
         try:
@@ -430,7 +460,7 @@ class FastLiveExecutor:
         return cancellation, official
 
     def prepare_order(self, verified: dict[str, Any]) -> PreparedFastLiveOrder:
-        if self.attempt_path.exists():
+        if self.attempt_path_for(verified).exists():
             raise FastLiveError("fast live attempt already exists")
         self._require_fresh_safety()
         request = verified.get("request")
@@ -473,9 +503,11 @@ class FastLiveExecutor:
         *,
         prepared_order: PreparedFastLiveOrder | None = None,
     ) -> dict[str, Any]:
-        if self.attempt_path.exists():
-            if self.result_path.exists():
-                replayed = _read_json(self.result_path)
+        attempt_path = self.attempt_path_for(verified)
+        result_path = self.result_path_for(verified)
+        if attempt_path.exists():
+            if result_path.exists():
+                replayed = _read_json(result_path)
                 if (
                     replayed.get("status") == "accepted"
                     and replayed.get("cancellation_pending") is True
@@ -498,10 +530,10 @@ class FastLiveExecutor:
                     replayed["cancellation"] = cancellation
                     replayed["cancellation_pending"] = False
                     replayed["official_reconciliation"] = official
-                    _write_replace_json(self.result_path, replayed)
+                    _write_replace_json(result_path, replayed)
                 replayed["replayed_result"] = True
                 return replayed
-            attempt = _read_json(self.attempt_path)
+            attempt = _read_json(attempt_path)
             return {
                 **attempt,
                 "status": "submission_unknown",
@@ -620,8 +652,9 @@ class FastLiveExecutor:
             "request_sha256": verified["request_sha256"],
             "started_at": self._now_fn().isoformat(),
         }
-        _write_exclusive_json(self.attempt_path, attempt)
-        self._reengage_kill_switch("fast-live-one-shot-attempt-consumed")
+        _write_exclusive_json(attempt_path, attempt)
+        if not self._continuous_session:
+            self._reengage_kill_switch("fast-live-one-shot-attempt-consumed")
 
         post_started_at = self._now_fn()
         post_started_ns = time.monotonic_ns()
@@ -649,7 +682,7 @@ class FastLiveExecutor:
                     post_started_ns - quote_completed_ns
                 ) / 1_000_000,
             }
-            _write_replace_json(self.result_path, result)
+            _write_replace_json(result_path, result)
             return result
         post_completed_ns = time.monotonic_ns()
         post_completed_at = self._now_fn()
@@ -665,7 +698,7 @@ class FastLiveExecutor:
                 "network_submission_attempt_consumed": True,
                 "real_order_submitted": True,
             }
-            _write_replace_json(self.result_path, result)
+            _write_replace_json(result_path, result)
             return result
         if not isinstance(response, polymarket.AcceptedOrder):
             result = {
@@ -676,7 +709,7 @@ class FastLiveExecutor:
                 "network_submission_attempt_consumed": True,
                 "real_order_submitted": True,
             }
-            _write_replace_json(self.result_path, result)
+            _write_replace_json(result_path, result)
             return result
 
         order_id = str(response.order_id)
@@ -742,5 +775,5 @@ class FastLiveExecutor:
                 post_started_ns - quote_completed_ns
             ) / 1_000_000,
         }
-        _write_replace_json(self.result_path, result)
+        _write_replace_json(result_path, result)
         return result
