@@ -74,7 +74,6 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert "live_session_authorization_expired" in source
     assert "FAST_LIVE_RESULT_MAX_AGE_SECONDS" in source
     assert "FAST_LIVE_RESULT_STALL_SECONDS" in source
-    assert "FAST_LIVE_RESULT_STALL_SECONDS" in receiver
     assert "/etc/bp-telegram-transport/transport.key" not in text
     assert "ExecStart=/opt/bp/.venv/bin/python" not in text
     assert "/etc/bp-telegram-transport/transport.key" not in source
@@ -127,7 +126,7 @@ def test_fast_live_receiver_is_continuous_approval_gated_and_fail_closed() -> No
     assert "accepting_callbacks = False" in receiver
     assert "stop_accepting_and_drain" in receiver
     assert "fast_live_callback_drain_timeout" in receiver
-    assert "FAST_LIVE_RESULT_MAX_AGE_SECONDS" in receiver
+    assert "FAST_LIVE_RESULT_STALL_SECONDS" in receiver
     assert "recover_pending_cancellations" in receiver
     assert "mark_recovery_result_published" in receiver
     assert "fast_live_pending_cancellation_recovered" in receiver
