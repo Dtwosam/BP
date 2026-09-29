@@ -221,32 +221,72 @@ grep -qx 'BP_TELEGRAM_AUTO_APPROVE=true' "$AUTO_ENV" ||
 
 WORKING_DIR="$(plutil -extract WorkingDirectory raw -o - "$PLIST" 2>/dev/null || true)"
 [[ "$WORKING_DIR" == "$ROOT" ]] || fail "auto_approver_plist_wrong_checkout"
+[[ "$ROOT" != *[[:space:]]* ]] || fail "repository_path_contains_whitespace"
+
+EXPECTED_PYTHONPATH_ABSOLUTE="$ROOT/ops/telegram_auto_approver:$ROOT/src"
+EXPECTED_PYTHONPATH_RELATIVE="ops/telegram_auto_approver:src"
+EXPECTED_WRAPPER="$HOME/.local/share/bp-telegram-auto-approver/run.sh"
+EXPECTED_WRAPPER_PYTHON="$HOME/.local/share/bp-telegram-auto-approver/venv/bin/python"
 PYTHONPATH_VALUE="$(
   plutil -extract EnvironmentVariables.PYTHONPATH raw -o - "$PLIST" 2>/dev/null || true
 )"
-EXPECTED_PYTHONPATH="$ROOT/ops/telegram_auto_approver:$ROOT/src"
-[[ "$PYTHONPATH_VALUE" == "$EXPECTED_PYTHONPATH" ]] ||
-  fail "auto_approver_plist_pythonpath_mismatch"
-PYTHON_BIN="$(
-  plutil -extract ProgramArguments.0 raw -o - "$PLIST" 2>/dev/null || true
-)"
+PROGRAM0="$(plutil -extract ProgramArguments.0 raw -o - "$PLIST" 2>/dev/null || true)"
 ARG1="$(plutil -extract ProgramArguments.1 raw -o - "$PLIST" 2>/dev/null || true)"
 ARG2="$(plutil -extract ProgramArguments.2 raw -o - "$PLIST" 2>/dev/null || true)"
-[[ -x "$PYTHON_BIN" ]] || fail "auto_approver_python_missing"
-[[ "$ARG1" == "-m" && "$ARG2" == "bp_telegram_auto_approver" ]] ||
-  fail "auto_approver_program_arguments_invalid"
+LAUNCHER_MODE=""
+
+if [[ -n "$PYTHONPATH_VALUE" ]]; then
+  if [[ "$PYTHONPATH_VALUE" != "$EXPECTED_PYTHONPATH_ABSOLUTE" &&
+        "$PYTHONPATH_VALUE" != "$EXPECTED_PYTHONPATH_RELATIVE" ]]; then
+    fail "auto_approver_plist_pythonpath_mismatch"
+  fi
+  PYTHON_BIN="$PROGRAM0"
+  [[ -x "$PYTHON_BIN" ]] || fail "auto_approver_python_missing"
+  [[ "$ARG1" == "-m" && "$ARG2" == "bp_telegram_auto_approver" ]] ||
+    fail "auto_approver_program_arguments_invalid"
+  RUNTIME_PYTHONPATH_EXPECTED="$PYTHONPATH_VALUE"
+  LAUNCHER_MODE="direct-python"
+else
+  [[ "$PROGRAM0" == "$EXPECTED_WRAPPER" ]] ||
+    fail "auto_approver_wrapper_path_mismatch"
+  [[ -z "$ARG1" && -z "$ARG2" ]] ||
+    fail "auto_approver_wrapper_arguments_invalid"
+  [[ -f "$EXPECTED_WRAPPER" && ! -L "$EXPECTED_WRAPPER" &&
+     -x "$EXPECTED_WRAPPER" ]] ||
+    fail "auto_approver_wrapper_invalid"
+  EXPECTED_WRAPPER_CONTENT="$(cat <<EOF
+#!/bin/bash
+set -euo pipefail
+set -a
+source "$AUTO_ENV"
+set +a
+export PYTHONPATH="$EXPECTED_PYTHONPATH_ABSOLUTE"
+exec "$EXPECTED_WRAPPER_PYTHON" -m bp_telegram_auto_approver
+EOF
+)"
+  [[ "$(cat "$EXPECTED_WRAPPER")" == "$EXPECTED_WRAPPER_CONTENT" ]] ||
+    fail "auto_approver_wrapper_content_mismatch"
+  [[ -x "$EXPECTED_WRAPPER_PYTHON" ]] ||
+    fail "auto_approver_wrapper_python_missing"
+  PYTHON_BIN="$EXPECTED_WRAPPER_PYTHON"
+  PYTHONPATH_VALUE="$EXPECTED_PYTHONPATH_ABSOLUTE"
+  RUNTIME_PYTHONPATH_EXPECTED="$EXPECTED_PYTHONPATH_ABSOLUTE"
+  LAUNCHER_MODE="wrapper"
+fi
 
 LAUNCH_STATE_BEFORE="$(launchctl print "$DOMAIN/$LABEL" 2>/dev/null)" ||
   fail "auto_approver_service_not_running_before"
-printf '%s\n' "$LAUNCH_STATE_BEFORE" |
-  grep -E -q '(^|[[:space:]])"?BP_TELEGRAM_AUTO_APPROVE"?[[:space:]]*=>[[:space:]]*"?true"?([[:space:]]|$)' ||
-  fail "auto_approver_launchd_not_live_enabled_before"
 OLD_PID="$(
   printf '%s\n' "$LAUNCH_STATE_BEFORE" |
     awk -F'= ' '/^[[:space:]]*pid = / {gsub(/[^0-9]/, "", $2); print $2; exit}'
 )"
 [[ "$OLD_PID" =~ ^[0-9]+$ ]] || fail "auto_approver_old_pid_missing"
 kill -0 "$OLD_PID" 2>/dev/null || fail "auto_approver_old_process_not_alive"
+PROCESS_ENV_BEFORE="$(ps eww -p "$OLD_PID" -o command= 2>/dev/null || true)"
+[[ " $PROCESS_ENV_BEFORE " == *" BP_TELEGRAM_AUTO_APPROVE=true "* ]] ||
+  fail "auto_approver_runtime_not_live_enabled_before"
+[[ " $PROCESS_ENV_BEFORE " == *" PYTHONPATH=$RUNTIME_PYTHONPATH_EXPECTED "* ]] ||
+  fail "auto_approver_runtime_pythonpath_mismatch_before"
 
 CHECK_OUTPUT="$(mktemp)"
 cleanup() { rm -f "$CHECK_OUTPUT"; }
@@ -297,11 +337,15 @@ kill -0 "$STABLE_PID" 2>/dev/null ||
   fail "auto_approver_stable_process_not_alive"
 LAUNCH_STATE_AFTER="$(launchctl print "$DOMAIN/$LABEL" 2>/dev/null)" ||
   fail "auto_approver_service_not_running_after"
-printf '%s\n' "$LAUNCH_STATE_AFTER" |
-  grep -E -q '(^|[[:space:]])"?BP_TELEGRAM_AUTO_APPROVE"?[[:space:]]*=>[[:space:]]*"?true"?([[:space:]]|$)' ||
-  fail "auto_approver_launchd_not_live_enabled_after"
+PROCESS_ENV_AFTER="$(ps eww -p "$STABLE_PID" -o command= 2>/dev/null || true)"
+[[ " $PROCESS_ENV_AFTER " == *" BP_TELEGRAM_AUTO_APPROVE=true "* ]] ||
+  fail "auto_approver_runtime_not_live_enabled_after"
+[[ " $PROCESS_ENV_AFTER " == *" PYTHONPATH=$RUNTIME_PYTHONPATH_EXPECTED "* ]] ||
+  fail "auto_approver_runtime_pythonpath_mismatch_after"
 
-python3 - "$STATE" "$EVIDENCE" "$HEAD" "$AUTO_STATUS" "$CONTRACT_SHA"   "$OLD_PID" "$NEW_PID" <<'PY'
+BP_PHASE15_AUTO_APPROVER_LAUNCHER_MODE="$LAUNCHER_MODE" \
+python3 - "$STATE" "$EVIDENCE" "$HEAD" "$AUTO_STATUS" "$CONTRACT_SHA" \
+  "$OLD_PID" "$NEW_PID" <<'PY'
 import hashlib
 import json
 import os
@@ -329,6 +373,8 @@ payload = {
     "service_pid_stable_after_seconds": 3,
     "live_auto_approve_runtime_effective_after": True,
     "launchd_live_auto_approve_environment_verified": True,
+    "process_live_auto_approve_environment_verified": True,
+    "launcher_mode": os.environ.get("BP_PHASE15_AUTO_APPROVER_LAUNCHER_MODE", "verified"),
     "exact_candidate_prompt_auto_click_prepared_verified": True,
     "mutated_candidate_prompt_rejected_verified": True,
     "telegram_session_deleted": False,
@@ -362,11 +408,13 @@ printf 'PHASE15_TELEGRAM_AUTO_APPROVER_CONTINUOUS_UPGRADE=PASS\n'
 printf 'REPOSITORY_MAIN=%s\n' "$HEAD"
 printf 'AUTO_APPROVER_SOURCE_TRUTH_STATUS=%s\n' "$AUTO_STATUS"
 printf 'APPROVAL_CONTRACT_GIT_BLOB_SHA=%s\n' "$CONTRACT_SHA"
+printf 'AUTO_APPROVER_LAUNCHER_MODE=%s\n' "$LAUNCHER_MODE"
 printf 'PREVIOUS_SERVICE_PID=%s\n' "$OLD_PID"
 printf 'CURRENT_SERVICE_PID=%s\n' "$NEW_PID"
 printf 'SERVICE_ACTIVE_AFTER=true\n'
 printf 'AUTO_APPROVE_RUNTIME_EFFECTIVE_AFTER=true\n'
 printf 'LAUNCHD_LIVE_AUTO_APPROVE_ENVIRONMENT_VERIFIED=true\n'
+printf 'PROCESS_LIVE_AUTO_APPROVE_ENVIRONMENT_VERIFIED=true\n'
 printf 'EXACT_CANDIDATE_PROMPT_AUTO_CLICK_PREPARED_VERIFIED=true\n'
 printf 'MUTATED_CANDIDATE_PROMPT_REJECTED_VERIFIED=true\n'
 printf 'EVIDENCE_PATH=%s\n' "$EVIDENCE"
