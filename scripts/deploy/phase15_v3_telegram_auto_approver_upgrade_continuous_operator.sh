@@ -372,7 +372,6 @@ payload = {
     "service_active_after": True,
     "service_pid_stable_after_seconds": 3,
     "live_auto_approve_runtime_effective_after": True,
-    "launchd_live_auto_approve_environment_verified": True,
     "process_live_auto_approve_environment_verified": True,
     "launcher_mode": os.environ.get("BP_PHASE15_AUTO_APPROVER_LAUNCHER_MODE", "verified"),
     "exact_candidate_prompt_auto_click_prepared_verified": True,
@@ -413,7 +412,6 @@ printf 'PREVIOUS_SERVICE_PID=%s\n' "$OLD_PID"
 printf 'CURRENT_SERVICE_PID=%s\n' "$NEW_PID"
 printf 'SERVICE_ACTIVE_AFTER=true\n'
 printf 'AUTO_APPROVE_RUNTIME_EFFECTIVE_AFTER=true\n'
-printf 'LAUNCHD_LIVE_AUTO_APPROVE_ENVIRONMENT_VERIFIED=true\n'
 printf 'PROCESS_LIVE_AUTO_APPROVE_ENVIRONMENT_VERIFIED=true\n'
 printf 'EXACT_CANDIDATE_PROMPT_AUTO_CLICK_PREPARED_VERIFIED=true\n'
 printf 'MUTATED_CANDIDATE_PROMPT_REJECTED_VERIFIED=true\n'
