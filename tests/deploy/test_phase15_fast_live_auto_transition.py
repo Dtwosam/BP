@@ -108,6 +108,8 @@ def test_auto_approver_continuous_preflight_is_read_only() -> None:
         "checkout_is_not_current_main",
         "BP_TELEGRAM_AUTO_APPROVE=true",
         "approval_contract_fast_live_pin_mismatch",
+        "approval_source",
+        "ast.parse",
         "exact_candidate_prompt_not_accepted",
         "mutated_candidate_prompt_not_rejected",
         "auto_approver_plist_wrong_checkout",
@@ -129,6 +131,7 @@ def test_auto_approver_continuous_preflight_is_read_only() -> None:
         "gcloud ",
         "post_order",
         "KILL_SWITCH_REMOVED=true",
+        "from bp_engine.execution",
     ):
         assert forbidden not in text
 
@@ -146,6 +149,8 @@ def test_auto_approver_continuous_upgrade_is_explicit_and_scoped() -> None:
         "I_ACCEPT_RESTART_AUTO_APPROVER_WITH_CONTINUOUS_CANDIDATE_CONTRACT",
         "evidence_path_must_be_under_repo_docs_evidence",
         "BP_TELEGRAM_AUTO_APPROVE=true",
+        "approval_source",
+        "ast.parse",
         "exact_candidate_prompt_not_prepared_for_auto_click",
         "candidate_approve_callback_changed",
         "launchctl kickstart -k",
@@ -172,6 +177,7 @@ def test_auto_approver_continuous_upgrade_is_explicit_and_scoped() -> None:
         "executor.sh",
         "rm -f $HOME/.config/bp",
         "rm -rf $HOME/.config/bp",
+        "from bp_engine.execution",
     ):
         assert forbidden not in text
 
