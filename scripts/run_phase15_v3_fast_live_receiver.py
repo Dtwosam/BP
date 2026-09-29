@@ -524,7 +524,7 @@ def main() -> int:
                 )
                 prepared_order = executor.prepare_order(verified)
                 cache_key = (
-                    str(verified["intent_id"]),
+                    str(verified["prediction_id"]),
                     str(verified["request_sha256"]),
                 )
                 with prepared_lock:
@@ -572,30 +572,30 @@ def main() -> int:
                     observed_at=received_at,
                 )
                 cache_key = (
-                    str(approved["intent_id"]),
+                    str(approved["prediction_id"]),
                     str(approved["request_sha256"]),
                 )
+                verified = {
+                    "authorization_id": str(approved["authorization_id"]),
+                    "intent_id": str(approved["intent_id"]),
+                    "request_id": str(
+                        approved["prepared"].get("request_id") or ""
+                    ),
+                    "risk_decision_id": str(
+                        approved["prepared"].get("risk_decision_id") or ""
+                    ),
+                    "prediction_id": str(approved["prediction_id"]),
+                    "paper_order_id": str(approved["paper_order_id"]),
+                    "request_sha256": str(approved["request_sha256"]),
+                    "prepared_sha256": str(approved["prepared_sha256"]),
+                    "created_at": str(approved["created_at"]),
+                    "expires_at": str(approved["expires_at"]),
+                    "request": dict(approved["request"]),
+                }
                 with approval_execution_lock:
                     with prepared_lock:
                         cached = prepared_orders.pop(cache_key, None)
                     if cached is None:
-                        verified = {
-                            "authorization_id": str(approved["authorization_id"]),
-                            "intent_id": str(approved["intent_id"]),
-                            "request_id": str(
-                                approved["prepared"].get("request_id") or ""
-                            ),
-                            "risk_decision_id": str(
-                                approved["prepared"].get("risk_decision_id") or ""
-                            ),
-                            "prediction_id": str(approved["prediction_id"]),
-                            "paper_order_id": str(approved["paper_order_id"]),
-                            "request_sha256": str(approved["request_sha256"]),
-                            "prepared_sha256": str(approved["prepared_sha256"]),
-                            "created_at": str(approved["created_at"]),
-                            "expires_at": str(approved["expires_at"]),
-                            "request": dict(approved["request"]),
-                        }
                         prepare_created_at = str(
                             approved["prepared"]["timing"][
                                 "prepared_observed_at"
@@ -604,13 +604,17 @@ def main() -> int:
                         prepare_recovered_after_restart = True
                     else:
                         if str(cached["prepared_sha256"]) != str(
-                            approved["prepared_sha256"]
+                            approved["prepare_sha256"]
                         ):
                             raise FastLiveError(
-                                "fast live approval prepared hash mismatch"
+                                "fast live approval prepare hash mismatch"
                             )
-                        verified = dict(cached["verified"])
-                        verified["expires_at"] = str(approved["expires_at"])
+                        if str(cached["verified"]["request_sha256"]) != str(
+                            approved["request_sha256"]
+                        ):
+                            raise FastLiveError(
+                                "fast live approval prepared request mismatch"
+                            )
                         prepare_created_at = str(
                             cached["verified"]["created_at"]
                         )
