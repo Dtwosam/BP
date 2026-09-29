@@ -107,3 +107,33 @@ def test_continuous_restart_recovers_exact_unresolved_result_binding(
         pending_intent,
         pending_hash,
     )
+
+
+def test_final_live_intent_clears_provisional_telegram_run(
+    tmp_path: Path,
+) -> None:
+    module = _module()
+    root = tmp_path / "telegram"
+    preview = {
+        "intent_id": "candidate-preview-1",
+        "prediction_id": "prediction-1",
+        "paper_order_id": "paper-1",
+    }
+    module._stage_telegram_candidate(root, preview)
+    module._write_telegram_state_once(
+        root,
+        "candidate-preview-1",
+        "finalized.json",
+        {
+            "intent_id": "live-intent-final-1",
+            "prediction_id": "prediction-1",
+            "paper_order_id": "paper-1",
+        },
+    )
+
+    assert (root / "current-run").is_file()
+    module._clear_staged_telegram_candidate(
+        root,
+        "live-intent-final-1",
+    )
+    assert not (root / "current-run").exists()
