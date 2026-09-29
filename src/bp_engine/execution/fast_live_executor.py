@@ -737,7 +737,7 @@ class FastLiveExecutor:
                 post_started_ns - quote_completed_ns
             ) / 1_000_000,
         }
-        _write_replace_json(self.result_path, preliminary)
+        _write_replace_json(result_path, preliminary)
 
         time.sleep(float(self._order_ttl_seconds))
         cancellation, official = self._cancel_and_probe(
