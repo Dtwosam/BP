@@ -126,6 +126,20 @@ Result ingestion is receipt-idempotent. Once a result has a durable source
 receipt, duplicate/re-published copies reuse the already-recorded ledger and
 reconciliation outcome and are ACKed without a second ledger mutation.
 
+The first authenticated result also stores a canonical hash of its execution
+semantics. Delivery/replay-only annotations such as receive timing,
+cache/restart timing, and `replayed_result` are excluded; order identity,
+status, marketability, cancellation, fill/reconciliation, and network-attempt
+fields remain hash-bound. A later authenticated replay that changes any bound
+field is rejected.
+
+Any result verification, conflicting-replay, or result-ledger recording failure
+creates the persistent source marker
+`/var/lib/bp/phase15-fast-live/RESULT_INTEGRITY_FAULT.json`. The source halts
+before publishing another approval/order and refuses restart while that marker
+exists. Read-only preflight blocks on it, status reports it, and expired-session
+cleanup preserves the recovery transport while it remains latched.
+
 Each publication receipt stores `published_at` and a per-intent result-wait
 threshold. The operational stall threshold is 20 seconds. Crossing it does
 **not** mark the trade safe or abandon it. The source enters
