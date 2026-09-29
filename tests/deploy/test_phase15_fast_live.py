@@ -64,6 +64,11 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert "result_record_lock" in source
     assert "fast_live_result_replayed" in source
     assert "durable_receipt" in source
+    assert "_RESULT_REPLAY_VOLATILE_FIELDS" in source
+    assert '"external_order_id"' not in source[
+        source.index("_RESULT_REPLAY_VOLATILE_FIELDS"):
+        source.index("def _result_sha256")
+    ]
     assert "_result_sha256" in source
     assert "incoming_result_sha256" in source
     assert '"result_sha256": incoming_result_sha256' in source
