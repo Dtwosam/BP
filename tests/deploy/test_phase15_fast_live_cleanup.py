@@ -28,6 +28,13 @@ def test_fast_live_expired_cleanup_is_fail_closed_and_session_scoped() -> None:
     for marker in (
         "I_ACCEPT_CLEAN_EXPIRED_CONTINUOUS_LIVE_SESSION",
         "runtime_authorization_not_expired",
+        "expired_runtime_authorization_missing_on_both_hosts",
+        'AUTH_SOURCE_HOST="recorder"',
+        'AUTH_SOURCE_HOST="executor"',
+        "expired_runtime_material_missing_on_both_hosts",
+        "recorder_runtime_presence_check_failed",
+        "executor_runtime_presence_check_failed",
+        "AUTHORIZATION_SOURCE_HOST=%s",
         "manual-telegram-continuous-v1",
         "max_network_submission_attempts_per_intent",
         '[[ "$HELPER_HEAD" == "$REMOTE_MAIN" ]]',
@@ -71,6 +78,8 @@ def test_fast_live_expired_cleanup_is_fail_closed_and_session_scoped() -> None:
         "sudo rm -f /etc/bp-fast-live/authorization.json"
     )
     assert pubsub_delete < recorder_runtime_remove
+    assert text.index("expired_runtime_authorization_missing_on_both_hosts") < pubsub_delete
+    assert text.index("expired_runtime_material_missing_on_both_hosts") < pubsub_delete
 
     for forbidden in (
         "rm -rf /var/lib/bp/phase15-fast-live",
