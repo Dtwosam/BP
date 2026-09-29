@@ -5,49 +5,54 @@
 
 ## Objective
 
-Run the frozen V3 live lane continuously during an explicitly authorized live session,
-while requiring a fresh human Telegram approval for every exact real-money trade intent.
+Run the frozen V3 live lane continuously during an explicitly authorized live
+session while requiring a fresh human Telegram approval for every exact
+real-money trade intent.
 
-The service lifecycle is session-scoped. Network submission idempotency is intent-scoped.
-A completed trade must not consume the entire live session.
+The live service is session-scoped. Network-submission idempotency is
+intent-scoped. A normal completed trade does not consume the whole session.
 
-## Continuous flow
+## Continuous parallel flow
 
-For every new eligible frozen-V3 trade prediction:
+For every new eligible frozen-V3 prediction:
 
-1. The source derives a risk-pending preview containing the exact frozen $5 request. The
-   request economics are already immutable, but no live-risk pass is assumed yet.
-2. That preview is staged for the private Telegram listener and an authenticated PREPARE
-   message is sent to Johannesburg immediately.
-3. Three paths then progress concurrently: the human reviews Telegram, the US source runs
-   the full live-risk decision and persists the real live intent, and Johannesburg refreshes
-   safety/book state and pre-signs the exact preview request.
-4. If live risk fails, the preview is cancelled. Any Telegram prompt is invalidated and no
-   APPROVAL message capable of execution is produced.
-5. If live risk passes, the finalized intent must have the exact same prediction, paper
-   order and request hash as the preview. Any request drift fails closed.
-6. A human APPROVE is bound to the preview candidate and exact request. The source then
-   creates a final authenticated APPROVAL message that carries the risk-approved live
-   intent plus the preview hash/candidate binding.
-7. Johannesburg joins the final risk-approved intent to the already pre-signed order only
-   when the prediction and exact request hash match the cached PREPARE.
-8. Johannesburg durably claims that exact approval before making the execution decision.
-9. The final gate requires the human approval, finalized risk-approved intent, fresh safety
-   state, an unengaged kill switch, and fresh executable ask liquidity at or below the
-   frozen V3 limit.
-10. The executor creates an atomic attempt marker scoped to the exact
-    `intent_id + request_sha256`, then POSTs the already-signed limit order.
-11. That finalized intent can never POST again. Pub/Sub redelivery or receiver restart
-    replays the durable decision/result instead of reconsidering the market.
+1. The source derives a risk-pending preview containing the exact frozen $5
+   request. Request economics are already immutable; no live-risk pass is
+   assumed yet.
+2. The preview is staged for the private Telegram listener and an authenticated
+   PREPARE message is sent to Johannesburg immediately.
+3. Three paths progress in parallel:
+   - the human reviews the exact request in Telegram;
+   - the US source runs full live risk and persists the final live intent;
+   - Johannesburg refreshes safety/book state and pre-signs the exact preview.
+4. If final live risk fails, the preview is cancelled, the Telegram prompt is
+   invalidated, and no executable APPROVAL message is produced.
+5. If final live risk passes, the final intent must preserve the exact
+   prediction, paper order, and request hash from the preview. Any drift fails
+   closed.
+6. Human APPROVE is bound to the preview candidate and exact request. The source
+   creates an authenticated APPROVAL carrying the finalized live intent plus
+   the preview candidate/hash binding.
+7. Johannesburg joins the finalized risk-approved intent to the pre-signed
+   preview order only when the exact prediction/request identity matches.
+8. Johannesburg durably claims that exact approval before making the execution
+   decision.
+9. The final join gate requires the exact human approval, finalized risk pass,
+   fresh safety/account state, unengaged kill switch, and fresh executable ask
+   liquidity at or below the frozen limit.
+10. The executor atomically creates a per-intent attempt marker immediately
+    before POST.
+11. That finalized intent can never POST again. Redelivery/restart replays or
+    recovers the durable state instead of reconsidering the market.
 12. The authenticated result is recorded and reconciled.
-13. If the trade is rejected, zero-filled, skipped, expired, or otherwise closes without
-    exposure, the source immediately returns to monitoring for the next V3 prediction.
-14. If a confirmed fill creates exposure, the source remains settlement-blocked until the
-    official market outcome clears that exposure, then resumes monitoring.
+13. Rejected, skipped, expired, zero-fill, fresh-book-rejected, or other
+    no-exposure outcomes return the source to V3 monitoring.
+14. Confirmed exposure blocks new trades until official settlement clears it,
+    after which monitoring resumes.
 
 ## Authorization model
 
-Continuous live mode is explicit and separate from the legacy one-shot mode.
+Continuous mode is explicit and separate from the legacy one-shot mode.
 
 Source truth must carry:
 
@@ -56,47 +61,127 @@ Source truth must carry:
 - `authorization_mode = manual-telegram-continuous-v1`;
 - `requires_telegram_approval = true`;
 - `max_network_submission_attempts_per_intent = 1`;
-- the existing $5 target and $10 exposure/loss ceilings;
+- target notional $5;
+- max trade size $10;
+- max total exposure $10;
+- max daily loss $10;
+- max consecutive losses 1;
+- min edge 0.075;
 - the frozen V3 prediction/execution versions;
 - executor country `ZA`;
 - an explicit session expiry.
 
-The runtime authorization repeats the continuous-session mode and exact per-intent attempt
-limit and remains bound to the exact release main SHA and source-truth hash.
+Runtime authorization repeats the continuous-session constraints and is bound to
+the exact release main SHA and source-truth hash.
 
-The activation helper requires the explicit value:
+Activation requires:
 
 `PHASE15_ACCEPT_FAST_LIVE_ACTIVATION=I_ACCEPT_CONTINUOUS_TELEGRAM_APPROVED_LIVE_SESSION`
 
-This code does not create that production authorization or activate the session by itself.
+This code does not create production source-truth authorization and does not
+activate the session by itself.
 
-## Idempotency and replay
+## Per-intent idempotency
 
-The old global `attempt.json` remains the legacy one-shot path.
+Legacy one-shot mode retains global `attempt.json` / `result.json`.
 
-Continuous mode stores per-intent attempt and result files under a deterministic hash of
-the exact intent and request. This gives each approved trade one network-attempt budget
-without preventing later independent intents.
+Continuous mode stores attempt/result state under a deterministic hash of the
+exact `intent_id + request_sha256`. Each approved intent therefore gets at
+most one network POST while later independent intents can trade in the same
+session.
 
-A second durable approval-decision record is keyed by the finalized live intent, exact
-request hash, and human approval hash. The APPROVAL message also carries the provisional
-preview candidate ID and preview hash, so the human decision cannot be detached from the
-request that was actually shown in Telegram. One Telegram approval therefore produces at
-most one execution decision even if Pub/Sub redelivers the APPROVAL message after the
-market changes.
+The accepted-order preliminary record and final record are both kept in the
+same per-intent result path; continuous mode does not create the legacy global
+result file.
 
-A crash after claiming an approval but before a durable non-attempt result fails closed as
-`approval_recovery_blocked`. A crash after the network-attempt marker uses the existing
-submission-unknown/result replay path and never POSTs again.
+A second durable approval-decision record is keyed by final intent, exact
+request hash, and human approval hash. One Telegram approval therefore produces
+at most one execution decision even under Pub/Sub redelivery.
 
-The source also binds its current result wait to the exact intent and request hash. Results
-from old intents may still be recorded, but cannot satisfy or clear the wait for a newer
-trade.
+A crash after approval claim but before a durable non-attempt result fails
+closed as `approval_recovery_blocked`. A pre-attempt Johannesburg safety
+failure becomes a durable `pre_submission_blocked` result so the source can
+close that intent instead of hanging.
+
+## Result replay and reconciliation
+
+The source binds its active wait to the exact `intent_id + request_sha256`.
+An old result cannot advance a newer intent.
+
+Result ingestion is receipt-idempotent. Once a result has a durable source
+receipt, duplicate/re-published copies reuse the already-recorded ledger and
+reconciliation outcome and are ACKed without a second ledger mutation.
+
+Each publication receipt stores `published_at` and a per-intent result-wait
+threshold. Crossing that threshold does **not** mark the trade safe or abandon
+it. The source enters `fast_live_result_reconciliation_stalled` and remains
+reconciliation-only until a valid bound result arrives.
+
+If the session expires while an approved result is unresolved, the source does
+not publish another trade. It continues result-only recovery under the same
+frozen authorization identity. If restarted after expiry, it validates that
+same authorization at its last valid instant and resumes only the already-bound
+result reconciliation.
+
+Confirmed fills remain settlement-only work even after session expiry. Official
+settlement may therefore finish after trading authority has ended without
+extending authority to place another order.
+
+## Johannesburg crash recovery
+
+Stopping/failing the Johannesburg service engages the kill switch through
+systemd `ExecStopPost`. The process may restart, but cannot silently resume
+new real-money submissions.
+
+If a crash happens after POST succeeds but before TTL cancellation/probing is
+complete, the per-intent result is durably marked
+`cancellation_pending=true`. Recovery performs only the missing cancellation
+and official probe; it never signs or POSTs another order.
+
+Startup also scans for stranded cancellation/recovery results before admitting
+new callbacks. Recovered final results are marked
+`recovery_result_publish_pending=true` until Pub/Sub publication succeeds.
+A restart may republish the same final result, but will not cancel or POST a
+second time.
+
+If the runtime authorization has already expired, Johannesburg runs this
+cancel/result recovery only, publishes under the original authorization
+identity, and exits without starting the subscriber, book cache, or new-trade
+path.
+
+Activation of a new session is blocked while any prior per-intent state still
+contains `cancellation_pending=true` or
+`recovery_result_publish_pending=true`.
+
+## Expiry and callback drain
+
+Session expiry stops admission of new Johannesburg callbacks. Any callback that
+was already admitted is allowed a bounded drain window so a valid in-flight
+order/result is not interrupted by teardown.
+
+The source similarly closes a finalized-but-not-approved intent as
+`telegram_expired` when session authorization ends before APPROVAL
+publication.
+
+After APPROVAL publication, expiry changes the system to reconciliation-only;
+it does not retroactively abandon the already-authorized intent.
+
+## Telegram session isolation
+
+Fast-live Telegram preview state is bound to the exact live authorization ID.
+A new session cannot reuse a prior session's `current-run`.
+
+Activation refuses to start if stale fast-live Telegram preview state exists.
+The exact Telegram listener code/unit is included in the fast-live release and
+staged as a dormant sidecar release.
+
+Activation switches the private Telegram listener to the exact release before
+Johannesburg is unarmed. If later activation steps fail, rollback restores the
+previous Telegram sidecar release/unit and its previous active/stopped state.
 
 ## Risk behavior
 
-Continuous mode removes the canary-only 24-hour cooldown. It does **not** remove the
-substantive live risk gates:
+Continuous mode removes only the canary-only 24-hour cooldown. It preserves:
 
 - target notional: $5;
 - max trade size: $10;
@@ -106,43 +191,51 @@ substantive live risk gates:
 - min edge: 0.075;
 - max spread: 0.10;
 - minimum selected liquidity: $5;
-- prediction freshness and minimum time-to-expiry checks;
-- fresh Johannesburg safety/account checks;
-- zero official open orders before execution;
+- prediction freshness and time-to-expiry checks;
+- fresh Johannesburg geoblock/account/open-order/collateral checks;
 - unresolved critical reconciliation blocks;
-- confirmed live exposure blocks until official settlement;
-- the frozen limit price is never raised to chase the book.
+- confirmed exposure blocks;
+- frozen limit price; the executor never chases the book upward.
 
-A losing settled trade still trips the existing one-loss stop. Continuous means the
-service keeps running and evaluating safely; it does not bypass risk stops.
+A losing settled trade increments the consecutive-loss counter and the existing
+one-loss stop blocks later submissions. A winning trade resets that counter.
+
+`realized_daily_pnl_usd` resets at the UTC day boundary. Exposure and
+consecutive-loss state do not reset with the day.
 
 ## Kill switch and service lifecycle
 
-The kill switch is a session-level emergency/fault stop, not a normal per-trade latch.
+The kill switch is a session/fault emergency stop, not a normal per-trade
+latch.
 
-A successful or rejected ordinary trade does not re-engage it in continuous mode.
-Johannesburg still checks it before quoting and again immediately before the atomic attempt
-marker and POST.
+Normal accepted/rejected/no-attempt outcomes do not engage it in continuous
+mode. Johannesburg checks it before quote and immediately before the atomic
+attempt marker/POST.
 
-Stopping or failing the Johannesburg service still re-engages the kill switch through
-systemd `ExecStopPost`. This intentionally prevents automatic real-money resumption after
-an executor process fault without a fresh operator re-arm.
-
-The source and receiver remain active across completed trades until the runtime session
-expires, an operator stops them, the kill switch blocks execution, or another fail-closed
-condition requires intervention.
+A Johannesburg process stop/failure engages the kill switch. Recovery work may
+cancel/probe/publish already-posted state, but no new order may be submitted
+until a separately authorized operator re-arm.
 
 ## Secret separation
 
-The source and Telegram listener never receive the Polymarket private key. Johannesburg
-never receives the Telegram bot secret. The dedicated fast-live HMAC transport key remains
+The source and Telegram listener never receive the Polymarket private key.
+Johannesburg never receives the Telegram bot secret. The fast-live HMAC key is
 separate from Telegram transport material.
 
-## Production boundary
+## Release, staging, and production boundary
+
+The deterministic fast-live release includes the source, receiver, Telegram
+listener/unit, and required `bp_engine` source but contains no project state,
+runtime authorization, wallet secret, Telegram secret, or transport key.
+
+Staging installs exact release bytes and the dormant Telegram sidecar only. It
+does not start/enable fast-live services, unarm Johannesburg, create runtime
+authorization, or submit an order.
+
+Production activation remains a separate explicit operation requiring:
+continuous-session source truth, matching runtime authorization, exact staged
+release hashes, clean official account/open-order state, Johannesburg geography,
+no stale Telegram preview, no pending execution recovery, transport setup, and
+the explicit continuous-session acceptance value above.
 
 Merging or staging this candidate does not activate real-money trading.
-
-Production activation remains an explicit operation requiring continuous-session source
-truth, matching runtime authorization, exact deployed release hashes, clean account/open
-order checks, Johannesburg geoblock eligibility, transport setup, and explicit session
-acceptance.
