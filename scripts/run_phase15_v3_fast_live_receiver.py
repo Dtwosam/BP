@@ -652,7 +652,7 @@ def main() -> int:
                     else:
                         try:
                             prepared_order = (
-                                executor.prepare_order(verified)
+                                None
                                 if cached is None
                                 else cached["prepared_order"]
                             )
