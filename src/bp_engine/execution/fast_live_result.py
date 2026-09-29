@@ -242,6 +242,7 @@ def record_fast_live_result(
                 "pre_attempt_retry_exhausted",
                 "telegram_skipped",
                 "telegram_expired",
+                "approval_recovery_blocked",
             }:
                 raise FastLiveResultError(
                     "unsupported non-attempt fast-live result"
