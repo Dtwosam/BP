@@ -505,6 +505,9 @@ def main() -> int:
                         "request": dict(approved["request"]),
                     }
                     prepared_order = executor.prepare_order(verified)
+                    prepare_created_at = str(
+                        approved["prepared"]["timing"]["prepared_observed_at"]
+                    )
                     prepare_recovered_after_restart = True
                 else:
                     if str(cached["prepared_sha256"]) != str(
@@ -516,6 +519,7 @@ def main() -> int:
                     verified = dict(cached["verified"])
                     verified["expires_at"] = str(approved["expires_at"])
                     prepared_order = cached["prepared_order"]
+                    prepare_created_at = str(cached["verified"]["created_at"])
                     prepare_recovered_after_restart = False
                 order_verified = True
                 result = execute_with_bounded_pre_attempt_retry(
@@ -526,9 +530,7 @@ def main() -> int:
                 result["prepare_recovered_after_restart"] = (
                     prepare_recovered_after_restart
                 )
-                result["prepare_created_at"] = str(
-                    cached["verified"]["created_at"]
-                )
+                result["prepare_created_at"] = prepare_created_at
                 result["approval_created_at"] = str(approved["created_at"])
                 result["approval_received_at"] = received_at.isoformat()
                 approval_created = datetime.fromisoformat(
