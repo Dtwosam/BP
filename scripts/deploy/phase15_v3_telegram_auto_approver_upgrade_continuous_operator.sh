@@ -302,7 +302,7 @@ payload = {
     "exact_candidate_prompt_auto_approved_verified": True,
     "mutated_candidate_prompt_rejected_verified": True,
     "telegram_session_deleted": False,
-    "telegram_credentials_mutated": False,
+    "telegram_credentials_replaced": False,
     "project_state_mutated": False,
     "live_trading_enabled": False,
     "real_order_submitted_by_upgrade": False,
