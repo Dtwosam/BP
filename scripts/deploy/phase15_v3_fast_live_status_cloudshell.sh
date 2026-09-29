@@ -69,6 +69,13 @@ print(
     "TELEGRAM_CURRENT_RUN_PRESENT="
     + ("true" if current_run.is_file() else "false")
 )
+result_fault = Path(
+    "/var/lib/bp/phase15-fast-live/RESULT_INTEGRITY_FAULT.json"
+)
+print(
+    "RESULT_INTEGRITY_FAULT_PRESENT="
+    + ("true" if result_fault.is_file() else "false")
+)
 
 root = Path("/var/lib/bp/phase15-fast-live/published")
 results_root = root / "results"
