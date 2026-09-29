@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import threading
@@ -97,6 +98,77 @@ def _telegram_approval_required() -> bool:
         .lower()
         == "yes"
     )
+
+
+def _approval_decision_paths(
+    state_root: Path,
+    approved: dict[str, Any],
+) -> tuple[Path, Path]:
+    identity = "\0".join(
+        (
+            str(approved.get("intent_id") or ""),
+            str(approved.get("request_sha256") or ""),
+            str(approved.get("approval_sha256") or ""),
+        )
+    )
+    key = hashlib.sha256(identity.encode("utf-8")).hexdigest()
+    decision_root = state_root / "approval-decisions" / key
+    decision_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(decision_root, 0o700)
+    return decision_root / "claim.json", decision_root / "result.json"
+
+
+def _claim_approval_once(path: Path, approved: dict[str, Any]) -> bool:
+    payload = {
+        "schema_version": 1,
+        "intent_id": str(approved["intent_id"]),
+        "request_sha256": str(approved["request_sha256"]),
+        "approval_sha256": str(approved["approval_sha256"]),
+        "claimed_at": _utc_now().isoformat(),
+    }
+    encoded = (
+        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
+    ).encode()
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        return False
+    try:
+        os.write(fd, encoded)
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    return True
+
+
+def _write_approval_result(path: Path, result: dict[str, Any]) -> None:
+    encoded = (
+        json.dumps(
+            result,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        )
+        + "\n"
+    ).encode()
+    temp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        os.write(fd, encoded)
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    os.replace(temp, path)
+
+
+def _load_approval_result(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise FastLiveError("fast live approval result invalid") from exc
+    if not isinstance(payload, dict):
+        raise FastLiveError("fast live approval result must be an object")
+    return payload
 
 
 def _load_state(path: Path) -> dict[str, Any]:
@@ -311,6 +383,7 @@ def main() -> int:
     )
     terminal_event = threading.Event()
     prepared_lock = threading.Lock()
+    approval_execution_lock = threading.Lock()
     prepared_orders: dict[tuple[str, str], dict[str, Any]] = {}
 
     def publish_result(
@@ -484,61 +557,106 @@ def main() -> int:
                     str(approved["intent_id"]),
                     str(approved["request_sha256"]),
                 )
-                with prepared_lock:
-                    cached = prepared_orders.pop(cache_key, None)
-                if cached is None:
-                    verified = {
-                        "authorization_id": str(approved["authorization_id"]),
-                        "intent_id": str(approved["intent_id"]),
-                        "request_id": str(
-                            approved["prepared"].get("request_id") or ""
-                        ),
-                        "risk_decision_id": str(
-                            approved["prepared"].get("risk_decision_id") or ""
-                        ),
-                        "prediction_id": str(approved["prediction_id"]),
-                        "paper_order_id": str(approved["paper_order_id"]),
-                        "request_sha256": str(approved["request_sha256"]),
-                        "prepared_sha256": str(approved["prepared_sha256"]),
-                        "created_at": str(approved["created_at"]),
-                        "expires_at": str(approved["expires_at"]),
-                        "request": dict(approved["request"]),
-                    }
-                    prepared_order = executor.prepare_order(verified)
-                    prepare_created_at = str(
-                        approved["prepared"]["timing"]["prepared_observed_at"]
-                    )
-                    prepare_recovered_after_restart = True
-                else:
-                    if str(cached["prepared_sha256"]) != str(
-                        approved["prepared_sha256"]
-                    ):
-                        raise FastLiveError(
-                            "fast live approval prepared hash mismatch"
+                with approval_execution_lock:
+                    with prepared_lock:
+                        cached = prepared_orders.pop(cache_key, None)
+                    if cached is None:
+                        verified = {
+                            "authorization_id": str(approved["authorization_id"]),
+                            "intent_id": str(approved["intent_id"]),
+                            "request_id": str(
+                                approved["prepared"].get("request_id") or ""
+                            ),
+                            "risk_decision_id": str(
+                                approved["prepared"].get("risk_decision_id") or ""
+                            ),
+                            "prediction_id": str(approved["prediction_id"]),
+                            "paper_order_id": str(approved["paper_order_id"]),
+                            "request_sha256": str(approved["request_sha256"]),
+                            "prepared_sha256": str(approved["prepared_sha256"]),
+                            "created_at": str(approved["created_at"]),
+                            "expires_at": str(approved["expires_at"]),
+                            "request": dict(approved["request"]),
+                        }
+                        prepare_created_at = str(
+                            approved["prepared"]["timing"][
+                                "prepared_observed_at"
+                            ]
                         )
-                    verified = dict(cached["verified"])
-                    verified["expires_at"] = str(approved["expires_at"])
-                    prepared_order = cached["prepared_order"]
-                    prepare_created_at = str(cached["verified"]["created_at"])
-                    prepare_recovered_after_restart = False
-                order_verified = True
-                result = execute_with_bounded_pre_attempt_retry(
-                    executor,
-                    verified,
-                    prepared_order=prepared_order,
-                )
-                result["prepare_recovered_after_restart"] = (
-                    prepare_recovered_after_restart
-                )
-                result["prepare_created_at"] = prepare_created_at
-                result["approval_created_at"] = str(approved["created_at"])
-                result["approval_received_at"] = received_at.isoformat()
-                approval_created = datetime.fromisoformat(
-                    str(approved["created_at"])
-                ).astimezone(UTC)
-                result["approval_to_receive_ms"] = (
-                    received_at - approval_created
-                ).total_seconds() * 1000
+                        prepare_recovered_after_restart = True
+                    else:
+                        if str(cached["prepared_sha256"]) != str(
+                            approved["prepared_sha256"]
+                        ):
+                            raise FastLiveError(
+                                "fast live approval prepared hash mismatch"
+                            )
+                        verified = dict(cached["verified"])
+                        verified["expires_at"] = str(approved["expires_at"])
+                        prepare_created_at = str(
+                            cached["verified"]["created_at"]
+                        )
+                        prepare_recovered_after_restart = False
+
+                    claim_path, approval_result_path = _approval_decision_paths(
+                        args.state_root,
+                        approved,
+                    )
+                    claimed = _claim_approval_once(claim_path, approved)
+                    if approval_result_path.is_file():
+                        result = _load_approval_result(approval_result_path)
+                        result["approval_decision_replayed"] = True
+                    elif not claimed:
+                        if executor.attempt_path.exists():
+                            order_verified = True
+                            result = executor.execute(verified)
+                            result["approval_decision_recovered"] = True
+                        else:
+                            result = {
+                                "status": "approval_recovery_blocked",
+                                "intent_id": verified["intent_id"],
+                                "prediction_id": verified["prediction_id"],
+                                "paper_order_id": verified["paper_order_id"],
+                                "request_sha256": verified["request_sha256"],
+                                "network_submission_attempt_consumed": False,
+                                "real_order_submitted": False,
+                                "external_order_id": None,
+                                "approval_decision_recovered": False,
+                            }
+                        _write_approval_result(
+                            approval_result_path,
+                            result,
+                        )
+                    else:
+                        prepared_order = (
+                            executor.prepare_order(verified)
+                            if cached is None
+                            else cached["prepared_order"]
+                        )
+                        order_verified = True
+                        result = execute_with_bounded_pre_attempt_retry(
+                            executor,
+                            verified,
+                            prepared_order=prepared_order,
+                        )
+                        result["approval_decision_replayed"] = False
+                        _write_approval_result(
+                            approval_result_path,
+                            result,
+                        )
+
+                    result["prepare_recovered_after_restart"] = (
+                        prepare_recovered_after_restart
+                    )
+                    result["prepare_created_at"] = prepare_created_at
+                    result["approval_created_at"] = str(approved["created_at"])
+                    result["approval_received_at"] = received_at.isoformat()
+                    approval_created = datetime.fromisoformat(
+                        str(approved["created_at"])
+                    ).astimezone(UTC)
+                    result["approval_to_receive_ms"] = (
+                        received_at - approval_created
+                    ).total_seconds() * 1000
                 try:
                     result_message_id = publish_result(
                         result,
