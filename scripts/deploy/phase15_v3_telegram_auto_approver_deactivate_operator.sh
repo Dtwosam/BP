@@ -66,12 +66,19 @@ case "$PLATFORM" in
     DOMAIN="gui/$(id -u)"
     if launchctl print "$DOMAIN/$SERVICE_NAME" >/dev/null 2>&1; then
       SERVICE_WAS_ACTIVE=true
+    fi
+    launchctl disable "$DOMAIN/$SERVICE_NAME" ||
+      fail "launchd_disable_failed"
+    if [[ "$SERVICE_WAS_ACTIVE" == "true" ]]; then
       launchctl bootout "$DOMAIN/$SERVICE_NAME" ||
         fail "launchd_bootout_failed"
     fi
     if launchctl print "$DOMAIN/$SERVICE_NAME" >/dev/null 2>&1; then
       fail "launchd_service_still_loaded"
     fi
+    launchctl print-disabled "$DOMAIN" |
+      grep -F -q "\"$SERVICE_NAME\" => true" ||
+      fail "launchd_service_not_disabled"
     ;;
   Linux)
     command -v systemctl >/dev/null 2>&1 || fail "systemctl_missing"
@@ -95,7 +102,7 @@ esac
 
 # Verify no operator auto-approver Python process remains. This does not kill an
 # unknown process; it fails closed so the operator can investigate it.
-if pgrep -f '[p]ython.*bp_telegram_auto_approver' >/dev/null 2>&1; then
+if pgrep -f '[b]p_telegram_auto_approver' >/dev/null 2>&1; then
   fail "auto_approver_process_still_running"
 fi
 
@@ -133,7 +140,8 @@ payload = {
     "service_active_after": False,
     "service_enabled_or_loaded_after": False,
     "matching_process_present_after": False,
-    "live_auto_approve_authorized_after": False,
+    "live_auto_approve_runtime_effective_after": False,
+    "source_truth_live_auto_approve_authorized_after": source_authorized,
     "telegram_session_deleted": False,
     "telegram_credentials_mutated": False,
     "project_state_mutated": False,
@@ -168,6 +176,8 @@ printf 'SERVICE_WAS_ACTIVE=%s\n' "$SERVICE_WAS_ACTIVE"
 printf 'SERVICE_ACTIVE_AFTER=false\n'
 printf 'SERVICE_ENABLED_OR_LOADED_AFTER=false\n'
 printf 'MATCHING_PROCESS_PRESENT_AFTER=false\n'
+printf 'LIVE_AUTO_APPROVE_RUNTIME_EFFECTIVE_AFTER=false\n'
+printf 'SOURCE_TRUTH_MUTATED=false\n'
 printf 'EVIDENCE_PATH=%s\n' "$EVIDENCE"
 printf 'PROJECT_STATE_MUTATED=false\n'
 printf 'LIVE_TRADING_ENABLED=false\n'
