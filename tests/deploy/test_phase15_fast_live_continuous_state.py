@@ -109,6 +109,35 @@ def test_continuous_restart_recovers_exact_unresolved_result_binding(
     )
 
 
+def test_result_hash_is_canonical_and_detects_replay_conflicts() -> None:
+    module = _module()
+    base = {
+        "status": "accepted",
+        "intent_id": "intent-result-hash",
+        "request_sha256": "9" * 64,
+        "network_submission_attempt_consumed": True,
+        "real_order_submitted": True,
+        "external_order_id": "order-1",
+        "official_reconciliation": {
+            "official_reconciliation_complete": True,
+            "fill_state": "zero_fill_observed",
+        },
+    }
+    reordered = dict(reversed(tuple(base.items())))
+    assert module._result_sha256(base) == module._result_sha256(reordered)
+
+    changed_order = dict(base)
+    changed_order["external_order_id"] = "order-2"
+    assert module._result_sha256(base) != module._result_sha256(changed_order)
+
+    changed_official = dict(base)
+    changed_official["official_reconciliation"] = {
+        "official_reconciliation_complete": True,
+        "fill_state": "confirmed_fill",
+    }
+    assert module._result_sha256(base) != module._result_sha256(changed_official)
+
+
 def test_pending_result_deadline_is_recovered_from_publication_receipt(
     tmp_path: Path,
 ) -> None:
