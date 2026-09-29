@@ -163,6 +163,51 @@ def test_stale_telegram_preview_is_not_reused_across_live_sessions(
     assert not (root / "current-run").exists()
 
 
+def test_settlement_marker_removes_completed_fill_from_restart_recovery(
+    tmp_path: Path,
+) -> None:
+    module = _module()
+    root = tmp_path / "published"
+    (root / "results").mkdir(parents=True)
+    (root / "settlements").mkdir()
+
+    intent_id = "intent-settled"
+    request_hash = "5" * 64
+    result_path = module._result_receipt_path(
+        root,
+        intent_id,
+        request_hash,
+    )
+    _write(
+        result_path,
+        {
+            "intent_id": intent_id,
+            "request_sha256": request_hash,
+            "official_recorded": {
+                "settlement_reconciliation_required": True,
+            },
+        },
+    )
+
+    assert module._pending_settlement_intent(root) == intent_id
+    marker = root / "settlements" / result_path.name
+    _write(
+        marker,
+        {
+            "status": "fast_live_settlement_recorded",
+            "intent_id": intent_id,
+        },
+    )
+    assert module._pending_settlement_intent(root) == ""
+    assert (
+        module._settlement_marker_path(
+            root,
+            intent_id=intent_id,
+        )
+        == marker
+    )
+
+
 def test_final_live_intent_clears_provisional_telegram_run(
     tmp_path: Path,
 ) -> None:
