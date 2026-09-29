@@ -345,16 +345,47 @@ for spec in "$US_VM:$US_ZONE" "$EXEC_VM:$EXEC_ZONE"; do
     fail "transport_key_hash_mismatch:$vm"
 done
 
+read -r TELEGRAM_PREVIOUS_TARGET TELEGRAM_PREVIOUS_ACTIVE < <(
+  gcloud compute ssh "$US_VM" \
+    --project="$PROJECT" --zone="$US_ZONE" --quiet \
+    --command='target=$(readlink -f /opt/bp-phase15-telegram-approval/current) &&
+               active=no;
+               if systemctl is-active --quiet bp-phase15-canary-telegram-approval.service; then active=yes; fi;
+               printf "%s %s\n" "$target" "$active"'
+) || fail "telegram_approval_previous_state_read_failed"
+[[ "$TELEGRAM_PREVIOUS_TARGET" =~ ^/opt/bp-phase15-telegram-approval/releases/[0-9a-f]{40}$ ]] ||
+  fail "telegram_approval_previous_release_invalid"
+[[ "$TELEGRAM_PREVIOUS_ACTIVE" == "yes" || "$TELEGRAM_PREVIOUS_ACTIVE" == "no" ]] ||
+  fail "telegram_approval_previous_active_state_invalid"
+
 activated=false
+telegram_switched=false
 safe_stop() {
   set +e
   gcloud compute ssh "$EXEC_VM"     --project="$PROJECT" --zone="$EXEC_ZONE" --quiet     --command="sudo sh -c 'umask 077; mkdir -p /var/lib/bp-canary/fast-live; echo fast-live-activation-safe-stop > /var/lib/bp-canary/fast-live/KILL'; sudo systemctl stop bp-phase15-fast-live-receiver.service"     >/dev/null 2>&1 || true
   gcloud compute ssh "$US_VM"     --project="$PROJECT" --zone="$US_ZONE" --quiet     --command="sudo systemctl stop bp-phase15-fast-live-source.service"     >/dev/null 2>&1 || true
+  if [[ "$telegram_switched" == "true" ]]; then
+    gcloud compute ssh "$US_VM" \
+      --project="$PROJECT" --zone="$US_ZONE" --quiet \
+      --command="sudo rm -f /opt/bp-phase15-telegram-approval/.fast-live-rollback &&
+                 sudo ln -s '$TELEGRAM_PREVIOUS_TARGET' /opt/bp-phase15-telegram-approval/.fast-live-rollback &&
+                 sudo mv -Tf /opt/bp-phase15-telegram-approval/.fast-live-rollback /opt/bp-phase15-telegram-approval/current &&
+                 sudo install -o root -g root -m 0644 '$TELEGRAM_PREVIOUS_TARGET/deploy/bp-phase15-canary-telegram-approval.service' /etc/systemd/system/bp-phase15-canary-telegram-approval.service &&
+                 sudo systemctl daemon-reload &&
+                 if [[ '$TELEGRAM_PREVIOUS_ACTIVE' == 'yes' ]]; then
+                   sudo systemctl restart bp-phase15-canary-telegram-approval.service;
+                 else
+                   sudo systemctl stop bp-phase15-canary-telegram-approval.service;
+                 fi" \
+      >/dev/null 2>&1 || true
+  fi
 }
 trap 'if [[ "$activated" != "true" ]]; then safe_stop; fi; cleanup_local' EXIT
 
 # Switch the private Telegram listener to the exact staged release before
 # Johannesburg is unarmed. The existing bot/user/chat env is preserved.
+# Mark rollback-required before the first mutation so a partial switch is restored.
+telegram_switched=true
 gcloud compute ssh "$US_VM" \
   --project="$PROJECT" --zone="$US_ZONE" --quiet \
   --command="sudo rm -f '/opt/bp-phase15-telegram-approval/.fast-live-current-$HEAD' &&
