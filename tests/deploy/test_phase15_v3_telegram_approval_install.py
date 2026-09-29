@@ -56,6 +56,9 @@ def test_telegram_runner_requires_zero_money_runtime_and_explicit_handoff_enable
         "Telegram handoff command configured without explicit enable",
     ):
         assert marker in text
+    assert 'prepared_path.parent / "cancel.json"' in text
+    assert "BP V3 trade CANCELLED" in text
+    assert '"timeout": 2' in text
     ast.parse(text)
 
 
