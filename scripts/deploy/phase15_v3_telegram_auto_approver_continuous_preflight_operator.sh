@@ -136,9 +136,12 @@ WORKING_DIR="$(plutil -extract WorkingDirectory raw -o - "$PLIST" 2>/dev/null ||
 PYTHONPATH_VALUE="$(
   plutil -extract EnvironmentVariables.PYTHONPATH raw -o - "$PLIST" 2>/dev/null || true
 )"
-EXPECTED_PYTHONPATH="$ROOT/ops/telegram_auto_approver:$ROOT/src"
-[[ "$PYTHONPATH_VALUE" == "$EXPECTED_PYTHONPATH" ]] ||
+EXPECTED_PYTHONPATH_ABSOLUTE="$ROOT/ops/telegram_auto_approver:$ROOT/src"
+EXPECTED_PYTHONPATH_RELATIVE="ops/telegram_auto_approver:src"
+if [[ "$PYTHONPATH_VALUE" != "$EXPECTED_PYTHONPATH_ABSOLUTE" &&
+      "$PYTHONPATH_VALUE" != "$EXPECTED_PYTHONPATH_RELATIVE" ]]; then
   fail "auto_approver_plist_pythonpath_mismatch"
+fi
 
 LAUNCH_STATE="$(launchctl print "$DOMAIN/$LABEL" 2>/dev/null)" ||
   fail "auto_approver_service_not_running"
