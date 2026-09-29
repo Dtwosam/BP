@@ -47,8 +47,10 @@ def test_fast_live_release_is_secret_free_and_self_contained(tmp_path: Path) -> 
         "src/bp_engine/execution/fast_live_prepare.py",
         "scripts/run_phase15_v3_fast_live_source.py",
         "scripts/run_phase15_v3_fast_live_receiver.py",
+        "scripts/run_phase15_v3_canary_telegram_approval.py",
         "deploy/bp-phase15-fast-live-source.service",
         "deploy/bp-phase15-fast-live-receiver.service",
+        "deploy/bp-phase15-canary-telegram-approval.service",
     ):
         assert required in names
 
