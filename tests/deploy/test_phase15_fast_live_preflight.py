@@ -36,6 +36,7 @@ def test_fast_live_preflight_is_read_only_and_checks_full_session_readiness() ->
         "/etc/bp/telegram-approval.env",
         "/etc/bp/telegram-approval-handoff.env",
         "/var/lib/bp/phase15-fast-live/telegram-prepare/current-run",
+        "/var/lib/bp/phase15-fast-live/RESULT_INTEGRITY_FAULT.json",
         "recorder_prior_live_recovery_pending",
         "\\${receipt##*/}",
         "\\${result##*/}",
