@@ -64,6 +64,19 @@ def test_prepared_validation_and_prompt_are_bound_to_request() -> None:
     assert "50.0s" in prompt
 
 
+def test_risk_pending_prompt_makes_join_gate_explicit() -> None:
+    now = datetime(2026, 9, 24, 20, 0, tzinfo=UTC)
+    prepared = _prepared(now)
+    prepared["risk_status"] = "pending"
+
+    prompt = build_prompt(prepared, observed_at=now)
+
+    assert "LIVE TRADE CANDIDATE" in prompt
+    assert "Final live risk and Johannesburg execution checks are still running." in prompt
+    assert "Approval does not bypass them." in prompt
+    assert "when every final gate passes" in prompt
+
+
 def test_callback_accepts_only_exact_private_user_chat_and_nonce() -> None:
     now = datetime(2026, 9, 24, 20, 0, tzinfo=UTC)
     pending = new_pending(
