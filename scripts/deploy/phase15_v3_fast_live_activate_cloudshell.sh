@@ -199,6 +199,7 @@ gcloud compute ssh "$US_VM"   --project="$PROJECT" --zone="$US_ZONE" --quiet   -
              sudo test -f '/opt/bp-phase15-telegram-approval/releases/$HEAD/deploy/bp-phase15-canary-telegram-approval.service' &&
              sudo test -f /etc/bp/telegram-approval.env &&
              sudo test ! -e /etc/bp/telegram-approval-handoff.env &&
+             sudo test ! -e /var/lib/bp/phase15-fast-live/telegram-prepare/current-run &&
              sudo systemctl is-enabled --quiet bp-phase15-canary-telegram-approval.service" ||
   fail "recorder_stage_not_ready"
 
