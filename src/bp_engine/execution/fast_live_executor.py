@@ -484,6 +484,8 @@ class FastLiveExecutor:
                 continue
             result = _read_json(result_path)
             if result.get("cancellation_pending") is not True:
+                if result.get("recovery_result_publish_pending") is True:
+                    recovered.append(result)
                 continue
             if (
                 result.get("status") != "accepted"
@@ -512,9 +514,43 @@ class FastLiveExecutor:
             result["official_reconciliation"] = official
             result["recovered_pending_cancellation"] = True
             result["recovered_at"] = self._now_fn().isoformat()
+            result["recovery_result_publish_pending"] = True
             _write_replace_json(result_path, result)
             recovered.append(result)
         return recovered
+
+    def mark_recovery_result_published(
+        self,
+        result: dict[str, Any],
+    ) -> None:
+        identity = {
+            "intent_id": str(result.get("intent_id") or ""),
+            "request_sha256": str(result.get("request_sha256") or ""),
+        }
+        if (
+            not identity["intent_id"]
+            or not identity["request_sha256"]
+        ):
+            raise FastLiveError(
+                "recovery result publish identity missing"
+            )
+        result_path = self.result_path_for(identity)
+        persisted = _read_json(result_path)
+        if (
+            str(persisted.get("intent_id") or "")
+            != identity["intent_id"]
+            or str(persisted.get("request_sha256") or "")
+            != identity["request_sha256"]
+            or persisted.get("recovery_result_publish_pending") is not True
+        ):
+            raise FastLiveError(
+                "recovery result publish state mismatch"
+            )
+        persisted["recovery_result_publish_pending"] = False
+        persisted["recovery_result_published_at"] = (
+            self._now_fn().isoformat()
+        )
+        _write_replace_json(result_path, persisted)
 
     def prepare_order(self, verified: dict[str, Any]) -> PreparedFastLiveOrder:
         if self.attempt_path_for(verified).exists():
