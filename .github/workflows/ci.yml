@@ -105,6 +105,9 @@ jobs:
           bash -n scripts/deploy/phase14_v2_gate_a_rollout_cloudshell.sh
           bash -n scripts/deploy/phase14_v2_forward_coverage_rollout_cloudshell.sh
           bash -n scripts/deploy/phase14_v2_gate_b_readiness_watch_install_cloudshell.sh
+          bash -n scripts/deploy/phase15_v3_fast_live_manual_transition_preflight.sh
+          bash -n scripts/deploy/phase15_v3_telegram_auto_approver_deactivate_operator.sh
+          python -m py_compile scripts/deploy/phase15_v3_fast_live_build_authorization_candidate.py
           python -m py_compile scripts/deploy/ensure_phase12_replay_indexes.py
           python -m py_compile scripts/deploy/migrate_partitioned_raw_storage.py
           python -m py_compile scripts/deploy/verify_phase14_storage_preflight.py
