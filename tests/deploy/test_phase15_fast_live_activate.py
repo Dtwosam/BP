@@ -29,6 +29,7 @@ def test_fast_live_activation_requires_continuous_manual_session_authorization()
         "max_network_submission_attempts_per_intent",
         "BP_FAST_LIVE_TELEGRAM_APPROVAL_REQUIRED=yes",
         "BP_FAST_LIVE_CONTINUOUS_SESSION=yes",
+        "telegram-prepare/current-run",
         '[[ "$HEAD" == "$REMOTE_MAIN" ]]',
         "working_tree_not_clean",
     ):
