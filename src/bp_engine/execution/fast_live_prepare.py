@@ -159,6 +159,15 @@ def _prediction_candidate(
     return None
 
 
+class FastLiveDraftUnavailable(RuntimeError):
+    def __init__(self, status: str, reason: str) -> None:
+        super().__init__(
+            f"frozen V3 prediction cannot build live-equivalent order: {reason}"
+        )
+        self.status = status
+        self.reason = reason
+
+
 def build_fast_live_draft(
     prediction: dict[str, object],
     *,
@@ -170,8 +179,9 @@ def build_fast_live_draft(
         available_paper_cash,
     )
     if isinstance(draft, PaperTerminalDraft):
-        raise RuntimeError(
-            f"frozen V3 prediction cannot build live-equivalent order: {draft.reason}"
+        raise FastLiveDraftUnavailable(
+            draft.status,
+            draft.reason,
         )
     paper_order_id = canonical_hash(
         {
@@ -232,10 +242,20 @@ def preview_fast_live_candidate(
             }
 
         available_paper_cash = _current_frozen_paper_cash(connection)
-        paper_order_id, draft = build_fast_live_draft(
-            prediction,
-            available_paper_cash=available_paper_cash,
-        )
+        try:
+            paper_order_id, draft = build_fast_live_draft(
+                prediction,
+                available_paper_cash=available_paper_cash,
+            )
+        except FastLiveDraftUnavailable as exc:
+            return {
+                "status": "blocked",
+                "reason": "frozen_paper_order_unavailable",
+                "paper_status": exc.status,
+                "paper_reason": exc.reason,
+                "prediction_id": str(prediction["prediction_id"]),
+                "retryable": exc.status == "INSUFFICIENT_PAPER_CASH",
+            }
         request = draft.request
         if request.target_notional_usd != CANARY_TARGET_NOTIONAL_USD:
             raise RuntimeError("frozen paper order target changed")
@@ -385,10 +405,20 @@ def prepare_fast_live_candidate(
             }
 
         available_paper_cash = _current_frozen_paper_cash(connection)
-        paper_order_id, draft = build_fast_live_draft(
-            prediction,
-            available_paper_cash=available_paper_cash,
-        )
+        try:
+            paper_order_id, draft = build_fast_live_draft(
+                prediction,
+                available_paper_cash=available_paper_cash,
+            )
+        except FastLiveDraftUnavailable as exc:
+            return {
+                "status": "blocked",
+                "reason": "frozen_paper_order_unavailable",
+                "paper_status": exc.status,
+                "paper_reason": exc.reason,
+                "prediction_id": str(prediction["prediction_id"]),
+                "retryable": exc.status == "INSUFFICIENT_PAPER_CASH",
+            }
         request = draft.request
         if request.target_notional_usd != CANARY_TARGET_NOTIONAL_USD:
             raise RuntimeError("frozen paper order target changed")
