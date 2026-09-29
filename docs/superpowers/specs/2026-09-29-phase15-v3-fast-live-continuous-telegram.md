@@ -288,6 +288,29 @@ The preflight explicitly reports that it creates no runtime authorization,
 Pub/Sub resource/IAM mutation, service start, kill-switch removal, or real
 order.
 
+After a runtime authorization has expired and both fast-live services have
+stopped, the reviewed cleanup helper is:
+
+`scripts/deploy/phase15_v3_fast_live_cleanup_expired_cloudshell.sh`
+
+Cleanup is an explicit mutation and requires
+`PHASE15_ACCEPT_FAST_LIVE_EXPIRED_CLEANUP=I_ACCEPT_CLEAN_EXPIRED_CONTINUOUS_LIVE_SESSION`.
+It refuses to run while the session is still authorized, while either
+fast-live service is active, while the Johannesburg kill switch is absent, or
+while any source result, settlement, cancellation, or recovery-result
+publication remains unresolved. It verifies a clean official account with zero
+open orders before cleanup.
+
+Cleanup deletes only the expired authorization's Pub/Sub subscriptions/topics
+and session runtime files on the two hosts. It deliberately preserves
+historical publication/result receipts, Telegram approval state, per-intent
+attempt/result records, reconciliations, settlement markers, and logs. The
+helper can recover from a partially completed prior cleanup by reading the
+expired authorization from whichever host still retains it.
+
+This cleanup step is what makes a later continuous session a new isolated
+authorization rather than a reuse of stale transport or runtime identity.
+
 Production activation remains a separate explicit operation requiring:
 continuous-session source truth, matching runtime authorization, exact staged
 release hashes, clean official account/open-order state, Johannesburg geography,
@@ -300,7 +323,10 @@ Recommended deployment sequence is therefore:
 2. build the deterministic fast-live release;
 3. stage the release on both hosts;
 4. run the read-only preflight and require PASS;
-5. only with separate explicit authorization, run the activation helper.
+5. only with separate explicit authorization, run the activation helper;
+6. after that session expires and all recovery/settlement is complete, run the
+   explicitly authorized expired-session cleanup before creating another
+   session.
 
 Merging, building, staging, or preflighting this candidate does not activate
 real-money trading.
