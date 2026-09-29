@@ -104,6 +104,11 @@ gcloud compute ssh "$US_VM" \
              sudo test ! -e /var/lib/bp/phase15-fast-live/telegram-prepare/current-run" ||
   fail "recorder_session_not_quiescent"
 
+gcloud compute ssh "$US_VM" \
+  --project="$PROJECT" --zone="$US_ZONE" --quiet \
+  --command="sudo test ! -e /var/lib/bp/phase15-fast-live/RESULT_INTEGRITY_FAULT.json" ||
+  fail "recorder_result_integrity_fault_latched"
+
 gcloud compute ssh "$EXEC_VM" \
   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
   --command="sudo systemctl is-active --quiet bp-phase15-fast-live-receiver.service && exit 21 || true;
