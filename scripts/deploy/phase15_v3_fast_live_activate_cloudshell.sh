@@ -209,14 +209,14 @@ gcloud compute ssh "$US_VM" \
     if [ -d \"\$root\" ]; then
       for receipt in \"\$root\"/*.json; do
         [ -e \"\$receipt\" ] || continue;
-        base=${receipt##*/};
+        base=\${receipt##*/};
         [ -f \"\$root/results/\$base\" ] || exit 24;
       done;
       if [ -d \"\$root/results\" ]; then
         for result in \"\$root/results\"/*.json; do
           [ -e \"\$result\" ] || continue;
           if grep -F -q \"\\\"settlement_reconciliation_required\\\":true\" \"\$result\"; then
-            base=${result##*/};
+            base=\${result##*/};
             [ -f \"\$root/settlements/\$base\" ] || exit 25;
           fi;
         done;
