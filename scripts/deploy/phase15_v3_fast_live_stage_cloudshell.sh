@@ -166,9 +166,37 @@ chown -hR root:root "$release"
 find "$release" -type d -exec chmod 0755 {} +
 find "$release" -type f -exec chmod 0644 {} +
 
-if [[ ! -x "$venv/bin/python" ]]; then
-  python3 -m venv "$venv"
+bootstrap_venv="$root/.uv-bootstrap"
+managed_python_dir="$root/python"
+uv_version="0.12.19"
+python_version="3.12.14"
+
+if [[ ! -x "$bootstrap_venv/bin/uv" ]] || \
+   [[ "$("$bootstrap_venv/bin/uv" --version 2>/dev/null || true)" != "uv $uv_version" ]]; then
+  rm -rf "$bootstrap_venv"
+  python3 -m venv "$bootstrap_venv"
+  "$bootstrap_venv/bin/pip" install \
+    --disable-pip-version-check \
+    --no-input \
+    "uv==$uv_version"
 fi
+
+if [[ -x "$venv/bin/python" ]]; then
+  if ! "$venv/bin/python" -c 'import sys; raise SystemExit(0 if sys.version_info[:3] == (3, 12, 14) else 1)'; then
+    rm -rf "$venv"
+  fi
+fi
+
+if [[ ! -x "$venv/bin/python" ]]; then
+  UV_PYTHON_INSTALL_DIR="$managed_python_dir" \
+  UV_MANAGED_PYTHON=1 \
+  "$bootstrap_venv/bin/uv" venv \
+    --python "$python_version" \
+    --seed \
+    "$venv"
+fi
+
+"$venv/bin/python" -c 'import sys; assert sys.version_info[:3] == (3, 12, 14)'
 "$venv/bin/pip" install --disable-pip-version-check --no-input   -r "$release/deploy/phase15-fast-live-executor-requirements.txt"
 "$venv/bin/pip" install --disable-pip-version-check --no-input "$release"
 "$venv/bin/pip" check
