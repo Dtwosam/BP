@@ -22,7 +22,12 @@ from bp_telegram_auto_approver.contract import (
     verify_approval_contract,
 )
 
-from tests.telegram_auto_approver.support import NONCE, keyboard, prompt_text
+from tests.telegram_auto_approver.support import (
+    NONCE,
+    candidate_prompt_text,
+    keyboard,
+    prompt_text,
+)
 
 
 def test_phase15_constants_and_generated_nonce_stay_pinned() -> None:
@@ -72,6 +77,26 @@ def test_real_prompt_and_keyboard_round_trip() -> None:
     assert nonce == NONCE
     assert is_exact_approve_callback(keyboard()[0][0].callback_data or b"", NONCE)
     assert not is_exact_approve_callback(keyboard()[0][1].callback_data or b"", NONCE)
+
+
+def test_exact_continuous_candidate_prompt_round_trip() -> None:
+    observed = datetime(2026, 9, 27, 12, 0, tzinfo=UTC)
+    text = candidate_prompt_text(observed, side="up")
+    parsed = parse_prompt(text)
+    assert parsed is not None
+    assert parsed.side == "UP"
+    assert parsed.limit_price == "0.72"
+    assert parsed.shares == "6.81"
+    assert parsed.maximum_spend == "5"
+    assert parsed.time_remaining == Decimal("50.0")
+
+    assert parse_prompt(
+        text.replace(
+            "Approval does not bypass them.",
+            "Approval bypasses them.",
+        )
+    ) is None
+    assert parse_prompt(text + "\nextra") is None
 
 
 def test_prompt_accepts_fixed_scale_exact_five_dollar_spend() -> None:
