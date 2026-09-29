@@ -758,6 +758,7 @@ def main() -> int:
     next_warmup_check = 0.0
     result_event = threading.Event()
     result_state_lock = threading.Lock()
+    result_record_lock = threading.Lock()
     result_state: dict[str, Any] = {
         "awaited_intent_id": (
             pending_result_binding[0]
@@ -814,50 +815,63 @@ def main() -> int:
                 ),
                 observed_at=observed,
             )
-            result_observed_at = datetime.fromisoformat(
-                str(payload["created_at"])
-            ).astimezone(UTC)
-            recorded = record_fast_live_result(
-                engine=engine,
-                result=result,
-                observed_at=result_observed_at,
-            )
-            official_recorded: dict[str, object] | None = None
-            official = result.get("official_reconciliation")
-            if (
-                isinstance(official, dict)
-                and official.get("official_reconciliation_complete") is True
-                and result.get("status") == "accepted"
-            ):
-                official_recorded = record_fast_live_official_reconciliation(
-                    engine=engine,
-                    result=result,
-                    official=official,
-                    observed_at=result_observed_at
-                    + timedelta(microseconds=1),
-                )
             result_path = _result_receipt_path(
                 args.receipt_dir,
                 str(result["intent_id"]),
                 str(result["request_sha256"]),
             )
-            if not result_path.exists():
-                _write_receipt(
-                    result_path,
-                    {
-                        "status": "fast_live_result_recorded",
-                        "intent_id": result["intent_id"],
-                        "request_sha256": result["request_sha256"],
-                        "network_submission_attempt_consumed": result.get(
-                            "network_submission_attempt_consumed"
+            with result_record_lock:
+                result_replayed = result_path.is_file()
+                if result_replayed:
+                    durable_receipt = _load_json(result_path)
+                    recorded = durable_receipt.get("recorded")
+                    official_recorded = durable_receipt.get(
+                        "official_recorded"
+                    )
+                else:
+                    result_observed_at = datetime.fromisoformat(
+                        str(payload["created_at"])
+                    ).astimezone(UTC)
+                    recorded = record_fast_live_result(
+                        engine=engine,
+                        result=result,
+                        observed_at=result_observed_at,
+                    )
+                    official_recorded: dict[str, object] | None = None
+                    official = result.get("official_reconciliation")
+                    if (
+                        isinstance(official, dict)
+                        and official.get(
+                            "official_reconciliation_complete"
                         )
-                        is True,
-                        "execution_status": result.get("status"),
-                        "recorded": recorded,
-                        "official_recorded": official_recorded,
-                        "recorded_at": observed.isoformat(),
-                    },
-                )
+                        is True
+                        and result.get("status") == "accepted"
+                    ):
+                        official_recorded = (
+                            record_fast_live_official_reconciliation(
+                                engine=engine,
+                                result=result,
+                                official=official,
+                                observed_at=result_observed_at
+                                + timedelta(microseconds=1),
+                            )
+                        )
+                    _write_receipt(
+                        result_path,
+                        {
+                            "status": "fast_live_result_recorded",
+                            "intent_id": result["intent_id"],
+                            "request_sha256": result["request_sha256"],
+                            "network_submission_attempt_consumed": result.get(
+                                "network_submission_attempt_consumed"
+                            )
+                            is True,
+                            "execution_status": result.get("status"),
+                            "recorded": recorded,
+                            "official_recorded": official_recorded,
+                            "recorded_at": observed.isoformat(),
+                        },
+                    )
             with result_state_lock:
                 is_current_result = (
                     str(result.get("intent_id") or "")
@@ -884,7 +898,11 @@ def main() -> int:
             print(
                 json.dumps(
                     {
-                        "status": "fast_live_result_recorded",
+                        "status": (
+                            "fast_live_result_replayed"
+                            if result_replayed
+                            else "fast_live_result_recorded"
+                        ),
                         "execution_status": result.get("status"),
                         "intent_id": result.get("intent_id"),
                         "network_submission_attempt_consumed": result.get(
