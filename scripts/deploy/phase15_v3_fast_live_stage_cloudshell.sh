@@ -66,11 +66,6 @@ gcloud compute scp "$ARCHIVE"   "${BP_FAST_LIVE_RECORDER_VM}:${REMOTE_ARCHIVE}" 
 
 gcloud compute scp "$ARCHIVE"   "${BP_FAST_LIVE_EXEC_VM}:${REMOTE_ARCHIVE}"   --project="$BP_FAST_LIVE_GCP_PROJECT"   --zone="$BP_FAST_LIVE_EXEC_ZONE"   --quiet >/dev/null || fail "executor_upload_failed"
 
-# Fail before staging either host if Johannesburg cannot build the release with
-# the Python version required by pyproject.toml.
-gcloud compute ssh "$BP_FAST_LIVE_EXEC_VM"   --project="$BP_FAST_LIVE_GCP_PROJECT"   --zone="$BP_FAST_LIVE_EXEC_ZONE"   --quiet   --command="command -v python3.12 >/dev/null &&
-             python3.12 -c 'import sys; assert sys.version_info >= (3, 12)'"   >/dev/null || fail "executor_python312_unavailable"
-
 RECORDER_OUTPUT=$(
   gcloud compute ssh "$BP_FAST_LIVE_RECORDER_VM"     --project="$BP_FAST_LIVE_GCP_PROJECT"     --zone="$BP_FAST_LIVE_RECORDER_ZONE"     --quiet     --command="sudo bash -s -- '$REMOTE_ARCHIVE' '$HEAD' '$ARCHIVE_SHA'" <<'REMOTE'
 set -euo pipefail
@@ -171,16 +166,37 @@ chown -hR root:root "$release"
 find "$release" -type d -exec chmod 0755 {} +
 find "$release" -type f -exec chmod 0644 {} +
 
-python312="$(command -v python3.12)"
+bootstrap_venv="$root/.uv-bootstrap"
+managed_python_dir="$root/python"
+uv_version="0.12.19"
+python_version="3.12.14"
+
+if [[ ! -x "$bootstrap_venv/bin/uv" ]] || \
+   [[ "$("$bootstrap_venv/bin/uv" --version 2>/dev/null || true)" != "uv $uv_version" ]]; then
+  rm -rf "$bootstrap_venv"
+  python3 -m venv "$bootstrap_venv"
+  "$bootstrap_venv/bin/pip" install \
+    --disable-pip-version-check \
+    --no-input \
+    "uv==$uv_version"
+fi
+
 if [[ -x "$venv/bin/python" ]]; then
-  if ! "$venv/bin/python" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 12) else 1)'; then
+  if ! "$venv/bin/python" -c 'import sys; raise SystemExit(0 if sys.version_info[:3] == (3, 12, 14) else 1)'; then
     rm -rf "$venv"
   fi
 fi
+
 if [[ ! -x "$venv/bin/python" ]]; then
-  "$python312" -m venv "$venv"
+  UV_PYTHON_INSTALL_DIR="$managed_python_dir" \
+  UV_MANAGED_PYTHON=1 \
+  "$bootstrap_venv/bin/uv" venv \
+    --python "$python_version" \
+    --seed \
+    "$venv"
 fi
-"$venv/bin/python" -c 'import sys; assert sys.version_info >= (3, 12)'
+
+"$venv/bin/python" -c 'import sys; assert sys.version_info[:3] == (3, 12, 14)'
 "$venv/bin/pip" install --disable-pip-version-check --no-input   -r "$release/deploy/phase15-fast-live-executor-requirements.txt"
 "$venv/bin/pip" install --disable-pip-version-check --no-input "$release"
 "$venv/bin/pip" check
