@@ -700,6 +700,20 @@ def main() -> int:
                     poll_seconds=args.poll_seconds,
                 )
             if waiting_for_result:
+                if _utc_now() >= runtime_expires_at:
+                    print(
+                        json.dumps(
+                            {
+                                "status": "fast_live_result_wait_expired",
+                                "network_submission_attempt_consumed": False,
+                                "real_order_submitted": False,
+                                "observed_at": _utc_now().isoformat(),
+                            },
+                            sort_keys=True,
+                        ),
+                        flush=True,
+                    )
+                    return 0
                 if not result_event.wait(timeout=args.poll_seconds):
                     continue
                 result_event.clear()
