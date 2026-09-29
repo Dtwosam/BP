@@ -16,6 +16,7 @@ from bp_telegram_auto_approver.decider import ClickResult, IdentityMismatch
 from tests.telegram_auto_approver.support import (
     BOT_ID,
     BOT_USERNAME,
+    candidate_prompt_text,
     NONCE,
     STARTED,
     ClickRecorder,
@@ -124,27 +125,48 @@ def test_missing_approve_button_malformed_and_unrelated_messages(tmp_path) -> No
     assert clicker.calls == []
 
 
-def test_fast_live_candidate_prompt_is_never_auto_clicked(tmp_path) -> None:
+def test_exact_fast_live_candidate_prompt_auto_clicks_once(tmp_path) -> None:
     decider, _logger, _clock, store = open_decider(
         tmp_path / "state.sqlite",
         live=True,
     )
     clicker = ClickRecorder()
-    candidate = (
-        "BP V3 LIVE TRADE CANDIDATE\n\n"
-        "Side: DOWN\n"
-        "Limit: 0.72\n"
-        "Shares: 6.81\n"
-        "Maximum spend: $5\n"
-        "Time remaining: 50.0s\n\n"
-        "Final live risk and Johannesburg execution checks are still running. "
-        "Approval does not bypass them.\n\n"
-        "Approve only if you want this exact real-money order submitted "
-        "when every final gate passes."
+    sent = STARTED + timedelta(seconds=1)
+    candidate = candidate_prompt_text(sent)
+
+    decision = decider.handle_message(
+        incoming(sent_at=sent, text=candidate),
+        clicker,
+    )
+
+    assert decision.event == "APPROVAL_TRIGGERED"
+    assert len(clicker.calls) == 1
+    row = store.get_by_nonce(NONCE)
+    assert row is not None
+    assert row["status"] == "clicked"
+
+    duplicate = decider.handle_message(
+        incoming(sent_at=sent, text=candidate),
+        clicker,
+    )
+    assert duplicate.event == "APPROVAL_ALREADY_PROCESSED"
+    assert len(clicker.calls) == 1
+
+
+def test_mutated_fast_live_candidate_prompt_is_never_auto_clicked(tmp_path) -> None:
+    decider, _logger, _clock, store = open_decider(
+        tmp_path / "state.sqlite",
+        live=True,
+    )
+    clicker = ClickRecorder()
+    sent = STARTED + timedelta(seconds=1)
+    candidate = candidate_prompt_text(sent).replace(
+        "Approval does not bypass them.",
+        "Approval bypasses them.",
     )
 
     decision = decider.handle_message(
-        incoming(text=candidate),
+        incoming(sent_at=sent, text=candidate),
         clicker,
     )
 
@@ -152,7 +174,6 @@ def test_fast_live_candidate_prompt_is_never_auto_clicked(tmp_path) -> None:
     assert decision.reason == "prompt_mismatch"
     assert clicker.calls == []
     assert store.get_by_nonce(NONCE) is None
-
 
 def test_reordered_and_extra_buttons_are_not_clicked(tmp_path) -> None:
     decider, _logger, _clock, _store = open_decider(tmp_path / "state.sqlite", live=True)
