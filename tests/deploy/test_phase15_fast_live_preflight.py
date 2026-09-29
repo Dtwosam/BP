@@ -44,7 +44,7 @@ def test_fast_live_preflight_is_read_only_and_checks_full_session_readiness() ->
         "cancellation_pending\\\":true",
         "recovery_result_publish_pending\\\":true",
         "/var/lib/bp-canary/fast-live/KILL",
-        '\"action\":\"health\"',
+        '\\\"action\\\":\\\"health\\\"',
         'geo.get("country") != "ZA"',
         'account.get("clean_for_canary") is not True',
         "open_orders != 0",
