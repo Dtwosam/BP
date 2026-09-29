@@ -92,6 +92,12 @@ def test_fast_live_activation_starts_receiver_armed_then_releases_and_starts_sou
         "/etc/bp/telegram-approval.env",
         "/etc/bp/telegram-approval-handoff.env",
         "telegram_approval_listener_start_failed",
+        "TELEGRAM_PREVIOUS_TARGET",
+        "TELEGRAM_PREVIOUS_ACTIVE",
+        "telegram_switched=false",
+        "telegram_switched=true",
+        ".fast-live-rollback",
+        "telegram_approval_previous_state_read_failed",
         "TELEGRAM_APPROVAL_ACTIVE=true",
         "TELEGRAM_APPROVAL_RELEASE_MAIN=%s",
     ):
