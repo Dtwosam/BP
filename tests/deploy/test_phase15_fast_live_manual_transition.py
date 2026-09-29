@@ -286,6 +286,7 @@ def test_candidate_rejects_unsafe_deactivation_evidence(
             deactivation=evidence,
             expected_main=main,
             authorization_id="fast-live-continuous-session-test",
+            source_of_truth_version="0.14.181",
             expires_at=datetime(2026, 9, 30, tzinfo=UTC),
             authorized_at=datetime(2026, 9, 29, 15, 30, tzinfo=UTC),
             deactivation_evidence_reference="docs/evidence/deactivated.json",
