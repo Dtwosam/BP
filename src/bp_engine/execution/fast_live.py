@@ -541,17 +541,30 @@ def create_approval_message(
     key: bytes,
     key_id: str,
     created_at: datetime,
+    approval_prepared: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     created = _utc(created_at)
+    approval_source = (
+        prepared if approval_prepared is None else approval_prepared
+    )
     try:
         approved = validate_approved_handoff(
-            prepared,
+            approval_source,
             approval=approval,
             observed_at=created,
         )
     except ApprovalError as exc:
         raise FastLiveError("fast live Telegram approval invalid") from exc
     validated = validate_prepared(prepared, observed_at=created)
+    approval_validated = validate_prepared(
+        approval_source,
+        observed_at=created,
+    )
+    for name in ("prediction_id", "paper_order_id", "request_sha256"):
+        if str(approval_validated[name]) != str(validated[name]):
+            raise FastLiveError(
+                f"fast live approved candidate mismatch: {name}"
+            )
     auth_expires = _utc(
         datetime.fromisoformat(str(runtime_authorization.get("expires_at") or ""))
     )
@@ -567,7 +580,7 @@ def create_approval_message(
         raise FastLiveError("fast live approval window closed")
     approval_binding = {
         "status": "approved",
-        "intent_id": validated["intent_id"],
+        "intent_id": str(approved["intent_id"]),
         "prediction_id": validated["prediction_id"],
         "paper_order_id": validated["paper_order_id"],
         "request_sha256": validated["request_sha256"],
@@ -583,6 +596,8 @@ def create_approval_message(
         "intent_id": validated["intent_id"],
         "request_sha256": validated["request_sha256"],
         "prepared_sha256": validated["prepared_sha256"],
+        "prepare_sha256": approval_validated["prepared_sha256"],
+        "approval_candidate_id": str(approved["intent_id"]),
         "prepared": dict(prepared),
         "approval_sha256": payload_sha256(approval_binding),
         "approval": approval_binding,
@@ -629,14 +644,20 @@ def verify_approval_message(
         raise FastLiveError("fast live approval prepared intent mismatch")
     if str(payload.get("request_sha256") or "") != str(validated["request_sha256"]):
         raise FastLiveError("fast live approval prepared request mismatch")
+    prepare_sha = str(payload.get("prepare_sha256") or "")
+    if not _SHA256_RE.fullmatch(prepare_sha):
+        raise FastLiveError("fast live prepare binding hash invalid")
     approval = payload.get("approval")
     if not isinstance(approval, Mapping) or approval.get("status") != "approved":
         raise FastLiveError("fast live approval payload invalid")
     approval_sha = str(payload.get("approval_sha256") or "")
     if approval_sha != payload_sha256(approval):
         raise FastLiveError("fast live approval binding hash mismatch")
-    for name in ("intent_id", "request_sha256"):
-        if str(payload.get(name) or "") != str(approval.get(name) or ""):
+    candidate_id = str(payload.get("approval_candidate_id") or "")
+    if not candidate_id or candidate_id != str(approval.get("intent_id") or ""):
+        raise FastLiveError("fast live approval candidate mismatch")
+    for name in ("prediction_id", "paper_order_id", "request_sha256"):
+        if str(approval.get(name) or "") != str(validated[name]):
             raise FastLiveError(f"fast live approval binding mismatch: {name}")
     approved_at = _utc(datetime.fromisoformat(str(approval.get("approved_at") or "")))
     approval_expires = _utc(datetime.fromisoformat(str(approval.get("expires_at") or "")))
@@ -647,6 +668,8 @@ def verify_approval_message(
         "intent_id": str(payload["intent_id"]),
         "request_sha256": str(payload["request_sha256"]),
         "prepared_sha256": str(payload["prepared_sha256"]),
+        "prepare_sha256": prepare_sha,
+        "approval_candidate_id": candidate_id,
         "approval_sha256": approval_sha,
         "prepared": dict(prepared),
         "request": dict(validated["request"]),
@@ -657,7 +680,6 @@ def verify_approval_message(
         "created_at": created.isoformat(),
         "expires_at": expires.isoformat(),
     }
-
 
 def create_warmup_message(
     *,
