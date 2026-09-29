@@ -156,6 +156,149 @@ def build_fast_live_draft(
     return paper_order_id, draft
 
 
+def preview_fast_live_candidate(
+    *,
+    engine: Engine,
+    activated_at: datetime,
+    observed_at: datetime,
+) -> dict[str, object]:
+    policy = continuous_fast_live_policy()
+
+    with engine.begin() as connection:
+        pending = connection.execute(
+            select(schema.live_order_intents)
+            .where(
+                schema.live_order_intents.c.policy_version
+                == CANARY_POLICY_VERSION
+            )
+            .order_by(schema.live_order_intents.c.id.desc())
+            .limit(1)
+        ).mappings().one_or_none()
+        if pending is not None:
+            terminal = connection.execute(
+                select(schema.live_order_events.c.event_type)
+                .where(
+                    schema.live_order_events.c.intent_id
+                    == pending["intent_id"],
+                    schema.live_order_events.c.event_type.in_(
+                        CANARY_INTENT_TERMINAL_EVENTS
+                    ),
+                )
+                .order_by(schema.live_order_events.c.id.desc())
+                .limit(1)
+            ).scalar_one_or_none()
+            if terminal is None:
+                return {
+                    "status": "blocked",
+                    "reason": "pending_live_intent_requires_reconciliation",
+                    "intent_id": str(pending["intent_id"]),
+                }
+
+        prediction = _prediction_candidate(
+            connection,
+            activated_at=activated_at,
+        )
+        if prediction is None:
+            return {
+                "status": "waiting",
+                "reason": "no_new_frozen_v3_trade_prediction",
+            }
+
+        available_paper_cash = _current_frozen_paper_cash(connection)
+        paper_order_id, draft = build_fast_live_draft(
+            prediction,
+            available_paper_cash=available_paper_cash,
+        )
+        request = draft.request
+        if request.target_notional_usd != CANARY_TARGET_NOTIONAL_USD:
+            raise RuntimeError("frozen paper order target changed")
+        if request.target_notional_usd > policy.max_trade_size_usd:
+            raise RuntimeError("frozen paper order exceeds live ceiling")
+        if not _source_request_matches(prediction, request):
+            raise RuntimeError(
+                "frozen paper order no longer matches source prediction"
+            )
+
+        market_end_at = _stored_utc(
+            prediction["market_end_at"],
+            "market_end_at",
+        )
+        arm_window = Decimal(
+            str((market_end_at - observed_at).total_seconds())
+        )
+        if arm_window < CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS:
+            return {
+                "status": "skipped",
+                "reason": "insufficient_arm_window",
+                "reasons": ("insufficient_arm_window",),
+                "prediction_id": request.prediction_id,
+                "paper_order_id": paper_order_id,
+                "time_to_expiry_seconds": arm_window,
+            }
+
+        request_id = derive_id(
+            "live-request",
+            semantic_sha256(request.as_mapping(raw=True)),
+        )
+        candidate_id = derive_id(
+            "fast-live-candidate",
+            semantic_sha256(
+                {
+                    "prediction_id": request.prediction_id,
+                    "paper_order_id": paper_order_id,
+                    "request": request.as_mapping(raw=True),
+                }
+            ),
+        )
+
+    prediction_scheduled_at = _stored_utc(
+        prediction["scheduled_at"],
+        "prediction.scheduled_at",
+    )
+    prediction_recorded_at = _stored_utc(
+        prediction["recorded_at"],
+        "prediction.recorded_at",
+    )
+    paper_order_submitted_at = request.submitted_at
+    timing = {
+        "prediction_scheduled_at": prediction_scheduled_at.isoformat(),
+        "prediction_recorded_at": prediction_recorded_at.isoformat(),
+        "paper_order_submitted_at": paper_order_submitted_at.isoformat(),
+        "prepared_observed_at": observed_at.isoformat(),
+        "prediction_lateness_seconds": str(
+            (prediction_recorded_at - prediction_scheduled_at).total_seconds()
+        ),
+        "paper_after_prediction_seconds": str(
+            (paper_order_submitted_at - prediction_recorded_at).total_seconds()
+        ),
+        "fast_live_order_derived_directly_from_prediction": True,
+        "prepare_after_paper_seconds": str(
+            (observed_at - paper_order_submitted_at).total_seconds()
+        ),
+    }
+    return {
+        "status": "prepared",
+        "action": "submit",
+        "intent_id": candidate_id,
+        "request_id": request_id,
+        "risk_decision_id": f"risk-pending:{candidate_id}",
+        "prediction_id": request.prediction_id,
+        "paper_order_id": paper_order_id,
+        "market_end_at": market_end_at.isoformat(),
+        "timing": timing,
+        "request": request.as_mapping(),
+        "policy": {
+            "policy_version": policy.policy_version,
+            "max_trade_size_usd": str(policy.max_trade_size_usd),
+            "max_total_exposure_usd": str(policy.max_total_exposure_usd),
+            "max_daily_loss_usd": str(policy.max_daily_loss_usd),
+            "max_consecutive_losses": policy.max_consecutive_losses,
+            "max_submission_attempts": 1,
+        },
+        "risk_status": "pending",
+    }
+
+
 def prepare_fast_live_candidate(
     *,
     engine: Engine,
