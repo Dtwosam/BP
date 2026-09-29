@@ -15,25 +15,34 @@ A completed trade must not consume the entire live session.
 
 For every new eligible frozen-V3 trade prediction:
 
-1. The source derives the exact $5 request and persists the normal live risk decision and
-   intent.
-2. The exact prepared candidate is staged for the private Telegram approval listener.
-3. An authenticated PREPARE message is published to Johannesburg immediately.
-4. Telegram review, fresh account/risk state, book warming, and order pre-signing happen in
-   parallel.
-5. APPROVE creates an authenticated APPROVAL message bound to the exact intent, request
-   hash, prepared hash, approval hash, and expiry.
-6. Johannesburg durably claims that exact approval before making the execution decision.
-7. The final gate requires the exact approval, fresh safety state, an unengaged kill
-   switch, and fresh executable ask liquidity at or below the frozen V3 limit.
-8. The executor creates an atomic attempt marker scoped to the exact
-   `intent_id + request_sha256`, then POSTs the already-signed limit order.
-9. That intent can never POST again. Pub/Sub redelivery or receiver restart replays the
-   durable decision/result instead of reconsidering the market.
-10. The authenticated result is recorded and reconciled.
-11. If the trade is rejected, zero-filled, skipped, expired, or otherwise closes without
+1. The source derives a risk-pending preview containing the exact frozen $5 request. The
+   request economics are already immutable, but no live-risk pass is assumed yet.
+2. That preview is staged for the private Telegram listener and an authenticated PREPARE
+   message is sent to Johannesburg immediately.
+3. Three paths then progress concurrently: the human reviews Telegram, the US source runs
+   the full live-risk decision and persists the real live intent, and Johannesburg refreshes
+   safety/book state and pre-signs the exact preview request.
+4. If live risk fails, the preview is cancelled. Any Telegram prompt is invalidated and no
+   APPROVAL message capable of execution is produced.
+5. If live risk passes, the finalized intent must have the exact same prediction, paper
+   order and request hash as the preview. Any request drift fails closed.
+6. A human APPROVE is bound to the preview candidate and exact request. The source then
+   creates a final authenticated APPROVAL message that carries the risk-approved live
+   intent plus the preview hash/candidate binding.
+7. Johannesburg joins the final risk-approved intent to the already pre-signed order only
+   when the prediction and exact request hash match the cached PREPARE.
+8. Johannesburg durably claims that exact approval before making the execution decision.
+9. The final gate requires the human approval, finalized risk-approved intent, fresh safety
+   state, an unengaged kill switch, and fresh executable ask liquidity at or below the
+   frozen V3 limit.
+10. The executor creates an atomic attempt marker scoped to the exact
+    `intent_id + request_sha256`, then POSTs the already-signed limit order.
+11. That finalized intent can never POST again. Pub/Sub redelivery or receiver restart
+    replays the durable decision/result instead of reconsidering the market.
+12. The authenticated result is recorded and reconciled.
+13. If the trade is rejected, zero-filled, skipped, expired, or otherwise closes without
     exposure, the source immediately returns to monitoring for the next V3 prediction.
-12. If a confirmed fill creates exposure, the source remains settlement-blocked until the
+14. If a confirmed fill creates exposure, the source remains settlement-blocked until the
     official market outcome clears that exposure, then resumes monitoring.
 
 ## Authorization model
@@ -69,9 +78,12 @@ Continuous mode stores per-intent attempt and result files under a deterministic
 the exact intent and request. This gives each approved trade one network-attempt budget
 without preventing later independent intents.
 
-A second durable approval-decision record is keyed by the exact intent, request hash, and
-human approval hash. One Telegram approval therefore produces at most one execution
-decision even if Pub/Sub redelivers the APPROVAL message after the market changes.
+A second durable approval-decision record is keyed by the finalized live intent, exact
+request hash, and human approval hash. The APPROVAL message also carries the provisional
+preview candidate ID and preview hash, so the human decision cannot be detached from the
+request that was actually shown in Telegram. One Telegram approval therefore produces at
+most one execution decision even if Pub/Sub redelivers the APPROVAL message after the
+market changes.
 
 A crash after claiming an approval but before a durable non-attempt result fails closed as
 `approval_recovery_blocked`. A crash after the network-attempt marker uses the existing
