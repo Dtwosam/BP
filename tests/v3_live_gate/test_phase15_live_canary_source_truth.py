@@ -29,14 +29,14 @@ def test_phase15_second_live_canary_is_reconciled_zero_fill() -> None:
     gate = state["phase_15_v3_live_canary"]
     master = state["phase_14_checkpoint"]["master_live_gate"]
 
-    assert state["source_of_truth_version"] == "0.14.180"
+    assert state["source_of_truth_version"] == "0.14.181"
     assert state["current_phase"] == 15
-    assert state["status"] == "PHASE_15_SECOND_LIVE_CANARY_RECONCILED_ZERO_FILL"
+    assert state["status"] == "PHASE_15_CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_AUTHORIZED_NOT_ACTIVATED"
     assert all(value == "pass" for value in master.values())
     assert state["phase_14_checkpoint"]["overall_live_gate"] == "pass"
     assert state["phase_14_checkpoint"]["phase15_permitted"] is True
 
-    assert gate["status"] == "SECOND_LIVE_CANARY_RECONCILED_ZERO_FILL"
+    assert gate["status"] == "CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_AUTHORIZED_NOT_ACTIVATED"
     assert gate["phase15_canary_authorized"] is True
     assert gate["source_prediction_version"] == "v3-frozen-paper-v1"
     assert gate["source_execution_version"] == "paper-execution-v3-frozen-v1"
@@ -659,7 +659,16 @@ def test_operator_telegram_auto_approver_authorization_is_preserved_after_deploy
     assert auto["status"] == "ACTIVE_LIVE_AUTO_APPROVE"
     assert auto["implementation_merge_commit"] == "2ef544b5a2af821e4b59fd00bd2615dbab3ca798"
     assert auto["reviewed_branch_commit"] == "523ba46ec22f8b47b505bf1e767152b49437912b"
-    assert auto["approval_contract_git_blob_sha"] == "930b62514712bd40400550da3ea5bbed533198da"
+    assert auto["approval_contract_git_blob_sha"] == "5676efcb60840f4533a7f43b3c6a7efab9e97541"
+    assert auto["continuous_candidate_prompt_authorized"] is True
+    assert auto["continuous_fast_live_auto_approval_authorized"] is True
+    assert auto["continuous_contract_upgrade_main"] == (
+        "da02fc2aa3cf53289d6b7cf457d941e898b6fddf"
+    )
+    assert auto["continuous_contract_upgrade_evidence"] == (
+        "docs/evidence/"
+        "phase15_v3_telegram_auto_approver_continuous_upgrade_20260929T191739Z.json"
+    )
     assert auto["live_auto_approve_authorized"] is True
     assert auto["live_enable_value"] == "BP_TELEGRAM_AUTO_APPROVE=true"
     assert auto["dry_run_prerequisite_required"] is False
