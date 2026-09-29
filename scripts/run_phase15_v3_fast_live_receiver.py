@@ -650,17 +650,33 @@ def main() -> int:
                             result,
                         )
                     else:
-                        prepared_order = (
-                            executor.prepare_order(verified)
-                            if cached is None
-                            else cached["prepared_order"]
-                        )
-                        order_verified = True
-                        result = execute_with_bounded_pre_attempt_retry(
-                            executor,
-                            verified,
-                            prepared_order=prepared_order,
-                        )
+                        try:
+                            prepared_order = (
+                                executor.prepare_order(verified)
+                                if cached is None
+                                else cached["prepared_order"]
+                            )
+                            order_verified = True
+                            result = execute_with_bounded_pre_attempt_retry(
+                                executor,
+                                verified,
+                                prepared_order=prepared_order,
+                            )
+                        except FastLiveError as exc:
+                            if executor.attempt_path_for(verified).exists():
+                                raise
+                            result = {
+                                "status": "pre_submission_blocked",
+                                "intent_id": verified["intent_id"],
+                                "prediction_id": verified["prediction_id"],
+                                "paper_order_id": verified["paper_order_id"],
+                                "request_sha256": verified["request_sha256"],
+                                "reason": str(exc),
+                                "error_type": type(exc).__name__,
+                                "network_submission_attempt_consumed": False,
+                                "real_order_submitted": False,
+                                "external_order_id": None,
+                            }
                         result["approval_decision_replayed"] = False
                         _write_approval_result(
                             approval_result_path,
