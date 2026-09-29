@@ -575,8 +575,6 @@ class FastLiveExecutor:
                 sign_completed_ns - sign_started_ns
             ) / 1_000_000
         else:
-            if prepared_order.intent_id != str(verified["intent_id"]):
-                raise FastLiveError("prepared order intent mismatch")
             if prepared_order.request_sha256 != str(verified["request_sha256"]):
                 raise FastLiveError("prepared order request hash mismatch")
             if (
