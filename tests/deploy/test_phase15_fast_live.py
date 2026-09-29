@@ -52,6 +52,10 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert '"finalized.json"' in source
     assert '"cancel.json"' in source
     assert "fast live finalized risk candidate changed" in source
+    assert '"parallel_timing"' in source
+    assert '"risk_evaluation_ms"' in source
+    assert '"preview_to_risk_complete_ms"' in source
+    assert "approval_vs_risk_ms" in source
     assert "BP_FAST_LIVE_TELEGRAM_APPROVAL_REQUIRED" in source
     assert "BP_FAST_LIVE_CONTINUOUS_SESSION" in source
     assert "_pending_result_binding" in source
