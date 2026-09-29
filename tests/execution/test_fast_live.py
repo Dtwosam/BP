@@ -608,7 +608,11 @@ def test_continuous_auto_telegram_mode_requires_active_auto_approver() -> None:
             FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA
         ),
         "continuous_candidate_prompt_authorized": True,
+        "continuous_fast_live_auto_approval_authorized": True,
     }
+    authorization["auto_approval_contract_git_blob_sha"] = (
+        FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA
+    )
 
     runtime = _runtime(state, now)
     runtime.pop("max_network_submission_attempts")
@@ -642,6 +646,29 @@ def test_continuous_auto_telegram_mode_requires_active_auto_approver() -> None:
         verify_runtime_authorization(
             inactive_runtime,
             state=inactive,
+            expected_main=MAIN,
+            observed_at=now + timedelta(seconds=1),
+            requires_telegram_approval=True,
+            continuous_session=True,
+        )
+
+    missing_source_contract = copy.deepcopy(state)
+    missing_source_phase = missing_source_contract["phase_15_v3_live_canary"]
+    assert isinstance(missing_source_phase, dict)
+    missing_source_auth = missing_source_phase["fast_live_preauthorization"]
+    assert isinstance(missing_source_auth, dict)
+    missing_source_auth["auto_approval_contract_git_blob_sha"] = "0" * 40
+    missing_source_runtime = copy.deepcopy(runtime)
+    missing_source_runtime["project_state_sha256"] = project_state_sha256(
+        missing_source_contract
+    )
+    with pytest.raises(
+        FastLiveError,
+        match="source auto-approval contract mismatch",
+    ):
+        verify_runtime_authorization(
+            missing_source_runtime,
+            state=missing_source_contract,
             expected_main=MAIN,
             observed_at=now + timedelta(seconds=1),
             requires_telegram_approval=True,
@@ -687,6 +714,29 @@ def test_continuous_auto_telegram_mode_requires_active_auto_approver() -> None:
         verify_runtime_authorization(
             not_authorized_runtime,
             state=not_authorized,
+            expected_main=MAIN,
+            observed_at=now + timedelta(seconds=1),
+            requires_telegram_approval=True,
+            continuous_session=True,
+        )
+
+    no_auto_auth = copy.deepcopy(state)
+    no_auto_auth_phase = no_auto_auth["phase_15_v3_live_canary"]
+    assert isinstance(no_auto_auth_phase, dict)
+    no_auto_auth_auto = no_auto_auth_phase["operator_telegram_auto_approver"]
+    assert isinstance(no_auto_auth_auto, dict)
+    no_auto_auth_auto["continuous_fast_live_auto_approval_authorized"] = False
+    no_auto_auth_runtime = copy.deepcopy(runtime)
+    no_auto_auth_runtime["project_state_sha256"] = project_state_sha256(
+        no_auto_auth
+    )
+    with pytest.raises(
+        FastLiveError,
+        match="continuous auto-approval not authorized",
+    ):
+        verify_runtime_authorization(
+            no_auto_auth_runtime,
+            state=no_auto_auth,
             expected_main=MAIN,
             observed_at=now + timedelta(seconds=1),
             requires_telegram_approval=True,
