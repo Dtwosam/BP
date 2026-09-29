@@ -452,6 +452,79 @@ def test_parallel_telegram_prepare_and_approval_are_exact_bound() -> None:
         )
 
 
+def test_early_preview_approval_joins_only_same_final_request() -> None:
+    from bp_engine.execution.telegram_approval import approval_record, new_pending
+
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    state = _state(now)
+    phase = state["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    authorization = phase["fast_live_preauthorization"]
+    assert isinstance(authorization, dict)
+    authorization["requires_telegram_approval"] = True
+    runtime = _runtime(state, now)
+    runtime["requires_telegram_approval"] = True
+
+    preview = _prepared(now)
+    preview["intent_id"] = "candidate-fast-preview"
+    preview["risk_decision_id"] = "risk-pending:candidate-fast-preview"
+    preview["action"] = "submit"
+
+    final = copy.deepcopy(preview)
+    final["intent_id"] = "live-intent-fast-final"
+    final["risk_decision_id"] = "risk-fast-final"
+
+    pending = new_pending(
+        preview,
+        telegram_user_id=111,
+        telegram_chat_id=222,
+        created_at=now,
+        nonce="parallel-risk-preview",
+    )
+    approval = approval_record(
+        action="approve",
+        pending=pending,
+        callback_query_id="callback-risk-preview",
+        approved_at=now + timedelta(seconds=1),
+    )
+    message = create_approval_message(
+        final,
+        approval=approval,
+        approval_prepared=preview,
+        runtime_authorization=runtime,
+        key=KEY,
+        key_id=KEY_ID,
+        created_at=now + timedelta(seconds=1),
+    )
+    verified = verify_approval_message(
+        message,
+        runtime_authorization=runtime,
+        key=KEY,
+        expected_key_id=KEY_ID,
+        observed_at=now + timedelta(seconds=1, milliseconds=100),
+    )
+
+    assert verified["intent_id"] == "live-intent-fast-final"
+    assert verified["approval_candidate_id"] == "candidate-fast-preview"
+    assert verified["request_sha256"] == pending["request_sha256"]
+    assert verified["prepare_sha256"] == message["prepare_sha256"]
+
+    changed = copy.deepcopy(final)
+    request = changed["request"]
+    assert isinstance(request, dict)
+    request["limit_price"] = "0.60"
+    with pytest.raises(FastLiveError, match="approved candidate mismatch"):
+        create_approval_message(
+            changed,
+            approval=approval,
+            approval_prepared=preview,
+            runtime_authorization=runtime,
+            key=KEY,
+            key_id=KEY_ID,
+            created_at=now + timedelta(seconds=1),
+        )
+
+
 def test_telegram_approval_mode_rejects_non_telegram_authorization() -> None:
     now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
     state = _state(now)
