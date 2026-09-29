@@ -27,7 +27,13 @@ def test_fast_live_expired_cleanup_is_fail_closed_and_session_scoped() -> None:
 
     for marker in (
         "I_ACCEPT_CLEAN_EXPIRED_CONTINUOUS_LIVE_SESSION",
+        "I_ACCEPT_ABORT_ZERO_ACTIVITY_FAST_LIVE_SESSION_AFTER_VALIDATION_DEFECT",
+        'CLEANUP_MODE="expired"',
+        'CLEANUP_MODE="zero_activity_abort"',
         "runtime_authorization_not_expired",
+        "zero_activity_abort_runtime_already_expired",
+        "phase15-v3-fast-live-auto-continuous-5d305254b06ef0cbce33065e",
+        "bbb20f8f5f3b533ecad3c0798c944c61f31bcdfe",
         "expired_runtime_authorization_missing_on_both_hosts",
         'AUTH_SOURCE_HOST="recorder"',
         'AUTH_SOURCE_HOST="executor"',
@@ -36,7 +42,13 @@ def test_fast_live_expired_cleanup_is_fail_closed_and_session_scoped() -> None:
         "executor_runtime_presence_check_failed",
         "AUTHORIZATION_SOURCE_HOST=%s",
         "manual-telegram-continuous-v1",
+        "auto-telegram-continuous-v1",
         "max_network_submission_attempts_per_intent",
+        "zero_activity_abort_recorder_activity_present",
+        "zero_activity_abort_executor_activity_present",
+        "LIVE_PUBLICATIONS",
+        "LIVE_ATTEMPTS",
+        "APPROVAL_CLAIMS",
         '[[ "$HELPER_HEAD" == "$REMOTE_MAIN" ]]',
         "working_tree_not_clean",
         "recorder_session_not_quiescent",
@@ -99,3 +111,14 @@ def test_fast_live_expired_cleanup_preserves_remote_shell_expansion() -> None:
     assert "base=\\${receipt##*/};" in text
     assert "base=\\${result##*/};" in text
     assert "awk '{print \\$1}'" in text
+
+
+def test_fast_live_cleanup_zero_activity_abort_is_exactly_scoped() -> None:
+    text = CLEANUP.read_text(encoding="utf-8")
+
+    assert '[[ "$AUTH_ID" == "phase15-v3-fast-live-auto-continuous-5d305254b06ef0cbce33065e" ]]' in text
+    assert '[[ "$RELEASE_MAIN" == "bbb20f8f5f3b533ecad3c0798c944c61f31bcdfe" ]]' in text
+    assert '[[ "$AUTH_MODE" == "auto-telegram-continuous-v1" ]]' in text
+    assert '[[ "$LIVE_PUBLICATIONS" == "0" && "$LIVE_RESULTS" == "0" && "$LIVE_SETTLEMENTS" == "0" ]]' in text
+    assert '[[ "$LIVE_ATTEMPTS" == "0" && "$EXEC_RESULTS" == "0" &&' in text
+    assert 'ZERO_ACTIVITY_VERIFIED=true' in text
