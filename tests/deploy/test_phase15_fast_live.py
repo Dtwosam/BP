@@ -34,6 +34,7 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
         "--expected-main ${BP_FAST_LIVE_EXPECTED_MAIN}",
         "--topic-id ${BP_FAST_LIVE_TOPIC_ID}",
         "--result-subscription-id ${BP_FAST_LIVE_RESULT_SUBSCRIPTION_ID}",
+        "ExecStart=/opt/bp-fast-live/.venv/bin/python",
     ):
         assert marker in text
     source = SOURCE.read_text(encoding="utf-8")
@@ -46,6 +47,7 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert "must not be present in fast live source" in source
     assert "Telegram" not in source
     assert "/etc/bp-telegram-transport/transport.key" not in text
+    assert "ExecStart=/opt/bp/.venv/bin/python" not in text
     assert "/etc/bp-telegram-transport/transport.key" not in source
 
 
