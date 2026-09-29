@@ -106,10 +106,26 @@ def _current_frozen_paper_cash(connection) -> Decimal:
     )
 
 
+def _has_preview_arm_window(
+    prediction: dict[str, object],
+    *,
+    observed_at: datetime,
+) -> bool:
+    market_end_at = _stored_utc(
+        prediction["market_end_at"],
+        "market_end_at",
+    )
+    remaining = Decimal(
+        str((market_end_at - observed_at).total_seconds())
+    )
+    return remaining >= CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS
+
+
 def _prediction_candidate(
     connection,
     *,
     activated_at: datetime,
+    preview_observed_at: datetime | None = None,
 ) -> dict[str, object] | None:
     evaluated = _evaluated_prediction_ids(connection)
     rows = connection.execute(
@@ -128,8 +144,18 @@ def _prediction_candidate(
     ).mappings()
     for row in rows:
         prediction_id = str(row["prediction_id"])
-        if prediction_id not in evaluated:
-            return dict(row)
+        if prediction_id in evaluated:
+            continue
+        candidate = dict(row)
+        if (
+            preview_observed_at is not None
+            and not _has_preview_arm_window(
+                candidate,
+                observed_at=preview_observed_at,
+            )
+        ):
+            continue
+        return candidate
     return None
 
 
@@ -197,6 +223,7 @@ def preview_fast_live_candidate(
         prediction = _prediction_candidate(
             connection,
             activated_at=activated_at,
+            preview_observed_at=observed_at,
         )
         if prediction is None:
             return {
