@@ -476,22 +476,44 @@ def main() -> int:
                 with prepared_lock:
                     cached = prepared_orders.pop(cache_key, None)
                 if cached is None:
-                    raise FastLiveError(
-                        "fast live approval has no matching prepared order"
-                    )
-                if str(cached["prepared_sha256"]) != str(
-                    approved["prepared_sha256"]
-                ):
-                    raise FastLiveError(
-                        "fast live approval prepared hash mismatch"
-                    )
-                verified = dict(cached["verified"])
-                verified["expires_at"] = str(approved["expires_at"])
+                    verified = {
+                        "authorization_id": str(approved["authorization_id"]),
+                        "intent_id": str(approved["intent_id"]),
+                        "request_id": str(
+                            approved["prepared"].get("request_id") or ""
+                        ),
+                        "risk_decision_id": str(
+                            approved["prepared"].get("risk_decision_id") or ""
+                        ),
+                        "prediction_id": str(approved["prediction_id"]),
+                        "paper_order_id": str(approved["paper_order_id"]),
+                        "request_sha256": str(approved["request_sha256"]),
+                        "prepared_sha256": str(approved["prepared_sha256"]),
+                        "created_at": str(approved["created_at"]),
+                        "expires_at": str(approved["expires_at"]),
+                        "request": dict(approved["request"]),
+                    }
+                    prepared_order = executor.prepare_order(verified)
+                    prepare_recovered_after_restart = True
+                else:
+                    if str(cached["prepared_sha256"]) != str(
+                        approved["prepared_sha256"]
+                    ):
+                        raise FastLiveError(
+                            "fast live approval prepared hash mismatch"
+                        )
+                    verified = dict(cached["verified"])
+                    verified["expires_at"] = str(approved["expires_at"])
+                    prepared_order = cached["prepared_order"]
+                    prepare_recovered_after_restart = False
                 order_verified = True
                 result = execute_with_bounded_pre_attempt_retry(
                     executor,
                     verified,
-                    prepared_order=cached["prepared_order"],
+                    prepared_order=prepared_order,
+                )
+                result["prepare_recovered_after_restart"] = (
+                    prepare_recovered_after_restart
                 )
                 result["prepare_created_at"] = str(
                     cached["verified"]["created_at"]
