@@ -185,6 +185,71 @@ def test_marketable_fast_path_consumes_once_then_posts(
     ]
 
 
+def test_replay_finishes_pending_cancellation_without_second_post(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(module.polymarket, "CancelOrdersResponse", FakeCancelResponse)
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    client = FakeClient((("0.58", "20"),))
+    executor = FastLiveExecutor(
+        client=client,
+        safety_cache=_cache(now),
+        state_root=tmp_path / "state",
+        kill_switch_path=tmp_path / "KILL",
+        order_ttl_seconds=Decimal("0"),
+        official_stability_seconds=0,
+        continuous_session=True,
+        now_fn=lambda: now,
+    )
+    verified = _verified(now)
+    attempt_path = executor.attempt_path_for(verified)
+    result_path = executor.result_path_for(verified)
+    attempt = {
+        "intent_id": verified["intent_id"],
+        "prediction_id": verified["prediction_id"],
+        "paper_order_id": verified["paper_order_id"],
+        "request_sha256": verified["request_sha256"],
+        "network_submission_attempt_consumed": True,
+        "real_order_submitted": True,
+    }
+    attempt_path.write_text(json.dumps(attempt), encoding="utf-8")
+    preliminary = {
+        **attempt,
+        "status": "accepted",
+        "accepted": True,
+        "external_order_id": "order-fast-1",
+        "cancellation_pending": True,
+        "marketability": {
+            "requested_shares": "8.238141",
+        },
+    }
+    result_path.write_text(json.dumps(preliminary), encoding="utf-8")
+
+    recovered = executor.execute(verified)
+
+    assert recovered["status"] == "accepted"
+    assert recovered["replayed_result"] is True
+    assert recovered["cancellation_pending"] is False
+    assert recovered["cancellation"]["cancelled"] is True
+    assert (
+        recovered["official_reconciliation"][
+            "official_reconciliation_complete"
+        ]
+        is True
+    )
+    assert client.calls == [
+        "cancel",
+        "open_orders",
+        "trades",
+        "open_orders",
+        "trades",
+    ]
+    assert "post" not in client.calls
+    persisted = json.loads(result_path.read_text(encoding="utf-8"))
+    assert persisted["cancellation_pending"] is False
+
+
 def test_continuous_session_uses_one_attempt_marker_per_intent(
     tmp_path: Path,
     monkeypatch,
