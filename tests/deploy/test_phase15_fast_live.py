@@ -95,6 +95,9 @@ def test_fast_live_receiver_is_continuous_approval_gated_and_fail_closed() -> No
     assert "_claim_approval_once" in receiver
     assert "_write_approval_result" in receiver
     assert "approval_recovery_blocked" in receiver
+    assert '"status": "pre_submission_blocked"' in receiver
+    assert "except FastLiveError as exc:" in receiver
+    assert "if executor.attempt_path_for(verified).exists():" in receiver
     assert 'approved["prepare_sha256"]' in receiver
     assert 'approved["prediction_id"]' in receiver
     assert "execute_with_bounded_pre_attempt_retry" in receiver
