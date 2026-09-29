@@ -20,6 +20,7 @@ from bp_engine.execution.fast_live import (
 )
 
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
+_VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 _ACCEPT = "I_ACCEPT_GENERATE_REVIEWABLE_CONTINUOUS_LIVE_AUTHORIZATION_CANDIDATE"
 _DEACTIVATION_PURPOSE = "phase15-v3-telegram-auto-approver-deactivation-v1"
 _CANDIDATE_PURPOSE = "phase15-v3-fast-live-continuous-authorization-candidate-v1"
@@ -77,6 +78,7 @@ def build_candidate(
     deactivation: dict[str, Any],
     expected_main: str,
     authorization_id: str,
+    source_of_truth_version: str,
     expires_at: datetime,
     authorized_at: datetime,
     deactivation_evidence_reference: str,
@@ -87,6 +89,10 @@ def build_candidate(
         raise CandidateError("expected main must be a 40-character lowercase SHA")
     if not authorization_id or len(authorization_id) > 128:
         raise CandidateError("authorization id invalid")
+    if not _VERSION_RE.fullmatch(source_of_truth_version):
+        raise CandidateError("source-of-truth version invalid")
+    if source_of_truth_version == str(state.get("source_of_truth_version") or ""):
+        raise CandidateError("source-of-truth version must change")
     if expires <= authorized:
         raise CandidateError("authorization expiry must be in the future")
     if not deactivation_evidence_reference.strip():
@@ -150,6 +156,7 @@ def build_candidate(
         raise CandidateError("phase live trading flag must remain false")
 
     candidate = copy.deepcopy(state)
+    candidate["source_of_truth_version"] = source_of_truth_version
     candidate["updated_at"] = authorized.date().isoformat()
     candidate["current_phase_name"] = (
         "controlled live launch — continuous Telegram-approved fast-live candidate"
@@ -223,6 +230,7 @@ def main() -> int:
     parser.add_argument("--deactivation-evidence", type=Path, required=True)
     parser.add_argument("--expected-main", required=True)
     parser.add_argument("--authorization-id", required=True)
+    parser.add_argument("--source-of-truth-version", required=True)
     parser.add_argument("--expires-at", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--evidence-output", type=Path, required=True)
@@ -265,6 +273,7 @@ def main() -> int:
         deactivation=deactivation,
         expected_main=args.expected_main,
         authorization_id=args.authorization_id,
+        source_of_truth_version=args.source_of_truth_version,
         expires_at=expires,
         authorized_at=now,
         deactivation_evidence_reference=evidence_reference,
@@ -278,6 +287,7 @@ def main() -> int:
         "deactivation_evidence": evidence_reference,
         "deactivation_evidence_sha256": _raw_sha256(deactivation_path),
         "authorization_id": args.authorization_id,
+        "source_of_truth_version": args.source_of_truth_version,
         "authorized_at": now.isoformat(),
         "expires_at": _utc(expires).isoformat(),
         "candidate_project_state_sha256": project_state_sha256(candidate),
@@ -301,6 +311,7 @@ def main() -> int:
     print("PHASE15_FAST_LIVE_AUTHORIZATION_CANDIDATE=PASS")
     print(f"EXPECTED_MAIN={args.expected_main}")
     print(f"AUTHORIZATION_ID={args.authorization_id}")
+    print(f"SOURCE_OF_TRUTH_VERSION={args.source_of_truth_version}")
     print(f"EXPIRES_AT={_utc(expires).isoformat()}")
     print(f"CANDIDATE_PROJECT_STATE={output}")
     print(f"CANDIDATE_EVIDENCE={evidence_output}")
