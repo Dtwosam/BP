@@ -32,7 +32,7 @@ command -v python3 >/dev/null 2>&1 || fail "python3_missing"
 gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q . ||
   fail "gcloud_auth_missing"
 
-readarray -t BINDINGS < <(
+BINDINGS=$(
   python3 - "$ROOT/PROJECT_STATE.json" \
     "$ROOT/docs/evidence/phase-15-v3-second-canary-submission-zero-fill-readonly-20260928.json" \
     "$ROOT/docs/evidence/phase-15-v3-second-canary-zero-fill-completion-pass-production-20260928.json" <<'PY'
@@ -124,10 +124,10 @@ print(canary["db_reconciliation_id"])
 PY
 ) || fail "source_truth_or_completion_evidence_invalid"
 
-INTENT_ID="${BINDINGS[0]:-}"
-REQUEST_SHA256="${BINDINGS[1]:-}"
-EXTERNAL_ORDER_ID="${BINDINGS[2]:-}"
-RECONCILIATION_ID="${BINDINGS[3]:-}"
+INTENT_ID=$(printf '%s\n' "$BINDINGS" | sed -n '1p')
+REQUEST_SHA256=$(printf '%s\n' "$BINDINGS" | sed -n '2p')
+EXTERNAL_ORDER_ID=$(printf '%s\n' "$BINDINGS" | sed -n '3p')
+RECONCILIATION_ID=$(printf '%s\n' "$BINDINGS" | sed -n '4p')
 
 [[ "$INTENT_ID" =~ ^live-intent-[0-9a-f]{32}$ ]] || fail "intent_id_invalid"
 [[ "$REQUEST_SHA256" =~ ^[0-9a-f]{64}$ ]] || fail "request_sha256_invalid"

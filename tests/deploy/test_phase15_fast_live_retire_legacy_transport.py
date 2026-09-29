@@ -114,3 +114,14 @@ def test_embedded_python_blocks_are_syntax_valid() -> None:
     assert len(blocks) >= 6
     for block in blocks:
         ast.parse(block)
+
+
+
+def test_legacy_retirement_avoids_newer_bash_only_readarray() -> None:
+    text = HELPER.read_text(encoding="utf-8")
+
+    assert "readarray" not in text
+    assert "mapfile" not in text
+    assert "BINDINGS=$(" in text
+    assert "sed -n '1p'" in text
+    assert "sed -n '4p'" in text
