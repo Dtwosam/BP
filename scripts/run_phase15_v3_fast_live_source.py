@@ -28,7 +28,10 @@ from bp_engine.execution.fast_live import (
     verify_result_message,
     verify_runtime_authorization,
 )
-from bp_engine.execution.fast_live_prepare import prepare_fast_live_candidate
+from bp_engine.execution.fast_live_prepare import (
+    prepare_fast_live_candidate,
+    preview_fast_live_candidate,
+)
 from bp_engine.execution.fast_live_result import (
     record_fast_live_official_reconciliation,
     record_fast_live_result,
@@ -197,6 +200,57 @@ def _stage_telegram_candidate(root: Path, prepared: dict[str, Any]) -> Path:
     return prepared_path
 
 
+def _telegram_state_file(
+    root: Path,
+    preview_intent_id: str,
+    name: str,
+) -> Path:
+    return _telegram_run_dir(root, preview_intent_id) / name
+
+
+def _write_telegram_state_once(
+    root: Path,
+    preview_intent_id: str,
+    name: str,
+    payload: dict[str, Any],
+) -> Path:
+    path = _telegram_state_file(root, preview_intent_id, name)
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        indent=2,
+        default=str,
+    ) + "\n"
+    if path.exists():
+        existing = path.read_text(encoding="utf-8")
+        if existing != encoded:
+            raise RuntimeError(
+                f"fast live Telegram {name} state changed"
+            )
+        return path
+    temp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temp.write_text(encoded, encoding="utf-8")
+    os.chmod(temp, 0o600)
+    temp.replace(path)
+    return path
+
+
+def _load_telegram_state(
+    root: Path,
+    preview_intent_id: str,
+    name: str,
+) -> dict[str, Any] | None:
+    path = _telegram_state_file(root, preview_intent_id, name)
+    if not path.is_file():
+        return None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise RuntimeError(
+            f"fast live Telegram {name} state invalid"
+        )
+    return payload
+
+
 def _load_staged_telegram_candidate(root: Path) -> dict[str, Any] | None:
     current = root / "current-run"
     if not current.is_file():
@@ -227,8 +281,14 @@ def _clear_staged_telegram_candidate(root: Path, intent_id: str) -> None:
     if not raw:
         return
     run_dir = Path(raw)
-    expected = _telegram_run_dir(root, intent_id).resolve()
-    if run_dir.resolve() == expected:
+    if run_dir.resolve() == _telegram_run_dir(root, intent_id).resolve():
+        current.unlink(missing_ok=True)
+        return
+    finalized_path = run_dir / "finalized.json"
+    if not finalized_path.is_file():
+        return
+    finalized = _load_json(finalized_path)
+    if str(finalized.get("intent_id") or "") == str(intent_id):
         current.unlink(missing_ok=True)
 
 
