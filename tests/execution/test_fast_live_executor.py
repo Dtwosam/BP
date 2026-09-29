@@ -212,6 +212,7 @@ def test_continuous_session_uses_one_attempt_marker_per_intent(
     assert executor.attempt_path_for(first).is_file()
     assert executor.result_path_for(first).is_file()
     assert not executor.attempt_path.exists()
+    assert not executor.result_path.exists()
     assert not kill.exists()
 
     replay = executor.execute(first)
@@ -234,6 +235,8 @@ def test_continuous_session_uses_one_attempt_marker_per_intent(
     assert executor.attempt_path_for(second).is_file()
     assert executor.result_path_for(second).is_file()
     assert executor.attempt_path_for(second) != executor.attempt_path_for(first)
+    assert executor.result_path_for(second) != executor.result_path_for(first)
+    assert not executor.result_path.exists()
     assert client.calls.count("post") == 2
     assert not kill.exists()
 
