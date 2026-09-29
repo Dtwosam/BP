@@ -75,7 +75,7 @@ def _upgrade(main: str) -> dict[str, object]:
         "telegram_credentials_mutated": False,
         "project_state_mutated": False,
         "live_trading_enabled": False,
-        "real_order_submitted": False,
+        "real_order_submitted_by_upgrade": False,
         "observed_at": "2026-09-29T16:00:00+00:00",
     }
 
@@ -162,7 +162,7 @@ def test_auto_candidate_preserves_auto_approval_and_live_flags() -> None:
         ("telegram_credentials_mutated", True),
         ("project_state_mutated", True),
         ("live_trading_enabled", True),
-        ("real_order_submitted", True),
+        ("real_order_submitted_by_upgrade", True),
     ],
 )
 def test_auto_candidate_rejects_unsafe_upgrade_evidence(
