@@ -96,6 +96,8 @@ def test_manual_transition_preflight_is_read_only() -> None:
         "FAST_LIVE_PREAUTHORIZATION_PRESENT",
         "SERVICE_ACTIVE",
         "SERVICE_ENABLED_OR_LOADED",
+        "SERVICE_ENABLED_OR_LOADED=true",
+        "launchctl print-disabled",
         "MATCHING_PROCESS_PRESENT",
         "MUTATIONS_PERFORMED=false",
         "SOURCE_TRUTH_MUTATED=false",
@@ -133,6 +135,7 @@ def test_operator_auto_approver_deactivation_is_explicit_and_scoped() -> None:
         "checkout_is_not_current_main",
         "working_tree_not_clean",
         "auto_approver_source_truth_not_active",
+        "evidence_path_must_be_under_repo_docs_evidence",
         "com.bp.telegram-auto-approver",
         "bp-telegram-auto-approver.service",
         "launchctl disable",
@@ -234,6 +237,26 @@ def test_candidate_disables_auto_approver_without_enabling_live_flags() -> None:
     assert verified["authorization_id"] == (
         "fast-live-continuous-session-test"
     )
+
+
+def test_candidate_requires_new_source_truth_version() -> None:
+    module = _candidate_module()
+    main = "c" * 40
+
+    with pytest.raises(
+        module.CandidateError,
+        match="source-of-truth version must change",
+    ):
+        module.build_candidate(
+            state=_state(),
+            deactivation=_deactivation(main),
+            expected_main=main,
+            authorization_id="fast-live-continuous-session-test",
+            source_of_truth_version="0.14.180",
+            expires_at=datetime(2026, 9, 30, tzinfo=UTC),
+            authorized_at=datetime(2026, 9, 29, 15, 30, tzinfo=UTC),
+            deactivation_evidence_reference="docs/evidence/deactivated.json",
+        )
 
 
 @pytest.mark.parametrize(
