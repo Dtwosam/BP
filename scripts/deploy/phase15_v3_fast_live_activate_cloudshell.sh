@@ -8,8 +8,8 @@ fail() {
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_ACTIVATION:-}"
-[[ "$ACCEPT" == "I_ACCEPT_ONE_REAL_MONEY_ATTEMPT" ]] ||
-  fail "explicit_one_shot_acceptance_required"
+[[ "$ACCEPT" == "I_ACCEPT_CONTINUOUS_TELEGRAM_APPROVED_LIVE_SESSION" ]] ||
+  fail "explicit_continuous_session_acceptance_required"
 
 : "${BP_FAST_LIVE_GCP_PROJECT:?BP_FAST_LIVE_GCP_PROJECT is required}"
 : "${BP_FAST_LIVE_RUNTIME_EXPIRES_AT:?BP_FAST_LIVE_RUNTIME_EXPIRES_AT is required}"
@@ -53,6 +53,8 @@ auth = verify_source_authorization(
     state,
     expected_main=head,
     observed_at=datetime.now(UTC),
+    requires_telegram_approval=True,
+    continuous_session=True,
 )
 print(
     str(auth["authorization_id"]),
@@ -101,8 +103,6 @@ if runtime_expires <= now:
     raise SystemExit("runtime_expired")
 if runtime_expires > source_expires:
     raise SystemExit("runtime_exceeds_source_authorization")
-if (runtime_expires - now).total_seconds() > 3600:
-    raise SystemExit("runtime_window_exceeds_one_hour")
 state_hash = hashlib.sha256(
     json.dumps(
         state,
@@ -119,7 +119,10 @@ payload = {
     "authorization_id": authorization_id,
     "release_main": release_main,
     "project_state_sha256": state_hash,
-    "max_network_submission_attempts": 1,
+    "authorization_mode": "manual-telegram-continuous-v1",
+    "continuous_session": True,
+    "requires_telegram_approval": True,
+    "max_network_submission_attempts_per_intent": 1,
     "target_notional_usd": 5,
     "issued_at": now.isoformat(),
     "expires_at": runtime_expires.isoformat(),
@@ -147,6 +150,8 @@ verify_runtime_authorization(
     state=state,
     expected_main=sys.argv[3],
     observed_at=datetime.now(UTC),
+    requires_telegram_approval=True,
+    continuous_session=True,
 )
 PY
 
@@ -272,6 +277,8 @@ BP_FAST_LIVE_TOPIC_ID=$ORDER_TOPIC
 BP_FAST_LIVE_RESULT_SUBSCRIPTION_ID=$RESULT_SUB
 BP_FAST_LIVE_OFFICIAL_OPEN_ORDER_COUNT=$OPEN_ORDERS
 BP_FAST_LIVE_COLLATERAL_BALANCE_USD=$COLLATERAL
+BP_FAST_LIVE_TELEGRAM_APPROVAL_REQUIRED=yes
+BP_FAST_LIVE_CONTINUOUS_SESSION=yes
 EOF
 cat >"$RECEIVER_ENV" <<EOF
 BP_FAST_LIVE_TRANSPORT_KEY_ID=$KEY_ID
@@ -279,6 +286,8 @@ BP_FAST_LIVE_EXPECTED_MAIN=$HEAD
 BP_FAST_LIVE_GCP_PROJECT=$PROJECT
 BP_FAST_LIVE_SUBSCRIPTION_ID=$ORDER_SUB
 BP_FAST_LIVE_RESULT_TOPIC_ID=$RESULT_TOPIC
+BP_FAST_LIVE_TELEGRAM_APPROVAL_REQUIRED=yes
+BP_FAST_LIVE_CONTINUOUS_SESSION=yes
 EOF
 chmod 0600 "$SOURCE_ENV" "$RECEIVER_ENV"
 
@@ -369,6 +378,7 @@ printf 'RECEIVER_ACTIVE=true\n'
 printf 'SOURCE_ACTIVE=true\n'
 printf 'SERVICES_ENABLED=false\n'
 printf 'KILL_SWITCH_ENGAGED=false\n'
-printf 'NETWORK_SUBMISSION_ATTEMPT_CONSUMED=false\n'
+printf 'CONTINUOUS_SESSION=true\n'
+printf 'PER_INTENT_NETWORK_SUBMISSION_ATTEMPTS=1\n'
 printf 'REAL_ORDER_SUBMITTED=false\n'
-printf 'NOTE=The receiver will re-engage the kill switch before the single network submission attempt.\n'
+printf 'NOTE=The kill switch remains the session emergency stop; every trade still requires a fresh Telegram approval.\n'
