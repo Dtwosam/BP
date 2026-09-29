@@ -180,14 +180,15 @@ def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
     ).stdout.strip()
     auto = gate["operator_telegram_auto_approver"]
     assert supervisor["telegram_approval_contract_git_blob_sha"] == (
-        auto["approval_contract_git_blob_sha"]
-    )
-    assert supervisor["telegram_approval_contract_git_blob_sha"] == (
         "930b62514712bd40400550da3ea5bbed533198da"
+    )
+    assert auto["approval_contract_git_blob_sha"] == (
+        FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA
     )
     assert current_telegram_approval == (
         FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA
     )
+    assert current_telegram_approval == auto["approval_contract_git_blob_sha"]
     assert current_telegram_approval != (
         supervisor["telegram_approval_contract_git_blob_sha"]
     )
