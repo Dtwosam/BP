@@ -127,6 +127,17 @@ def verify_source_authorization(
     for name, expected in required.items():
         if authorization.get(name) != expected:
             raise FastLiveError(f"fast live source truth mismatch: {name}")
+    if requires_telegram_approval:
+        phase = state.get("phase_15_v3_live_canary")
+        assert isinstance(phase, Mapping)
+        auto = phase.get("operator_telegram_auto_approver")
+        if isinstance(auto, Mapping) and (
+            auto.get("live_auto_approve_authorized") is True
+            or str(auto.get("status") or "").startswith("ACTIVE_")
+        ):
+            raise FastLiveError(
+                "fast live manual Telegram approval requires auto-approver disabled"
+            )
     authorization_id = str(authorization.get("authorization_id") or "")
     if not authorization_id or len(authorization_id) > 128:
         raise FastLiveError("fast live authorization id invalid")
