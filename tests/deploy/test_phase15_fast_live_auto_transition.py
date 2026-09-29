@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import subprocess
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -197,6 +198,34 @@ def test_auto_approver_continuous_upgrade_is_explicit_and_scoped() -> None:
         "eval ",
     ):
         assert forbidden not in text
+
+
+def test_auto_candidate_import_does_not_require_sqlalchemy() -> None:
+    code = f"""
+import builtins
+import runpy
+import sys
+
+sys.path.insert(0, {str(ROOT / "src")!r})
+real_import = builtins.__import__
+
+
+def blocked_import(name, globals=None, locals=None, fromlist=(), level=0):
+    if name == "sqlalchemy" or name.startswith("sqlalchemy."):
+        raise ModuleNotFoundError("sqlalchemy intentionally blocked")
+    return real_import(name, globals, locals, fromlist, level)
+
+
+builtins.__import__ = blocked_import
+runpy.run_path({str(CANDIDATE)!r}, run_name="phase15_candidate_import_test")
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", code],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
 
 
 def test_auto_candidate_preserves_auto_approval_and_live_flags() -> None:
