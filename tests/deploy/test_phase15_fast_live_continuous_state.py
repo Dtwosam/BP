@@ -126,6 +126,12 @@ def test_result_hash_is_canonical_and_detects_replay_conflicts() -> None:
     reordered = dict(reversed(tuple(base.items())))
     assert module._result_sha256(base) == module._result_sha256(reordered)
 
+    redelivered = dict(base)
+    redelivered["replayed_result"] = True
+    redelivered["approval_received_at"] = "2026-09-29T13:00:00+00:00"
+    redelivered["approval_to_receive_ms"] = 1250.0
+    assert module._result_sha256(base) == module._result_sha256(redelivered)
+
     changed_order = dict(base)
     changed_order["external_order_id"] = "order-2"
     assert module._result_sha256(base) != module._result_sha256(changed_order)
