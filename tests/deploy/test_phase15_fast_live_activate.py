@@ -145,3 +145,11 @@ def test_fast_live_services_run_until_session_expiry_or_operator_stop() -> None:
     assert "if not continuous_session:" in source
     assert 'status in {"skipped", "blocked"}' in source
     assert "waiting_for_result = False" in source
+
+
+def test_fast_live_runtime_authorization_validation_uses_fail_closed_heredoc_guard() -> None:
+    text = ACTIVATE.read_text(encoding="utf-8")
+
+    assert "<<'PY' ||\n  fail \"runtime_authorization_validation_failed\"" not in text
+    assert 'if ! PYTHONPATH="$ROOT/src" python3 - "$STATE" "$RUNTIME_AUTH" "$HEAD" <<\'PY\'' in text
+    assert 'fail "runtime_authorization_validation_failed"' in text
