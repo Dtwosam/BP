@@ -294,18 +294,12 @@ delete_topic_if_present "$RESULT_TOPIC"
 # markers, and logs are deliberately preserved.
 gcloud compute ssh "$US_VM" \
   --project="$PROJECT" --zone="$US_ZONE" --quiet \
-  --command="sudo rm -f /etc/bp-fast-live/authorization.json
-                    /etc/bp-fast-live/PROJECT_STATE.json
-                    /etc/bp-fast-live/transport.key
-                    /etc/bp/phase15-fast-live-source.env" ||
+  --command="sudo rm -f /etc/bp-fast-live/authorization.json /etc/bp-fast-live/PROJECT_STATE.json /etc/bp-fast-live/transport.key /etc/bp/phase15-fast-live-source.env" ||
   fail "recorder_runtime_cleanup_failed"
 
 gcloud compute ssh "$EXEC_VM" \
   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
-  --command="sudo rm -f /etc/bp-fast-live/authorization.json
-                    /etc/bp-fast-live/PROJECT_STATE.json
-                    /etc/bp-fast-live/transport.key
-                    /etc/bp-fast-live/receiver.env;
+  --command="sudo rm -f /etc/bp-fast-live/authorization.json /etc/bp-fast-live/PROJECT_STATE.json /etc/bp-fast-live/transport.key /etc/bp-fast-live/receiver.env;
              sudo test -f /var/lib/bp-canary/fast-live/KILL" ||
   fail "executor_runtime_cleanup_failed"
 
