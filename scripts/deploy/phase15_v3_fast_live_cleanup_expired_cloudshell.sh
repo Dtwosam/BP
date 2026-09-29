@@ -134,12 +134,12 @@ gcloud compute ssh "$EXEC_VM" \
 read -r US_AUTH_SHA US_KEY_SHA < <(
   gcloud compute ssh "$US_VM" \
     --project="$PROJECT" --zone="$US_ZONE" --quiet \
-    --command="sudo sha256sum /etc/bp-fast-live/authorization.json /etc/bp-fast-live/transport.key | awk '{print \\$1}' | xargs"
+    --command="sudo sha256sum /etc/bp-fast-live/authorization.json /etc/bp-fast-live/transport.key | awk '{print \$1}' | xargs"
 ) || fail "recorder_session_hash_read_failed"
 read -r EXEC_AUTH_SHA EXEC_KEY_SHA < <(
   gcloud compute ssh "$EXEC_VM" \
     --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
-    --command="sudo sha256sum /etc/bp-fast-live/authorization.json /etc/bp-fast-live/transport.key | awk '{print \\$1}' | xargs"
+    --command="sudo sha256sum /etc/bp-fast-live/authorization.json /etc/bp-fast-live/transport.key | awk '{print \$1}' | xargs"
 ) || fail "executor_session_hash_read_failed"
 [[ "$US_AUTH_SHA" == "$EXEC_AUTH_SHA" ]] || fail "runtime_authorization_hash_mismatch"
 [[ "$US_KEY_SHA" == "$EXEC_KEY_SHA" ]] || fail "transport_key_hash_mismatch"
@@ -164,25 +164,6 @@ if account.get("clean_for_canary") is not True:
     raise SystemExit("account_not_clean")
 PY
 
-# Remove session-only runtime material. Historical receipts, approvals, attempts,
-# reconciliations, settlement markers, and logs are deliberately preserved.
-gcloud compute ssh "$US_VM" \
-  --project="$PROJECT" --zone="$US_ZONE" --quiet \
-  --command="sudo rm -f /etc/bp-fast-live/authorization.json
-                    /etc/bp-fast-live/PROJECT_STATE.json
-                    /etc/bp-fast-live/transport.key
-                    /etc/bp/phase15-fast-live-source.env" ||
-  fail "recorder_runtime_cleanup_failed"
-
-gcloud compute ssh "$EXEC_VM" \
-  --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
-  --command="sudo rm -f /etc/bp-fast-live/authorization.json
-                    /etc/bp-fast-live/PROJECT_STATE.json
-                    /etc/bp-fast-live/transport.key
-                    /etc/bp-fast-live/receiver.env;
-             sudo test -f /var/lib/bp-canary/fast-live/KILL" ||
-  fail "executor_runtime_cleanup_failed"
-
 delete_subscription_if_present() {
   local sub="$1"
   if gcloud pubsub subscriptions describe "$sub" --project="$PROJECT" >/dev/null 2>&1; then
@@ -203,6 +184,26 @@ delete_subscription_if_present "$ORDER_SUB"
 delete_subscription_if_present "$RESULT_SUB"
 delete_topic_if_present "$ORDER_TOPIC"
 delete_topic_if_present "$RESULT_TOPIC"
+
+# Remove session-only runtime material only after its transport is gone.
+# Historical receipts, approvals, attempts, reconciliations, settlement
+# markers, and logs are deliberately preserved.
+gcloud compute ssh "$US_VM" \
+  --project="$PROJECT" --zone="$US_ZONE" --quiet \
+  --command="sudo rm -f /etc/bp-fast-live/authorization.json
+                    /etc/bp-fast-live/PROJECT_STATE.json
+                    /etc/bp-fast-live/transport.key
+                    /etc/bp/phase15-fast-live-source.env" ||
+  fail "recorder_runtime_cleanup_failed"
+
+gcloud compute ssh "$EXEC_VM" \
+  --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
+  --command="sudo rm -f /etc/bp-fast-live/authorization.json
+                    /etc/bp-fast-live/PROJECT_STATE.json
+                    /etc/bp-fast-live/transport.key
+                    /etc/bp-fast-live/receiver.env;
+             sudo test -f /var/lib/bp-canary/fast-live/KILL" ||
+  fail "executor_runtime_cleanup_failed"
 
 printf 'PHASE15_FAST_LIVE_CLEANUP=PASS\n'
 printf 'AUTHORIZATION_ID=%s\n' "$AUTH_ID"
