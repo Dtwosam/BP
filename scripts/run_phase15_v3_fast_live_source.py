@@ -17,10 +17,14 @@ from sqlalchemy import create_engine, select
 
 from bp_engine.config import Settings
 from bp_engine.execution.fast_live import (
+    FAST_LIVE_APPROVAL_PURPOSE,
+    FAST_LIVE_PREPARE_PURPOSE,
     FAST_LIVE_PURPOSE,
     FAST_LIVE_RESULT_PURPOSE,
     FAST_LIVE_WARMUP_PURPOSE,
+    create_approval_message,
     create_envelope,
+    create_prepare_message,
     create_warmup_message,
     load_private_json,
     verify_result_message,
@@ -74,6 +78,16 @@ def _parse_args() -> argparse.Namespace:
         type=Path,
         default=Path("/var/lib/bp/phase15-fast-live/published"),
     )
+    parser.add_argument(
+        "--telegram-prepare-state-root",
+        type=Path,
+        default=Path("/var/lib/bp/phase15-fast-live/telegram-prepare"),
+    )
+    parser.add_argument(
+        "--telegram-approval-state-root",
+        type=Path,
+        default=Path("/var/lib/bp/phase15-canary-telegram-approval"),
+    )
     return parser.parse_args()
 
 
@@ -83,6 +97,15 @@ def _require_runtime() -> None:
     for name in ("POLYMARKET_PRIVATE_KEY", "POLYMARKET_WALLET_ADDRESS"):
         if os.environ.get(name):
             raise SystemExit(f"{name} must not be present in fast live source")
+
+
+def _telegram_approval_required() -> bool:
+    return (
+        os.environ.get("BP_FAST_LIVE_TELEGRAM_APPROVAL_REQUIRED", "no")
+        .strip()
+        .lower()
+        == "yes"
+    )
 
 
 def _load_state(path: Path) -> dict[str, Any]:
@@ -125,6 +148,141 @@ def _load_json(path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise RuntimeError("fast live receipt must contain an object")
     return payload
+
+
+
+def _atomic_text(path: Path, value: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    temp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temp.write_text(value, encoding="utf-8")
+    os.chmod(temp, 0o600)
+    temp.replace(path)
+
+
+def _telegram_run_dir(root: Path, intent_id: str) -> Path:
+    key = hashlib.sha256(intent_id.encode("utf-8")).hexdigest()
+    return root / "runs" / key
+
+
+def _stage_telegram_candidate(root: Path, prepared: dict[str, Any]) -> Path:
+    _ensure_private_dir(root)
+    _ensure_private_dir(root / "runs")
+    intent_id = str(prepared.get("intent_id") or "")
+    if not intent_id:
+        raise RuntimeError("fast live Telegram intent id missing")
+    run_dir = _telegram_run_dir(root, intent_id)
+    _ensure_private_dir(run_dir)
+    prepared_path = run_dir / "prepared.json"
+    encoded = json.dumps(
+        prepared,
+        sort_keys=True,
+        indent=2,
+        default=str,
+    ) + "\n"
+    if prepared_path.exists():
+        existing = prepared_path.read_text(encoding="utf-8")
+        if existing != encoded:
+            raise RuntimeError("fast live Telegram prepared candidate changed")
+    else:
+        prepared_path.write_text(encoded, encoding="utf-8")
+        os.chmod(prepared_path, 0o600)
+    _atomic_text(root / "current-run", str(run_dir.resolve()) + "\n")
+    return prepared_path
+
+
+def _load_staged_telegram_candidate(root: Path) -> dict[str, Any] | None:
+    current = root / "current-run"
+    if not current.is_file():
+        return None
+    raw = current.read_text(encoding="utf-8").strip()
+    if not raw:
+        return None
+    run_dir = Path(raw)
+    runs_root = (root / "runs").resolve()
+    try:
+        run_dir.resolve().relative_to(runs_root)
+    except ValueError as exc:
+        raise RuntimeError("fast live Telegram current run escapes state root") from exc
+    prepared_path = run_dir / "prepared.json"
+    if not prepared_path.is_file():
+        return None
+    payload = json.loads(prepared_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise RuntimeError("fast live Telegram prepared state invalid")
+    return payload
+
+
+def _clear_staged_telegram_candidate(root: Path, intent_id: str) -> None:
+    current = root / "current-run"
+    if not current.is_file():
+        return
+    raw = current.read_text(encoding="utf-8").strip()
+    if not raw:
+        return
+    run_dir = Path(raw)
+    expected = _telegram_run_dir(root, intent_id).resolve()
+    if run_dir.resolve() == expected:
+        current.unlink(missing_ok=True)
+
+
+def _approval_record_path(root: Path, intent_id: str) -> Path:
+    return root / intent_id / "approval.json"
+
+
+def _publish_control_once(
+    publisher: pubsub_v1.PublisherClient,
+    *,
+    topic_path: str,
+    payload: dict[str, Any],
+) -> str:
+    data = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode()
+    attributes = {
+        "purpose": str(payload["purpose"]),
+        "key_id": str(payload["key_id"]),
+        "authorization_id": str(payload["authorization_id"]),
+    }
+    for name in ("intent_id", "request_sha256"):
+        if payload.get(name):
+            attributes[name] = str(payload[name])
+    future = publisher.publish(topic_path, data, **attributes)
+    return str(future.result(timeout=0.45))
+
+
+def _publish_control_with_bounded_retry(
+    publisher: pubsub_v1.PublisherClient,
+    *,
+    topic_path: str,
+    payload: dict[str, Any],
+) -> tuple[str, int]:
+    expires_at = datetime.fromisoformat(str(payload["expires_at"])).astimezone(UTC)
+    attempts = 0
+    last_error: Exception | None = None
+    while attempts < 3:
+        attempts += 1
+        if (expires_at - _utc_now()).total_seconds() <= 0.15:
+            break
+        try:
+            return (
+                _publish_control_once(
+                    publisher,
+                    topic_path=topic_path,
+                    payload=payload,
+                ),
+                attempts,
+            )
+        except Exception as exc:
+            last_error = exc
+            if attempts < 3:
+                time.sleep(0.025)
+    raise RuntimeError(
+        f"fast live control publish failed after {attempts} bounded attempts"
+    ) from last_error
 
 
 def _result_receipt_path(
@@ -326,6 +484,7 @@ def _publish_warmup_async(
 def main() -> int:
     args = _parse_args()
     _require_runtime()
+    approval_required = _telegram_approval_required()
     if not 0.02 <= args.poll_seconds <= 1:
         raise SystemExit("poll seconds must be within 0.02..1")
     if args.official_open_order_count != 0:
@@ -336,6 +495,8 @@ def main() -> int:
 
     _ensure_private_dir(args.receipt_dir)
     _ensure_private_dir(args.receipt_dir / "results")
+    if approval_required:
+        _ensure_private_dir(args.telegram_prepare_state_root)
     settings = (
         Settings(_env_file=args.env_file)
         if args.env_file
@@ -368,6 +529,7 @@ def main() -> int:
         state=state,
         expected_main=args.expected_main,
         observed_at=_utc_now(),
+        requires_telegram_approval=approval_required,
     )
     runtime_expires_at = datetime.fromisoformat(
         str(verified_runtime["expires_at"])
@@ -553,6 +715,11 @@ def main() -> int:
                         )
                         continue
                     return 0
+                if approval_required:
+                    _clear_staged_telegram_candidate(
+                        args.telegram_prepare_state_root,
+                        str(result_state["settlement_intent_id"]),
+                    )
                 waiting_for_result = False
                 continue
             observed = _utc_now()
@@ -591,6 +758,7 @@ def main() -> int:
                         state=state_now,
                         expected_main=args.expected_main,
                         observed_at=observed,
+                        requires_telegram_approval=approval_required,
                     )
                     warmup = create_warmup_message(
                         condition_id=warm_market["condition_id"],
@@ -610,15 +778,23 @@ def main() -> int:
                     )
                     warmed_condition_id = warm_market["condition_id"]
 
-            report = prepare_fast_live_candidate(
-                engine=engine,
-                activated_at=activated_at,
-                observed_at=observed,
-                interlock=interlock,
-                api_healthy=True,
-                official_open_order_count=args.official_open_order_count,
-                collateral_balance_usd=collateral,
+            report = (
+                _load_staged_telegram_candidate(
+                    args.telegram_prepare_state_root
+                )
+                if approval_required
+                else None
             )
+            if report is None:
+                report = prepare_fast_live_candidate(
+                    engine=engine,
+                    activated_at=activated_at,
+                    observed_at=observed,
+                    interlock=interlock,
+                    api_healthy=True,
+                    official_open_order_count=args.official_open_order_count,
+                    collateral_balance_usd=collateral,
+                )
             status = str(report.get("status") or "")
             if status == "waiting":
                 time.sleep(args.poll_seconds)
@@ -641,7 +817,189 @@ def main() -> int:
                 state=state,
                 expected_main=args.expected_main,
                 observed_at=_utc_now(),
+                requires_telegram_approval=approval_required,
             )
+            if approval_required:
+                prepared_path = _stage_telegram_candidate(
+                    args.telegram_prepare_state_root,
+                    report,
+                )
+                prepare_message = create_prepare_message(
+                    report,
+                    runtime_authorization=runtime,
+                    key=key,
+                    key_id=args.transport_key_id,
+                    created_at=_utc_now(),
+                )
+                prepare_message_id, prepare_attempts = (
+                    _publish_control_with_bounded_retry(
+                        publisher,
+                        topic_path=topic_path,
+                        payload=prepare_message,
+                    )
+                )
+                print(
+                    json.dumps(
+                        {
+                            "status": "fast_live_prepare_published",
+                            "message_id": prepare_message_id,
+                            "intent_id": prepare_message["intent_id"],
+                            "request_sha256": prepare_message["request_sha256"],
+                            "prepared_path": str(prepared_path),
+                            "publish_attempts": prepare_attempts,
+                            "network_submission_attempt_consumed": False,
+                            "real_order_submitted": False,
+                        },
+                        sort_keys=True,
+                    ),
+                    flush=True,
+                )
+                while True:
+                    now = _utc_now()
+                    if now >= runtime_expires_at:
+                        return 0
+                    market_end = datetime.fromisoformat(
+                        str(report["market_end_at"])
+                    ).astimezone(UTC)
+                    approval_path = _approval_record_path(
+                        args.telegram_approval_state_root,
+                        str(report["intent_id"]),
+                    )
+                    if approval_path.is_file():
+                        approval = _load_json(approval_path)
+                        approval_status = str(approval.get("status") or "")
+                        if approval_status == "approved":
+                            state_now = _load_state(args.project_state)
+                            runtime_now = load_private_json(
+                                args.runtime_authorization,
+                                label="fast live runtime authorization",
+                            )
+                            verify_runtime_authorization(
+                                runtime_now,
+                                state=state_now,
+                                expected_main=args.expected_main,
+                                observed_at=now,
+                                requires_telegram_approval=True,
+                            )
+                            approval_message = create_approval_message(
+                                report,
+                                approval=approval,
+                                runtime_authorization=runtime_now,
+                                key=key,
+                                key_id=args.transport_key_id,
+                                created_at=now,
+                            )
+                            message_id, publish_attempts = (
+                                _publish_control_with_bounded_retry(
+                                    publisher,
+                                    topic_path=topic_path,
+                                    payload=approval_message,
+                                )
+                            )
+                            receipt_path = _receipt_path(
+                                args.receipt_dir,
+                                str(approval_message["intent_id"]),
+                                str(approval_message["request_sha256"]),
+                            )
+                            if not receipt_path.exists():
+                                _write_receipt(
+                                    receipt_path,
+                                    {
+                                        "status": "fast_live_approval_published",
+                                        "message_id": message_id,
+                                        "intent_id": approval_message["intent_id"],
+                                        "request_sha256": approval_message["request_sha256"],
+                                        "prepared_sha256": approval_message["prepared_sha256"],
+                                        "authorization_id": approval_message["authorization_id"],
+                                        "published_at": _utc_now().isoformat(),
+                                        "publish_attempts": publish_attempts,
+                                        "network_submission_attempt_consumed": False,
+                                        "real_order_submitted": False,
+                                    },
+                                )
+                            print(
+                                json.dumps(
+                                    {
+                                        "status": "fast_live_approval_published",
+                                        "intent_id": approval_message["intent_id"],
+                                        "request_sha256": approval_message["request_sha256"],
+                                        "message_id": message_id,
+                                        "network_submission_attempt_consumed": False,
+                                        "real_order_submitted": False,
+                                    },
+                                    sort_keys=True,
+                                ),
+                                flush=True,
+                            )
+                            waiting_for_result = True
+                            break
+                        if approval_status == "skipped":
+                            closed = {
+                                "status": "telegram_skipped",
+                                "intent_id": str(report["intent_id"]),
+                                "prediction_id": str(report["prediction_id"]),
+                                "paper_order_id": str(report["paper_order_id"]),
+                                "request_sha256": str(prepare_message["request_sha256"]),
+                                "network_submission_attempt_consumed": False,
+                                "real_order_submitted": False,
+                                "external_order_id": None,
+                            }
+                            recorded = record_fast_live_result(
+                                engine=engine,
+                                result=closed,
+                                observed_at=now,
+                            )
+                            _clear_staged_telegram_candidate(
+                                args.telegram_prepare_state_root,
+                                str(report["intent_id"]),
+                            )
+                            print(
+                                json.dumps(
+                                    {
+                                        **closed,
+                                        "recorded": recorded,
+                                    },
+                                    sort_keys=True,
+                                    default=str,
+                                ),
+                                flush=True,
+                            )
+                            break
+                    if (market_end - now).total_seconds() <= 10:
+                        closed = {
+                            "status": "telegram_expired",
+                            "intent_id": str(report["intent_id"]),
+                            "prediction_id": str(report["prediction_id"]),
+                            "paper_order_id": str(report["paper_order_id"]),
+                            "request_sha256": str(prepare_message["request_sha256"]),
+                            "network_submission_attempt_consumed": False,
+                            "real_order_submitted": False,
+                            "external_order_id": None,
+                        }
+                        recorded = record_fast_live_result(
+                            engine=engine,
+                            result=closed,
+                            observed_at=now,
+                        )
+                        _clear_staged_telegram_candidate(
+                            args.telegram_prepare_state_root,
+                            str(report["intent_id"]),
+                        )
+                        print(
+                            json.dumps(
+                                {
+                                    **closed,
+                                    "recorded": recorded,
+                                },
+                                sort_keys=True,
+                                default=str,
+                            ),
+                            flush=True,
+                        )
+                        break
+                    time.sleep(max(args.poll_seconds, 0.05))
+                continue
+
             envelope = create_envelope(
                 report,
                 runtime_authorization=runtime,
