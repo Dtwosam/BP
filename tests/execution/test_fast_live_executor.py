@@ -504,6 +504,43 @@ def test_presign_prepare_does_not_post_until_execute(tmp_path: Path, monkeypatch
     assert executor.attempt_path.is_file()
 
 
+def test_presigned_preview_order_can_join_same_request_final_intent(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(module.polymarket, "AcceptedOrder", FakeAccepted)
+    monkeypatch.setattr(module.polymarket, "RejectedOrder", FakeRejected)
+    monkeypatch.setattr(module.polymarket, "CancelOrdersResponse", FakeCancelResponse)
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    client = FakeClient((("0.58", "20"),))
+    executor = FastLiveExecutor(
+        client=client,
+        safety_cache=_cache(now),
+        state_root=tmp_path / "state",
+        kill_switch_path=tmp_path / "KILL",
+        order_ttl_seconds=Decimal("0"),
+        official_stability_seconds=0,
+        continuous_session=True,
+        now_fn=lambda: now,
+    )
+
+    preview = _verified(now)
+    preview["intent_id"] = "candidate-fast-preview"
+    prepared = executor.prepare_order(preview)
+
+    final = _verified(now)
+    final["intent_id"] = "intent-fast-final"
+    final["risk_decision_id"] = "risk-fast-final"
+    result = executor.execute(final, prepared_order=prepared)
+
+    assert result["status"] == "accepted"
+    assert result["intent_id"] == "intent-fast-final"
+    assert client.calls.count("sign") == 1
+    assert client.calls.count("post") == 1
+    assert executor.attempt_path_for(final).is_file()
+    assert not executor.attempt_path_for(preview).exists()
+
+
 def test_presigned_order_cannot_be_reused_for_different_request(tmp_path: Path) -> None:
     now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
     client = FakeClient((("0.58", "20"),))
