@@ -115,7 +115,7 @@ def build_candidate(
     required_true = (
         "service_active_after",
         "live_auto_approve_runtime_effective_after",
-        "exact_candidate_prompt_auto_approved_verified",
+        "exact_candidate_prompt_auto_click_prepared_verified",
         "mutated_candidate_prompt_rejected_verified",
     )
     for name in required_true:
@@ -213,7 +213,7 @@ def build_candidate(
         "activation_performed": False,
         "kill_switch_removed": False,
         "runtime_authorization_created": False,
-        "real_order_submitted_by_upgrade": False,
+        "real_order_submitted": False,
         "stake_growth_authorized": False,
         "v3_strategy_mutation_authorized": False,
         "v4_mutation_authorized": False,
@@ -310,7 +310,7 @@ def main() -> int:
         "services_started": False,
         "kill_switch_removed": False,
         "production_mutation_performed": False,
-        "real_order_submitted_by_upgrade": False,
+        "real_order_submitted": False,
     }
 
     _write_new_json(output, candidate)
