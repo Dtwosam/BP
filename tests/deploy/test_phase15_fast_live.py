@@ -54,7 +54,7 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert "/etc/bp-telegram-transport/transport.key" not in source
 
 
-def test_fast_live_receiver_is_preauthorized_one_shot_and_fail_closed() -> None:
+def test_fast_live_receiver_is_continuous_approval_gated_and_fail_closed() -> None:
     unit = RECEIVER_UNIT.read_text(encoding="utf-8")
     for marker in (
         "ConditionPathExists=/etc/bp-fast-live/authorization.json",
@@ -89,7 +89,9 @@ def test_fast_live_receiver_is_preauthorized_one_shot_and_fail_closed() -> None:
     assert "create_result_message" in receiver
     assert "result_publisher.publish" in receiver
     assert "message.nack()" in receiver
-    assert "if order_verified and executor.attempt_path.exists()" in receiver
+    assert "executor.attempt_path_for(verified).exists()" in receiver
+    assert "BP_FAST_LIVE_CONTINUOUS_SESSION" in receiver
+    assert "not continuous_session" in receiver
     assert "/etc/bp-telegram-transport/transport.key" not in unit
     assert "/etc/bp-telegram-transport/transport.key" not in receiver
 
@@ -99,8 +101,11 @@ def test_fast_live_executor_quotes_before_attempt_and_post() -> None:
     sign = text.index("create_limit_order")
     quote = text.index("get_order_book", sign)
     marketability = text.index("marketable_depth", quote)
-    attempt = text.index("_write_exclusive_json(self.attempt_path", marketability)
+    attempt = text.index("_write_exclusive_json(attempt_path", marketability)
     post = text.index("post_order", attempt)
     assert sign < quote < marketability < attempt < post
     assert "time.sleep(float(self._order_ttl_seconds))" in text
+    assert "attempt_path_for" in text
+    assert "result_path_for" in text
+    assert "if not self._continuous_session:" in text
     assert "fast-live-one-shot-attempt-consumed" in text
