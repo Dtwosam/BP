@@ -29,7 +29,7 @@ def test_phase15_second_live_canary_is_reconciled_zero_fill() -> None:
     gate = state["phase_15_v3_live_canary"]
     master = state["phase_14_checkpoint"]["master_live_gate"]
 
-    assert state["source_of_truth_version"] == "0.14.181"
+    assert state["source_of_truth_version"] == "0.14.182"
     assert state["current_phase"] == 15
     assert state["status"] == "PHASE_15_CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_AUTHORIZED_NOT_ACTIVATED"
     assert all(value == "pass" for value in master.values())
@@ -744,3 +744,41 @@ def test_controlled_auto_approved_second_canary_is_consumed() -> None:
     assert until["time_expiry_disabled"] is True
     assert until["stops_after_one_prepared_candidate"] is True
     assert until["max_network_submission_attempts"] == 1
+
+
+def test_continuous_fast_live_renewed_source_authorization_is_12h_runtime_ready() -> None:
+    state = json.loads((ROOT / "PROJECT_STATE.json").read_text(encoding="utf-8"))
+    gate = state["phase_15_v3_live_canary"]
+    auto = gate["operator_telegram_auto_approver"]
+    auth = gate["fast_live_preauthorization"]
+
+    assert auth["status"] == "AUTHORIZED_CONTINUOUS_SESSION"
+    assert auth["authorized"] is True
+    assert auth["authorization_id"] == (
+        "phase15-v3-fast-live-auto-continuous-12h-a6525318-20260930"
+    )
+    assert auth["authorization_mode"] == "auto-telegram-continuous-v1"
+    assert auth["authorized_at_main"] == "a65253182d4143dfae5df077fd7a27a814d4f8ba"
+    assert auth["authorized_at"] == "2026-09-29T23:38:13+00:00"
+    assert auth["expires_at"] == "2026-09-30T12:38:13+00:00"
+    assert auth["target_notional_usd"] == 5
+    assert auth["max_trade_size_usd"] == 10
+    assert auth["max_total_exposure_usd"] == 10
+    assert auth["max_daily_loss_usd"] == 10
+    assert auth["max_consecutive_losses"] == 1
+    assert auth["min_edge"] == 0.075
+    assert auth["max_transit_seconds"] == 2
+    assert auth["requires_telegram_approval"] is True
+    assert auth["max_network_submission_attempts_per_intent"] == 1
+    assert auth["prediction_version"] == "v3-frozen-paper-v1"
+    assert auth["execution_version"] == "paper-execution-v3-frozen-v1"
+    assert auth["executor_country"] == "ZA"
+    assert auth["deployment_performed"] is False
+    assert auth["activation_performed"] is False
+    assert auth["runtime_authorization_created"] is False
+    assert auth["kill_switch_removed"] is False
+    assert auth["real_order_submitted"] is False
+    assert auto["continuous_fast_live_auto_approval_authorized"] is True
+    assert auto["approval_contract_git_blob_sha"] == (
+        "5676efcb60840f4533a7f43b3c6a7efab9e97541"
+    )
