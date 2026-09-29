@@ -141,8 +141,7 @@ output.write_text(
 os.chmod(output, 0o600)
 PY
 
-PYTHONPATH="$ROOT/src" python3 - "$STATE" "$RUNTIME_AUTH" "$HEAD" <<'PY' ||
-  fail "runtime_authorization_validation_failed"
+if ! PYTHONPATH="$ROOT/src" python3 - "$STATE" "$RUNTIME_AUTH" "$HEAD" <<'PY'
 import json
 import sys
 from datetime import UTC, datetime
@@ -161,6 +160,9 @@ verify_runtime_authorization(
     continuous_session=True,
 )
 PY
+then
+  fail "runtime_authorization_validation_failed"
+fi
 
 AUTH_SUFFIX="$(python3 - "$AUTH_ID" <<'PY'
 import hashlib
