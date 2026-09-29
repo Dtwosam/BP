@@ -459,6 +459,63 @@ class FastLiveExecutor:
                 break
         return cancellation, official
 
+    def recover_pending_cancellations(self) -> list[dict[str, Any]]:
+        roots: list[Path] = []
+        if self._continuous_session:
+            attempts_root = self._state_root / "attempts"
+            if not attempts_root.exists():
+                return []
+            info = attempts_root.lstat()
+            if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+                raise FastLiveError("fast live attempts directory invalid")
+            roots = [
+                path
+                for path in sorted(attempts_root.iterdir())
+                if path.is_dir() and not path.is_symlink()
+            ]
+        else:
+            roots = [self._state_root]
+
+        recovered: list[dict[str, Any]] = []
+        for root in roots:
+            attempt_path = root / "attempt.json"
+            result_path = root / "result.json"
+            if not attempt_path.is_file() or not result_path.is_file():
+                continue
+            result = _read_json(result_path)
+            if result.get("cancellation_pending") is not True:
+                continue
+            if (
+                result.get("status") != "accepted"
+                or result.get("network_submission_attempt_consumed") is not True
+                or result.get("real_order_submitted") is not True
+            ):
+                raise FastLiveError(
+                    "pending cancellation result state invalid"
+                )
+            order_id = str(result.get("external_order_id") or "")
+            marketability = result.get("marketability")
+            if not order_id or not isinstance(marketability, dict):
+                raise FastLiveError(
+                    "pending cancellation binding missing"
+                )
+            requested_shares = _decimal(
+                marketability.get("requested_shares"),
+                "pending cancellation requested shares",
+            )
+            cancellation, official = self._cancel_and_probe(
+                order_id=order_id,
+                requested_shares=requested_shares,
+            )
+            result["cancellation"] = cancellation
+            result["cancellation_pending"] = False
+            result["official_reconciliation"] = official
+            result["recovered_pending_cancellation"] = True
+            result["recovered_at"] = self._now_fn().isoformat()
+            _write_replace_json(result_path, result)
+            recovered.append(result)
+        return recovered
+
     def prepare_order(self, verified: dict[str, Any]) -> PreparedFastLiveOrder:
         if self.attempt_path_for(verified).exists():
             raise FastLiveError("fast live attempt already exists")
