@@ -203,6 +203,27 @@ gcloud compute ssh "$US_VM"   --project="$PROJECT" --zone="$US_ZONE" --quiet   -
              sudo systemctl is-enabled --quiet bp-phase15-canary-telegram-approval.service" ||
   fail "recorder_stage_not_ready"
 
+gcloud compute ssh "$US_VM" \
+  --project="$PROJECT" --zone="$US_ZONE" --quiet \
+  --command="sudo sh -c 'root=/var/lib/bp/phase15-fast-live/published;
+    if [ -d \"\$root\" ]; then
+      for receipt in \"\$root\"/*.json; do
+        [ -e \"\$receipt\" ] || continue;
+        base=${receipt##*/};
+        [ -f \"\$root/results/\$base\" ] || exit 24;
+      done;
+      if [ -d \"\$root/results\" ]; then
+        for result in \"\$root/results\"/*.json; do
+          [ -e \"\$result\" ] || continue;
+          if grep -F -q \"\\\"settlement_reconciliation_required\\\":true\" \"\$result\"; then
+            base=${result##*/};
+            [ -f \"\$root/settlements/\$base\" ] || exit 25;
+          fi;
+        done;
+      fi;
+    fi'" ||
+  fail "recorder_prior_live_recovery_pending"
+
 gcloud compute ssh "$EXEC_VM"   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet   --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$HEAD' &&
              sudo systemctl is-active --quiet bp-phase15-fast-live-receiver.service && exit 22 || true;
              sudo systemctl is-enabled --quiet bp-phase15-fast-live-receiver.service && exit 23 || true;
