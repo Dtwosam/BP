@@ -3,7 +3,10 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+import pytest
+
 from bp_engine.execution.fast_live_prepare import (
+    FastLiveDraftUnavailable,
     _has_preview_arm_window,
     build_fast_live_draft,
     continuous_fast_live_policy,
@@ -96,3 +99,15 @@ def test_preview_arm_window_rejects_too_late_signal() -> None:
         prediction,
         observed_at=BASE + timedelta(seconds=46),
     ) is False
+
+
+
+def test_fast_live_draft_terminal_is_classified_for_continuous_blocking() -> None:
+    with pytest.raises(FastLiveDraftUnavailable) as exc_info:
+        build_fast_live_draft(
+            _prediction(),
+            available_paper_cash=Decimal("0"),
+        )
+
+    assert exc_info.value.status == "INSUFFICIENT_PAPER_CASH"
+    assert "available paper cash is not positive" in exc_info.value.reason
