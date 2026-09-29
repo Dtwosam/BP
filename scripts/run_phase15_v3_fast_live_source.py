@@ -25,6 +25,7 @@ from bp_engine.execution.fast_live import (
     create_prepare_message,
     create_warmup_message,
     load_private_json,
+    request_sha256 as fast_live_request_sha256,
     verify_result_message,
     verify_runtime_authorization,
 )
@@ -924,55 +925,61 @@ def main() -> int:
                     )
                     warmed_condition_id = warm_market["condition_id"]
 
-            report = (
-                _load_staged_telegram_candidate(
+            if approval_required:
+                preview = _load_staged_telegram_candidate(
                     args.telegram_prepare_state_root
                 )
-                if approval_required
-                else None
-            )
-            if report is None:
-                report = prepare_fast_live_candidate(
-                    engine=engine,
-                    activated_at=activated_at,
-                    observed_at=observed,
-                    interlock=interlock,
-                    api_healthy=True,
-                    official_open_order_count=args.official_open_order_count,
-                    collateral_balance_usd=collateral,
-                )
-            status = str(report.get("status") or "")
-            if status == "waiting":
-                time.sleep(args.poll_seconds)
-                continue
-            if status in {"skipped", "blocked"}:
-                print(json.dumps(report, sort_keys=True, default=str), flush=True)
-                time.sleep(args.poll_seconds)
-                continue
-            if status != "prepared":
-                print(json.dumps(report, sort_keys=True, default=str), flush=True)
-                return 2
+                if preview is None:
+                    preview = preview_fast_live_candidate(
+                        engine=engine,
+                        activated_at=activated_at,
+                        observed_at=observed,
+                    )
+                preview_status = str(preview.get("status") or "")
+                if preview_status == "waiting":
+                    time.sleep(args.poll_seconds)
+                    continue
+                if preview_status in {"skipped", "blocked"}:
+                    print(
+                        json.dumps(
+                            preview,
+                            sort_keys=True,
+                            default=str,
+                        ),
+                        flush=True,
+                    )
+                    time.sleep(args.poll_seconds)
+                    continue
+                if preview_status != "prepared":
+                    print(
+                        json.dumps(
+                            preview,
+                            sort_keys=True,
+                            default=str,
+                        ),
+                        flush=True,
+                    )
+                    return 2
 
-            state = _load_state(args.project_state)
-            runtime = load_private_json(
-                args.runtime_authorization,
-                label="fast live runtime authorization",
-            )
-            verify_runtime_authorization(
-                runtime,
-                state=state,
-                expected_main=args.expected_main,
-                observed_at=_utc_now(),
-                requires_telegram_approval=approval_required,
-                continuous_session=continuous_session,
-            )
-            if approval_required:
+                state = _load_state(args.project_state)
+                runtime = load_private_json(
+                    args.runtime_authorization,
+                    label="fast live runtime authorization",
+                )
+                verify_runtime_authorization(
+                    runtime,
+                    state=state,
+                    expected_main=args.expected_main,
+                    observed_at=_utc_now(),
+                    requires_telegram_approval=True,
+                    continuous_session=continuous_session,
+                )
                 prepared_path = _stage_telegram_candidate(
                     args.telegram_prepare_state_root,
-                    report,
+                    preview,
                 )
                 prepare_message = create_prepare_message(
-                    report,
+                    preview,
                     runtime_authorization=runtime,
                     key=key,
                     key_id=args.transport_key_id,
@@ -991,8 +998,10 @@ def main() -> int:
                             "status": "fast_live_prepare_published",
                             "message_id": prepare_message_id,
                             "intent_id": prepare_message["intent_id"],
+                            "prediction_id": prepare_message["prediction_id"],
                             "request_sha256": prepare_message["request_sha256"],
                             "prepared_path": str(prepared_path),
+                            "risk_status": "pending",
                             "publish_attempts": prepare_attempts,
                             "network_submission_attempt_consumed": False,
                             "real_order_submitted": False,
@@ -1001,16 +1010,119 @@ def main() -> int:
                     ),
                     flush=True,
                 )
+
+                preview_intent_id = str(preview["intent_id"])
+                finalized = _load_telegram_state(
+                    args.telegram_prepare_state_root,
+                    preview_intent_id,
+                    "finalized.json",
+                )
+                if finalized is None:
+                    finalized = prepare_fast_live_candidate(
+                        engine=engine,
+                        activated_at=activated_at,
+                        observed_at=_utc_now(),
+                        interlock=interlock,
+                        api_healthy=True,
+                        official_open_order_count=args.official_open_order_count,
+                        collateral_balance_usd=collateral,
+                    )
+                    finalized_status = str(finalized.get("status") or "")
+                    if finalized_status != "prepared":
+                        cancel = {
+                            "status": "cancelled",
+                            "reason": (
+                                str(finalized.get("reason") or "")
+                                or "live_risk_not_eligible"
+                            ),
+                            "preview_intent_id": preview_intent_id,
+                            "prediction_id": str(
+                                preview.get("prediction_id") or ""
+                            ),
+                            "request_sha256": str(
+                                prepare_message["request_sha256"]
+                            ),
+                            "finalized_status": finalized_status,
+                            "finalized": finalized,
+                            "cancelled_at": _utc_now().isoformat(),
+                        }
+                        _write_telegram_state_once(
+                            args.telegram_prepare_state_root,
+                            preview_intent_id,
+                            "cancel.json",
+                            cancel,
+                        )
+                        _clear_staged_telegram_candidate(
+                            args.telegram_prepare_state_root,
+                            preview_intent_id,
+                        )
+                        print(
+                            json.dumps(
+                                {
+                                    "status": "fast_live_preview_cancelled",
+                                    **cancel,
+                                },
+                                sort_keys=True,
+                                default=str,
+                            ),
+                            flush=True,
+                        )
+                        retryable = finalized.get("retryable") is True
+                        time.sleep(
+                            max(
+                                args.poll_seconds,
+                                1.0 if retryable else 0.05,
+                            )
+                        )
+                        continue
+
+                    preview_request_hash = fast_live_request_sha256(
+                        preview
+                    )
+                    finalized_request_hash = fast_live_request_sha256(
+                        finalized
+                    )
+                    if (
+                        str(finalized["prediction_id"])
+                        != str(preview["prediction_id"])
+                        or str(finalized["paper_order_id"])
+                        != str(preview["paper_order_id"])
+                        or finalized_request_hash != preview_request_hash
+                    ):
+                        raise RuntimeError(
+                            "fast live finalized risk candidate changed "
+                            "the approved request"
+                        )
+                    _write_telegram_state_once(
+                        args.telegram_prepare_state_root,
+                        preview_intent_id,
+                        "finalized.json",
+                        finalized,
+                    )
+
+                if (
+                    str(finalized.get("prediction_id") or "")
+                    != str(preview.get("prediction_id") or "")
+                    or str(finalized.get("paper_order_id") or "")
+                    != str(preview.get("paper_order_id") or "")
+                    or fast_live_request_sha256(finalized)
+                    != fast_live_request_sha256(preview)
+                ):
+                    raise RuntimeError(
+                        "fast live persisted finalized candidate "
+                        "does not match preview"
+                    )
+
                 while True:
                     now = _utc_now()
                     if now >= runtime_expires_at:
                         return 0
                     market_end = datetime.fromisoformat(
-                        str(report["market_end_at"])
+                        str(finalized["market_end_at"])
                     ).astimezone(UTC)
                     approval_path = _approval_record_path(
                         args.telegram_approval_state_root,
-                        str(report["intent_id"]),
+                        preview_intent_id,
                     )
                     if approval_path.is_file():
                         approval = _load_json(approval_path)
@@ -1030,8 +1142,9 @@ def main() -> int:
                                 continuous_session=continuous_session,
                             )
                             approval_message = create_approval_message(
-                                report,
+                                finalized,
                                 approval=approval,
+                                approval_prepared=preview,
                                 runtime_authorization=runtime_now,
                                 key=key,
                                 key_id=args.transport_key_id,
@@ -1063,8 +1176,14 @@ def main() -> int:
                                         "status": "fast_live_approval_published",
                                         "message_id": message_id,
                                         "intent_id": approval_message["intent_id"],
+                                        "approval_candidate_id": (
+                                            approval_message[
+                                                "approval_candidate_id"
+                                            ]
+                                        ),
                                         "request_sha256": approval_message["request_sha256"],
                                         "prepared_sha256": approval_message["prepared_sha256"],
+                                        "prepare_sha256": approval_message["prepare_sha256"],
                                         "authorization_id": approval_message["authorization_id"],
                                         "published_at": _utc_now().isoformat(),
                                         "publish_attempts": publish_attempts,
@@ -1077,6 +1196,11 @@ def main() -> int:
                                     {
                                         "status": "fast_live_approval_published",
                                         "intent_id": approval_message["intent_id"],
+                                        "approval_candidate_id": (
+                                            approval_message[
+                                                "approval_candidate_id"
+                                            ]
+                                        ),
                                         "request_sha256": approval_message["request_sha256"],
                                         "message_id": message_id,
                                         "network_submission_attempt_consumed": False,
@@ -1095,10 +1219,16 @@ def main() -> int:
                                     if approval_status == "skipped"
                                     else "telegram_expired"
                                 ),
-                                "intent_id": str(report["intent_id"]),
-                                "prediction_id": str(report["prediction_id"]),
-                                "paper_order_id": str(report["paper_order_id"]),
-                                "request_sha256": str(prepare_message["request_sha256"]),
+                                "intent_id": str(finalized["intent_id"]),
+                                "prediction_id": str(
+                                    finalized["prediction_id"]
+                                ),
+                                "paper_order_id": str(
+                                    finalized["paper_order_id"]
+                                ),
+                                "request_sha256": str(
+                                    prepare_message["request_sha256"]
+                                ),
                                 "network_submission_attempt_consumed": False,
                                 "real_order_submitted": False,
                                 "external_order_id": None,
@@ -1110,7 +1240,7 @@ def main() -> int:
                             )
                             _clear_staged_telegram_candidate(
                                 args.telegram_prepare_state_root,
-                                str(report["intent_id"]),
+                                preview_intent_id,
                             )
                             print(
                                 json.dumps(
@@ -1127,10 +1257,12 @@ def main() -> int:
                     if (market_end - now).total_seconds() <= 10:
                         closed = {
                             "status": "telegram_expired",
-                            "intent_id": str(report["intent_id"]),
-                            "prediction_id": str(report["prediction_id"]),
-                            "paper_order_id": str(report["paper_order_id"]),
-                            "request_sha256": str(prepare_message["request_sha256"]),
+                            "intent_id": str(finalized["intent_id"]),
+                            "prediction_id": str(finalized["prediction_id"]),
+                            "paper_order_id": str(finalized["paper_order_id"]),
+                            "request_sha256": str(
+                                prepare_message["request_sha256"]
+                            ),
                             "network_submission_attempt_consumed": False,
                             "real_order_submitted": False,
                             "external_order_id": None,
@@ -1142,7 +1274,7 @@ def main() -> int:
                         )
                         _clear_staged_telegram_candidate(
                             args.telegram_prepare_state_root,
-                            str(report["intent_id"]),
+                            preview_intent_id,
                         )
                         print(
                             json.dumps(
@@ -1159,6 +1291,54 @@ def main() -> int:
                     time.sleep(max(args.poll_seconds, 0.05))
                 continue
 
+            report = prepare_fast_live_candidate(
+                engine=engine,
+                activated_at=activated_at,
+                observed_at=observed,
+                interlock=interlock,
+                api_healthy=True,
+                official_open_order_count=args.official_open_order_count,
+                collateral_balance_usd=collateral,
+            )
+            status = str(report.get("status") or "")
+            if status == "waiting":
+                time.sleep(args.poll_seconds)
+                continue
+            if status in {"skipped", "blocked"}:
+                print(
+                    json.dumps(
+                        report,
+                        sort_keys=True,
+                        default=str,
+                    ),
+                    flush=True,
+                )
+                time.sleep(args.poll_seconds)
+                continue
+            if status != "prepared":
+                print(
+                    json.dumps(
+                        report,
+                        sort_keys=True,
+                        default=str,
+                    ),
+                    flush=True,
+                )
+                return 2
+
+            state = _load_state(args.project_state)
+            runtime = load_private_json(
+                args.runtime_authorization,
+                label="fast live runtime authorization",
+            )
+            verify_runtime_authorization(
+                runtime,
+                state=state,
+                expected_main=args.expected_main,
+                observed_at=_utc_now(),
+                requires_telegram_approval=False,
+                continuous_session=continuous_session,
+            )
             envelope = create_envelope(
                 report,
                 runtime_authorization=runtime,
