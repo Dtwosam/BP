@@ -124,7 +124,7 @@ def build_candidate(
 
     required_false = (
         "telegram_session_deleted",
-        "telegram_credentials_mutated",
+        "telegram_credentials_replaced",
         "project_state_mutated",
         "live_trading_enabled",
         "real_order_submitted_by_upgrade",
