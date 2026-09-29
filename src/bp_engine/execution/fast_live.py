@@ -18,7 +18,17 @@ FAST_LIVE_WARMUP_PURPOSE = "phase15-v3-fast-live-warmup-v1"
 FAST_LIVE_RESULT_PURPOSE = "phase15-v3-fast-live-result-v1"
 FAST_LIVE_PREPARE_PURPOSE = "phase15-v3-fast-live-prepare-v1"
 FAST_LIVE_APPROVAL_PURPOSE = "phase15-v3-fast-live-approval-v1"
-FAST_LIVE_CONTINUOUS_AUTHORIZATION_MODE = "manual-telegram-continuous-v1"
+FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE = "manual-telegram-continuous-v1"
+FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE = "auto-telegram-continuous-v1"
+FAST_LIVE_CONTINUOUS_AUTHORIZATION_MODE = (
+    FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE
+)
+FAST_LIVE_CONTINUOUS_AUTHORIZATION_MODES = frozenset(
+    {
+        FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE,
+        FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE,
+    }
+)
 FAST_LIVE_PREPARE_MAX_AGE_SECONDS = Decimal("45")
 FAST_LIVE_RESULT_MAX_AGE_SECONDS = Decimal("300")
 FAST_LIVE_RESULT_STALL_SECONDS = Decimal("20")
@@ -136,7 +146,6 @@ def verify_source_authorization(
     if continuous_session:
         required.update(
             {
-                "authorization_mode": FAST_LIVE_CONTINUOUS_AUTHORIZATION_MODE,
                 "max_network_submission_attempts_per_intent": 1,
             }
         )
@@ -154,13 +163,36 @@ def verify_source_authorization(
         phase = state.get("phase_15_v3_live_canary")
         assert isinstance(phase, Mapping)
         auto = phase.get("operator_telegram_auto_approver")
-        if isinstance(auto, Mapping) and (
+        auto_active = isinstance(auto, Mapping) and (
             auto.get("live_auto_approve_authorized") is True
-            or str(auto.get("status") or "").startswith("ACTIVE_")
-        ):
-            raise FastLiveError(
-                "fast live manual Telegram approval requires auto-approver disabled"
+            and str(auto.get("status") or "").startswith("ACTIVE_")
+        )
+        if continuous_session:
+            authorization_mode = str(
+                authorization.get("authorization_mode") or ""
             )
+            if authorization_mode not in (
+                FAST_LIVE_CONTINUOUS_AUTHORIZATION_MODES
+            ):
+                raise FastLiveError(
+                    "fast live continuous authorization mode invalid"
+                )
+            if (
+                authorization_mode
+                == FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE
+                and auto_active
+            ):
+                raise FastLiveError(
+                    "fast live manual Telegram approval requires auto-approver disabled"
+                )
+            if (
+                authorization_mode
+                == FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE
+                and not auto_active
+            ):
+                raise FastLiveError(
+                    "fast live auto Telegram approval requires auto-approver active"
+                )
     authorization_id = str(authorization.get("authorization_id") or "")
     if not authorization_id or len(authorization_id) > 128:
         raise FastLiveError("fast live authorization id invalid")
@@ -231,12 +263,17 @@ def verify_runtime_authorization(
     if bool(runtime.get("continuous_session", False)) != continuous_session:
         raise FastLiveError("runtime continuous session mode mismatch")
     if continuous_session:
-        if (
-            runtime.get("authorization_mode")
-            != FAST_LIVE_CONTINUOUS_AUTHORIZATION_MODE
+        if runtime.get("authorization_mode") != source.get(
+            "authorization_mode"
         ):
             raise FastLiveError(
                 "runtime continuous authorization mode mismatch"
+            )
+        if runtime.get("authorization_mode") not in (
+            FAST_LIVE_CONTINUOUS_AUTHORIZATION_MODES
+        ):
+            raise FastLiveError(
+                "runtime continuous authorization mode invalid"
             )
         if runtime.get("max_network_submission_attempts_per_intent") != 1:
             raise FastLiveError(
