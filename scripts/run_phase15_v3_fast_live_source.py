@@ -403,6 +403,23 @@ def _pending_result_binding(root: Path) -> tuple[str, str] | None:
     return None
 
 
+def _result_wait_deadline(
+    root: Path,
+    intent_id: str,
+    request_sha256: str,
+) -> datetime:
+    receipt = _load_json(
+        _receipt_path(root, intent_id, request_sha256)
+    )
+    published_raw = str(receipt.get("published_at") or "")
+    if not published_raw:
+        raise RuntimeError("fast live publication receipt timestamp missing")
+    published_at = datetime.fromisoformat(published_raw).astimezone(UTC)
+    return published_at + timedelta(
+        seconds=float(FAST_LIVE_RESULT_MAX_AGE_SECONDS) + 5.0
+    )
+
+
 def _pending_settlement_intent(root: Path) -> str:
     results_root = root / "results"
     if not results_root.is_dir():
@@ -651,6 +668,15 @@ def main() -> int:
     result_event = threading.Event()
     result_state_lock = threading.Lock()
     pending_result_binding = _pending_result_binding(args.receipt_dir)
+    pending_result_deadline = (
+        _result_wait_deadline(
+            args.receipt_dir,
+            pending_result_binding[0],
+            pending_result_binding[1],
+        )
+        if pending_result_binding is not None
+        else None
+    )
     result_state: dict[str, Any] = {
         "awaited_intent_id": (
             pending_result_binding[0]
@@ -662,6 +688,7 @@ def main() -> int:
             if pending_result_binding is not None
             else ""
         ),
+        "awaited_result_deadline": pending_result_deadline,
         "network_submission_attempt_consumed": None,
         "result": None,
         "settlement_required": False,
@@ -829,7 +856,17 @@ def main() -> int:
                 continue
             if waiting_for_result:
                 now = _utc_now()
-                if now >= result_reconciliation_deadline:
+                with result_state_lock:
+                    awaited_result_deadline = result_state.get(
+                        "awaited_result_deadline"
+                    )
+                effective_result_deadline = result_reconciliation_deadline
+                if isinstance(awaited_result_deadline, datetime):
+                    effective_result_deadline = min(
+                        effective_result_deadline,
+                        awaited_result_deadline,
+                    )
+                if now >= effective_result_deadline:
                     print(
                         json.dumps(
                             {
@@ -844,6 +881,9 @@ def main() -> int:
                                     result_state[
                                         "awaited_request_sha256"
                                     ]
+                                ),
+                                "result_deadline": (
+                                    effective_result_deadline.isoformat()
                                 ),
                                 "network_submission_attempt_consumed": None,
                                 "real_order_submitted": None,
@@ -888,6 +928,7 @@ def main() -> int:
                     )
                     result_state["awaited_intent_id"] = ""
                     result_state["awaited_request_sha256"] = ""
+                    result_state["awaited_result_deadline"] = None
                     result_state["network_submission_attempt_consumed"] = None
                     result_state["result"] = None
                     result_state["settlement_required"] = False
@@ -1263,12 +1304,25 @@ def main() -> int:
                                     approval_vs_risk_ms = (
                                         human_approved_at - risk_completed_at
                                     ).total_seconds() * 1000
+                            approval_published_at = _utc_now()
+                            approval_result_deadline = (
+                                approval_published_at
+                                + timedelta(
+                                    seconds=float(
+                                        FAST_LIVE_RESULT_MAX_AGE_SECONDS
+                                    )
+                                    + 5.0
+                                )
+                            )
                             with result_state_lock:
                                 result_state["awaited_intent_id"] = str(
                                     approval_message["intent_id"]
                                 )
                                 result_state["awaited_request_sha256"] = str(
                                     approval_message["request_sha256"]
+                                )
+                                result_state["awaited_result_deadline"] = (
+                                    approval_result_deadline
                                 )
                             message_id, publish_attempts = (
                                 _publish_control_with_bounded_retry(
@@ -1298,7 +1352,10 @@ def main() -> int:
                                         "prepared_sha256": approval_message["prepared_sha256"],
                                         "prepare_sha256": approval_message["prepare_sha256"],
                                         "authorization_id": approval_message["authorization_id"],
-                                        "published_at": _utc_now().isoformat(),
+                                        "published_at": approval_published_at.isoformat(),
+                                        "result_wait_deadline": (
+                                            approval_result_deadline.isoformat()
+                                        ),
                                         "publish_attempts": publish_attempts,
                                         "parallel_timing": parallel_timing,
                                         "approval_vs_risk_ms": approval_vs_risk_ms,
@@ -1485,10 +1542,17 @@ def main() -> int:
                 time.sleep(args.poll_seconds)
                 continue
 
+            direct_published_at = _utc_now()
+            direct_result_deadline = direct_published_at + timedelta(
+                seconds=float(FAST_LIVE_RESULT_MAX_AGE_SECONDS) + 5.0
+            )
             with result_state_lock:
                 result_state["awaited_intent_id"] = str(envelope["intent_id"])
                 result_state["awaited_request_sha256"] = str(
                     envelope["request_sha256"]
+                )
+                result_state["awaited_result_deadline"] = (
+                    direct_result_deadline
                 )
             publish_started = time.monotonic_ns()
             message_id, publish_attempts = _publish_with_bounded_retry(
@@ -1504,7 +1568,8 @@ def main() -> int:
                 "request_sha256": envelope["request_sha256"],
                 "prepared_sha256": envelope["prepared_sha256"],
                 "authorization_id": envelope["authorization_id"],
-                "published_at": _utc_now().isoformat(),
+                "published_at": direct_published_at.isoformat(),
+                "result_wait_deadline": direct_result_deadline.isoformat(),
                 "publish_latency_ms": (
                     publish_completed - publish_started
                 ) / 1_000_000,
