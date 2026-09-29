@@ -82,7 +82,8 @@ def _upgrade(main: str) -> dict[str, object]:
         ),
         "service_active_after": True,
         "live_auto_approve_runtime_effective_after": True,
-        "launchd_live_auto_approve_environment_verified": True,
+        "process_live_auto_approve_environment_verified": True,
+        "launcher_mode": "wrapper",
         "exact_candidate_prompt_auto_click_prepared_verified": True,
         "mutated_candidate_prompt_rejected_verified": True,
         "telegram_session_deleted": False,
@@ -275,7 +276,7 @@ def test_auto_candidate_preserves_auto_approval_and_live_flags() -> None:
     [
         ("service_active_after", False),
         ("live_auto_approve_runtime_effective_after", False),
-        ("launchd_live_auto_approve_environment_verified", False),
+        ("process_live_auto_approve_environment_verified", False),
         ("exact_candidate_prompt_auto_click_prepared_verified", False),
         ("mutated_candidate_prompt_rejected_verified", False),
         ("telegram_session_deleted", True),
