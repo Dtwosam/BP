@@ -122,6 +122,11 @@ def test_fast_live_receiver_is_continuous_approval_gated_and_fail_closed() -> No
     assert "stop_accepting_and_drain" in receiver
     assert "fast_live_callback_drain_timeout" in receiver
     assert "FAST_LIVE_RESULT_MAX_AGE_SECONDS" in receiver
+    assert "recover_pending_cancellations" in receiver
+    assert "mark_recovery_result_published" in receiver
+    assert "fast_live_pending_cancellation_recovered" in receiver
+    assert "fast_live_receiver_recovery_only_complete" in receiver
+    assert "runtime_expires_at - timedelta(microseconds=1)" in receiver
     assert "not continuous_session" in receiver
     assert "/etc/bp-telegram-transport/transport.key" not in unit
     assert "/etc/bp-telegram-transport/transport.key" not in receiver
