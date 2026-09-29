@@ -7,9 +7,16 @@ fail() {
 }
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_EXPIRED_CLEANUP:-}"
-[[ "$ACCEPT" == "I_ACCEPT_CLEAN_EXPIRED_CONTINUOUS_LIVE_SESSION" ]] ||
-  fail "explicit_expired_session_cleanup_acceptance_required"
+EXPIRED_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_EXPIRED_CLEANUP:-}"
+ABORT_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_ZERO_ACTIVITY_ABORT:-}"
+CLEANUP_MODE=""
+if [[ "$EXPIRED_ACCEPT" == "I_ACCEPT_CLEAN_EXPIRED_CONTINUOUS_LIVE_SESSION" ]]; then
+  CLEANUP_MODE="expired"
+elif [[ "$ABORT_ACCEPT" == "I_ACCEPT_ABORT_ZERO_ACTIVITY_FAST_LIVE_SESSION_AFTER_VALIDATION_DEFECT" ]]; then
+  CLEANUP_MODE="zero_activity_abort"
+else
+  fail "explicit_session_cleanup_acceptance_required"
+fi
 
 : "${BP_FAST_LIVE_GCP_PROJECT:?BP_FAST_LIVE_GCP_PROJECT is required}"
 : "${BP_FAST_LIVE_RECORDER_VM:=bp-recorder}"
@@ -55,7 +62,7 @@ else
   fail "expired_runtime_authorization_missing_on_both_hosts"
 fi
 
-read -r AUTH_ID RELEASE_MAIN RUNTIME_EXPIRES AUTH_SUFFIX < <(
+read -r AUTH_ID RELEASE_MAIN RUNTIME_EXPIRES AUTH_SUFFIX AUTH_MODE RUNTIME_EXPIRED < <(
   python3 - "$SESSION_AUTH" <<'PY'
 import hashlib
 import json
@@ -74,7 +81,11 @@ if payload.get("continuous_session") is not True:
     raise SystemExit("not_continuous")
 if payload.get("requires_telegram_approval") is not True:
     raise SystemExit("telegram_not_required")
-if payload.get("authorization_mode") != "manual-telegram-continuous-v1":
+mode = str(payload.get("authorization_mode") or "")
+if mode not in {
+    "manual-telegram-continuous-v1",
+    "auto-telegram-continuous-v1",
+}:
     raise SystemExit("authorization_mode_invalid")
 if payload.get("max_network_submission_attempts_per_intent") != 1:
     raise SystemExit("per_intent_attempt_limit_invalid")
@@ -85,12 +96,30 @@ if not auth_id:
     raise SystemExit("authorization_id_missing")
 if len(release_main) != 40 or any(ch not in "0123456789abcdef" for ch in release_main):
     raise SystemExit("release_main_invalid")
-if datetime.now(UTC) < expires:
-    raise SystemExit("runtime_authorization_not_expired")
 suffix = hashlib.sha256(auth_id.encode("utf-8")).hexdigest()[:12]
-print(auth_id, release_main, expires.isoformat(), suffix)
+expired = datetime.now(UTC) >= expires
+print(
+    auth_id,
+    release_main,
+    expires.isoformat(),
+    suffix,
+    mode,
+    "true" if expired else "false",
+)
 PY
-) || fail "expired_runtime_authorization_invalid"
+) || fail "runtime_authorization_invalid"
+
+if [[ "$CLEANUP_MODE" == "expired" ]]; then
+  [[ "$RUNTIME_EXPIRED" == "true" ]] || fail "runtime_authorization_not_expired"
+else
+  [[ "$RUNTIME_EXPIRED" == "false" ]] || fail "zero_activity_abort_runtime_already_expired"
+  [[ "$AUTH_ID" == "phase15-v3-fast-live-auto-continuous-5d305254b06ef0cbce33065e" ]] ||
+    fail "zero_activity_abort_authorization_id_mismatch"
+  [[ "$RELEASE_MAIN" == "bbb20f8f5f3b533ecad3c0798c944c61f31bcdfe" ]] ||
+    fail "zero_activity_abort_release_main_mismatch"
+  [[ "$AUTH_MODE" == "auto-telegram-continuous-v1" ]] ||
+    fail "zero_activity_abort_authorization_mode_mismatch"
+fi
 
 ORDER_TOPIC="bp-phase15-fast-live-orders-$AUTH_SUFFIX"
 ORDER_SUB="bp-phase15-fast-live-orders-$AUTH_SUFFIX-jhb"
@@ -143,6 +172,39 @@ gcloud compute ssh "$EXEC_VM" \
   --command="sudo sh -c '! grep -R -F -q cancellation_pending\":true /var/lib/bp-canary/fast-live/attempts 2>/dev/null &&
                           ! grep -R -F -q recovery_result_publish_pending\":true /var/lib/bp-canary/fast-live/attempts 2>/dev/null'" ||
   fail "executor_recovery_not_complete"
+
+if [[ "$CLEANUP_MODE" == "zero_activity_abort" ]]; then
+  read -r LIVE_PUBLICATIONS LIVE_RESULTS LIVE_SETTLEMENTS < <(
+    gcloud compute ssh "$US_VM" \
+      --project="$PROJECT" --zone="$US_ZONE" --quiet \
+      --command="sudo sh -c 'root=/var/lib/bp/phase15-fast-live/published;
+        publications=0; results=0; settlements=0;
+        if [ -d \"\$root\" ]; then
+          publications=\$(find \"\$root\" -maxdepth 1 -type f -name \"*.json\" | wc -l | tr -d \" \");
+          results=\$(find \"\$root/results\" -maxdepth 1 -type f -name \"*.json\" 2>/dev/null | wc -l | tr -d \" \");
+          settlements=\$(find \"\$root/settlements\" -maxdepth 1 -type f -name \"*.json\" 2>/dev/null | wc -l | tr -d \" \");
+        fi;
+        printf \"%s %s %s\\n\" \"\$publications\" \"\$results\" \"\$settlements\"'"
+  ) || fail "zero_activity_abort_recorder_count_failed"
+
+  [[ "$LIVE_PUBLICATIONS" == "0" && "$LIVE_RESULTS" == "0" && "$LIVE_SETTLEMENTS" == "0" ]] ||
+    fail "zero_activity_abort_recorder_activity_present"
+
+  read -r LIVE_ATTEMPTS EXEC_RESULTS APPROVAL_CLAIMS APPROVAL_RESULTS < <(
+    gcloud compute ssh "$EXEC_VM" \
+      --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
+      --command="sudo sh -c 'root=/var/lib/bp-canary/fast-live;
+        attempts=\$(find \"\$root/attempts\" -type f -name attempt.json 2>/dev/null | wc -l | tr -d \" \");
+        results=\$(find \"\$root/attempts\" -type f -name result.json 2>/dev/null | wc -l | tr -d \" \");
+        claims=\$(find \"\$root/approval-decisions\" -type f -name claim.json 2>/dev/null | wc -l | tr -d \" \");
+        approvals=\$(find \"\$root/approval-decisions\" -type f -name result.json 2>/dev/null | wc -l | tr -d \" \");
+        printf \"%s %s %s %s\\n\" \"\$attempts\" \"\$results\" \"\$claims\" \"\$approvals\"'"
+  ) || fail "zero_activity_abort_executor_count_failed"
+
+  [[ "$LIVE_ATTEMPTS" == "0" && "$EXEC_RESULTS" == "0" &&
+     "$APPROVAL_CLAIMS" == "0" && "$APPROVAL_RESULTS" == "0" ]] ||
+    fail "zero_activity_abort_executor_activity_present"
+fi
 
 # If both runtime copies still exist, they must identify the exact same session.
 # A retry after partial host cleanup may legitimately have only one copy left.
@@ -248,10 +310,15 @@ gcloud compute ssh "$EXEC_VM" \
   fail "executor_runtime_cleanup_failed"
 
 printf 'PHASE15_FAST_LIVE_CLEANUP=PASS\n'
+printf 'CLEANUP_MODE=%s\n' "$CLEANUP_MODE"
 printf 'AUTHORIZATION_ID=%s\n' "$AUTH_ID"
+printf 'AUTHORIZATION_MODE=%s\n' "$AUTH_MODE"
 printf 'AUTHORIZATION_SOURCE_HOST=%s\n' "$AUTH_SOURCE_HOST"
 printf 'SESSION_RELEASE_MAIN=%s\n' "$RELEASE_MAIN"
-printf 'RUNTIME_EXPIRED_AT=%s\n' "$RUNTIME_EXPIRES"
+printf 'RUNTIME_EXPIRES_AT=%s\n' "$RUNTIME_EXPIRES"
+if [[ "$CLEANUP_MODE" == "zero_activity_abort" ]]; then
+  printf 'ZERO_ACTIVITY_VERIFIED=true\n'
+fi
 printf 'KILL_SWITCH_ENGAGED=true\n'
 printf 'SESSION_RUNTIME_FILES_PRESENT=false\n'
 printf 'SESSION_PUBSUB_RESOURCES_PRESENT=false\n'
