@@ -18,9 +18,11 @@ STATIC_FILES = (
     "pyproject.toml",
     "deploy/bp-phase15-fast-live-source.service",
     "deploy/bp-phase15-fast-live-receiver.service",
+    "deploy/bp-phase15-canary-telegram-approval.service",
     "deploy/phase15-fast-live-executor-requirements.txt",
     "scripts/run_phase15_v3_fast_live_source.py",
     "scripts/run_phase15_v3_fast_live_receiver.py",
+    "scripts/run_phase15_v3_canary_telegram_approval.py",
 )
 SOURCE_ROOT = "src/bp_engine"
 FORBIDDEN_SUFFIXES = (".env", ".key", ".pem", ".p12", ".pfx")
