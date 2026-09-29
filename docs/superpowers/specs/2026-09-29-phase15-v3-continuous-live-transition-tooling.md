@@ -57,7 +57,9 @@ authorization. It requires:
 `PHASE15_ACCEPT_TELEGRAM_AUTO_APPROVER_DEACTIVATION=I_ACCEPT_STOP_LEGACY_TELEGRAM_AUTO_APPROVER`
 
 It also requires an absolute evidence path in
-`BP_TELEGRAM_AUTO_APPROVER_DEACTIVATION_EVIDENCE`.
+`BP_TELEGRAM_AUTO_APPROVER_DEACTIVATION_EVIDENCE`. The evidence path must
+resolve under the checkout's `docs/evidence/` tree so the shutdown proof is
+reviewable and can be committed with the later source-truth transition.
 
 Before changing the service it requires:
 
