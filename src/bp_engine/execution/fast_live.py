@@ -545,6 +545,7 @@ def create_approval_message(
         "intent_id": validated["intent_id"],
         "request_sha256": validated["request_sha256"],
         "prepared_sha256": validated["prepared_sha256"],
+        "prepared": dict(prepared),
         "approval_sha256": payload_sha256(approval_binding),
         "approval": approval_binding,
         "created_at": created.isoformat(),
@@ -580,6 +581,16 @@ def verify_approval_message(
     expires = _utc(datetime.fromisoformat(str(payload.get("expires_at") or "")))
     if created > observed or observed >= expires:
         raise FastLiveError("fast live approval expired or future")
+    prepared = payload.get("prepared")
+    if not isinstance(prepared, Mapping):
+        raise FastLiveError("fast live approval prepared payload missing")
+    validated = validate_prepared(prepared, observed_at=observed)
+    if str(payload.get("prepared_sha256") or "") != str(validated["prepared_sha256"]):
+        raise FastLiveError("fast live approval prepared hash mismatch")
+    if str(payload.get("intent_id") or "") != str(validated["intent_id"]):
+        raise FastLiveError("fast live approval prepared intent mismatch")
+    if str(payload.get("request_sha256") or "") != str(validated["request_sha256"]):
+        raise FastLiveError("fast live approval prepared request mismatch")
     approval = payload.get("approval")
     if not isinstance(approval, Mapping) or approval.get("status") != "approved":
         raise FastLiveError("fast live approval payload invalid")
@@ -599,6 +610,10 @@ def verify_approval_message(
         "request_sha256": str(payload["request_sha256"]),
         "prepared_sha256": str(payload["prepared_sha256"]),
         "approval_sha256": approval_sha,
+        "prepared": dict(prepared),
+        "request": dict(validated["request"]),
+        "prediction_id": str(validated["prediction_id"]),
+        "paper_order_id": str(validated["paper_order_id"]),
         "approved_at": approved_at.isoformat(),
         "approval_expires_at": approval_expires.isoformat(),
         "created_at": created.isoformat(),
