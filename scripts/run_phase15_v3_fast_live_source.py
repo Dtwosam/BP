@@ -327,6 +327,18 @@ def _publication_state(
     return "ready"
 
 
+def _pending_result_binding(root: Path) -> tuple[str, str] | None:
+    for path in sorted(root.glob("*.json")):
+        receipt = _load_json(path)
+        intent_id = str(receipt.get("intent_id") or "").strip()
+        request_hash = str(receipt.get("request_sha256") or "").strip()
+        if not intent_id or not request_hash:
+            continue
+        if not _result_receipt_path(root, intent_id, request_hash).exists():
+            return intent_id, request_hash
+    return None
+
+
 def _pending_settlement_intent(root: Path) -> str:
     results_root = root / "results"
     if not results_root.is_dir():
@@ -570,7 +582,19 @@ def main() -> int:
     warmed_condition_id = ""
     next_warmup_check = 0.0
     result_event = threading.Event()
+    result_state_lock = threading.Lock()
+    pending_result_binding = _pending_result_binding(args.receipt_dir)
     result_state: dict[str, Any] = {
+        "awaited_intent_id": (
+            pending_result_binding[0]
+            if pending_result_binding is not None
+            else ""
+        ),
+        "awaited_request_sha256": (
+            pending_result_binding[1]
+            if pending_result_binding is not None
+            else ""
+        ),
         "network_submission_attempt_consumed": None,
         "result": None,
         "settlement_required": False,
@@ -658,21 +682,29 @@ def main() -> int:
                         "recorded_at": observed.isoformat(),
                     },
                 )
-            result_state["network_submission_attempt_consumed"] = (
-                result.get("network_submission_attempt_consumed") is True
-            )
-            result_state["result"] = result
-            result_state["settlement_required"] = (
-                isinstance(official_recorded, dict)
-                and official_recorded.get(
-                    "settlement_reconciliation_required"
+            with result_state_lock:
+                is_current_result = (
+                    str(result.get("intent_id") or "")
+                    == str(result_state["awaited_intent_id"])
+                    and str(result.get("request_sha256") or "")
+                    == str(result_state["awaited_request_sha256"])
                 )
-                is True
-            )
-            result_state["settlement_intent_id"] = str(
-                result.get("intent_id") or ""
-            )
-            result_event.set()
+                if is_current_result:
+                    result_state["network_submission_attempt_consumed"] = (
+                        result.get("network_submission_attempt_consumed") is True
+                    )
+                    result_state["result"] = result
+                    result_state["settlement_required"] = (
+                        isinstance(official_recorded, dict)
+                        and official_recorded.get(
+                            "settlement_reconciliation_required"
+                        )
+                        is True
+                    )
+                    result_state["settlement_intent_id"] = str(
+                        result.get("intent_id") or ""
+                    )
+                    result_event.set()
             print(
                 json.dumps(
                     {
@@ -746,27 +778,34 @@ def main() -> int:
                 if not result_event.wait(timeout=args.poll_seconds):
                     continue
                 result_event.clear()
-                consumed = (
-                    result_state["network_submission_attempt_consumed"] is True
-                )
+                with result_state_lock:
+                    consumed = (
+                        result_state["network_submission_attempt_consumed"] is True
+                    )
+                    settlement_required = (
+                        result_state["settlement_required"] is True
+                    )
+                    completed_intent_id = str(
+                        result_state["settlement_intent_id"]
+                    )
+                    result_state["awaited_intent_id"] = ""
+                    result_state["awaited_request_sha256"] = ""
+                    result_state["network_submission_attempt_consumed"] = None
+                    result_state["result"] = None
+                    result_state["settlement_required"] = False
+                    result_state["settlement_intent_id"] = ""
                 if approval_required:
                     _clear_staged_telegram_candidate(
                         args.telegram_prepare_state_root,
-                        str(result_state["settlement_intent_id"]),
+                        completed_intent_id,
                     )
                 if consumed:
-                    if result_state["settlement_required"] is True:
-                        settlement_intent_id = str(
-                            result_state["settlement_intent_id"]
-                        )
+                    if settlement_required:
+                        settlement_intent_id = completed_intent_id
                         continue
                     if not continuous_session:
                         return 0
                 waiting_for_result = False
-                result_state["network_submission_attempt_consumed"] = None
-                result_state["result"] = None
-                result_state["settlement_required"] = False
-                result_state["settlement_intent_id"] = ""
                 continue
             observed = _utc_now()
             if observed >= runtime_expires_at:
@@ -980,6 +1019,13 @@ def main() -> int:
                                 ),
                                 flush=True,
                             )
+                            with result_state_lock:
+                                result_state["awaited_intent_id"] = str(
+                                    approval_message["intent_id"]
+                                )
+                                result_state["awaited_request_sha256"] = str(
+                                    approval_message["request_sha256"]
+                                )
                             waiting_for_result = True
                             break
                         if approval_status in {"skipped", "expired"}:
@@ -1106,6 +1152,11 @@ def main() -> int:
             }
             _write_receipt(receipt_path, receipt)
             print(json.dumps(receipt, sort_keys=True), flush=True)
+            with result_state_lock:
+                result_state["awaited_intent_id"] = str(envelope["intent_id"])
+                result_state["awaited_request_sha256"] = str(
+                    envelope["request_sha256"]
+                )
             waiting_for_result = True
     finally:
         result_future.cancel()
