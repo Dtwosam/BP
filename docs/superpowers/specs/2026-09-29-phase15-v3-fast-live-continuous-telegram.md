@@ -268,8 +268,18 @@ Before activation, run the read-only readiness helper:
 
 `scripts/deploy/phase15_v3_fast_live_preflight_cloudshell.sh`
 
-It requires a clean checkout at current `main` and verifies, without creating
-or modifying production resources:
+During or after a session, the read-only status helper is:
+
+`scripts/deploy/phase15_v3_fast_live_status_cloudshell.sh`
+
+The status helper reports source/receiver/Telegram service activity, runtime
+authorization identity and expiry, kill-switch state, publication/result/
+settlement counts, unresolved recovery counts, approval-decision counts, and
+official account/geography health. It performs no service control, Pub/Sub
+mutation, runtime-file mutation, kill-switch change, or order submission.
+
+The preflight requires a clean checkout at current `main` and verifies,
+without creating or modifying production resources:
 
 - valid continuous-session source truth;
 - exact staged source, receiver, and Telegram sidecar release;
@@ -324,7 +334,8 @@ Recommended deployment sequence is therefore:
 3. stage the release on both hosts;
 4. run the read-only preflight and require PASS;
 5. only with separate explicit authorization, run the activation helper;
-6. after that session expires and all recovery/settlement is complete, run the
+6. use the read-only status helper for ongoing session/recovery visibility;
+7. after that session expires and all recovery/settlement is complete, run the
    explicitly authorized expired-session cleanup before creating another
    session.
 
