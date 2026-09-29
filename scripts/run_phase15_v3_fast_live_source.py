@@ -1020,15 +1020,37 @@ def main() -> int:
                     "finalized.json",
                 )
                 if finalized is None:
+                    risk_started_at = _utc_now()
                     finalized = prepare_fast_live_candidate(
                         engine=engine,
                         activated_at=activated_at,
-                        observed_at=_utc_now(),
+                        observed_at=risk_started_at,
                         interlock=interlock,
                         api_healthy=True,
                         official_open_order_count=args.official_open_order_count,
                         collateral_balance_usd=collateral,
                     )
+                    risk_completed_at = _utc_now()
+                    preview_created_at = datetime.fromisoformat(
+                        str(preview["timing"]["prepared_observed_at"])
+                    ).astimezone(UTC)
+                    finalized["parallel_timing"] = {
+                        "preview_created_at": preview_created_at.isoformat(),
+                        "risk_started_at": risk_started_at.isoformat(),
+                        "risk_completed_at": risk_completed_at.isoformat(),
+                        "preview_to_risk_start_ms": (
+                            risk_started_at - preview_created_at
+                        ).total_seconds()
+                        * 1000,
+                        "risk_evaluation_ms": (
+                            risk_completed_at - risk_started_at
+                        ).total_seconds()
+                        * 1000,
+                        "preview_to_risk_complete_ms": (
+                            risk_completed_at - preview_created_at
+                        ).total_seconds()
+                        * 1000,
+                    }
                     finalized_status = str(finalized.get("status") or "")
                     if finalized_status != "prepared":
                         cancel = {
@@ -1152,6 +1174,23 @@ def main() -> int:
                                 key_id=args.transport_key_id,
                                 created_at=now,
                             )
+                            parallel_timing = finalized.get("parallel_timing")
+                            approval_vs_risk_ms = None
+                            if isinstance(parallel_timing, dict):
+                                risk_completed_raw = str(
+                                    parallel_timing.get("risk_completed_at")
+                                    or ""
+                                )
+                                if risk_completed_raw:
+                                    risk_completed_at = datetime.fromisoformat(
+                                        risk_completed_raw
+                                    ).astimezone(UTC)
+                                    human_approved_at = datetime.fromisoformat(
+                                        str(approval["approved_at"])
+                                    ).astimezone(UTC)
+                                    approval_vs_risk_ms = (
+                                        human_approved_at - risk_completed_at
+                                    ).total_seconds() * 1000
                             with result_state_lock:
                                 result_state["awaited_intent_id"] = str(
                                     approval_message["intent_id"]
@@ -1189,6 +1228,8 @@ def main() -> int:
                                         "authorization_id": approval_message["authorization_id"],
                                         "published_at": _utc_now().isoformat(),
                                         "publish_attempts": publish_attempts,
+                                        "parallel_timing": parallel_timing,
+                                        "approval_vs_risk_ms": approval_vs_risk_ms,
                                         "network_submission_attempt_consumed": False,
                                         "real_order_submitted": False,
                                     },
@@ -1205,6 +1246,8 @@ def main() -> int:
                                         ),
                                         "request_sha256": approval_message["request_sha256"],
                                         "message_id": message_id,
+                                        "parallel_timing": parallel_timing,
+                                        "approval_vs_risk_ms": approval_vs_risk_ms,
                                         "network_submission_attempt_consumed": False,
                                         "real_order_submitted": False,
                                     },
