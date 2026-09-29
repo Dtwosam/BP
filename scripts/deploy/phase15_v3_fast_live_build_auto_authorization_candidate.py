@@ -83,6 +83,7 @@ def build_candidate(
     expires_at: datetime,
     authorized_at: datetime,
     upgrade_evidence_reference: str,
+    renew_existing_unactivated: bool = False,
 ) -> dict[str, Any]:
     authorized = _utc(authorized_at)
     expires = _utc(expires_at)
@@ -105,7 +106,8 @@ def build_candidate(
         raise CandidateError("upgrade evidence purpose invalid")
     if upgrade_evidence.get("status") != "UPGRADED_VERIFIED":
         raise CandidateError("upgrade evidence status invalid")
-    if upgrade_evidence.get("repository_main") != expected_main:
+    evidence_main = str(upgrade_evidence.get("repository_main") or "")
+    if not renew_existing_unactivated and evidence_main != expected_main:
         raise CandidateError("upgrade evidence main mismatch")
     if upgrade_evidence.get("approval_contract_git_blob_sha") != (
         FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA
@@ -153,7 +155,53 @@ def build_candidate(
         or auto.get("live_auto_approve_authorized") is not True
     ):
         raise CandidateError("auto-approver must remain active and authorized")
-    if phase.get("fast_live_preauthorization") is not None:
+    existing_authorization = phase.get("fast_live_preauthorization")
+    if renew_existing_unactivated:
+        if not isinstance(existing_authorization, dict):
+            raise CandidateError("renewal requires existing fast live authorization")
+        verify_source_authorization(
+            state,
+            expected_main=expected_main,
+            observed_at=authorized,
+            requires_telegram_approval=True,
+            continuous_session=True,
+        )
+        for field in (
+            "deployment_performed",
+            "activation_performed",
+            "runtime_authorization_created",
+            "kill_switch_removed",
+            "real_order_submitted",
+        ):
+            if existing_authorization.get(field) is not False:
+                raise CandidateError(
+                    f"existing authorization is not renewable: {field}"
+                )
+        if existing_authorization.get("authorization_mode") != (
+            FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE
+        ):
+            raise CandidateError("existing authorization mode is not renewable")
+        if existing_authorization.get("authorization_id") == authorization_id:
+            raise CandidateError("renewal authorization id must change")
+        if existing_authorization.get("auto_approver_upgrade_evidence") != (
+            upgrade_evidence_reference
+        ):
+            raise CandidateError("renewal upgrade evidence reference mismatch")
+        if auto.get("continuous_contract_upgrade_evidence") != (
+            upgrade_evidence_reference
+        ):
+            raise CandidateError("auto-approver upgrade evidence reference mismatch")
+        if auto.get("continuous_contract_upgrade_main") != evidence_main:
+            raise CandidateError("auto-approver upgrade evidence main mismatch")
+        if auto.get("approval_contract_git_blob_sha") != (
+            FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA
+        ):
+            raise CandidateError("auto-approver approval contract mismatch")
+        if auto.get("continuous_candidate_prompt_authorized") is not True:
+            raise CandidateError("continuous candidate prompt not authorized")
+        if auto.get("continuous_fast_live_auto_approval_authorized") is not True:
+            raise CandidateError("continuous auto approval not authorized")
+    elif existing_authorization is not None:
         raise CandidateError("fast live preauthorization already exists")
     if state.get("live_trading_enabled") is not False:
         raise CandidateError("global live trading flag must remain false")
@@ -180,11 +228,12 @@ def build_candidate(
         FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA
     )
     candidate_auto["continuous_candidate_prompt_authorized"] = True
-    candidate_auto["continuous_contract_upgrade_main"] = expected_main
-    candidate_auto["continuous_contract_upgraded_at"] = upgraded_at.isoformat()
-    candidate_auto["continuous_contract_upgrade_evidence"] = (
-        upgrade_evidence_reference
-    )
+    if not renew_existing_unactivated:
+        candidate_auto["continuous_contract_upgrade_main"] = expected_main
+        candidate_auto["continuous_contract_upgraded_at"] = upgraded_at.isoformat()
+        candidate_auto["continuous_contract_upgrade_evidence"] = (
+            upgrade_evidence_reference
+        )
     candidate_auto["service_state"] = "running"
     candidate_auto["live_auto_approve_authorized"] = True
     candidate_auto["continuous_fast_live_auto_approval_authorized"] = True
@@ -252,6 +301,14 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--evidence-output", type=Path, required=True)
     parser.add_argument("--accept-candidate", required=True)
+    parser.add_argument(
+        "--renew-existing-unactivated",
+        action="store_true",
+        help=(
+            "Replace only an existing unactivated continuous auto authorization "
+            "after re-validating its exact safety contract."
+        ),
+    )
     args = parser.parse_args()
 
     if args.accept_candidate != _ACCEPT:
@@ -268,7 +325,10 @@ def main() -> int:
 
     state = _load_object(project_state, label="project state")
     upgrade = _load_object(upgrade_path, label="auto-approver upgrade evidence")
-    if upgrade.get("project_state_sha256") != _raw_sha256(project_state):
+    if (
+        not args.renew_existing_unactivated
+        and upgrade.get("project_state_sha256") != _raw_sha256(project_state)
+    ):
         raise SystemExit("upgrade evidence project-state hash mismatch")
 
     try:
@@ -289,6 +349,7 @@ def main() -> int:
         expires_at=expires,
         authorized_at=now,
         upgrade_evidence_reference=evidence_reference,
+        renew_existing_unactivated=args.renew_existing_unactivated,
     )
     candidate_evidence = {
         "schema_version": 1,
@@ -316,6 +377,9 @@ def main() -> int:
         "kill_switch_removed": False,
         "production_mutation_performed": False,
         "real_order_submitted": False,
+        "renewal_of_existing_unactivated_authorization": (
+            args.renew_existing_unactivated
+        ),
     }
 
     _write_new_json(output, candidate)
@@ -333,6 +397,10 @@ def main() -> int:
     print(f"EXPIRES_AT={_utc(expires).isoformat()}")
     print(f"CANDIDATE_PROJECT_STATE={output}")
     print(f"CANDIDATE_EVIDENCE={evidence_output}")
+    print(
+        "RENEWAL_OF_EXISTING_UNACTIVATED_AUTHORIZATION="
+        + ("true" if args.renew_existing_unactivated else "false")
+    )
     print("AUTO_APPROVAL_REMAINS_AUTHORIZED=true")
     print("GLOBAL_LIVE_TRADING_ENABLED=false")
     print("PHASE_LIVE_TRADING_ENABLED=false")

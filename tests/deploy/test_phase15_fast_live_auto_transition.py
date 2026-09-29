@@ -384,6 +384,9 @@ def test_auto_candidate_generator_is_non_deploying_and_non_overwriting() -> None
         "candidate generator refuses to overwrite PROJECT_STATE",
         "upgrade evidence project-state hash mismatch",
         "upgrade evidence must be stored under the repository root",
+        "--renew-existing-unactivated",
+        "renew_existing_unactivated",
+        "RENEWAL_OF_EXISTING_UNACTIVATED_AUTHORIZATION",
         "verify_source_authorization",
         "requires_telegram_approval=True",
         "continuous_session=True",
@@ -395,3 +398,194 @@ def test_auto_candidate_generator_is_non_deploying_and_non_overwriting() -> None
         "REAL_ORDER_SUBMITTED=false",
     ):
         assert marker in text
+
+
+def _renewable_state(
+    module,
+    *,
+    upgrade_main: str,
+    evidence_reference: str,
+    authorized_at: datetime,
+) -> tuple[dict[str, object], dict[str, object]]:
+    evidence = _upgrade(upgrade_main)
+    state = module.build_candidate(
+        state=_state(),
+        upgrade_evidence=evidence,
+        expected_main=upgrade_main,
+        authorization_id="fast-live-auto-continuous-old",
+        source_of_truth_version="0.14.181",
+        expires_at=authorized_at + timedelta(hours=8),
+        authorized_at=authorized_at,
+        upgrade_evidence_reference=evidence_reference,
+    )
+    return state, evidence
+
+
+def test_auto_candidate_can_renew_only_existing_unactivated_authorization() -> None:
+    module = _candidate_module()
+    upgrade_main = "1" * 40
+    current_main = "2" * 40
+    evidence_reference = "docs/evidence/upgrade.json"
+    first_authorized_at = datetime(2026, 9, 29, 16, 5, tzinfo=UTC)
+    renewal_authorized_at = first_authorized_at + timedelta(hours=1)
+    source, evidence = _renewable_state(
+        module,
+        upgrade_main=upgrade_main,
+        evidence_reference=evidence_reference,
+        authorized_at=first_authorized_at,
+    )
+
+    source_phase = source["phase_15_v3_live_canary"]
+    assert isinstance(source_phase, dict)
+    source_auto = source_phase["operator_telegram_auto_approver"]
+    assert isinstance(source_auto, dict)
+    original_upgrade_main = source_auto["continuous_contract_upgrade_main"]
+    original_upgraded_at = source_auto["continuous_contract_upgraded_at"]
+
+    candidate = module.build_candidate(
+        state=source,
+        upgrade_evidence=evidence,
+        expected_main=current_main,
+        authorization_id="fast-live-auto-continuous-renewed",
+        source_of_truth_version="0.14.182",
+        expires_at=renewal_authorized_at + timedelta(hours=12),
+        authorized_at=renewal_authorized_at,
+        upgrade_evidence_reference=evidence_reference,
+        renew_existing_unactivated=True,
+    )
+
+    phase = candidate["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    auto = phase["operator_telegram_auto_approver"]
+    auth = phase["fast_live_preauthorization"]
+    assert isinstance(auto, dict)
+    assert isinstance(auth, dict)
+
+    assert candidate["source_of_truth_version"] == "0.14.182"
+    assert candidate["live_trading_enabled"] is False
+    assert phase["live_trading_enabled"] is False
+    assert auto["continuous_contract_upgrade_main"] == original_upgrade_main
+    assert auto["continuous_contract_upgraded_at"] == original_upgraded_at
+    assert auth["authorization_id"] == "fast-live-auto-continuous-renewed"
+    assert auth["authorized_at_main"] == current_main
+    assert auth["authorization_mode"] == FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE
+    assert auth["target_notional_usd"] == 5
+    assert auth["max_trade_size_usd"] == 10
+    assert auth["max_total_exposure_usd"] == 10
+    assert auth["max_daily_loss_usd"] == 10
+    assert auth["max_consecutive_losses"] == 1
+    assert auth["min_edge"] == 0.075
+    assert auth["max_transit_seconds"] == 2
+    assert auth["requires_telegram_approval"] is True
+    assert auth["max_network_submission_attempts_per_intent"] == 1
+    assert auth["deployment_performed"] is False
+    assert auth["activation_performed"] is False
+    assert auth["runtime_authorization_created"] is False
+    assert auth["kill_switch_removed"] is False
+    assert auth["real_order_submitted"] is False
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "deployment_performed",
+        "activation_performed",
+        "runtime_authorization_created",
+        "kill_switch_removed",
+        "real_order_submitted",
+    ],
+)
+def test_auto_candidate_renewal_rejects_consumed_or_mutated_session(
+    field: str,
+) -> None:
+    module = _candidate_module()
+    upgrade_main = "3" * 40
+    current_main = "4" * 40
+    evidence_reference = "docs/evidence/upgrade.json"
+    authorized_at = datetime(2026, 9, 29, 16, 5, tzinfo=UTC)
+    source, evidence = _renewable_state(
+        module,
+        upgrade_main=upgrade_main,
+        evidence_reference=evidence_reference,
+        authorized_at=authorized_at,
+    )
+    phase = source["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    auth = phase["fast_live_preauthorization"]
+    assert isinstance(auth, dict)
+    auth[field] = True
+
+    with pytest.raises(module.CandidateError, match="is not renewable"):
+        module.build_candidate(
+            state=source,
+            upgrade_evidence=evidence,
+            expected_main=current_main,
+            authorization_id="fast-live-auto-continuous-renewed",
+            source_of_truth_version="0.14.182",
+            expires_at=authorized_at + timedelta(hours=12),
+            authorized_at=authorized_at + timedelta(minutes=1),
+            upgrade_evidence_reference=evidence_reference,
+            renew_existing_unactivated=True,
+        )
+
+
+def test_auto_candidate_renewal_revalidates_existing_risk_contract() -> None:
+    module = _candidate_module()
+    upgrade_main = "5" * 40
+    current_main = "6" * 40
+    evidence_reference = "docs/evidence/upgrade.json"
+    authorized_at = datetime(2026, 9, 29, 16, 5, tzinfo=UTC)
+    source, evidence = _renewable_state(
+        module,
+        upgrade_main=upgrade_main,
+        evidence_reference=evidence_reference,
+        authorized_at=authorized_at,
+    )
+    phase = source["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    auth = phase["fast_live_preauthorization"]
+    assert isinstance(auth, dict)
+    auth["max_daily_loss_usd"] = 11
+
+    with pytest.raises(Exception, match="max_daily_loss_usd"):
+        module.build_candidate(
+            state=source,
+            upgrade_evidence=evidence,
+            expected_main=current_main,
+            authorization_id="fast-live-auto-continuous-renewed",
+            source_of_truth_version="0.14.182",
+            expires_at=authorized_at + timedelta(hours=12),
+            authorized_at=authorized_at + timedelta(minutes=1),
+            upgrade_evidence_reference=evidence_reference,
+            renew_existing_unactivated=True,
+        )
+
+
+def test_auto_candidate_renewal_requires_exact_existing_upgrade_evidence() -> None:
+    module = _candidate_module()
+    upgrade_main = "7" * 40
+    current_main = "8" * 40
+    evidence_reference = "docs/evidence/upgrade.json"
+    authorized_at = datetime(2026, 9, 29, 16, 5, tzinfo=UTC)
+    source, evidence = _renewable_state(
+        module,
+        upgrade_main=upgrade_main,
+        evidence_reference=evidence_reference,
+        authorized_at=authorized_at,
+    )
+
+    with pytest.raises(
+        module.CandidateError,
+        match="renewal upgrade evidence reference mismatch",
+    ):
+        module.build_candidate(
+            state=source,
+            upgrade_evidence=evidence,
+            expected_main=current_main,
+            authorization_id="fast-live-auto-continuous-renewed",
+            source_of_truth_version="0.14.182",
+            expires_at=authorized_at + timedelta(hours=12),
+            authorized_at=authorized_at + timedelta(minutes=1),
+            upgrade_evidence_reference="docs/evidence/different.json",
+            renew_existing_unactivated=True,
+        )

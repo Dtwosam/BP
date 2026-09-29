@@ -202,6 +202,34 @@ The generated candidate:
 The candidate is passed through the same source authorization verifier used by
 the live runtime before it is written.
 
+
+### Unactivated authorization renewal
+
+The same non-deploying candidate helper may be invoked with
+`--renew-existing-unactivated` to replace an existing continuous auto
+authorization before activation. Renewal is intentionally narrower than initial
+authorization generation.
+
+Before replacement, the helper passes the current source truth through the same
+continuous auto source-authorization verifier used by live runtime and requires
+the existing authorization to remain unactivated, undeployed, without runtime
+authorization, without kill-switch removal, and without a real order. The new
+authorization ID must differ from the previous ID.
+
+Renewal preserves the already verified operator auto-approver contract and its
+original upgrade evidence rather than relabeling old evidence as a newer
+repository-main observation. The existing source truth must still reference
+that exact evidence and evidence main, the reviewed approval-contract blob must
+remain unchanged, and continuous candidate auto-approval must remain explicitly
+authorized.
+
+Risk and execution terms are revalidated before replacement: $5 target,
+$10 trade/exposure/daily-loss caps, one-loss limit, 0.075 minimum edge,
+two-second transit, Telegram approval, one network submission attempt per
+intent, ZA execution, and the frozen V3 prediction/execution versions. Renewal
+does not stage hosts, create runtime authorization, start services, remove the
+kill switch, or submit an order.
+
 ## Existing execution safeguards remain unchanged
 
 The auto-approved mode does not change the continuous fast-live execution
