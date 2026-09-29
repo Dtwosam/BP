@@ -240,6 +240,8 @@ def record_fast_live_result(
             if status not in {
                 "fresh_book_rejected",
                 "pre_attempt_retry_exhausted",
+                "telegram_skipped",
+                "telegram_expired",
             }:
                 raise FastLiveResultError(
                     "unsupported non-attempt fast-live result"
