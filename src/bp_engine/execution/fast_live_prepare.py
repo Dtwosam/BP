@@ -386,6 +386,7 @@ def prepare_fast_live_candidate(
     }
     return {
         "status": "prepared",
+        "action": "submit",
         "intent_id": str(intent_store.record["intent_id"]),
         "request_id": request_id,
         "risk_decision_id": str(risk_store.record["decision_id"]),
