@@ -104,7 +104,7 @@ def build_candidate(
         "service_active_after",
         "service_enabled_or_loaded_after",
         "matching_process_present_after",
-        "live_auto_approve_authorized_after",
+        "live_auto_approve_runtime_effective_after",
         "project_state_mutated",
         "live_trading_enabled",
         "real_order_submitted",
@@ -112,6 +112,22 @@ def build_candidate(
     for name in required_false:
         if deactivation.get(name) is not False:
             raise CandidateError(f"deactivation evidence unsafe: {name}")
+    if (
+        deactivation.get("source_truth_live_auto_approve_authorized_after")
+        is not True
+    ):
+        raise CandidateError(
+            "deactivation evidence must precede source-truth mutation"
+        )
+    if deactivation.get("telegram_session_deleted") is not False:
+        raise CandidateError("deactivation evidence deleted Telegram session")
+    if deactivation.get("telegram_credentials_mutated") is not False:
+        raise CandidateError(
+            "deactivation evidence mutated Telegram credentials"
+        )
+    deactivated_at = _utc(
+        datetime.fromisoformat(str(deactivation.get("observed_at") or ""))
+    )
 
     phase = state.get("phase_15_v3_live_canary")
     if not isinstance(phase, dict):
@@ -147,7 +163,7 @@ def build_candidate(
     candidate_auto["status"] = "DEACTIVATED_FOR_MANUAL_TELEGRAM_CONTINUOUS_LIVE"
     candidate_auto["live_auto_approve_authorized"] = False
     candidate_auto["service_state"] = "stopped"
-    candidate_auto["deactivated_at"] = str(deactivation["observed_at"])
+    candidate_auto["deactivated_at"] = deactivated_at.isoformat()
     candidate_auto["deactivation_evidence"] = deactivation_evidence_reference
     candidate_auto["continuous_manual_live_replacement_authorized"] = True
     candidate_auto["real_order_submitted_by_deactivation"] = False
