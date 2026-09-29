@@ -361,6 +361,17 @@ def main() -> int:
                 requires_telegram_approval=approval_required,
             )
             payload, attributes = _decode_message(message)
+            with prepared_lock:
+                stale_keys = [
+                    cache_key
+                    for cache_key, cached in prepared_orders.items()
+                    if datetime.fromisoformat(
+                        str(cached["verified"]["expires_at"])
+                    ).astimezone(UTC)
+                    <= received_at
+                ]
+                for cache_key in stale_keys:
+                    prepared_orders.pop(cache_key, None)
             purpose = str(payload.get("purpose") or "")
             if purpose == FAST_LIVE_WARMUP_PURPOSE:
                 if attributes.get("condition_id") != str(
