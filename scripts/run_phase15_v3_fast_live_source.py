@@ -20,6 +20,7 @@ from bp_engine.execution.fast_live import (
     FAST_LIVE_PURPOSE,
     FAST_LIVE_RESULT_MAX_AGE_SECONDS,
     FAST_LIVE_RESULT_PURPOSE,
+    FAST_LIVE_RESULT_STALL_SECONDS,
     FAST_LIVE_WARMUP_PURPOSE,
     create_approval_message,
     create_envelope,
@@ -452,7 +453,7 @@ def _result_wait_deadline(
         raise RuntimeError("fast live publication receipt timestamp missing")
     published_at = datetime.fromisoformat(published_raw).astimezone(UTC)
     return published_at + timedelta(
-        seconds=float(FAST_LIVE_RESULT_MAX_AGE_SECONDS) + 5.0
+        seconds=float(FAST_LIVE_RESULT_STALL_SECONDS)
     )
 
 
@@ -1469,9 +1470,8 @@ def main() -> int:
                                 approval_published_at
                                 + timedelta(
                                     seconds=float(
-                                        FAST_LIVE_RESULT_MAX_AGE_SECONDS
+                                        FAST_LIVE_RESULT_STALL_SECONDS
                                     )
-                                    + 5.0
                                 )
                             )
                             with result_state_lock:
