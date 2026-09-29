@@ -17,8 +17,6 @@ from sqlalchemy import create_engine, select
 
 from bp_engine.config import Settings
 from bp_engine.execution.fast_live import (
-    FAST_LIVE_APPROVAL_PURPOSE,
-    FAST_LIVE_PREPARE_PURPOSE,
     FAST_LIVE_PURPOSE,
     FAST_LIVE_RESULT_PURPOSE,
     FAST_LIVE_WARMUP_PURPOSE,
