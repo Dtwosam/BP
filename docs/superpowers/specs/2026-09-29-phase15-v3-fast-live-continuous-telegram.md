@@ -113,9 +113,15 @@ receipt, duplicate/re-published copies reuse the already-recorded ledger and
 reconciliation outcome and are ACKed without a second ledger mutation.
 
 Each publication receipt stores `published_at` and a per-intent result-wait
-threshold. Crossing that threshold does **not** mark the trade safe or abandon
-it. The source enters `fast_live_result_reconciliation_stalled` and remains
-reconciliation-only until a valid bound result arrives.
+threshold. The operational stall threshold is 20 seconds. Crossing it does
+**not** mark the trade safe or abandon it. The source enters
+`fast_live_result_reconciliation_stalled` and remains reconciliation-only
+until a valid bound result arrives.
+
+Authenticated result messages remain valid for five minutes. This is
+deliberately longer than the operational stall threshold: delayed or replayed
+Pub/Sub delivery can repair the exact stalled intent, but the source cannot
+advance to another trade while that intent is unresolved.
 
 If the session expires while an approved result is unresolved, the source does
 not publish another trade. It continues result-only recovery under the same
@@ -126,6 +132,12 @@ result reconciliation.
 Confirmed fills remain settlement-only work even after session expiry. Official
 settlement may therefore finish after trading authority has ended without
 extending authority to place another order.
+
+Successful settlement writes a durable marker using the same deterministic
+receipt basename under `published/settlements/`. Restart therefore
+distinguishes a historical settled fill from unresolved live exposure without
+repeating settlement work. A new session is refused if an earlier publication
+has no result or if a result still requires settlement without that marker.
 
 ## Johannesburg crash recovery
 
@@ -200,6 +212,12 @@ Continuous mode removes only the canary-only 24-hour cooldown. It preserves:
 A losing settled trade increments the consecutive-loss counter and the existing
 one-loss stop blocks later submissions. A winning trade resets that counter.
 
+Normal no-trade states do not crash/restart the service. Preview selection skips
+signals that no longer have the minimum 30-second preparation arm window.
+Frozen-paper terminal draft conditions are surfaced as blocked live candidates,
+and persistent blocked states are throttled rather than polled/logged at the
+normal fast cadence.
+
 `realized_daily_pnl_usd` resets at the UTC day boundary. Exposure and
 consecutive-loss state do not reset with the day.
 
@@ -232,10 +250,43 @@ Staging installs exact release bytes and the dormant Telegram sidecar only. It
 does not start/enable fast-live services, unarm Johannesburg, create runtime
 authorization, or submit an order.
 
+Before activation, run the read-only readiness helper:
+
+`scripts/deploy/phase15_v3_fast_live_preflight_cloudshell.sh`
+
+It requires a clean checkout at current `main` and verifies, without creating
+or modifying production resources:
+
+- valid continuous-session source truth;
+- exact staged source, receiver, and Telegram sidecar release;
+- fast-live services inactive/disabled before activation;
+- Telegram private listener configuration present with privileged handoff
+  absent;
+- no stale Telegram preview;
+- every prior source publication has a result;
+- every result requiring settlement has its durable settlement marker;
+- no pending Johannesburg cancellation/result-publication recovery;
+- Johannesburg kill switch engaged;
+- ZA geography, clean official account state, zero open orders, and at least $5
+  collateral.
+
+The preflight explicitly reports that it creates no runtime authorization,
+Pub/Sub resource/IAM mutation, service start, kill-switch removal, or real
+order.
+
 Production activation remains a separate explicit operation requiring:
 continuous-session source truth, matching runtime authorization, exact staged
 release hashes, clean official account/open-order state, Johannesburg geography,
 no stale Telegram preview, no pending execution recovery, transport setup, and
 the explicit continuous-session acceptance value above.
 
-Merging or staging this candidate does not activate real-money trading.
+Recommended deployment sequence is therefore:
+
+1. merge the reviewed code to current `main`;
+2. build the deterministic fast-live release;
+3. stage the release on both hosts;
+4. run the read-only preflight and require PASS;
+5. only with separate explicit authorization, run the activation helper.
+
+Merging, building, staging, or preflighting this candidate does not activate
+real-money trading.
