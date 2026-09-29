@@ -325,13 +325,48 @@ def _wait_for_decision(
     state_dir: Path,
 ) -> dict[str, Any]:
     offset = 0
+    cancel_path = prepared_path.parent / "cancel.json"
+
+    def cancelled_record() -> dict[str, Any] | None:
+        if not cancel_path.is_file():
+            return None
+        try:
+            cancel = _load_json(cancel_path)
+        except Exception:
+            cancel = {}
+        record = {
+            **_expiry_record(pending),
+            "cancel_reason": str(cancel.get("reason") or "risk_not_eligible"),
+            "cancelled_at": str(
+                cancel.get("cancelled_at") or _utc_now().isoformat()
+            ),
+        }
+        _atomic_json(state_dir / "approval.json", record)
+        try:
+            _edit_result(
+                token,
+                chat_id=int(pending["telegram_chat_id"]),
+                message_id=message_id,
+                text=(
+                    "BP V3 trade CANCELLED\n"
+                    f"Intent: {pending['intent_id']}\n"
+                    f"Reason: {record['cancel_reason']}"
+                ),
+            )
+        except Exception:
+            pass
+        return record
+
     while True:
+        cancelled = cancelled_record()
+        if cancelled is not None:
+            return cancelled
         try:
             updates = _api(
                 token,
                 "getUpdates",
-                {"offset": offset, "timeout": 10, "allowed_updates": ["callback_query"]},
-                timeout=15,
+                {"offset": offset, "timeout": 2, "allowed_updates": ["callback_query"]},
+                timeout=5,
             ).get("result", [])
         except Exception as exc:
             _atomic_json(
@@ -347,6 +382,9 @@ def _wait_for_decision(
             time.sleep(1)
             continue
 
+        cancelled = cancelled_record()
+        if cancelled is not None:
+            return cancelled
         if not isinstance(updates, list):
             updates = []
         for update in updates:
