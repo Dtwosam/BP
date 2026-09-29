@@ -78,7 +78,8 @@ def test_fast_live_receiver_is_preauthorized_one_shot_and_fail_closed() -> None:
     assert "verify_prepare_message" in receiver
     assert "verify_approval_message" in receiver
     assert "prepare_order" in receiver
-    assert "prepared_order=cached[\"prepared_order\"]" in receiver
+    assert "prepared_order=prepared_order" in receiver
+    assert "prepare_recovered_after_restart" in receiver
     assert "execute_with_bounded_pre_attempt_retry" in receiver
     assert "create_result_message" in receiver
     assert "result_publisher.publish" in receiver
