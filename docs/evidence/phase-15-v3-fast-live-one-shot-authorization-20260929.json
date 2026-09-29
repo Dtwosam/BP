@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "status": "AUTHORIZED_NOT_STAGED",
+  "authorized_at": "2026-09-29T08:20:00+00:00",
+  "authorization_source": "User explicitly authorized staging and activating one $5 fast-live V3 production canary in chat.",
+  "authorization_id": "fast-live-auth-20260929-one-shot-01",
+  "authorized_at_main": "de58649ea7d8e3612630223804f43a65ac675ec9",
+  "source_truth_branch": "ops/phase15-fast-live-one-shot-auth-20260929",
+  "scope": {
+    "target_notional_usd": 5,
+    "max_trade_size_usd": 10,
+    "max_total_exposure_usd": 10,
+    "max_daily_loss_usd": 10,
+    "max_consecutive_losses": 1,
+    "min_edge": 0.075,
+    "max_network_submission_attempts": 1,
+    "requires_telegram_approval": false,
+    "executor_country": "ZA",
+    "max_transit_seconds": 2,
+    "runtime_authorization_max_seconds": 3600,
+    "source_authorization_expires_at": "2026-09-30T08:20:00+00:00"
+  },
+  "explicitly_not_authorized": {
+    "additional_network_submission_attempt": false,
+    "stake_increase": false,
+    "strategy_mutation": false,
+    "global_live_trading_enablement": false
+  },
+  "production_actions_performed": {
+    "runtime_staged": false,
+    "services_started": false,
+    "kill_switch_released": false,
+    "network_submission_attempt_consumed": false,
+    "real_order_submitted": false
+  },
+  "blocker": "Production Mac connector was offline at authorization time; no host mutation was attempted."
+}
