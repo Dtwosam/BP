@@ -1,11 +1,11 @@
 {
   "project": "BTC Polymarket Prediction Engine",
   "schema_version": 1,
-  "source_of_truth_version": "0.14.180",
-  "updated_at": "2026-09-28",
+  "source_of_truth_version": "0.14.181",
+  "updated_at": "2026-09-29",
   "current_phase": 15,
-  "current_phase_name": "controlled live launch — second frozen V3 canary reconciled zero fill",
-  "status": "PHASE_15_SECOND_LIVE_CANARY_RECONCILED_ZERO_FILL",
+  "current_phase_name": "controlled live launch — continuous Telegram auto-approved fast-live candidate",
+  "status": "PHASE_15_CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_AUTHORIZED_NOT_ACTIVATED",
   "trading_mode": "RESEARCH",
   "live_trading_enabled": false,
   "verified_polymarket_horizons": [
@@ -4298,7 +4298,7 @@
     }
   },
   "phase_15_v3_live_canary": {
-    "status": "SECOND_LIVE_CANARY_RECONCILED_ZERO_FILL",
+    "status": "CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_AUTHORIZED_NOT_ACTIVATED",
     "authorization_date": "2026-09-23",
     "authorization_source": "User explicitly authorized live V3 and stated they can risk up to $10 per market.",
     "phase15_canary_authorized": true,
@@ -5338,7 +5338,7 @@
       "implementation_merge_commit": "2ef544b5a2af821e4b59fd00bd2615dbab3ca798",
       "reviewed_branch_commit": "523ba46ec22f8b47b505bf1e767152b49437912b",
       "implementation_path": "ops/telegram_auto_approver",
-      "approval_contract_git_blob_sha": "930b62514712bd40400550da3ea5bbed533198da",
+      "approval_contract_git_blob_sha": "5676efcb60840f4533a7f43b3c6a7efab9e97541",
       "target": "operator Telegram user account on the user's Mac",
       "live_auto_approve_authorized": true,
       "live_enable_value": "BP_TELEGRAM_AUTO_APPROVE=true",
@@ -5400,7 +5400,12 @@
       "last_successful_approval_message_id": 5469,
       "last_successful_approval_result": "rpc_returned:Approved.",
       "wrapped_callback_fix_network_attempt_consumed": true,
-      "wrapped_callback_fix_real_order_submitted": true
+      "wrapped_callback_fix_real_order_submitted": true,
+      "continuous_candidate_prompt_authorized": true,
+      "continuous_contract_upgrade_evidence": "docs/evidence/phase15_v3_telegram_auto_approver_continuous_upgrade_20260929T191739Z.json",
+      "continuous_contract_upgrade_main": "da02fc2aa3cf53289d6b7cf457d941e898b6fddf",
+      "continuous_contract_upgraded_at": "2026-09-29T19:17:46.361919+00:00",
+      "continuous_fast_live_auto_approval_authorized": true
     },
     "controlled_auto_approved_canary_authorization": {
       "status": "CONSUMED_REAL_SUBMISSION_RECORDED",
@@ -5787,6 +5792,39 @@
       "post_completion_unresolved_critical_reconciliation": 0,
       "completion_result": "PASS",
       "completion_evidence": "docs/evidence/phase-15-v3-second-canary-zero-fill-completion-pass-production-20260928.json"
+    },
+    "fast_live_preauthorization": {
+      "activation_performed": false,
+      "authorization_id": "phase15-v3-fast-live-auto-continuous-5d305254b06ef0cbce33065e",
+      "authorization_mode": "auto-telegram-continuous-v1",
+      "authorized": true,
+      "authorized_at": "2026-09-29T19:17:46.521722+00:00",
+      "authorized_at_main": "da02fc2aa3cf53289d6b7cf457d941e898b6fddf",
+      "auto_approval_contract_git_blob_sha": "5676efcb60840f4533a7f43b3c6a7efab9e97541",
+      "auto_approver_upgrade_evidence": "docs/evidence/phase15_v3_telegram_auto_approver_continuous_upgrade_20260929T191739Z.json",
+      "broad_autonomous_live_rollout_authorized": false,
+      "continuous_candidate_generated": true,
+      "deployment_performed": false,
+      "execution_version": "paper-execution-v3-frozen-v1",
+      "executor_country": "ZA",
+      "expires_at": "2026-09-30T03:17:46.438175+00:00",
+      "kill_switch_removed": false,
+      "max_consecutive_losses": 1,
+      "max_daily_loss_usd": 10,
+      "max_network_submission_attempts_per_intent": 1,
+      "max_total_exposure_usd": 10,
+      "max_trade_size_usd": 10,
+      "max_transit_seconds": 2,
+      "min_edge": 0.075,
+      "prediction_version": "v3-frozen-paper-v1",
+      "real_order_submitted": false,
+      "requires_telegram_approval": true,
+      "runtime_authorization_created": false,
+      "stake_growth_authorized": false,
+      "status": "AUTHORIZED_CONTINUOUS_SESSION",
+      "target_notional_usd": 5,
+      "v3_strategy_mutation_authorized": false,
+      "v4_mutation_authorized": false
     }
   },
   "phase_15_v3_paper_hotpath_rollout": {

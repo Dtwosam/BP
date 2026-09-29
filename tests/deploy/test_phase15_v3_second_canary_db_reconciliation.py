@@ -31,8 +31,8 @@ def test_second_canary_zero_fill_is_recorded_and_third_order_is_blocked() -> Non
     supervisor = gate["controlled_submission_supervisor"]
     recon = gate["second_canary_db_reconciliation"]
 
-    assert state["status"] == "PHASE_15_SECOND_LIVE_CANARY_RECONCILED_ZERO_FILL"
-    assert gate["status"] == "SECOND_LIVE_CANARY_RECONCILED_ZERO_FILL"
+    assert state["status"] == "PHASE_15_CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_AUTHORIZED_NOT_ACTIVATED"
+    assert gate["status"] == "CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_AUTHORIZED_NOT_ACTIVATED"
     assert gate["second_order_authorized"] is False
 
     assert auth["status"] == "CONSUMED_SUBMITTED_RECONCILIATION_REQUIRED"
