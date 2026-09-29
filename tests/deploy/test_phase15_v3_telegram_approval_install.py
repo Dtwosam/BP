@@ -34,6 +34,8 @@ def test_telegram_listener_unit_is_research_zero_money_and_secret_limited() -> N
         "NoNewPrivileges=true",
         "ProtectSystem=full",
         "ReadOnlyPaths=-/var/lib/bp/phase15-canary-prepare-watch",
+        "/var/lib/bp/phase15-fast-live/telegram-prepare",
+        "--additional-prepare-state-root /var/lib/bp/phase15-fast-live/telegram-prepare",
         "ReadWritePaths=/var/lib/bp/phase15-canary-telegram-approval",
         "ExecStart=/opt/bp/.venv/bin/python -S ",
     ):
@@ -54,6 +56,9 @@ def test_telegram_runner_requires_zero_money_runtime_and_explicit_handoff_enable
         "Telegram handoff command configured without explicit enable",
     ):
         assert marker in text
+    assert 'prepared_path.parent / "cancel.json"' in text
+    assert "BP V3 trade CANCELLED" in text
+    assert '"timeout": 2' in text
     ast.parse(text)
 
 

@@ -102,6 +102,41 @@ find "$release" -type f -exec chmod 0640 {} +
 
 runuser -u bp -- test -r "$release/scripts/run_phase15_v3_fast_live_source.py"
 runuser -u bp -- test -r "$release/src/bp_engine/execution/fast_live_prepare.py"
+runuser -u bp -- test -r "$release/scripts/run_phase15_v3_canary_telegram_approval.py"
+runuser -u bp -- test -r "$release/src/bp_engine/execution/telegram_approval.py"
+
+telegram_root=/opt/bp-phase15-telegram-approval
+telegram_release="$telegram_root/releases/$head"
+install -d -o root -g root -m 0755 "$telegram_root" "$telegram_root/releases"
+if [[ -e "$telegram_release" ]]; then
+  [[ -d "$telegram_release" && ! -L "$telegram_release" ]] || exit 36
+  for relative in \
+    scripts/run_phase15_v3_canary_telegram_approval.py \
+    src/bp_engine/execution/telegram_approval.py \
+    deploy/bp-phase15-canary-telegram-approval.service
+  do
+    cmp -s "$release/$relative" "$telegram_release/$relative" || exit 37
+  done
+else
+  install -d -o root -g bp -m 0750 \
+    "$telegram_release/scripts" \
+    "$telegram_release/src/bp_engine/execution" \
+    "$telegram_release/deploy"
+  install -o root -g bp -m 0640 \
+    "$release/scripts/run_phase15_v3_canary_telegram_approval.py" \
+    "$telegram_release/scripts/run_phase15_v3_canary_telegram_approval.py"
+  install -o root -g bp -m 0640 \
+    "$release/src/bp_engine/execution/telegram_approval.py" \
+    "$telegram_release/src/bp_engine/execution/telegram_approval.py"
+  install -o root -g bp -m 0640 \
+    "$release/deploy/bp-phase15-canary-telegram-approval.service" \
+    "$telegram_release/deploy/bp-phase15-canary-telegram-approval.service"
+fi
+runuser -u bp -- env \
+  PYTHONDONTWRITEBYTECODE=1 \
+  PYTHONPATH="$telegram_release/src" \
+  /opt/bp/.venv/bin/python -S -c \
+  'import bp_engine.execution.telegram_approval' >/dev/null
 
 venv="$root/.venv"
 bootstrap_venv="$root/.uv-bootstrap"
@@ -170,6 +205,8 @@ printf 'RECORDER_STAGE=PASS\n'
 printf 'RECORDER_FAST_LIVE_ACTIVE=false\n'
 printf 'RECORDER_FAST_LIVE_ENABLED=false\n'
 printf 'RECORDER_AUTHORIZATION_PRESENT=false\n'
+printf 'RECORDER_TELEGRAM_APPROVAL_RELEASE_STAGED=true\n'
+printf 'RECORDER_TELEGRAM_APPROVAL_RESTARTED=false\n'
 printf 'RECORDER_FAST_LIVE_PYTHON=3.12.14\n'
 REMOTE
 ) || {
@@ -296,6 +333,8 @@ printf 'RELEASE_HEAD=%s\n' "$HEAD"
 printf 'RELEASE_SHA256=%s\n' "$ARCHIVE_SHA"
 printf 'AUTHORIZATION_CREATED=false\n'
 printf 'PROJECT_STATE_STAGED=false\n'
+printf 'TELEGRAM_APPROVAL_RELEASE_STAGED=true\n'
+printf 'TELEGRAM_APPROVAL_RESTARTED=false\n'
 printf 'SERVICES_STARTED=false\n'
 printf 'SERVICES_ENABLED=false\n'
 printf 'PUBSUB_RESOURCES_MUTATED=false\n'

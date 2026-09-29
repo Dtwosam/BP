@@ -185,6 +185,199 @@ def test_marketable_fast_path_consumes_once_then_posts(
     ]
 
 
+def test_replay_finishes_pending_cancellation_without_second_post(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(module.polymarket, "CancelOrdersResponse", FakeCancelResponse)
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    client = FakeClient((("0.58", "20"),))
+    executor = FastLiveExecutor(
+        client=client,
+        safety_cache=_cache(now),
+        state_root=tmp_path / "state",
+        kill_switch_path=tmp_path / "KILL",
+        order_ttl_seconds=Decimal("0"),
+        official_stability_seconds=0,
+        continuous_session=True,
+        now_fn=lambda: now,
+    )
+    verified = _verified(now)
+    attempt_path = executor.attempt_path_for(verified)
+    result_path = executor.result_path_for(verified)
+    attempt = {
+        "intent_id": verified["intent_id"],
+        "prediction_id": verified["prediction_id"],
+        "paper_order_id": verified["paper_order_id"],
+        "request_sha256": verified["request_sha256"],
+        "network_submission_attempt_consumed": True,
+        "real_order_submitted": True,
+    }
+    attempt_path.write_text(json.dumps(attempt), encoding="utf-8")
+    preliminary = {
+        **attempt,
+        "status": "accepted",
+        "accepted": True,
+        "external_order_id": "order-fast-1",
+        "cancellation_pending": True,
+        "marketability": {
+            "requested_shares": "8.238141",
+        },
+    }
+    result_path.write_text(json.dumps(preliminary), encoding="utf-8")
+
+    recovered = executor.execute(verified)
+
+    assert recovered["status"] == "accepted"
+    assert recovered["replayed_result"] is True
+    assert recovered["cancellation_pending"] is False
+    assert recovered["cancellation"]["cancelled"] is True
+    assert (
+        recovered["official_reconciliation"][
+            "official_reconciliation_complete"
+        ]
+        is True
+    )
+    assert client.calls == [
+        "cancel",
+        "open_orders",
+        "trades",
+        "open_orders",
+        "trades",
+    ]
+    assert "post" not in client.calls
+    persisted = json.loads(result_path.read_text(encoding="utf-8"))
+    assert persisted["cancellation_pending"] is False
+
+
+def test_cancel_only_startup_recovery_scans_pending_continuous_results(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(module.polymarket, "CancelOrdersResponse", FakeCancelResponse)
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    client = FakeClient((("0.58", "20"),))
+    executor = FastLiveExecutor(
+        client=client,
+        safety_cache=_cache(now),
+        state_root=tmp_path / "state",
+        kill_switch_path=tmp_path / "KILL",
+        order_ttl_seconds=Decimal("0"),
+        official_stability_seconds=0,
+        continuous_session=True,
+        now_fn=lambda: now,
+    )
+    verified = _verified(now)
+    attempt_path = executor.attempt_path_for(verified)
+    result_path = executor.result_path_for(verified)
+    attempt = {
+        "intent_id": verified["intent_id"],
+        "prediction_id": verified["prediction_id"],
+        "paper_order_id": verified["paper_order_id"],
+        "request_sha256": verified["request_sha256"],
+        "authorization_id": verified["authorization_id"],
+        "network_submission_attempt_consumed": True,
+        "real_order_submitted": True,
+    }
+    attempt_path.write_text(json.dumps(attempt), encoding="utf-8")
+    result_path.write_text(
+        json.dumps(
+            {
+                **attempt,
+                "status": "accepted",
+                "accepted": True,
+                "external_order_id": "order-fast-1",
+                "cancellation_pending": True,
+                "marketability": {
+                    "requested_shares": "8.238141",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    recovered = executor.recover_pending_cancellations()
+
+    assert len(recovered) == 1
+    assert recovered[0]["recovered_pending_cancellation"] is True
+    assert recovered[0]["cancellation_pending"] is False
+    assert client.calls == [
+        "cancel",
+        "open_orders",
+        "trades",
+        "open_orders",
+        "trades",
+    ]
+    assert "post" not in client.calls
+
+    second = executor.recover_pending_cancellations()
+    assert len(second) == 1
+    assert second[0]["recovery_result_publish_pending"] is True
+    assert client.calls.count("cancel") == 1
+
+    executor.mark_recovery_result_published(second[0])
+
+    third = executor.recover_pending_cancellations()
+    assert third == []
+    assert client.calls.count("cancel") == 1
+
+
+def test_continuous_session_uses_one_attempt_marker_per_intent(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(module.polymarket, "AcceptedOrder", FakeAccepted)
+    monkeypatch.setattr(module.polymarket, "RejectedOrder", FakeRejected)
+    monkeypatch.setattr(module.polymarket, "CancelOrdersResponse", FakeCancelResponse)
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    client = FakeClient((("0.58", "20"),))
+    kill = tmp_path / "KILL"
+    executor = FastLiveExecutor(
+        client=client,
+        safety_cache=_cache(now),
+        state_root=tmp_path / "state",
+        kill_switch_path=kill,
+        order_ttl_seconds=Decimal("0"),
+        official_stability_seconds=0,
+        continuous_session=True,
+        now_fn=lambda: now,
+    )
+
+    first = _verified(now)
+    first_result = executor.execute(first)
+    assert first_result["status"] == "accepted"
+    assert executor.attempt_path_for(first).is_file()
+    assert executor.result_path_for(first).is_file()
+    assert not executor.attempt_path.exists()
+    assert not executor.result_path.exists()
+    assert not kill.exists()
+
+    replay = executor.execute(first)
+    assert replay["replayed_result"] is True
+    assert client.calls.count("post") == 1
+
+    second = _verified(now)
+    second["intent_id"] = "intent-fast-2"
+    second["request_id"] = "request-fast-2"
+    second["prediction_id"] = "prediction-fast-2"
+    second["paper_order_id"] = "paper-fast-2"
+    second["request_sha256"] = "3" * 64
+    second["prepared_sha256"] = "4" * 64
+    second_request = dict(second["request"])
+    second_request["token_id"] = "token-fast-2"
+    second["request"] = second_request
+
+    second_result = executor.execute(second)
+    assert second_result["status"] == "accepted"
+    assert executor.attempt_path_for(second).is_file()
+    assert executor.result_path_for(second).is_file()
+    assert executor.attempt_path_for(second) != executor.attempt_path_for(first)
+    assert executor.result_path_for(second) != executor.result_path_for(first)
+    assert not executor.result_path.exists()
+    assert client.calls.count("post") == 2
+    assert not kill.exists()
+
+
 def test_streamed_book_skips_http_quote_round_trip(
     tmp_path: Path,
     monkeypatch,
@@ -419,3 +612,92 @@ def test_official_probe_confirms_partial_fill_without_assuming_settlement() -> N
     assert official["fill_state"] == "confirmed_fill"
     assert official["official_reconciliation_complete"] is True
 
+
+
+def test_presign_prepare_does_not_post_until_execute(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(module.polymarket, "AcceptedOrder", FakeAccepted)
+    monkeypatch.setattr(module.polymarket, "RejectedOrder", FakeRejected)
+    monkeypatch.setattr(module.polymarket, "CancelOrdersResponse", FakeCancelResponse)
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    client = FakeClient((("0.58", "20"),))
+    executor = FastLiveExecutor(
+        client=client,
+        safety_cache=_cache(now),
+        state_root=tmp_path / "state",
+        kill_switch_path=tmp_path / "KILL",
+        order_ttl_seconds=Decimal("0"),
+        official_stability_seconds=0,
+        now_fn=lambda: now,
+    )
+
+    prepared = executor.prepare_order(_verified(now))
+
+    assert client.calls == ["sign"]
+    assert not executor.attempt_path.exists()
+
+    result = executor.execute(_verified(now), prepared_order=prepared)
+
+    assert result["status"] == "accepted"
+    assert client.calls[0] == "sign"
+    assert client.calls.count("sign") == 1
+    assert client.calls.index("post") > client.calls.index("book")
+    assert executor.attempt_path.is_file()
+
+
+def test_presigned_preview_order_can_join_same_request_final_intent(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(module.polymarket, "AcceptedOrder", FakeAccepted)
+    monkeypatch.setattr(module.polymarket, "RejectedOrder", FakeRejected)
+    monkeypatch.setattr(module.polymarket, "CancelOrdersResponse", FakeCancelResponse)
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    client = FakeClient((("0.58", "20"),))
+    executor = FastLiveExecutor(
+        client=client,
+        safety_cache=_cache(now),
+        state_root=tmp_path / "state",
+        kill_switch_path=tmp_path / "KILL",
+        order_ttl_seconds=Decimal("0"),
+        official_stability_seconds=0,
+        continuous_session=True,
+        now_fn=lambda: now,
+    )
+
+    preview = _verified(now)
+    preview["intent_id"] = "candidate-fast-preview"
+    prepared = executor.prepare_order(preview)
+
+    final = _verified(now)
+    final["intent_id"] = "intent-fast-final"
+    final["risk_decision_id"] = "risk-fast-final"
+    result = executor.execute(final, prepared_order=prepared)
+
+    assert result["status"] == "accepted"
+    assert result["intent_id"] == "intent-fast-final"
+    assert client.calls.count("sign") == 1
+    assert client.calls.count("post") == 1
+    assert executor.attempt_path_for(final).is_file()
+    assert not executor.attempt_path_for(preview).exists()
+
+
+def test_presigned_order_cannot_be_reused_for_different_request(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    client = FakeClient((("0.58", "20"),))
+    executor = FastLiveExecutor(
+        client=client,
+        safety_cache=_cache(now),
+        state_root=tmp_path / "state",
+        kill_switch_path=tmp_path / "KILL",
+        now_fn=lambda: now,
+    )
+    verified = _verified(now)
+    prepared = executor.prepare_order(verified)
+    changed = _verified(now)
+    changed["request_sha256"] = "9" * 64
+
+    with pytest.raises(FastLiveError, match="prepared order request hash mismatch"):
+        executor.execute(changed, prepared_order=prepared)
+
+    assert "post" not in client.calls
+    assert not executor.attempt_path.exists()

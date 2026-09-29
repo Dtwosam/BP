@@ -58,6 +58,31 @@ def _api(token: str, method: str, payload: dict[str, Any], *, timeout: int = 20)
     return body
 
 
+def _prompt_text(
+    prepared: dict[str, Any],
+    *,
+    observed_at: datetime,
+) -> str:
+    if str(prepared.get("risk_status") or "") != "pending":
+        return build_prompt(prepared, observed_at=observed_at)
+
+    validated = validate_prepared(prepared, observed_at=observed_at)
+    side = str(validated["selected_side"]).upper()
+    remaining = float(validated["seconds_remaining"])
+    return (
+        "BP V3 LIVE TRADE CANDIDATE\n\n"
+        f"Side: {side}\n"
+        f"Limit: {validated['limit_price']}\n"
+        f"Shares: {validated['requested_shares']}\n"
+        f"Maximum spend: ${validated['target_notional_usd']}\n"
+        f"Time remaining: {remaining:.1f}s\n\n"
+        "Final live risk and Johannesburg execution checks are still running. "
+        "Approval does not bypass them.\n\n"
+        "Approve only if you want this exact real-money order submitted "
+        "when every final gate passes."
+    )
+
+
 def _send_prompt(
     *,
     token: str,
@@ -84,7 +109,7 @@ def _send_prompt(
         "sendMessage",
         {
             "chat_id": chat_id,
-            "text": build_prompt(prepared, observed_at=_utc_now()),
+            "text": _prompt_text(prepared, observed_at=_utc_now()),
             "reply_markup": markup,
             "disable_notification": False,
         },
@@ -120,6 +145,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--approval-state-root",
         default="/var/lib/bp/phase15-canary-telegram-approval",
+    )
+    parser.add_argument(
+        "--additional-prepare-state-root",
+        action="append",
+        default=[],
     )
     parser.add_argument("--poll-seconds", type=float, default=0.25)
     return parser.parse_args()
@@ -320,13 +350,48 @@ def _wait_for_decision(
     state_dir: Path,
 ) -> dict[str, Any]:
     offset = 0
+    cancel_path = prepared_path.parent / "cancel.json"
+
+    def cancelled_record() -> dict[str, Any] | None:
+        if not cancel_path.is_file():
+            return None
+        try:
+            cancel = _load_json(cancel_path)
+        except Exception:
+            cancel = {}
+        record = {
+            **_expiry_record(pending),
+            "cancel_reason": str(cancel.get("reason") or "risk_not_eligible"),
+            "cancelled_at": str(
+                cancel.get("cancelled_at") or _utc_now().isoformat()
+            ),
+        }
+        _atomic_json(state_dir / "approval.json", record)
+        try:
+            _edit_result(
+                token,
+                chat_id=int(pending["telegram_chat_id"]),
+                message_id=message_id,
+                text=(
+                    "BP V3 trade CANCELLED\n"
+                    f"Intent: {pending['intent_id']}\n"
+                    f"Reason: {record['cancel_reason']}"
+                ),
+            )
+        except Exception:
+            pass
+        return record
+
     while True:
+        cancelled = cancelled_record()
+        if cancelled is not None:
+            return cancelled
         try:
             updates = _api(
                 token,
                 "getUpdates",
-                {"offset": offset, "timeout": 10, "allowed_updates": ["callback_query"]},
-                timeout=15,
+                {"offset": offset, "timeout": 2, "allowed_updates": ["callback_query"]},
+                timeout=5,
             ).get("result", [])
         except Exception as exc:
             _atomic_json(
@@ -342,6 +407,9 @@ def _wait_for_decision(
             time.sleep(1)
             continue
 
+        cancelled = cancelled_record()
+        if cancelled is not None:
+            return cancelled
         if not isinstance(updates, list):
             updates = []
         for update in updates:
@@ -440,14 +508,22 @@ def main() -> int:
             "BP_TELEGRAM_USER_ID and BP_TELEGRAM_CHAT_ID are required integers"
         ) from exc
 
-    prepare_root = Path(args.prepare_state_root)
+    prepare_roots = [
+        Path(value) for value in args.additional_prepare_state_root
+    ]
+    prepare_roots.append(Path(args.prepare_state_root))
     approval_root = Path(args.approval_state_root)
     approval_root.mkdir(parents=True, exist_ok=True)
     os.chmod(approval_root, 0o700)
     handoff_command = _handoff_command()
 
     while True:
-        run_dir = _current_run(prepare_root)
+        run_dir = None
+        for prepare_root in prepare_roots:
+            candidate = _current_run(prepare_root)
+            if candidate is not None and (candidate / "prepared.json").is_file():
+                run_dir = candidate
+                break
         if run_dir is None:
             time.sleep(args.poll_seconds)
             continue

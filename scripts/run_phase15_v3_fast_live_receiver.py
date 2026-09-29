@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import threading
 import time
 import urllib.request
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -15,12 +16,17 @@ import polymarket
 from google.cloud import pubsub_v1
 
 from bp_engine.execution.fast_live import (
+    FAST_LIVE_APPROVAL_PURPOSE,
+    FAST_LIVE_PREPARE_PURPOSE,
     FAST_LIVE_PURPOSE,
+    FAST_LIVE_RESULT_STALL_SECONDS,
     FAST_LIVE_WARMUP_PURPOSE,
     FastLiveError,
     create_result_message,
     load_private_json,
+    verify_approval_message,
     verify_envelope,
+    verify_prepare_message,
     verify_runtime_authorization,
     verify_warmup_message,
 )
@@ -43,7 +49,7 @@ def _utc_now() -> datetime:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Receive and execute one pre-authorized fast-live V3 order."
+        description="Run the continuous Telegram-approved fast-live V3 receiver."
     )
     parser.add_argument(
         "--project-state",
@@ -84,6 +90,95 @@ def _require_runtime() -> None:
         raise SystemExit("fast live executor is not explicitly enabled")
     if not os.environ.get("POLYMARKET_PRIVATE_KEY", "").strip():
         raise SystemExit("POLYMARKET_PRIVATE_KEY is required")
+
+
+def _telegram_approval_required() -> bool:
+    return (
+        os.environ.get("BP_FAST_LIVE_TELEGRAM_APPROVAL_REQUIRED", "no")
+        .strip()
+        .lower()
+        == "yes"
+    )
+
+
+def _continuous_session() -> bool:
+    return (
+        os.environ.get("BP_FAST_LIVE_CONTINUOUS_SESSION", "no")
+        .strip()
+        .lower()
+        == "yes"
+    )
+
+
+def _approval_decision_paths(
+    state_root: Path,
+    approved: dict[str, Any],
+) -> tuple[Path, Path]:
+    identity = "\0".join(
+        (
+            str(approved.get("intent_id") or ""),
+            str(approved.get("request_sha256") or ""),
+            str(approved.get("approval_sha256") or ""),
+        )
+    )
+    key = hashlib.sha256(identity.encode("utf-8")).hexdigest()
+    decision_root = state_root / "approval-decisions" / key
+    decision_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(decision_root, 0o700)
+    return decision_root / "claim.json", decision_root / "result.json"
+
+
+def _claim_approval_once(path: Path, approved: dict[str, Any]) -> bool:
+    payload = {
+        "schema_version": 1,
+        "intent_id": str(approved["intent_id"]),
+        "request_sha256": str(approved["request_sha256"]),
+        "approval_sha256": str(approved["approval_sha256"]),
+        "claimed_at": _utc_now().isoformat(),
+    }
+    encoded = (
+        json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n"
+    ).encode()
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        return False
+    try:
+        os.write(fd, encoded)
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    return True
+
+
+def _write_approval_result(path: Path, result: dict[str, Any]) -> None:
+    encoded = (
+        json.dumps(
+            result,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        )
+        + "\n"
+    ).encode()
+    temp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        os.write(fd, encoded)
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    os.replace(temp, path)
+
+
+def _load_approval_result(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise FastLiveError("fast live approval result invalid") from exc
+    if not isinstance(payload, dict):
+        raise FastLiveError("fast live approval result must be an object")
+    return payload
 
 
 def _load_state(path: Path) -> dict[str, Any]:
@@ -249,52 +344,53 @@ def main() -> int:
     if not 0.1 <= args.safety_refresh_seconds <= 1:
         raise SystemExit("safety refresh seconds must be within 0.1..1")
 
+    approval_required = _telegram_approval_required()
+    continuous_session = _continuous_session()
+    if continuous_session and not approval_required:
+        raise SystemExit(
+            "continuous fast live requires Telegram approval"
+        )
     state = _load_state(args.project_state)
     runtime = load_private_json(
         args.runtime_authorization,
         label="fast live runtime authorization",
     )
+    runtime_expires_raw = datetime.fromisoformat(
+        str(runtime.get("expires_at") or "")
+    )
+    if (
+        runtime_expires_raw.tzinfo is None
+        or runtime_expires_raw.utcoffset() is None
+    ):
+        raise SystemExit(
+            "runtime authorization expires_at must be timezone-aware"
+        )
+    runtime_expires_at = runtime_expires_raw.astimezone(UTC)
+    startup_observed_at = _utc_now()
+    authorization_validation_observed_at = startup_observed_at
+    if startup_observed_at >= runtime_expires_at:
+        authorization_validation_observed_at = (
+            runtime_expires_at - timedelta(microseconds=1)
+        )
     verified_runtime = verify_runtime_authorization(
         runtime,
         state=state,
         expected_main=args.expected_main,
-        observed_at=_utc_now(),
+        observed_at=authorization_validation_observed_at,
+        requires_telegram_approval=approval_required,
+        continuous_session=continuous_session,
     )
-    runtime_expires_at = datetime.fromisoformat(
-        str(verified_runtime["expires_at"])
-    ).astimezone(UTC)
+    runtime_expired_at_startup = (
+        startup_observed_at >= runtime_expires_at
+    )
     key = load_transport_key_file(args.transport_key_file)
 
     execution_client = _secure_client()
-    safety_client = _secure_client()
-    cache = SafetyCache()
-    refresher = SafetyRefresher(
-        client=safety_client,
-        cache=cache,
-        refresh_seconds=args.safety_refresh_seconds,
-    )
-    refresher.start()
-    book_cache = StreamingBookCache()
-    book_cache.start()
-
-    executor = FastLiveExecutor(
-        client=execution_client,
-        safety_cache=cache,
-        book_cache=book_cache,
-        state_root=args.state_root,
-        kill_switch_path=args.kill_switch,
-    )
-    subscriber = pubsub_v1.SubscriberClient()
-    subscription_path = subscriber.subscription_path(
-        args.gcp_project,
-        args.subscription_id,
-    )
     result_publisher = pubsub_v1.PublisherClient()
     result_topic_path = result_publisher.topic_path(
         args.gcp_project,
         args.result_topic_id,
     )
-    terminal_event = threading.Event()
 
     def publish_result(
         result: dict[str, Any],
@@ -327,9 +423,106 @@ def main() -> int:
         )
         return str(future.result(timeout=2.0))
 
+    recovery_executor = FastLiveExecutor(
+        client=execution_client,
+        safety_cache=SafetyCache(),
+        state_root=args.state_root,
+        kill_switch_path=args.kill_switch,
+        continuous_session=continuous_session,
+    )
+    recovered_results = (
+        recovery_executor.recover_pending_cancellations()
+    )
+    for recovered in recovered_results:
+        if str(recovered.get("authorization_id") or "") != str(
+            verified_runtime["authorization_id"]
+        ):
+            raise FastLiveError(
+                "recovered result authorization mismatch"
+            )
+        message_id = publish_result(
+            recovered,
+            runtime_authorization=verified_runtime,
+        )
+        recovery_executor.mark_recovery_result_published(recovered)
+        print(
+            json.dumps(
+                {
+                    "status": "fast_live_pending_cancellation_recovered",
+                    "intent_id": recovered.get("intent_id"),
+                    "request_sha256": recovered.get("request_sha256"),
+                    "result_message_id": message_id,
+                    "authorization_expired": runtime_expired_at_startup,
+                    "network_submission_attempt_consumed": True,
+                    "real_order_submitted": True,
+                    "observed_at": _utc_now().isoformat(),
+                },
+                sort_keys=True,
+            ),
+            flush=True,
+        )
+
+    if runtime_expired_at_startup:
+        print(
+            json.dumps(
+                {
+                    "status": "fast_live_receiver_recovery_only_complete",
+                    "recovered_result_count": len(recovered_results),
+                    "authorization_expired": True,
+                    "observed_at": _utc_now().isoformat(),
+                },
+                sort_keys=True,
+            ),
+            flush=True,
+        )
+        result_publisher.stop()
+        return 0
+
+    safety_client = _secure_client()
+    cache = SafetyCache()
+    refresher = SafetyRefresher(
+        client=safety_client,
+        cache=cache,
+        refresh_seconds=args.safety_refresh_seconds,
+    )
+    refresher.start()
+    book_cache = StreamingBookCache()
+    book_cache.start()
+
+    executor = FastLiveExecutor(
+        client=execution_client,
+        safety_cache=cache,
+        book_cache=book_cache,
+        state_root=args.state_root,
+        kill_switch_path=args.kill_switch,
+        continuous_session=continuous_session,
+    )
+    subscriber = pubsub_v1.SubscriberClient()
+    subscription_path = subscriber.subscription_path(
+        args.gcp_project,
+        args.subscription_id,
+    )
+    terminal_event = threading.Event()
+    prepared_lock = threading.Lock()
+    approval_execution_lock = threading.Lock()
+    callback_activity_lock = threading.Lock()
+    callback_idle = threading.Event()
+    callback_idle.set()
+    active_callbacks = 0
+    accepting_callbacks = True
+    prepared_orders: dict[tuple[str, str], dict[str, Any]] = {}
+
     def callback(message: object) -> None:
+        nonlocal active_callbacks
         received_at = _utc_now()
+        with callback_activity_lock:
+            if not accepting_callbacks:
+                message.ack()
+                return
+            active_callbacks += 1
+            callback_idle.clear()
         order_verified = False
+        verified: dict[str, Any] | None = None
         try:
             state_now = _load_state(args.project_state)
             runtime_now = load_private_json(
@@ -341,8 +534,21 @@ def main() -> int:
                 state=state_now,
                 expected_main=args.expected_main,
                 observed_at=received_at,
+                requires_telegram_approval=approval_required,
+                continuous_session=continuous_session,
             )
             payload, attributes = _decode_message(message)
+            with prepared_lock:
+                stale_keys = [
+                    cache_key
+                    for cache_key, cached in prepared_orders.items()
+                    if datetime.fromisoformat(
+                        str(cached["verified"]["expires_at"])
+                    ).astimezone(UTC)
+                    <= received_at
+                ]
+                for cache_key in stale_keys:
+                    prepared_orders.pop(cache_key, None)
             purpose = str(payload.get("purpose") or "")
             if purpose == FAST_LIVE_WARMUP_PURPOSE:
                 if attributes.get("condition_id") != str(
@@ -381,8 +587,240 @@ def main() -> int:
                 )
                 message.ack()
                 return
+            if purpose == FAST_LIVE_PREPARE_PURPOSE:
+                if not approval_required:
+                    raise FastLiveError(
+                        "fast live prepare received outside Telegram approval mode"
+                    )
+                required_attributes = {
+                    "intent_id": str(payload.get("intent_id") or ""),
+                    "request_sha256": str(payload.get("request_sha256") or ""),
+                }
+                if any(
+                    attributes.get(name) != value
+                    for name, value in required_attributes.items()
+                ):
+                    raise FastLiveError("fast live prepare attributes mismatch")
+                verified = verify_prepare_message(
+                    payload,
+                    runtime_authorization=runtime_now,
+                    key=key,
+                    expected_key_id=args.transport_key_id,
+                    observed_at=received_at,
+                )
+                prepared_order = executor.prepare_order(verified)
+                cache_key = (
+                    str(verified["prediction_id"]),
+                    str(verified["request_sha256"]),
+                )
+                with prepared_lock:
+                    prepared_orders[cache_key] = {
+                        "verified": verified,
+                        "prepared_order": prepared_order,
+                        "prepared_sha256": str(verified["prepared_sha256"]),
+                    }
+                print(
+                    json.dumps(
+                        {
+                            "status": "fast_live_prepared_waiting_for_telegram",
+                            "intent_id": verified["intent_id"],
+                            "request_sha256": verified["request_sha256"],
+                            "prepared_sha256": verified["prepared_sha256"],
+                            "sign_latency_ms": prepared_order.sign_latency_ms,
+                            "network_submission_attempt_consumed": False,
+                            "real_order_submitted": False,
+                        },
+                        sort_keys=True,
+                    ),
+                    flush=True,
+                )
+                message.ack()
+                return
+            if purpose == FAST_LIVE_APPROVAL_PURPOSE:
+                if not approval_required:
+                    raise FastLiveError(
+                        "fast live approval received outside Telegram approval mode"
+                    )
+                required_attributes = {
+                    "intent_id": str(payload.get("intent_id") or ""),
+                    "request_sha256": str(payload.get("request_sha256") or ""),
+                }
+                if any(
+                    attributes.get(name) != value
+                    for name, value in required_attributes.items()
+                ):
+                    raise FastLiveError("fast live approval attributes mismatch")
+                approved = verify_approval_message(
+                    payload,
+                    runtime_authorization=runtime_now,
+                    key=key,
+                    expected_key_id=args.transport_key_id,
+                    observed_at=received_at,
+                )
+                cache_key = (
+                    str(approved["prediction_id"]),
+                    str(approved["request_sha256"]),
+                )
+                verified = {
+                    "authorization_id": str(approved["authorization_id"]),
+                    "intent_id": str(approved["intent_id"]),
+                    "request_id": str(
+                        approved["prepared"].get("request_id") or ""
+                    ),
+                    "risk_decision_id": str(
+                        approved["prepared"].get("risk_decision_id") or ""
+                    ),
+                    "prediction_id": str(approved["prediction_id"]),
+                    "paper_order_id": str(approved["paper_order_id"]),
+                    "request_sha256": str(approved["request_sha256"]),
+                    "prepared_sha256": str(approved["prepared_sha256"]),
+                    "created_at": str(approved["created_at"]),
+                    "expires_at": str(approved["expires_at"]),
+                    "request": dict(approved["request"]),
+                }
+                with approval_execution_lock:
+                    with prepared_lock:
+                        cached = prepared_orders.pop(cache_key, None)
+                    if cached is None:
+                        prepare_created_at = str(
+                            approved["prepared"]["timing"][
+                                "prepared_observed_at"
+                            ]
+                        )
+                        prepare_recovered_after_restart = True
+                    else:
+                        if str(cached["prepared_sha256"]) != str(
+                            approved["prepare_sha256"]
+                        ):
+                            raise FastLiveError(
+                                "fast live approval prepare hash mismatch"
+                            )
+                        if str(cached["verified"]["request_sha256"]) != str(
+                            approved["request_sha256"]
+                        ):
+                            raise FastLiveError(
+                                "fast live approval prepared request mismatch"
+                            )
+                        prepare_created_at = str(
+                            cached["verified"]["created_at"]
+                        )
+                        prepare_recovered_after_restart = False
+
+                    claim_path, approval_result_path = _approval_decision_paths(
+                        args.state_root,
+                        approved,
+                    )
+                    claimed = _claim_approval_once(claim_path, approved)
+                    if approval_result_path.is_file():
+                        result = _load_approval_result(approval_result_path)
+                        result["approval_decision_replayed"] = True
+                    elif not claimed:
+                        if executor.attempt_path_for(verified).exists():
+                            order_verified = True
+                            result = executor.execute(verified)
+                            result["approval_decision_recovered"] = True
+                        else:
+                            result = {
+                                "status": "approval_recovery_blocked",
+                                "intent_id": verified["intent_id"],
+                                "prediction_id": verified["prediction_id"],
+                                "paper_order_id": verified["paper_order_id"],
+                                "request_sha256": verified["request_sha256"],
+                                "network_submission_attempt_consumed": False,
+                                "real_order_submitted": False,
+                                "external_order_id": None,
+                                "approval_decision_recovered": False,
+                            }
+                        _write_approval_result(
+                            approval_result_path,
+                            result,
+                        )
+                    else:
+                        try:
+                            prepared_order = (
+                                None
+                                if cached is None
+                                else cached["prepared_order"]
+                            )
+                            order_verified = True
+                            result = execute_with_bounded_pre_attempt_retry(
+                                executor,
+                                verified,
+                                prepared_order=prepared_order,
+                            )
+                        except FastLiveError as exc:
+                            if executor.attempt_path_for(verified).exists():
+                                raise
+                            result = {
+                                "status": "pre_submission_blocked",
+                                "intent_id": verified["intent_id"],
+                                "prediction_id": verified["prediction_id"],
+                                "paper_order_id": verified["paper_order_id"],
+                                "request_sha256": verified["request_sha256"],
+                                "reason": str(exc),
+                                "error_type": type(exc).__name__,
+                                "network_submission_attempt_consumed": False,
+                                "real_order_submitted": False,
+                                "external_order_id": None,
+                            }
+                        result["approval_decision_replayed"] = False
+                        _write_approval_result(
+                            approval_result_path,
+                            result,
+                        )
+
+                    result["prepare_recovered_after_restart"] = (
+                        prepare_recovered_after_restart
+                    )
+                    result["prepare_created_at"] = prepare_created_at
+                    result["approval_created_at"] = str(approved["created_at"])
+                    result["approval_received_at"] = received_at.isoformat()
+                    approval_created = datetime.fromisoformat(
+                        str(approved["created_at"])
+                    ).astimezone(UTC)
+                    result["approval_to_receive_ms"] = (
+                        received_at - approval_created
+                    ).total_seconds() * 1000
+                try:
+                    result_message_id = publish_result(
+                        result,
+                        runtime_authorization=runtime_now,
+                    )
+                except Exception as exc:
+                    print(
+                        json.dumps(
+                            {
+                                "status": "fast_live_result_publish_failed",
+                                "error": type(exc).__name__,
+                                "intent_id": result.get("intent_id"),
+                                "request_sha256": result.get("request_sha256"),
+                                "network_submission_attempt_consumed": result.get(
+                                    "network_submission_attempt_consumed"
+                                )
+                                is True,
+                                "observed_at": _utc_now().isoformat(),
+                            },
+                            sort_keys=True,
+                        ),
+                        flush=True,
+                    )
+                    message.nack()
+                    return
+                result["result_message_id"] = result_message_id
+                print(json.dumps(result, sort_keys=True, default=str), flush=True)
+                message.ack()
+                if (
+                    not continuous_session
+                    and result.get("network_submission_attempt_consumed") is True
+                ):
+                    terminal_event.set()
+                return
             if purpose != FAST_LIVE_PURPOSE:
                 raise FastLiveError("fast live message purpose invalid")
+            if approval_required:
+                raise FastLiveError(
+                    "direct fast live order forbidden in Telegram approval mode"
+                )
             required_attributes = {
                 "intent_id": str(payload.get("intent_id") or ""),
                 "request_sha256": str(payload.get("request_sha256") or ""),
@@ -438,7 +876,10 @@ def main() -> int:
             result["result_message_id"] = result_message_id
             print(json.dumps(result, sort_keys=True, default=str), flush=True)
             message.ack()
-            if result.get("network_submission_attempt_consumed") is True:
+            if (
+                not continuous_session
+                and result.get("network_submission_attempt_consumed") is True
+            ):
                 terminal_event.set()
         except Exception as exc:
             print(
@@ -449,32 +890,69 @@ def main() -> int:
                         "message_id": str(getattr(message, "message_id", "") or ""),
                         "observed_at": received_at.isoformat(),
                         "network_submission_attempt_consumed": (
-                            executor.attempt_path.exists()
+                            executor.attempt_path_for(verified).exists()
+                            if verified is not None
+                            else False
                         ),
                     },
                     sort_keys=True,
                 ),
                 flush=True,
             )
-            if order_verified and executor.attempt_path.exists():
+            if (
+                order_verified
+                and verified is not None
+                and executor.attempt_path_for(verified).exists()
+            ):
                 message.nack()
             else:
                 message.ack()
+        finally:
+            with callback_activity_lock:
+                active_callbacks -= 1
+                if active_callbacks == 0:
+                    callback_idle.set()
 
     future = subscriber.subscribe(subscription_path, callback=callback)
+    drain_timeout_seconds = float(FAST_LIVE_RESULT_STALL_SECONDS)
+
+    def stop_accepting_and_drain() -> None:
+        nonlocal accepting_callbacks
+        with callback_activity_lock:
+            accepting_callbacks = False
+            already_idle = active_callbacks == 0
+        future.cancel()
+        if not already_idle and not callback_idle.wait(
+            timeout=drain_timeout_seconds
+        ):
+            print(
+                json.dumps(
+                    {
+                        "status": "fast_live_callback_drain_timeout",
+                        "active_callbacks": active_callbacks,
+                        "network_submission_attempt_consumed": None,
+                        "real_order_submitted": None,
+                        "observed_at": _utc_now().isoformat(),
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+
     try:
         while True:
             if terminal_event.wait(timeout=0.25):
-                future.cancel()
+                stop_accepting_and_drain()
                 break
             if _utc_now() >= runtime_expires_at:
-                future.cancel()
+                stop_accepting_and_drain()
                 break
             if future.done():
+                stop_accepting_and_drain()
                 future.result()
                 break
     except KeyboardInterrupt:
-        future.cancel()
+        stop_accepting_and_drain()
     finally:
         book_cache.stop()
         refresher.stop()

@@ -3,8 +3,13 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+import pytest
+
 from bp_engine.execution.fast_live_prepare import (
+    FastLiveDraftUnavailable,
+    _has_preview_arm_window,
     build_fast_live_draft,
+    continuous_fast_live_policy,
     frozen_v3_paper_config,
 )
 from bp_engine.execution.paper import PaperOrderDraft, build_paper_order
@@ -70,3 +75,39 @@ def test_fast_live_frozen_config_remains_exact() -> None:
     assert config.share_precision == 6
     assert config.execution_version == "paper-execution-v3-frozen-v1"
     assert config.prediction_version == "v3-frozen-paper-v1"
+
+
+def test_continuous_fast_live_policy_has_no_canary_cooldown() -> None:
+    policy = continuous_fast_live_policy()
+    assert policy.cooldown_seconds == Decimal("0")
+    assert policy.max_trade_size_usd == Decimal("10")
+    assert policy.max_total_exposure_usd == Decimal("10")
+    assert policy.max_daily_loss_usd == Decimal("10")
+    assert policy.max_consecutive_losses == 1
+    assert policy.min_edge == Decimal("0.075")
+
+
+
+def test_preview_arm_window_rejects_too_late_signal() -> None:
+    prediction = _prediction()
+
+    assert _has_preview_arm_window(
+        prediction,
+        observed_at=BASE + timedelta(seconds=30),
+    ) is True
+    assert _has_preview_arm_window(
+        prediction,
+        observed_at=BASE + timedelta(seconds=31),
+    ) is False
+
+
+
+def test_fast_live_draft_terminal_is_classified_for_continuous_blocking() -> None:
+    with pytest.raises(FastLiveDraftUnavailable) as exc_info:
+        build_fast_live_draft(
+            _prediction(),
+            available_paper_cash=Decimal("0"),
+        )
+
+    assert exc_info.value.status == "INSUFFICIENT_PAPER_CASH"
+    assert "available paper cash is not positive" in exc_info.value.reason

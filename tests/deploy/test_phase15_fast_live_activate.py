@@ -19,14 +19,17 @@ def test_fast_live_activation_helper_is_shell_valid() -> None:
     assert completed.returncode == 0, completed.stderr
 
 
-def test_fast_live_activation_requires_fresh_one_shot_authorization() -> None:
+def test_fast_live_activation_requires_continuous_manual_session_authorization() -> None:
     text = ACTIVATE.read_text(encoding="utf-8")
     for marker in (
-        "I_ACCEPT_ONE_REAL_MONEY_ATTEMPT",
+        "I_ACCEPT_CONTINUOUS_TELEGRAM_APPROVED_LIVE_SESSION",
         "verify_source_authorization",
         "verify_runtime_authorization",
-        "max_network_submission_attempts",
-        "runtime_window_exceeds_one_hour",
+        "manual-telegram-continuous-v1",
+        "max_network_submission_attempts_per_intent",
+        "BP_FAST_LIVE_TELEGRAM_APPROVAL_REQUIRED=yes",
+        "BP_FAST_LIVE_CONTINUOUS_SESSION=yes",
+        "telegram-prepare/current-run",
         '[[ "$HEAD" == "$REMOTE_MAIN" ]]',
         "working_tree_not_clean",
     ):
@@ -60,6 +63,9 @@ def test_fast_live_activation_uses_fresh_per_authorization_transport() -> None:
 
 def test_fast_live_activation_starts_receiver_armed_then_releases_and_starts_source() -> None:
     text = ACTIVATE.read_text(encoding="utf-8")
+    telegram_start = text.index(
+        "sudo systemctl restart bp-phase15-canary-telegram-approval.service"
+    )
     receiver_start = text.index(
         "sudo systemctl start bp-phase15-fast-live-receiver.service"
     )
@@ -69,7 +75,7 @@ def test_fast_live_activation_starts_receiver_armed_then_releases_and_starts_sou
     source_start = text.index(
         "sudo systemctl start bp-phase15-fast-live-source.service"
     )
-    assert receiver_start < kill_release < source_start
+    assert telegram_start < receiver_start < kill_release < source_start
 
     for marker in (
         "safe_stop()",
@@ -78,10 +84,31 @@ def test_fast_live_activation_starts_receiver_armed_then_releases_and_starts_sou
         "sudo systemctl stop bp-phase15-fast-live-source.service",
         "sudo test ! -e /var/lib/bp-canary/fast-live/attempt.json",
         "sudo test ! -e /var/lib/bp-canary/fast-live/result.json",
+        "cancellation_pending\\\":true",
+        "recovery_result_publish_pending\\\":true",
+        "recorder_prior_live_recovery_pending",
+        "/var/lib/bp/phase15-fast-live/published",
+        "settlement_reconciliation_required",
+        "\\${receipt##*/}",
+        "\\${result##*/}",
+        "\\$root/results/\\$base",
+        "\\$root/settlements/\\$base",
         "clean_for_canary",
         'geo.get("country") != "ZA"',
         "open_orders != 0",
         'collateral < Decimal("5")',
+        "/opt/bp-phase15-telegram-approval/releases/$HEAD",
+        "/etc/bp/telegram-approval.env",
+        "/etc/bp/telegram-approval-handoff.env",
+        "telegram_approval_listener_start_failed",
+        "TELEGRAM_PREVIOUS_TARGET",
+        "TELEGRAM_PREVIOUS_ACTIVE",
+        "telegram_switched=false",
+        "telegram_switched=true",
+        ".fast-live-rollback",
+        "telegram_approval_previous_state_read_failed",
+        "TELEGRAM_APPROVAL_ACTIVE=true",
+        "TELEGRAM_APPROVAL_RELEASE_MAIN=%s",
     ):
         assert marker in text
 
@@ -89,7 +116,7 @@ def test_fast_live_activation_starts_receiver_armed_then_releases_and_starts_sou
     assert "systemctl enable --now bp-phase15-fast-live" not in text
 
 
-def test_fast_live_services_self_expire_after_authorization_or_attempt() -> None:
+def test_fast_live_services_run_until_session_expiry_or_operator_stop() -> None:
     source = SOURCE.read_text(encoding="utf-8")
     receiver = RECEIVER.read_text(encoding="utf-8")
 
@@ -100,6 +127,14 @@ def test_fast_live_services_self_expire_after_authorization_or_attempt() -> None
     assert "runtime_expires_at" in receiver
     assert "terminal_event = threading.Event()" in receiver
     assert 'result.get("network_submission_attempt_consumed") is True' in receiver
+    assert "not continuous_session" in receiver
     assert "terminal_event.set()" in receiver
     assert "if _utc_now() >= runtime_expires_at:" in receiver
     assert "future.cancel()" in receiver
+    assert "result_reconciliation_deadline" in source
+    assert "fast_live_result_reconciliation_grace" in source
+    assert "fast_live_result_reconciliation_stalled" in source
+
+    assert "if not continuous_session:" in source
+    assert 'status in {"skipped", "blocked"}' in source
+    assert "waiting_for_result = False" in source

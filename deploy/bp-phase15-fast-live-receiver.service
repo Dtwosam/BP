@@ -1,5 +1,5 @@
 [Unit]
-Description=BP Phase 15 pre-authorized fast-live Johannesburg receiver
+Description=BP Phase 15 continuous Telegram-approved Johannesburg receiver
 After=network-online.target
 Wants=network-online.target
 ConditionPathExists=/etc/bp-fast-live/authorization.json

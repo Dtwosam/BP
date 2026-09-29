@@ -94,6 +94,30 @@ def _result(
     }
 
 
+def _add_clean_account_snapshot(
+    engine,
+    *,
+    observed_at: datetime,
+    realized_daily_pnl_usd: str,
+    consecutive_losses: int,
+) -> None:
+    with engine.begin() as connection:
+        LiveReadinessRepository().store_reconciliation_run(
+            connection,
+            observed_at=observed_at,
+            unresolved_count=0,
+            critical_count=0,
+            evidence={
+                "source": "test-clean-account",
+                "account_snapshot": {
+                    "total_exposure_usd": "0",
+                    "realized_daily_pnl_usd": realized_daily_pnl_usd,
+                    "consecutive_losses": consecutive_losses,
+                },
+            },
+        )
+
+
 def _add_evaluation(engine, official_outcome: str) -> None:
     target = 1 if official_outcome == "Up" else 0
     with engine.begin() as connection:
@@ -152,6 +176,79 @@ def test_fresh_book_rejection_closes_without_consuming_attempt() -> None:
         )
     assert account.total_exposure_usd == 0
     assert account.unresolved_critical_reconciliation == 0
+
+
+def test_approval_recovery_blocked_closes_without_consuming_attempt() -> None:
+    engine = _engine()
+    result = _result("approval_recovery_blocked", attempted=False)
+    recorded = record_fast_live_result(
+        engine=engine,
+        result=result,
+        observed_at=BASE + timedelta(seconds=2),
+    )
+
+    assert recorded["event_type"] == "closed_before_submission"
+    assert recorded["official_reconciliation_required"] is False
+    latest = _latest_reconciliation(engine)
+    assert latest is not None
+    assert latest["unresolved_count"] == 0
+    assert latest["critical_count"] == 0
+
+
+def test_pre_submission_blocked_closes_without_consuming_attempt() -> None:
+    engine = _engine()
+    result = _result("pre_submission_blocked", attempted=False)
+    result["reason"] = "fast live kill switch engaged"
+    result["error_type"] = "FastLiveError"
+    recorded = record_fast_live_result(
+        engine=engine,
+        result=result,
+        observed_at=BASE + timedelta(seconds=2),
+    )
+
+    assert recorded["event_type"] == "closed_before_submission"
+    assert recorded["official_reconciliation_required"] is False
+    latest = _latest_reconciliation(engine)
+    assert latest is not None
+    assert latest["unresolved_count"] == 0
+    assert latest["critical_count"] == 0
+
+    with engine.begin() as connection:
+        event = connection.execute(
+            select(schema.live_order_events).where(
+                schema.live_order_events.c.intent_id == INTENT_ID,
+                schema.live_order_events.c.event_type
+                == "closed_before_submission",
+            )
+        ).mappings().one()
+    assert event["evidence"]["status"] == "pre_submission_blocked"
+    assert event["evidence"]["reason"] == "fast live kill switch engaged"
+    assert event["evidence"]["error_type"] == "FastLiveError"
+
+
+def test_new_utc_day_resets_daily_pnl_but_preserves_loss_counter() -> None:
+    engine = _engine()
+    _add_clean_account_snapshot(
+        engine,
+        observed_at=BASE + timedelta(hours=1),
+        realized_daily_pnl_usd="-9.25",
+        consecutive_losses=1,
+    )
+
+    next_day = datetime(2026, 9, 29, 0, 1, tzinfo=UTC)
+    result = _result("pre_submission_blocked", attempted=False)
+    result["reason"] = "fast live kill switch engaged"
+    record_fast_live_result(
+        engine=engine,
+        result=result,
+        observed_at=next_day,
+    )
+
+    latest = _latest_reconciliation(engine)
+    assert latest is not None
+    account = latest["evidence"]["account_snapshot"]
+    assert account["realized_daily_pnl_usd"] == "0"
+    assert account["consecutive_losses"] == 1
 
 
 def test_accepted_order_blocks_until_official_zero_fill() -> None:
@@ -373,6 +470,60 @@ def test_confirmed_fill_loss_settles_into_one_loss_stop() -> None:
     assert account.realized_daily_pnl_usd == expected_pnl
     assert account.consecutive_losses == 1
     assert account.unresolved_critical_reconciliation == 0
+
+
+def test_settlement_on_new_utc_day_starts_daily_pnl_from_zero() -> None:
+    engine = _engine()
+    _add_clean_account_snapshot(
+        engine,
+        observed_at=BASE + timedelta(seconds=1, milliseconds=500),
+        realized_daily_pnl_usd="-3.50",
+        consecutive_losses=0,
+    )
+    result = _result("accepted", attempted=True, order_id="order-fast-new-day")
+    result["accepted"] = True
+    result["cancellation"] = {"cancelled": True, "not_cancelled": ""}
+    record_fast_live_result(
+        engine=engine,
+        result=result,
+        observed_at=BASE + timedelta(seconds=2),
+    )
+    official = {
+        "order_still_open": False,
+        "open_order_count": 0,
+        "matching_trade_count": 1,
+        "confirmed_filled_shares": "4",
+        "confirmed_filled_notional_usd": "2.32",
+        "fill_state": "confirmed_fill",
+    }
+    record_fast_live_official_reconciliation(
+        engine=engine,
+        result=result,
+        official=official,
+        observed_at=BASE + timedelta(seconds=4),
+    )
+    _add_evaluation(engine, "Up")
+
+    next_day = datetime(2026, 9, 29, 0, 1, tzinfo=UTC)
+    settled = settle_fast_live_position_if_resolved(
+        engine=engine,
+        intent_id=INTENT_ID,
+        observed_at=next_day,
+    )
+
+    expected_fee = (
+        Decimal("4")
+        * Decimal("0.07")
+        * Decimal("0.58")
+        * Decimal("0.42")
+    )
+    expected_trade_pnl = Decimal("4") - Decimal("2.32") - expected_fee
+    assert Decimal(str(settled["risk_realized_pnl_usd"])) == expected_trade_pnl
+
+    latest = _latest_reconciliation(engine)
+    assert latest is not None
+    account = latest["evidence"]["account_snapshot"]
+    assert Decimal(str(account["realized_daily_pnl_usd"])) == expected_trade_pnl
 
 
 def test_fast_live_settlement_is_idempotent() -> None:

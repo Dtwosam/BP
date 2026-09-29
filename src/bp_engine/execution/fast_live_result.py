@@ -28,6 +28,23 @@ def _utc(value: datetime) -> datetime:
     return value.astimezone(UTC)
 
 
+def _stored_utc(value: datetime) -> datetime:
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _daily_pnl_for_observed(
+    value: Decimal,
+    *,
+    carried_at: datetime,
+    observed_at: datetime,
+) -> Decimal:
+    carried = _stored_utc(carried_at)
+    observed = _utc(observed_at)
+    return value if carried.date() == observed.date() else Decimal("0")
+
+
 def _intent(connection, intent_id: str) -> Mapping[str, Any]:
     row = connection.execute(
         select(schema.live_order_intents).where(
@@ -91,12 +108,29 @@ def fast_live_account_snapshot(
                 * Decimal(str(intent["limit_price"]))
             )
 
+    latest_reconciliation = connection.execute(
+        select(schema.live_reconciliation_runs.c.observed_at)
+        .where(schema.live_reconciliation_runs.c.observed_at <= observed_at)
+        .order_by(
+            schema.live_reconciliation_runs.c.observed_at.desc(),
+            schema.live_reconciliation_runs.c.id.desc(),
+        )
+        .limit(1)
+    ).scalar_one_or_none()
+    realized_daily_pnl = base.realized_daily_pnl_usd
+    if latest_reconciliation is not None:
+        realized_daily_pnl = _daily_pnl_for_observed(
+            realized_daily_pnl,
+            carried_at=latest_reconciliation,
+            observed_at=observed_at,
+        )
+
     return LiveAccountSnapshot(
         total_exposure_usd=max(
             Decimal("0"),
             base.total_exposure_usd - settled_nominal,
         ),
-        realized_daily_pnl_usd=base.realized_daily_pnl_usd,
+        realized_daily_pnl_usd=realized_daily_pnl,
         consecutive_losses=base.consecutive_losses,
         last_order_at=base.last_order_at,
         unresolved_critical_reconciliation=(
@@ -116,7 +150,22 @@ def _carry_clean_account(
     )
     if latest is None:
         raise FastLiveResultError("clean account snapshot unavailable")
-    return latest
+    reconciliation_id, account_snapshot = latest
+    row = connection.execute(
+        select(schema.live_reconciliation_runs.c.observed_at).where(
+            schema.live_reconciliation_runs.c.reconciliation_id
+            == reconciliation_id
+        )
+    ).one()
+    account_snapshot["realized_daily_pnl_usd"] = format(
+        _daily_pnl_for_observed(
+            Decimal(str(account_snapshot["realized_daily_pnl_usd"])),
+            carried_at=row.observed_at,
+            observed_at=observed_at,
+        ),
+        "f",
+    )
+    return reconciliation_id, account_snapshot
 
 
 def _carry_pending_fast_account(
@@ -165,6 +214,11 @@ def _carry_pending_fast_account(
             raise FastLiveResultError(
                 "pending fast-live account snapshot invalid"
             )
+        realized_pnl = _daily_pnl_for_observed(
+            realized_pnl,
+            carried_at=row["observed_at"],
+            observed_at=observed_at,
+        )
         return (
             str(row["reconciliation_id"]),
             {
@@ -240,6 +294,10 @@ def record_fast_live_result(
             if status not in {
                 "fresh_book_rejected",
                 "pre_attempt_retry_exhausted",
+                "telegram_skipped",
+                "telegram_expired",
+                "approval_recovery_blocked",
+                "pre_submission_blocked",
             }:
                 raise FastLiveResultError(
                     "unsupported non-attempt fast-live result"
@@ -255,7 +313,8 @@ def record_fast_live_result(
                 evidence={
                     "phase": "phase15_v3_fast_live_v1",
                     "status": status,
-                    "reason": status,
+                    "reason": str(result.get("reason") or status),
+                    "error_type": result.get("error_type"),
                     "marketability": result.get("marketability"),
                     "submission_attempt_consumed": False,
                 },
@@ -600,6 +659,11 @@ def settle_fast_live_position_if_resolved(
             )
         prior_pnl = Decimal(
             str(prior_account_raw.get("realized_daily_pnl_usd") or "0")
+        )
+        prior_pnl = _daily_pnl_for_observed(
+            prior_pnl,
+            carried_at=fill_reconciliation["observed_at"],
+            observed_at=observed,
         )
         prior_losses = int(
             prior_account_raw.get("consecutive_losses") or 0

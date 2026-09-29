@@ -11,10 +11,17 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
+from bp_engine.execution.telegram_approval import ApprovalError, validate_approved_handoff
+
 FAST_LIVE_PURPOSE = "phase15-v3-fast-live-v1"
 FAST_LIVE_WARMUP_PURPOSE = "phase15-v3-fast-live-warmup-v1"
 FAST_LIVE_RESULT_PURPOSE = "phase15-v3-fast-live-result-v1"
-FAST_LIVE_RESULT_MAX_AGE_SECONDS = Decimal("15")
+FAST_LIVE_PREPARE_PURPOSE = "phase15-v3-fast-live-prepare-v1"
+FAST_LIVE_APPROVAL_PURPOSE = "phase15-v3-fast-live-approval-v1"
+FAST_LIVE_CONTINUOUS_AUTHORIZATION_MODE = "manual-telegram-continuous-v1"
+FAST_LIVE_PREPARE_MAX_AGE_SECONDS = Decimal("45")
+FAST_LIVE_RESULT_MAX_AGE_SECONDS = Decimal("300")
+FAST_LIVE_RESULT_STALL_SECONDS = Decimal("20")
 FAST_LIVE_SOURCE_KEY = "fast_live_preauthorization"
 FAST_LIVE_POLICY_VERSION = "v3-live-canary-v1"
 FAST_LIVE_PREDICTION_VERSION = "v3-frozen-paper-v1"
@@ -97,30 +104,63 @@ def verify_source_authorization(
     *,
     expected_main: str,
     observed_at: datetime,
+    requires_telegram_approval: bool = False,
+    continuous_session: bool = False,
 ) -> dict[str, Any]:
     observed = _utc(observed_at)
     if not _COMMIT_RE.fullmatch(expected_main):
         raise FastLiveError("expected main commit invalid")
+    if continuous_session and not requires_telegram_approval:
+        raise FastLiveError(
+            "continuous fast live requires Telegram approval"
+        )
     authorization = _source_authorization(state)
     required = {
-        "status": "AUTHORIZED_NOT_CONSUMED",
+        "status": (
+            "AUTHORIZED_CONTINUOUS_SESSION"
+            if continuous_session
+            else "AUTHORIZED_NOT_CONSUMED"
+        ),
         "authorized": True,
-        "consumed": False,
         "target_notional_usd": 5,
         "max_trade_size_usd": 10,
         "max_total_exposure_usd": 10,
         "max_daily_loss_usd": 10,
         "max_consecutive_losses": 1,
         "min_edge": 0.075,
-        "max_network_submission_attempts": 1,
-        "requires_telegram_approval": False,
+        "requires_telegram_approval": requires_telegram_approval,
         "prediction_version": FAST_LIVE_PREDICTION_VERSION,
         "execution_version": FAST_LIVE_EXECUTION_VERSION,
         "executor_country": "ZA",
     }
+    if continuous_session:
+        required.update(
+            {
+                "authorization_mode": FAST_LIVE_CONTINUOUS_AUTHORIZATION_MODE,
+                "max_network_submission_attempts_per_intent": 1,
+            }
+        )
+    else:
+        required.update(
+            {
+                "consumed": False,
+                "max_network_submission_attempts": 1,
+            }
+        )
     for name, expected in required.items():
         if authorization.get(name) != expected:
             raise FastLiveError(f"fast live source truth mismatch: {name}")
+    if requires_telegram_approval:
+        phase = state.get("phase_15_v3_live_canary")
+        assert isinstance(phase, Mapping)
+        auto = phase.get("operator_telegram_auto_approver")
+        if isinstance(auto, Mapping) and (
+            auto.get("live_auto_approve_authorized") is True
+            or str(auto.get("status") or "").startswith("ACTIVE_")
+        ):
+            raise FastLiveError(
+                "fast live manual Telegram approval requires auto-approver disabled"
+            )
     authorization_id = str(authorization.get("authorization_id") or "")
     if not authorization_id or len(authorization_id) > 128:
         raise FastLiveError("fast live authorization id invalid")
@@ -165,12 +205,16 @@ def verify_runtime_authorization(
     state: Mapping[str, Any],
     expected_main: str,
     observed_at: datetime,
+    requires_telegram_approval: bool = False,
+    continuous_session: bool = False,
 ) -> dict[str, Any]:
     observed = _utc(observed_at)
     source = verify_source_authorization(
         state,
         expected_main=expected_main,
         observed_at=observed,
+        requires_telegram_approval=requires_telegram_approval,
+        continuous_session=continuous_session,
     )
     if runtime.get("schema_version") != 1:
         raise FastLiveError("runtime authorization schema invalid")
@@ -184,8 +228,24 @@ def verify_runtime_authorization(
         raise FastLiveError("runtime authorization release mismatch")
     if str(runtime.get("project_state_sha256") or "") != project_state_sha256(state):
         raise FastLiveError("runtime authorization source-truth hash mismatch")
-    if runtime.get("max_network_submission_attempts") != 1:
+    if bool(runtime.get("continuous_session", False)) != continuous_session:
+        raise FastLiveError("runtime continuous session mode mismatch")
+    if continuous_session:
+        if (
+            runtime.get("authorization_mode")
+            != FAST_LIVE_CONTINUOUS_AUTHORIZATION_MODE
+        ):
+            raise FastLiveError(
+                "runtime continuous authorization mode mismatch"
+            )
+        if runtime.get("max_network_submission_attempts_per_intent") != 1:
+            raise FastLiveError(
+                "runtime per-intent attempt limit changed"
+            )
+    elif runtime.get("max_network_submission_attempts") != 1:
         raise FastLiveError("runtime authorization attempt limit changed")
+    if bool(runtime.get("requires_telegram_approval", False)) != requires_telegram_approval:
+        raise FastLiveError("runtime Telegram approval mode mismatch")
     if _decimal(runtime.get("target_notional_usd"), "target_notional_usd") != (
         FAST_LIVE_TARGET_NOTIONAL_USD
     ):
@@ -378,6 +438,249 @@ def verify_envelope(
         "expires_at": expires.isoformat(),
     }
 
+
+
+def create_prepare_message(
+    prepared: Mapping[str, Any],
+    *,
+    runtime_authorization: Mapping[str, Any],
+    key: bytes,
+    key_id: str,
+    created_at: datetime,
+) -> dict[str, Any]:
+    created = _utc(created_at)
+    validated = validate_prepared(prepared, observed_at=created)
+    if not key_id or len(key_id) > 64:
+        raise FastLiveError("fast live key id invalid")
+    auth_expires = _utc(
+        datetime.fromisoformat(str(runtime_authorization.get("expires_at") or ""))
+    )
+    market_end = _utc(datetime.fromisoformat(validated["market_end_at"]))
+    expires = min(
+        created + timedelta(seconds=float(FAST_LIVE_PREPARE_MAX_AGE_SECONDS)),
+        market_end - timedelta(seconds=float(FAST_LIVE_MIN_MARKET_END_SECONDS)),
+        auth_expires,
+    )
+    if expires <= created:
+        raise FastLiveError("fast live prepare window closed")
+    body = {
+        "schema_version": 1,
+        "purpose": FAST_LIVE_PREPARE_PURPOSE,
+        "key_id": key_id,
+        "authorization_id": str(runtime_authorization.get("authorization_id") or ""),
+        "intent_id": validated["intent_id"],
+        "request_id": validated["request_id"],
+        "risk_decision_id": validated["risk_decision_id"],
+        "prediction_id": validated["prediction_id"],
+        "paper_order_id": validated["paper_order_id"],
+        "request_sha256": validated["request_sha256"],
+        "prepared_sha256": validated["prepared_sha256"],
+        "prepared": dict(prepared),
+        "created_at": created.isoformat(),
+        "expires_at": expires.isoformat(),
+    }
+    return {**body, "hmac_sha256": _mac(body, key)}
+
+
+def verify_prepare_message(
+    payload: Mapping[str, Any],
+    *,
+    runtime_authorization: Mapping[str, Any],
+    key: bytes,
+    expected_key_id: str,
+    observed_at: datetime,
+) -> dict[str, Any]:
+    observed = _utc(observed_at)
+    supplied = str(payload.get("hmac_sha256") or "")
+    if not _SHA256_RE.fullmatch(supplied):
+        raise FastLiveError("fast live prepare hmac invalid")
+    body = {name: value for name, value in payload.items() if name != "hmac_sha256"}
+    if not hmac.compare_digest(supplied, _mac(body, key)):
+        raise FastLiveError("fast live prepare hmac mismatch")
+    if payload.get("schema_version") != 1 or payload.get("purpose") != FAST_LIVE_PREPARE_PURPOSE:
+        raise FastLiveError("fast live prepare schema invalid")
+    if str(payload.get("key_id") or "") != expected_key_id:
+        raise FastLiveError("fast live prepare key id mismatch")
+    if str(payload.get("authorization_id") or "") != str(
+        runtime_authorization.get("authorization_id") or ""
+    ):
+        raise FastLiveError("fast live prepare authorization mismatch")
+    created = _utc(datetime.fromisoformat(str(payload.get("created_at") or "")))
+    expires = _utc(datetime.fromisoformat(str(payload.get("expires_at") or "")))
+    if created > observed or observed >= expires:
+        raise FastLiveError("fast live prepare expired or future")
+    if Decimal(str((observed - created).total_seconds())) > FAST_LIVE_PREPARE_MAX_AGE_SECONDS:
+        raise FastLiveError("fast live prepare exceeded age limit")
+    prepared = payload.get("prepared")
+    if not isinstance(prepared, Mapping):
+        raise FastLiveError("fast live prepare payload missing")
+    validated = validate_prepared(prepared, observed_at=observed)
+    for name in (
+        "intent_id",
+        "request_id",
+        "risk_decision_id",
+        "prediction_id",
+        "paper_order_id",
+        "request_sha256",
+        "prepared_sha256",
+    ):
+        if str(payload.get(name) or "") != str(validated[name]):
+            raise FastLiveError(f"fast live prepare binding mismatch: {name}")
+    return {
+        **validated,
+        "authorization_id": str(payload["authorization_id"]),
+        "created_at": created.isoformat(),
+        "expires_at": expires.isoformat(),
+    }
+
+
+def create_approval_message(
+    prepared: Mapping[str, Any],
+    *,
+    approval: Mapping[str, Any],
+    runtime_authorization: Mapping[str, Any],
+    key: bytes,
+    key_id: str,
+    created_at: datetime,
+    approval_prepared: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    created = _utc(created_at)
+    approval_source = (
+        prepared if approval_prepared is None else approval_prepared
+    )
+    try:
+        approved = validate_approved_handoff(
+            approval_source,
+            approval=approval,
+            observed_at=created,
+        )
+    except ApprovalError as exc:
+        raise FastLiveError("fast live Telegram approval invalid") from exc
+    validated = validate_prepared(prepared, observed_at=created)
+    approval_validated = validate_prepared(
+        approval_source,
+        observed_at=created,
+    )
+    for name in ("prediction_id", "paper_order_id", "request_sha256"):
+        if str(approval_validated[name]) != str(validated[name]):
+            raise FastLiveError(
+                f"fast live approved candidate mismatch: {name}"
+            )
+    auth_expires = _utc(
+        datetime.fromisoformat(str(runtime_authorization.get("expires_at") or ""))
+    )
+    approval_expires = _utc(datetime.fromisoformat(str(approved["expires_at"])))
+    market_end = _utc(datetime.fromisoformat(validated["market_end_at"]))
+    expires = min(
+        created + timedelta(seconds=float(FAST_LIVE_MAX_TRANSIT_SECONDS)),
+        approval_expires,
+        market_end - timedelta(seconds=float(FAST_LIVE_MIN_MARKET_END_SECONDS)),
+        auth_expires,
+    )
+    if expires <= created:
+        raise FastLiveError("fast live approval window closed")
+    approval_binding = {
+        "status": "approved",
+        "intent_id": str(approved["intent_id"]),
+        "prediction_id": validated["prediction_id"],
+        "paper_order_id": validated["paper_order_id"],
+        "request_sha256": validated["request_sha256"],
+        "approved_at": approved["approved_at"],
+        "expires_at": approved["expires_at"],
+        "callback_query_id": approved["callback_query_id"],
+    }
+    body = {
+        "schema_version": 1,
+        "purpose": FAST_LIVE_APPROVAL_PURPOSE,
+        "key_id": key_id,
+        "authorization_id": str(runtime_authorization.get("authorization_id") or ""),
+        "intent_id": validated["intent_id"],
+        "request_sha256": validated["request_sha256"],
+        "prepared_sha256": validated["prepared_sha256"],
+        "prepare_sha256": approval_validated["prepared_sha256"],
+        "approval_candidate_id": str(approved["intent_id"]),
+        "prepared": dict(prepared),
+        "approval_sha256": payload_sha256(approval_binding),
+        "approval": approval_binding,
+        "created_at": created.isoformat(),
+        "expires_at": expires.isoformat(),
+    }
+    return {**body, "hmac_sha256": _mac(body, key)}
+
+
+def verify_approval_message(
+    payload: Mapping[str, Any],
+    *,
+    runtime_authorization: Mapping[str, Any],
+    key: bytes,
+    expected_key_id: str,
+    observed_at: datetime,
+) -> dict[str, Any]:
+    observed = _utc(observed_at)
+    supplied = str(payload.get("hmac_sha256") or "")
+    if not _SHA256_RE.fullmatch(supplied):
+        raise FastLiveError("fast live approval hmac invalid")
+    body = {name: value for name, value in payload.items() if name != "hmac_sha256"}
+    if not hmac.compare_digest(supplied, _mac(body, key)):
+        raise FastLiveError("fast live approval hmac mismatch")
+    if payload.get("schema_version") != 1 or payload.get("purpose") != FAST_LIVE_APPROVAL_PURPOSE:
+        raise FastLiveError("fast live approval schema invalid")
+    if str(payload.get("key_id") or "") != expected_key_id:
+        raise FastLiveError("fast live approval key id mismatch")
+    if str(payload.get("authorization_id") or "") != str(
+        runtime_authorization.get("authorization_id") or ""
+    ):
+        raise FastLiveError("fast live approval authorization mismatch")
+    created = _utc(datetime.fromisoformat(str(payload.get("created_at") or "")))
+    expires = _utc(datetime.fromisoformat(str(payload.get("expires_at") or "")))
+    if created > observed or observed >= expires:
+        raise FastLiveError("fast live approval expired or future")
+    prepared = payload.get("prepared")
+    if not isinstance(prepared, Mapping):
+        raise FastLiveError("fast live approval prepared payload missing")
+    validated = validate_prepared(prepared, observed_at=observed)
+    if str(payload.get("prepared_sha256") or "") != str(validated["prepared_sha256"]):
+        raise FastLiveError("fast live approval prepared hash mismatch")
+    if str(payload.get("intent_id") or "") != str(validated["intent_id"]):
+        raise FastLiveError("fast live approval prepared intent mismatch")
+    if str(payload.get("request_sha256") or "") != str(validated["request_sha256"]):
+        raise FastLiveError("fast live approval prepared request mismatch")
+    prepare_sha = str(payload.get("prepare_sha256") or "")
+    if not _SHA256_RE.fullmatch(prepare_sha):
+        raise FastLiveError("fast live prepare binding hash invalid")
+    approval = payload.get("approval")
+    if not isinstance(approval, Mapping) or approval.get("status") != "approved":
+        raise FastLiveError("fast live approval payload invalid")
+    approval_sha = str(payload.get("approval_sha256") or "")
+    if approval_sha != payload_sha256(approval):
+        raise FastLiveError("fast live approval binding hash mismatch")
+    candidate_id = str(payload.get("approval_candidate_id") or "")
+    if not candidate_id or candidate_id != str(approval.get("intent_id") or ""):
+        raise FastLiveError("fast live approval candidate mismatch")
+    for name in ("prediction_id", "paper_order_id", "request_sha256"):
+        if str(approval.get(name) or "") != str(validated[name]):
+            raise FastLiveError(f"fast live approval binding mismatch: {name}")
+    approved_at = _utc(datetime.fromisoformat(str(approval.get("approved_at") or "")))
+    approval_expires = _utc(datetime.fromisoformat(str(approval.get("expires_at") or "")))
+    if approved_at > observed or observed >= approval_expires:
+        raise FastLiveError("fast live human approval expired or future")
+    return {
+        "authorization_id": str(payload["authorization_id"]),
+        "intent_id": str(payload["intent_id"]),
+        "request_sha256": str(payload["request_sha256"]),
+        "prepared_sha256": str(payload["prepared_sha256"]),
+        "prepare_sha256": prepare_sha,
+        "approval_candidate_id": candidate_id,
+        "approval_sha256": approval_sha,
+        "prepared": dict(prepared),
+        "request": dict(validated["request"]),
+        "prediction_id": str(validated["prediction_id"]),
+        "paper_order_id": str(validated["paper_order_id"]),
+        "approved_at": approved_at.isoformat(),
+        "approval_expires_at": approval_expires.isoformat(),
+        "created_at": created.isoformat(),
+        "expires_at": expires.isoformat(),
+    }
 
 def create_warmup_message(
     *,

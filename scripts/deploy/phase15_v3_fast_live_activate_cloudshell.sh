@@ -8,8 +8,8 @@ fail() {
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_ACTIVATION:-}"
-[[ "$ACCEPT" == "I_ACCEPT_ONE_REAL_MONEY_ATTEMPT" ]] ||
-  fail "explicit_one_shot_acceptance_required"
+[[ "$ACCEPT" == "I_ACCEPT_CONTINUOUS_TELEGRAM_APPROVED_LIVE_SESSION" ]] ||
+  fail "explicit_continuous_session_acceptance_required"
 
 : "${BP_FAST_LIVE_GCP_PROJECT:?BP_FAST_LIVE_GCP_PROJECT is required}"
 : "${BP_FAST_LIVE_RUNTIME_EXPIRES_AT:?BP_FAST_LIVE_RUNTIME_EXPIRES_AT is required}"
@@ -53,6 +53,8 @@ auth = verify_source_authorization(
     state,
     expected_main=head,
     observed_at=datetime.now(UTC),
+    requires_telegram_approval=True,
+    continuous_session=True,
 )
 print(
     str(auth["authorization_id"]),
@@ -101,8 +103,6 @@ if runtime_expires <= now:
     raise SystemExit("runtime_expired")
 if runtime_expires > source_expires:
     raise SystemExit("runtime_exceeds_source_authorization")
-if (runtime_expires - now).total_seconds() > 3600:
-    raise SystemExit("runtime_window_exceeds_one_hour")
 state_hash = hashlib.sha256(
     json.dumps(
         state,
@@ -119,7 +119,10 @@ payload = {
     "authorization_id": authorization_id,
     "release_main": release_main,
     "project_state_sha256": state_hash,
-    "max_network_submission_attempts": 1,
+    "authorization_mode": "manual-telegram-continuous-v1",
+    "continuous_session": True,
+    "requires_telegram_approval": True,
+    "max_network_submission_attempts_per_intent": 1,
     "target_notional_usd": 5,
     "issued_at": now.isoformat(),
     "expires_at": runtime_expires.isoformat(),
@@ -147,6 +150,8 @@ verify_runtime_authorization(
     state=state,
     expected_main=sys.argv[3],
     observed_at=datetime.now(UTC),
+    requires_telegram_approval=True,
+    continuous_session=True,
 )
 PY
 
@@ -188,8 +193,36 @@ EXEC_SA="$(gcloud compute instances describe "$EXEC_VM"   --project="$PROJECT" -
 gcloud compute ssh "$US_VM"   --project="$PROJECT" --zone="$US_ZONE" --quiet   --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$HEAD' &&
              sudo systemctl is-active --quiet bp-phase15-fast-live-source.service && exit 20 || true;
              sudo systemctl is-enabled --quiet bp-phase15-fast-live-source.service && exit 21 || true;
-             sudo test ! -e /etc/bp-fast-live/transport.key" ||
+             sudo test ! -e /etc/bp-fast-live/transport.key &&
+             sudo test -d '/opt/bp-phase15-telegram-approval/releases/$HEAD' &&
+             sudo test -f '/opt/bp-phase15-telegram-approval/releases/$HEAD/scripts/run_phase15_v3_canary_telegram_approval.py' &&
+             sudo test -f '/opt/bp-phase15-telegram-approval/releases/$HEAD/deploy/bp-phase15-canary-telegram-approval.service' &&
+             sudo test -f /etc/bp/telegram-approval.env &&
+             sudo test ! -e /etc/bp/telegram-approval-handoff.env &&
+             sudo test ! -e /var/lib/bp/phase15-fast-live/telegram-prepare/current-run &&
+             sudo systemctl is-enabled --quiet bp-phase15-canary-telegram-approval.service" ||
   fail "recorder_stage_not_ready"
+
+gcloud compute ssh "$US_VM" \
+  --project="$PROJECT" --zone="$US_ZONE" --quiet \
+  --command="sudo sh -c 'root=/var/lib/bp/phase15-fast-live/published;
+    if [ -d \"\$root\" ]; then
+      for receipt in \"\$root\"/*.json; do
+        [ -e \"\$receipt\" ] || continue;
+        base=\${receipt##*/};
+        [ -f \"\$root/results/\$base\" ] || exit 24;
+      done;
+      if [ -d \"\$root/results\" ]; then
+        for result in \"\$root/results\"/*.json; do
+          [ -e \"\$result\" ] || continue;
+          if grep -F -q \"\\\"settlement_reconciliation_required\\\":true\" \"\$result\"; then
+            base=\${result##*/};
+            [ -f \"\$root/settlements/\$base\" ] || exit 25;
+          fi;
+        done;
+      fi;
+    fi'" ||
+  fail "recorder_prior_live_recovery_pending"
 
 gcloud compute ssh "$EXEC_VM"   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet   --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$HEAD' &&
              sudo systemctl is-active --quiet bp-phase15-fast-live-receiver.service && exit 22 || true;
@@ -197,7 +230,8 @@ gcloud compute ssh "$EXEC_VM"   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet
              sudo test ! -e /etc/bp-fast-live/transport.key;
              sudo test -f /var/lib/bp-canary/fast-live/KILL;
              sudo test ! -e /var/lib/bp-canary/fast-live/attempt.json;
-             sudo test ! -e /var/lib/bp-canary/fast-live/result.json" ||
+             sudo test ! -e /var/lib/bp-canary/fast-live/result.json;
+             sudo sh -c '! grep -R -F -q cancellation_pending\":true /var/lib/bp-canary/fast-live/attempts 2>/dev/null && ! grep -R -F -q recovery_result_publish_pending\":true /var/lib/bp-canary/fast-live/attempts 2>/dev/null'" ||
   fail "executor_stage_not_ready"
 
 HEALTH="$TMP_DIR/health.json"
@@ -272,6 +306,8 @@ BP_FAST_LIVE_TOPIC_ID=$ORDER_TOPIC
 BP_FAST_LIVE_RESULT_SUBSCRIPTION_ID=$RESULT_SUB
 BP_FAST_LIVE_OFFICIAL_OPEN_ORDER_COUNT=$OPEN_ORDERS
 BP_FAST_LIVE_COLLATERAL_BALANCE_USD=$COLLATERAL
+BP_FAST_LIVE_TELEGRAM_APPROVAL_REQUIRED=yes
+BP_FAST_LIVE_CONTINUOUS_SESSION=yes
 EOF
 cat >"$RECEIVER_ENV" <<EOF
 BP_FAST_LIVE_TRANSPORT_KEY_ID=$KEY_ID
@@ -279,6 +315,8 @@ BP_FAST_LIVE_EXPECTED_MAIN=$HEAD
 BP_FAST_LIVE_GCP_PROJECT=$PROJECT
 BP_FAST_LIVE_SUBSCRIPTION_ID=$ORDER_SUB
 BP_FAST_LIVE_RESULT_TOPIC_ID=$RESULT_TOPIC
+BP_FAST_LIVE_TELEGRAM_APPROVAL_REQUIRED=yes
+BP_FAST_LIVE_CONTINUOUS_SESSION=yes
 EOF
 chmod 0600 "$SOURCE_ENV" "$RECEIVER_ENV"
 
@@ -329,13 +367,59 @@ for spec in "$US_VM:$US_ZONE" "$EXEC_VM:$EXEC_ZONE"; do
     fail "transport_key_hash_mismatch:$vm"
 done
 
+read -r TELEGRAM_PREVIOUS_TARGET TELEGRAM_PREVIOUS_ACTIVE < <(
+  gcloud compute ssh "$US_VM" \
+    --project="$PROJECT" --zone="$US_ZONE" --quiet \
+    --command='target=$(readlink -f /opt/bp-phase15-telegram-approval/current) &&
+               active=no;
+               if systemctl is-active --quiet bp-phase15-canary-telegram-approval.service; then active=yes; fi;
+               printf "%s %s\n" "$target" "$active"'
+) || fail "telegram_approval_previous_state_read_failed"
+[[ "$TELEGRAM_PREVIOUS_TARGET" =~ ^/opt/bp-phase15-telegram-approval/releases/[0-9a-f]{40}$ ]] ||
+  fail "telegram_approval_previous_release_invalid"
+[[ "$TELEGRAM_PREVIOUS_ACTIVE" == "yes" || "$TELEGRAM_PREVIOUS_ACTIVE" == "no" ]] ||
+  fail "telegram_approval_previous_active_state_invalid"
+
 activated=false
+telegram_switched=false
 safe_stop() {
   set +e
   gcloud compute ssh "$EXEC_VM"     --project="$PROJECT" --zone="$EXEC_ZONE" --quiet     --command="sudo sh -c 'umask 077; mkdir -p /var/lib/bp-canary/fast-live; echo fast-live-activation-safe-stop > /var/lib/bp-canary/fast-live/KILL'; sudo systemctl stop bp-phase15-fast-live-receiver.service"     >/dev/null 2>&1 || true
   gcloud compute ssh "$US_VM"     --project="$PROJECT" --zone="$US_ZONE" --quiet     --command="sudo systemctl stop bp-phase15-fast-live-source.service"     >/dev/null 2>&1 || true
+  if [[ "$telegram_switched" == "true" ]]; then
+    gcloud compute ssh "$US_VM" \
+      --project="$PROJECT" --zone="$US_ZONE" --quiet \
+      --command="sudo rm -f /opt/bp-phase15-telegram-approval/.fast-live-rollback &&
+                 sudo ln -s '$TELEGRAM_PREVIOUS_TARGET' /opt/bp-phase15-telegram-approval/.fast-live-rollback &&
+                 sudo mv -Tf /opt/bp-phase15-telegram-approval/.fast-live-rollback /opt/bp-phase15-telegram-approval/current &&
+                 sudo install -o root -g root -m 0644 '$TELEGRAM_PREVIOUS_TARGET/deploy/bp-phase15-canary-telegram-approval.service' /etc/systemd/system/bp-phase15-canary-telegram-approval.service &&
+                 sudo systemctl daemon-reload &&
+                 if [[ '$TELEGRAM_PREVIOUS_ACTIVE' == 'yes' ]]; then
+                   sudo systemctl restart bp-phase15-canary-telegram-approval.service;
+                 else
+                   sudo systemctl stop bp-phase15-canary-telegram-approval.service;
+                 fi" \
+      >/dev/null 2>&1 || true
+  fi
 }
 trap 'if [[ "$activated" != "true" ]]; then safe_stop; fi; cleanup_local' EXIT
+
+# Switch the private Telegram listener to the exact staged release before
+# Johannesburg is unarmed. The existing bot/user/chat env is preserved.
+# Mark rollback-required before the first mutation so a partial switch is restored.
+telegram_switched=true
+gcloud compute ssh "$US_VM" \
+  --project="$PROJECT" --zone="$US_ZONE" --quiet \
+  --command="sudo rm -f '/opt/bp-phase15-telegram-approval/.fast-live-current-$HEAD' &&
+             sudo ln -s '/opt/bp-phase15-telegram-approval/releases/$HEAD' '/opt/bp-phase15-telegram-approval/.fast-live-current-$HEAD' &&
+             sudo mv -Tf '/opt/bp-phase15-telegram-approval/.fast-live-current-$HEAD' /opt/bp-phase15-telegram-approval/current &&
+             sudo install -o root -g root -m 0644 '/opt/bp-phase15-telegram-approval/releases/$HEAD/deploy/bp-phase15-canary-telegram-approval.service' /etc/systemd/system/bp-phase15-canary-telegram-approval.service &&
+             sudo systemctl daemon-reload &&
+             sudo systemctl restart bp-phase15-canary-telegram-approval.service &&
+             sleep 1 &&
+             sudo systemctl is-active --quiet bp-phase15-canary-telegram-approval.service &&
+             sudo test \"\$(readlink -f /opt/bp-phase15-telegram-approval/current)\" = '/opt/bp-phase15-telegram-approval/releases/$HEAD'" ||
+  fail "telegram_approval_listener_start_failed"
 
 # Receiver starts while the execution kill switch is still engaged.
 gcloud compute ssh "$EXEC_VM"   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet   --command="sudo test -f /var/lib/bp-canary/fast-live/KILL &&
@@ -365,10 +449,13 @@ printf 'ORDER_TOPIC=%s\n' "$ORDER_TOPIC"
 printf 'ORDER_SUBSCRIPTION=%s\n' "$ORDER_SUB"
 printf 'RESULT_TOPIC=%s\n' "$RESULT_TOPIC"
 printf 'RESULT_SUBSCRIPTION=%s\n' "$RESULT_SUB"
+printf 'TELEGRAM_APPROVAL_ACTIVE=true\n'
+printf 'TELEGRAM_APPROVAL_RELEASE_MAIN=%s\n' "$HEAD"
 printf 'RECEIVER_ACTIVE=true\n'
 printf 'SOURCE_ACTIVE=true\n'
 printf 'SERVICES_ENABLED=false\n'
 printf 'KILL_SWITCH_ENGAGED=false\n'
-printf 'NETWORK_SUBMISSION_ATTEMPT_CONSUMED=false\n'
+printf 'CONTINUOUS_SESSION=true\n'
+printf 'PER_INTENT_NETWORK_SUBMISSION_ATTEMPTS=1\n'
 printf 'REAL_ORDER_SUBMITTED=false\n'
-printf 'NOTE=The receiver will re-engage the kill switch before the single network submission attempt.\n'
+printf 'NOTE=The kill switch remains the session emergency stop; every trade still requires a fresh Telegram approval.\n'

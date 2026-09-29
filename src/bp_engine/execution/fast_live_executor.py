@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import stat
@@ -52,6 +53,19 @@ class SafetySnapshot:
     def __post_init__(self) -> None:
         if self.observed_at.tzinfo is None or self.observed_at.utcoffset() is None:
             raise ValueError("safety snapshot timestamp must be timezone-aware")
+
+
+@dataclass(frozen=True)
+class PreparedFastLiveOrder:
+    intent_id: str
+    request_sha256: str
+    token_id: str
+    limit_price: Decimal
+    requested_shares: Decimal
+    target_notional_usd: Decimal
+    signed_order: object
+    prepared_at: datetime
+    sign_latency_ms: float
 
 
 class SafetyCache:
@@ -250,6 +264,7 @@ def execute_with_bounded_pre_attempt_retry(
     executor: FastLiveExecutor,
     verified: dict[str, Any],
     *,
+    prepared_order: PreparedFastLiveOrder | None = None,
     now_fn=_utc_now,
     sleep_fn=time.sleep,
     retry_sleep_seconds: float = 0.02,
@@ -259,11 +274,22 @@ def execute_with_bounded_pre_attempt_retry(
     last_reason = ""
     while True:
         try:
-            result = executor.execute(verified)
+            if prepared_order is None:
+                result = executor.execute(verified)
+            else:
+                result = executor.execute(
+                    verified,
+                    prepared_order=prepared_order,
+                )
             result["pre_attempt_retry_count"] = retries
             return result
         except FastLiveRetryableError as exc:
-            if executor.attempt_path.exists():
+            attempt_path = (
+                executor.attempt_path_for(verified)
+                if hasattr(executor, "attempt_path_for")
+                else executor.attempt_path
+            )
+            if attempt_path.exists():
                 raise
             retries += 1
             last_reason = str(exc)
@@ -295,6 +321,7 @@ class FastLiveExecutor:
         order_ttl_seconds: Decimal = Decimal("2"),
         official_stability_seconds: float = 3.0,
         official_probe_attempts: int = 3,
+        continuous_session: bool = False,
         now_fn=_utc_now,
     ) -> None:
         self._client = client
@@ -308,6 +335,7 @@ class FastLiveExecutor:
         if official_probe_attempts < 1 or official_probe_attempts > 5:
             raise ValueError("official_probe_attempts must be within 1..5")
         self._official_probe_attempts = official_probe_attempts
+        self._continuous_session = continuous_session
         self._now_fn = now_fn
         _ensure_private_dir(state_root)
 
@@ -318,6 +346,28 @@ class FastLiveExecutor:
     @property
     def result_path(self) -> Path:
         return self._state_root / "result.json"
+
+    def _intent_state_root(self, verified: dict[str, Any]) -> Path:
+        if not self._continuous_session:
+            return self._state_root
+        intent_id = str(verified.get("intent_id") or "").strip()
+        request_hash = str(verified.get("request_sha256") or "").strip()
+        if not intent_id or not request_hash:
+            raise FastLiveError("fast live attempt identity missing")
+        key = hashlib.sha256(
+            (intent_id + "\0" + request_hash).encode("utf-8")
+        ).hexdigest()
+        attempts_root = self._state_root / "attempts"
+        _ensure_private_dir(attempts_root)
+        intent_root = attempts_root / key
+        _ensure_private_dir(intent_root)
+        return intent_root
+
+    def attempt_path_for(self, verified: dict[str, Any]) -> Path:
+        return self._intent_state_root(verified) / "attempt.json"
+
+    def result_path_for(self, verified: dict[str, Any]) -> Path:
+        return self._intent_state_root(verified) / "result.json"
 
     def _kill_switch_engaged(self) -> bool:
         try:
@@ -409,10 +459,148 @@ class FastLiveExecutor:
                 break
         return cancellation, official
 
-    def execute(self, verified: dict[str, Any]) -> dict[str, Any]:
-        if self.attempt_path.exists():
-            if self.result_path.exists():
-                replayed = _read_json(self.result_path)
+    def recover_pending_cancellations(self) -> list[dict[str, Any]]:
+        roots: list[Path] = []
+        if self._continuous_session:
+            attempts_root = self._state_root / "attempts"
+            if not attempts_root.exists():
+                return []
+            info = attempts_root.lstat()
+            if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+                raise FastLiveError("fast live attempts directory invalid")
+            roots = [
+                path
+                for path in sorted(attempts_root.iterdir())
+                if path.is_dir() and not path.is_symlink()
+            ]
+        else:
+            roots = [self._state_root]
+
+        recovered: list[dict[str, Any]] = []
+        for root in roots:
+            attempt_path = root / "attempt.json"
+            result_path = root / "result.json"
+            if not attempt_path.is_file() or not result_path.is_file():
+                continue
+            result = _read_json(result_path)
+            if result.get("cancellation_pending") is not True:
+                if result.get("recovery_result_publish_pending") is True:
+                    recovered.append(result)
+                continue
+            if (
+                result.get("status") != "accepted"
+                or result.get("network_submission_attempt_consumed") is not True
+                or result.get("real_order_submitted") is not True
+            ):
+                raise FastLiveError(
+                    "pending cancellation result state invalid"
+                )
+            order_id = str(result.get("external_order_id") or "")
+            marketability = result.get("marketability")
+            if not order_id or not isinstance(marketability, dict):
+                raise FastLiveError(
+                    "pending cancellation binding missing"
+                )
+            requested_shares = _decimal(
+                marketability.get("requested_shares"),
+                "pending cancellation requested shares",
+            )
+            cancellation, official = self._cancel_and_probe(
+                order_id=order_id,
+                requested_shares=requested_shares,
+            )
+            result["cancellation"] = cancellation
+            result["cancellation_pending"] = False
+            result["official_reconciliation"] = official
+            result["recovered_pending_cancellation"] = True
+            result["recovered_at"] = self._now_fn().isoformat()
+            result["recovery_result_publish_pending"] = True
+            _write_replace_json(result_path, result)
+            recovered.append(result)
+        return recovered
+
+    def mark_recovery_result_published(
+        self,
+        result: dict[str, Any],
+    ) -> None:
+        identity = {
+            "intent_id": str(result.get("intent_id") or ""),
+            "request_sha256": str(result.get("request_sha256") or ""),
+        }
+        if (
+            not identity["intent_id"]
+            or not identity["request_sha256"]
+        ):
+            raise FastLiveError(
+                "recovery result publish identity missing"
+            )
+        result_path = self.result_path_for(identity)
+        persisted = _read_json(result_path)
+        if (
+            str(persisted.get("intent_id") or "")
+            != identity["intent_id"]
+            or str(persisted.get("request_sha256") or "")
+            != identity["request_sha256"]
+            or persisted.get("recovery_result_publish_pending") is not True
+        ):
+            raise FastLiveError(
+                "recovery result publish state mismatch"
+            )
+        persisted["recovery_result_publish_pending"] = False
+        persisted["recovery_result_published_at"] = (
+            self._now_fn().isoformat()
+        )
+        _write_replace_json(result_path, persisted)
+
+    def prepare_order(self, verified: dict[str, Any]) -> PreparedFastLiveOrder:
+        if self.attempt_path_for(verified).exists():
+            raise FastLiveError("fast live attempt already exists")
+        self._require_fresh_safety()
+        request = verified.get("request")
+        if not isinstance(request, dict):
+            raise FastLiveError("fast live request missing")
+        token_id = str(request.get("token_id") or "")
+        limit_price = _decimal(request.get("limit_price"), "limit_price")
+        shares = _decimal(request.get("requested_shares"), "requested_shares")
+        target = _decimal(request.get("target_notional_usd"), "target_notional_usd")
+        if not token_id:
+            raise FastLiveError("fast live token id missing")
+        if str(request.get("action") or "") != "BUY":
+            raise FastLiveError("fast live action must be BUY")
+        if target != FAST_LIVE_TARGET_NOTIONAL_USD:
+            raise FastLiveError("fast live target changed")
+        prepared_at = self._now_fn()
+        sign_started_ns = time.monotonic_ns()
+        signed_order = self._client.create_limit_order(
+            token_id=token_id,
+            price=limit_price,
+            size=shares,
+            side="BUY",
+        )
+        sign_completed_ns = time.monotonic_ns()
+        return PreparedFastLiveOrder(
+            intent_id=str(verified["intent_id"]),
+            request_sha256=str(verified["request_sha256"]),
+            token_id=token_id,
+            limit_price=limit_price,
+            requested_shares=shares,
+            target_notional_usd=target,
+            signed_order=signed_order,
+            prepared_at=prepared_at,
+            sign_latency_ms=(sign_completed_ns - sign_started_ns) / 1_000_000,
+        )
+
+    def execute(
+        self,
+        verified: dict[str, Any],
+        *,
+        prepared_order: PreparedFastLiveOrder | None = None,
+    ) -> dict[str, Any]:
+        attempt_path = self.attempt_path_for(verified)
+        result_path = self.result_path_for(verified)
+        if attempt_path.exists():
+            if result_path.exists():
+                replayed = _read_json(result_path)
                 if (
                     replayed.get("status") == "accepted"
                     and replayed.get("cancellation_pending") is True
@@ -435,10 +623,10 @@ class FastLiveExecutor:
                     replayed["cancellation"] = cancellation
                     replayed["cancellation_pending"] = False
                     replayed["official_reconciliation"] = official
-                    _write_replace_json(self.result_path, replayed)
+                    _write_replace_json(result_path, replayed)
                 replayed["replayed_result"] = True
                 return replayed
-            attempt = _read_json(self.attempt_path)
+            attempt = _read_json(attempt_path)
             return {
                 **attempt,
                 "status": "submission_unknown",
@@ -467,14 +655,30 @@ class FastLiveExecutor:
             raise FastLiveError("fast live target changed")
 
         received_at = self._now_fn()
-        sign_started_ns = time.monotonic_ns()
-        signed_order = self._client.create_limit_order(
-            token_id=token_id,
-            price=limit_price,
-            size=shares,
-            side="BUY",
-        )
-        sign_completed_ns = time.monotonic_ns()
+        if prepared_order is None:
+            sign_started_ns = time.monotonic_ns()
+            signed_order = self._client.create_limit_order(
+                token_id=token_id,
+                price=limit_price,
+                size=shares,
+                side="BUY",
+            )
+            sign_completed_ns = time.monotonic_ns()
+            sign_latency_ms = (
+                sign_completed_ns - sign_started_ns
+            ) / 1_000_000
+        else:
+            if prepared_order.request_sha256 != str(verified["request_sha256"]):
+                raise FastLiveError("prepared order request hash mismatch")
+            if (
+                prepared_order.token_id != token_id
+                or prepared_order.limit_price != limit_price
+                or prepared_order.requested_shares != shares
+                or prepared_order.target_notional_usd != target
+            ):
+                raise FastLiveError("prepared order request changed")
+            signed_order = prepared_order.signed_order
+            sign_latency_ms = prepared_order.sign_latency_ms
 
         self._require_fresh_safety()
         if self._kill_switch_engaged():
@@ -523,9 +727,7 @@ class FastLiveExecutor:
                     quote_completed_ns - quote_started_ns
                 ) / 1_000_000,
                 "quote_source": quote_source,
-                "sign_latency_ms": (
-                    sign_completed_ns - sign_started_ns
-                ) / 1_000_000,
+                "sign_latency_ms": sign_latency_ms,
             }
 
         self._require_fresh_safety()
@@ -541,8 +743,9 @@ class FastLiveExecutor:
             "request_sha256": verified["request_sha256"],
             "started_at": self._now_fn().isoformat(),
         }
-        _write_exclusive_json(self.attempt_path, attempt)
-        self._reengage_kill_switch("fast-live-one-shot-attempt-consumed")
+        _write_exclusive_json(attempt_path, attempt)
+        if not self._continuous_session:
+            self._reengage_kill_switch("fast-live-one-shot-attempt-consumed")
 
         post_started_at = self._now_fn()
         post_started_ns = time.monotonic_ns()
@@ -565,14 +768,12 @@ class FastLiveExecutor:
                     quote_completed_ns - quote_started_ns
                 ) / 1_000_000,
                 "quote_source": quote_source,
-                "sign_latency_ms": (
-                    sign_completed_ns - sign_started_ns
-                ) / 1_000_000,
+                "sign_latency_ms": sign_latency_ms,
                 "quote_to_post_ms": (
                     post_started_ns - quote_completed_ns
                 ) / 1_000_000,
             }
-            _write_replace_json(self.result_path, result)
+            _write_replace_json(result_path, result)
             return result
         post_completed_ns = time.monotonic_ns()
         post_completed_at = self._now_fn()
@@ -588,7 +789,7 @@ class FastLiveExecutor:
                 "network_submission_attempt_consumed": True,
                 "real_order_submitted": True,
             }
-            _write_replace_json(self.result_path, result)
+            _write_replace_json(result_path, result)
             return result
         if not isinstance(response, polymarket.AcceptedOrder):
             result = {
@@ -599,7 +800,7 @@ class FastLiveExecutor:
                 "network_submission_attempt_consumed": True,
                 "real_order_submitted": True,
             }
-            _write_replace_json(self.result_path, result)
+            _write_replace_json(result_path, result)
             return result
 
         order_id = str(response.order_id)
@@ -621,9 +822,7 @@ class FastLiveExecutor:
                 quote_completed_ns - quote_started_ns
             ) / 1_000_000,
             "quote_source": quote_source,
-            "sign_latency_ms": (
-                sign_completed_ns - sign_started_ns
-            ) / 1_000_000,
+            "sign_latency_ms": sign_latency_ms,
             "post_latency_ms": (
                 post_completed_ns - post_started_ns
             ) / 1_000_000,
@@ -631,7 +830,7 @@ class FastLiveExecutor:
                 post_started_ns - quote_completed_ns
             ) / 1_000_000,
         }
-        _write_replace_json(self.result_path, preliminary)
+        _write_replace_json(result_path, preliminary)
 
         time.sleep(float(self._order_ttl_seconds))
         cancellation, official = self._cancel_and_probe(
@@ -659,9 +858,7 @@ class FastLiveExecutor:
                 quote_completed_ns - quote_started_ns
             ) / 1_000_000,
             "quote_source": quote_source,
-            "sign_latency_ms": (
-                sign_completed_ns - sign_started_ns
-            ) / 1_000_000,
+            "sign_latency_ms": sign_latency_ms,
             "post_latency_ms": (
                 post_completed_ns - post_started_ns
             ) / 1_000_000,
@@ -669,5 +866,5 @@ class FastLiveExecutor:
                 post_started_ns - quote_completed_ns
             ) / 1_000_000,
         }
-        _write_replace_json(self.result_path, result)
+        _write_replace_json(result_path, result)
         return result
