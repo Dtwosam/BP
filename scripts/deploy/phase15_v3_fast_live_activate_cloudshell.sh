@@ -193,7 +193,13 @@ EXEC_SA="$(gcloud compute instances describe "$EXEC_VM"   --project="$PROJECT" -
 gcloud compute ssh "$US_VM"   --project="$PROJECT" --zone="$US_ZONE" --quiet   --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$HEAD' &&
              sudo systemctl is-active --quiet bp-phase15-fast-live-source.service && exit 20 || true;
              sudo systemctl is-enabled --quiet bp-phase15-fast-live-source.service && exit 21 || true;
-             sudo test ! -e /etc/bp-fast-live/transport.key" ||
+             sudo test ! -e /etc/bp-fast-live/transport.key &&
+             sudo test -d '/opt/bp-phase15-telegram-approval/releases/$HEAD' &&
+             sudo test -f '/opt/bp-phase15-telegram-approval/releases/$HEAD/scripts/run_phase15_v3_canary_telegram_approval.py' &&
+             sudo test -f '/opt/bp-phase15-telegram-approval/releases/$HEAD/deploy/bp-phase15-canary-telegram-approval.service' &&
+             sudo test -f /etc/bp/telegram-approval.env &&
+             sudo test ! -e /etc/bp/telegram-approval-handoff.env &&
+             sudo systemctl is-enabled --quiet bp-phase15-canary-telegram-approval.service" ||
   fail "recorder_stage_not_ready"
 
 gcloud compute ssh "$EXEC_VM"   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet   --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$HEAD' &&
@@ -346,6 +352,21 @@ safe_stop() {
 }
 trap 'if [[ "$activated" != "true" ]]; then safe_stop; fi; cleanup_local' EXIT
 
+# Switch the private Telegram listener to the exact staged release before
+# Johannesburg is unarmed. The existing bot/user/chat env is preserved.
+gcloud compute ssh "$US_VM" \
+  --project="$PROJECT" --zone="$US_ZONE" --quiet \
+  --command="sudo rm -f '/opt/bp-phase15-telegram-approval/.fast-live-current-$HEAD' &&
+             sudo ln -s '/opt/bp-phase15-telegram-approval/releases/$HEAD' '/opt/bp-phase15-telegram-approval/.fast-live-current-$HEAD' &&
+             sudo mv -Tf '/opt/bp-phase15-telegram-approval/.fast-live-current-$HEAD' /opt/bp-phase15-telegram-approval/current &&
+             sudo install -o root -g root -m 0644 '/opt/bp-phase15-telegram-approval/releases/$HEAD/deploy/bp-phase15-canary-telegram-approval.service' /etc/systemd/system/bp-phase15-canary-telegram-approval.service &&
+             sudo systemctl daemon-reload &&
+             sudo systemctl restart bp-phase15-canary-telegram-approval.service &&
+             sleep 1 &&
+             sudo systemctl is-active --quiet bp-phase15-canary-telegram-approval.service &&
+             sudo test \"\$(readlink -f /opt/bp-phase15-telegram-approval/current)\" = '/opt/bp-phase15-telegram-approval/releases/$HEAD'" ||
+  fail "telegram_approval_listener_start_failed"
+
 # Receiver starts while the execution kill switch is still engaged.
 gcloud compute ssh "$EXEC_VM"   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet   --command="sudo test -f /var/lib/bp-canary/fast-live/KILL &&
              sudo systemctl start bp-phase15-fast-live-receiver.service &&
@@ -374,6 +395,8 @@ printf 'ORDER_TOPIC=%s\n' "$ORDER_TOPIC"
 printf 'ORDER_SUBSCRIPTION=%s\n' "$ORDER_SUB"
 printf 'RESULT_TOPIC=%s\n' "$RESULT_TOPIC"
 printf 'RESULT_SUBSCRIPTION=%s\n' "$RESULT_SUB"
+printf 'TELEGRAM_APPROVAL_ACTIVE=true\n'
+printf 'TELEGRAM_APPROVAL_RELEASE_MAIN=%s\n' "$HEAD"
 printf 'RECEIVER_ACTIVE=true\n'
 printf 'SOURCE_ACTIVE=true\n'
 printf 'SERVICES_ENABLED=false\n'
