@@ -419,3 +419,55 @@ def test_official_probe_confirms_partial_fill_without_assuming_settlement() -> N
     assert official["fill_state"] == "confirmed_fill"
     assert official["official_reconciliation_complete"] is True
 
+
+
+def test_presign_prepare_does_not_post_until_execute(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(module.polymarket, "AcceptedOrder", FakeAccepted)
+    monkeypatch.setattr(module.polymarket, "RejectedOrder", FakeRejected)
+    monkeypatch.setattr(module.polymarket, "CancelOrdersResponse", FakeCancelResponse)
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    client = FakeClient((("0.58", "20"),))
+    executor = FastLiveExecutor(
+        client=client,
+        safety_cache=_cache(now),
+        state_root=tmp_path / "state",
+        kill_switch_path=tmp_path / "KILL",
+        order_ttl_seconds=Decimal("0"),
+        official_stability_seconds=0,
+        now_fn=lambda: now,
+    )
+
+    prepared = executor.prepare_order(_verified(now))
+
+    assert client.calls == ["sign"]
+    assert not executor.attempt_path.exists()
+
+    result = executor.execute(_verified(now), prepared_order=prepared)
+
+    assert result["status"] == "accepted"
+    assert client.calls[0] == "sign"
+    assert client.calls.count("sign") == 1
+    assert client.calls.index("post") > client.calls.index("book")
+    assert executor.attempt_path.is_file()
+
+
+def test_presigned_order_cannot_be_reused_for_different_request(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    client = FakeClient((("0.58", "20"),))
+    executor = FastLiveExecutor(
+        client=client,
+        safety_cache=_cache(now),
+        state_root=tmp_path / "state",
+        kill_switch_path=tmp_path / "KILL",
+        now_fn=lambda: now,
+    )
+    verified = _verified(now)
+    prepared = executor.prepare_order(verified)
+    changed = _verified(now)
+    changed["request_sha256"] = "9" * 64
+
+    with pytest.raises(FastLiveError, match="prepared order request hash mismatch"):
+        executor.execute(changed, prepared_order=prepared)
+
+    assert "post" not in client.calls
+    assert not executor.attempt_path.exists()
