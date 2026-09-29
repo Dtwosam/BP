@@ -40,6 +40,8 @@ def test_fast_live_expired_cleanup_is_fail_closed_and_session_scoped() -> None:
         '[[ "$HELPER_HEAD" == "$REMOTE_MAIN" ]]',
         "working_tree_not_clean",
         "recorder_session_not_quiescent",
+        "recorder_result_integrity_fault_latched",
+        "RESULT_INTEGRITY_FAULT.json",
         "executor_session_not_quiescent",
         "/var/lib/bp-canary/fast-live/KILL",
         "/var/lib/bp/phase15-fast-live/telegram-prepare/current-run",
