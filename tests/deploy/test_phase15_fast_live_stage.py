@@ -54,5 +54,7 @@ def test_fast_live_stage_installs_exact_release_and_full_runtime() -> None:
         '"$bootstrap_venv/bin/uv" venv',
         '--seed',
         "sys.version_info[:3] == (3, 12, 14)",
+        "RECORDER_FAST_LIVE_PYTHON=3.12.14",
+        'runuser -u bp -- env PYTHONPATH="$release/src" "$venv/bin/python"',
     ):
         assert marker in text
