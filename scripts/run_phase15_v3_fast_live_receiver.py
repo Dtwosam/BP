@@ -19,7 +19,7 @@ from bp_engine.execution.fast_live import (
     FAST_LIVE_APPROVAL_PURPOSE,
     FAST_LIVE_PREPARE_PURPOSE,
     FAST_LIVE_PURPOSE,
-    FAST_LIVE_RESULT_MAX_AGE_SECONDS,
+    FAST_LIVE_RESULT_STALL_SECONDS,
     FAST_LIVE_WARMUP_PURPOSE,
     FastLiveError,
     create_result_message,
@@ -914,9 +914,7 @@ def main() -> int:
                     callback_idle.set()
 
     future = subscriber.subscribe(subscription_path, callback=callback)
-    drain_timeout_seconds = (
-        float(FAST_LIVE_RESULT_MAX_AGE_SECONDS) + 5.0
-    )
+    drain_timeout_seconds = float(FAST_LIVE_RESULT_STALL_SECONDS)
 
     def stop_accepting_and_drain() -> None:
         nonlocal accepting_callbacks
