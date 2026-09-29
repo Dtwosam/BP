@@ -64,6 +64,18 @@ def prompt_text(observed_at: datetime, *, seconds: int = 50, side: str = "down")
     )
 
 
+def candidate_prompt_text(
+    observed_at: datetime,
+    *,
+    seconds: int = 50,
+    side: str = "down",
+) -> str:
+    return approval_source().build_candidate_prompt(
+        prepared(observed_at, seconds=seconds, side=side),
+        observed_at=observed_at,
+    )
+
+
 def keyboard(nonce: str = NONCE) -> tuple[tuple[CallbackButton, ...], ...]:
     source = approval_source()
     return (

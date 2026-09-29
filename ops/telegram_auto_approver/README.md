@@ -6,7 +6,7 @@ This service is not part of the trading strategy. It does not change V3, V4, siz
 
 ## What it clicks
 
-The listener in `scripts/run_phase15_v3_canary_telegram_approval.py` sends one private message from the BP bot. The text is produced by `build_prompt`. The keyboard is one row:
+The listener in `scripts/run_phase15_v3_canary_telegram_approval.py` sends one private message from the BP bot. A finalized prompt is produced by `build_prompt`; a continuous fast-live preview is produced by the separately reviewed `build_candidate_prompt`. The keyboard is one row:
 
 - `APPROVE` with callback data `approve:<nonce>`
 - `SKIP` with callback data `skip:<nonce>`
@@ -21,16 +21,19 @@ The service calls that method only when every check below passes:
 - the logged-in user is not a bot and its ID is `BP_TELEGRAM_OPERATOR_USER_ID` (the same human ID the listener stores as `BP_TELEGRAM_USER_ID`)
 - the message is incoming, private, not forwarded, not a reply, and not edited
 - the message date is strictly after this process started
-- the text matches the current `build_prompt` grammar, including `Maximum spend: $5` and side `UP` or `DOWN`
+- the text exactly matches either the reviewed `build_prompt` grammar or the reviewed continuous `build_candidate_prompt` grammar, including `Maximum spend: $5` and side `UP` or `DOWN`
+- a `LIVE TRADE CANDIDATE` click is approval only; it does not bypass final live risk, Johannesburg preparation, fresh-book, frozen-price, or reconciliation gates
 - displayed time remaining is at least 20.0 seconds
 - `now` is still before `message_date + min(45s, time_remaining - 10s) - 2s`
 
 The 2-second subtraction is a local safety margin. The listener stamps `expires_at` before `sendMessage`, while this client only sees Telegram's message date. A prompt that is still inside the shorter deadline is clicked immediately.
 
-Before Telegram connects, and again before a message is processed, the service hashes `src/bp_engine/execution/telegram_approval.py` with the git blob algorithm. The process exits with `APPROVAL_CONTRACT_MISMATCH` unless the blob is `930b62514712bd40400550da3ea5bbed533198da`. A later edit of that file does not become accepted until this pin is reviewed and updated.
+Before Telegram connects, and again before a message is processed, the service hashes `src/bp_engine/execution/telegram_approval.py` with the git blob algorithm. The process exits with `APPROVAL_CONTRACT_MISMATCH` unless the blob is `5676efcb60840f4533a7f43b3c6a7efab9e97541`. This reviewed blob contains both finalized and continuous-candidate prompt builders. A later edit of that file does not become accepted until this pin is reviewed and updated.
 - the keyboard is exactly `APPROVE` then `SKIP`, sharing one 16-character nonce
 
 Any other shape is ignored. `SKIP`, URL buttons, and every other callback are never sent.
+
+For continuous auto-approved fast-live, source truth must explicitly select `auto-telegram-continuous-v1`, keep this operator auto-approver active/authorized, and bind it to the same reviewed approval-contract blob. Merely running this service does not authorize a continuous live session.
 
 ## Replay protection
 

@@ -16,7 +16,7 @@ _APPROVAL_SOURCE = (
 )
 _NONCE = re.compile(r"\A[A-Za-z0-9_-]{16}\Z")
 _NUMBER = r"(?:0|[1-9][0-9]*)(?:\.[0-9]+)?"
-_PROMPT = re.compile(
+_READY_PROMPT = re.compile(
     r"\A"
     r"BP V3 LIVE TRADE READY\n\n"
     r"Side: (UP|DOWN)\n"
@@ -26,12 +26,25 @@ _PROMPT = re.compile(
     r"Time remaining: ([0-9]+\.[0-9])s\n\n"
     r"Approve only if you want this exact real-money order submitted\.\Z"
 )
+_CANDIDATE_PROMPT = re.compile(
+    r"\A"
+    r"BP V3 LIVE TRADE CANDIDATE\n\n"
+    r"Side: (UP|DOWN)\n"
+    rf"Limit: ({_NUMBER})\n"
+    rf"Shares: ({_NUMBER})\n"
+    rf"Maximum spend: \$({_NUMBER})\n"
+    r"Time remaining: ([0-9]+\.[0-9])s\n\n"
+    r"Final live risk and Johannesburg execution checks are still running\. "
+    r"Approval does not bypass them\.\n\n"
+    r"Approve only if you want this exact real-money order submitted "
+    r"when every final gate passes\.\Z"
+)
 _LISTENER_APPROVAL_EDIT = re.compile(
     r"\ABP V3 trade APPROVED\nIntent: ([^\r\n]+)\nDecision time: ([^\r\n]+)\Z"
 )
 # git hash-object of the reviewed src/bp_engine/execution/telegram_approval.py.
 # A later edit must update this pin only after the auto-approver is reviewed again.
-APPROVAL_CONTRACT_BLOB_SHA = "930b62514712bd40400550da3ea5bbed533198da"
+APPROVAL_CONTRACT_BLOB_SHA = "5676efcb60840f4533a7f43b3c6a7efab9e97541"
 LOCAL_DEADLINE_SAFETY_MARGIN_SECONDS = 2
 
 
@@ -103,6 +116,7 @@ def _load_approval_module() -> ModuleType:
         "MIN_APPROVAL_WINDOW_SECONDS",
         "SUBMIT_SAFETY_FLOOR_SECONDS",
         "TARGET_NOTIONAL_USD",
+        "build_candidate_prompt",
         "callback_data",
     )
     for name in required:
@@ -128,7 +142,9 @@ def approval_source() -> ModuleType:
 def parse_prompt(text: str | None) -> PromptMatch | None:
     if not isinstance(text, str):
         return None
-    match = _PROMPT.fullmatch(text)
+    match = _READY_PROMPT.fullmatch(text)
+    if match is None:
+        match = _CANDIDATE_PROMPT.fullmatch(text)
     if match is None:
         return None
     side, limit_price, shares, spend, remaining_text = match.groups()

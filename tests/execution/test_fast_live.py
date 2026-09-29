@@ -8,6 +8,9 @@ from pathlib import Path
 import pytest
 
 from bp_engine.execution.fast_live import (
+    FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA,
+    FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE,
+    FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE,
     FastLiveError,
     create_approval_message,
     create_envelope,
@@ -172,7 +175,7 @@ def test_continuous_manual_session_is_per_intent_authorized() -> None:
     assert isinstance(authorization, dict)
     authorization["status"] = "AUTHORIZED_CONTINUOUS_SESSION"
     authorization["requires_telegram_approval"] = True
-    authorization["authorization_mode"] = "manual-telegram-continuous-v1"
+    authorization["authorization_mode"] = FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE
     authorization["max_network_submission_attempts_per_intent"] = 1
     authorization.pop("consumed")
     authorization.pop("max_network_submission_attempts")
@@ -181,7 +184,7 @@ def test_continuous_manual_session_is_per_intent_authorized() -> None:
     runtime.pop("max_network_submission_attempts")
     runtime["continuous_session"] = True
     runtime["requires_telegram_approval"] = True
-    runtime["authorization_mode"] = "manual-telegram-continuous-v1"
+    runtime["authorization_mode"] = FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE
     runtime["max_network_submission_attempts_per_intent"] = 1
 
     verified = verify_runtime_authorization(
@@ -580,6 +583,178 @@ def test_manual_telegram_mode_rejects_active_auto_approver() -> None:
             expected_main=MAIN,
             observed_at=now,
             requires_telegram_approval=True,
+        )
+
+
+def test_continuous_auto_telegram_mode_requires_active_auto_approver() -> None:
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    state = _state(now)
+    phase = state["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    authorization = phase["fast_live_preauthorization"]
+    assert isinstance(authorization, dict)
+    authorization["status"] = "AUTHORIZED_CONTINUOUS_SESSION"
+    authorization["requires_telegram_approval"] = True
+    authorization["authorization_mode"] = (
+        FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE
+    )
+    authorization["max_network_submission_attempts_per_intent"] = 1
+    authorization.pop("consumed")
+    authorization.pop("max_network_submission_attempts")
+    phase["operator_telegram_auto_approver"] = {
+        "status": "ACTIVE_LIVE_AUTO_APPROVE",
+        "live_auto_approve_authorized": True,
+        "approval_contract_git_blob_sha": (
+            FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA
+        ),
+        "continuous_candidate_prompt_authorized": True,
+        "continuous_fast_live_auto_approval_authorized": True,
+    }
+    authorization["auto_approval_contract_git_blob_sha"] = (
+        FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA
+    )
+
+    runtime = _runtime(state, now)
+    runtime.pop("max_network_submission_attempts")
+    runtime["continuous_session"] = True
+    runtime["requires_telegram_approval"] = True
+    runtime["authorization_mode"] = FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE
+    runtime["max_network_submission_attempts_per_intent"] = 1
+
+    verified = verify_runtime_authorization(
+        runtime,
+        state=state,
+        expected_main=MAIN,
+        observed_at=now + timedelta(seconds=1),
+        requires_telegram_approval=True,
+        continuous_session=True,
+    )
+    assert verified["authorization_mode"] == (
+        FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE
+    )
+
+    inactive = copy.deepcopy(state)
+    inactive_phase = inactive["phase_15_v3_live_canary"]
+    assert isinstance(inactive_phase, dict)
+    inactive_phase["operator_telegram_auto_approver"] = {
+        "status": "DEACTIVATED",
+        "live_auto_approve_authorized": False,
+    }
+    inactive_runtime = copy.deepcopy(runtime)
+    inactive_runtime["project_state_sha256"] = project_state_sha256(inactive)
+    with pytest.raises(FastLiveError, match="auto-approver active"):
+        verify_runtime_authorization(
+            inactive_runtime,
+            state=inactive,
+            expected_main=MAIN,
+            observed_at=now + timedelta(seconds=1),
+            requires_telegram_approval=True,
+            continuous_session=True,
+        )
+
+    missing_source_contract = copy.deepcopy(state)
+    missing_source_phase = missing_source_contract["phase_15_v3_live_canary"]
+    assert isinstance(missing_source_phase, dict)
+    missing_source_auth = missing_source_phase["fast_live_preauthorization"]
+    assert isinstance(missing_source_auth, dict)
+    missing_source_auth["auto_approval_contract_git_blob_sha"] = "0" * 40
+    missing_source_runtime = copy.deepcopy(runtime)
+    missing_source_runtime["project_state_sha256"] = project_state_sha256(
+        missing_source_contract
+    )
+    with pytest.raises(
+        FastLiveError,
+        match="source auto-approval contract mismatch",
+    ):
+        verify_runtime_authorization(
+            missing_source_runtime,
+            state=missing_source_contract,
+            expected_main=MAIN,
+            observed_at=now + timedelta(seconds=1),
+            requires_telegram_approval=True,
+            continuous_session=True,
+        )
+
+    wrong_contract = copy.deepcopy(state)
+    wrong_contract_phase = wrong_contract["phase_15_v3_live_canary"]
+    assert isinstance(wrong_contract_phase, dict)
+    wrong_contract_auto = wrong_contract_phase["operator_telegram_auto_approver"]
+    assert isinstance(wrong_contract_auto, dict)
+    wrong_contract_auto["approval_contract_git_blob_sha"] = "0" * 40
+    wrong_contract_runtime = copy.deepcopy(runtime)
+    wrong_contract_runtime["project_state_sha256"] = project_state_sha256(
+        wrong_contract
+    )
+    with pytest.raises(FastLiveError, match="approval contract mismatch"):
+        verify_runtime_authorization(
+            wrong_contract_runtime,
+            state=wrong_contract,
+            expected_main=MAIN,
+            observed_at=now + timedelta(seconds=1),
+            requires_telegram_approval=True,
+            continuous_session=True,
+        )
+
+    not_authorized = copy.deepcopy(state)
+    not_authorized_phase = not_authorized["phase_15_v3_live_canary"]
+    assert isinstance(not_authorized_phase, dict)
+    not_authorized_auto = not_authorized_phase[
+        "operator_telegram_auto_approver"
+    ]
+    assert isinstance(not_authorized_auto, dict)
+    not_authorized_auto["continuous_candidate_prompt_authorized"] = False
+    not_authorized_runtime = copy.deepcopy(runtime)
+    not_authorized_runtime["project_state_sha256"] = project_state_sha256(
+        not_authorized
+    )
+    with pytest.raises(
+        FastLiveError,
+        match="candidate auto-approval not authorized",
+    ):
+        verify_runtime_authorization(
+            not_authorized_runtime,
+            state=not_authorized,
+            expected_main=MAIN,
+            observed_at=now + timedelta(seconds=1),
+            requires_telegram_approval=True,
+            continuous_session=True,
+        )
+
+    no_auto_auth = copy.deepcopy(state)
+    no_auto_auth_phase = no_auto_auth["phase_15_v3_live_canary"]
+    assert isinstance(no_auto_auth_phase, dict)
+    no_auto_auth_auto = no_auto_auth_phase["operator_telegram_auto_approver"]
+    assert isinstance(no_auto_auth_auto, dict)
+    no_auto_auth_auto["continuous_fast_live_auto_approval_authorized"] = False
+    no_auto_auth_runtime = copy.deepcopy(runtime)
+    no_auto_auth_runtime["project_state_sha256"] = project_state_sha256(
+        no_auto_auth
+    )
+    with pytest.raises(
+        FastLiveError,
+        match="continuous auto-approval not authorized",
+    ):
+        verify_runtime_authorization(
+            no_auto_auth_runtime,
+            state=no_auto_auth,
+            expected_main=MAIN,
+            observed_at=now + timedelta(seconds=1),
+            requires_telegram_approval=True,
+            continuous_session=True,
+        )
+
+    wrong_mode = copy.deepcopy(runtime)
+    wrong_mode["authorization_mode"] = (
+        FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE
+    )
+    with pytest.raises(FastLiveError, match="authorization mode mismatch"):
+        verify_runtime_authorization(
+            wrong_mode,
+            state=state,
+            expected_main=MAIN,
+            observed_at=now + timedelta(seconds=1),
+            requires_telegram_approval=True,
+            continuous_session=True,
         )
 
 

@@ -15,6 +15,7 @@ from urllib.request import Request, urlopen
 from bp_engine.execution.telegram_approval import (
     ApprovalError,
     approval_record,
+    build_candidate_prompt,
     build_prompt,
     callback_data,
     new_pending,
@@ -63,25 +64,12 @@ def _prompt_text(
     *,
     observed_at: datetime,
 ) -> str:
-    if str(prepared.get("risk_status") or "") != "pending":
-        return build_prompt(prepared, observed_at=observed_at)
-
-    validated = validate_prepared(prepared, observed_at=observed_at)
-    side = str(validated["selected_side"]).upper()
-    remaining = float(validated["seconds_remaining"])
-    return (
-        "BP V3 LIVE TRADE CANDIDATE\n\n"
-        f"Side: {side}\n"
-        f"Limit: {validated['limit_price']}\n"
-        f"Shares: {validated['requested_shares']}\n"
-        f"Maximum spend: ${validated['target_notional_usd']}\n"
-        f"Time remaining: {remaining:.1f}s\n\n"
-        "Final live risk and Johannesburg execution checks are still running. "
-        "Approval does not bypass them.\n\n"
-        "Approve only if you want this exact real-money order submitted "
-        "when every final gate passes."
-    )
-
+    if str(prepared.get("risk_status") or "") == "pending":
+        return build_candidate_prompt(
+            prepared,
+            observed_at=observed_at,
+        )
+    return build_prompt(prepared, observed_at=observed_at)
 
 def _send_prompt(
     *,

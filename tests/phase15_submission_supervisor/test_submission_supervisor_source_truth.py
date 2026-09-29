@@ -5,6 +5,10 @@ import json
 import subprocess
 from pathlib import Path
 
+from bp_engine.execution.fast_live import (
+    FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA,
+)
+
 ROOT = Path(__file__).resolve().parents[2]
 STATE = ROOT / "PROJECT_STATE.json"
 SUPERVISOR = ROOT / "ops" / "phase15_submission_supervisor" / "run.py"
@@ -146,9 +150,6 @@ def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
         "executor_git_blob_sha": (
             ROOT / "scripts" / "deploy" / "phase15_v3_canary_executor.py"
         ),
-        "telegram_approval_contract_git_blob_sha": (
-            ROOT / "src" / "bp_engine" / "execution" / "telegram_approval.py"
-        ),
     }
     for field, path in bindings.items():
         actual = subprocess.run(
@@ -159,6 +160,37 @@ def test_submission_supervisor_source_truth_is_narrow_and_bound() -> None:
             text=True,
         ).stdout.strip()
         assert supervisor[field] == actual
+
+    current_telegram_approval = subprocess.run(
+        [
+            "git",
+            "hash-object",
+            str(
+                ROOT
+                / "src"
+                / "bp_engine"
+                / "execution"
+                / "telegram_approval.py"
+            ),
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    auto = gate["operator_telegram_auto_approver"]
+    assert supervisor["telegram_approval_contract_git_blob_sha"] == (
+        auto["approval_contract_git_blob_sha"]
+    )
+    assert supervisor["telegram_approval_contract_git_blob_sha"] == (
+        "930b62514712bd40400550da3ea5bbed533198da"
+    )
+    assert current_telegram_approval == (
+        FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA
+    )
+    assert current_telegram_approval != (
+        supervisor["telegram_approval_contract_git_blob_sha"]
+    )
 
     assert supervisor["live_git_blob_sha"] == (
         "0617ffeda8365cdd6ab2636af00e58ca8954c4db"
