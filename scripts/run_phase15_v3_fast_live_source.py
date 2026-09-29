@@ -1229,7 +1229,12 @@ def main() -> int:
                         ),
                         flush=True,
                     )
-                    time.sleep(args.poll_seconds)
+                    time.sleep(
+                        max(
+                            args.poll_seconds,
+                            1.0 if preview_status == "blocked" else 0.05,
+                        )
+                    )
                     continue
                 if preview_status != "prepared":
                     print(
@@ -1691,7 +1696,12 @@ def main() -> int:
                     ),
                     flush=True,
                 )
-                time.sleep(args.poll_seconds)
+                time.sleep(
+                    max(
+                        args.poll_seconds,
+                        1.0 if status == "blocked" else 0.05,
+                    )
+                )
                 continue
             if status != "prepared":
                 print(
