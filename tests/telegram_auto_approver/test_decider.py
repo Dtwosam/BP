@@ -124,6 +124,36 @@ def test_missing_approve_button_malformed_and_unrelated_messages(tmp_path) -> No
     assert clicker.calls == []
 
 
+def test_fast_live_candidate_prompt_is_never_auto_clicked(tmp_path) -> None:
+    decider, _logger, _clock, store = open_decider(
+        tmp_path / "state.sqlite",
+        live=True,
+    )
+    clicker = ClickRecorder()
+    candidate = (
+        "BP V3 LIVE TRADE CANDIDATE\n\n"
+        "Side: DOWN\n"
+        "Limit: 0.72\n"
+        "Shares: 6.81\n"
+        "Maximum spend: $5\n"
+        "Time remaining: 50.0s\n\n"
+        "Final live risk and Johannesburg execution checks are still running. "
+        "Approval does not bypass them.\n\n"
+        "Approve only if you want this exact real-money order submitted "
+        "when every final gate passes."
+    )
+
+    decision = decider.handle_message(
+        incoming(text=candidate),
+        clicker,
+    )
+
+    assert decision.event == "UNEXPECTED_MESSAGE_FORMAT"
+    assert decision.reason == "prompt_mismatch"
+    assert clicker.calls == []
+    assert store.get_by_nonce(NONCE) is None
+
+
 def test_reordered_and_extra_buttons_are_not_clicked(tmp_path) -> None:
     decider, _logger, _clock, _store = open_decider(tmp_path / "state.sqlite", live=True)
     clicker = ClickRecorder()
