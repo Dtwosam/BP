@@ -127,7 +127,7 @@ def build_candidate(
         "telegram_credentials_mutated",
         "project_state_mutated",
         "live_trading_enabled",
-        "real_order_submitted",
+        "real_order_submitted_by_upgrade",
     )
     for name in required_false:
         if upgrade_evidence.get(name) is not False:
@@ -213,7 +213,7 @@ def build_candidate(
         "activation_performed": False,
         "kill_switch_removed": False,
         "runtime_authorization_created": False,
-        "real_order_submitted": False,
+        "real_order_submitted_by_upgrade": False,
         "stake_growth_authorized": False,
         "v3_strategy_mutation_authorized": False,
         "v4_mutation_authorized": False,
@@ -310,7 +310,7 @@ def main() -> int:
         "services_started": False,
         "kill_switch_removed": False,
         "production_mutation_performed": False,
-        "real_order_submitted": False,
+        "real_order_submitted_by_upgrade": False,
     }
 
     _write_new_json(output, candidate)
