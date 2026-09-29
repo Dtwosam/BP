@@ -58,6 +58,31 @@ def _api(token: str, method: str, payload: dict[str, Any], *, timeout: int = 20)
     return body
 
 
+def _prompt_text(
+    prepared: dict[str, Any],
+    *,
+    observed_at: datetime,
+) -> str:
+    if str(prepared.get("risk_status") or "") != "pending":
+        return build_prompt(prepared, observed_at=observed_at)
+
+    validated = validate_prepared(prepared, observed_at=observed_at)
+    side = str(validated["selected_side"]).upper()
+    remaining = float(validated["seconds_remaining"])
+    return (
+        "BP V3 LIVE TRADE CANDIDATE\n\n"
+        f"Side: {side}\n"
+        f"Limit: {validated['limit_price']}\n"
+        f"Shares: {validated['requested_shares']}\n"
+        f"Maximum spend: ${validated['target_notional_usd']}\n"
+        f"Time remaining: {remaining:.1f}s\n\n"
+        "Final live risk and Johannesburg execution checks are still running. "
+        "Approval does not bypass them.\n\n"
+        "Approve only if you want this exact real-money order submitted "
+        "when every final gate passes."
+    )
+
+
 def _send_prompt(
     *,
     token: str,
@@ -84,7 +109,7 @@ def _send_prompt(
         "sendMessage",
         {
             "chat_id": chat_id,
-            "text": build_prompt(prepared, observed_at=_utc_now()),
+            "text": _prompt_text(prepared, observed_at=_utc_now()),
             "reply_markup": markup,
             "disable_notification": False,
         },
