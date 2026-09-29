@@ -25,9 +25,11 @@ from bp_engine.execution.fast_live import (
     create_prepare_message,
     create_warmup_message,
     load_private_json,
-    request_sha256 as fast_live_request_sha256,
     verify_result_message,
     verify_runtime_authorization,
+)
+from bp_engine.execution.fast_live import (
+    request_sha256 as fast_live_request_sha256,
 )
 from bp_engine.execution.fast_live_prepare import (
     prepare_fast_live_candidate,
