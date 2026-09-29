@@ -121,7 +121,7 @@ EXPECTED_PYTHONPATH="$ROOT/ops/telegram_auto_approver:$ROOT/src"
 LAUNCH_STATE="$(launchctl print "$DOMAIN/$LABEL" 2>/dev/null)" ||
   fail "auto_approver_service_not_running"
 printf '%s\n' "$LAUNCH_STATE" |
-  grep -F -q '"BP_TELEGRAM_AUTO_APPROVE" => "true"' ||
+  grep -E -q '(^|[[:space:]])"?BP_TELEGRAM_AUTO_APPROVE"?[[:space:]]*=>[[:space:]]*"?true"?([[:space:]]|$)' ||
   fail "auto_approver_launchd_not_live_enabled"
 SERVICE_PID="$(
   printf '%s\n' "$LAUNCH_STATE" |
