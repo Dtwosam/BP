@@ -133,24 +133,70 @@ grep -qx 'BP_TELEGRAM_AUTO_APPROVE=true' "$AUTO_ENV" ||
 
 WORKING_DIR="$(plutil -extract WorkingDirectory raw -o - "$PLIST" 2>/dev/null || true)"
 [[ "$WORKING_DIR" == "$ROOT" ]] || fail "auto_approver_plist_wrong_checkout"
+[[ "$ROOT" != *[[:space:]]* ]] || fail "repository_path_contains_whitespace"
+
+EXPECTED_PYTHONPATH_ABSOLUTE="$ROOT/ops/telegram_auto_approver:$ROOT/src"
+EXPECTED_PYTHONPATH_RELATIVE="ops/telegram_auto_approver:src"
+EXPECTED_WRAPPER="$HOME/.local/share/bp-telegram-auto-approver/run.sh"
+EXPECTED_WRAPPER_PYTHON="$HOME/.local/share/bp-telegram-auto-approver/venv/bin/python"
 PYTHONPATH_VALUE="$(
   plutil -extract EnvironmentVariables.PYTHONPATH raw -o - "$PLIST" 2>/dev/null || true
 )"
-EXPECTED_PYTHONPATH="$ROOT/ops/telegram_auto_approver:$ROOT/src"
-[[ "$PYTHONPATH_VALUE" == "$EXPECTED_PYTHONPATH" ]] ||
-  fail "auto_approver_plist_pythonpath_mismatch"
+PROGRAM0="$(plutil -extract ProgramArguments.0 raw -o - "$PLIST" 2>/dev/null || true)"
+ARG1="$(plutil -extract ProgramArguments.1 raw -o - "$PLIST" 2>/dev/null || true)"
+ARG2="$(plutil -extract ProgramArguments.2 raw -o - "$PLIST" 2>/dev/null || true)"
+LAUNCHER_MODE=""
+
+if [[ -n "$PYTHONPATH_VALUE" ]]; then
+  if [[ "$PYTHONPATH_VALUE" != "$EXPECTED_PYTHONPATH_ABSOLUTE" &&
+        "$PYTHONPATH_VALUE" != "$EXPECTED_PYTHONPATH_RELATIVE" ]]; then
+    fail "auto_approver_plist_pythonpath_mismatch"
+  fi
+  [[ -x "$PROGRAM0" ]] || fail "auto_approver_python_missing"
+  [[ "$ARG1" == "-m" && "$ARG2" == "bp_telegram_auto_approver" ]] ||
+    fail "auto_approver_program_arguments_invalid"
+  RUNTIME_PYTHONPATH_EXPECTED="$PYTHONPATH_VALUE"
+  LAUNCHER_MODE="direct-python"
+else
+  [[ "$PROGRAM0" == "$EXPECTED_WRAPPER" ]] ||
+    fail "auto_approver_wrapper_path_mismatch"
+  [[ -z "$ARG1" && -z "$ARG2" ]] ||
+    fail "auto_approver_wrapper_arguments_invalid"
+  [[ -f "$EXPECTED_WRAPPER" && ! -L "$EXPECTED_WRAPPER" &&
+     -x "$EXPECTED_WRAPPER" ]] ||
+    fail "auto_approver_wrapper_invalid"
+  EXPECTED_WRAPPER_CONTENT="$(cat <<EOF
+#!/bin/bash
+set -euo pipefail
+set -a
+source "$AUTO_ENV"
+set +a
+export PYTHONPATH="$EXPECTED_PYTHONPATH_ABSOLUTE"
+exec "$EXPECTED_WRAPPER_PYTHON" -m bp_telegram_auto_approver
+EOF
+)"
+  [[ "$(cat "$EXPECTED_WRAPPER")" == "$EXPECTED_WRAPPER_CONTENT" ]] ||
+    fail "auto_approver_wrapper_content_mismatch"
+  [[ -x "$EXPECTED_WRAPPER_PYTHON" ]] ||
+    fail "auto_approver_wrapper_python_missing"
+  PYTHONPATH_VALUE="$EXPECTED_PYTHONPATH_ABSOLUTE"
+  RUNTIME_PYTHONPATH_EXPECTED="$EXPECTED_PYTHONPATH_ABSOLUTE"
+  LAUNCHER_MODE="wrapper"
+fi
 
 LAUNCH_STATE="$(launchctl print "$DOMAIN/$LABEL" 2>/dev/null)" ||
   fail "auto_approver_service_not_running"
-printf '%s\n' "$LAUNCH_STATE" |
-  grep -E -q '(^|[[:space:]])"?BP_TELEGRAM_AUTO_APPROVE"?[[:space:]]*=>[[:space:]]*"?true"?([[:space:]]|$)' ||
-  fail "auto_approver_launchd_not_live_enabled"
 SERVICE_PID="$(
   printf '%s\n' "$LAUNCH_STATE" |
     awk -F'= ' '/^[[:space:]]*pid = / {gsub(/[^0-9]/, "", $2); print $2; exit}'
 )"
 [[ "$SERVICE_PID" =~ ^[0-9]+$ ]] || fail "auto_approver_pid_missing"
 kill -0 "$SERVICE_PID" 2>/dev/null || fail "auto_approver_process_not_alive"
+PROCESS_ENV="$(ps eww -p "$SERVICE_PID" -o command= 2>/dev/null || true)"
+[[ " $PROCESS_ENV " == *" BP_TELEGRAM_AUTO_APPROVE=true "* ]] ||
+  fail "auto_approver_runtime_not_live_enabled"
+[[ " $PROCESS_ENV " == *" PYTHONPATH=$RUNTIME_PYTHONPATH_EXPECTED "* ]] ||
+  fail "auto_approver_runtime_pythonpath_mismatch"
 
 printf 'PHASE15_TELEGRAM_AUTO_APPROVER_CONTINUOUS_PREFLIGHT=PASS\n'
 printf 'REPOSITORY_MAIN=%s\n' "$HEAD"
@@ -158,8 +204,9 @@ printf 'AUTO_APPROVER_SOURCE_TRUTH_STATUS=%s\n' "$AUTO_STATUS"
 printf 'APPROVAL_CONTRACT_GIT_BLOB_SHA=%s\n' "$CONTRACT_SHA"
 printf 'AUTO_APPROVER_SERVICE_ACTIVE=true\n'
 printf 'AUTO_APPROVER_SERVICE_PID=%s\n' "$SERVICE_PID"
+printf 'AUTO_APPROVER_LAUNCHER_MODE=%s\n' "$LAUNCHER_MODE"
 printf 'AUTO_APPROVE_RUNTIME_CONFIGURED=true\n'
-printf 'AUTO_APPROVE_LAUNCHD_ENVIRONMENT=true\n'
+printf 'AUTO_APPROVE_RUNTIME_ENVIRONMENT=true\n'
 printf 'EXACT_CANDIDATE_PROMPT_ACCEPTED=true\n'
 printf 'MUTATED_CANDIDATE_PROMPT_REJECTED=true\n'
 printf 'RESTART_REQUIRED_FOR_RUNNING_PROCESS_UPGRADE=true\n'
