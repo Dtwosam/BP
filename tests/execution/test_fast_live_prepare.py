@@ -93,11 +93,11 @@ def test_preview_arm_window_rejects_too_late_signal() -> None:
 
     assert _has_preview_arm_window(
         prediction,
-        observed_at=BASE + timedelta(seconds=44),
+        observed_at=BASE + timedelta(seconds=30),
     ) is True
     assert _has_preview_arm_window(
         prediction,
-        observed_at=BASE + timedelta(seconds=46),
+        observed_at=BASE + timedelta(seconds=31),
     ) is False
 
 
