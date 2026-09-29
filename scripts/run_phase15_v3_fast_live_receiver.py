@@ -48,7 +48,7 @@ def _utc_now() -> datetime:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Receive and execute one pre-authorized fast-live V3 order."
+        description="Run the continuous Telegram-approved fast-live V3 receiver."
     )
     parser.add_argument(
         "--project-state",
