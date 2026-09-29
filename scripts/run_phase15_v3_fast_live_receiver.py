@@ -19,6 +19,7 @@ from bp_engine.execution.fast_live import (
     FAST_LIVE_APPROVAL_PURPOSE,
     FAST_LIVE_PREPARE_PURPOSE,
     FAST_LIVE_PURPOSE,
+    FAST_LIVE_RESULT_MAX_AGE_SECONDS,
     FAST_LIVE_WARMUP_PURPOSE,
     FastLiveError,
     create_result_message,
@@ -400,6 +401,11 @@ def main() -> int:
     terminal_event = threading.Event()
     prepared_lock = threading.Lock()
     approval_execution_lock = threading.Lock()
+    callback_activity_lock = threading.Lock()
+    callback_idle = threading.Event()
+    callback_idle.set()
+    active_callbacks = 0
+    accepting_callbacks = True
     prepared_orders: dict[tuple[str, str], dict[str, Any]] = {}
 
     def publish_result(
@@ -434,7 +440,14 @@ def main() -> int:
         return str(future.result(timeout=2.0))
 
     def callback(message: object) -> None:
+        nonlocal active_callbacks
         received_at = _utc_now()
+        with callback_activity_lock:
+            if not accepting_callbacks:
+                message.ack()
+                return
+            active_callbacks += 1
+            callback_idle.clear()
         order_verified = False
         verified: dict[str, Any] | None = None
         try:
@@ -821,21 +834,54 @@ def main() -> int:
                 message.nack()
             else:
                 message.ack()
+        finally:
+            with callback_activity_lock:
+                active_callbacks -= 1
+                if active_callbacks == 0:
+                    callback_idle.set()
 
     future = subscriber.subscribe(subscription_path, callback=callback)
+    drain_timeout_seconds = (
+        float(FAST_LIVE_RESULT_MAX_AGE_SECONDS) + 5.0
+    )
+
+    def stop_accepting_and_drain() -> None:
+        nonlocal accepting_callbacks
+        with callback_activity_lock:
+            accepting_callbacks = False
+            already_idle = active_callbacks == 0
+        future.cancel()
+        if not already_idle and not callback_idle.wait(
+            timeout=drain_timeout_seconds
+        ):
+            print(
+                json.dumps(
+                    {
+                        "status": "fast_live_callback_drain_timeout",
+                        "active_callbacks": active_callbacks,
+                        "network_submission_attempt_consumed": None,
+                        "real_order_submitted": None,
+                        "observed_at": _utc_now().isoformat(),
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
+
     try:
         while True:
             if terminal_event.wait(timeout=0.25):
-                future.cancel()
+                stop_accepting_and_drain()
                 break
             if _utc_now() >= runtime_expires_at:
-                future.cancel()
+                stop_accepting_and_drain()
                 break
             if future.done():
+                stop_accepting_and_drain()
                 future.result()
                 break
     except KeyboardInterrupt:
-        future.cancel()
+        stop_accepting_and_drain()
     finally:
         book_cache.stop()
         refresher.stop()
