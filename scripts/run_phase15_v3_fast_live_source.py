@@ -457,16 +457,38 @@ def _result_wait_deadline(
     )
 
 
+def _settlement_marker_path(
+    root: Path,
+    *,
+    intent_id: str,
+) -> Path:
+    results_root = root / "results"
+    for path in sorted(results_root.glob("*.json")):
+        receipt = _load_json(path)
+        if str(receipt.get("intent_id") or "") != str(intent_id):
+            continue
+        official = receipt.get("official_recorded")
+        if (
+            isinstance(official, dict)
+            and official.get("settlement_reconciliation_required") is True
+        ):
+            return root / "settlements" / path.name
+    raise RuntimeError("fast live settlement result receipt missing")
+
+
 def _pending_settlement_intent(root: Path) -> str:
     results_root = root / "results"
     if not results_root.is_dir():
         return ""
+    settlements_root = root / "settlements"
     for path in sorted(results_root.glob("*.json")):
         receipt = _load_json(path)
         official = receipt.get("official_recorded")
         if not isinstance(official, dict):
             continue
         if official.get("settlement_reconciliation_required") is not True:
+            continue
+        if (settlements_root / path.name).is_file():
             continue
         intent_id = str(receipt.get("intent_id") or "").strip()
         if intent_id:
@@ -477,6 +499,7 @@ def _pending_settlement_intent(root: Path) -> str:
 def _settle_until_terminal(
     *,
     engine,
+    receipt_dir: Path,
     intent_id: str,
     poll_seconds: float,
 ) -> int:
@@ -488,6 +511,22 @@ def _settle_until_terminal(
         )
         status = str(settlement.get("status") or "")
         if status in {"settled", "already_settled"}:
+            marker_path = _settlement_marker_path(
+                receipt_dir,
+                intent_id=intent_id,
+            )
+            if not marker_path.is_file():
+                _write_receipt(
+                    marker_path,
+                    {
+                        "status": "fast_live_settlement_recorded",
+                        "intent_id": intent_id,
+                        "reconciliation_id": str(
+                            settlement.get("reconciliation_id") or ""
+                        ),
+                        "settled_at": _utc_now().isoformat(),
+                    },
+                )
             print(
                 json.dumps(
                     settlement,
@@ -641,6 +680,7 @@ def main() -> int:
 
     _ensure_private_dir(args.receipt_dir)
     _ensure_private_dir(args.receipt_dir / "results")
+    _ensure_private_dir(args.receipt_dir / "settlements")
     if approval_required:
         _ensure_private_dir(args.telegram_prepare_state_root)
     settings = (
@@ -659,6 +699,7 @@ def main() -> int:
             try:
                 return _settle_until_terminal(
                     engine=engine,
+                    receipt_dir=args.receipt_dir,
                     intent_id=pending_settlement,
                     poll_seconds=args.poll_seconds,
                 )
@@ -670,6 +711,7 @@ def main() -> int:
     if pending_settlement:
         settlement_status = _settle_until_terminal(
             engine=engine,
+            receipt_dir=args.receipt_dir,
             intent_id=pending_settlement,
             poll_seconds=args.poll_seconds,
         )
@@ -994,6 +1036,7 @@ def main() -> int:
             if settlement_intent_id:
                 settlement_status = _settle_until_terminal(
                     engine=engine,
+                    receipt_dir=args.receipt_dir,
                     intent_id=settlement_intent_id,
                     poll_seconds=args.poll_seconds,
                 )
