@@ -61,9 +61,9 @@ case "$PLATFORM" in
     SERVICE_MANAGER="launchd"
     SERVICE_NAME="com.bp.telegram-auto-approver"
     DOMAIN="gui/$(id -u)"
+    SERVICE_ENABLED_OR_LOADED=true
     if launchctl print "$DOMAIN/$SERVICE_NAME" >/dev/null 2>&1; then
       SERVICE_ACTIVE=true
-      SERVICE_ENABLED_OR_LOADED=true
     fi
     if launchctl print-disabled "$DOMAIN" |
       grep -F -q "\"$SERVICE_NAME\" => true"; then
