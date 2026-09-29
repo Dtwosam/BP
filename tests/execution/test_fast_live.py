@@ -351,6 +351,24 @@ def test_result_message_is_authenticated_and_exact_bound() -> None:
     )
     assert verified == result
 
+    delayed = verify_result_message(
+        message,
+        key=KEY,
+        expected_key_id=KEY_ID,
+        expected_authorization_id="fast-live-auth-1",
+        observed_at=now + timedelta(seconds=60),
+    )
+    assert delayed == result
+
+    with pytest.raises(FastLiveError, match="expired or future"):
+        verify_result_message(
+            message,
+            key=KEY,
+            expected_key_id=KEY_ID,
+            expected_authorization_id="fast-live-auth-1",
+            observed_at=now + timedelta(seconds=300),
+        )
+
     tampered = copy.deepcopy(message)
     nested = tampered["result"]
     assert isinstance(nested, dict)
