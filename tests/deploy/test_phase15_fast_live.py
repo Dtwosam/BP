@@ -64,6 +64,9 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert 'status in {"skipped", "blocked"}' in source
     assert "fast_live_result_reconciliation_grace" in source
     assert "fast_live_result_reconciliation_timeout" in source
+    assert "_result_wait_deadline" in source
+    assert "awaited_result_deadline" in source
+    assert '"result_wait_deadline"' in source
     assert "live_session_authorization_expired" in source
     assert "FAST_LIVE_RESULT_MAX_AGE_SECONDS" in source
     assert "/etc/bp-telegram-transport/transport.key" not in text
