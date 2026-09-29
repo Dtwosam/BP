@@ -342,13 +342,27 @@ stopped, the reviewed cleanup helper is:
 
 `scripts/deploy/phase15_v3_fast_live_cleanup_expired_cloudshell.sh`
 
-Cleanup is an explicit mutation and requires
+Normal expiry cleanup is an explicit mutation and requires
 `PHASE15_ACCEPT_FAST_LIVE_EXPIRED_CLEANUP=I_ACCEPT_CLEAN_EXPIRED_CONTINUOUS_LIVE_SESSION`.
-It refuses to run while the session is still authorized, while either
-fast-live service is active, while the Johannesburg kill switch is absent, or
-while any source result, settlement, cancellation, or recovery-result
-publication remains unresolved. It verifies a clean official account with zero
-open orders before cleanup.
+It accepts either reviewed continuous authorization mode (manual Telegram or
+auto Telegram) and refuses to run before runtime expiry, while either fast-live
+service is active, while the Johannesburg kill switch is absent, or while any
+source result, settlement, cancellation, or recovery-result publication remains
+unresolved. It verifies a clean official account with zero open orders before
+cleanup.
+
+The same helper also has one incident-scoped unexpired abort mode for the
+2026-09-29 activation-validator defect. That path requires
+`PHASE15_ACCEPT_FAST_LIVE_ZERO_ACTIVITY_ABORT=I_ACCEPT_ABORT_ZERO_ACTIVITY_FAST_LIVE_SESSION_AFTER_VALIDATION_DEFECT`
+and is hard-bound to authorization
+`phase15-v3-fast-live-auto-continuous-5d305254b06ef0cbce33065e` on release
+`bbb20f8f5f3b533ecad3c0798c944c61f31bcdfe`. It is permitted only while that
+runtime is still unexpired, both fast-live services are already stopped, the
+Johannesburg kill switch is engaged, there is no stale Telegram current-run or
+result-integrity fault, and recorder publications/results/settlements plus
+executor attempts/results/approval decisions are all exactly zero. Any
+non-zero live activity refuses the abort and preserves the session for normal
+reconciliation/expiry handling.
 
 Cleanup deletes only the expired authorization's Pub/Sub subscriptions/topics
 and session runtime files on the two hosts. It deliberately preserves
