@@ -39,15 +39,24 @@ cleanup_local() {
   rm -rf "$TMP_DIR"
 }
 trap cleanup_local EXIT
-RECORDER_AUTH="$TMP_DIR/recorder-authorization.json"
-
-gcloud compute ssh "$US_VM" \
+SESSION_AUTH="$TMP_DIR/session-authorization.json"
+AUTH_SOURCE_HOST=""
+if gcloud compute ssh "$US_VM" \
   --project="$PROJECT" --zone="$US_ZONE" --quiet \
   --command="sudo cat /etc/bp-fast-live/authorization.json" \
-  >"$RECORDER_AUTH" || fail "recorder_runtime_authorization_missing"
+  >"$SESSION_AUTH" 2>/dev/null; then
+  AUTH_SOURCE_HOST="recorder"
+elif gcloud compute ssh "$EXEC_VM" \
+  --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
+  --command="sudo cat /etc/bp-fast-live/authorization.json" \
+  >"$SESSION_AUTH" 2>/dev/null; then
+  AUTH_SOURCE_HOST="executor"
+else
+  fail "expired_runtime_authorization_missing_on_both_hosts"
+fi
 
 read -r AUTH_ID RELEASE_MAIN RUNTIME_EXPIRES AUTH_SUFFIX < <(
-  python3 - "$RECORDER_AUTH" <<'PY'
+  python3 - "$SESSION_AUTH" <<'PY'
 import hashlib
 import json
 import sys
@@ -130,19 +139,47 @@ gcloud compute ssh "$EXEC_VM" \
                           ! grep -R -F -q recovery_result_publish_pending\":true /var/lib/bp-canary/fast-live/attempts 2>/dev/null'" ||
   fail "executor_recovery_not_complete"
 
-# The two hosts must still be bound to the exact same expired session.
-read -r US_AUTH_SHA US_KEY_SHA < <(
+# If both runtime copies still exist, they must identify the exact same session.
+# A retry after partial host cleanup may legitimately have only one copy left.
+US_RUNTIME_PRESENT="$(
   gcloud compute ssh "$US_VM" \
     --project="$PROJECT" --zone="$US_ZONE" --quiet \
-    --command="sudo sha256sum /etc/bp-fast-live/authorization.json /etc/bp-fast-live/transport.key | awk '{print \$1}' | xargs"
-) || fail "recorder_session_hash_read_failed"
-read -r EXEC_AUTH_SHA EXEC_KEY_SHA < <(
+    --command="if sudo test -f /etc/bp-fast-live/authorization.json &&
+                  sudo test -f /etc/bp-fast-live/transport.key; then
+                 printf yes;
+               else
+                 printf no;
+               fi"
+)" || fail "recorder_runtime_presence_check_failed"
+EXEC_RUNTIME_PRESENT="$(
   gcloud compute ssh "$EXEC_VM" \
     --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
-    --command="sudo sha256sum /etc/bp-fast-live/authorization.json /etc/bp-fast-live/transport.key | awk '{print \$1}' | xargs"
-) || fail "executor_session_hash_read_failed"
-[[ "$US_AUTH_SHA" == "$EXEC_AUTH_SHA" ]] || fail "runtime_authorization_hash_mismatch"
-[[ "$US_KEY_SHA" == "$EXEC_KEY_SHA" ]] || fail "transport_key_hash_mismatch"
+    --command="if sudo test -f /etc/bp-fast-live/authorization.json &&
+                  sudo test -f /etc/bp-fast-live/transport.key; then
+                 printf yes;
+               else
+                 printf no;
+               fi"
+)" || fail "executor_runtime_presence_check_failed"
+[[ "$US_RUNTIME_PRESENT" == "yes" || "$EXEC_RUNTIME_PRESENT" == "yes" ]] ||
+  fail "expired_runtime_material_missing_on_both_hosts"
+
+if [[ "$US_RUNTIME_PRESENT" == "yes" && "$EXEC_RUNTIME_PRESENT" == "yes" ]]; then
+  read -r US_AUTH_SHA US_KEY_SHA < <(
+    gcloud compute ssh "$US_VM" \
+      --project="$PROJECT" --zone="$US_ZONE" --quiet \
+      --command="sudo sha256sum /etc/bp-fast-live/authorization.json /etc/bp-fast-live/transport.key | awk '{print \$1}' | xargs"
+  ) || fail "recorder_session_hash_read_failed"
+  read -r EXEC_AUTH_SHA EXEC_KEY_SHA < <(
+    gcloud compute ssh "$EXEC_VM" \
+      --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
+      --command="sudo sha256sum /etc/bp-fast-live/authorization.json /etc/bp-fast-live/transport.key | awk '{print \$1}' | xargs"
+  ) || fail "executor_session_hash_read_failed"
+  [[ "$US_AUTH_SHA" == "$EXEC_AUTH_SHA" ]] ||
+    fail "runtime_authorization_hash_mismatch"
+  [[ "$US_KEY_SHA" == "$EXEC_KEY_SHA" ]] ||
+    fail "transport_key_hash_mismatch"
+fi
 
 HEALTH="$TMP_DIR/health.json"
 gcloud compute ssh "$EXEC_VM" \
@@ -207,6 +244,7 @@ gcloud compute ssh "$EXEC_VM" \
 
 printf 'PHASE15_FAST_LIVE_CLEANUP=PASS\n'
 printf 'AUTHORIZATION_ID=%s\n' "$AUTH_ID"
+printf 'AUTHORIZATION_SOURCE_HOST=%s\n' "$AUTH_SOURCE_HOST"
 printf 'SESSION_RELEASE_MAIN=%s\n' "$RELEASE_MAIN"
 printf 'RUNTIME_EXPIRED_AT=%s\n' "$RUNTIME_EXPIRES"
 printf 'KILL_SWITCH_ENGAGED=true\n'
