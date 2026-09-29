@@ -47,6 +47,11 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert "must not be present in fast live source" in source
     assert "create_prepare_message" in source
     assert "create_approval_message" in source
+    assert "preview_fast_live_candidate" in source
+    assert "approval_prepared=preview" in source
+    assert '"finalized.json"' in source
+    assert '"cancel.json"' in source
+    assert "fast live finalized risk candidate changed" in source
     assert "BP_FAST_LIVE_TELEGRAM_APPROVAL_REQUIRED" in source
     assert "BP_FAST_LIVE_CONTINUOUS_SESSION" in source
     assert "_pending_result_binding" in source
@@ -90,6 +95,8 @@ def test_fast_live_receiver_is_continuous_approval_gated_and_fail_closed() -> No
     assert "_claim_approval_once" in receiver
     assert "_write_approval_result" in receiver
     assert "approval_recovery_blocked" in receiver
+    assert 'approved["prepare_sha256"]' in receiver
+    assert 'approved["prediction_id"]' in receiver
     assert "execute_with_bounded_pre_attempt_retry" in receiver
     assert "create_result_message" in receiver
     assert "result_publisher.publish" in receiver
