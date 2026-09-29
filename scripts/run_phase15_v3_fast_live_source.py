@@ -178,7 +178,12 @@ def _telegram_run_dir(root: Path, intent_id: str) -> Path:
     return root / "runs" / key
 
 
-def _stage_telegram_candidate(root: Path, prepared: dict[str, Any]) -> Path:
+def _stage_telegram_candidate(
+    root: Path,
+    prepared: dict[str, Any],
+    *,
+    authorization_id: str,
+) -> Path:
     _ensure_private_dir(root)
     _ensure_private_dir(root / "runs")
     intent_id = str(prepared.get("intent_id") or "")
@@ -200,6 +205,23 @@ def _stage_telegram_candidate(root: Path, prepared: dict[str, Any]) -> Path:
     else:
         prepared_path.write_text(encoded, encoding="utf-8")
         os.chmod(prepared_path, 0o600)
+    normalized_authorization_id = str(authorization_id).strip()
+    if not normalized_authorization_id:
+        raise RuntimeError("fast live Telegram authorization id missing")
+    authorization_path = run_dir / "authorization-id"
+    if authorization_path.is_file():
+        existing_authorization_id = authorization_path.read_text(
+            encoding="utf-8"
+        ).strip()
+        if existing_authorization_id != normalized_authorization_id:
+            raise RuntimeError(
+                "fast live Telegram candidate authorization changed"
+            )
+    else:
+        _atomic_text(
+            authorization_path,
+            normalized_authorization_id + "\n",
+        )
     _atomic_text(root / "current-run", str(run_dir.resolve()) + "\n")
     return prepared_path
 
@@ -255,7 +277,11 @@ def _load_telegram_state(
     return payload
 
 
-def _load_staged_telegram_candidate(root: Path) -> dict[str, Any] | None:
+def _load_staged_telegram_candidate(
+    root: Path,
+    *,
+    expected_authorization_id: str,
+) -> dict[str, Any] | None:
     current = root / "current-run"
     if not current.is_file():
         return None
@@ -268,6 +294,16 @@ def _load_staged_telegram_candidate(root: Path) -> dict[str, Any] | None:
         run_dir.resolve().relative_to(runs_root)
     except ValueError as exc:
         raise RuntimeError("fast live Telegram current run escapes state root") from exc
+    authorization_path = run_dir / "authorization-id"
+    expected = str(expected_authorization_id).strip()
+    if (
+        not expected
+        or not authorization_path.is_file()
+        or authorization_path.read_text(encoding="utf-8").strip()
+        != expected
+    ):
+        current.unlink(missing_ok=True)
+        return None
     prepared_path = run_dir / "prepared.json"
     if not prepared_path.is_file():
         return None
@@ -1094,7 +1130,10 @@ def main() -> int:
 
             if approval_required:
                 preview = _load_staged_telegram_candidate(
-                    args.telegram_prepare_state_root
+                    args.telegram_prepare_state_root,
+                    expected_authorization_id=str(
+                        verified_runtime["authorization_id"]
+                    ),
                 )
                 if preview is None:
                     preview = preview_fast_live_candidate(
@@ -1144,6 +1183,7 @@ def main() -> int:
                 prepared_path = _stage_telegram_candidate(
                     args.telegram_prepare_state_root,
                     preview,
+                    authorization_id=str(runtime["authorization_id"]),
                 )
                 prepare_message = create_prepare_message(
                     preview,
