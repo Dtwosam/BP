@@ -207,6 +207,19 @@ def verify_source_authorization(
                     raise FastLiveError(
                         "fast live continuous candidate auto-approval not authorized"
                     )
+                if (
+                    auto.get("continuous_fast_live_auto_approval_authorized")
+                    is not True
+                ):
+                    raise FastLiveError(
+                        "fast live continuous auto-approval not authorized"
+                    )
+                if authorization.get(
+                    "auto_approval_contract_git_blob_sha"
+                ) != FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA:
+                    raise FastLiveError(
+                        "fast live source auto-approval contract mismatch"
+                    )
         elif auto_active:
             raise FastLiveError(
                 "fast live manual Telegram approval requires auto-approver disabled"
