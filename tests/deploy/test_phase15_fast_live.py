@@ -64,6 +64,10 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert "result_record_lock" in source
     assert "fast_live_result_replayed" in source
     assert "durable_receipt" in source
+    assert "_result_sha256" in source
+    assert "incoming_result_sha256" in source
+    assert '"result_sha256": incoming_result_sha256' in source
+    assert 'durable_receipt.get("result_sha256")' in source
     assert "fast live replayed result changed" in source
     assert 'status in {"skipped", "blocked"}' in source
     assert "fast_live_result_reconciliation_grace" in source
