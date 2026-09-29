@@ -712,6 +712,24 @@ def main() -> int:
     _ensure_private_dir(args.receipt_dir)
     _ensure_private_dir(args.receipt_dir / "results")
     _ensure_private_dir(args.receipt_dir / "settlements")
+    result_fault_path = (
+        args.receipt_dir.parent / "RESULT_INTEGRITY_FAULT.json"
+    )
+    if result_fault_path.is_file():
+        print(
+            json.dumps(
+                {
+                    "status": "fast_live_result_integrity_fault_latched",
+                    "fault_path": str(result_fault_path),
+                    "network_submission_attempt_consumed": None,
+                    "real_order_submitted": None,
+                    "observed_at": _utc_now().isoformat(),
+                },
+                sort_keys=True,
+            ),
+            flush=True,
+        )
+        return 2
     if approval_required:
         _ensure_private_dir(args.telegram_prepare_state_root)
     settings = (
@@ -831,6 +849,7 @@ def main() -> int:
     warmed_condition_id = ""
     next_warmup_check = 0.0
     result_event = threading.Event()
+    result_fault_event = threading.Event()
     result_state_lock = threading.Lock()
     result_record_lock = threading.Lock()
     result_state: dict[str, Any] = {
@@ -1027,12 +1046,24 @@ def main() -> int:
             )
             message.ack()
         except Exception as exc:
+            fault = {
+                "status": "fast_live_result_integrity_fault",
+                "error": type(exc).__name__,
+                "message_id": str(
+                    getattr(message, "message_id", "") or ""
+                ),
+                "observed_at": observed.isoformat(),
+            }
+            try:
+                _write_receipt(result_fault_path, fault)
+            except FileExistsError:
+                pass
+            result_fault_event.set()
             print(
                 json.dumps(
                     {
                         "status": "fast_live_result_record_failed",
-                        "error": type(exc).__name__,
-                        "observed_at": observed.isoformat(),
+                        **fault,
                     },
                     sort_keys=True,
                 ),
@@ -1070,6 +1101,23 @@ def main() -> int:
 
     try:
         while True:
+            if result_fault_event.is_set():
+                print(
+                    json.dumps(
+                        {
+                            "status": (
+                                "fast_live_result_integrity_fault_halt"
+                            ),
+                            "fault_path": str(result_fault_path),
+                            "network_submission_attempt_consumed": None,
+                            "real_order_submitted": None,
+                            "observed_at": _utc_now().isoformat(),
+                        },
+                        sort_keys=True,
+                    ),
+                    flush=True,
+                )
+                return 2
             if settlement_intent_id:
                 settlement_status = _settle_until_terminal(
                     engine=engine,
@@ -1559,6 +1607,10 @@ def main() -> int:
                                     )
                                 )
                             )
+                            if result_fault_event.is_set():
+                                raise RuntimeError(
+                                    "fast live result integrity fault latched"
+                                )
                             with result_state_lock:
                                 result_state["awaited_intent_id"] = str(
                                     approval_message["intent_id"]
@@ -1793,6 +1845,10 @@ def main() -> int:
                 time.sleep(args.poll_seconds)
                 continue
 
+            if result_fault_event.is_set():
+                raise RuntimeError(
+                    "fast live result integrity fault latched"
+                )
             direct_published_at = _utc_now()
             direct_result_deadline = direct_published_at + timedelta(
                 seconds=float(FAST_LIVE_RESULT_MAX_AGE_SECONDS) + 5.0
