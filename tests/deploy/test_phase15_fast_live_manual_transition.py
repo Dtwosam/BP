@@ -37,6 +37,7 @@ def _candidate_module():
 
 def _state() -> dict[str, object]:
     return {
+        "source_of_truth_version": "0.14.180",
         "live_trading_enabled": False,
         "phase_15_v3_live_canary": {
             "live_trading_enabled": False,
@@ -71,6 +72,47 @@ def _deactivation(main: str) -> dict[str, object]:
         "real_order_submitted": False,
         "observed_at": "2026-09-29T15:30:00+00:00",
     }
+
+
+def test_manual_transition_preflight_is_read_only() -> None:
+    preflight = (
+        ROOT
+        / "scripts"
+        / "deploy"
+        / "phase15_v3_fast_live_manual_transition_preflight.sh"
+    )
+    completed = subprocess.run(
+        ["bash", "-n", str(preflight)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    text = preflight.read_text(encoding="utf-8")
+    for marker in (
+        "source_truth_not_in_pretransition_state",
+        "checkout_is_not_current_main",
+        "AUTO_APPROVER_SOURCE_TRUTH_STATUS",
+        "FAST_LIVE_PREAUTHORIZATION_PRESENT",
+        "SERVICE_ACTIVE",
+        "SERVICE_ENABLED_OR_LOADED",
+        "MATCHING_PROCESS_PRESENT",
+        "MUTATIONS_PERFORMED=false",
+        "SOURCE_TRUTH_MUTATED=false",
+        "LIVE_TRADING_ENABLED=false",
+        "REAL_ORDER_SUBMITTED=false",
+    ):
+        assert marker in text
+    for forbidden in (
+        "launchctl bootout",
+        "launchctl disable",
+        "systemctl --user stop",
+        "systemctl --user disable",
+        "pkill ",
+        "kill -9",
+        "gcloud ",
+    ):
+        assert forbidden not in text
 
 
 def test_operator_auto_approver_deactivation_helper_is_shell_valid() -> None:
@@ -140,6 +182,7 @@ def test_candidate_disables_auto_approver_without_enabling_live_flags() -> None:
         deactivation=_deactivation(main),
         expected_main=main,
         authorization_id="fast-live-continuous-session-test",
+        source_of_truth_version="0.14.181",
         expires_at=authorized_at + timedelta(hours=8),
         authorized_at=authorized_at,
         deactivation_evidence_reference=(
@@ -156,6 +199,7 @@ def test_candidate_disables_auto_approver_without_enabling_live_flags() -> None:
     auto = phase["operator_telegram_auto_approver"]
     auth = phase["fast_live_preauthorization"]
 
+    assert candidate["source_of_truth_version"] == "0.14.181"
     assert candidate["live_trading_enabled"] is False
     assert phase["live_trading_enabled"] is False
     assert auto["status"] == (
@@ -230,6 +274,8 @@ def test_candidate_generator_refuses_direct_source_truth_overwrite() -> None:
     for marker in (
         "I_ACCEPT_GENERATE_REVIEWABLE_CONTINUOUS_LIVE_AUTHORIZATION_CANDIDATE",
         "candidate generator refuses to overwrite PROJECT_STATE",
+        "--source-of-truth-version",
+        "source-of-truth version must change",
         "deactivation evidence project-state hash mismatch",
         "deactivation evidence must be stored under the repository root",
         "verify_source_authorization",
