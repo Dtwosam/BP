@@ -120,14 +120,25 @@ def _prepared(now: datetime) -> dict[str, object]:
     }
 
 
-def test_repository_source_truth_remains_fail_closed() -> None:
+def test_repository_source_truth_contains_reviewed_continuous_auto_authorization() -> None:
     state = json.loads(STATE.read_text(encoding="utf-8"))
-    with pytest.raises(FastLiveError, match="source-truth authorization missing"):
-        verify_source_authorization(
-            state,
-            expected_main=MAIN,
-            observed_at=datetime(2026, 9, 28, 20, 0, tzinfo=UTC),
-        )
+    phase = state["phase_15_v3_live_canary"]
+    authorization = phase["fast_live_preauthorization"]
+    verified = verify_source_authorization(
+        state,
+        expected_main=str(authorization["authorized_at_main"]),
+        observed_at=datetime.fromisoformat(str(authorization["authorized_at"])),
+        requires_telegram_approval=True,
+        continuous_session=True,
+    )
+
+    assert verified["status"] == "AUTHORIZED_CONTINUOUS_SESSION"
+    assert verified["authorization_mode"] == FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE
+    assert verified["auto_approval_contract_git_blob_sha"] == (
+        FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA
+    )
+    assert state["live_trading_enabled"] is False
+    assert phase["live_trading_enabled"] is False
 
 
 def test_current_source_truth_shape_is_required() -> None:
