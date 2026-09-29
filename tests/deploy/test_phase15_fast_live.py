@@ -48,6 +48,7 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert "create_prepare_message" in source
     assert "create_approval_message" in source
     assert "BP_FAST_LIVE_TELEGRAM_APPROVAL_REQUIRED" in source
+    assert "fast_live_result_wait_expired" in source
     assert "/etc/bp-telegram-transport/transport.key" not in text
     assert "ExecStart=/opt/bp/.venv/bin/python" not in text
     assert "/etc/bp-telegram-transport/transport.key" not in source
@@ -80,6 +81,10 @@ def test_fast_live_receiver_is_preauthorized_one_shot_and_fail_closed() -> None:
     assert "prepare_order" in receiver
     assert "prepared_order=prepared_order" in receiver
     assert "prepare_recovered_after_restart" in receiver
+    assert "approval_execution_lock" in receiver
+    assert "_claim_approval_once" in receiver
+    assert "_write_approval_result" in receiver
+    assert "approval_recovery_blocked" in receiver
     assert "execute_with_bounded_pre_attempt_retry" in receiver
     assert "create_result_message" in receiver
     assert "result_publisher.publish" in receiver
