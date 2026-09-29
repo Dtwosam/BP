@@ -116,9 +116,17 @@ def test_fast_live_expired_cleanup_preserves_remote_shell_expansion() -> None:
 def test_fast_live_cleanup_zero_activity_abort_is_exactly_scoped() -> None:
     text = CLEANUP.read_text(encoding="utf-8")
 
-    assert '[[ "$AUTH_ID" == "phase15-v3-fast-live-auto-continuous-5d305254b06ef0cbce33065e" ]]' in text
+    assert (
+        '[[ "$AUTH_ID" == '
+        '"phase15-v3-fast-live-auto-continuous-5d305254b06ef0cbce33065e" ]]'
+        in text
+    )
     assert '[[ "$RELEASE_MAIN" == "bbb20f8f5f3b533ecad3c0798c944c61f31bcdfe" ]]' in text
     assert '[[ "$AUTH_MODE" == "auto-telegram-continuous-v1" ]]' in text
-    assert '[[ "$LIVE_PUBLICATIONS" == "0" && "$LIVE_RESULTS" == "0" && "$LIVE_SETTLEMENTS" == "0" ]]' in text
+    assert (
+        '[[ "$LIVE_PUBLICATIONS" == "0" && "$LIVE_RESULTS" == "0" && '
+        '"$LIVE_SETTLEMENTS" == "0" ]]'
+        in text
+    )
     assert '[[ "$LIVE_ATTEMPTS" == "0" && "$EXEC_RESULTS" == "0" &&' in text
     assert 'ZERO_ACTIVITY_VERIFIED=true' in text
