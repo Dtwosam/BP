@@ -61,6 +61,9 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert "_pending_result_binding" in source
     assert "awaited_intent_id" in source
     assert "result_state_lock" in source
+    assert "result_record_lock" in source
+    assert "fast_live_result_replayed" in source
+    assert "durable_receipt" in source
     assert 'status in {"skipped", "blocked"}' in source
     assert "fast_live_result_reconciliation_grace" in source
     assert "fast_live_result_reconciliation_stalled" in source
