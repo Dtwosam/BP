@@ -115,8 +115,13 @@ def test_auto_approver_continuous_preflight_is_read_only() -> None:
         "auto_approver_plist_wrong_checkout",
         'EXPECTED_PYTHONPATH_RELATIVE="ops/telegram_auto_approver:src"',
         "EXPECTED_PYTHONPATH_ABSOLUTE",
+        'EXPECTED_WRAPPER="$HOME/.local/share/bp-telegram-auto-approver/run.sh"',
+        "auto_approver_wrapper_content_mismatch",
+        "auto_approver_runtime_not_live_enabled",
+        "auto_approver_runtime_pythonpath_mismatch",
+        "AUTO_APPROVER_LAUNCHER_MODE",
         "AUTO_APPROVER_SERVICE_ACTIVE=true",
-        "AUTO_APPROVE_LAUNCHD_ENVIRONMENT=true",
+        "AUTO_APPROVE_RUNTIME_ENVIRONMENT=true",
         "auto_approver_launchd_not_live_enabled",
         "RESTART_REQUIRED_FOR_RUNNING_PROCESS_UPGRADE=true",
         "MUTATIONS_PERFORMED=false",
@@ -134,6 +139,7 @@ def test_auto_approver_continuous_preflight_is_read_only() -> None:
         "post_order",
         "KILL_SWITCH_REMOVED=true",
         "from bp_engine.execution",
+        "eval ",
     ):
         assert forbidden not in text
 
@@ -153,6 +159,13 @@ def test_auto_approver_continuous_upgrade_is_explicit_and_scoped() -> None:
         "BP_TELEGRAM_AUTO_APPROVE=true",
         'EXPECTED_PYTHONPATH_RELATIVE="ops/telegram_auto_approver:src"',
         "EXPECTED_PYTHONPATH_ABSOLUTE",
+        'EXPECTED_WRAPPER="$HOME/.local/share/bp-telegram-auto-approver/run.sh"',
+        "auto_approver_wrapper_content_mismatch",
+        "auto_approver_runtime_not_live_enabled_before",
+        "auto_approver_runtime_not_live_enabled_after",
+        "auto_approver_runtime_pythonpath_mismatch_before",
+        "auto_approver_runtime_pythonpath_mismatch_after",
+        "PROCESS_LIVE_AUTO_APPROVE_ENVIRONMENT_VERIFIED=true",
         "approval_source",
         "ast.parse",
         "exact_candidate_prompt_not_prepared_for_auto_click",
@@ -182,6 +195,7 @@ def test_auto_approver_continuous_upgrade_is_explicit_and_scoped() -> None:
         "rm -f $HOME/.config/bp",
         "rm -rf $HOME/.config/bp",
         "from bp_engine.execution",
+        "eval ",
     ):
         assert forbidden not in text
 
