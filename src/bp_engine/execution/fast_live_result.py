@@ -243,6 +243,7 @@ def record_fast_live_result(
                 "telegram_skipped",
                 "telegram_expired",
                 "approval_recovery_blocked",
+                "pre_submission_blocked",
             }:
                 raise FastLiveResultError(
                     "unsupported non-attempt fast-live result"
@@ -258,7 +259,8 @@ def record_fast_live_result(
                 evidence={
                     "phase": "phase15_v3_fast_live_v1",
                     "status": status,
-                    "reason": status,
+                    "reason": str(result.get("reason") or status),
+                    "error_type": result.get("error_type"),
                     "marketability": result.get("marketability"),
                     "submission_attempt_consumed": False,
                 },
