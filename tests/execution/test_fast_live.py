@@ -163,6 +163,60 @@ def test_runtime_authorization_is_bound_to_exact_source_truth() -> None:
         )
 
 
+def test_continuous_manual_session_is_per_intent_authorized() -> None:
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    state = _state(now)
+    phase = state["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    authorization = phase["fast_live_preauthorization"]
+    assert isinstance(authorization, dict)
+    authorization["status"] = "AUTHORIZED_CONTINUOUS_SESSION"
+    authorization["requires_telegram_approval"] = True
+    authorization["authorization_mode"] = "manual-telegram-continuous-v1"
+    authorization["max_network_submission_attempts_per_intent"] = 1
+    authorization.pop("consumed")
+    authorization.pop("max_network_submission_attempts")
+
+    runtime = _runtime(state, now)
+    runtime.pop("max_network_submission_attempts")
+    runtime["continuous_session"] = True
+    runtime["requires_telegram_approval"] = True
+    runtime["authorization_mode"] = "manual-telegram-continuous-v1"
+    runtime["max_network_submission_attempts_per_intent"] = 1
+
+    verified = verify_runtime_authorization(
+        runtime,
+        state=state,
+        expected_main=MAIN,
+        observed_at=now + timedelta(seconds=1),
+        requires_telegram_approval=True,
+        continuous_session=True,
+    )
+    assert verified["continuous_session"] is True
+    assert verified["max_network_submission_attempts_per_intent"] == 1
+
+    changed = copy.deepcopy(runtime)
+    changed["max_network_submission_attempts_per_intent"] = 2
+    with pytest.raises(FastLiveError, match="per-intent attempt limit"):
+        verify_runtime_authorization(
+            changed,
+            state=state,
+            expected_main=MAIN,
+            observed_at=now + timedelta(seconds=1),
+            requires_telegram_approval=True,
+            continuous_session=True,
+        )
+
+    with pytest.raises(FastLiveError, match="requires Telegram approval"):
+        verify_source_authorization(
+            state,
+            expected_main=MAIN,
+            observed_at=now + timedelta(seconds=1),
+            requires_telegram_approval=False,
+            continuous_session=True,
+        )
+
+
 def test_envelope_is_exact_bound_short_lived_and_tamper_evident() -> None:
     now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
     state = _state(now)
