@@ -1466,14 +1466,15 @@ def main() -> int:
                 except Exception as exc:
                     if str(finalized.get("status") or "") == "prepared":
                         closed = {
-                            "status": "prepare_publish_failed",
+                            "status": "pre_submission_blocked",
                             "intent_id": str(finalized["intent_id"]),
                             "prediction_id": str(finalized["prediction_id"]),
                             "paper_order_id": str(finalized["paper_order_id"]),
                             "request_sha256": str(
                                 prepare_message["request_sha256"]
                             ),
-                            "reason": type(exc).__name__,
+                            "reason": "prepare_publish_failed",
+                            "error_type": type(exc).__name__,
                             "network_submission_attempt_consumed": False,
                             "real_order_submitted": False,
                             "external_order_id": None,
@@ -1545,52 +1546,52 @@ def main() -> int:
 
                 finalized_status = str(finalized.get("status") or "")
                 if finalized_status != "prepared":
-                        cancel = {
-                            "status": "cancelled",
-                            "reason": (
-                                str(finalized.get("reason") or "")
-                                or "live_risk_not_eligible"
-                            ),
-                            "preview_intent_id": preview_intent_id,
-                            "prediction_id": str(
-                                preview.get("prediction_id") or ""
-                            ),
-                            "request_sha256": str(
-                                prepare_message["request_sha256"]
-                            ),
-                            "finalized_status": finalized_status,
-                            "finalized": finalized,
-                            "cancelled_at": _utc_now().isoformat(),
-                        }
-                        _write_telegram_state_once(
-                            args.telegram_prepare_state_root,
-                            preview_intent_id,
-                            "cancel.json",
-                            cancel,
+                    cancel = {
+                    "status": "cancelled",
+                        "reason": (
+                            str(finalized.get("reason") or "")
+                            or "live_risk_not_eligible"
+                        ),
+                        "preview_intent_id": preview_intent_id,
+                        "prediction_id": str(
+                            preview.get("prediction_id") or ""
+                        ),
+                        "request_sha256": str(
+                            prepare_message["request_sha256"]
+                        ),
+                        "finalized_status": finalized_status,
+                        "finalized": finalized,
+                        "cancelled_at": _utc_now().isoformat(),
+                    }
+                    _write_telegram_state_once(
+                        args.telegram_prepare_state_root,
+                        preview_intent_id,
+                        "cancel.json",
+                        cancel,
+                    )
+                    _clear_staged_telegram_candidate(
+                        args.telegram_prepare_state_root,
+                        preview_intent_id,
+                    )
+                    print(
+                        json.dumps(
+                            {
+                                "status": "fast_live_preview_cancelled",
+                                **cancel,
+                            },
+                            sort_keys=True,
+                            default=str,
+                        ),
+                        flush=True,
+                    )
+                    retryable = finalized.get("retryable") is True
+                    time.sleep(
+                        max(
+                            args.poll_seconds,
+                            1.0 if retryable else 0.05,
                         )
-                        _clear_staged_telegram_candidate(
-                            args.telegram_prepare_state_root,
-                            preview_intent_id,
-                        )
-                        print(
-                            json.dumps(
-                                {
-                                    "status": "fast_live_preview_cancelled",
-                                    **cancel,
-                                },
-                                sort_keys=True,
-                                default=str,
-                            ),
-                            flush=True,
-                        )
-                        retryable = finalized.get("retryable") is True
-                        time.sleep(
-                            max(
-                                args.poll_seconds,
-                                1.0 if retryable else 0.05,
-                            )
-                        )
-                        continue
+                    )
+                    continue
 
                     preview_request_hash = fast_live_request_sha256(
                         preview
