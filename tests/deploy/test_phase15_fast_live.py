@@ -178,24 +178,43 @@ def test_fast_live_source_recovers_reconciliation_after_session_expiry() -> None
     assert "fast_live_result_reconciliation_stalled" in source
 
 
-def test_fast_live_source_starts_approval_and_johannesburg_before_risk_join() -> None:
+def test_fast_live_source_starts_prepare_setup_in_parallel_with_risk() -> None:
     source = SOURCE.read_text(encoding="utf-8")
-    preview = source.index("preview = preview_fast_live_candidate")
-    prepare = source.index("prepare_message = create_prepare_message", preview)
+
+    helper = source.index("def _prepare_candidate_transport")
+    auth = source.index("verify_runtime_authorization(", helper)
+    stage = source.index("prepared_path = _stage_telegram_candidate", auth)
+    prepare = source.index("prepare_message = create_prepare_message", stage)
     publish_start = source.index(
         "prepare_publish_future = _start_control_publish",
         prepare,
     )
+    helper_end = source.index("def _publish_control_once", publish_start)
+    assert helper < auth < stage < prepare < publish_start < helper_end
+
+    preview = source.index("preview = preview_fast_live_candidate")
+    submit = source.index(
+        "prepare_setup_future = prepare_executor.submit",
+        preview,
+    )
     finalize = source.index(
         "finalized = prepare_fast_live_candidate",
-        publish_start,
+        submit,
+    )
+    setup_join = source.index(
+        "prepare_setup = prepare_setup_future.result()",
+        finalize,
     )
     publish_join = source.index(
         "_finish_control_publish_with_bounded_retry(",
-        finalize,
+        setup_join,
     )
-    approve = source.index("approval_message = create_approval_message", publish_join)
-    assert preview < prepare < publish_start < finalize < publish_join < approve
+    approve = source.index(
+        "approval_message = create_approval_message",
+        publish_join,
+    )
+    assert preview < submit < finalize < setup_join < publish_join < approve
+    assert '"prepare_setup_overlapped_risk": (' in source
     assert '"prepare_publish_overlapped_risk": True' in source
     assert '"reason": "prepare_publish_failed"' in source
     assert '"status": "pre_submission_blocked"' in source

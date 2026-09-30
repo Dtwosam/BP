@@ -4,6 +4,8 @@ import importlib.util
 import json
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "scripts" / "run_phase15_v3_fast_live_source.py"
 
@@ -276,3 +278,162 @@ def test_final_live_intent_clears_provisional_telegram_run(
         "live-intent-final-1",
     )
     assert not (root / "current-run").exists()
+
+
+def test_prepare_candidate_transport_verifies_auth_before_publish(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _module()
+    state_path = tmp_path / "PROJECT_STATE.json"
+    auth_path = tmp_path / "authorization.json"
+    telegram_root = tmp_path / "telegram"
+    state = {"source": "state"}
+    runtime = {"authorization_id": "auth-session"}
+    preview = {
+        "status": "prepared",
+        "intent_id": "candidate-parallel-1",
+        "prediction_id": "prediction-parallel-1",
+        "paper_order_id": "paper-parallel-1",
+    }
+    calls: list[str] = []
+    fake_future = object()
+
+    monkeypatch.setattr(module, "_load_state", lambda path: state)
+    monkeypatch.setattr(
+        module,
+        "load_private_json",
+        lambda path, *, label: runtime,
+    )
+
+    def verify_runtime(
+        payload: dict[str, object],
+        *,
+        state: dict[str, object],
+        expected_main: str,
+        observed_at: object,
+        requires_telegram_approval: bool,
+        continuous_session: bool,
+    ) -> None:
+        assert payload is runtime
+        assert expected_main == "a" * 40
+        assert requires_telegram_approval is True
+        assert continuous_session is True
+        calls.append("verified")
+
+    monkeypatch.setattr(
+        module,
+        "verify_runtime_authorization",
+        verify_runtime,
+    )
+
+    def create_prepare(
+        prepared: dict[str, object],
+        *,
+        runtime_authorization: dict[str, object],
+        key: bytes,
+        key_id: str,
+        created_at: object,
+    ) -> dict[str, object]:
+        assert prepared is preview
+        assert runtime_authorization is runtime
+        assert key == b"k" * 32
+        assert key_id == "key-1"
+        calls.append("message")
+        return {
+            "expires_at": (
+                module._utc_now() + module.timedelta(seconds=5)
+            ).isoformat(),
+            "purpose": "phase15-v3-fast-live-prepare-v1",
+            "authorization_id": "auth-session",
+            "intent_id": preview["intent_id"],
+            "request_sha256": "1" * 64,
+        }
+
+    monkeypatch.setattr(module, "create_prepare_message", create_prepare)
+
+    def start_publish(
+        publisher: object,
+        *,
+        topic_path: str,
+        payload: dict[str, object],
+    ) -> object:
+        assert topic_path == "projects/p/topics/orders"
+        assert payload["intent_id"] == preview["intent_id"]
+        assert (telegram_root / "current-run").is_file()
+        calls.append("publish")
+        return fake_future
+
+    monkeypatch.setattr(module, "_start_control_publish", start_publish)
+
+    result = module._prepare_candidate_transport(
+        project_state=state_path,
+        runtime_authorization=auth_path,
+        telegram_prepare_state_root=telegram_root,
+        preview=preview,
+        expected_main="a" * 40,
+        continuous_session=True,
+        key=b"k" * 32,
+        key_id="key-1",
+        publisher=object(),
+        topic_path="projects/p/topics/orders",
+    )
+
+    assert calls == ["verified", "message", "publish"]
+    assert result["runtime"] is runtime
+    assert result["prepare_publish_future"] is fake_future
+    assert result["prepared_path"].is_file()
+    timing = result["timing"]
+    for key in (
+        "prepare_auth_verify_ms",
+        "prepare_stage_candidate_ms",
+        "prepare_message_build_ms",
+        "prepare_publish_start_ms",
+        "prepare_setup_total_ms",
+    ):
+        assert timing[key] >= 0
+
+
+def test_prepare_candidate_transport_fails_before_staging_when_auth_invalid(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _module()
+    telegram_root = tmp_path / "telegram"
+    preview = {
+        "status": "prepared",
+        "intent_id": "candidate-parallel-invalid-auth",
+        "prediction_id": "prediction-parallel-invalid-auth",
+        "paper_order_id": "paper-parallel-invalid-auth",
+    }
+    monkeypatch.setattr(module, "_load_state", lambda path: {})
+    monkeypatch.setattr(
+        module,
+        "load_private_json",
+        lambda path, *, label: {"authorization_id": "auth-session"},
+    )
+
+    def reject_runtime(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("authorization invalid")
+
+    monkeypatch.setattr(
+        module,
+        "verify_runtime_authorization",
+        reject_runtime,
+    )
+
+    with pytest.raises(RuntimeError, match="authorization invalid"):
+        module._prepare_candidate_transport(
+            project_state=tmp_path / "PROJECT_STATE.json",
+            runtime_authorization=tmp_path / "authorization.json",
+            telegram_prepare_state_root=telegram_root,
+            preview=preview,
+            expected_main="b" * 40,
+            continuous_session=True,
+            key=b"k" * 32,
+            key_id="key-2",
+            publisher=object(),
+            topic_path="projects/p/topics/orders",
+        )
+
+    assert not (telegram_root / "current-run").exists()
