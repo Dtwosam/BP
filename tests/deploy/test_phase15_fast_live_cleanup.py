@@ -28,8 +28,10 @@ def test_fast_live_expired_cleanup_is_fail_closed_and_session_scoped() -> None:
     for marker in (
         "I_ACCEPT_CLEAN_EXPIRED_CONTINUOUS_LIVE_SESSION",
         "I_ACCEPT_ABORT_ZERO_ACTIVITY_FAST_LIVE_SESSION_AFTER_VALIDATION_DEFECT",
+        "I_ACCEPT_DEPLOY_FAST_LIVE_ZERO_FILL_FIX_AND_RESTART_SESSION",
         'CLEANUP_MODE="expired"',
         'CLEANUP_MODE="zero_activity_abort"',
+        'CLEANUP_MODE="zero_activity_restart"',
         "runtime_authorization_not_expired",
         "zero_activity_abort_runtime_already_expired",
         "phase15-v3-fast-live-auto-continuous-5d305254b06ef0cbce33065e",
@@ -153,4 +155,34 @@ def test_fast_live_cleanup_runtime_rm_commands_are_single_shell_commands() -> No
         'sudo rm -f /etc/bp-fast-live/authorization.json\n'
         '                    /etc/bp-fast-live/PROJECT_STATE.json'
         not in text
+    )
+
+
+
+def test_fast_live_cleanup_zero_activity_restart_is_exactly_scoped() -> None:
+    text = CLEANUP.read_text(encoding="utf-8")
+
+    assert (
+        '[[ "$AUTH_ID" == '
+        '"phase15-v3-fast-live-auto-continuous-12h-a6525318-20260930" ]]'
+        in text
+    )
+    assert (
+        '[[ "$RELEASE_MAIN" == '
+        '"afbf078a1be8bb29bb26ad7b99b2a35f10501473" ]]'
+        in text
+    )
+    assert (
+        '[[ "$RUNTIME_EXPIRES" == '
+        '"2026-09-30T11:58:23.648915+00:00" ]]'
+        in text
+    )
+    assert 'zero_activity_restart_runtime_already_expired' in text
+    assert 'zero_activity_restart_authorization_id_mismatch' in text
+    assert 'zero_activity_restart_release_main_mismatch' in text
+    assert 'zero_activity_restart_runtime_expiry_mismatch' in text
+    assert (
+        '[[ "$CLEANUP_MODE" == "zero_activity_abort" || '
+        '"$CLEANUP_MODE" == "zero_activity_restart" ]]'
+        in text
     )
