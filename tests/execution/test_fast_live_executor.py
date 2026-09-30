@@ -429,6 +429,10 @@ def test_stale_or_thin_book_never_consumes_attempt(tmp_path: Path) -> None:
     result = executor.execute(_verified(now))
 
     assert result["status"] == "fresh_book_rejected"
+    assert result["intent_id"] == "intent-fast-1"
+    assert result["prediction_id"] == "prediction-fast-1"
+    assert result["paper_order_id"] == "paper-fast-1"
+    assert result["request_sha256"] == "1" * 64
     assert result["network_submission_attempt_consumed"] is False
     assert result["real_order_submitted"] is False
     assert client.calls == ["sign", "book"]
@@ -544,6 +548,36 @@ def test_bounded_pre_attempt_retry_stays_local_and_unconsumed(tmp_path: Path) ->
     assert result["pre_attempt_retry_count"] == 2
     assert result["network_submission_attempt_consumed"] is False
     assert not (tmp_path / "attempt.json").exists()
+
+def test_retry_exhaustion_preserves_full_result_binding(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+
+    class AlwaysRetryExecutor:
+        attempt_path = tmp_path / "attempt.json"
+
+        def execute(self, verified):
+            raise FastLiveRetryableError("temporary pre-attempt condition")
+
+    verified = _verified(now)
+    verified["expires_at"] = (now + timedelta(milliseconds=10)).isoformat()
+
+    result = execute_with_bounded_pre_attempt_retry(
+        AlwaysRetryExecutor(),
+        verified,
+        now_fn=lambda: now,
+        sleep_fn=lambda _seconds: None,
+        retry_sleep_seconds=0.02,
+    )
+
+    assert result["status"] == "pre_attempt_retry_exhausted"
+    assert result["intent_id"] == "intent-fast-1"
+    assert result["prediction_id"] == "prediction-fast-1"
+    assert result["paper_order_id"] == "paper-fast-1"
+    assert result["request_sha256"] == "1" * 64
+    assert result["network_submission_attempt_consumed"] is False
+    assert result["real_order_submitted"] is False
+    assert not (tmp_path / "attempt.json").exists()
+
 
 def test_attempt_without_result_recovers_as_submission_unknown_without_repost(
     tmp_path: Path,

@@ -298,6 +298,8 @@ def execute_with_bounded_pre_attempt_retry(
                 return {
                     "status": "pre_attempt_retry_exhausted",
                     "intent_id": str(verified.get("intent_id") or ""),
+                    "prediction_id": str(verified.get("prediction_id") or ""),
+                    "paper_order_id": str(verified.get("paper_order_id") or ""),
                     "request_sha256": str(verified.get("request_sha256") or ""),
                     "reason": last_reason,
                     "pre_attempt_retry_count": retries,
@@ -719,6 +721,8 @@ class FastLiveExecutor:
             return {
                 "status": "fresh_book_rejected",
                 "intent_id": verified["intent_id"],
+                "prediction_id": verified["prediction_id"],
+                "paper_order_id": verified["paper_order_id"],
                 "request_sha256": verified["request_sha256"],
                 "marketability": marketability,
                 "network_submission_attempt_consumed": False,
