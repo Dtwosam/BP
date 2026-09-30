@@ -1489,6 +1489,9 @@ def main() -> int:
                         engine=engine,
                         activated_at=activated_at,
                         observed_at=observed,
+                        max_consecutive_losses=int(
+                            verified_runtime["max_consecutive_losses"]
+                        ),
                         paper_cash_tracker=paper_cash_tracker,
                     )
                 preview_status = str(preview.get("status") or "")
@@ -1565,6 +1568,9 @@ def main() -> int:
                             ),
                             collateral_balance_usd=collateral,
                             initial_reconciliation_verified=True,
+                            max_consecutive_losses=int(
+                                verified_runtime["max_consecutive_losses"]
+                            ),
                         )
                         risk_completed_at = _utc_now()
                         preview_created_at = datetime.fromisoformat(
@@ -2099,6 +2105,9 @@ def main() -> int:
                 collateral_balance_usd=collateral,
                 paper_cash_tracker=paper_cash_tracker,
                 initial_reconciliation_verified=True,
+                max_consecutive_losses=int(
+                    verified_runtime["max_consecutive_losses"]
+                ),
             )
             status = str(report.get("status") or "")
             if status == "waiting":
