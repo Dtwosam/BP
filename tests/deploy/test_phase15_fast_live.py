@@ -54,6 +54,10 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert "create_prepare_message" in source
     assert "create_approval_message" in source
     assert "preview_fast_live_candidate" in source
+    assert "FrozenPaperCashTracker" in source
+    assert "fast_live_paper_cash_prewarmed" in source
+    assert "paper_cash_tracker.refresh(connection)" in source
+    assert "paper_cash_tracker=paper_cash_tracker" in source
     assert "preview=preview" in source
     assert '"risk_finalized_from_preview": True' in source
     assert "approval_prepared=preview" in source
