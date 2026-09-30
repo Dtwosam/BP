@@ -139,7 +139,7 @@ def _parse_args() -> argparse.Namespace:
         action="append",
         default=[],
     )
-    parser.add_argument("--poll-seconds", type=float, default=0.25)
+    parser.add_argument("--poll-seconds", type=float, default=0.05)
     return parser.parse_args()
 
 
@@ -471,7 +471,7 @@ def _wait_for_decision(
 
 def main() -> int:
     args = _parse_args()
-    if not 0.1 <= args.poll_seconds <= 5:
+    if not 0.02 <= args.poll_seconds <= 5:
         raise SystemExit("poll seconds must be within 0.1..5")
     if os.environ.get("MODE") != "research":
         raise SystemExit("MODE must be research")

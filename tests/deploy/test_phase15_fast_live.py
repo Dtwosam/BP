@@ -5,9 +5,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE_UNIT = ROOT / "deploy" / "bp-phase15-fast-live-source.service"
 RECEIVER_UNIT = ROOT / "deploy" / "bp-phase15-fast-live-receiver.service"
+TELEGRAM_APPROVAL_UNIT = (
+    ROOT / "deploy" / "bp-phase15-canary-telegram-approval.service"
+)
 REQUIREMENTS = ROOT / "deploy" / "phase15-fast-live-executor-requirements.txt"
 SOURCE = ROOT / "scripts" / "run_phase15_v3_fast_live_source.py"
 RECEIVER = ROOT / "scripts" / "run_phase15_v3_fast_live_receiver.py"
+TELEGRAM_APPROVAL = (
+    ROOT / "scripts" / "run_phase15_v3_canary_telegram_approval.py"
+)
 EXECUTOR = ROOT / "src" / "bp_engine" / "execution" / "fast_live_executor.py"
 
 
@@ -58,6 +64,8 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert '"risk_evaluation_ms"' in source
     assert '"preview_to_risk_complete_ms"' in source
     assert "approval_vs_risk_ms" in source
+    assert "approval_detection_ms" in source
+    assert "approval_to_publish_start_ms" in source
     assert "BP_FAST_LIVE_TELEGRAM_APPROVAL_REQUIRED" in source
     assert "BP_FAST_LIVE_CONTINUOUS_SESSION" in source
     assert "_pending_result_binding" in source
@@ -189,6 +197,28 @@ def test_fast_live_source_starts_approval_and_johannesburg_before_risk_join() ->
     assert '"status": "pre_submission_blocked"' in source
     assert "approval_prepared=preview" in source
     assert "fast live finalized risk candidate changed" in source
+
+
+
+def test_fast_live_telegram_handoff_polling_is_low_latency() -> None:
+    source = SOURCE.read_text(encoding="utf-8")
+    listener = TELEGRAM_APPROVAL.read_text(encoding="utf-8")
+    unit = TELEGRAM_APPROVAL_UNIT.read_text(encoding="utf-8")
+
+    approval_loop_start = source.index(
+        "approval_path = _approval_record_path"
+    )
+    approval_loop_end = source.index(
+        "continue\n\n            report = prepare_fast_live_candidate",
+        approval_loop_start,
+    )
+    approval_loop = source[approval_loop_start:approval_loop_end]
+
+    assert "time.sleep(max(args.poll_seconds, 0.05))" not in approval_loop
+    assert "time.sleep(args.poll_seconds)" in approval_loop
+    assert 'parser.add_argument("--poll-seconds", type=float, default=0.05)' in listener
+    assert "0.02 <= args.poll_seconds <= 5" in listener
+    assert "--poll-seconds 0.05" in unit
 
 
 def test_fast_live_executor_quotes_before_attempt_and_post() -> None:
