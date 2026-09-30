@@ -45,6 +45,8 @@ def test_fast_live_expired_cleanup_is_fail_closed_and_session_scoped() -> None:
         "AUTHORIZATION_SOURCE_HOST=%s",
         "manual-telegram-continuous-v1",
         "auto-telegram-continuous-v1",
+        "manual-telegram-continuous-v2",
+        "auto-telegram-continuous-v2",
         "max_network_submission_attempts_per_intent",
         "zero_activity_abort_recorder_activity_present",
         "zero_activity_abort_executor_activity_present",
