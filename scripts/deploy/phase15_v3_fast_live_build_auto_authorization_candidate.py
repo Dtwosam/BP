@@ -12,7 +12,7 @@ from typing import Any
 
 from bp_engine.execution.fast_live import (
     FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA,
-    FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE,
+    FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2,
     FAST_LIVE_EXECUTION_VERSION,
     FAST_LIVE_MAX_TRANSIT_SECONDS,
     FAST_LIVE_PREDICTION_VERSION,
@@ -257,7 +257,7 @@ def build_candidate(
         "status": "AUTHORIZED_CONTINUOUS_SESSION",
         "authorized": True,
         "authorization_id": authorization_id,
-        "authorization_mode": FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE,
+        "authorization_mode": FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2,
         "authorized_at": authorized.isoformat(),
         "authorized_at_main": expected_main,
         "expires_at": expires.isoformat(),
@@ -265,7 +265,7 @@ def build_candidate(
         "max_trade_size_usd": 10,
         "max_total_exposure_usd": 10,
         "max_daily_loss_usd": 10,
-        "max_consecutive_losses": 1,
+        "max_consecutive_losses": 0,
         "min_edge": 0.075,
         "max_transit_seconds": int(FAST_LIVE_MAX_TRANSIT_SECONDS),
         "requires_telegram_approval": True,
