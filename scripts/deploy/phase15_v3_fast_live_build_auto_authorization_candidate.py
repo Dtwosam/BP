@@ -6,7 +6,7 @@ import hashlib
 import json
 import os
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -159,10 +159,25 @@ def build_candidate(
     if renew_existing_unactivated:
         if not isinstance(existing_authorization, dict):
             raise CandidateError("renewal requires existing fast live authorization")
+        try:
+            existing_expires = _utc(
+                datetime.fromisoformat(
+                    str(existing_authorization.get("expires_at") or "")
+                )
+            )
+        except (TypeError, ValueError) as exc:
+            raise CandidateError(
+                "existing authorization expiry invalid"
+            ) from exc
+        existing_validation_observed_at = (
+            existing_expires - timedelta(microseconds=1)
+            if authorized >= existing_expires
+            else authorized
+        )
         verify_source_authorization(
             state,
             expected_main=expected_main,
-            observed_at=authorized,
+            observed_at=existing_validation_observed_at,
             requires_telegram_approval=True,
             continuous_session=True,
         )
@@ -305,8 +320,8 @@ def main() -> int:
         "--renew-existing-unactivated",
         action="store_true",
         help=(
-            "Replace only an existing unactivated continuous auto authorization "
-            "after re-validating its exact safety contract."
+            "Replace only an existing unactivated continuous auto authorization, "
+            "including an expired one, after re-validating its exact safety contract."
         ),
     )
     args = parser.parse_args()
