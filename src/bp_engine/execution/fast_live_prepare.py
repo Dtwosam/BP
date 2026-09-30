@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import asdict, replace
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 from decimal import Decimal
+import time
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, true
 from sqlalchemy.engine import Engine
 
 from bp_engine.execution.canary import (
@@ -69,41 +70,117 @@ def frozen_v3_paper_config() -> PaperExecutionConfig:
     )
 
 
-def _current_frozen_paper_cash(connection) -> Decimal:
-    config = frozen_v3_paper_config()
-    fill_total = connection.scalar(
-        select(func.coalesce(func.sum(schema.paper_fills.c.total_cost), 0))
-        .select_from(
-            schema.paper_fills.join(
-                schema.paper_orders,
-                schema.paper_fills.c.paper_order_id
-                == schema.paper_orders.c.paper_order_id,
+@dataclass
+class FrozenPaperCashTracker:
+    current_cash: Decimal | None = None
+    last_fill_id: int = 0
+    last_settlement_id: int = 0
+    last_refresh_query_ms: float = 0.0
+    last_refresh_was_incremental: bool = False
+    last_fill_cost_delta: Decimal = Decimal("0")
+    last_settlement_payout_delta: Decimal = Decimal("0")
+
+    def refresh(self, connection) -> Decimal:
+        config = frozen_v3_paper_config()
+        fill_state = (
+            select(
+                func.coalesce(
+                    func.sum(schema.paper_fills.c.total_cost),
+                    0,
+                ).label("fill_cost_delta"),
+                func.coalesce(
+                    func.max(schema.paper_fills.c.id),
+                    self.last_fill_id,
+                ).label("max_fill_id"),
             )
-        )
-        .where(
-            schema.paper_orders.c.execution_version
-            == V3_FROZEN_PAPER_EXECUTION_VERSION
-        )
-    )
-    payout_total = connection.scalar(
-        select(func.coalesce(func.sum(schema.paper_settlements.c.payout), 0))
-        .select_from(
-            schema.paper_settlements.join(
-                schema.paper_orders,
-                schema.paper_settlements.c.paper_order_id
-                == schema.paper_orders.c.paper_order_id,
+            .select_from(
+                schema.paper_fills.join(
+                    schema.paper_orders,
+                    schema.paper_fills.c.paper_order_id
+                    == schema.paper_orders.c.paper_order_id,
+                )
             )
+            .where(
+                schema.paper_orders.c.execution_version
+                == V3_FROZEN_PAPER_EXECUTION_VERSION,
+                schema.paper_fills.c.id > self.last_fill_id,
+            )
+            .subquery()
         )
-        .where(
-            schema.paper_orders.c.execution_version
-            == V3_FROZEN_PAPER_EXECUTION_VERSION
+        settlement_state = (
+            select(
+                func.coalesce(
+                    func.sum(schema.paper_settlements.c.payout),
+                    0,
+                ).label("settlement_payout_delta"),
+                func.coalesce(
+                    func.max(schema.paper_settlements.c.id),
+                    self.last_settlement_id,
+                ).label("max_settlement_id"),
+            )
+            .select_from(
+                schema.paper_settlements.join(
+                    schema.paper_orders,
+                    schema.paper_settlements.c.paper_order_id
+                    == schema.paper_orders.c.paper_order_id,
+                )
+            )
+            .where(
+                schema.paper_orders.c.execution_version
+                == V3_FROZEN_PAPER_EXECUTION_VERSION,
+                schema.paper_settlements.c.id > self.last_settlement_id,
+            )
+            .subquery()
         )
-    )
-    return derive_paper_cash(
-        starting_cash=config.starting_cash_usd,
-        fill_costs=(_decimal(fill_total, "paper_fill_cost"),),
-        settlement_payouts=(_decimal(payout_total, "paper_settlement_payout"),),
-    )
+        refresh_started_ns = time.monotonic_ns()
+        row = connection.execute(
+            select(
+                fill_state.c.fill_cost_delta,
+                fill_state.c.max_fill_id,
+                settlement_state.c.settlement_payout_delta,
+                settlement_state.c.max_settlement_id,
+            ).select_from(fill_state.join(settlement_state, true()))
+        ).mappings().one()
+        refresh_completed_ns = time.monotonic_ns()
+
+        fill_delta = _decimal(
+            row["fill_cost_delta"],
+            "paper_fill_cost_delta",
+        )
+        payout_delta = _decimal(
+            row["settlement_payout_delta"],
+            "paper_settlement_payout_delta",
+        )
+        was_incremental = self.current_cash is not None
+        starting_cash = (
+            self.current_cash
+            if self.current_cash is not None
+            else config.starting_cash_usd
+        )
+        current_cash = derive_paper_cash(
+            starting_cash=starting_cash,
+            fill_costs=(fill_delta,),
+            settlement_payouts=(payout_delta,),
+        )
+        self.current_cash = current_cash
+        self.last_fill_id = int(row["max_fill_id"])
+        self.last_settlement_id = int(row["max_settlement_id"])
+        self.last_refresh_query_ms = (
+            refresh_completed_ns - refresh_started_ns
+        ) / 1_000_000
+        self.last_refresh_was_incremental = was_incremental
+        self.last_fill_cost_delta = fill_delta
+        self.last_settlement_payout_delta = payout_delta
+        return current_cash
+
+
+def _current_frozen_paper_cash(
+    connection,
+    *,
+    tracker: FrozenPaperCashTracker | None = None,
+) -> Decimal:
+    active_tracker = tracker or FrozenPaperCashTracker()
+    return active_tracker.refresh(connection)
 
 
 def _has_preview_arm_window(
@@ -269,6 +346,7 @@ def preview_fast_live_candidate(
     engine: Engine,
     activated_at: datetime,
     observed_at: datetime,
+    paper_cash_tracker: FrozenPaperCashTracker | None = None,
 ) -> dict[str, object]:
     policy = continuous_fast_live_policy()
 
@@ -295,7 +373,10 @@ def preview_fast_live_candidate(
                 "reason": "no_new_frozen_v3_trade_prediction",
             }
 
-        available_paper_cash = _current_frozen_paper_cash(connection)
+        available_paper_cash = _current_frozen_paper_cash(
+            connection,
+            tracker=paper_cash_tracker,
+        )
         try:
             paper_order_id, draft = build_fast_live_draft(
                 prediction,
@@ -376,6 +457,16 @@ def preview_fast_live_candidate(
         "fast_live_order_derived_directly_from_prediction": True,
         "prepare_after_paper_seconds": str(
             (observed_at - paper_order_submitted_at).total_seconds()
+        ),
+        "paper_cash_query_ms": (
+            paper_cash_tracker.last_refresh_query_ms
+            if paper_cash_tracker is not None
+            else None
+        ),
+        "paper_cash_incremental": (
+            paper_cash_tracker.last_refresh_was_incremental
+            if paper_cash_tracker is not None
+            else False
         ),
     }
     return {
@@ -472,6 +563,7 @@ def prepare_fast_live_candidate(
     api_healthy: bool,
     official_open_order_count: int,
     collateral_balance_usd: Decimal,
+    paper_cash_tracker: FrozenPaperCashTracker | None = None,
 ) -> dict[str, object]:
     repository = LiveReadinessRepository()
     policy = continuous_fast_live_policy()
@@ -507,7 +599,10 @@ def prepare_fast_live_candidate(
                     "reason": "no_new_frozen_v3_trade_prediction",
                 }
 
-            available_paper_cash = _current_frozen_paper_cash(connection)
+            available_paper_cash = _current_frozen_paper_cash(
+                connection,
+                tracker=paper_cash_tracker,
+            )
             try:
                 paper_order_id, draft = build_fast_live_draft(
                     prediction,
@@ -728,6 +823,16 @@ def prepare_fast_live_candidate(
         "finalized_from_preview": preview is not None,
         "prepare_after_paper_seconds": str(
             (observed_at - paper_order_submitted_at).total_seconds()
+        ),
+        "paper_cash_query_ms": (
+            paper_cash_tracker.last_refresh_query_ms
+            if paper_cash_tracker is not None and preview is None
+            else None
+        ),
+        "paper_cash_incremental": (
+            paper_cash_tracker.last_refresh_was_incremental
+            if paper_cash_tracker is not None and preview is None
+            else False
         ),
     }
     return {
