@@ -12,7 +12,12 @@ from bp_engine.execution.canary import (
     CANARY_POLICY_VERSION,
     _latest_clean_account_snapshot,
 )
-from bp_engine.execution.live import _account_snapshot
+from bp_engine.execution.live import (
+    _decimal,
+    _safe_decimal,
+    _safe_nonnegative_decimal,
+    _safe_nonnegative_int,
+)
 from bp_engine.live_readiness.models import LiveAccountSnapshot
 from bp_engine.live_readiness.repository import LiveReadinessRepository
 from bp_engine.storage import schema
@@ -72,6 +77,172 @@ def _validate_binding(intent: Mapping[str, Any], result: Mapping[str, Any]) -> N
             raise FastLiveResultError(f"fast-live result binding mismatch: {name}")
 
 
+def _official_zero_fill_intents_from_rows(
+    rows: list[Mapping[str, Any]],
+) -> set[str]:
+    resolved: set[str] = set()
+    for row in rows:
+        if int(row["unresolved_count"]) != 0 or int(row["critical_count"]) != 0:
+            continue
+        evidence = dict(row["evidence"] or {})
+        if (
+            evidence.get("reconciliation_kind")
+            != "post_submission_official_zero_fill"
+        ):
+            continue
+        intent_id = str(evidence.get("intent_id") or "")
+        external_order_id = str(evidence.get("external_order_id") or "")
+        account = evidence.get("account_snapshot")
+        if not intent_id or not external_order_id or not isinstance(account, dict):
+            continue
+        try:
+            official_open_orders = int(
+                evidence.get("official_open_order_count")
+            )
+            filled_shares = _decimal(
+                evidence.get("confirmed_filled_shares"),
+                "reconciliation.confirmed_filled_shares",
+            )
+            filled_notional = _decimal(
+                evidence.get("confirmed_filled_notional_usd"),
+                "reconciliation.confirmed_filled_notional_usd",
+            )
+            account_exposure = _decimal(
+                account.get("total_exposure_usd"),
+                "reconciliation.account_snapshot.total_exposure_usd",
+            )
+        except (TypeError, ValueError):
+            continue
+        if (
+            official_open_orders == 0
+            and filled_shares == 0
+            and filled_notional == 0
+            and account_exposure == 0
+            and evidence.get("official_fill_state") == "zero_fill_observed"
+            and evidence.get("network_submission_attempt_consumed") is True
+        ):
+            resolved.add(intent_id)
+    return resolved
+
+
+def _fast_live_base_account_snapshot(
+    connection,
+    *,
+    observed_at: datetime,
+    reconciliation_rows: list[Mapping[str, Any]],
+) -> LiveAccountSnapshot:
+    submission_attempt_events = ("accepted", "rejected", "submission_unknown")
+    terminal_events = (*submission_attempt_events, "closed_before_submission")
+    latest_terminal_event = (
+        select(schema.live_order_events.c.event_type)
+        .where(
+            schema.live_order_events.c.intent_id
+            == schema.live_order_intents.c.intent_id,
+            schema.live_order_events.c.event_type.in_(terminal_events),
+        )
+        .order_by(schema.live_order_events.c.id.desc())
+        .limit(1)
+        .correlate(schema.live_order_intents)
+        .scalar_subquery()
+    )
+    intents = connection.execute(
+        select(
+            schema.live_order_intents,
+            latest_terminal_event.label("terminal_event"),
+        ).where(
+            schema.live_order_intents.c.pre_submit_at <= observed_at
+        )
+    ).mappings().all()
+
+    official_zero_fill_intents = _official_zero_fill_intents_from_rows(
+        reconciliation_rows
+    )
+    last_order_at = None
+    exposure = Decimal("0")
+    submission_attempt_seen = False
+    unresolved_intent_seen = False
+
+    for intent in intents:
+        pre_submit_at = _stored_utc(intent["pre_submit_at"])
+        intent_id = str(intent["intent_id"])
+        if intent_id in official_zero_fill_intents:
+            submission_attempt_seen = True
+            if last_order_at is None or pre_submit_at > last_order_at:
+                last_order_at = pre_submit_at
+            continue
+
+        outcome = intent["terminal_event"]
+        if outcome in submission_attempt_events:
+            submission_attempt_seen = True
+            if last_order_at is None or pre_submit_at > last_order_at:
+                last_order_at = pre_submit_at
+        if outcome is None:
+            unresolved_intent_seen = True
+        if outcome not in ("rejected", "closed_before_submission"):
+            exposure += (
+                _decimal(intent["size"], "intent.size")
+                * _decimal(intent["limit_price"], "intent.limit_price")
+            )
+
+    reconciliation = (
+        reconciliation_rows[0]
+        if reconciliation_rows
+        else None
+    )
+    if reconciliation is None:
+        return LiveAccountSnapshot(
+            total_exposure_usd=exposure,
+            realized_daily_pnl_usd=Decimal("0"),
+            consecutive_losses=0,
+            last_order_at=last_order_at,
+            unresolved_critical_reconciliation=1,
+        )
+
+    evidence = dict(reconciliation["evidence"] or {})
+    raw_account = evidence.get("account_snapshot")
+    account_evidence = (
+        dict(raw_account)
+        if isinstance(raw_account, dict)
+        else {}
+    )
+    evidence_exposure = _safe_nonnegative_decimal(
+        account_evidence.get("total_exposure_usd"),
+        default=exposure,
+    )
+    total_exposure = max(exposure, evidence_exposure)
+    realized_pnl = _safe_decimal(
+        account_evidence.get("realized_daily_pnl_usd"),
+        default=Decimal("0"),
+    )
+    consecutive_losses = _safe_nonnegative_int(
+        account_evidence.get("consecutive_losses"),
+        default=0,
+    )
+    critical_count = int(reconciliation["critical_count"])
+    pre_submission_close = (
+        evidence.get("reconciliation_kind") == "pre_submission_intent_close"
+        and evidence.get("submission_attempt_consumed") is False
+        and int(evidence.get("official_open_order_count") or 0) == 0
+    )
+    safe_pre_submission_close = (
+        pre_submission_close
+        and not submission_attempt_seen
+        and not unresolved_intent_seen
+    )
+    if unresolved_intent_seen:
+        critical_count = max(critical_count, 1)
+    elif intents and not account_evidence and not safe_pre_submission_close:
+        critical_count = max(critical_count, 1)
+
+    return LiveAccountSnapshot(
+        total_exposure_usd=total_exposure,
+        realized_daily_pnl_usd=realized_pnl,
+        consecutive_losses=consecutive_losses,
+        last_order_at=last_order_at,
+        unresolved_critical_reconciliation=critical_count,
+    )
+
+
 def fast_live_account_snapshot(
     connection,
     *,
@@ -85,7 +256,7 @@ def fast_live_account_snapshot(
             schema.live_reconciliation_runs.c.id.desc(),
         )
     ).mappings().all()
-    base = _account_snapshot(
+    base = _fast_live_base_account_snapshot(
         connection,
         observed_at=observed_at,
         reconciliation_rows=rows,
