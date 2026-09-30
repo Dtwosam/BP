@@ -34,6 +34,7 @@ from bp_engine.execution.fast_live import (
     request_sha256 as fast_live_request_sha256,
 )
 from bp_engine.execution.fast_live_prepare import (
+    FrozenPaperCashTracker,
     prepare_fast_live_candidate,
     preview_fast_live_candidate,
 )
@@ -776,6 +777,29 @@ def main() -> int:
         else Settings()
     )
     engine = create_engine(settings.database_url, pool_pre_ping=True)
+    paper_cash_tracker = FrozenPaperCashTracker()
+    paper_cash_prewarm_started_ns = time.monotonic_ns()
+    with engine.connect() as connection:
+        paper_cash_tracker.refresh(connection)
+    paper_cash_prewarm_completed_ns = time.monotonic_ns()
+    print(
+        json.dumps(
+            {
+                "status": "fast_live_paper_cash_prewarmed",
+                "current_cash": str(paper_cash_tracker.current_cash),
+                "last_fill_id": paper_cash_tracker.last_fill_id,
+                "last_settlement_id": paper_cash_tracker.last_settlement_id,
+                "query_ms": paper_cash_tracker.last_refresh_query_ms,
+                "prewarm_ms": (
+                    paper_cash_prewarm_completed_ns
+                    - paper_cash_prewarm_started_ns
+                )
+                / 1_000_000,
+            },
+            sort_keys=True,
+        ),
+        flush=True,
+    )
     publication_state = _publication_state(
         args.receipt_dir,
         continuous_session=continuous_session,
@@ -1338,6 +1362,7 @@ def main() -> int:
                         engine=engine,
                         activated_at=activated_at,
                         observed_at=observed,
+                        paper_cash_tracker=paper_cash_tracker,
                     )
                 preview_status = str(preview.get("status") or "")
                 if preview_status == "waiting":
@@ -1909,6 +1934,7 @@ def main() -> int:
                 api_healthy=True,
                 official_open_order_count=args.official_open_order_count,
                 collateral_balance_usd=collateral,
+                paper_cash_tracker=paper_cash_tracker,
             )
             status = str(report.get("status") or "")
             if status == "waiting":
