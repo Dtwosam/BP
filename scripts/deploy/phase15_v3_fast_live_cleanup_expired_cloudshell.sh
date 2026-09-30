@@ -9,11 +9,14 @@ fail() {
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 EXPIRED_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_EXPIRED_CLEANUP:-}"
 ABORT_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_ZERO_ACTIVITY_ABORT:-}"
+RESTART_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_ZERO_ACTIVITY_RESTART:-}"
 CLEANUP_MODE=""
 if [[ "$EXPIRED_ACCEPT" == "I_ACCEPT_CLEAN_EXPIRED_CONTINUOUS_LIVE_SESSION" ]]; then
   CLEANUP_MODE="expired"
 elif [[ "$ABORT_ACCEPT" == "I_ACCEPT_ABORT_ZERO_ACTIVITY_FAST_LIVE_SESSION_AFTER_VALIDATION_DEFECT" ]]; then
   CLEANUP_MODE="zero_activity_abort"
+elif [[ "$RESTART_ACCEPT" == "I_ACCEPT_DEPLOY_FAST_LIVE_ZERO_FILL_FIX_AND_RESTART_SESSION" ]]; then
+  CLEANUP_MODE="zero_activity_restart"
 else
   fail "explicit_session_cleanup_acceptance_required"
 fi
@@ -111,7 +114,7 @@ PY
 
 if [[ "$CLEANUP_MODE" == "expired" ]]; then
   [[ "$RUNTIME_EXPIRED" == "true" ]] || fail "runtime_authorization_not_expired"
-else
+elif [[ "$CLEANUP_MODE" == "zero_activity_abort" ]]; then
   [[ "$RUNTIME_EXPIRED" == "false" ]] || fail "zero_activity_abort_runtime_already_expired"
   [[ "$AUTH_ID" == "phase15-v3-fast-live-auto-continuous-5d305254b06ef0cbce33065e" ]] ||
     fail "zero_activity_abort_authorization_id_mismatch"
@@ -119,6 +122,18 @@ else
     fail "zero_activity_abort_release_main_mismatch"
   [[ "$AUTH_MODE" == "auto-telegram-continuous-v1" ]] ||
     fail "zero_activity_abort_authorization_mode_mismatch"
+elif [[ "$CLEANUP_MODE" == "zero_activity_restart" ]]; then
+  [[ "$RUNTIME_EXPIRED" == "false" ]] || fail "zero_activity_restart_runtime_already_expired"
+  [[ "$AUTH_ID" == "phase15-v3-fast-live-auto-continuous-12h-a6525318-20260930" ]] ||
+    fail "zero_activity_restart_authorization_id_mismatch"
+  [[ "$RELEASE_MAIN" == "afbf078a1be8bb29bb26ad7b99b2a35f10501473" ]] ||
+    fail "zero_activity_restart_release_main_mismatch"
+  [[ "$AUTH_MODE" == "auto-telegram-continuous-v1" ]] ||
+    fail "zero_activity_restart_authorization_mode_mismatch"
+  [[ "$RUNTIME_EXPIRES" == "2026-09-30T11:58:23.648915+00:00" ]] ||
+    fail "zero_activity_restart_runtime_expiry_mismatch"
+else
+  fail "cleanup_mode_invalid"
 fi
 
 ORDER_TOPIC="bp-phase15-fast-live-orders-$AUTH_SUFFIX"
@@ -310,7 +325,7 @@ printf 'AUTHORIZATION_MODE=%s\n' "$AUTH_MODE"
 printf 'AUTHORIZATION_SOURCE_HOST=%s\n' "$AUTH_SOURCE_HOST"
 printf 'SESSION_RELEASE_MAIN=%s\n' "$RELEASE_MAIN"
 printf 'RUNTIME_EXPIRES_AT=%s\n' "$RUNTIME_EXPIRES"
-if [[ "$CLEANUP_MODE" == "zero_activity_abort" ]]; then
+if [[ "$CLEANUP_MODE" == "zero_activity_abort" || "$CLEANUP_MODE" == "zero_activity_restart" ]]; then
   printf 'ZERO_ACTIVITY_VERIFIED=true\n'
 fi
 printf 'KILL_SWITCH_ENGAGED=true\n'
