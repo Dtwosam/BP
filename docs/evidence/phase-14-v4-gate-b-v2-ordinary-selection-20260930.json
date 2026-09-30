@@ -1,0 +1,108 @@
+{
+  "evidence_version": "phase-14-v4-gate-b-v2-ordinary-selection-v1",
+  "observed_date": "2026-09-30",
+  "source_main": "c9bfc5c11c525c401cee65bcdc0556272a3e5717",
+  "research_plan_version": "v4-gate-b-preregister-v2",
+  "plan_sha256": "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557",
+  "dataset_sha256_non_holdout": "0de3d89a8a15c4f0c1d0823ec088a70483e9fb83154f06a3747b1771471c97e4",
+  "selection_sha256": "895cb70ae0cdbc22f4e3585c77db3ad20f8186d1ee1992a58025d89bb1e2bb1a",
+  "selection_file_sha256": "cd7e42eb07fe675ebf4687bfc8162908428e4583e763efd9762b6ec7ec120a53",
+  "model_artifact_sha256": "6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf",
+  "model_artifact_size_bytes": 230132,
+  "selected": {
+    "model": "full_v4_xgboost",
+    "offset_seconds": 240,
+    "calibration": "identity",
+    "edge_policy": "trade_threshold",
+    "min_edge": 0.05,
+    "mean_validation_log_loss": 0.19927902276720902,
+    "mean_validation_brier": 0.05892824655469764
+  },
+  "ordinary_test": {
+    "market_count": 720,
+    "correct_predictions": 665,
+    "accuracy": 0.9236111111111112,
+    "trade_count": 139,
+    "correct_trades": 104,
+    "traded_accuracy": 0.7482014388489209,
+    "realized_pnl_after_assumed_costs": 20.578277,
+    "all_folds_positive_pnl": true,
+    "all_folds_profit_factor_gt_2": true,
+    "folds": [
+      {
+        "index": 0,
+        "accuracy": 0.9236111111111112,
+        "log_loss": 0.2133519499327591,
+        "brier": 0.0640529065899132,
+        "trades": 18,
+        "traded_accuracy": 0.6666666666666666,
+        "pnl_after_costs": 3.194149,
+        "profit_factor": 2.7508182254196645
+      },
+      {
+        "index": 1,
+        "accuracy": 0.9236111111111112,
+        "log_loss": 0.1804909012711473,
+        "brier": 0.05805181562058334,
+        "trades": 24,
+        "traded_accuracy": 0.75,
+        "pnl_after_costs": 3.3475809999999995,
+        "profit_factor": 2.085344075737189
+      },
+      {
+        "index": 2,
+        "accuracy": 0.9444444444444444,
+        "log_loss": 0.15036222824818724,
+        "brier": 0.04620300032312015,
+        "trades": 29,
+        "traded_accuracy": 0.8275862068965517,
+        "pnl_after_costs": 4.644680999999999,
+        "profit_factor": 3.23455059355568
+      },
+      {
+        "index": 3,
+        "accuracy": 0.9305555555555556,
+        "log_loss": 0.20452944149034394,
+        "brier": 0.0543362558146876,
+        "trades": 36,
+        "traded_accuracy": 0.7777777777777778,
+        "pnl_after_costs": 4.873898,
+        "profit_factor": 2.287634304204555
+      },
+      {
+        "index": 4,
+        "accuracy": 0.8958333333333334,
+        "log_loss": 0.3017149716079026,
+        "brier": 0.08270257226154594,
+        "trades": 32,
+        "traded_accuracy": 0.6875,
+        "pnl_after_costs": 4.517968,
+        "profit_factor": 2.2003485764689628
+      }
+    ]
+  },
+  "final_non_holdout_validation": {
+    "market_count": 143,
+    "accuracy": 0.8811188811188811,
+    "log_loss": 0.3029468022835922,
+    "brier": 0.08208688055157017,
+    "trade_count": 32,
+    "realized_pnl_after_assumed_costs": 2.6224,
+    "profit_factor": 1.5544161431841423
+  },
+  "integrity": {
+    "labels_read_non_holdout": true,
+    "training_performed": true,
+    "policy_selected": true,
+    "final_holdout_market_count": 288,
+    "holdout_labels_read": false,
+    "holdout_evaluated": false,
+    "automatic_promotion": false,
+    "activation_performed": false
+  },
+  "interpretation": {
+    "pnl_unit": "one-share research simulation under frozen fee and slippage assumptions",
+    "live_return_claim": false,
+    "final_holdout_is_next_separate_one_shot_boundary": true
+  }
+}
