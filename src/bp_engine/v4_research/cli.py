@@ -1,17 +1,25 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
+import joblib
 from sqlalchemy import Connection, Engine, create_engine
 
 from bp_engine.config import Settings
 from bp_engine.v4_research.plan import build_v4_gate_b_plan
 from bp_engine.v4_research.readiness import assess_v4_gate_b_readiness
+from bp_engine.v4_research.service import (
+    V4PreparedSelection,
+    finalize_v4_selection,
+    prepare_v4_gate_b,
+)
 
 
 def _parse_datetime(value: str) -> datetime:
