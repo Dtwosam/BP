@@ -314,13 +314,18 @@ def test_fast_live_frozen_config_remains_exact() -> None:
 
 
 def test_continuous_fast_live_policy_has_no_canary_cooldown() -> None:
-    policy = continuous_fast_live_policy()
+    policy = continuous_fast_live_policy(max_consecutive_losses=0)
     assert policy.cooldown_seconds == Decimal("0")
     assert policy.max_trade_size_usd == Decimal("10")
     assert policy.max_total_exposure_usd == Decimal("10")
     assert policy.max_daily_loss_usd == Decimal("10")
-    assert policy.max_consecutive_losses == 1
+    assert policy.max_consecutive_losses == 0
     assert policy.min_edge == Decimal("0.075")
+
+
+def test_continuous_fast_live_policy_can_preserve_legacy_v1_loss_limit() -> None:
+    policy = continuous_fast_live_policy(max_consecutive_losses=1)
+    assert policy.max_consecutive_losses == 1
 
 
 
