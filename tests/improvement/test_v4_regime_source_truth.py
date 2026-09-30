@@ -75,7 +75,7 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert v4["initial_future_cutoff_violation_count"] == 0
     assert v4["initial_polymarket_predictor_key_count"] == 0
     assert v4["initial_regime_invariant_violation_count"] == 0
-    assert v4["training_performed"] is False
+    assert v4["training_performed"] is True
     assert v4["final_holdout_access_performed"] is False
     assert v4["paper_activation_performed"] is False
     assert v4["automatic_promotion"] is False
@@ -280,7 +280,7 @@ def test_v4_gate_b_v2_is_outcome_blind_and_preserves_the_final_holdout() -> None
         assert required in spec
 
 
-def test_v4_gate_b_v2_plan_freeze_is_durable_and_still_label_free() -> None:
+def test_v4_gate_b_v2_plan_freeze_remains_durable_historical_evidence() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
     evidence = json.loads(
         _text(
@@ -290,14 +290,7 @@ def test_v4_gate_b_v2_plan_freeze_is_durable_and_still_label_free() -> None:
     )
 
     v4 = state["phase_14_v4_regime_aware"]
-    gate = v4["gate_b_preregistration"]
     plan = v4["gate_b_plan"]
-
-    assert gate["readiness_run_performed"] is True
-    assert gate["plan_run_performed"] is True
-    assert gate["status"] == (
-        "FROZEN_V2_PLAN_CREATED_AWAITING_LABELED_PREP_AUTHORIZATION"
-    )
 
     assert plan["source_main"] == "cc8386671fd3c299b3c6c406e5ebcdec42e187a4"
     assert plan["research_plan_version"] == "v4-gate-b-preregister-v2"
@@ -332,3 +325,56 @@ def test_v4_gate_b_v2_plan_freeze_is_durable_and_still_label_free() -> None:
     assert evidence["integrity"]["training_performed"] is False
     assert evidence["integrity"]["policy_selected"] is False
     assert evidence["integrity"]["final_holdout_evaluated"] is False
+
+
+def test_v4_gate_b_v2_ordinary_selection_is_frozen_and_holdout_untouched() -> None:
+    state = json.loads(_text("PROJECT_STATE.json"))
+    evidence = json.loads(
+        _text(
+            "docs/evidence/"
+            "phase-14-v4-gate-b-v2-ordinary-selection-20260930.json"
+        )
+    )
+
+    v4 = state["phase_14_v4_regime_aware"]
+    selection = v4["gate_b_ordinary_selection"]
+
+    assert v4["status"] == (
+        "GATE_B_V2_ORDINARY_SELECTION_FROZEN_AWAITING_FINAL_HOLDOUT_AUTHORIZATION"
+    )
+    assert selection["plan_sha256"] == (
+        "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557"
+    )
+    assert selection["selection_sha256"] == (
+        "895cb70ae0cdbc22f4e3585c77db3ad20f8186d1ee1992a58025d89bb1e2bb1a"
+    )
+    assert selection["model_artifact_sha256"] == (
+        "6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf"
+    )
+    assert selection["selected_model"] == "full_v4_xgboost"
+    assert selection["selected_offset_seconds"] == 240
+    assert selection["selected_calibration"] == "identity"
+    assert selection["selected_edge_policy"] == "trade_threshold"
+    assert selection["selected_min_edge"] == 0.05
+
+    ordinary = selection["ordinary_test"]
+    assert ordinary["market_count"] == 720
+    assert ordinary["correct_predictions"] == 665
+    assert ordinary["trade_count"] == 139
+    assert ordinary["correct_trades"] == 104
+    assert ordinary["all_folds_positive_pnl"] is True
+    assert ordinary["all_folds_profit_factor_gt_2"] is True
+
+    assert selection["labels_read_non_holdout"] is True
+    assert selection["holdout_market_count"] == 288
+    assert selection["holdout_labels_read"] is False
+    assert selection["holdout_evaluated"] is False
+    assert selection["training_performed"] is True
+    assert selection["policy_selected"] is True
+    assert selection["automatic_promotion"] is False
+    assert selection["activation_performed"] is False
+
+    assert evidence["integrity"]["holdout_labels_read"] is False
+    assert evidence["integrity"]["holdout_evaluated"] is False
+    assert evidence["integrity"]["automatic_promotion"] is False
+    assert evidence["integrity"]["activation_performed"] is False
