@@ -374,7 +374,6 @@ def preview_fast_live_candidate(
             (paper_order_submitted_at - prediction_recorded_at).total_seconds()
         ),
         "fast_live_order_derived_directly_from_prediction": True,
-        "finalized_from_preview": preview is not None,
         "prepare_after_paper_seconds": str(
             (observed_at - paper_order_submitted_at).total_seconds()
         ),
@@ -726,6 +725,7 @@ def prepare_fast_live_candidate(
             (paper_order_submitted_at - prediction_recorded_at).total_seconds()
         ),
         "fast_live_order_derived_directly_from_prediction": True,
+        "finalized_from_preview": preview is not None,
         "prepare_after_paper_seconds": str(
             (observed_at - paper_order_submitted_at).total_seconds()
         ),
