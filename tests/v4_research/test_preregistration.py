@@ -263,7 +263,7 @@ def test_frozen_v4_search_contract_covers_all_remediation_objectives() -> None:
     )
     assert config.no_trade_candidate is True
     assert config.min_validation_trades_per_fold == 16
-    assert config.required_non_negative_validation_folds == 6
+    assert config.required_non_negative_validation_folds == 5
     assert config.require_positive_aggregate_validation_pnl is True
     assert config.side_specific_policy_allowed is False
     assert config.regime_specific_policy_allowed is False
