@@ -1682,6 +1682,7 @@ def main() -> int:
                         approval = _load_json(approval_path)
                         approval_status = str(approval.get("status") or "")
                         if approval_status == "approved":
+                            approval_observed_at = _utc_now()
                             state_now = _load_state(args.project_state)
                             runtime_now = load_private_json(
                                 args.runtime_authorization,
@@ -1691,7 +1692,7 @@ def main() -> int:
                                 runtime_now,
                                 state=state_now,
                                 expected_main=args.expected_main,
-                                observed_at=now,
+                                observed_at=approval_observed_at,
                                 requires_telegram_approval=True,
                                 continuous_session=continuous_session,
                             )
@@ -1702,13 +1703,13 @@ def main() -> int:
                                 runtime_authorization=runtime_now,
                                 key=key,
                                 key_id=args.transport_key_id,
-                                created_at=now,
+                                created_at=approval_observed_at,
                             )
                             human_approved_at = datetime.fromisoformat(
                                 str(approval["approved_at"])
                             ).astimezone(UTC)
                             approval_detection_ms = (
-                                now - human_approved_at
+                                approval_observed_at - human_approved_at
                             ).total_seconds() * 1000
                             parallel_timing = finalized.get("parallel_timing")
                             approval_vs_risk_ms = None
