@@ -1,0 +1,63 @@
+{
+  "evidence_version": "phase-14-v4-gate-b-v2-plan-freeze-v1",
+  "frozen_at": "2026-09-30T21:06:00Z",
+  "source_main": "cc8386671fd3c299b3c6c406e5ebcdec42e187a4",
+  "research_plan_version": "v4-gate-b-preregister-v2",
+  "runtime_plan_path": "/var/lib/bp/evidence/v4-gate-b-plan-v2-20260930.json",
+  "market_count": 1662,
+  "ordinary_fold_count": 5,
+  "final_holdout_market_count": 288,
+  "partition_market_counts": {
+    "fold_0": {
+      "train": 509,
+      "validation": 143,
+      "test": 144
+    },
+    "fold_1": {
+      "train": 509,
+      "validation": 143,
+      "test": 144
+    },
+    "fold_2": {
+      "train": 509,
+      "validation": 143,
+      "test": 144
+    },
+    "fold_3": {
+      "train": 509,
+      "validation": 143,
+      "test": 144
+    },
+    "fold_4": {
+      "train": 575,
+      "validation": 143,
+      "test": 144
+    },
+    "final": {
+      "train": 575,
+      "validation": 143,
+      "holdout": 288
+    }
+  },
+  "readiness_input_sha256": "308f6bd4f97205eff6f40e8521806753315d2c2ee459985cac4110cf9c95c852",
+  "config_sha256": "c2dc791e127f78cb6baa060314f7c29ee48192711d2f6c92fa5f1869d654e954",
+  "feature_manifest_sha256": "388bbb8bdba9c2c9d38ede8017f0b8c6721df6ad50274a40efb35ec42adbf81f",
+  "plan_sha256": "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557",
+  "plan_file_sha256": "564e0c299b360062c5d1e37ceb10050e5b600f4fc29f35451aef8c08a5884dad",
+  "integrity": {
+    "readiness_passed": true,
+    "blocking_reason_count": 0,
+    "labels_read": false,
+    "outcomes_read": false,
+    "training_performed": false,
+    "policy_selected": false,
+    "final_holdout_evaluated": false,
+    "automatic_promotion": false,
+    "activation_performed": false
+  },
+  "next_boundary": {
+    "name": "labeled_ordinary_preparation_and_selection",
+    "requires_explicit_authorization": true,
+    "final_holdout_remains_separate_one_shot_boundary": true
+  }
+}
