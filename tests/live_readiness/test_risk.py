@@ -128,6 +128,14 @@ def test_consecutive_loss_limit_reached_blocks_at_exact_boundary() -> None:
     assert "consecutive_loss_limit_reached" in _decision(context=_context(account=account)).reasons
 
 
+def test_zero_consecutive_loss_limit_disables_only_that_rule() -> None:
+    policy = _policy(max_consecutive_losses=0)
+    account = _account(consecutive_losses=99)
+    decision = _decision(policy=policy, context=_context(account=account))
+    assert decision.eligible is True
+    assert "consecutive_loss_limit_reached" not in decision.reasons
+
+
 def test_probability_below_minimum_blocks() -> None:
     decision = _decision(context=_context(probability=Decimal("0.54")))
     assert "probability_below_minimum" in decision.reasons
@@ -201,7 +209,7 @@ def test_zero_fail_closed_limits_block_new_exposure() -> None:
     assert "trade_size_limit_exceeded" in decision.reasons
     assert "total_exposure_limit_exceeded" in decision.reasons
     assert "daily_loss_limit_reached" in decision.reasons
-    assert "consecutive_loss_limit_reached" in decision.reasons
+    assert "consecutive_loss_limit_reached" not in decision.reasons
 
 
 def test_all_rules_are_evaluated_without_short_circuiting_and_order_is_deterministic() -> None:
