@@ -77,7 +77,6 @@ def fast_live_account_snapshot(
     *,
     observed_at: datetime,
 ) -> LiveAccountSnapshot:
-    base = _account_snapshot(connection, observed_at=observed_at)
     rows = connection.execute(
         select(schema.live_reconciliation_runs)
         .where(schema.live_reconciliation_runs.c.observed_at <= observed_at)
@@ -86,6 +85,11 @@ def fast_live_account_snapshot(
             schema.live_reconciliation_runs.c.id.desc(),
         )
     ).mappings().all()
+    base = _account_snapshot(
+        connection,
+        observed_at=observed_at,
+        reconciliation_rows=rows,
+    )
     settled_intents: set[str] = set()
     for row in rows:
         evidence = dict(row["evidence"] or {})
@@ -108,15 +112,11 @@ def fast_live_account_snapshot(
                 * Decimal(str(intent["limit_price"]))
             )
 
-    latest_reconciliation = connection.execute(
-        select(schema.live_reconciliation_runs.c.observed_at)
-        .where(schema.live_reconciliation_runs.c.observed_at <= observed_at)
-        .order_by(
-            schema.live_reconciliation_runs.c.observed_at.desc(),
-            schema.live_reconciliation_runs.c.id.desc(),
-        )
-        .limit(1)
-    ).scalar_one_or_none()
+    latest_reconciliation = (
+        rows[0]["observed_at"]
+        if rows
+        else None
+    )
     realized_daily_pnl = base.realized_daily_pnl_usd
     if latest_reconciliation is not None:
         realized_daily_pnl = _daily_pnl_for_observed(
