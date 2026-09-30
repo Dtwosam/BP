@@ -88,6 +88,8 @@ mode = str(payload.get("authorization_mode") or "")
 if mode not in {
     "manual-telegram-continuous-v1",
     "auto-telegram-continuous-v1",
+    "manual-telegram-continuous-v2",
+    "auto-telegram-continuous-v2",
 }:
     raise SystemExit("authorization_mode_invalid")
 if payload.get("max_network_submission_attempts_per_intent") != 1:
