@@ -278,3 +278,57 @@ def test_v4_gate_b_v2_is_outcome_blind_and_preserves_the_final_holdout() -> None
         "does **not** authorize labeled preparation",
     ):
         assert required in spec
+
+
+def test_v4_gate_b_v2_plan_freeze_is_durable_and_still_label_free() -> None:
+    state = json.loads(_text("PROJECT_STATE.json"))
+    evidence = json.loads(
+        _text(
+            "docs/evidence/"
+            "phase-14-v4-gate-b-v2-plan-freeze-20260930.json"
+        )
+    )
+
+    v4 = state["phase_14_v4_regime_aware"]
+    gate = v4["gate_b_preregistration"]
+    plan = v4["gate_b_plan"]
+
+    assert gate["readiness_run_performed"] is True
+    assert gate["plan_run_performed"] is True
+    assert gate["status"] == (
+        "FROZEN_V2_PLAN_CREATED_AWAITING_LABELED_PREP_AUTHORIZATION"
+    )
+
+    assert plan["source_main"] == "cc8386671fd3c299b3c6c406e5ebcdec42e187a4"
+    assert plan["research_plan_version"] == "v4-gate-b-preregister-v2"
+    assert plan["market_count"] == 1662
+    assert plan["ordinary_fold_count"] == 5
+    assert plan["final_holdout_market_count"] == 288
+    assert plan["readiness_input_sha256"] == (
+        "308f6bd4f97205eff6f40e8521806753315d2c2ee459985cac4110cf9c95c852"
+    )
+    assert plan["config_sha256"] == (
+        "c2dc791e127f78cb6baa060314f7c29ee48192711d2f6c92fa5f1869d654e954"
+    )
+    assert plan["feature_manifest_sha256"] == (
+        "388bbb8bdba9c2c9d38ede8017f0b8c6721df6ad50274a40efb35ec42adbf81f"
+    )
+    assert plan["plan_sha256"] == (
+        "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557"
+    )
+    assert plan["plan_file_sha256"] == (
+        "564e0c299b360062c5d1e37ceb10050e5b600f4fc29f35451aef8c08a5884dad"
+    )
+    assert plan["labels_read"] is False
+    assert plan["outcomes_read"] is False
+    assert plan["training_performed"] is False
+    assert plan["policy_selected"] is False
+    assert plan["final_holdout_evaluated"] is False
+
+    assert evidence["plan_sha256"] == plan["plan_sha256"]
+    assert evidence["final_holdout_market_count"] == 288
+    assert evidence["integrity"]["labels_read"] is False
+    assert evidence["integrity"]["outcomes_read"] is False
+    assert evidence["integrity"]["training_performed"] is False
+    assert evidence["integrity"]["policy_selected"] is False
+    assert evidence["integrity"]["final_holdout_evaluated"] is False
