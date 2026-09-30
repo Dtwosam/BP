@@ -381,16 +381,17 @@ class _FakePendingConnection:
 
     def execute(self, _statement):
         self.calls += 1
-        if self.calls == 1:
-            pending = (
-                {"intent_id": self.intent_id}
-                if self.intent_id is not None
-                else None
-            )
-            return _FakePendingResult(pending)
-        if self.calls == 2:
-            return _FakeScalarResult(self.terminal_event)
-        raise AssertionError("unexpected execute call")
+        if self.calls != 1:
+            raise AssertionError("unexpected execute call")
+        pending = (
+            {
+                "intent_id": self.intent_id,
+                "terminal_event": self.terminal_event,
+            }
+            if self.intent_id is not None
+            else None
+        )
+        return _FakePendingResult(pending)
 
 
 def test_pending_gate_accepts_official_zero_fill_reconciliation(
@@ -433,7 +434,7 @@ def test_pending_gate_blocks_truly_unresolved_intent(
     )
 
     assert unresolved == intent_id
-    assert connection.calls == 2
+    assert connection.calls == 1
 
 
 def test_pending_gate_accepts_terminal_event(
@@ -456,4 +457,28 @@ def test_pending_gate_accepts_terminal_event(
     )
 
     assert unresolved is None
-    assert connection.calls == 2
+    assert connection.calls == 1
+
+
+def test_pending_gate_terminal_common_case_skips_reconciliation_scan(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = _FakePendingConnection(
+        intent_id="live-intent-terminal-fast-path",
+        terminal_event="closed_before_submission",
+    )
+
+    def unexpected_reconciliation_scan(_connection, *, observed_at):
+        raise AssertionError("terminal intent must not scan reconciliation history")
+
+    monkeypatch.setattr(
+        fast_live_prepare_module,
+        "_official_zero_fill_reconciled_intents",
+        unexpected_reconciliation_scan,
+    )
+
+    assert _unresolved_pending_intent_id(
+        connection,
+        observed_at=BASE,
+    ) is None
+    assert connection.calls == 1

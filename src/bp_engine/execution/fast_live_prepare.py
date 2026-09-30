@@ -306,8 +306,25 @@ def _unresolved_pending_intent_id(
     *,
     observed_at: datetime,
 ) -> str | None:
+    latest_terminal_event = (
+        select(schema.live_order_events.c.event_type)
+        .where(
+            schema.live_order_events.c.intent_id
+            == schema.live_order_intents.c.intent_id,
+            schema.live_order_events.c.event_type.in_(
+                CANARY_INTENT_TERMINAL_EVENTS
+            ),
+        )
+        .order_by(schema.live_order_events.c.id.desc())
+        .limit(1)
+        .correlate(schema.live_order_intents)
+        .scalar_subquery()
+    )
     pending = connection.execute(
-        select(schema.live_order_intents)
+        select(
+            schema.live_order_intents.c.intent_id,
+            latest_terminal_event.label("terminal_event"),
+        )
         .where(
             schema.live_order_intents.c.policy_version
             == CANARY_POLICY_VERSION
@@ -317,6 +334,8 @@ def _unresolved_pending_intent_id(
     ).mappings().one_or_none()
     if pending is None:
         return None
+    if pending["terminal_event"] is not None:
+        return None
 
     intent_id = str(pending["intent_id"])
     if intent_id in _official_zero_fill_reconciled_intents(
@@ -324,21 +343,25 @@ def _unresolved_pending_intent_id(
         observed_at=observed_at,
     ):
         return None
+    return intent_id
 
-    terminal = connection.execute(
-        select(schema.live_order_events.c.event_type)
-        .where(
-            schema.live_order_events.c.intent_id == pending["intent_id"],
-            schema.live_order_events.c.event_type.in_(
-                CANARY_INTENT_TERMINAL_EVENTS
-            ),
+
+def ensure_fast_live_initial_reconciliation(
+    *,
+    engine: Engine,
+    observed_at: datetime,
+    official_open_order_count: int,
+    collateral_balance_usd: Decimal,
+) -> None:
+    repository = LiveReadinessRepository()
+    with engine.begin() as connection:
+        _ensure_initial_reconciliation(
+            connection,
+            repository=repository,
+            observed_at=observed_at,
+            official_open_order_count=official_open_order_count,
+            collateral_balance_usd=collateral_balance_usd,
         )
-        .order_by(schema.live_order_events.c.id.desc())
-        .limit(1)
-    ).scalar_one_or_none()
-    if terminal is None:
-        return intent_id
-    return None
 
 
 def preview_fast_live_candidate(
@@ -349,12 +372,15 @@ def preview_fast_live_candidate(
     paper_cash_tracker: FrozenPaperCashTracker | None = None,
 ) -> dict[str, object]:
     policy = continuous_fast_live_policy()
+    preview_started_ns = time.monotonic_ns()
 
     with engine.begin() as connection:
+        pending_started_ns = time.monotonic_ns()
         pending_intent_id = _unresolved_pending_intent_id(
             connection,
             observed_at=observed_at,
         )
+        pending_completed_ns = time.monotonic_ns()
         if pending_intent_id is not None:
             return {
                 "status": "blocked",
@@ -362,21 +388,25 @@ def preview_fast_live_candidate(
                 "intent_id": pending_intent_id,
             }
 
+        prediction_started_ns = time.monotonic_ns()
         prediction = _prediction_candidate(
             connection,
             activated_at=activated_at,
             preview_observed_at=observed_at,
         )
+        prediction_completed_ns = time.monotonic_ns()
         if prediction is None:
             return {
                 "status": "waiting",
                 "reason": "no_new_frozen_v3_trade_prediction",
             }
 
+        paper_cash_started_ns = time.monotonic_ns()
         available_paper_cash = _current_frozen_paper_cash(
             connection,
             tracker=paper_cash_tracker,
         )
+        paper_cash_completed_ns = time.monotonic_ns()
         try:
             paper_order_id, draft = build_fast_live_draft(
                 prediction,
@@ -468,6 +498,18 @@ def preview_fast_live_candidate(
             if paper_cash_tracker is not None
             else False
         ),
+        "preview_pending_gate_ms": (
+            pending_completed_ns - pending_started_ns
+        ) / 1_000_000,
+        "preview_prediction_candidate_ms": (
+            prediction_completed_ns - prediction_started_ns
+        ) / 1_000_000,
+        "preview_paper_cash_ms": (
+            paper_cash_completed_ns - paper_cash_started_ns
+        ) / 1_000_000,
+        "preview_build_ms": (
+            time.monotonic_ns() - preview_started_ns
+        ) / 1_000_000,
     }
     return {
         "status": "prepared",
@@ -564,18 +606,20 @@ def prepare_fast_live_candidate(
     official_open_order_count: int,
     collateral_balance_usd: Decimal,
     paper_cash_tracker: FrozenPaperCashTracker | None = None,
+    initial_reconciliation_verified: bool = False,
 ) -> dict[str, object]:
     repository = LiveReadinessRepository()
     policy = continuous_fast_live_policy()
 
     with engine.begin() as connection:
-        _ensure_initial_reconciliation(
-            connection,
-            repository=repository,
-            observed_at=observed_at,
-            official_open_order_count=official_open_order_count,
-            collateral_balance_usd=collateral_balance_usd,
-        )
+        if not initial_reconciliation_verified:
+            _ensure_initial_reconciliation(
+                connection,
+                repository=repository,
+                observed_at=observed_at,
+                official_open_order_count=official_open_order_count,
+                collateral_balance_usd=collateral_balance_usd,
+            )
 
         pending_intent_id = _unresolved_pending_intent_id(
             connection,
