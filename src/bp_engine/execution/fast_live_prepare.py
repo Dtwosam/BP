@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import time
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 from decimal import Decimal
-import time
 
 from sqlalchemy import func, select, true
 from sqlalchemy.engine import Engine
