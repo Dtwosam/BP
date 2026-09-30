@@ -5,10 +5,12 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import create_engine, event
 
 from bp_engine.execution import fast_live_prepare as fast_live_prepare_module
 from bp_engine.execution.fast_live_prepare import (
     FastLiveDraftUnavailable,
+    FrozenPaperCashTracker,
     _has_preview_arm_window,
     _request_from_preview,
     _unresolved_pending_intent_id,
@@ -19,6 +21,7 @@ from bp_engine.execution.fast_live_prepare import (
 from bp_engine.execution.paper import PaperOrderDraft, build_paper_order
 from bp_engine.features.hashing import canonical_hash
 from bp_engine.live_readiness.hashing import derive_id, semantic_sha256
+from bp_engine.storage import schema
 
 BASE = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
 
@@ -39,6 +42,188 @@ def _prediction() -> dict[str, object]:
         "slippage_buffer": Decimal("0.01"),
         "edge_config": {"fee_rate": Decimal("0.07")},
     }
+
+
+
+def _insert_cash_test_order(
+    connection,
+    *,
+    paper_order_id: str,
+    prediction_id: str,
+    execution_version: str,
+) -> None:
+    connection.execute(
+        schema.paper_orders.insert().values(
+            paper_order_id=paper_order_id,
+            prediction_id=prediction_id,
+            prediction_semantic_sha256="1" * 64,
+            execution_version=execution_version,
+            execution_config_sha256="2" * 64,
+            condition_id=f"condition-{paper_order_id}",
+            token_id=f"token-{paper_order_id}",
+            selected_side="up",
+            requested_shares=Decimal("5"),
+            target_notional_usd=Decimal("5"),
+            submitted_at=BASE,
+            arrival_at=BASE + timedelta(milliseconds=250),
+            expires_at=BASE + timedelta(seconds=2),
+            limit_price=Decimal("0.50"),
+            signal_selected_ask=Decimal("0.49"),
+            signal_fee_rate=Decimal("0.01"),
+            signal_slippage_buffer=Decimal("0.01"),
+            execution_config={"test": True},
+            semantic_sha256="3" * 64,
+            created_at=BASE,
+        )
+    )
+
+
+def _insert_cash_test_fill(
+    connection,
+    *,
+    paper_order_id: str,
+    fill_key: str,
+    total_cost: Decimal,
+) -> None:
+    connection.execute(
+        schema.paper_fills.insert().values(
+            paper_order_id=paper_order_id,
+            fill_key=fill_key,
+            fill_at=BASE,
+            shares=Decimal("1"),
+            price=Decimal("0.50"),
+            gross_cost=total_cost,
+            fee=Decimal("0"),
+            total_cost=total_cost,
+            signal_ask_slippage=Decimal("0"),
+            book_anchor_event_id=1,
+            book_anchor_dedupe_key=f"anchor-{fill_key}",
+            book_applied_event_ids=[],
+            book_applied_dedupe_keys=[],
+            replay_cutoff_at=BASE,
+            semantic_sha256="4" * 64,
+            created_at=BASE,
+        )
+    )
+
+
+def _insert_cash_test_settlement(
+    connection,
+    *,
+    paper_order_id: str,
+    label_version: str,
+    payout: Decimal,
+) -> None:
+    connection.execute(
+        schema.paper_settlements.insert().values(
+            paper_order_id=paper_order_id,
+            label_version=label_version,
+            official_outcome="Up",
+            official_target=1,
+            label_source="test",
+            label_source_snapshot_sha256="5" * 64,
+            label_source_observed_at=BASE,
+            filled_shares=Decimal("1"),
+            total_fill_cost=Decimal("1"),
+            total_fees=Decimal("0"),
+            payout=payout,
+            realized_pnl=payout - Decimal("1"),
+            settled_at=BASE,
+            semantic_sha256="6" * 64,
+            created_at=BASE,
+        )
+    )
+
+
+def test_frozen_paper_cash_tracker_is_incremental_and_one_query() -> None:
+    engine = create_engine("sqlite://")
+    schema.metadata.create_all(engine)
+    frozen_order = "paper-order-frozen-cash"
+    other_order = "paper-order-other-cash"
+    with engine.begin() as connection:
+        _insert_cash_test_order(
+            connection,
+            paper_order_id=frozen_order,
+            prediction_id="a" * 64,
+            execution_version="paper-execution-v3-frozen-v1",
+        )
+        _insert_cash_test_order(
+            connection,
+            paper_order_id=other_order,
+            prediction_id="b" * 64,
+            execution_version="paper-execution-v1",
+        )
+        _insert_cash_test_fill(
+            connection,
+            paper_order_id=frozen_order,
+            fill_key="frozen-fill-1",
+            total_cost=Decimal("10"),
+        )
+        _insert_cash_test_fill(
+            connection,
+            paper_order_id=other_order,
+            fill_key="other-fill-1",
+            total_cost=Decimal("50"),
+        )
+        _insert_cash_test_settlement(
+            connection,
+            paper_order_id=frozen_order,
+            label_version="label-1",
+            payout=Decimal("3"),
+        )
+        _insert_cash_test_settlement(
+            connection,
+            paper_order_id=other_order,
+            label_version="label-other",
+            payout=Decimal("50"),
+        )
+
+    statements: list[str] = []
+
+    def before_cursor_execute(
+        _conn,
+        _cursor,
+        statement,
+        _parameters,
+        _context,
+        _executemany,
+    ) -> None:
+        if statement.lstrip().upper().startswith("SELECT"):
+            statements.append(statement)
+
+    tracker = FrozenPaperCashTracker()
+    event.listen(engine, "before_cursor_execute", before_cursor_execute)
+    try:
+        with engine.connect() as connection:
+            assert tracker.refresh(connection) == Decimal("93")
+            assert tracker.last_refresh_was_incremental is False
+
+        with engine.begin() as connection:
+            _insert_cash_test_fill(
+                connection,
+                paper_order_id=frozen_order,
+                fill_key="frozen-fill-2",
+                total_cost=Decimal("2"),
+            )
+            _insert_cash_test_settlement(
+                connection,
+                paper_order_id=frozen_order,
+                label_version="label-2",
+                payout=Decimal("1"),
+            )
+
+        with engine.connect() as connection:
+            assert tracker.refresh(connection) == Decimal("92")
+            assert tracker.last_refresh_was_incremental is True
+            assert tracker.last_fill_cost_delta == Decimal("2")
+            assert tracker.last_settlement_payout_delta == Decimal("1")
+            assert tracker.refresh(connection) == Decimal("92")
+            assert tracker.last_fill_cost_delta == Decimal("0")
+            assert tracker.last_settlement_payout_delta == Decimal("0")
+    finally:
+        event.remove(engine, "before_cursor_execute", before_cursor_execute)
+
+    assert len(statements) == 3
 
 
 def test_fast_live_draft_is_exact_frozen_paper_formula() -> None:
