@@ -170,7 +170,7 @@ def test_v4_gate_b_v1_is_frozen_future_only_and_still_label_free() -> None:
         _text("docs/evidence/phase-14-v4-gate-b-preregistration-20260922.json")
     )
 
-    gate = state["phase_14_v4_regime_aware"]["gate_b_preregistration"]
+    gate = state["phase_14_v4_regime_aware"]["gate_b_preregistration_v1"]
     assert gate["status"] == "FROZEN_FUTURE_EPOCH_RUNTIME_IMPLEMENTED_NOT_EXECUTED"
     assert gate["research_plan_version"] == "v4-gate-b-preregister-v1"
     assert gate["epoch_start"] == "2026-09-23T00:00:00Z"
@@ -219,5 +219,62 @@ def test_v4_gate_b_v1_is_frozen_future_only_and_still_label_free() -> None:
         "feature-only",
         "no-clobber",
         "no v4 `prepare`",
+    ):
+        assert required in spec
+
+
+def test_v4_gate_b_v2_is_outcome_blind_and_preserves_the_final_holdout() -> None:
+    state = json.loads(_text("PROJECT_STATE.json"))
+    spec = _text(
+        "docs/superpowers/specs/"
+        "2026-09-30-phase-14-v4-gate-b-preregistration-v2.md"
+    ).lower()
+    evidence = json.loads(
+        _text(
+            "docs/evidence/"
+            "phase-14-v4-gate-b-preregistration-v2-20260930.json"
+        )
+    )
+
+    v4 = state["phase_14_v4_regime_aware"]
+    gate = v4["gate_b_preregistration"]
+    failure = v4["gate_b_v1_plan_feasibility"]
+
+    assert gate["status"] == "FROZEN_V2_OUTCOME_BLIND_PLAN_NOT_EXECUTED"
+    assert gate["research_plan_version"] == "v4-gate-b-preregister-v2"
+    assert gate["epoch_start"] == "2026-09-24T00:00:00Z"
+    assert gate["epoch_end"] == "2026-09-30T00:00:00Z"
+    assert gate["ordinary_fold_count"] == 5
+    assert gate["required_non_negative_validation_folds"] == 5
+    assert gate["final_holdout_hours"] == 24
+    assert gate["readiness_run_performed"] is False
+    assert gate["plan_run_performed"] is False
+    assert gate["labels_read"] is False
+    assert gate["training_performed"] is False
+    assert gate["policy_selected"] is False
+    assert gate["final_holdout_access_performed"] is False
+
+    assert failure["plan_file_created"] is False
+    assert failure["labels_read"] is False
+    assert failure["outcomes_read"] is False
+    assert failure["fold_0_test_market_count"] == 78
+    assert failure["fold_1_validation_after_embargo_market_count"] == 77
+    assert failure["final_holdout_market_count"] == 288
+
+    assert evidence["integrity"]["labels_read"] is False
+    assert evidence["integrity"]["outcomes_read"] is False
+    assert evidence["integrity"]["training_performed"] is False
+    assert evidence["integrity"]["final_holdout_evaluated"] is False
+    assert evidence["v2_decision"]["final_holdout_changed"] is False
+    assert evidence["v2_decision"]["required_non_negative_validation_folds"] == 5
+
+    for required in (
+        "v4-gate-b-preregister-v2",
+        "five",
+        "final holdout",
+        "60, 120, 180, and 240",
+        "5 of 5",
+        "outcome-blind",
+        "does **not** authorize labeled preparation",
     ):
         assert required in spec
