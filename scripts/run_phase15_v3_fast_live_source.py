@@ -368,12 +368,12 @@ def _approval_record_path(root: Path, intent_id: str) -> Path:
     return root / intent_id / "approval.json"
 
 
-def _publish_control_once(
+def _start_control_publish(
     publisher: pubsub_v1.PublisherClient,
     *,
     topic_path: str,
     payload: dict[str, Any],
-) -> str:
+):
     data = json.dumps(
         payload,
         sort_keys=True,
@@ -389,7 +389,54 @@ def _publish_control_once(
     for name in ("intent_id", "request_sha256"):
         if payload.get(name):
             attributes[name] = str(payload[name])
-    future = publisher.publish(topic_path, data, **attributes)
+    return publisher.publish(topic_path, data, **attributes)
+
+
+def _finish_control_publish_with_bounded_retry(
+    publisher: pubsub_v1.PublisherClient,
+    *,
+    topic_path: str,
+    payload: dict[str, Any],
+    first_future: object,
+) -> tuple[str, int]:
+    expires_at = datetime.fromisoformat(str(payload["expires_at"])).astimezone(UTC)
+    attempts = 1
+    last_error: Exception | None = None
+    try:
+        return (str(first_future.result(timeout=0.45)), attempts)
+    except Exception as exc:
+        last_error = exc
+
+    while attempts < 3:
+        if (expires_at - _utc_now()).total_seconds() <= 0.15:
+            break
+        time.sleep(0.025)
+        attempts += 1
+        try:
+            future = _start_control_publish(
+                publisher,
+                topic_path=topic_path,
+                payload=payload,
+            )
+            return (str(future.result(timeout=0.45)), attempts)
+        except Exception as exc:
+            last_error = exc
+    raise RuntimeError(
+        f"fast live control publish failed after {attempts} bounded attempts"
+    ) from last_error
+
+
+def _publish_control_once(
+    publisher: pubsub_v1.PublisherClient,
+    *,
+    topic_path: str,
+    payload: dict[str, Any],
+) -> str:
+    future = _start_control_publish(
+        publisher,
+        topic_path=topic_path,
+        payload=payload,
+    )
     return str(future.result(timeout=0.45))
 
 
@@ -400,28 +447,19 @@ def _publish_control_with_bounded_retry(
     payload: dict[str, Any],
 ) -> tuple[str, int]:
     expires_at = datetime.fromisoformat(str(payload["expires_at"])).astimezone(UTC)
-    attempts = 0
-    last_error: Exception | None = None
-    while attempts < 3:
-        attempts += 1
-        if (expires_at - _utc_now()).total_seconds() <= 0.15:
-            break
-        try:
-            return (
-                _publish_control_once(
-                    publisher,
-                    topic_path=topic_path,
-                    payload=payload,
-                ),
-                attempts,
-            )
-        except Exception as exc:
-            last_error = exc
-            if attempts < 3:
-                time.sleep(0.025)
-    raise RuntimeError(
-        f"fast live control publish failed after {attempts} bounded attempts"
-    ) from last_error
+    if (expires_at - _utc_now()).total_seconds() <= 0.15:
+        raise RuntimeError("fast live control publish expired before first attempt")
+    first_future = _start_control_publish(
+        publisher,
+        topic_path=topic_path,
+        payload=payload,
+    )
+    return _finish_control_publish_with_bounded_retry(
+        publisher,
+        topic_path=topic_path,
+        payload=payload,
+        first_future=first_future,
+    )
 
 
 def _result_receipt_path(
@@ -1357,30 +1395,20 @@ def main() -> int:
                     key_id=args.transport_key_id,
                     created_at=_utc_now(),
                 )
-                prepare_message_id, prepare_attempts = (
-                    _publish_control_with_bounded_retry(
-                        publisher,
-                        topic_path=topic_path,
-                        payload=prepare_message,
+                prepare_expires_at = datetime.fromisoformat(
+                    str(prepare_message["expires_at"])
+                ).astimezone(UTC)
+                if (
+                    prepare_expires_at - _utc_now()
+                ).total_seconds() <= 0.15:
+                    raise RuntimeError(
+                        "fast live prepare expired before first publish attempt"
                     )
-                )
-                print(
-                    json.dumps(
-                        {
-                            "status": "fast_live_prepare_published",
-                            "message_id": prepare_message_id,
-                            "intent_id": prepare_message["intent_id"],
-                            "prediction_id": prepare_message["prediction_id"],
-                            "request_sha256": prepare_message["request_sha256"],
-                            "prepared_path": str(prepared_path),
-                            "risk_status": "pending",
-                            "publish_attempts": prepare_attempts,
-                            "network_submission_attempt_consumed": False,
-                            "real_order_submitted": False,
-                        },
-                        sort_keys=True,
-                    ),
-                    flush=True,
+                prepare_publish_started_at = _utc_now()
+                prepare_publish_future = _start_control_publish(
+                    publisher,
+                    topic_path=topic_path,
+                    payload=prepare_message,
                 )
 
                 preview_intent_id = str(preview["intent_id"])
@@ -1424,7 +1452,99 @@ def main() -> int:
                         * 1000,
                     }
                     finalized_status = str(finalized.get("status") or "")
-                    if finalized_status != "prepared":
+
+                prepare_publish_join_started_ns = time.monotonic_ns()
+                try:
+                    prepare_message_id, prepare_attempts = (
+                        _finish_control_publish_with_bounded_retry(
+                            publisher,
+                            topic_path=topic_path,
+                            payload=prepare_message,
+                            first_future=prepare_publish_future,
+                        )
+                    )
+                except Exception as exc:
+                    if str(finalized.get("status") or "") == "prepared":
+                        closed = {
+                            "status": "prepare_publish_failed",
+                            "intent_id": str(finalized["intent_id"]),
+                            "prediction_id": str(finalized["prediction_id"]),
+                            "paper_order_id": str(finalized["paper_order_id"]),
+                            "request_sha256": str(
+                                prepare_message["request_sha256"]
+                            ),
+                            "reason": type(exc).__name__,
+                            "network_submission_attempt_consumed": False,
+                            "real_order_submitted": False,
+                            "external_order_id": None,
+                        }
+                        recorded = record_fast_live_result(
+                            engine=engine,
+                            result=closed,
+                            observed_at=_utc_now(),
+                        )
+                        print(
+                            json.dumps(
+                                {
+                                    **closed,
+                                    "recorded": recorded,
+                                },
+                                sort_keys=True,
+                                default=str,
+                            ),
+                            flush=True,
+                        )
+                    _clear_staged_telegram_candidate(
+                        args.telegram_prepare_state_root,
+                        preview_intent_id,
+                    )
+                    time.sleep(max(args.poll_seconds, 0.05))
+                    continue
+                prepare_publish_join_completed_ns = time.monotonic_ns()
+                prepare_publish_joined_at = _utc_now()
+                parallel_timing = finalized.get("parallel_timing")
+                if isinstance(parallel_timing, dict):
+                    parallel_timing.update(
+                        {
+                            "prepare_publish_started_at": (
+                                prepare_publish_started_at.isoformat()
+                            ),
+                            "prepare_publish_joined_at": (
+                                prepare_publish_joined_at.isoformat()
+                            ),
+                            "prepare_publish_join_wait_ms": (
+                                prepare_publish_join_completed_ns
+                                - prepare_publish_join_started_ns
+                            )
+                            / 1_000_000,
+                            "prepare_publish_overlapped_risk": True,
+                        }
+                    )
+                print(
+                    json.dumps(
+                        {
+                            "status": "fast_live_prepare_published",
+                            "message_id": prepare_message_id,
+                            "intent_id": prepare_message["intent_id"],
+                            "prediction_id": prepare_message["prediction_id"],
+                            "request_sha256": prepare_message["request_sha256"],
+                            "prepared_path": str(prepared_path),
+                            "risk_status": str(
+                                finalized.get("status") or ""
+                            ),
+                            "publish_attempts": prepare_attempts,
+                            "parallel_timing": parallel_timing,
+                            "network_submission_attempt_consumed": False,
+                            "real_order_submitted": False,
+                        },
+                        sort_keys=True,
+                        default=str,
+                    ),
+                    flush=True,
+                )
+
+                finalized_status = str(finalized.get("status") or "")
+                if finalized_status != "prepared":
                         cancel = {
                             "status": "cancelled",
                             "reason": (
