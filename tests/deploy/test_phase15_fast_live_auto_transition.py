@@ -485,6 +485,61 @@ def test_auto_candidate_can_renew_only_existing_unactivated_authorization() -> N
     assert auth["real_order_submitted"] is False
 
 
+def test_auto_candidate_can_renew_expired_unactivated_authorization() -> None:
+    module = _candidate_module()
+    upgrade_main = "9" * 40
+    current_main = "a" * 40
+    evidence_reference = "docs/evidence/upgrade.json"
+    first_authorized_at = datetime(2026, 9, 29, 16, 5, tzinfo=UTC)
+    renewal_authorized_at = first_authorized_at + timedelta(hours=9)
+    source, evidence = _renewable_state(
+        module,
+        upgrade_main=upgrade_main,
+        evidence_reference=evidence_reference,
+        authorized_at=first_authorized_at,
+    )
+
+    phase = source["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    old_auth = phase["fast_live_preauthorization"]
+    assert isinstance(old_auth, dict)
+    assert datetime.fromisoformat(str(old_auth["expires_at"])) < renewal_authorized_at
+
+    candidate = module.build_candidate(
+        state=source,
+        upgrade_evidence=evidence,
+        expected_main=current_main,
+        authorization_id="fast-live-auto-continuous-renewed-after-expiry",
+        source_of_truth_version="0.14.182",
+        expires_at=renewal_authorized_at + timedelta(hours=12),
+        authorized_at=renewal_authorized_at,
+        upgrade_evidence_reference=evidence_reference,
+        renew_existing_unactivated=True,
+    )
+
+    renewed = candidate["phase_15_v3_live_canary"]["fast_live_preauthorization"]
+    assert renewed["authorization_id"] == (
+        "fast-live-auto-continuous-renewed-after-expiry"
+    )
+    assert renewed["authorized_at_main"] == current_main
+    assert renewed["deployment_performed"] is False
+    assert renewed["activation_performed"] is False
+    assert renewed["runtime_authorization_created"] is False
+    assert renewed["kill_switch_removed"] is False
+    assert renewed["real_order_submitted"] is False
+
+    verified = verify_source_authorization(
+        candidate,
+        expected_main=current_main,
+        observed_at=renewal_authorized_at,
+        requires_telegram_approval=True,
+        continuous_session=True,
+    )
+    assert verified["authorization_id"] == (
+        "fast-live-auto-continuous-renewed-after-expiry"
+    )
+
+
 @pytest.mark.parametrize(
     "field",
     [
