@@ -33,7 +33,6 @@ from bp_engine.v4_research.config import (
     V4GateBConfig,
     v4_gate_b_config_payload,
 )
-from bp_engine.v4_research.plan import _config_payload as _unused_config_payload
 from bp_engine.v4_research.policy import evaluate_economics_v4
 
 AUTHORIZED_V4_GATE_B_V2_PLAN_SHA256 = (
