@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 
 V4_SHORT_CONTEXT_PREDICTORS = (
@@ -269,7 +269,7 @@ def v4_gate_b_config_payload(config: V4GateBConfig) -> dict[str, object]:
     }
 
 
-FROZEN_V4_GATE_B_CONFIG = V4GateBConfig(
+FROZEN_V4_GATE_B_V1_CONFIG = V4GateBConfig(
     research_plan_version="v4-gate-b-preregister-v1",
     dataset_version="supervised-core-v4-regime-aware-v1",
     feature_version="core-v4-regime-aware",
@@ -342,4 +342,18 @@ FROZEN_V4_GATE_B_CONFIG = V4GateBConfig(
     losing_streak_reporting_required=True,
     profit_factor_reporting_required=True,
     execution_availability_report_required=True,
+)
+
+
+# V2 is frozen outcome-blind after the v1 feature-only feasibility diagnostic
+# found one sparse 12-hour block that made v1 plan construction impossible.
+# It preserves the final 24-hour holdout and all model/timing/economic candidates,
+# starts ordinary folds after the sparse block, and tightens the fold-consistency
+# rule from 6/7 to 5/5 non-negative validation folds.
+FROZEN_V4_GATE_B_CONFIG = replace(
+    FROZEN_V4_GATE_B_V1_CONFIG,
+    research_plan_version="v4-gate-b-preregister-v2",
+    epoch_start=datetime(2026, 9, 24, 0, 0, tzinfo=UTC),
+    ordinary_fold_count=5,
+    required_non_negative_validation_folds=5,
 )
