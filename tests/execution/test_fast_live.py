@@ -45,7 +45,7 @@ def _state(now: datetime) -> dict[str, object]:
                 "authorized": True,
                 "consumed": False,
                 "authorization_id": "fast-live-auth-1",
-                "authorized_at_main": "b" * 40,
+                "authorized_at_main": MAIN,
                 "target_notional_usd": 5,
                 "max_trade_size_usd": 10,
                 "max_total_exposure_usd": 10,
@@ -148,6 +148,23 @@ def test_current_source_truth_shape_is_required() -> None:
             {"phase_15_v3_live_canary": {}},
             expected_main=MAIN,
             observed_at=datetime(2026, 9, 28, 20, 0, tzinfo=UTC),
+        )
+
+
+def test_source_authorization_is_bound_to_exact_main() -> None:
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    state = _state(now)
+    phase = state["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    authorization = phase["fast_live_preauthorization"]
+    assert isinstance(authorization, dict)
+    authorization["authorized_at_main"] = "b" * 40
+
+    with pytest.raises(FastLiveError, match="base commit mismatch"):
+        verify_source_authorization(
+            state,
+            expected_main=MAIN,
+            observed_at=now,
         )
 
 
