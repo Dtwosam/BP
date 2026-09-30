@@ -23,7 +23,7 @@ _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 _ACCEPT = "I_ACCEPT_GENERATE_REVIEWABLE_CONTINUOUS_LIVE_AUTHORIZATION_CANDIDATE"
 _DEACTIVATION_PURPOSE = "phase15-v3-telegram-auto-approver-deactivation-v1"
-_CANDIDATE_PURPOSE = "phase15-v3-fast-live-continuous-authorization-candidate-v1"
+_CANDIDATE_PURPOSE = "phase15-v3-fast-live-continuous-authorization-candidate-v2"
 
 
 class CandidateError(RuntimeError):
