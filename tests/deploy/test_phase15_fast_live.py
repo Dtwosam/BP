@@ -170,9 +170,23 @@ def test_fast_live_source_starts_approval_and_johannesburg_before_risk_join() ->
     source = SOURCE.read_text(encoding="utf-8")
     preview = source.index("preview = preview_fast_live_candidate")
     prepare = source.index("prepare_message = create_prepare_message", preview)
-    finalize = source.index("finalized = prepare_fast_live_candidate", prepare)
-    approve = source.index("approval_message = create_approval_message", finalize)
-    assert preview < prepare < finalize < approve
+    publish_start = source.index(
+        "prepare_publish_future = _start_control_publish",
+        prepare,
+    )
+    finalize = source.index(
+        "finalized = prepare_fast_live_candidate",
+        publish_start,
+    )
+    publish_join = source.index(
+        "_finish_control_publish_with_bounded_retry(",
+        finalize,
+    )
+    approve = source.index("approval_message = create_approval_message", publish_join)
+    assert preview < prepare < publish_start < finalize < publish_join < approve
+    assert '"prepare_publish_overlapped_risk": True' in source
+    assert '"reason": "prepare_publish_failed"' in source
+    assert '"status": "pre_submission_blocked"' in source
     assert "approval_prepared=preview" in source
     assert "fast live finalized risk candidate changed" in source
 
