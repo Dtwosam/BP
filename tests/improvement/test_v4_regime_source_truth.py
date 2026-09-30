@@ -75,7 +75,7 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert v4["initial_future_cutoff_violation_count"] == 0
     assert v4["initial_polymarket_predictor_key_count"] == 0
     assert v4["initial_regime_invariant_violation_count"] == 0
-    assert v4["training_performed"] is False
+    assert v4["training_performed"] is True
     assert v4["final_holdout_access_performed"] is False
     assert v4["paper_activation_performed"] is False
     assert v4["automatic_promotion"] is False
@@ -280,7 +280,7 @@ def test_v4_gate_b_v2_is_outcome_blind_and_preserves_the_final_holdout() -> None
         assert required in spec
 
 
-def test_v4_gate_b_v2_plan_freeze_is_durable_and_still_label_free() -> None:
+def test_v4_gate_b_v2_plan_freeze_remains_durable_historical_evidence() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
     evidence = json.loads(
         _text(
@@ -290,14 +290,7 @@ def test_v4_gate_b_v2_plan_freeze_is_durable_and_still_label_free() -> None:
     )
 
     v4 = state["phase_14_v4_regime_aware"]
-    gate = v4["gate_b_preregistration"]
     plan = v4["gate_b_plan"]
-
-    assert gate["readiness_run_performed"] is True
-    assert gate["plan_run_performed"] is True
-    assert gate["status"] == (
-        "FROZEN_V2_PLAN_CREATED_AWAITING_LABELED_PREP_AUTHORIZATION"
-    )
 
     assert plan["source_main"] == "cc8386671fd3c299b3c6c406e5ebcdec42e187a4"
     assert plan["research_plan_version"] == "v4-gate-b-preregister-v2"
