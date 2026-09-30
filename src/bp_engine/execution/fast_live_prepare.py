@@ -51,10 +51,11 @@ from bp_engine.live_readiness.risk import evaluate_live_risk
 from bp_engine.storage import schema
 
 
-def continuous_fast_live_policy():
+def continuous_fast_live_policy(*, max_consecutive_losses: int):
     return replace(
         canary_policy(),
         cooldown_seconds=Decimal("0"),
+        max_consecutive_losses=max_consecutive_losses,
     )
 
 
@@ -369,9 +370,12 @@ def preview_fast_live_candidate(
     engine: Engine,
     activated_at: datetime,
     observed_at: datetime,
+    max_consecutive_losses: int,
     paper_cash_tracker: FrozenPaperCashTracker | None = None,
 ) -> dict[str, object]:
-    policy = continuous_fast_live_policy()
+    policy = continuous_fast_live_policy(
+        max_consecutive_losses=max_consecutive_losses,
+    )
     preview_started_ns = time.monotonic_ns()
 
     with engine.begin() as connection:
@@ -607,9 +611,12 @@ def prepare_fast_live_candidate(
     collateral_balance_usd: Decimal,
     paper_cash_tracker: FrozenPaperCashTracker | None = None,
     initial_reconciliation_verified: bool = False,
+    max_consecutive_losses: int,
 ) -> dict[str, object]:
     repository = LiveReadinessRepository()
-    policy = continuous_fast_live_policy()
+    policy = continuous_fast_live_policy(
+        max_consecutive_losses=max_consecutive_losses,
+    )
 
     with engine.begin() as connection:
         if not initial_reconciliation_verified:
