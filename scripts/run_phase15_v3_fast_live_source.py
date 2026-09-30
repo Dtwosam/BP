@@ -35,6 +35,7 @@ from bp_engine.execution.fast_live import (
 )
 from bp_engine.execution.fast_live_prepare import (
     FrozenPaperCashTracker,
+    ensure_fast_live_initial_reconciliation,
     prepare_fast_live_candidate,
     preview_fast_live_candidate,
 )
@@ -900,6 +901,31 @@ def main() -> int:
         raise SystemExit("runtime authorization issued_at must be timezone-aware")
     activated_at = activated_at.astimezone(UTC)
 
+    initial_reconciliation_started_ns = time.monotonic_ns()
+    ensure_fast_live_initial_reconciliation(
+        engine=engine,
+        observed_at=startup_observed_at,
+        official_open_order_count=args.official_open_order_count,
+        collateral_balance_usd=collateral,
+    )
+    initial_reconciliation_completed_ns = time.monotonic_ns()
+    print(
+        json.dumps(
+            {
+                "status": "fast_live_initial_reconciliation_verified",
+                "verification_ms": (
+                    initial_reconciliation_completed_ns
+                    - initial_reconciliation_started_ns
+                )
+                / 1_000_000,
+                "network_submission_attempt_consumed": False,
+                "real_order_submitted": False,
+            },
+            sort_keys=True,
+        ),
+        flush=True,
+    )
+
     publisher = pubsub_v1.PublisherClient()
     topic_path = publisher.topic_path(args.gcp_project, args.topic_id)
     result_subscriber = pubsub_v1.SubscriberClient()
@@ -1453,13 +1479,32 @@ def main() -> int:
                         api_healthy=True,
                         official_open_order_count=args.official_open_order_count,
                         collateral_balance_usd=collateral,
+                        initial_reconciliation_verified=True,
                     )
                     risk_completed_at = _utc_now()
                     preview_created_at = datetime.fromisoformat(
                         str(preview["timing"]["prepared_observed_at"])
                     ).astimezone(UTC)
+                    preview_timing = preview.get("timing")
+                    preview_timing = (
+                        preview_timing
+                        if isinstance(preview_timing, dict)
+                        else {}
+                    )
                     finalized["parallel_timing"] = {
                         "preview_created_at": preview_created_at.isoformat(),
+                        "preview_build_ms": preview_timing.get(
+                            "preview_build_ms"
+                        ),
+                        "preview_pending_gate_ms": preview_timing.get(
+                            "preview_pending_gate_ms"
+                        ),
+                        "preview_prediction_candidate_ms": preview_timing.get(
+                            "preview_prediction_candidate_ms"
+                        ),
+                        "preview_paper_cash_ms": preview_timing.get(
+                            "preview_paper_cash_ms"
+                        ),
                         "risk_started_at": risk_started_at.isoformat(),
                         "risk_completed_at": risk_completed_at.isoformat(),
                         "preview_to_risk_start_ms": (
@@ -1935,6 +1980,7 @@ def main() -> int:
                 official_open_order_count=args.official_open_order_count,
                 collateral_balance_usd=collateral,
                 paper_cash_tracker=paper_cash_tracker,
+                initial_reconciliation_verified=True,
             )
             status = str(report.get("status") or "")
             if status == "waiting":
