@@ -237,7 +237,7 @@ def test_v4_gate_b_v2_is_outcome_blind_and_preserves_the_final_holdout() -> None
     )
 
     v4 = state["phase_14_v4_regime_aware"]
-    gate = v4["gate_b_preregistration"]
+    gate = v4["gate_b_preregistration_v2"]
     failure = v4["gate_b_v1_plan_feasibility"]
 
     assert gate["status"] == "FROZEN_V2_OUTCOME_BLIND_PLAN_NOT_EXECUTED"
