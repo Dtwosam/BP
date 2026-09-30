@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
@@ -9,6 +10,7 @@ from bp_engine.execution import fast_live_prepare as fast_live_prepare_module
 from bp_engine.execution.fast_live_prepare import (
     FastLiveDraftUnavailable,
     _has_preview_arm_window,
+    _request_from_preview,
     _unresolved_pending_intent_id,
     build_fast_live_draft,
     continuous_fast_live_policy,
@@ -16,6 +18,7 @@ from bp_engine.execution.fast_live_prepare import (
 )
 from bp_engine.execution.paper import PaperOrderDraft, build_paper_order
 from bp_engine.features.hashing import canonical_hash
+from bp_engine.live_readiness.hashing import derive_id, semantic_sha256
 
 BASE = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
 
@@ -67,6 +70,52 @@ def test_fast_live_draft_is_exact_frozen_paper_formula() -> None:
         }
     )
 
+
+
+def _preview() -> tuple[dict[str, object], PaperOrderDraft]:
+    prediction = _prediction()
+    paper_order_id, draft = build_fast_live_draft(
+        prediction,
+        available_paper_cash=Decimal("100"),
+    )
+    request_id = derive_id(
+        "live-request",
+        semantic_sha256(draft.request.as_mapping(raw=True)),
+    )
+    preview = {
+        "status": "prepared",
+        "risk_status": "pending",
+        "intent_id": "fast-live-candidate-test",
+        "request_id": request_id,
+        "prediction_id": draft.request.prediction_id,
+        "paper_order_id": paper_order_id,
+        "market_end_at": prediction["market_end_at"].isoformat(),
+        "request": draft.request.as_mapping(),
+    }
+    return preview, draft
+
+
+def test_preview_request_round_trips_without_rebuilding_order() -> None:
+    preview, draft = _preview()
+
+    paper_order_id, request = _request_from_preview(preview)
+
+    assert paper_order_id == preview["paper_order_id"]
+    assert request == draft.request
+
+
+def test_preview_request_tamper_fails_closed() -> None:
+    preview, _draft = _preview()
+    tampered = copy.deepcopy(preview)
+    tampered_request = dict(tampered["request"])
+    tampered_request["limit_price"] = "0.60"
+    tampered["request"] = tampered_request
+
+    with pytest.raises(
+        RuntimeError,
+        match="fast live preview request id changed",
+    ):
+        _request_from_preview(tampered)
 
 def test_fast_live_frozen_config_remains_exact() -> None:
     config = frozen_v3_paper_config()

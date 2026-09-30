@@ -48,6 +48,8 @@ def test_fast_live_source_has_no_wallet_or_live_money_runtime() -> None:
     assert "create_prepare_message" in source
     assert "create_approval_message" in source
     assert "preview_fast_live_candidate" in source
+    assert "preview=preview" in source
+    assert '"risk_finalized_from_preview": True' in source
     assert "approval_prepared=preview" in source
     assert '"finalized.json"' in source
     assert '"cancel.json"' in source

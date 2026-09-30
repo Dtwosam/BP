@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import asdict, replace
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.engine import Engine
 
 from bp_engine.execution.canary import (
@@ -13,7 +14,6 @@ from bp_engine.execution.canary import (
     CANARY_POLICY_VERSION,
     CANARY_TARGET_NOTIONAL_USD,
     _ensure_initial_reconciliation,
-    _evaluated_prediction_ids,
     _latest_clean_account_snapshot,
     _retryable_risk_reasons,
     canary_policy,
@@ -37,6 +37,7 @@ from bp_engine.execution.models import (
     V3_FROZEN_PAPER_SHARE_PRECISION,
     V3_FROZEN_PAPER_STARTING_CASH_USD,
     V3_FROZEN_PAPER_TARGET_NOTIONAL_USD,
+    ExecutionOrderRequest,
     PaperExecutionConfig,
 )
 from bp_engine.execution.paper import PaperOrderDraft, PaperTerminalDraft, build_paper_order
@@ -70,8 +71,8 @@ def frozen_v3_paper_config() -> PaperExecutionConfig:
 
 def _current_frozen_paper_cash(connection) -> Decimal:
     config = frozen_v3_paper_config()
-    fill_costs = connection.execute(
-        select(schema.paper_fills.c.total_cost)
+    fill_total = connection.scalar(
+        select(func.coalesce(func.sum(schema.paper_fills.c.total_cost), 0))
         .select_from(
             schema.paper_fills.join(
                 schema.paper_orders,
@@ -83,9 +84,9 @@ def _current_frozen_paper_cash(connection) -> Decimal:
             schema.paper_orders.c.execution_version
             == V3_FROZEN_PAPER_EXECUTION_VERSION
         )
-    ).scalars().all()
-    payouts = connection.execute(
-        select(schema.paper_settlements.c.payout)
+    )
+    payout_total = connection.scalar(
+        select(func.coalesce(func.sum(schema.paper_settlements.c.payout), 0))
         .select_from(
             schema.paper_settlements.join(
                 schema.paper_orders,
@@ -97,13 +98,11 @@ def _current_frozen_paper_cash(connection) -> Decimal:
             schema.paper_orders.c.execution_version
             == V3_FROZEN_PAPER_EXECUTION_VERSION
         )
-    ).scalars().all()
+    )
     return derive_paper_cash(
         starting_cash=config.starting_cash_usd,
-        fill_costs=(_decimal(value, "paper_fill_cost") for value in fill_costs),
-        settlement_payouts=(
-            _decimal(value, "paper_settlement_payout") for value in payouts
-        ),
+        fill_costs=(_decimal(fill_total, "paper_fill_cost"),),
+        settlement_payouts=(_decimal(payout_total, "paper_settlement_payout"),),
     )
 
 
@@ -122,13 +121,42 @@ def _has_preview_arm_window(
     return remaining >= CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS
 
 
+def _session_evaluated_prediction_ids(
+    connection,
+    *,
+    activated_at: datetime,
+) -> set[str]:
+    rows = connection.execute(
+        select(
+            schema.live_risk_decisions.c.prediction_id,
+            schema.live_risk_decisions.c.eligible,
+            schema.live_risk_decisions.c.reasons,
+        ).where(
+            schema.live_risk_decisions.c.policy_version
+            == CANARY_POLICY_VERSION,
+            schema.live_risk_decisions.c.created_at >= activated_at,
+        )
+    ).mappings()
+    terminal: set[str] = set()
+    for row in rows:
+        prediction_id = str(row["prediction_id"])
+        if row["eligible"] is True or not _retryable_risk_reasons(
+            row["reasons"]
+        ):
+            terminal.add(prediction_id)
+    return terminal
+
+
 def _prediction_candidate(
     connection,
     *,
     activated_at: datetime,
     preview_observed_at: datetime | None = None,
 ) -> dict[str, object] | None:
-    evaluated = _evaluated_prediction_ids(connection)
+    evaluated = _session_evaluated_prediction_ids(
+        connection,
+        activated_at=activated_at,
+    )
     rows = connection.execute(
         select(schema.live_predictions)
         .where(
@@ -373,11 +401,73 @@ def preview_fast_live_candidate(
     }
 
 
+def _request_from_preview(
+    preview: Mapping[str, object],
+) -> tuple[str, ExecutionOrderRequest]:
+    if str(preview.get("status") or "") != "prepared":
+        raise RuntimeError("fast live preview is not prepared")
+    if str(preview.get("risk_status") or "") != "pending":
+        raise RuntimeError("fast live preview risk status changed")
+    raw = preview.get("request")
+    if not isinstance(raw, Mapping):
+        raise RuntimeError("fast live preview request missing")
+    try:
+        request = ExecutionOrderRequest(
+            prediction_id=str(raw["prediction_id"]),
+            prediction_semantic_sha256=str(
+                raw["prediction_semantic_sha256"]
+            ),
+            condition_id=str(raw["condition_id"]),
+            token_id=str(raw["token_id"]),
+            selected_side=str(raw["selected_side"]),
+            action=str(raw["action"]),
+            requested_shares=Decimal(str(raw["requested_shares"])),
+            target_notional_usd=Decimal(
+                str(raw["target_notional_usd"])
+            ),
+            submitted_at=datetime.fromisoformat(
+                str(raw["submitted_at"])
+            ),
+            arrival_at=datetime.fromisoformat(
+                str(raw["arrival_at"])
+            ),
+            expires_at=datetime.fromisoformat(
+                str(raw["expires_at"])
+            ),
+            limit_price=Decimal(str(raw["limit_price"])),
+            execution_version=str(raw["execution_version"]),
+            execution_config_sha256=str(
+                raw["execution_config_sha256"]
+            ),
+        )
+    except (KeyError, ValueError, ArithmeticError) as exc:
+        raise RuntimeError("fast live preview request invalid") from exc
+
+    if str(preview.get("prediction_id") or "") != request.prediction_id:
+        raise RuntimeError("fast live preview prediction binding changed")
+    paper_order_id = canonical_hash(
+        {
+            "prediction_id": request.prediction_id,
+            "execution_version": request.execution_version,
+        }
+    )
+    if str(preview.get("paper_order_id") or "") != paper_order_id:
+        raise RuntimeError("fast live preview paper order binding changed")
+    request_id = derive_id(
+        "live-request",
+        semantic_sha256(request.as_mapping(raw=True)),
+    )
+    if str(preview.get("request_id") or "") != request_id:
+        raise RuntimeError("fast live preview request id changed")
+    return paper_order_id, request
+
+
 def prepare_fast_live_candidate(
     *,
     engine: Engine,
     activated_at: datetime,
     observed_at: datetime,
+    preview: Mapping[str, object] | None = None,
     interlock: InterlockDecision,
     api_healthy: bool,
     official_open_order_count: int,
@@ -406,38 +496,71 @@ def prepare_fast_live_candidate(
                 "intent_id": pending_intent_id,
             }
 
-        prediction = _prediction_candidate(
-            connection,
-            activated_at=activated_at,
-        )
-        if prediction is None:
-            return {
-                "status": "waiting",
-                "reason": "no_new_frozen_v3_trade_prediction",
-            }
-
-        available_paper_cash = _current_frozen_paper_cash(connection)
-        try:
-            paper_order_id, draft = build_fast_live_draft(
-                prediction,
-                available_paper_cash=available_paper_cash,
+        if preview is None:
+            prediction = _prediction_candidate(
+                connection,
+                activated_at=activated_at,
             )
-        except FastLiveDraftUnavailable as exc:
-            return {
-                "status": "blocked",
-                "reason": "frozen_paper_order_unavailable",
-                "paper_status": exc.status,
-                "paper_reason": exc.reason,
-                "prediction_id": str(prediction["prediction_id"]),
-                "retryable": exc.status == "INSUFFICIENT_PAPER_CASH",
-            }
-        request = draft.request
+            if prediction is None:
+                return {
+                    "status": "waiting",
+                    "reason": "no_new_frozen_v3_trade_prediction",
+                }
+
+            available_paper_cash = _current_frozen_paper_cash(connection)
+            try:
+                paper_order_id, draft = build_fast_live_draft(
+                    prediction,
+                    available_paper_cash=available_paper_cash,
+                )
+            except FastLiveDraftUnavailable as exc:
+                return {
+                    "status": "blocked",
+                    "reason": "frozen_paper_order_unavailable",
+                    "paper_status": exc.status,
+                    "paper_reason": exc.reason,
+                    "prediction_id": str(prediction["prediction_id"]),
+                    "retryable": exc.status == "INSUFFICIENT_PAPER_CASH",
+                }
+            request = draft.request
+        else:
+            paper_order_id, request = _request_from_preview(preview)
+            prediction = connection.execute(
+                select(schema.live_predictions).where(
+                    schema.live_predictions.c.prediction_id
+                    == request.prediction_id,
+                    schema.live_predictions.c.prediction_version
+                    == "v3-frozen-paper-v1",
+                    schema.live_predictions.c.trade.is_(True),
+                    schema.live_predictions.c.executable.is_(True),
+                    schema.live_predictions.c.recorded_at >= activated_at,
+                )
+            ).mappings().one_or_none()
+            if prediction is None:
+                raise RuntimeError(
+                    "frozen preview prediction is no longer available"
+                )
+            prediction = dict(prediction)
+            preview_market_end = datetime.fromisoformat(
+                str(preview.get("market_end_at") or "")
+            )
+            if _stored_utc(
+                preview_market_end,
+                "preview.market_end_at",
+            ) != _stored_utc(
+                prediction["market_end_at"],
+                "market_end_at",
+            ):
+                raise RuntimeError("fast live preview market end changed")
+
         if request.target_notional_usd != CANARY_TARGET_NOTIONAL_USD:
             raise RuntimeError("frozen paper order target changed")
         if request.target_notional_usd > policy.max_trade_size_usd:
             raise RuntimeError("frozen paper order exceeds live ceiling")
         if not _source_request_matches(prediction, request):
-            raise RuntimeError("frozen paper order no longer matches source prediction")
+            raise RuntimeError(
+                "frozen paper order no longer matches source prediction"
+            )
 
         account = fast_live_account_snapshot(
             connection,
@@ -511,6 +634,7 @@ def prepare_fast_live_candidate(
                 "interlock_eligible": interlock.eligible,
                 "interlock_reasons": interlock.reasons,
                 "fast_live": True,
+                "finalized_from_preview": preview is not None,
             },
             created_at=observed_at,
         )
@@ -572,6 +696,7 @@ def prepare_fast_live_candidate(
                 "request_sha256": payload_sha256(request.as_mapping()),
                 "modeled_fee_rate": str(modeled_fee_rate),
                 "fast_live": True,
+                "finalized_from_preview": preview is not None,
             },
         )
 
@@ -600,6 +725,7 @@ def prepare_fast_live_candidate(
             (paper_order_submitted_at - prediction_recorded_at).total_seconds()
         ),
         "fast_live_order_derived_directly_from_prediction": True,
+        "finalized_from_preview": preview is not None,
         "prepare_after_paper_seconds": str(
             (observed_at - paper_order_submitted_at).total_seconds()
         ),

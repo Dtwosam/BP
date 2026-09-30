@@ -1395,6 +1395,7 @@ def main() -> int:
                         engine=engine,
                         activated_at=activated_at,
                         observed_at=risk_started_at,
+                        preview=preview,
                         interlock=interlock,
                         api_healthy=True,
                         official_open_order_count=args.official_open_order_count,
@@ -1416,6 +1417,7 @@ def main() -> int:
                             risk_completed_at - risk_started_at
                         ).total_seconds()
                         * 1000,
+                        "risk_finalized_from_preview": True,
                         "preview_to_risk_complete_ms": (
                             risk_completed_at - preview_created_at
                         ).total_seconds()
