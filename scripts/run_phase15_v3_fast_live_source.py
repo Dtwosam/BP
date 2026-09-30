@@ -34,7 +34,6 @@ from bp_engine.execution.fast_live import (
     request_sha256 as fast_live_request_sha256,
 )
 from bp_engine.execution.fast_live_prepare import (
-    finalize_fast_live_preview,
     prepare_fast_live_candidate,
     preview_fast_live_candidate,
 )
@@ -1392,7 +1391,7 @@ def main() -> int:
                 )
                 if finalized is None:
                     risk_started_at = _utc_now()
-                    finalized = finalize_fast_live_preview(
+                    finalized = prepare_fast_live_candidate(
                         engine=engine,
                         activated_at=activated_at,
                         observed_at=risk_started_at,
