@@ -12,7 +12,7 @@ from typing import Any
 
 from bp_engine.execution.fast_live import (
     FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA,
-    FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE,
+    FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2,
     FAST_LIVE_EXECUTION_VERSION,
     FAST_LIVE_MAX_TRANSIT_SECONDS,
     FAST_LIVE_PREDICTION_VERSION,
@@ -24,7 +24,7 @@ _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 _ACCEPT = "I_ACCEPT_GENERATE_REVIEWABLE_CONTINUOUS_AUTO_LIVE_AUTHORIZATION_CANDIDATE"
 _UPGRADE_PURPOSE = "phase15-v3-telegram-auto-approver-continuous-contract-upgrade-v1"
-_CANDIDATE_PURPOSE = "phase15-v3-fast-live-continuous-auto-authorization-candidate-v1"
+_CANDIDATE_PURPOSE = "phase15-v3-fast-live-continuous-auto-authorization-candidate-v2"
 
 
 class CandidateError(RuntimeError):
@@ -193,7 +193,7 @@ def build_candidate(
                     f"existing authorization is not renewable: {field}"
                 )
         if existing_authorization.get("authorization_mode") != (
-            FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE
+            FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2
         ):
             raise CandidateError("existing authorization mode is not renewable")
         if existing_authorization.get("authorization_id") == authorization_id:
@@ -257,7 +257,7 @@ def build_candidate(
         "status": "AUTHORIZED_CONTINUOUS_SESSION",
         "authorized": True,
         "authorization_id": authorization_id,
-        "authorization_mode": FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE,
+        "authorization_mode": FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2,
         "authorized_at": authorized.isoformat(),
         "authorized_at_main": expected_main,
         "expires_at": expires.isoformat(),
@@ -265,7 +265,7 @@ def build_candidate(
         "max_trade_size_usd": 10,
         "max_total_exposure_usd": 10,
         "max_daily_loss_usd": 10,
-        "max_consecutive_losses": 1,
+        "max_consecutive_losses": 0,
         "min_edge": 0.075,
         "max_transit_seconds": int(FAST_LIVE_MAX_TRANSIT_SECONDS),
         "requires_telegram_approval": True,
@@ -378,7 +378,7 @@ def main() -> int:
             FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA
         ),
         "authorization_id": args.authorization_id,
-        "authorization_mode": FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE,
+        "authorization_mode": FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2,
         "source_of_truth_version": args.source_of_truth_version,
         "authorized_at": now.isoformat(),
         "expires_at": _utc(expires).isoformat(),
@@ -407,7 +407,7 @@ def main() -> int:
     print("PHASE15_FAST_LIVE_AUTO_AUTHORIZATION_CANDIDATE=PASS")
     print(f"EXPECTED_MAIN={args.expected_main}")
     print(f"AUTHORIZATION_ID={args.authorization_id}")
-    print(f"AUTHORIZATION_MODE={FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE}")
+    print(f"AUTHORIZATION_MODE={FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2}")
     print(f"SOURCE_OF_TRUTH_VERSION={args.source_of_truth_version}")
     print(f"EXPIRES_AT={_utc(expires).isoformat()}")
     print(f"CANDIDATE_PROJECT_STATE={output}")

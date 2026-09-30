@@ -20,13 +20,33 @@ FAST_LIVE_PREPARE_PURPOSE = "phase15-v3-fast-live-prepare-v1"
 FAST_LIVE_APPROVAL_PURPOSE = "phase15-v3-fast-live-approval-v1"
 FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE = "manual-telegram-continuous-v1"
 FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE = "auto-telegram-continuous-v1"
+FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE_V2 = (
+    "manual-telegram-continuous-v2"
+)
+FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2 = (
+    "auto-telegram-continuous-v2"
+)
 FAST_LIVE_CONTINUOUS_AUTHORIZATION_MODE = (
-    FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE
+    FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE_V2
 )
 FAST_LIVE_CONTINUOUS_AUTHORIZATION_MODES = frozenset(
     {
         FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE,
         FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE,
+        FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE_V2,
+        FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2,
+    }
+)
+FAST_LIVE_CONTINUOUS_V1_AUTHORIZATION_MODES = frozenset(
+    {
+        FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE,
+        FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE,
+    }
+)
+FAST_LIVE_CONTINUOUS_V2_AUTHORIZATION_MODES = frozenset(
+    {
+        FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE_V2,
+        FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2,
     }
 )
 FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA = (
@@ -44,6 +64,7 @@ FAST_LIVE_MAX_TRADE_SIZE_USD = Decimal("10")
 FAST_LIVE_MAX_TOTAL_EXPOSURE_USD = Decimal("10")
 FAST_LIVE_MAX_DAILY_LOSS_USD = Decimal("10")
 FAST_LIVE_MAX_CONSECUTIVE_LOSSES = 1
+FAST_LIVE_CONTINUOUS_V2_MAX_CONSECUTIVE_LOSSES = 0
 FAST_LIVE_MIN_EDGE = Decimal("0.075")
 FAST_LIVE_MAX_TRANSIT_SECONDS = Decimal("2")
 FAST_LIVE_MIN_MARKET_END_SECONDS = Decimal("10")
@@ -128,6 +149,23 @@ def verify_source_authorization(
             "continuous fast live requires Telegram approval"
         )
     authorization = _source_authorization(state)
+    authorization_mode = str(
+        authorization.get("authorization_mode") or ""
+    )
+    if continuous_session:
+        if authorization_mode in FAST_LIVE_CONTINUOUS_V1_AUTHORIZATION_MODES:
+            expected_consecutive_losses = FAST_LIVE_MAX_CONSECUTIVE_LOSSES
+        elif authorization_mode in FAST_LIVE_CONTINUOUS_V2_AUTHORIZATION_MODES:
+            expected_consecutive_losses = (
+                FAST_LIVE_CONTINUOUS_V2_MAX_CONSECUTIVE_LOSSES
+            )
+        else:
+            raise FastLiveError(
+                "fast live continuous authorization mode invalid"
+            )
+    else:
+        expected_consecutive_losses = FAST_LIVE_MAX_CONSECUTIVE_LOSSES
+
     required = {
         "status": (
             "AUTHORIZED_CONTINUOUS_SESSION"
@@ -139,7 +177,7 @@ def verify_source_authorization(
         "max_trade_size_usd": 10,
         "max_total_exposure_usd": 10,
         "max_daily_loss_usd": 10,
-        "max_consecutive_losses": 1,
+        "max_consecutive_losses": expected_consecutive_losses,
         "min_edge": 0.075,
         "requires_telegram_approval": requires_telegram_approval,
         "prediction_version": FAST_LIVE_PREDICTION_VERSION,
@@ -171,9 +209,6 @@ def verify_source_authorization(
             and str(auto.get("status") or "").startswith("ACTIVE_")
         )
         if continuous_session:
-            authorization_mode = str(
-                authorization.get("authorization_mode") or ""
-            )
             if authorization_mode not in (
                 FAST_LIVE_CONTINUOUS_AUTHORIZATION_MODES
             ):
@@ -182,7 +217,10 @@ def verify_source_authorization(
                 )
             if (
                 authorization_mode
-                == FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE
+                in {
+                    FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE,
+                    FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE_V2,
+                }
                 and auto_active
             ):
                 raise FastLiveError(
@@ -190,7 +228,10 @@ def verify_source_authorization(
                 )
             if (
                 authorization_mode
-                == FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE
+                in {
+                    FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE,
+                    FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2,
+                }
             ):
                 if not auto_active:
                     raise FastLiveError(
@@ -309,6 +350,12 @@ def verify_runtime_authorization(
         if runtime.get("max_network_submission_attempts_per_intent") != 1:
             raise FastLiveError(
                 "runtime per-intent attempt limit changed"
+            )
+        if int(runtime.get("max_consecutive_losses", -1)) != int(
+            source["max_consecutive_losses"]
+        ):
+            raise FastLiveError(
+                "runtime consecutive-loss contract mismatch"
             )
     elif runtime.get("max_network_submission_attempts") != 1:
         raise FastLiveError("runtime authorization attempt limit changed")

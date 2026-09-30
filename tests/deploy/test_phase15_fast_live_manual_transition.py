@@ -215,14 +215,14 @@ def test_candidate_disables_auto_approver_without_enabling_live_flags() -> None:
     assert auto["live_auto_approve_authorized"] is False
     assert auto["service_state"] == "stopped"
     assert auth["status"] == "AUTHORIZED_CONTINUOUS_SESSION"
-    assert auth["authorization_mode"] == "manual-telegram-continuous-v1"
+    assert auth["authorization_mode"] == "manual-telegram-continuous-v2"
     assert auth["requires_telegram_approval"] is True
     assert auth["max_network_submission_attempts_per_intent"] == 1
     assert auth["target_notional_usd"] == 5
     assert auth["max_trade_size_usd"] == 10
     assert auth["max_total_exposure_usd"] == 10
     assert auth["max_daily_loss_usd"] == 10
-    assert auth["max_consecutive_losses"] == 1
+    assert auth["max_consecutive_losses"] == 0
     assert auth["min_edge"] == 0.075
     assert auth["max_transit_seconds"] == 2
     assert auth["deployment_performed"] is False

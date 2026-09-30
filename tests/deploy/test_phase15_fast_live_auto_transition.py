@@ -10,7 +10,7 @@ import pytest
 
 from bp_engine.execution.fast_live import (
     FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA,
-    FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE,
+    FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2,
     verify_source_authorization,
 )
 
@@ -269,7 +269,7 @@ def test_auto_candidate_preserves_auto_approval_and_live_flags() -> None:
     )
     assert auth["status"] == "AUTHORIZED_CONTINUOUS_SESSION"
     assert auth["authorization_mode"] == (
-        FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE
+        FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2
     )
     assert auth["requires_telegram_approval"] is True
     assert auth["max_network_submission_attempts_per_intent"] == 1
@@ -277,7 +277,7 @@ def test_auto_candidate_preserves_auto_approval_and_live_flags() -> None:
     assert auth["max_trade_size_usd"] == 10
     assert auth["max_total_exposure_usd"] == 10
     assert auth["max_daily_loss_usd"] == 10
-    assert auth["max_consecutive_losses"] == 1
+    assert auth["max_consecutive_losses"] == 0
     assert auth["min_edge"] == 0.075
     assert auth["max_transit_seconds"] == 2
     assert auth["deployment_performed"] is False
@@ -295,7 +295,7 @@ def test_auto_candidate_preserves_auto_approval_and_live_flags() -> None:
     )
     assert verified["authorization_id"] == "fast-live-auto-continuous-test"
     assert verified["authorization_mode"] == (
-        FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE
+        FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2
     )
 
 
@@ -468,12 +468,12 @@ def test_auto_candidate_can_renew_only_existing_unactivated_authorization() -> N
     assert auto["continuous_contract_upgraded_at"] == original_upgraded_at
     assert auth["authorization_id"] == "fast-live-auto-continuous-renewed"
     assert auth["authorized_at_main"] == current_main
-    assert auth["authorization_mode"] == FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE
+    assert auth["authorization_mode"] == FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2
     assert auth["target_notional_usd"] == 5
     assert auth["max_trade_size_usd"] == 10
     assert auth["max_total_exposure_usd"] == 10
     assert auth["max_daily_loss_usd"] == 10
-    assert auth["max_consecutive_losses"] == 1
+    assert auth["max_consecutive_losses"] == 0
     assert auth["min_edge"] == 0.075
     assert auth["max_transit_seconds"] == 2
     assert auth["requires_telegram_approval"] is True

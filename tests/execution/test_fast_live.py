@@ -11,6 +11,7 @@ from bp_engine.execution.fast_live import (
     FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA,
     FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE,
     FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE,
+    FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE_V2,
     FastLiveError,
     create_approval_message,
     create_envelope,
@@ -197,6 +198,7 @@ def test_continuous_manual_session_is_per_intent_authorized() -> None:
     runtime["requires_telegram_approval"] = True
     runtime["authorization_mode"] = FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE
     runtime["max_network_submission_attempts_per_intent"] = 1
+    runtime["max_consecutive_losses"] = 1
 
     verified = verify_runtime_authorization(
         runtime,
@@ -227,6 +229,56 @@ def test_continuous_manual_session_is_per_intent_authorized() -> None:
             expected_main=MAIN,
             observed_at=now + timedelta(seconds=1),
             requires_telegram_approval=False,
+            continuous_session=True,
+        )
+
+
+def test_continuous_v2_disables_consecutive_loss_latch_by_contract() -> None:
+    now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
+    state = _state(now)
+    phase = state["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    authorization = phase["fast_live_preauthorization"]
+    assert isinstance(authorization, dict)
+    authorization["status"] = "AUTHORIZED_CONTINUOUS_SESSION"
+    authorization["requires_telegram_approval"] = True
+    authorization["authorization_mode"] = (
+        FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE_V2
+    )
+    authorization["max_consecutive_losses"] = 0
+    authorization["max_network_submission_attempts_per_intent"] = 1
+    authorization.pop("consumed")
+    authorization.pop("max_network_submission_attempts")
+
+    runtime = _runtime(state, now)
+    runtime.pop("max_network_submission_attempts")
+    runtime["continuous_session"] = True
+    runtime["requires_telegram_approval"] = True
+    runtime["authorization_mode"] = (
+        FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE_V2
+    )
+    runtime["max_network_submission_attempts_per_intent"] = 1
+    runtime["max_consecutive_losses"] = 0
+
+    verified = verify_runtime_authorization(
+        runtime,
+        state=state,
+        expected_main=MAIN,
+        observed_at=now + timedelta(seconds=1),
+        requires_telegram_approval=True,
+        continuous_session=True,
+    )
+    assert verified["max_consecutive_losses"] == 0
+
+    changed = copy.deepcopy(runtime)
+    changed["max_consecutive_losses"] = 1
+    with pytest.raises(FastLiveError, match="consecutive-loss contract"):
+        verify_runtime_authorization(
+            changed,
+            state=state,
+            expected_main=MAIN,
+            observed_at=now + timedelta(seconds=1),
+            requires_telegram_approval=True,
             continuous_session=True,
         )
 
@@ -631,6 +683,7 @@ def test_continuous_auto_telegram_mode_requires_active_auto_approver() -> None:
     runtime["requires_telegram_approval"] = True
     runtime["authorization_mode"] = FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE
     runtime["max_network_submission_attempts_per_intent"] = 1
+    runtime["max_consecutive_losses"] = 1
 
     verified = verify_runtime_authorization(
         runtime,

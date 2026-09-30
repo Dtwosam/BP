@@ -57,8 +57,8 @@ def evaluate_live_risk(
         and context.account.realized_daily_pnl_usd > -policy.max_daily_loss_usd
     )
     consecutive_loss_ok = (
-        policy.max_consecutive_losses > 0
-        and context.account.consecutive_losses < policy.max_consecutive_losses
+        policy.max_consecutive_losses == 0
+        or context.account.consecutive_losses < policy.max_consecutive_losses
     )
     prediction_fresh = 0 <= prediction_age <= policy.max_prediction_age_seconds
     expiry_ok = time_to_expiry >= policy.min_time_to_expiry_seconds
