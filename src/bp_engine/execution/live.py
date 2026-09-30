@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
@@ -460,19 +460,9 @@ def _replay_submission_ack(
     )
 
 
-def _official_zero_fill_reconciled_intents(
-    connection: Connection,
-    *,
-    observed_at: datetime,
+def _official_zero_fill_reconciled_intents_from_rows(
+    rows: list[Mapping[str, Any]],
 ) -> set[str]:
-    rows = connection.execute(
-        select(schema.live_reconciliation_runs)
-        .where(schema.live_reconciliation_runs.c.observed_at <= observed_at)
-        .order_by(
-            schema.live_reconciliation_runs.c.observed_at.desc(),
-            schema.live_reconciliation_runs.c.id.desc(),
-        )
-    ).mappings().all()
     resolved: set[str] = set()
     for row in rows:
         if int(row["unresolved_count"]) != 0 or int(row["critical_count"]) != 0:
@@ -513,39 +503,88 @@ def _official_zero_fill_reconciled_intents(
     return resolved
 
 
-def _account_snapshot(connection: Connection, *, observed_at: datetime) -> LiveAccountSnapshot:
+def _official_zero_fill_reconciled_intents(
+    connection: Connection,
+    *,
+    observed_at: datetime,
+) -> set[str]:
+    rows = connection.execute(
+        select(schema.live_reconciliation_runs)
+        .where(
+            schema.live_reconciliation_runs.c.observed_at <= observed_at,
+            schema.live_reconciliation_runs.c.unresolved_count == 0,
+            schema.live_reconciliation_runs.c.critical_count == 0,
+        )
+        .order_by(
+            schema.live_reconciliation_runs.c.observed_at.desc(),
+            schema.live_reconciliation_runs.c.id.desc(),
+        )
+    ).mappings().all()
+    return _official_zero_fill_reconciled_intents_from_rows(rows)
+
+
+def _account_snapshot(
+    connection: Connection,
+    *,
+    observed_at: datetime,
+    reconciliation_rows: list[Mapping[str, Any]] | None = None,
+) -> LiveAccountSnapshot:
+    submission_attempt_events = ("accepted", "rejected", "submission_unknown")
+    terminal_events = (*submission_attempt_events, "closed_before_submission")
+    latest_terminal_event = (
+        select(schema.live_order_events.c.event_type)
+        .where(
+            schema.live_order_events.c.intent_id
+            == schema.live_order_intents.c.intent_id,
+            schema.live_order_events.c.event_type.in_(terminal_events),
+        )
+        .order_by(schema.live_order_events.c.id.desc())
+        .limit(1)
+        .correlate(schema.live_order_intents)
+        .scalar_subquery()
+    )
     intents = connection.execute(
-        select(schema.live_order_intents).where(
+        select(
+            schema.live_order_intents,
+            latest_terminal_event.label("terminal_event"),
+        ).where(
             schema.live_order_intents.c.pre_submit_at <= observed_at
         )
     ).mappings().all()
+
+    if reconciliation_rows is None:
+        reconciliation_rows = connection.execute(
+            select(schema.live_reconciliation_runs)
+            .where(
+                schema.live_reconciliation_runs.c.observed_at <= observed_at
+            )
+            .order_by(
+                schema.live_reconciliation_runs.c.observed_at.desc(),
+                schema.live_reconciliation_runs.c.id.desc(),
+            )
+        ).mappings().all()
+
     last_order_at = None
     exposure = Decimal("0")
     submission_attempt_seen = False
     unresolved_intent_seen = False
-    submission_attempt_events = ("accepted", "rejected", "submission_unknown")
-    terminal_events = (*submission_attempt_events, "closed_before_submission")
-    official_zero_fill_intents = _official_zero_fill_reconciled_intents(
-        connection,
-        observed_at=observed_at,
+    official_zero_fill_intents = (
+        _official_zero_fill_reconciled_intents_from_rows(
+            reconciliation_rows
+        )
     )
     for intent in intents:
-        pre_submit_at = _stored_utc(intent["pre_submit_at"], "intent.pre_submit_at")
+        pre_submit_at = _stored_utc(
+            intent["pre_submit_at"],
+            "intent.pre_submit_at",
+        )
         intent_id = str(intent["intent_id"])
         if intent_id in official_zero_fill_intents:
             submission_attempt_seen = True
             if last_order_at is None or pre_submit_at > last_order_at:
                 last_order_at = pre_submit_at
             continue
-        outcome = connection.execute(
-            select(schema.live_order_events.c.event_type)
-            .where(
-                schema.live_order_events.c.intent_id == intent["intent_id"],
-                schema.live_order_events.c.event_type.in_(terminal_events),
-            )
-            .order_by(schema.live_order_events.c.id.desc())
-            .limit(1)
-        ).scalar_one_or_none()
+        outcome = intent["terminal_event"]
         if outcome in submission_attempt_events:
             submission_attempt_seen = True
             if last_order_at is None or pre_submit_at > last_order_at:
@@ -554,18 +593,15 @@ def _account_snapshot(connection: Connection, *, observed_at: datetime) -> LiveA
             unresolved_intent_seen = True
         if outcome not in ("rejected", "closed_before_submission"):
             exposure += _decimal(intent["size"], "intent.size") * _decimal(
-                intent["limit_price"], "intent.limit_price"
+                intent["limit_price"],
+                "intent.limit_price",
             )
 
-    reconciliation = connection.execute(
-        select(schema.live_reconciliation_runs)
-        .where(schema.live_reconciliation_runs.c.observed_at <= observed_at)
-        .order_by(
-            schema.live_reconciliation_runs.c.observed_at.desc(),
-            schema.live_reconciliation_runs.c.id.desc(),
-        )
-        .limit(1)
-    ).mappings().one_or_none()
+    reconciliation = (
+        reconciliation_rows[0]
+        if reconciliation_rows
+        else None
+    )
     if reconciliation is None:
         return LiveAccountSnapshot(
             total_exposure_usd=exposure,
