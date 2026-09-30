@@ -24,6 +24,7 @@ from bp_engine.execution.live import (
     InterlockDecision,
     _decimal,
     _decimal_or_negative_one,
+    _official_zero_fill_reconciled_intents,
     _optional_decimal,
     _selected_liquidity_usd,
     _source_request_matches,
@@ -192,6 +193,49 @@ def build_fast_live_draft(
     return paper_order_id, draft
 
 
+
+
+
+def _unresolved_pending_intent_id(
+    connection,
+    *,
+    observed_at: datetime,
+) -> str | None:
+    pending = connection.execute(
+        select(schema.live_order_intents)
+        .where(
+            schema.live_order_intents.c.policy_version
+            == CANARY_POLICY_VERSION
+        )
+        .order_by(schema.live_order_intents.c.id.desc())
+        .limit(1)
+    ).mappings().one_or_none()
+    if pending is None:
+        return None
+
+    intent_id = str(pending["intent_id"])
+    if intent_id in _official_zero_fill_reconciled_intents(
+        connection,
+        observed_at=observed_at,
+    ):
+        return None
+
+    terminal = connection.execute(
+        select(schema.live_order_events.c.event_type)
+        .where(
+            schema.live_order_events.c.intent_id == pending["intent_id"],
+            schema.live_order_events.c.event_type.in_(
+                CANARY_INTENT_TERMINAL_EVENTS
+            ),
+        )
+        .order_by(schema.live_order_events.c.id.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if terminal is None:
+        return intent_id
+    return None
+
+
 def preview_fast_live_candidate(
     *,
     engine: Engine,
@@ -201,34 +245,16 @@ def preview_fast_live_candidate(
     policy = continuous_fast_live_policy()
 
     with engine.begin() as connection:
-        pending = connection.execute(
-            select(schema.live_order_intents)
-            .where(
-                schema.live_order_intents.c.policy_version
-                == CANARY_POLICY_VERSION
-            )
-            .order_by(schema.live_order_intents.c.id.desc())
-            .limit(1)
-        ).mappings().one_or_none()
-        if pending is not None:
-            terminal = connection.execute(
-                select(schema.live_order_events.c.event_type)
-                .where(
-                    schema.live_order_events.c.intent_id
-                    == pending["intent_id"],
-                    schema.live_order_events.c.event_type.in_(
-                        CANARY_INTENT_TERMINAL_EVENTS
-                    ),
-                )
-                .order_by(schema.live_order_events.c.id.desc())
-                .limit(1)
-            ).scalar_one_or_none()
-            if terminal is None:
-                return {
-                    "status": "blocked",
-                    "reason": "pending_live_intent_requires_reconciliation",
-                    "intent_id": str(pending["intent_id"]),
-                }
+        pending_intent_id = _unresolved_pending_intent_id(
+            connection,
+            observed_at=observed_at,
+        )
+        if pending_intent_id is not None:
+            return {
+                "status": "blocked",
+                "reason": "pending_live_intent_requires_reconciliation",
+                "intent_id": pending_intent_id,
+            }
 
         prediction = _prediction_candidate(
             connection,
@@ -369,30 +395,16 @@ def prepare_fast_live_candidate(
             collateral_balance_usd=collateral_balance_usd,
         )
 
-        pending = connection.execute(
-            select(schema.live_order_intents)
-            .where(schema.live_order_intents.c.policy_version == CANARY_POLICY_VERSION)
-            .order_by(schema.live_order_intents.c.id.desc())
-            .limit(1)
-        ).mappings().one_or_none()
-        if pending is not None:
-            terminal = connection.execute(
-                select(schema.live_order_events.c.event_type)
-                .where(
-                    schema.live_order_events.c.intent_id == pending["intent_id"],
-                    schema.live_order_events.c.event_type.in_(
-                        CANARY_INTENT_TERMINAL_EVENTS
-                    ),
-                )
-                .order_by(schema.live_order_events.c.id.desc())
-                .limit(1)
-            ).scalar_one_or_none()
-            if terminal is None:
-                return {
-                    "status": "blocked",
-                    "reason": "pending_live_intent_requires_reconciliation",
-                    "intent_id": str(pending["intent_id"]),
-                }
+        pending_intent_id = _unresolved_pending_intent_id(
+            connection,
+            observed_at=observed_at,
+        )
+        if pending_intent_id is not None:
+            return {
+                "status": "blocked",
+                "reason": "pending_live_intent_requires_reconciliation",
+                "intent_id": pending_intent_id,
+            }
 
         prediction = _prediction_candidate(
             connection,
