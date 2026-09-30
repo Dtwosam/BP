@@ -378,7 +378,7 @@ def main() -> int:
             FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA
         ),
         "authorization_id": args.authorization_id,
-        "authorization_mode": FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE,
+        "authorization_mode": FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2,
         "source_of_truth_version": args.source_of_truth_version,
         "authorized_at": now.isoformat(),
         "expires_at": _utc(expires).isoformat(),
@@ -407,7 +407,7 @@ def main() -> int:
     print("PHASE15_FAST_LIVE_AUTO_AUTHORIZATION_CANDIDATE=PASS")
     print(f"EXPECTED_MAIN={args.expected_main}")
     print(f"AUTHORIZATION_ID={args.authorization_id}")
-    print(f"AUTHORIZATION_MODE={FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE}")
+    print(f"AUTHORIZATION_MODE={FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2}")
     print(f"SOURCE_OF_TRUTH_VERSION={args.source_of_truth_version}")
     print(f"EXPIRES_AT={_utc(expires).isoformat()}")
     print(f"CANDIDATE_PROJECT_STATE={output}")
