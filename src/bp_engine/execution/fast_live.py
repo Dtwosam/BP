@@ -271,6 +271,8 @@ def verify_source_authorization(
     authorized_at_main = str(authorization.get("authorized_at_main") or "")
     if _COMMIT_RE.fullmatch(authorized_at_main) is None:
         raise FastLiveError("fast live authorization base commit invalid")
+    if authorized_at_main != expected_main:
+        raise FastLiveError("fast live authorization base commit mismatch")
     max_transit = _decimal(
         authorization.get("max_transit_seconds"),
         "max_transit_seconds",
