@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, event, select
 
 from bp_engine.execution.fast_live_result import (
     fast_live_account_snapshot,
@@ -151,6 +151,60 @@ def _latest_reconciliation(engine):
                 schema.live_reconciliation_runs.c.id.desc(),
             )
         ).mappings().first()
+
+
+def test_fast_live_account_snapshot_query_count_is_constant() -> None:
+    engine = _engine()
+    with engine.begin() as connection:
+        for index in range(8):
+            intent_id = f"live-intent-fast-query-{index}"
+            connection.execute(
+                schema.live_order_intents.insert().values(
+                    intent_id=intent_id,
+                    prediction_id=f"{index + 10:064x}",
+                    policy_version="v3-live-canary-v1",
+                    request_id=f"live-request-fast-query-{index}",
+                    risk_decision_id=f"risk-fast-query-{index}",
+                    token_id=f"token-fast-query-{index}",
+                    side="BUY",
+                    size=Decimal("5"),
+                    limit_price=Decimal("0.50"),
+                    pre_submit_at=BASE - timedelta(seconds=index + 1),
+                    evidence={
+                        "phase": "phase15_v3_fast_live_v1",
+                        "paper_order_id": f"{index + 20:064x}",
+                        "request_sha256": f"{index + 30:064x}",
+                    },
+                    semantic_sha256=f"{index + 40:064x}",
+                    created_at=BASE - timedelta(seconds=index + 1),
+                )
+            )
+
+    statements: list[str] = []
+
+    def before_cursor_execute(
+        _conn,
+        _cursor,
+        statement,
+        _parameters,
+        _context,
+        _executemany,
+    ) -> None:
+        if statement.lstrip().upper().startswith("SELECT"):
+            statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", before_cursor_execute)
+    try:
+        with engine.connect() as connection:
+            account = fast_live_account_snapshot(
+                connection,
+                observed_at=BASE + timedelta(seconds=2),
+            )
+    finally:
+        event.remove(engine, "before_cursor_execute", before_cursor_execute)
+
+    assert len(statements) == 2
+    assert account.unresolved_critical_reconciliation == 1
 
 
 def test_fresh_book_rejection_closes_without_consuming_attempt() -> None:
