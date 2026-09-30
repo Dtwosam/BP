@@ -102,15 +102,15 @@ PY
 # zero-activity cleanup helper re-verifies the stopped state.
 gcloud compute ssh "$US_VM" \
   --project="$PROJECT" --zone="$US_ZONE" --quiet \
-  --command="sudo systemctl stop bp-phase15-fast-live-source.service &&
-             sudo systemctl is-active --quiet bp-phase15-fast-live-source.service && exit 20 || true" ||
+  --command="sudo systemctl stop bp-phase15-fast-live-source.service || exit 19;
+             if sudo systemctl is-active --quiet bp-phase15-fast-live-source.service; then exit 20; fi" ||
   fail "source_stop_failed"
 
 gcloud compute ssh "$EXEC_VM" \
   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
-  --command="sudo sh -c 'umask 077; mkdir -p /var/lib/bp-canary/fast-live; printf "%s\\n" zero-fill-fix-restart > /var/lib/bp-canary/fast-live/KILL; chmod 0600 /var/lib/bp-canary/fast-live/KILL' &&
-             sudo systemctl stop bp-phase15-fast-live-receiver.service &&
-             sudo systemctl is-active --quiet bp-phase15-fast-live-receiver.service && exit 21 || true;
+  --command="sudo sh -c 'umask 077; mkdir -p /var/lib/bp-canary/fast-live; echo zero-fill-fix-restart > /var/lib/bp-canary/fast-live/KILL; chmod 0600 /var/lib/bp-canary/fast-live/KILL' || exit 22;
+             sudo systemctl stop bp-phase15-fast-live-receiver.service || exit 23;
+             if sudo systemctl is-active --quiet bp-phase15-fast-live-receiver.service; then exit 21; fi;
              sudo test -f /var/lib/bp-canary/fast-live/KILL" ||
   fail "receiver_stop_or_kill_failed"
 
