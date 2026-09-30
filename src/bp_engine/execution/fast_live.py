@@ -140,6 +140,7 @@ def verify_source_authorization(
     observed_at: datetime,
     requires_telegram_approval: bool = False,
     continuous_session: bool = False,
+    require_exact_main: bool = True,
 ) -> dict[str, Any]:
     observed = _utc(observed_at)
     if not _COMMIT_RE.fullmatch(expected_main):
@@ -271,6 +272,8 @@ def verify_source_authorization(
     authorized_at_main = str(authorization.get("authorized_at_main") or "")
     if _COMMIT_RE.fullmatch(authorized_at_main) is None:
         raise FastLiveError("fast live authorization base commit invalid")
+    if require_exact_main and authorized_at_main != expected_main:
+        raise FastLiveError("fast live authorization base commit mismatch")
     max_transit = _decimal(
         authorization.get("max_transit_seconds"),
         "max_transit_seconds",
