@@ -114,7 +114,7 @@ PY
 
 if [[ "$CLEANUP_MODE" == "expired" ]]; then
   [[ "$RUNTIME_EXPIRED" == "true" ]] || fail "runtime_authorization_not_expired"
-elif [[ "$CLEANUP_MODE" == "zero_activity_abort" || "$CLEANUP_MODE" == "zero_activity_restart" ]]; then
+elif [[ "$CLEANUP_MODE" == "zero_activity_abort" ]]; then
   [[ "$RUNTIME_EXPIRED" == "false" ]] || fail "zero_activity_abort_runtime_already_expired"
   [[ "$AUTH_ID" == "phase15-v3-fast-live-auto-continuous-5d305254b06ef0cbce33065e" ]] ||
     fail "zero_activity_abort_authorization_id_mismatch"
@@ -122,7 +122,7 @@ elif [[ "$CLEANUP_MODE" == "zero_activity_abort" || "$CLEANUP_MODE" == "zero_act
     fail "zero_activity_abort_release_main_mismatch"
   [[ "$AUTH_MODE" == "auto-telegram-continuous-v1" ]] ||
     fail "zero_activity_abort_authorization_mode_mismatch"
-else
+elif [[ "$CLEANUP_MODE" == "zero_activity_restart" ]]; then
   [[ "$RUNTIME_EXPIRED" == "false" ]] || fail "zero_activity_restart_runtime_already_expired"
   [[ "$AUTH_ID" == "phase15-v3-fast-live-auto-continuous-12h-a6525318-20260930" ]] ||
     fail "zero_activity_restart_authorization_id_mismatch"
@@ -132,6 +132,8 @@ else
     fail "zero_activity_restart_authorization_mode_mismatch"
   [[ "$RUNTIME_EXPIRES" == "2026-09-30T11:58:23.648915+00:00" ]] ||
     fail "zero_activity_restart_runtime_expiry_mismatch"
+else
+  fail "cleanup_mode_invalid"
 fi
 
 ORDER_TOPIC="bp-phase15-fast-live-orders-$AUTH_SUFFIX"
