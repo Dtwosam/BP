@@ -5,9 +5,11 @@ from decimal import Decimal
 
 import pytest
 
+from bp_engine.execution import fast_live_prepare as fast_live_prepare_module
 from bp_engine.execution.fast_live_prepare import (
     FastLiveDraftUnavailable,
     _has_preview_arm_window,
+    _unresolved_pending_intent_id,
     build_fast_live_draft,
     continuous_fast_live_policy,
     frozen_v3_paper_config,
@@ -111,3 +113,113 @@ def test_fast_live_draft_terminal_is_classified_for_continuous_blocking() -> Non
 
     assert exc_info.value.status == "INSUFFICIENT_PAPER_CASH"
     assert "available paper cash is not positive" in exc_info.value.reason
+
+
+class _FakePendingResult:
+    def __init__(self, pending: dict[str, object] | None) -> None:
+        self._pending = pending
+
+    def mappings(self):
+        return self
+
+    def one_or_none(self):
+        return self._pending
+
+
+class _FakeScalarResult:
+    def __init__(self, value: object) -> None:
+        self._value = value
+
+    def scalar_one_or_none(self):
+        return self._value
+
+
+class _FakePendingConnection:
+    def __init__(
+        self,
+        *,
+        intent_id: str | None,
+        terminal_event: str | None = None,
+    ) -> None:
+        self.intent_id = intent_id
+        self.terminal_event = terminal_event
+        self.calls = 0
+
+    def execute(self, _statement):
+        self.calls += 1
+        if self.calls == 1:
+            pending = (
+                {"intent_id": self.intent_id}
+                if self.intent_id is not None
+                else None
+            )
+            return _FakePendingResult(pending)
+        if self.calls == 2:
+            return _FakeScalarResult(self.terminal_event)
+        raise AssertionError("unexpected execute call")
+
+
+def test_pending_gate_accepts_official_zero_fill_reconciliation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    intent_id = "live-intent-zero-fill-reconciled"
+    connection = _FakePendingConnection(intent_id=intent_id)
+    monkeypatch.setattr(
+        fast_live_prepare_module,
+        "_official_zero_fill_reconciled_intents",
+        lambda _connection, *, observed_at: {intent_id},
+    )
+
+    unresolved = _unresolved_pending_intent_id(
+        connection,
+        observed_at=BASE,
+    )
+
+    assert unresolved is None
+    assert connection.calls == 1
+
+
+def test_pending_gate_blocks_truly_unresolved_intent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    intent_id = "live-intent-unresolved"
+    connection = _FakePendingConnection(
+        intent_id=intent_id,
+        terminal_event=None,
+    )
+    monkeypatch.setattr(
+        fast_live_prepare_module,
+        "_official_zero_fill_reconciled_intents",
+        lambda _connection, *, observed_at: set(),
+    )
+
+    unresolved = _unresolved_pending_intent_id(
+        connection,
+        observed_at=BASE,
+    )
+
+    assert unresolved == intent_id
+    assert connection.calls == 2
+
+
+def test_pending_gate_accepts_terminal_event(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    intent_id = "live-intent-terminal"
+    connection = _FakePendingConnection(
+        intent_id=intent_id,
+        terminal_event="closed_before_submission",
+    )
+    monkeypatch.setattr(
+        fast_live_prepare_module,
+        "_official_zero_fill_reconciled_intents",
+        lambda _connection, *, observed_at: set(),
+    )
+
+    unresolved = _unresolved_pending_intent_id(
+        connection,
+        observed_at=BASE,
+    )
+
+    assert unresolved is None
+    assert connection.calls == 2
