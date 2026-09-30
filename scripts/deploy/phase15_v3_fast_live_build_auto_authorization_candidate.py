@@ -193,7 +193,7 @@ def build_candidate(
                     f"existing authorization is not renewable: {field}"
                 )
         if existing_authorization.get("authorization_mode") != (
-            FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE
+            FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2
         ):
             raise CandidateError("existing authorization mode is not renewable")
         if existing_authorization.get("authorization_id") == authorization_id:
