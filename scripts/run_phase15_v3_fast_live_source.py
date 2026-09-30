@@ -1704,6 +1704,12 @@ def main() -> int:
                                 key_id=args.transport_key_id,
                                 created_at=now,
                             )
+                            human_approved_at = datetime.fromisoformat(
+                                str(approval["approved_at"])
+                            ).astimezone(UTC)
+                            approval_detection_ms = (
+                                now - human_approved_at
+                            ).total_seconds() * 1000
                             parallel_timing = finalized.get("parallel_timing")
                             approval_vs_risk_ms = None
                             if isinstance(parallel_timing, dict):
@@ -1715,13 +1721,13 @@ def main() -> int:
                                     risk_completed_at = datetime.fromisoformat(
                                         risk_completed_raw
                                     ).astimezone(UTC)
-                                    human_approved_at = datetime.fromisoformat(
-                                        str(approval["approved_at"])
-                                    ).astimezone(UTC)
                                     approval_vs_risk_ms = (
                                         human_approved_at - risk_completed_at
                                     ).total_seconds() * 1000
                             approval_published_at = _utc_now()
+                            approval_to_publish_start_ms = (
+                                approval_published_at - human_approved_at
+                            ).total_seconds() * 1000
                             approval_result_deadline = (
                                 approval_published_at
                                 + timedelta(
@@ -1780,6 +1786,10 @@ def main() -> int:
                                         "publish_attempts": publish_attempts,
                                         "parallel_timing": parallel_timing,
                                         "approval_vs_risk_ms": approval_vs_risk_ms,
+                                        "approval_detection_ms": approval_detection_ms,
+                                        "approval_to_publish_start_ms": (
+                                            approval_to_publish_start_ms
+                                        ),
                                         "network_submission_attempt_consumed": False,
                                         "real_order_submitted": False,
                                     },
@@ -1798,6 +1808,10 @@ def main() -> int:
                                         "message_id": message_id,
                                         "parallel_timing": parallel_timing,
                                         "approval_vs_risk_ms": approval_vs_risk_ms,
+                                        "approval_detection_ms": approval_detection_ms,
+                                        "approval_to_publish_start_ms": (
+                                            approval_to_publish_start_ms
+                                        ),
                                         "network_submission_attempt_consumed": False,
                                         "real_order_submitted": False,
                                     },
@@ -1883,7 +1897,7 @@ def main() -> int:
                             flush=True,
                         )
                         break
-                    time.sleep(max(args.poll_seconds, 0.05))
+                    time.sleep(args.poll_seconds)
                 continue
 
             report = prepare_fast_live_candidate(
