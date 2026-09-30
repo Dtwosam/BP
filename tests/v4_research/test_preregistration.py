@@ -13,6 +13,7 @@ from bp_engine.v4_research import plan as plan_module
 from bp_engine.v4_research import readiness as readiness_module
 from bp_engine.v4_research.config import (
     FROZEN_V4_GATE_B_CONFIG,
+    FROZEN_V4_GATE_B_V1_CONFIG,
     V4_PREDICTOR_NAMES,
     V4_REGIME_CONTEXT_PREDICTORS,
     V4_SHORT_CONTEXT_PREDICTORS,
@@ -206,24 +207,32 @@ def _partition_ids(plan: dict[str, object]) -> set[str]:
 
 
 def test_frozen_v4_gate_b_config_is_future_only_and_complete() -> None:
+    v1 = FROZEN_V4_GATE_B_V1_CONFIG
+    assert v1.research_plan_version == "v4-gate-b-preregister-v1"
+    assert v1.epoch_start == datetime(2026, 9, 23, 0, 0, tzinfo=UTC)
+    assert v1.epoch_end == datetime(2026, 9, 30, 0, 0, tzinfo=UTC)
+    assert v1.ordinary_fold_count == 7
+    assert v1.required_non_negative_validation_folds == 6
+
     config = FROZEN_V4_GATE_B_CONFIG
-    assert config.research_plan_version == "v4-gate-b-preregister-v1"
+    assert config.research_plan_version == "v4-gate-b-preregister-v2"
     assert config.dataset_version == "supervised-core-v4-regime-aware-v1"
     assert config.feature_version == "core-v4-regime-aware"
     assert config.label_version == "official-outcome-v1"
-    assert config.epoch_start == datetime(2026, 9, 23, 0, 0, tzinfo=UTC)
+    assert config.epoch_start == datetime(2026, 9, 24, 0, 0, tzinfo=UTC)
     assert config.epoch_end == datetime(2026, 9, 30, 0, 0, tzinfo=UTC)
-    assert config.epoch_end - config.epoch_start == timedelta(days=7)
+    assert config.epoch_end - config.epoch_start == timedelta(days=6)
     assert config.train_duration == timedelta(hours=48)
     assert config.validation_duration == timedelta(hours=12)
     assert config.test_duration == timedelta(hours=12)
     assert config.step_duration == timedelta(hours=12)
     assert config.final_holdout_duration == timedelta(hours=24)
-    assert config.ordinary_fold_count == 7
+    assert config.ordinary_fold_count == 5
     assert config.min_train_markets == 480
     assert config.min_validation_markets == 120
     assert config.min_test_markets == 120
     assert config.min_final_holdout_markets == 240
+    assert config.required_non_negative_validation_folds == 5
     assert config.known_regimes == ("bull", "bear", "sideways_mixed")
     assert config.min_known_regime_markets == 120
 
@@ -254,7 +263,7 @@ def test_frozen_v4_search_contract_covers_all_remediation_objectives() -> None:
     )
     assert config.no_trade_candidate is True
     assert config.min_validation_trades_per_fold == 16
-    assert config.required_non_negative_validation_folds == 6
+    assert config.required_non_negative_validation_folds == 5
     assert config.require_positive_aggregate_validation_pnl is True
     assert config.side_specific_policy_allowed is False
     assert config.regime_specific_policy_allowed is False
@@ -324,6 +333,27 @@ def test_v4_readiness_fails_closed_on_leakage_or_missing_regime_diversity() -> N
     assert "sideways_mixed_market_count_below_minimum" in report["blocking_reasons"]
 
 
+def test_v4_readiness_fails_when_frozen_partition_is_too_sparse() -> None:
+    config = _test_config()
+    sparse_start = config.epoch_start + timedelta(hours=5)
+    sparse_end = sparse_start + timedelta(minutes=15)
+    rows = [
+        row
+        for row in _feature_rows(config=config)
+        if not (sparse_start <= row["market_start_at"] < sparse_end)
+    ]
+    engine = _engine(rows)
+    with engine.connect() as connection:
+        report = readiness_module.assess_v4_gate_b_readiness(
+            connection,
+            as_of=config.epoch_end,
+            config=config,
+        )
+    assert report["ready"] is False
+    assert "fold_0_test_market_count_below_minimum" in report["blocking_reasons"]
+    assert report["partition_market_counts"]["fold_0"]["test"] == 9
+
+
 def test_v4_feature_only_plan_is_deterministic_and_future_structural() -> None:
     config = _test_config()
     historical = _feature_rows(
@@ -346,7 +376,7 @@ def test_v4_feature_only_plan_is_deterministic_and_future_structural() -> None:
             config=config,
         )
     assert first == second
-    assert first["research_plan_version"] == "v4-gate-b-preregister-v1"
+    assert first["research_plan_version"] == "v4-gate-b-preregister-v2"
     assert first["market_count"] == 144
     assert len(first["folds"]) == 5
     assert first["labels_read"] is False

@@ -50,6 +50,8 @@ def _eligible_rows(
     query = (
         select(
             market_features.c.condition_id,
+            market_features.c.market_start_at,
+            market_features.c.market_end_at,
             market_features.c.feature_offset_seconds,
             market_features.c.features,
         )
@@ -117,6 +119,102 @@ def _has_complete_offsets(
     return bool(observed) and all(offsets == expected for offsets in observed.values())
 
 
+
+def _stored_utc(value: datetime) -> datetime:
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _partition_feasibility(
+    rows: list[Mapping[str, Any]],
+    *,
+    config: V4GateBConfig,
+) -> tuple[dict[str, dict[str, int]], tuple[str, ...]]:
+    grouped: dict[str, list[Mapping[str, Any]]] = {}
+    for row in rows:
+        grouped.setdefault(str(row["condition_id"]), []).append(row)
+
+    expected_offsets = set(config.feature_offsets_seconds)
+    markets: list[tuple[datetime, datetime]] = []
+    for condition_rows in grouped.values():
+        offsets = [int(row["feature_offset_seconds"]) for row in condition_rows]
+        if len(offsets) != len(expected_offsets) or set(offsets) != expected_offsets:
+            continue
+        starts = {_stored_utc(row["market_start_at"]) for row in condition_rows}
+        ends = {_stored_utc(row["market_end_at"]) for row in condition_rows}
+        if len(starts) != 1 or len(ends) != 1:
+            continue
+        markets.append((next(iter(starts)), next(iter(ends))))
+
+    def contained(start: datetime, end: datetime) -> int:
+        return sum(
+            1
+            for market_start, market_end in markets
+            if market_start >= start and market_end <= end
+        )
+
+    blockers: set[str] = set()
+    counts: dict[str, dict[str, int]] = {}
+
+    for index in range(config.ordinary_fold_count):
+        train_start = config.epoch_start + index * config.step_duration
+        train_end = train_start + config.train_duration
+        validation_start = train_end
+        validation_end = validation_start + config.validation_duration
+        test_start = validation_end
+        test_end = test_start + config.test_duration
+
+        train = max(0, contained(train_start, train_end) - config.embargo_markets)
+        validation = max(
+            0,
+            contained(validation_start, validation_end) - config.embargo_markets,
+        )
+        test = contained(test_start, test_end)
+        counts[f"fold_{index}"] = {
+            "train": train,
+            "validation": validation,
+            "test": test,
+        }
+        if train < config.min_train_markets:
+            blockers.add(f"fold_{index}_train_market_count_below_minimum")
+        if validation < config.min_validation_markets:
+            blockers.add(f"fold_{index}_validation_market_count_below_minimum")
+        if test < config.min_test_markets:
+            blockers.add(f"fold_{index}_test_market_count_below_minimum")
+
+    holdout_end = config.epoch_end
+    holdout_start = holdout_end - config.final_holdout_duration
+    final_validation_end = holdout_start
+    final_validation_start = final_validation_end - config.validation_duration
+    final_train_end = final_validation_start
+    final_train_start = final_train_end - config.train_duration
+
+    final_train = max(
+        0,
+        contained(final_train_start, final_train_end) - config.embargo_markets,
+    )
+    final_validation = max(
+        0,
+        contained(final_validation_start, final_validation_end)
+        - config.embargo_markets,
+    )
+    final_holdout = contained(holdout_start, holdout_end)
+    counts["final"] = {
+        "train": final_train,
+        "validation": final_validation,
+        "holdout": final_holdout,
+    }
+    if final_train < config.min_train_markets:
+        blockers.add("final_train_market_count_below_minimum")
+    if final_validation < config.min_validation_markets:
+        blockers.add("final_validation_market_count_below_minimum")
+    if final_holdout < config.min_final_holdout_markets:
+        blockers.add("final_holdout_market_count_below_minimum")
+
+    return counts, tuple(sorted(blockers))
+
+
 def assess_v4_gate_b_readiness(
     connection: Connection,
     *,
@@ -145,8 +243,12 @@ def assess_v4_gate_b_readiness(
         regime: int(coverage["regime"][regime]["market_count"])
         for regime in config.known_regimes
     }
+    partition_market_counts, partition_blockers = _partition_feasibility(
+        rows,
+        config=config,
+    )
 
-    blockers: set[str] = set()
+    blockers: set[str] = set(partition_blockers)
     if checked_at < config.epoch_end:
         blockers.add("epoch_incomplete")
     if int(coverage["future_cutoff_violation_count"]) > 0:
@@ -195,6 +297,7 @@ def assess_v4_gate_b_readiness(
             "short_return_availability": short_return_availability,
             "regime_return_availability": regime_return_availability,
             "regime_market_counts": regime_market_counts,
+            "partition_market_counts": partition_market_counts,
             "blocking_reasons": blocking_reasons,
         }
     )
@@ -207,6 +310,7 @@ def assess_v4_gate_b_readiness(
         "short_return_availability": short_return_availability,
         "regime_return_availability": regime_return_availability,
         "regime_market_counts": regime_market_counts,
+        "partition_market_counts": partition_market_counts,
         "readiness_input_sha256": readiness_input_sha256,
         "labels_read": False,
         "training_performed": False,

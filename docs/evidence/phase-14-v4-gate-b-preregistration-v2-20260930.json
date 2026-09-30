@@ -1,0 +1,65 @@
+{
+  "evidence_version": "phase-14-v4-gate-b-preregistration-v2-outcome-blind-v1",
+  "observed_date": "2026-09-30",
+  "source_main": "0743841bbc93c72b024b5f853a721d762eac60c9",
+  "integrity": {
+    "plan_file_created": false,
+    "labels_read": false,
+    "outcomes_read": false,
+    "training_performed": false,
+    "policy_selected": false,
+    "final_holdout_evaluated": false
+  },
+  "collected_feature_evidence": {
+    "complete_market_count": 1950,
+    "feature_row_count": 7800,
+    "exact_offsets_seconds": [
+      60,
+      120,
+      180,
+      240
+    ]
+  },
+  "v1_failure": {
+    "reason": "frozen_partition_minimum_not_met",
+    "sparse_window": {
+      "start": "2026-09-25T12:00:00+00:00",
+      "end": "2026-09-26T00:00:00+00:00"
+    },
+    "fold_0": {
+      "train_after_embargo": 575,
+      "validation_after_embargo": 143,
+      "test": 78,
+      "test_minimum": 120
+    },
+    "fold_1": {
+      "train_after_embargo": 575,
+      "validation_after_embargo": 77,
+      "test": 144,
+      "validation_minimum": 120
+    },
+    "folds_2_through_6_passed_all_partition_minimums": true,
+    "final_partition": {
+      "train_after_embargo": 575,
+      "validation_after_embargo": 143,
+      "holdout": 288,
+      "holdout_minimum": 240
+    }
+  },
+  "v2_decision": {
+    "research_plan_version": "v4-gate-b-preregister-v2",
+    "epoch_start": "2026-09-24T00:00:00Z",
+    "epoch_end": "2026-09-30T00:00:00Z",
+    "ordinary_fold_count": 5,
+    "final_holdout_hours": 24,
+    "final_holdout_changed": false,
+    "required_non_negative_validation_folds": 5,
+    "model_candidates_changed": false,
+    "calibration_candidates_changed": false,
+    "timing_candidates_changed": false,
+    "economic_cost_assumptions_changed": false,
+    "edge_grid_changed": false,
+    "partition_minimums_changed": false,
+    "readiness_must_validate_partition_feasibility": true
+  }
+}
