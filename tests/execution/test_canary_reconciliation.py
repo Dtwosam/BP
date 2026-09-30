@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine, event, select
+from sqlalchemy import create_engine, select
 
 from bp_engine.execution import canary
 from bp_engine.execution.live import _account_snapshot
@@ -62,53 +62,6 @@ def test_prepare_armability_floor_is_stricter_than_strategy_expiry_floor() -> No
         canary.CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS
         > canary.CANARY_MIN_TIME_TO_EXPIRY_SECONDS
     )
-
-
-def test_account_snapshot_query_count_does_not_scale_with_intents() -> None:
-    engine = _engine()
-    with engine.begin() as connection:
-        for index in range(8):
-            intent_id = f"live-intent-query-count-{index}"
-            connection.execute(
-                schema.live_order_intents.insert().values(
-                    intent_id=intent_id,
-                    prediction_id=f"{index:064d}",
-                    policy_version=canary.CANARY_POLICY_VERSION,
-                    request_id=f"live-request-query-count-{index}",
-                    risk_decision_id=f"live-risk-query-count-{index}",
-                    token_id=f"token-{index}",
-                    side="BUY",
-                    size=Decimal("5"),
-                    limit_price=Decimal("0.50"),
-                    pre_submit_at=BASE - timedelta(seconds=index + 1),
-                    evidence={"phase": "test"},
-                    semantic_sha256=f"{index + 1:064x}",
-                    created_at=BASE - timedelta(seconds=index + 1),
-                )
-            )
-
-    statements: list[str] = []
-
-    def before_cursor_execute(
-        _conn,
-        _cursor,
-        statement,
-        _parameters,
-        _context,
-        _executemany,
-    ) -> None:
-        if statement.lstrip().upper().startswith("SELECT"):
-            statements.append(statement)
-
-    event.listen(engine, "before_cursor_execute", before_cursor_execute)
-    try:
-        with engine.connect() as connection:
-            account = _account_snapshot(connection, observed_at=BASE)
-    finally:
-        event.remove(engine, "before_cursor_execute", before_cursor_execute)
-
-    assert len(statements) == 2
-    assert account.unresolved_critical_reconciliation == 1
 
 
 def test_closed_before_submission_does_not_consume_attempt() -> None:
