@@ -29,7 +29,7 @@ def test_phase15_second_live_canary_is_reconciled_zero_fill() -> None:
     gate = state["phase_15_v3_live_canary"]
     master = state["phase_14_checkpoint"]["master_live_gate"]
 
-    assert state["source_of_truth_version"] == "0.14.182"
+    assert state["source_of_truth_version"] == "0.14.183"
     assert state["current_phase"] == 15
     assert state["status"] == "PHASE_15_CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_AUTHORIZED_NOT_ACTIVATED"
     assert all(value == "pass" for value in master.values())
@@ -755,12 +755,12 @@ def test_continuous_fast_live_renewed_source_authorization_is_12h_runtime_ready(
     assert auth["status"] == "AUTHORIZED_CONTINUOUS_SESSION"
     assert auth["authorized"] is True
     assert auth["authorization_id"] == (
-        "phase15-v3-fast-live-auto-continuous-12h-a6525318-20260930"
+        "phase15-v3-fast-live-auto-continuous-12h-21ee9a70-20260930T150000Z"
     )
     assert auth["authorization_mode"] == "auto-telegram-continuous-v1"
-    assert auth["authorized_at_main"] == "a65253182d4143dfae5df077fd7a27a814d4f8ba"
-    assert auth["authorized_at"] == "2026-09-29T23:38:13+00:00"
-    assert auth["expires_at"] == "2026-09-30T12:38:13+00:00"
+    assert auth["authorized_at_main"] == "21ee9a7019d3af1678427162b65d3661444e0d9b"
+    assert auth["authorized_at"] == "2026-09-30T15:00:00.318438+00:00"
+    assert auth["expires_at"] == "2026-10-01T03:00:00.231215+00:00"
     assert auth["target_notional_usd"] == 5
     assert auth["max_trade_size_usd"] == 10
     assert auth["max_total_exposure_usd"] == 10
