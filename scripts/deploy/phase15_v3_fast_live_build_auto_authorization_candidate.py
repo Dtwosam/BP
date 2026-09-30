@@ -180,6 +180,7 @@ def build_candidate(
             observed_at=existing_validation_observed_at,
             requires_telegram_approval=True,
             continuous_session=True,
+            require_exact_main=False,
         )
         for field in (
             "deployment_performed",
