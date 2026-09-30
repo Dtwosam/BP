@@ -98,10 +98,9 @@ def _preview() -> tuple[dict[str, object], PaperOrderDraft]:
 def test_preview_request_round_trips_without_rebuilding_order() -> None:
     preview, draft = _preview()
 
-    paper_order_id, request, request_id = _request_from_preview(preview)
+    paper_order_id, request = _request_from_preview(preview)
 
     assert paper_order_id == preview["paper_order_id"]
-    assert request_id == preview["request_id"]
     assert request == draft.request
 
 
