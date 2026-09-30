@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import os
@@ -426,6 +427,106 @@ def _finish_control_publish_with_bounded_retry(
     raise RuntimeError(
         f"fast live control publish failed after {attempts} bounded attempts"
     ) from last_error
+
+
+def _prepare_candidate_transport(
+    *,
+    project_state: Path,
+    runtime_authorization: Path,
+    telegram_prepare_state_root: Path,
+    preview: dict[str, Any],
+    expected_main: str,
+    continuous_session: bool,
+    key: bytes,
+    key_id: str,
+    publisher: pubsub_v1.PublisherClient,
+    topic_path: str,
+) -> dict[str, Any]:
+    setup_started_at = _utc_now()
+    setup_started_ns = time.monotonic_ns()
+
+    auth_started_ns = time.monotonic_ns()
+    state = _load_state(project_state)
+    runtime = load_private_json(
+        runtime_authorization,
+        label="fast live runtime authorization",
+    )
+    verify_runtime_authorization(
+        runtime,
+        state=state,
+        expected_main=expected_main,
+        observed_at=_utc_now(),
+        requires_telegram_approval=True,
+        continuous_session=continuous_session,
+    )
+    auth_completed_ns = time.monotonic_ns()
+
+    stage_started_ns = time.monotonic_ns()
+    prepared_path = _stage_telegram_candidate(
+        telegram_prepare_state_root,
+        preview,
+        authorization_id=str(runtime["authorization_id"]),
+    )
+    stage_completed_ns = time.monotonic_ns()
+
+    message_started_ns = time.monotonic_ns()
+    prepare_message = create_prepare_message(
+        preview,
+        runtime_authorization=runtime,
+        key=key,
+        key_id=key_id,
+        created_at=_utc_now(),
+    )
+    prepare_expires_at = datetime.fromisoformat(
+        str(prepare_message["expires_at"])
+    ).astimezone(UTC)
+    if (prepare_expires_at - _utc_now()).total_seconds() <= 0.15:
+        raise RuntimeError(
+            "fast live prepare expired before first publish attempt"
+        )
+    message_completed_ns = time.monotonic_ns()
+
+    publish_start_started_ns = time.monotonic_ns()
+    prepare_publish_started_at = _utc_now()
+    prepare_publish_future = _start_control_publish(
+        publisher,
+        topic_path=topic_path,
+        payload=prepare_message,
+    )
+    publish_start_completed_ns = time.monotonic_ns()
+    setup_completed_at = _utc_now()
+
+    return {
+        "runtime": runtime,
+        "prepared_path": prepared_path,
+        "prepare_message": prepare_message,
+        "prepare_publish_started_at": prepare_publish_started_at,
+        "prepare_publish_future": prepare_publish_future,
+        "timing": {
+            "prepare_setup_started_at": setup_started_at.isoformat(),
+            "prepare_setup_completed_at": setup_completed_at.isoformat(),
+            "prepare_auth_verify_ms": (
+                auth_completed_ns - auth_started_ns
+            )
+            / 1_000_000,
+            "prepare_stage_candidate_ms": (
+                stage_completed_ns - stage_started_ns
+            )
+            / 1_000_000,
+            "prepare_message_build_ms": (
+                message_completed_ns - message_started_ns
+            )
+            / 1_000_000,
+            "prepare_publish_start_ms": (
+                publish_start_completed_ns - publish_start_started_ns
+            )
+            / 1_000_000,
+            "prepare_setup_total_ms": (
+                publish_start_completed_ns - setup_started_ns
+            )
+            / 1_000_000,
+        },
+    }
 
 
 def _publish_control_once(
@@ -1421,107 +1522,124 @@ def main() -> int:
                     )
                     return 2
 
-                state = _load_state(args.project_state)
-                runtime = load_private_json(
-                    args.runtime_authorization,
-                    label="fast live runtime authorization",
-                )
-                verify_runtime_authorization(
-                    runtime,
-                    state=state,
-                    expected_main=args.expected_main,
-                    observed_at=_utc_now(),
-                    requires_telegram_approval=True,
-                    continuous_session=continuous_session,
-                )
-                prepared_path = _stage_telegram_candidate(
-                    args.telegram_prepare_state_root,
-                    preview,
-                    authorization_id=str(runtime["authorization_id"]),
-                )
-                prepare_message = create_prepare_message(
-                    preview,
-                    runtime_authorization=runtime,
-                    key=key,
-                    key_id=args.transport_key_id,
-                    created_at=_utc_now(),
-                )
-                prepare_expires_at = datetime.fromisoformat(
-                    str(prepare_message["expires_at"])
-                ).astimezone(UTC)
-                if (
-                    prepare_expires_at - _utc_now()
-                ).total_seconds() <= 0.15:
-                    raise RuntimeError(
-                        "fast live prepare expired before first publish attempt"
-                    )
-                prepare_publish_started_at = _utc_now()
-                prepare_publish_future = _start_control_publish(
-                    publisher,
-                    topic_path=topic_path,
-                    payload=prepare_message,
-                )
-
                 preview_intent_id = str(preview["intent_id"])
                 finalized = _load_telegram_state(
                     args.telegram_prepare_state_root,
                     preview_intent_id,
                     "finalized.json",
                 )
-                if finalized is None:
-                    risk_started_at = _utc_now()
-                    finalized = prepare_fast_live_candidate(
-                        engine=engine,
-                        activated_at=activated_at,
-                        observed_at=risk_started_at,
+
+                with ThreadPoolExecutor(
+                    max_workers=1,
+                    thread_name_prefix="bp-fast-live-prepare",
+                ) as prepare_executor:
+                    prepare_setup_future = prepare_executor.submit(
+                        _prepare_candidate_transport,
+                        project_state=args.project_state,
+                        runtime_authorization=args.runtime_authorization,
+                        telegram_prepare_state_root=(
+                            args.telegram_prepare_state_root
+                        ),
                         preview=preview,
-                        interlock=interlock,
-                        api_healthy=True,
-                        official_open_order_count=args.official_open_order_count,
-                        collateral_balance_usd=collateral,
-                        initial_reconciliation_verified=True,
+                        expected_main=args.expected_main,
+                        continuous_session=continuous_session,
+                        key=key,
+                        key_id=args.transport_key_id,
+                        publisher=publisher,
+                        topic_path=topic_path,
                     )
-                    risk_completed_at = _utc_now()
-                    preview_created_at = datetime.fromisoformat(
-                        str(preview["timing"]["prepared_observed_at"])
-                    ).astimezone(UTC)
-                    preview_timing = preview.get("timing")
-                    preview_timing = (
-                        preview_timing
-                        if isinstance(preview_timing, dict)
-                        else {}
+
+                    risk_started_at = None
+                    risk_completed_at = None
+                    if finalized is None:
+                        risk_started_at = _utc_now()
+                        finalized = prepare_fast_live_candidate(
+                            engine=engine,
+                            activated_at=activated_at,
+                            observed_at=risk_started_at,
+                            preview=preview,
+                            interlock=interlock,
+                            api_healthy=True,
+                            official_open_order_count=(
+                                args.official_open_order_count
+                            ),
+                            collateral_balance_usd=collateral,
+                            initial_reconciliation_verified=True,
+                        )
+                        risk_completed_at = _utc_now()
+                        preview_created_at = datetime.fromisoformat(
+                            str(preview["timing"]["prepared_observed_at"])
+                        ).astimezone(UTC)
+                        preview_timing = preview.get("timing")
+                        preview_timing = (
+                            preview_timing
+                            if isinstance(preview_timing, dict)
+                            else {}
+                        )
+                        finalized["parallel_timing"] = {
+                            "preview_created_at": (
+                                preview_created_at.isoformat()
+                            ),
+                            "preview_build_ms": preview_timing.get(
+                                "preview_build_ms"
+                            ),
+                            "preview_pending_gate_ms": preview_timing.get(
+                                "preview_pending_gate_ms"
+                            ),
+                            "preview_prediction_candidate_ms": (
+                                preview_timing.get(
+                                    "preview_prediction_candidate_ms"
+                                )
+                            ),
+                            "preview_paper_cash_ms": preview_timing.get(
+                                "preview_paper_cash_ms"
+                            ),
+                            "risk_started_at": risk_started_at.isoformat(),
+                            "risk_completed_at": (
+                                risk_completed_at.isoformat()
+                            ),
+                            "preview_to_risk_start_ms": (
+                                risk_started_at - preview_created_at
+                            ).total_seconds()
+                            * 1000,
+                            "risk_evaluation_ms": (
+                                risk_completed_at - risk_started_at
+                            ).total_seconds()
+                            * 1000,
+                            "risk_finalized_from_preview": True,
+                            "preview_to_risk_complete_ms": (
+                                risk_completed_at - preview_created_at
+                            ).total_seconds()
+                            * 1000,
+                        }
+
+                    prepare_setup_join_started_ns = time.monotonic_ns()
+                    prepare_setup = prepare_setup_future.result()
+                    prepare_setup_join_completed_ns = time.monotonic_ns()
+
+                prepared_path = prepare_setup["prepared_path"]
+                prepare_message = prepare_setup["prepare_message"]
+                prepare_publish_started_at = prepare_setup[
+                    "prepare_publish_started_at"
+                ]
+                prepare_publish_future = prepare_setup[
+                    "prepare_publish_future"
+                ]
+                parallel_timing = finalized.get("parallel_timing")
+                if isinstance(parallel_timing, dict):
+                    parallel_timing.update(prepare_setup["timing"])
+                    parallel_timing.update(
+                        {
+                            "prepare_setup_join_wait_ms": (
+                                prepare_setup_join_completed_ns
+                                - prepare_setup_join_started_ns
+                            )
+                            / 1_000_000,
+                            "prepare_setup_overlapped_risk": (
+                                risk_started_at is not None
+                            ),
+                        }
                     )
-                    finalized["parallel_timing"] = {
-                        "preview_created_at": preview_created_at.isoformat(),
-                        "preview_build_ms": preview_timing.get(
-                            "preview_build_ms"
-                        ),
-                        "preview_pending_gate_ms": preview_timing.get(
-                            "preview_pending_gate_ms"
-                        ),
-                        "preview_prediction_candidate_ms": preview_timing.get(
-                            "preview_prediction_candidate_ms"
-                        ),
-                        "preview_paper_cash_ms": preview_timing.get(
-                            "preview_paper_cash_ms"
-                        ),
-                        "risk_started_at": risk_started_at.isoformat(),
-                        "risk_completed_at": risk_completed_at.isoformat(),
-                        "preview_to_risk_start_ms": (
-                            risk_started_at - preview_created_at
-                        ).total_seconds()
-                        * 1000,
-                        "risk_evaluation_ms": (
-                            risk_completed_at - risk_started_at
-                        ).total_seconds()
-                        * 1000,
-                        "risk_finalized_from_preview": True,
-                        "preview_to_risk_complete_ms": (
-                            risk_completed_at - preview_created_at
-                        ).total_seconds()
-                        * 1000,
-                    }
-                    finalized_status = str(finalized.get("status") or "")
 
                 prepare_publish_join_started_ns = time.monotonic_ns()
                 try:
