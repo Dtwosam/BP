@@ -104,6 +104,8 @@ now = datetime.now(UTC)
 if authorization_mode not in {
     "manual-telegram-continuous-v1",
     "auto-telegram-continuous-v1",
+    "manual-telegram-continuous-v2",
+    "auto-telegram-continuous-v2",
 }:
     raise SystemExit("authorization_mode_invalid")
 if runtime_expires <= now:
@@ -130,6 +132,7 @@ payload = {
     "continuous_session": True,
     "requires_telegram_approval": True,
     "max_network_submission_attempts_per_intent": 1,
+    "max_consecutive_losses": int(source["max_consecutive_losses"]),
     "target_notional_usd": 5,
     "issued_at": now.isoformat(),
     "expires_at": runtime_expires.isoformat(),
