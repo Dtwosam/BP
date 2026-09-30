@@ -53,6 +53,44 @@ def _write_exclusive(path: str, payload: dict[str, Any]) -> None:
         handle.write("\n")
 
 
+def _read_json(path: str) -> dict[str, Any]:
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("JSON artifact must contain an object")
+    return payload
+
+
+def _library_version(family: str) -> str:
+    if family == "xgboost":
+        try:
+            return version("xgboost-cpu")
+        except PackageNotFoundError:
+            return version("xgboost")
+    if family == "logistic":
+        return version("scikit-learn")
+    return version("joblib")
+
+
+def _write_model_exclusive(
+    path: str,
+    prepared: V4PreparedSelection,
+) -> dict[str, Any]:
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with destination.open("xb") as handle:
+        joblib.dump(prepared.model_bundle, handle)
+    payload = destination.read_bytes()
+    family = str(prepared.model_bundle["family"])
+    return {
+        "candidate": str(prepared.model_bundle["candidate"]),
+        "family": family,
+        "file_name": destination.name,
+        "size_bytes": len(payload),
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "library_version": _library_version(family),
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Outcome-blind V4 Gate B readiness and planning"
@@ -67,6 +105,14 @@ def build_parser() -> argparse.ArgumentParser:
     plan = subparsers.add_parser("plan")
     plan.add_argument("--as-of", type=_parse_datetime, required=True)
     plan.add_argument("--output", required=True)
+
+    prepare = subparsers.add_parser(
+        "prepare",
+        help="fit frozen V4 candidates using non-holdout labels only",
+    )
+    prepare.add_argument("--plan", required=True)
+    prepare.add_argument("--output", required=True)
+    prepare.add_argument("--model-output", required=True)
 
     return parser
 
@@ -100,6 +146,52 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
                 "training_performed": payload["training_performed"],
                 "policy_selected": payload["policy_selected"],
                 "final_holdout_evaluated": payload["final_holdout_evaluated"],
+            }
+        if args.command == "prepare":
+            if Path(args.output).exists():
+                raise FileExistsError(args.output)
+            if Path(args.model_output).exists():
+                raise FileExistsError(args.model_output)
+            plan = _read_json(args.plan)
+            prepared = _read_only(
+                engine,
+                lambda connection: prepare_v4_gate_b(
+                    connection,
+                    plan=plan,
+                ),
+            )
+            model_artifact = _write_model_exclusive(
+                args.model_output,
+                prepared,
+            )
+            payload = finalize_v4_selection(
+                prepared,
+                model_artifact=model_artifact,
+            )
+            _write_exclusive(args.output, payload)
+            selected = payload["selected_forecast"]
+            edge = payload["edge_selection"]
+            return {
+                "research_plan_version": payload["research_plan_version"],
+                "stage": payload["stage"],
+                "plan_sha256": payload["plan_sha256"],
+                "dataset_sha256_non_holdout": payload[
+                    "dataset_sha256_non_holdout"
+                ],
+                "selected_forecast_candidate": selected["candidate"],
+                "selected_offset_seconds": selected["offset_seconds"],
+                "selected_calibration_method": selected["calibration_method"],
+                "selected_edge_policy": edge["policy"],
+                "selected_min_edge": edge["min_edge"],
+                "selection_sha256": payload["selection_sha256"],
+                "model_artifact_sha256": model_artifact["sha256"],
+                "labels_read_non_holdout": True,
+                "holdout_labels_read": False,
+                "holdout_evaluated": False,
+                "training_performed": True,
+                "policy_selected": True,
+                "automatic_promotion": False,
+                "activation_performed": False,
             }
     finally:
         engine.dispose()
