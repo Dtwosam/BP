@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -199,6 +200,38 @@ def test_stale_telegram_preview_is_not_reused_across_live_sessions(
 
     assert loaded is None
     assert not (root / "current-run").exists()
+
+
+def test_expired_same_session_telegram_preview_pointer_is_cleared(
+    tmp_path: Path,
+) -> None:
+    module = _module()
+    root = tmp_path / "telegram"
+    now = datetime(2026, 10, 1, 8, 0, tzinfo=UTC)
+    preview = {
+        "status": "prepared",
+        "intent_id": "candidate-preview-expired",
+        "prediction_id": "prediction-expired",
+        "paper_order_id": "paper-expired",
+        "market_end_at": (now + timedelta(seconds=5)).isoformat(),
+    }
+    prepared_path = module._stage_telegram_candidate(
+        root,
+        preview,
+        authorization_id="auth-session-v2",
+    )
+    run_dir = prepared_path.parent
+
+    loaded = module._load_staged_telegram_candidate(
+        root,
+        expected_authorization_id="auth-session-v2",
+        observed_at=now,
+    )
+
+    assert loaded is None
+    assert not (root / "current-run").exists()
+    assert run_dir.is_dir()
+    assert prepared_path.is_file()
 
 
 def test_settlement_marker_removes_completed_fill_from_restart_recovery(

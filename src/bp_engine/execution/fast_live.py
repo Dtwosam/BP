@@ -376,10 +376,37 @@ def verify_runtime_authorization(
     return dict(runtime)
 
 
+def _runtime_prepared_max_consecutive_losses(
+    runtime_authorization: Mapping[str, Any],
+) -> int:
+    mode = str(runtime_authorization.get("authorization_mode") or "")
+    raw = runtime_authorization.get("max_consecutive_losses")
+    if mode in FAST_LIVE_CONTINUOUS_V2_AUTHORIZATION_MODES:
+        expected = FAST_LIVE_CONTINUOUS_V2_MAX_CONSECUTIVE_LOSSES
+        if raw is None:
+            raise FastLiveError("runtime consecutive-loss contract missing")
+    elif mode in FAST_LIVE_CONTINUOUS_V1_AUTHORIZATION_MODES:
+        expected = FAST_LIVE_MAX_CONSECUTIVE_LOSSES
+        if raw is None:
+            raise FastLiveError("runtime consecutive-loss contract missing")
+    else:
+        expected = FAST_LIVE_MAX_CONSECUTIVE_LOSSES
+        if raw is None:
+            return expected
+    try:
+        observed = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise FastLiveError("runtime consecutive-loss contract invalid") from exc
+    if observed != expected:
+        raise FastLiveError("runtime consecutive-loss contract mismatch")
+    return observed
+
+
 def validate_prepared(
     prepared: Mapping[str, Any],
     *,
     observed_at: datetime,
+    expected_max_consecutive_losses: int = FAST_LIVE_MAX_CONSECUTIVE_LOSSES,
 ) -> dict[str, Any]:
     observed = _utc(observed_at)
     if prepared.get("status") != "prepared":
@@ -403,8 +430,8 @@ def validate_prepared(
     for name, expected in policy_checks.items():
         if _decimal(policy.get(name), name) != expected:
             raise FastLiveError(f"prepared policy changed: {name}")
-    if int(policy.get("max_consecutive_losses", -1)) != (
-        FAST_LIVE_MAX_CONSECUTIVE_LOSSES
+    if int(policy.get("max_consecutive_losses", -1)) != int(
+        expected_max_consecutive_losses
     ):
         raise FastLiveError("prepared consecutive-loss limit changed")
     if int(policy.get("max_submission_attempts", 0)) != 1:
@@ -456,6 +483,21 @@ def validate_prepared(
     }
 
 
+def _validate_prepared_for_runtime(
+    prepared: Mapping[str, Any],
+    *,
+    runtime_authorization: Mapping[str, Any],
+    observed_at: datetime,
+) -> dict[str, Any]:
+    return validate_prepared(
+        prepared,
+        observed_at=observed_at,
+        expected_max_consecutive_losses=(
+            _runtime_prepared_max_consecutive_losses(runtime_authorization)
+        ),
+    )
+
+
 def _mac(body: Mapping[str, Any], key: bytes) -> str:
     if len(key) != 32:
         raise FastLiveError("fast live transport key must be 32 bytes")
@@ -471,7 +513,11 @@ def create_envelope(
     created_at: datetime,
 ) -> dict[str, Any]:
     created = _utc(created_at)
-    validated = validate_prepared(prepared, observed_at=created)
+    validated = _validate_prepared_for_runtime(
+        prepared,
+        runtime_authorization=runtime_authorization,
+        observed_at=created,
+    )
     if not key_id or len(key_id) > 64:
         raise FastLiveError("fast live key id invalid")
     auth_id = str(runtime_authorization.get("authorization_id") or "")
@@ -537,7 +583,11 @@ def verify_envelope(
     prepared = envelope.get("prepared")
     if not isinstance(prepared, Mapping):
         raise FastLiveError("fast live prepared payload missing")
-    validated = validate_prepared(prepared, observed_at=observed)
+    validated = _validate_prepared_for_runtime(
+        prepared,
+        runtime_authorization=runtime_authorization,
+        observed_at=observed,
+    )
     for name in (
         "intent_id",
         "request_id",
@@ -567,7 +617,11 @@ def create_prepare_message(
     created_at: datetime,
 ) -> dict[str, Any]:
     created = _utc(created_at)
-    validated = validate_prepared(prepared, observed_at=created)
+    validated = _validate_prepared_for_runtime(
+        prepared,
+        runtime_authorization=runtime_authorization,
+        observed_at=created,
+    )
     if not key_id or len(key_id) > 64:
         raise FastLiveError("fast live key id invalid")
     auth_expires = _utc(
@@ -632,7 +686,11 @@ def verify_prepare_message(
     prepared = payload.get("prepared")
     if not isinstance(prepared, Mapping):
         raise FastLiveError("fast live prepare payload missing")
-    validated = validate_prepared(prepared, observed_at=observed)
+    validated = _validate_prepared_for_runtime(
+        prepared,
+        runtime_authorization=runtime_authorization,
+        observed_at=observed,
+    )
     for name in (
         "intent_id",
         "request_id",
@@ -674,9 +732,14 @@ def create_approval_message(
         )
     except ApprovalError as exc:
         raise FastLiveError("fast live Telegram approval invalid") from exc
-    validated = validate_prepared(prepared, observed_at=created)
-    approval_validated = validate_prepared(
+    validated = _validate_prepared_for_runtime(
+        prepared,
+        runtime_authorization=runtime_authorization,
+        observed_at=created,
+    )
+    approval_validated = _validate_prepared_for_runtime(
         approval_source,
+        runtime_authorization=runtime_authorization,
         observed_at=created,
     )
     for name in ("prediction_id", "paper_order_id", "request_sha256"):
@@ -756,7 +819,11 @@ def verify_approval_message(
     prepared = payload.get("prepared")
     if not isinstance(prepared, Mapping):
         raise FastLiveError("fast live approval prepared payload missing")
-    validated = validate_prepared(prepared, observed_at=observed)
+    validated = _validate_prepared_for_runtime(
+        prepared,
+        runtime_authorization=runtime_authorization,
+        observed_at=observed,
+    )
     if str(payload.get("prepared_sha256") or "") != str(validated["prepared_sha256"]):
         raise FastLiveError("fast live approval prepared hash mismatch")
     if str(payload.get("intent_id") or "") != str(validated["intent_id"]):

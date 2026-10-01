@@ -301,6 +301,69 @@ def test_continuous_v2_disables_consecutive_loss_latch_by_contract() -> None:
         )
 
 
+def test_v2_transport_accepts_runtime_bound_zero_consecutive_loss_policy() -> None:
+    now = datetime(2026, 10, 1, 1, 54, tzinfo=UTC)
+    state = _state(now)
+    runtime = _runtime(state, now)
+    runtime["authorization_mode"] = (
+        FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2
+    )
+    runtime["max_consecutive_losses"] = 0
+
+    prepared = _prepared(now)
+    policy = prepared["policy"]
+    assert isinstance(policy, dict)
+    policy["max_consecutive_losses"] = 0
+
+    prepare = create_prepare_message(
+        prepared,
+        runtime_authorization=runtime,
+        key=KEY,
+        key_id=KEY_ID,
+        created_at=now,
+    )
+    verified_prepare = verify_prepare_message(
+        prepare,
+        runtime_authorization=runtime,
+        key=KEY,
+        expected_key_id=KEY_ID,
+        observed_at=now + timedelta(milliseconds=100),
+    )
+    assert verified_prepare["intent_id"] == prepared["intent_id"]
+
+    envelope = create_envelope(
+        prepared,
+        runtime_authorization=runtime,
+        key=KEY,
+        key_id=KEY_ID,
+        created_at=now,
+    )
+    verified_envelope = verify_envelope(
+        envelope,
+        runtime_authorization=runtime,
+        key=KEY,
+        expected_key_id=KEY_ID,
+        observed_at=now + timedelta(milliseconds=100),
+    )
+    assert verified_envelope["intent_id"] == prepared["intent_id"]
+
+    stale_policy = copy.deepcopy(prepared)
+    stale = stale_policy["policy"]
+    assert isinstance(stale, dict)
+    stale["max_consecutive_losses"] = 1
+    with pytest.raises(
+        FastLiveError,
+        match="prepared consecutive-loss limit changed",
+    ):
+        create_prepare_message(
+            stale_policy,
+            runtime_authorization=runtime,
+            key=KEY,
+            key_id=KEY_ID,
+            created_at=now,
+        )
+
+
 def test_envelope_is_exact_bound_short_lived_and_tamper_evident() -> None:
     now = datetime(2026, 9, 28, 20, 0, tzinfo=UTC)
     state = _state(now)
