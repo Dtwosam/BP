@@ -636,3 +636,16 @@ def test_polymarket_source_time_failures_are_retryable() -> None:
         "polymarket_source_clock_ahead",
     ):
         assert fast_live_prepare_module._retryable_risk_reasons((reason,)) is True
+        assert (
+            fast_live_prepare_module._retryable_risk_reasons(
+                ("live_interlock_blocked", reason)
+            )
+            is True
+        )
+
+    assert (
+        fast_live_prepare_module._retryable_risk_reasons(
+            ("live_interlock_blocked",)
+        )
+        is False
+    )
