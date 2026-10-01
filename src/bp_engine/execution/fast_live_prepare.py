@@ -206,6 +206,40 @@ def _polymarket_source_time_evidence(
         ),
     }
 
+
+_FAST_LIVE_SOURCE_TIME_RETRYABLE_REASONS = frozenset(
+    {
+        "polymarket_source_time_unavailable",
+        "polymarket_source_lag",
+        "polymarket_source_clock_ahead",
+    }
+)
+
+
+def _fast_live_retryable_risk_reasons(reasons: object) -> bool:
+    if not isinstance(reasons, (list, tuple)):
+        return False
+    normalized = tuple(
+        str(reason).strip()
+        for reason in reasons
+        if str(reason).strip()
+    )
+    if "live_interlock_blocked" in normalized:
+        specific = tuple(
+            reason
+            for reason in normalized
+            if reason != "live_interlock_blocked"
+        )
+        if not specific:
+            return False
+        normalized = specific
+
+    return bool(normalized) and all(
+        reason in _FAST_LIVE_SOURCE_TIME_RETRYABLE_REASONS
+        or _retryable_risk_reasons((reason,))
+        for reason in normalized
+    )
+
 @dataclass
 class FrozenPaperCashTracker:
     current_cash: Decimal | None = None
@@ -963,7 +997,9 @@ def prepare_fast_live_candidate(
                     else "live_risk_blocked"
                 ),
                 "reasons": decision.reasons,
-                "retryable": _retryable_risk_reasons(decision.reasons),
+                "retryable": _fast_live_retryable_risk_reasons(
+                    decision.reasons
+                ),
                 "prediction_id": request.prediction_id,
                 "paper_order_id": paper_order_id,
             }
