@@ -82,11 +82,15 @@ RUNTIME_ROOT=/var/lib/bp/runtime
 EVIDENCE_ROOT=/var/lib/bp/evidence
 release="$RUNTIME_ROOT/v3-fresh-book-shadow-$head"
 stage_tmp=""
+unit=""
 
 cleanup_remote() {
   local rc=$?
   trap - EXIT
   set +e
+  if (( rc != 0 )) && [[ -n "$unit" ]]; then
+    systemctl stop "$unit" >/dev/null 2>&1 || true
+  fi
   rm -f "$archive"
   [[ -n "$stage_tmp" ]] && rm -rf "$stage_tmp"
   exit "$rc"
