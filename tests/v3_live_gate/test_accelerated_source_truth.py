@@ -15,7 +15,7 @@ def test_phase15_v3_statistical_readiness_and_geography_pass_for_canary() -> Non
     gate = state["phase_15_v3_canary_readiness"]
     master = state["phase_14_checkpoint"]["master_live_gate"]
 
-    assert state["source_of_truth_version"] == "0.14.183"
+    assert state["source_of_truth_version"] == "0.14.184"
     assert gate["status"] == (
         "PRODUCTION_READ_ONLY_PASS_MASTER_GATE_PASS_CANARY_AUTHORIZED"
     )
