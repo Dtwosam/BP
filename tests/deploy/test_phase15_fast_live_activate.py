@@ -157,5 +157,9 @@ def test_fast_live_runtime_authorization_validation_uses_fail_closed_heredoc_gua
     text = ACTIVATE.read_text(encoding="utf-8")
 
     assert "<<'PY' ||\n  fail \"runtime_authorization_validation_failed\"" not in text
-    assert 'if ! PYTHONPATH="$ROOT/src" python3 - "$STATE" "$RUNTIME_AUTH" "$AUTH_MAIN" <<\'PY\'' in text
+    assert (
+        'if ! PYTHONPATH="$ROOT/src" python3 - "$STATE" '
+        '"$RUNTIME_AUTH" "$AUTH_MAIN" <<\'PY\''
+        in text
+    )
     assert 'fail "runtime_authorization_validation_failed"' in text
