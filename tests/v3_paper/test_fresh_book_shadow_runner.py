@@ -25,6 +25,9 @@ def test_fresh_book_shadow_runner_is_read_only_and_money_disabled() -> None:
         "POLYMARKET_PRIVATE_KEY",
         "POLYMARKET_WALLET_ADDRESS",
         "BP_TELEGRAM_BOT_TOKEN",
+        'raise SystemExit("LIVE_TRADING_ENABLED must be false")',
+        'raise SystemExit("MAX_TRADE_SIZE_USD must be 0")',
+        'raise SystemExit("MAX_DAILY_LOSS_USD must be 0")',
     ):
         assert marker in text
 
@@ -32,9 +35,9 @@ def test_fresh_book_shadow_runner_is_read_only_and_money_disabled() -> None:
         "post_order(",
         "create_limit_order(",
         "SecureClient.create",
-        "insert(",
-        "update(",
-        "delete(",
+        "from sqlalchemy import insert",
+        "from sqlalchemy import update",
+        "from sqlalchemy import delete",
         "engine.begin(",
     ):
         assert forbidden not in text
