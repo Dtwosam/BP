@@ -165,6 +165,13 @@ def _retryable_risk_reasons(reasons: object) -> bool:
     if not isinstance(reasons, (list, tuple)):
         return False
     normalized = tuple(str(reason).strip() for reason in reasons if str(reason).strip())
+    if "live_interlock_blocked" in normalized:
+        specific = tuple(
+            reason for reason in normalized if reason != "live_interlock_blocked"
+        )
+        if not specific:
+            return False
+        normalized = specific
     return bool(normalized) and all(
         reason in CANARY_RETRYABLE_RISK_REASONS for reason in normalized
     )
