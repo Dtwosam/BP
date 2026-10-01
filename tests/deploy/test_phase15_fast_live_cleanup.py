@@ -203,11 +203,10 @@ def test_fast_live_cleanup_operator_transition_is_exactly_scoped() -> None:
     assert 'git -C "$ROOT" cat-file -e "$RELEASE_MAIN^{commit}"' in text
     assert 'git -C "$ROOT" merge-base --is-ancestor "$RELEASE_MAIN" "$HELPER_HEAD"' in text
     assert '[[ "$AUTH_MODE" == "auto-telegram-continuous-v1" ]]' in text
-    assert (
-        '[[ "$RUNTIME_EXPIRES" == '
-        '"2026-10-01T03:00:00.231215+00:00" ]]'
-        in text
-    )
+    assert '"2026-09-30T15:00:00.318438+00:00"' in text
+    assert '"2026-10-01T03:00:00.231215+00:00"' in text
+    assert "runtime_expiry_not_after_authorization" in text
+    assert "runtime_exceeds_source_authorization" in text
     assert 'operator_transition_runtime_already_expired' in text
     assert 'operator_transition_authorization_id_mismatch' in text
     assert 'operator_transition_release_main_unknown' in text
@@ -216,4 +215,4 @@ def test_fast_live_cleanup_operator_transition_is_exactly_scoped() -> None:
     assert 'operator_transition_executor_release_mismatch' in text
     assert "/opt/bp-fast-live/releases/$RELEASE_MAIN" in text
     assert 'operator_transition_authorization_mode_mismatch' in text
-    assert 'operator_transition_runtime_expiry_mismatch' in text
+    assert 'operator_transition_runtime_expiry_outside_source_window' in text
