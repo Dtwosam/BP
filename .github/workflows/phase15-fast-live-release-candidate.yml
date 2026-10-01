@@ -1,0 +1,78 @@
+name: Phase15 Fast Live Release Candidate
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/phase15-fast-live-release-candidate.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact release source
+        uses: actions/checkout@v4
+        with:
+          ref: 9824a0b16f64b5018739a33634dc5e4dea673be8
+          fetch-depth: 1
+
+      - name: Verify exact release source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "9824a0b16f64b5018739a33634dc5e4dea673be8"
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Build deterministic secret-free release
+        run: |
+          set -euo pipefail
+          python3 scripts/deploy/phase15_v3_fast_live_build_release.py \
+            --root . \
+            --output phase15-fast-live-9824a0b16f64b5018739a33634dc5e4dea673be8.tar.gz \
+            | tee phase15-fast-live-release-build.json
+          sha256sum phase15-fast-live-9824a0b16f64b5018739a33634dc5e4dea673be8.tar.gz \
+            | tee phase15-fast-live-release.sha256
+
+      - name: Verify source-lag guard and manifest
+        run: |
+          set -euo pipefail
+          tar -xOf phase15-fast-live-9824a0b16f64b5018739a33634dc5e4dea673be8.tar.gz RELEASE-MANIFEST.json > /tmp/manifest.json
+          tar -xOf phase15-fast-live-9824a0b16f64b5018739a33634dc5e4dea673be8.tar.gz \
+            src/bp_engine/execution/fast_live_prepare.py > /tmp/fast_live_prepare.py
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("/tmp/manifest.json").read_text())
+          assert manifest["purpose"] == "phase15-v3-fast-live-release-v1"
+          assert manifest["commit_sha"] == "9824a0b16f64b5018739a33634dc5e4dea673be8"
+          assert manifest["contains_project_state"] is False
+          assert manifest["contains_authorization"] is False
+          assert manifest["contains_secret_files"] is False
+          assert manifest["production_mutation_performed"] is False
+          assert manifest["real_order_submitted"] is False
+
+          source = Path("/tmp/fast_live_prepare.py").read_text()
+          required = (
+              'FAST_LIVE_MAX_POLYMARKET_SOURCE_AGE_SECONDS = Decimal("2")',
+              "def _polymarket_source_time_health(",
+              '"polymarket_source_lag"',
+              '"polymarket_source_time_unavailable"',
+              "condition_id=request.condition_id",
+              "token_id=request.token_id",
+          )
+          for needle in required:
+              assert needle in source, needle
+          PY
+
+      - name: Upload corrected release candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase15-fast-live-release-9824a0b1
+          path: |
+            phase15-fast-live-9824a0b16f64b5018739a33634dc5e4dea673be8.tar.gz
+            phase15-fast-live-release-build.json
+            phase15-fast-live-release.sha256
+          if-no-files-found: error
+          retention-days: 7
