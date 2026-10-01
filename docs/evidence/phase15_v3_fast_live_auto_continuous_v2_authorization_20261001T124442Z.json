@@ -21,7 +21,7 @@
   "min_edge": 0.075,
   "prepared_candidate_project_state_sha256": "5a0c7338bdb9b4ff486267e20460d1209b3c57bffc3a438f66c8477f79e749d4",
   "production_host_mutation_performed": false,
-  "promoted_project_state_sha256": "6a1698253e8a5606790c4796277548f6850590de770c95d194de7c4d803d0764",
+  "promoted_project_state_sha256": "838fe9868f26437c7ff2efda3df6ae3e89e37e7b15ce815dec8b1ad2aa67bfa5",
   "purpose": "phase15-v3-fast-live-continuous-auto-authorization-v2",
   "real_order_submitted": false,
   "replacement_of_completed_cleaned_session": true,
