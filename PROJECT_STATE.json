@@ -6170,5 +6170,29 @@
   "verified_polymarket_horizons": [
     "5m",
     "15m"
-  ]
+  ],
+  "phase_15_v3_fresh_book_shadow": {
+    "status": "AUTHORIZED_NOT_RUN",
+    "authorization_id": "phase15-v3-fresh-book-shadow-readonly-20261001",
+    "authorization_date": "2026-10-01",
+    "authorization_evidence": "docs/evidence/phase15_v3_fresh_book_shadow_run_authorization_20261001.json",
+    "reviewed_shadow_main": "079504d7210d74284d50821270359cd1a0bde30d",
+    "deployment_helper": "scripts/deploy/phase15_v3_fresh_book_shadow_run_cloudshell.sh",
+    "deployment_helper_git_blob_sha": "35740eee659bbf55773a340cdd9ee82bee9dd846",
+    "execution_version": "paper-execution-v3-fresh-book-shadow-v1",
+    "target_host": "bp-recorder",
+    "maximum_run_seconds": 43200,
+    "quote_fresh_seconds": 0.25,
+    "fast_live_source_must_remain_stopped": true,
+    "database_access": "read_only",
+    "database_writes_authorized": false,
+    "order_submission_authorized": false,
+    "wallet_or_signing_material_authorized": false,
+    "permanent_service_install_authorized": false,
+    "service_enable_authorized": false,
+    "strategy_mutation_authorized": false,
+    "deployment_performed": false,
+    "run_started": false,
+    "real_order_submitted": false
+  }
 }
