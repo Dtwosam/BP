@@ -204,7 +204,13 @@ def build_candidate(
         if existing_authorization.get("auto_approver_upgrade_evidence") != (
             upgrade_evidence_reference
         ):
-            raise CandidateError("replacement upgrade evidence reference mismatch")
+            if renew_existing_unactivated:
+                raise CandidateError(
+                    "renewal upgrade evidence reference mismatch"
+                )
+            raise CandidateError(
+                "completed-session replacement upgrade evidence reference mismatch"
+            )
         if auto.get("continuous_contract_upgrade_evidence") != (
             upgrade_evidence_reference
         ):
