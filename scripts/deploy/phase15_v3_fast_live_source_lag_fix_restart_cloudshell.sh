@@ -82,8 +82,8 @@ REMOTE_MAIN="$(git -C "$ROOT" rev-parse origin/main)"
 git -C "$ROOT" merge-base --is-ancestor "$EXPECTED_RELEASE" "$HEAD" ||
   fail "corrected_release_not_in_current_main_history"
 
-PYTHONPATH="$ROOT/src" python3 - "$ROOT/PROJECT_STATE.json"   "$EXPECTED_RELEASE" "$NEW_AUTH_ID" "$NEW_RUNTIME_EXPIRES" <<'PY' ||
-  fail "new_source_authorization_invalid"
+if ! PYTHONPATH="$ROOT/src" python3 - "$ROOT/PROJECT_STATE.json" \
+  "$EXPECTED_RELEASE" "$NEW_AUTH_ID" "$NEW_RUNTIME_EXPIRES" <<'PY'
 import json
 import sys
 from datetime import UTC, datetime
@@ -119,6 +119,9 @@ verify_source_authorization(
     continuous_session=True,
 )
 PY
+then
+  fail "new_source_authorization_invalid"
+fi
 
 TMP_DIR="$(mktemp -d)"
 cleanup_local() {
@@ -129,8 +132,7 @@ OLD_RUNTIME="$TMP_DIR/old-authorization.json"
 
 gcloud compute ssh "$US_VM"   --project="$PROJECT" --zone="$US_ZONE" --quiet   --command="sudo cat /etc/bp-fast-live/authorization.json"   >"$OLD_RUNTIME" || fail "old_runtime_authorization_read_failed"
 
-python3 - "$OLD_RUNTIME" "$OLD_AUTH_ID" "$OLD_RELEASE" "$OLD_RUNTIME_EXPIRES" <<'PY' ||
-  fail "old_runtime_authorization_binding_invalid"
+if ! python3 - "$OLD_RUNTIME" "$OLD_AUTH_ID" "$OLD_RELEASE" "$OLD_RUNTIME_EXPIRES" <<'PY'
 import json
 import sys
 from datetime import UTC, datetime
@@ -150,6 +152,9 @@ assert payload["requires_telegram_approval"] is True
 assert payload["max_network_submission_attempts_per_intent"] == 1
 assert datetime.now(UTC) < datetime.fromisoformat(expected_expiry).astimezone(UTC)
 PY
+then
+  fail "old_runtime_authorization_binding_invalid"
+fi
 
 echo "=== STOP OLD SESSION SAFELY ==="
 gcloud compute ssh "$US_VM"   --project="$PROJECT" --zone="$US_ZONE" --quiet   --command="sudo systemctl stop bp-phase15-fast-live-source.service || exit 19;
