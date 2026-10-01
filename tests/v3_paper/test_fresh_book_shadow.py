@@ -6,8 +6,8 @@ from decimal import Decimal
 import pytest
 
 from bp_engine.v3_paper.fresh_book_shadow import (
-    FreshBookShadowError,
     V3_FRESH_BOOK_SHADOW_VERSION,
+    FreshBookShadowError,
     evaluate_fresh_book_shadow,
     settle_fresh_book_shadow,
 )
