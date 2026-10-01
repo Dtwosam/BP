@@ -88,17 +88,22 @@ def frozen_v3_paper_config() -> PaperExecutionConfig:
 def _polymarket_source_time_health(
     connection,
     *,
+    condition_id: str,
+    token_id: str,
     observed_at: datetime,
 ) -> PolymarketSourceTimeHealth:
     observed = _stored_utc(observed_at, "observed_at")
-    row = connection.execute(
+    rows = connection.execute(
         select(
             schema.raw_market_events.c.received_at,
             schema.raw_market_events.c.source_timestamp,
+            schema.raw_market_events.c.payload,
         )
         .where(
             schema.raw_market_events.c.source == "polymarket",
             schema.raw_market_events.c.stream == "market",
+            schema.raw_market_events.c.instrument == condition_id,
+            schema.raw_market_events.c.event_type == "price_change",
             schema.raw_market_events.c.source_timestamp.is_not(None),
             schema.raw_market_events.c.received_at <= observed,
         )
@@ -106,8 +111,25 @@ def _polymarket_source_time_health(
             schema.raw_market_events.c.received_at.desc(),
             schema.raw_market_events.c.id.desc(),
         )
-        .limit(1)
-    ).mappings().one_or_none()
+        .limit(128)
+    ).mappings().all()
+
+    row = None
+    for candidate in rows:
+        payload = candidate["payload"]
+        if not isinstance(payload, Mapping):
+            continue
+        changes = payload.get("price_changes")
+        if not isinstance(changes, list):
+            continue
+        if any(
+            isinstance(change, Mapping)
+            and str(change.get("asset_id") or "") == token_id
+            for change in changes
+        ):
+            row = candidate
+            break
+
     if row is None:
         return PolymarketSourceTimeHealth(
             eligible=False,
@@ -149,6 +171,40 @@ def _polymarket_source_time_health(
         transport_lag_seconds=transport_lag_seconds,
     )
 
+
+def _polymarket_source_time_evidence(
+    health: PolymarketSourceTimeHealth,
+) -> dict[str, object]:
+    return {
+        "eligible": health.eligible,
+        "reason": health.reason,
+        "max_source_age_seconds": str(
+            FAST_LIVE_MAX_POLYMARKET_SOURCE_AGE_SECONDS
+        ),
+        "max_future_skew_seconds": str(
+            FAST_LIVE_MAX_POLYMARKET_SOURCE_FUTURE_SKEW_SECONDS
+        ),
+        "received_at": (
+            health.received_at.isoformat()
+            if health.received_at is not None
+            else None
+        ),
+        "source_timestamp": (
+            health.source_timestamp.isoformat()
+            if health.source_timestamp is not None
+            else None
+        ),
+        "source_age_seconds": (
+            str(health.source_age_seconds)
+            if health.source_age_seconds is not None
+            else None
+        ),
+        "transport_lag_seconds": (
+            str(health.transport_lag_seconds)
+            if health.transport_lag_seconds is not None
+            else None
+        ),
+    }
 
 @dataclass
 class FrozenPaperCashTracker:
@@ -514,6 +570,25 @@ def preview_fast_live_candidate(
                 "frozen paper order no longer matches source prediction"
             )
 
+        source_time_health = _polymarket_source_time_health(
+            connection,
+            condition_id=request.condition_id,
+            token_id=request.token_id,
+            observed_at=observed_at,
+        )
+        if not source_time_health.eligible:
+            return {
+                "status": "blocked",
+                "reason": source_time_health.reason,
+                "reasons": (source_time_health.reason,),
+                "retryable": True,
+                "prediction_id": request.prediction_id,
+                "paper_order_id": paper_order_id,
+                "polymarket_source_time": (
+                    _polymarket_source_time_evidence(source_time_health)
+                ),
+            }
+
         market_end_at = _stored_utc(
             prediction["market_end_at"],
             "market_end_at",
@@ -800,6 +875,8 @@ def prepare_fast_live_candidate(
         )
         source_time_health = _polymarket_source_time_health(
             connection,
+            condition_id=request.condition_id,
+            token_id=request.token_id,
             observed_at=observed_at,
         )
         effective_interlock_reasons = list(interlock.reasons)
@@ -869,36 +946,9 @@ def prepare_fast_live_candidate(
                 "collateral_balance_usd": collateral_balance_usd,
                 "interlock_eligible": effective_interlock.eligible,
                 "interlock_reasons": effective_interlock.reasons,
-                "polymarket_source_time": {
-                    "eligible": source_time_health.eligible,
-                    "reason": source_time_health.reason,
-                    "max_source_age_seconds": str(
-                        FAST_LIVE_MAX_POLYMARKET_SOURCE_AGE_SECONDS
-                    ),
-                    "max_future_skew_seconds": str(
-                        FAST_LIVE_MAX_POLYMARKET_SOURCE_FUTURE_SKEW_SECONDS
-                    ),
-                    "received_at": (
-                        source_time_health.received_at.isoformat()
-                        if source_time_health.received_at is not None
-                        else None
-                    ),
-                    "source_timestamp": (
-                        source_time_health.source_timestamp.isoformat()
-                        if source_time_health.source_timestamp is not None
-                        else None
-                    ),
-                    "source_age_seconds": (
-                        str(source_time_health.source_age_seconds)
-                        if source_time_health.source_age_seconds is not None
-                        else None
-                    ),
-                    "transport_lag_seconds": (
-                        str(source_time_health.transport_lag_seconds)
-                        if source_time_health.transport_lag_seconds is not None
-                        else None
-                    ),
-                },
+                "polymarket_source_time": (
+                    _polymarket_source_time_evidence(source_time_health)
+                ),
                 "fast_live": True,
                 "finalized_from_preview": preview is not None,
             },
