@@ -200,11 +200,8 @@ def test_fast_live_cleanup_operator_transition_is_exactly_scoped() -> None:
         '"phase15-v3-fast-live-auto-continuous-12h-21ee9a70-20260930T150000Z" ]]'
         in text
     )
-    assert (
-        '[[ "$RELEASE_MAIN" == '
-        '"21ee9a7019d3af1678427162b65d3661444e0d9b" ]]'
-        in text
-    )
+    assert 'git -C "$ROOT" cat-file -e "$RELEASE_MAIN^{commit}"' in text
+    assert 'git -C "$ROOT" merge-base --is-ancestor "$RELEASE_MAIN" "$HELPER_HEAD"' in text
     assert '[[ "$AUTH_MODE" == "auto-telegram-continuous-v1" ]]' in text
     assert (
         '[[ "$RUNTIME_EXPIRES" == '
@@ -213,6 +210,10 @@ def test_fast_live_cleanup_operator_transition_is_exactly_scoped() -> None:
     )
     assert 'operator_transition_runtime_already_expired' in text
     assert 'operator_transition_authorization_id_mismatch' in text
-    assert 'operator_transition_release_main_mismatch' in text
+    assert 'operator_transition_release_main_unknown' in text
+    assert 'operator_transition_release_main_not_in_main_history' in text
+    assert 'operator_transition_recorder_release_mismatch' in text
+    assert 'operator_transition_executor_release_mismatch' in text
+    assert "/opt/bp-fast-live/releases/$RELEASE_MAIN" in text
     assert 'operator_transition_authorization_mode_mismatch' in text
     assert 'operator_transition_runtime_expiry_mismatch' in text
