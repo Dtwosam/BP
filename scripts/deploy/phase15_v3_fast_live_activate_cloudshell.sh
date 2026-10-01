@@ -35,8 +35,8 @@ REMOTE_MAIN="$(git -C "$ROOT" rev-parse origin/main)"
 [[ "$HEAD" =~ ^[0-9a-f]{40}$ ]] || fail "head_invalid"
 [[ "$HEAD" == "$REMOTE_MAIN" ]] || fail "checkout_is_not_current_main"
 
-read -r AUTH_ID AUTH_EXPIRES AUTH_MODE STATE_SHA < <(
-  PYTHONPATH="$ROOT/src" python3 - "$STATE" "$HEAD" <<'PY'
+read -r AUTH_ID AUTH_EXPIRES AUTH_MODE AUTH_MAIN STATE_SHA < <(
+  PYTHONPATH="$ROOT/src" python3 - "$STATE" <<'PY'
 import hashlib
 import json
 import sys
@@ -46,12 +46,13 @@ from pathlib import Path
 from bp_engine.execution.fast_live import verify_source_authorization
 
 path = Path(sys.argv[1])
-head = sys.argv[2]
 raw = path.read_bytes()
 state = json.loads(raw)
+source = state["phase_15_v3_live_canary"]["fast_live_preauthorization"]
+auth_main = str(source.get("authorized_at_main") or "")
 auth = verify_source_authorization(
     state,
-    expected_main=head,
+    expected_main=auth_main,
     observed_at=datetime.now(UTC),
     requires_telegram_approval=True,
     continuous_session=True,
@@ -60,6 +61,7 @@ print(
     str(auth["authorization_id"]),
     str(auth["expires_at"]),
     str(auth["authorization_mode"]),
+    auth_main,
     hashlib.sha256(
         json.dumps(
             state,
@@ -74,6 +76,9 @@ PY
 ) || fail "source_truth_fast_live_authorization_invalid"
 
 [[ -n "$AUTH_ID" ]] || fail "authorization_id_missing"
+[[ "$AUTH_MAIN" =~ ^[0-9a-f]{40}$ ]] || fail "authorized_release_main_invalid"
+git -C "$ROOT" merge-base --is-ancestor "$AUTH_MAIN" "$HEAD" ||
+  fail "authorized_release_not_in_current_main_history"
 [[ "$STATE_SHA" =~ ^[0-9a-f]{64}$ ]] || fail "project_state_hash_invalid"
 
 TMP_DIR="$(mktemp -d)"
@@ -83,7 +88,7 @@ cleanup_local() {
 trap cleanup_local EXIT
 
 RUNTIME_AUTH="$TMP_DIR/authorization.json"
-python3 - "$STATE" "$HEAD" "$AUTH_ID" "$AUTH_MODE" "$BP_FAST_LIVE_RUNTIME_EXPIRES_AT" "$RUNTIME_AUTH" <<'PY'
+python3 - "$STATE" "$AUTH_MAIN" "$AUTH_ID" "$AUTH_MODE" "$BP_FAST_LIVE_RUNTIME_EXPIRES_AT" "$RUNTIME_AUTH" <<'PY'
 import hashlib
 import json
 import os
@@ -144,7 +149,7 @@ output.write_text(
 os.chmod(output, 0o600)
 PY
 
-if ! PYTHONPATH="$ROOT/src" python3 - "$STATE" "$RUNTIME_AUTH" "$HEAD" <<'PY'
+if ! PYTHONPATH="$ROOT/src" python3 - "$STATE" "$RUNTIME_AUTH" "$AUTH_MAIN" <<'PY'
 import json
 import sys
 from datetime import UTC, datetime
@@ -202,13 +207,13 @@ EXEC_SA="$(gcloud compute instances describe "$EXEC_VM"   --project="$PROJECT" -
   fail "executor_service_account_invalid"
 
 # The runtime must already be staged at exactly the release we are authorizing.
-gcloud compute ssh "$US_VM"   --project="$PROJECT" --zone="$US_ZONE" --quiet   --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$HEAD' &&
+gcloud compute ssh "$US_VM"   --project="$PROJECT" --zone="$US_ZONE" --quiet   --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$AUTH_MAIN' &&
              sudo systemctl is-active --quiet bp-phase15-fast-live-source.service && exit 20 || true;
              sudo systemctl is-enabled --quiet bp-phase15-fast-live-source.service && exit 21 || true;
              sudo test ! -e /etc/bp-fast-live/transport.key &&
-             sudo test -d '/opt/bp-phase15-telegram-approval/releases/$HEAD' &&
-             sudo test -f '/opt/bp-phase15-telegram-approval/releases/$HEAD/scripts/run_phase15_v3_canary_telegram_approval.py' &&
-             sudo test -f '/opt/bp-phase15-telegram-approval/releases/$HEAD/deploy/bp-phase15-canary-telegram-approval.service' &&
+             sudo test -d '/opt/bp-phase15-telegram-approval/releases/$AUTH_MAIN' &&
+             sudo test -f '/opt/bp-phase15-telegram-approval/releases/$AUTH_MAIN/scripts/run_phase15_v3_canary_telegram_approval.py' &&
+             sudo test -f '/opt/bp-phase15-telegram-approval/releases/$AUTH_MAIN/deploy/bp-phase15-canary-telegram-approval.service' &&
              sudo test -f /etc/bp/telegram-approval.env &&
              sudo test ! -e /etc/bp/telegram-approval-handoff.env &&
              sudo test ! -e /var/lib/bp/phase15-fast-live/telegram-prepare/current-run &&
@@ -236,7 +241,7 @@ gcloud compute ssh "$US_VM" \
     fi'" ||
   fail "recorder_prior_live_recovery_pending"
 
-gcloud compute ssh "$EXEC_VM"   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet   --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$HEAD' &&
+gcloud compute ssh "$EXEC_VM"   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet   --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$AUTH_MAIN' &&
              sudo systemctl is-active --quiet bp-phase15-fast-live-receiver.service && exit 22 || true;
              sudo systemctl is-enabled --quiet bp-phase15-fast-live-receiver.service && exit 23 || true;
              sudo test ! -e /etc/bp-fast-live/transport.key;
@@ -312,7 +317,7 @@ SOURCE_ENV="$TMP_DIR/source.env"
 RECEIVER_ENV="$TMP_DIR/receiver.env"
 cat >"$SOURCE_ENV" <<EOF
 BP_FAST_LIVE_TRANSPORT_KEY_ID=$KEY_ID
-BP_FAST_LIVE_EXPECTED_MAIN=$HEAD
+BP_FAST_LIVE_EXPECTED_MAIN=$AUTH_MAIN
 BP_FAST_LIVE_GCP_PROJECT=$PROJECT
 BP_FAST_LIVE_TOPIC_ID=$ORDER_TOPIC
 BP_FAST_LIVE_RESULT_SUBSCRIPTION_ID=$RESULT_SUB
@@ -323,7 +328,7 @@ BP_FAST_LIVE_CONTINUOUS_SESSION=yes
 EOF
 cat >"$RECEIVER_ENV" <<EOF
 BP_FAST_LIVE_TRANSPORT_KEY_ID=$KEY_ID
-BP_FAST_LIVE_EXPECTED_MAIN=$HEAD
+BP_FAST_LIVE_EXPECTED_MAIN=$AUTH_MAIN
 BP_FAST_LIVE_GCP_PROJECT=$PROJECT
 BP_FAST_LIVE_SUBSCRIPTION_ID=$ORDER_SUB
 BP_FAST_LIVE_RESULT_TOPIC_ID=$RESULT_TOPIC
@@ -422,15 +427,15 @@ trap 'if [[ "$activated" != "true" ]]; then safe_stop; fi; cleanup_local' EXIT
 telegram_switched=true
 gcloud compute ssh "$US_VM" \
   --project="$PROJECT" --zone="$US_ZONE" --quiet \
-  --command="sudo rm -f '/opt/bp-phase15-telegram-approval/.fast-live-current-$HEAD' &&
-             sudo ln -s '/opt/bp-phase15-telegram-approval/releases/$HEAD' '/opt/bp-phase15-telegram-approval/.fast-live-current-$HEAD' &&
-             sudo mv -Tf '/opt/bp-phase15-telegram-approval/.fast-live-current-$HEAD' /opt/bp-phase15-telegram-approval/current &&
-             sudo install -o root -g root -m 0644 '/opt/bp-phase15-telegram-approval/releases/$HEAD/deploy/bp-phase15-canary-telegram-approval.service' /etc/systemd/system/bp-phase15-canary-telegram-approval.service &&
+  --command="sudo rm -f '/opt/bp-phase15-telegram-approval/.fast-live-current-$AUTH_MAIN' &&
+             sudo ln -s '/opt/bp-phase15-telegram-approval/releases/$AUTH_MAIN' '/opt/bp-phase15-telegram-approval/.fast-live-current-$AUTH_MAIN' &&
+             sudo mv -Tf '/opt/bp-phase15-telegram-approval/.fast-live-current-$AUTH_MAIN' /opt/bp-phase15-telegram-approval/current &&
+             sudo install -o root -g root -m 0644 '/opt/bp-phase15-telegram-approval/releases/$AUTH_MAIN/deploy/bp-phase15-canary-telegram-approval.service' /etc/systemd/system/bp-phase15-canary-telegram-approval.service &&
              sudo systemctl daemon-reload &&
              sudo systemctl restart bp-phase15-canary-telegram-approval.service &&
              sleep 1 &&
              sudo systemctl is-active --quiet bp-phase15-canary-telegram-approval.service &&
-             sudo test \"\$(readlink -f /opt/bp-phase15-telegram-approval/current)\" = '/opt/bp-phase15-telegram-approval/releases/$HEAD'" ||
+             sudo test \"\$(readlink -f /opt/bp-phase15-telegram-approval/current)\" = '/opt/bp-phase15-telegram-approval/releases/$AUTH_MAIN'" ||
   fail "telegram_approval_listener_start_failed"
 
 # Receiver starts while the execution kill switch is still engaged.
@@ -454,7 +459,8 @@ activated=true
 trap cleanup_local EXIT
 
 printf 'PHASE15_FAST_LIVE_ACTIVATE=PASS\n'
-printf 'RELEASE_MAIN=%s\n' "$HEAD"
+printf 'RELEASE_MAIN=%s\n' "$AUTH_MAIN"
+printf 'CONTROL_MAIN=%s\n' "$HEAD"
 printf 'AUTHORIZATION_ID=%s\n' "$AUTH_ID"
 printf 'AUTHORIZATION_MODE=%s\n' "$AUTH_MODE"
 printf 'RUNTIME_EXPIRES_AT=%s\n' "$BP_FAST_LIVE_RUNTIME_EXPIRES_AT"
@@ -463,7 +469,7 @@ printf 'ORDER_SUBSCRIPTION=%s\n' "$ORDER_SUB"
 printf 'RESULT_TOPIC=%s\n' "$RESULT_TOPIC"
 printf 'RESULT_SUBSCRIPTION=%s\n' "$RESULT_SUB"
 printf 'TELEGRAM_APPROVAL_ACTIVE=true\n'
-printf 'TELEGRAM_APPROVAL_RELEASE_MAIN=%s\n' "$HEAD"
+printf 'TELEGRAM_APPROVAL_RELEASE_MAIN=%s\n' "$AUTH_MAIN"
 printf 'RECEIVER_ACTIVE=true\n'
 printf 'SOURCE_ACTIVE=true\n'
 printf 'SERVICES_ENABLED=false\n'
