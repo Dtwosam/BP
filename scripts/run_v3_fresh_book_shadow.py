@@ -158,6 +158,12 @@ def main() -> int:
 
     _require_safe_environment(args.env_file)
     settings = Settings(_env_file=args.env_file)
+    if settings.live_trading_enabled:
+        raise SystemExit("LIVE_TRADING_ENABLED must be false")
+    if settings.max_trade_size_usd != 0:
+        raise SystemExit("MAX_TRADE_SIZE_USD must be 0")
+    if settings.max_daily_loss_usd != 0:
+        raise SystemExit("MAX_DAILY_LOSS_USD must be 0")
     engine = create_engine(
         settings.database_url,
         pool_pre_ping=True,
