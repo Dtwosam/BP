@@ -10,6 +10,7 @@ import pytest
 from bp_engine.execution.fast_live import (
     FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA,
     FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE,
+    FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2,
     FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE,
     FAST_LIVE_CONTINUOUS_MANUAL_AUTHORIZATION_MODE_V2,
     FastLiveError,
@@ -134,7 +135,7 @@ def test_repository_source_truth_contains_reviewed_continuous_auto_authorization
     )
 
     assert verified["status"] == "AUTHORIZED_CONTINUOUS_SESSION"
-    assert verified["authorization_mode"] == FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE
+    assert verified["authorization_mode"] == FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2
     assert verified["auto_approval_contract_git_blob_sha"] == (
         FAST_LIVE_AUTO_APPROVAL_CONTRACT_BLOB_SHA
     )
