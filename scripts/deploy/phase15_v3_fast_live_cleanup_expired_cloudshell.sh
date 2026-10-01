@@ -147,8 +147,25 @@ elif [[ "$CLEANUP_MODE" == "operator_transition" ]]; then
     fail "operator_transition_release_main_not_in_main_history"
   [[ "$AUTH_MODE" == "auto-telegram-continuous-v1" ]] ||
     fail "operator_transition_authorization_mode_mismatch"
-  [[ "$RUNTIME_EXPIRES" == "2026-10-01T03:00:00.231215+00:00" ]] ||
-    fail "operator_transition_runtime_expiry_mismatch"
+  if ! python3 - "$RUNTIME_EXPIRES" <<'PY'
+import sys
+from datetime import UTC, datetime
+
+runtime_expires = datetime.fromisoformat(sys.argv[1]).astimezone(UTC)
+authorized_at = datetime.fromisoformat(
+    "2026-09-30T15:00:00.318438+00:00"
+).astimezone(UTC)
+source_expires = datetime.fromisoformat(
+    "2026-10-01T03:00:00.231215+00:00"
+).astimezone(UTC)
+if runtime_expires <= authorized_at:
+    raise SystemExit("runtime_expiry_not_after_authorization")
+if runtime_expires > source_expires:
+    raise SystemExit("runtime_exceeds_source_authorization")
+PY
+  then
+    fail "operator_transition_runtime_expiry_outside_source_window"
+  fi
 else
   fail "cleanup_mode_invalid"
 fi
