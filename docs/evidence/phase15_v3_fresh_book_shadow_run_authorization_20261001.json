@@ -6,7 +6,7 @@
   "reviewed_shadow_main": "079504d7210d74284d50821270359cd1a0bde30d",
   "shadow_execution_version": "paper-execution-v3-fresh-book-shadow-v1",
   "deployment_helper": "scripts/deploy/phase15_v3_fresh_book_shadow_run_cloudshell.sh",
-  "deployment_helper_git_blob_sha": "35740eee659bbf55773a340cdd9ee82bee9dd846",
+  "deployment_helper_git_blob_sha": "a7f757c684c71a96049339030d645f9ef596c389",
   "target_host": "bp-recorder",
   "target_zone": "us-east1-c",
   "target_project": "project-4397f2c0-7098-4c1c-abb",
@@ -28,5 +28,7 @@
   "output_format": "append_only_jsonl",
   "production_staging_performed": false,
   "production_run_started": false,
-  "real_order_submitted": false
+  "real_order_submitted": false,
+  "startup_verification": "bounded_wait_up_to_60_seconds_with_unit_and_output_diagnostics",
+  "failure_cleanup": "stop_transient_shadow_unit_on_nonzero_helper_exit"
 }
