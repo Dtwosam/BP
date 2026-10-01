@@ -18,6 +18,7 @@ from sqlalchemy import create_engine, select
 
 from bp_engine.config import Settings
 from bp_engine.execution.fast_live import (
+    FAST_LIVE_MIN_MARKET_END_SECONDS,
     FAST_LIVE_PURPOSE,
     FAST_LIVE_RESULT_MAX_AGE_SECONDS,
     FAST_LIVE_RESULT_PURPOSE,
@@ -316,6 +317,7 @@ def _load_staged_telegram_candidate(
     root: Path,
     *,
     expected_authorization_id: str,
+    observed_at: datetime | None = None,
 ) -> dict[str, Any] | None:
     current = root / "current-run"
     if not current.is_file():
@@ -345,6 +347,22 @@ def _load_staged_telegram_candidate(
     payload = json.loads(prepared_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise RuntimeError("fast live Telegram prepared state invalid")
+    observed = observed_at or _utc_now()
+    market_end_raw = str(payload.get("market_end_at") or "")
+    try:
+        market_end = datetime.fromisoformat(market_end_raw)
+    except ValueError:
+        market_end = None
+    if (
+        market_end is not None
+        and market_end.tzinfo is not None
+        and market_end.utcoffset() is not None
+        and (
+            market_end.astimezone(UTC) - observed.astimezone(UTC)
+        ).total_seconds() < float(FAST_LIVE_MIN_MARKET_END_SECONDS)
+    ):
+        current.unlink(missing_ok=True)
+        return None
     return payload
 
 
@@ -1483,6 +1501,7 @@ def main() -> int:
                     expected_authorization_id=str(
                         verified_runtime["authorization_id"]
                     ),
+                    observed_at=observed,
                 )
                 if preview is None:
                     preview = preview_fast_live_candidate(
