@@ -31,8 +31,8 @@ REMOTE_MAIN="$(git -C "$ROOT" ls-remote origin refs/heads/main | awk 'NR==1 {pri
 [[ "$HEAD" =~ ^[0-9a-f]{40}$ ]] || fail "head_invalid"
 [[ "$HEAD" == "$REMOTE_MAIN" ]] || fail "checkout_is_not_current_main"
 
-read -r AUTH_ID AUTH_EXPIRES < <(
-  PYTHONPATH="$ROOT/src" python3 - "$STATE" "$HEAD" <<'PY'
+read -r AUTH_ID AUTH_EXPIRES AUTH_MAIN < <(
+  PYTHONPATH="$ROOT/src" python3 - "$STATE" <<'PY'
 import json
 import sys
 from datetime import UTC, datetime
@@ -41,29 +41,34 @@ from pathlib import Path
 from bp_engine.execution.fast_live import verify_source_authorization
 
 state = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+source = state["phase_15_v3_live_canary"]["fast_live_preauthorization"]
+auth_main = str(source.get("authorized_at_main") or "")
 auth = verify_source_authorization(
     state,
-    expected_main=sys.argv[2],
+    expected_main=auth_main,
     observed_at=datetime.now(UTC),
     requires_telegram_approval=True,
     continuous_session=True,
 )
-print(str(auth["authorization_id"]), str(auth["expires_at"]))
+print(str(auth["authorization_id"]), str(auth["expires_at"]), auth_main)
 PY
 ) || fail "source_truth_fast_live_authorization_invalid"
 
 [[ -n "$AUTH_ID" ]] || fail "authorization_id_missing"
 [[ -n "$AUTH_EXPIRES" ]] || fail "authorization_expiry_missing"
+[[ "$AUTH_MAIN" =~ ^[0-9a-f]{40}$ ]] || fail "authorized_release_main_invalid"
+git -C "$ROOT" merge-base --is-ancestor "$AUTH_MAIN" "$HEAD" ||
+  fail "authorized_release_not_in_current_main_history"
 
 gcloud compute ssh "$US_VM" \
   --project="$PROJECT" --zone="$US_ZONE" --quiet \
-  --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$HEAD' &&
+  --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$AUTH_MAIN' &&
              sudo systemctl is-active --quiet bp-phase15-fast-live-source.service && exit 20 || true;
              sudo systemctl is-enabled --quiet bp-phase15-fast-live-source.service && exit 21 || true;
              sudo test ! -e /etc/bp-fast-live/transport.key &&
-             sudo test -d '/opt/bp-phase15-telegram-approval/releases/$HEAD' &&
-             sudo test -f '/opt/bp-phase15-telegram-approval/releases/$HEAD/scripts/run_phase15_v3_canary_telegram_approval.py' &&
-             sudo test -f '/opt/bp-phase15-telegram-approval/releases/$HEAD/deploy/bp-phase15-canary-telegram-approval.service' &&
+             sudo test -d '/opt/bp-phase15-telegram-approval/releases/$AUTH_MAIN' &&
+             sudo test -f '/opt/bp-phase15-telegram-approval/releases/$AUTH_MAIN/scripts/run_phase15_v3_canary_telegram_approval.py' &&
+             sudo test -f '/opt/bp-phase15-telegram-approval/releases/$AUTH_MAIN/deploy/bp-phase15-canary-telegram-approval.service' &&
              sudo test -f /etc/bp/telegram-approval.env &&
              sudo test ! -e /etc/bp/telegram-approval-handoff.env &&
              sudo test ! -e /var/lib/bp/phase15-fast-live/telegram-prepare/current-run &&
@@ -94,7 +99,7 @@ gcloud compute ssh "$US_VM" \
 
 gcloud compute ssh "$EXEC_VM" \
   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
-  --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$HEAD' &&
+  --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$AUTH_MAIN' &&
              sudo systemctl is-active --quiet bp-phase15-fast-live-receiver.service && exit 22 || true;
              sudo systemctl is-enabled --quiet bp-phase15-fast-live-receiver.service && exit 23 || true;
              sudo test ! -e /etc/bp-fast-live/transport.key;
@@ -139,7 +144,8 @@ PY
 ) || fail "executor_health_not_safe"
 
 printf 'PHASE15_FAST_LIVE_PREFLIGHT=PASS\n'
-printf 'RELEASE_MAIN=%s\n' "$HEAD"
+printf 'RELEASE_MAIN=%s\n' "$AUTH_MAIN"
+printf 'CONTROL_MAIN=%s\n' "$HEAD"
 printf 'AUTHORIZATION_ID=%s\n' "$AUTH_ID"
 printf 'AUTHORIZATION_EXPIRES_AT=%s\n' "$AUTH_EXPIRES"
 printf 'RECORDER_STAGE_READY=true\n'
