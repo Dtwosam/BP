@@ -218,18 +218,34 @@ systemd-run \
   --quote-fresh-seconds 0.25 \
   --market-lookahead-seconds 600
 
-sleep 3
-systemctl is-active --quiet "$unit" || {
-  cat "$output" >&2 || true
-  fail "shadow_unit_not_active"
-}
+startup_deadline=$((SECONDS + 60))
+while ! grep -q '"event":"fresh_book_shadow_started"' "$output"; do
+  if ! systemctl is-active --quiet "$unit"; then
+    printf '%s\n' '=== SHADOW UNIT STATUS ===' >&2
+    systemctl status "$unit" --no-pager >&2 || true
+    printf '%s\n' '=== SHADOW OUTPUT ===' >&2
+    cat "$output" >&2 || true
+    fail "shadow_unit_exited_before_start_record"
+  fi
+  if (( SECONDS >= startup_deadline )); then
+    printf '%s\n' '=== SHADOW UNIT STATUS ===' >&2
+    systemctl status "$unit" --no-pager >&2 || true
+    printf '%s\n' '=== SHADOW OUTPUT ===' >&2
+    cat "$output" >&2 || true
+    fail "shadow_start_record_timeout"
+  fi
+  sleep 1
+done
+
 systemctl is-active --quiet "$SOURCE_UNIT" && fail "fast_live_source_reactivated"
-grep -q '"event":"fresh_book_shadow_started"' "$output" ||
-  fail "shadow_start_record_missing"
-grep -q '"database_read_only":true' "$output" ||
+grep -q '"database_read_only":true' "$output" || {
+  cat "$output" >&2 || true
   fail "shadow_read_only_record_missing"
-grep -q '"order_submission_enabled":false' "$output" ||
+}
+grep -q '"order_submission_enabled":false' "$output" || {
+  cat "$output" >&2 || true
   fail "shadow_money_disabled_record_missing"
+}
 
 printf 'PHASE15_V3_FRESH_BOOK_SHADOW_RUN=PASS\n'
 printf 'CONTROL_MAIN=%s\n' "$head"
