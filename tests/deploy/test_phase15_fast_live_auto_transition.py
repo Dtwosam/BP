@@ -644,3 +644,193 @@ def test_auto_candidate_renewal_requires_exact_existing_upgrade_evidence() -> No
             upgrade_evidence_reference="docs/evidence/different.json",
             renew_existing_unactivated=True,
         )
+
+
+def _completed_cleanup_evidence(
+    *,
+    existing: dict[str, object],
+    staged_release_main: str,
+) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "purpose": "phase15-v3-fast-live-completed-session-cleanup-v1",
+        "status": "CLEANUP_VERIFIED",
+        "authorization_id": existing["authorization_id"],
+        "authorization_mode": existing["authorization_mode"],
+        "session_release_main": existing["authorized_at_main"],
+        "runtime_expires_at": existing["expires_at"],
+        "staged_release_main": staged_release_main,
+        "cleanup_mode": "expired",
+        "cleanup_completed": True,
+        "prior_real_order_submitted": True,
+        "kill_switch_engaged": True,
+        "historical_state_preserved": True,
+        "session_runtime_files_present": False,
+        "session_pubsub_resources_present": False,
+        "recorder_source_active": False,
+        "executor_receiver_active": False,
+        "recorder_runtime_authorization_present": False,
+        "executor_runtime_authorization_present": False,
+        "recorder_transport_key_present": False,
+        "executor_transport_key_present": False,
+        "executor_account_clean": True,
+        "executor_open_order_count": 0,
+        "executor_geo_country": "ZA",
+        "executor_geo_blocked": False,
+    }
+
+
+def test_auto_candidate_can_replace_expired_completed_cleaned_session() -> None:
+    module = _candidate_module()
+    upgrade_main = "a" * 40
+    current_main = "b" * 40
+    evidence_reference = "docs/evidence/upgrade.json"
+    cleanup_reference = "docs/evidence/completed-cleanup.json"
+    first_authorized_at = datetime(2026, 9, 29, 16, 5, tzinfo=UTC)
+    replacement_authorized_at = first_authorized_at + timedelta(hours=9)
+    source, evidence = _renewable_state(
+        module,
+        upgrade_main=upgrade_main,
+        evidence_reference=evidence_reference,
+        authorized_at=first_authorized_at,
+    )
+    old_auth = source["phase_15_v3_live_canary"]["fast_live_preauthorization"]
+    assert isinstance(old_auth, dict)
+    cleanup = _completed_cleanup_evidence(
+        existing=old_auth,
+        staged_release_main=current_main,
+    )
+
+    candidate = module.build_candidate(
+        state=source,
+        upgrade_evidence=evidence,
+        expected_main=current_main,
+        authorization_id="fast-live-auto-continuous-after-cleanup",
+        source_of_truth_version="0.14.182",
+        expires_at=replacement_authorized_at + timedelta(hours=12),
+        authorized_at=replacement_authorized_at,
+        upgrade_evidence_reference=evidence_reference,
+        replace_completed_cleaned_session=True,
+        completed_session_cleanup_evidence=cleanup,
+        completed_session_cleanup_evidence_reference=cleanup_reference,
+    )
+
+    renewed = candidate["phase_15_v3_live_canary"]["fast_live_preauthorization"]
+    assert renewed["authorization_id"] == "fast-live-auto-continuous-after-cleanup"
+    assert renewed["authorized_at_main"] == current_main
+    assert renewed["authorization_mode"] == FAST_LIVE_CONTINUOUS_AUTO_AUTHORIZATION_MODE_V2
+    assert renewed["target_notional_usd"] == 5
+    assert renewed["max_trade_size_usd"] == 10
+    assert renewed["max_total_exposure_usd"] == 10
+    assert renewed["max_daily_loss_usd"] == 10
+    assert renewed["max_consecutive_losses"] == 0
+    assert renewed["min_edge"] == 0.075
+    assert renewed["requires_telegram_approval"] is True
+    assert renewed["max_network_submission_attempts_per_intent"] == 1
+    assert renewed["deployment_performed"] is False
+    assert renewed["activation_performed"] is False
+    assert renewed["runtime_authorization_created"] is False
+    assert renewed["kill_switch_removed"] is False
+    assert renewed["real_order_submitted"] is False
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("cleanup_completed", False),
+        ("prior_real_order_submitted", False),
+        ("kill_switch_engaged", False),
+        ("historical_state_preserved", False),
+        ("session_runtime_files_present", True),
+        ("session_pubsub_resources_present", True),
+        ("recorder_source_active", True),
+        ("executor_receiver_active", True),
+        ("recorder_runtime_authorization_present", True),
+        ("executor_runtime_authorization_present", True),
+        ("recorder_transport_key_present", True),
+        ("executor_transport_key_present", True),
+        ("executor_account_clean", False),
+        ("executor_geo_blocked", True),
+        ("executor_open_order_count", 1),
+    ],
+)
+def test_completed_session_replacement_rejects_unsafe_cleanup_evidence(
+    field: str,
+    value: object,
+) -> None:
+    module = _candidate_module()
+    upgrade_main = "c" * 40
+    current_main = "d" * 40
+    evidence_reference = "docs/evidence/upgrade.json"
+    authorized_at = datetime(2026, 9, 29, 16, 5, tzinfo=UTC)
+    replacement_at = authorized_at + timedelta(hours=9)
+    source, evidence = _renewable_state(
+        module,
+        upgrade_main=upgrade_main,
+        evidence_reference=evidence_reference,
+        authorized_at=authorized_at,
+    )
+    old_auth = source["phase_15_v3_live_canary"]["fast_live_preauthorization"]
+    assert isinstance(old_auth, dict)
+    cleanup = _completed_cleanup_evidence(
+        existing=old_auth,
+        staged_release_main=current_main,
+    )
+    cleanup[field] = value
+
+    with pytest.raises(module.CandidateError, match="completed-session cleanup evidence unsafe"):
+        module.build_candidate(
+            state=source,
+            upgrade_evidence=evidence,
+            expected_main=current_main,
+            authorization_id="fast-live-auto-continuous-after-cleanup",
+            source_of_truth_version="0.14.182",
+            expires_at=replacement_at + timedelta(hours=12),
+            authorized_at=replacement_at,
+            upgrade_evidence_reference=evidence_reference,
+            replace_completed_cleaned_session=True,
+            completed_session_cleanup_evidence=cleanup,
+            completed_session_cleanup_evidence_reference=(
+                "docs/evidence/completed-cleanup.json"
+            ),
+        )
+
+
+def test_completed_session_replacement_requires_expired_prior_authorization() -> None:
+    module = _candidate_module()
+    upgrade_main = "e" * 40
+    current_main = "f" * 40
+    evidence_reference = "docs/evidence/upgrade.json"
+    authorized_at = datetime(2026, 9, 29, 16, 5, tzinfo=UTC)
+    source, evidence = _renewable_state(
+        module,
+        upgrade_main=upgrade_main,
+        evidence_reference=evidence_reference,
+        authorized_at=authorized_at,
+    )
+    old_auth = source["phase_15_v3_live_canary"]["fast_live_preauthorization"]
+    assert isinstance(old_auth, dict)
+    cleanup = _completed_cleanup_evidence(
+        existing=old_auth,
+        staged_release_main=current_main,
+    )
+
+    with pytest.raises(
+        module.CandidateError,
+        match="completed-session replacement requires expired authorization",
+    ):
+        module.build_candidate(
+            state=source,
+            upgrade_evidence=evidence,
+            expected_main=current_main,
+            authorization_id="fast-live-auto-continuous-too-early",
+            source_of_truth_version="0.14.182",
+            expires_at=authorized_at + timedelta(hours=12),
+            authorized_at=authorized_at + timedelta(hours=1),
+            upgrade_evidence_reference=evidence_reference,
+            replace_completed_cleaned_session=True,
+            completed_session_cleanup_evidence=cleanup,
+            completed_session_cleanup_evidence_reference=(
+                "docs/evidence/completed-cleanup.json"
+            ),
+        )

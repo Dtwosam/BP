@@ -224,11 +224,41 @@ remain unchanged, and continuous candidate auto-approval must remain explicitly
 authorized.
 
 Risk and execution terms are revalidated before replacement: $5 target,
-$10 trade/exposure/daily-loss caps, one-loss limit, 0.075 minimum edge,
-two-second transit, Telegram approval, one network submission attempt per
-intent, ZA execution, and the frozen V3 prediction/execution versions. Renewal
-does not stage hosts, create runtime authorization, start services, remove the
-kill switch, or submit an order.
+$10 trade/exposure/daily-loss caps, disabled consecutive-loss stop
+(`max_consecutive_losses=0`), 0.075 minimum edge, two-second transit, Telegram
+approval, one network submission attempt per intent, ZA execution, and the
+frozen V3 prediction/execution versions. Renewal does not stage hosts, create
+runtime authorization, start services, remove the kill switch, or submit an
+order.
+
+### Completed-session replacement
+
+A prior continuous authorization that actually reached live execution must not
+be relabeled as an unactivated renewal. After that session has expired, settled
+or otherwise fully reconciled, and the reviewed cleanup has completed, the same
+candidate helper may be invoked with
+`--replace-completed-cleaned-session` plus
+`--completed-session-cleanup-evidence`.
+
+That replacement path requires reviewed evidence binding the prior
+authorization ID, authorization mode, release, and expiry to the cleaned
+session. The evidence must also prove that session runtime files and Pub/Sub
+resources are gone, source and receiver are stopped, the Johannesburg kill
+switch is engaged, no open order remains, the account is clean, geoblock is
+still ZA/unblocked, historical state is preserved, and the fixed target release
+is already staged.
+
+The prior source authorization is revalidated immediately before its expiry so
+its risk contract cannot be silently widened. The fresh candidate receives a
+new authorization ID and exact `authorized_at_main`; the conservative v2
+limits remain $5 target, $10 trade/exposure/daily-loss caps,
+`max_consecutive_losses=0`, 0.075 minimum edge, two-second transit, Telegram
+approval, one submission attempt per exact intent, ZA execution, and the frozen
+V3 versions.
+
+Completed-session replacement is still non-deploying. It creates no runtime
+authorization, starts no services, creates no live Pub/Sub session, removes no
+kill switch, and submits no order.
 
 ## Existing execution safeguards remain unchanged
 
