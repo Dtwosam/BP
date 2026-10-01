@@ -67,6 +67,8 @@ def test_fresh_book_shadow_run_is_bounded_transient_and_read_only() -> None:
     assert "startup_deadline=$((SECONDS + 60))" in text
     assert 'fail "shadow_unit_exited_before_start_record"' in text
     assert 'fail "shadow_start_record_timeout"' in text
+    assert 'if (( rc != 0 )) && [[ -n "$unit" ]]; then' in text
+    assert 'systemctl stop "$unit"' in text
     assert "systemctl enable" not in text
     assert "/var/lib/bp/evidence" in text
     assert "run_v3_fresh_book_shadow.py" in text
