@@ -48,7 +48,14 @@ CANARY_MAX_SUBMISSION_ATTEMPTS = 1
 CANARY_TARGET_NOTIONAL_USD = Decimal("5")
 CANARY_SUBMISSION_ATTEMPT_EVENTS = ("accepted", "rejected", "submission_unknown")
 CANARY_RETRYABLE_RISK_REASONS = frozenset(
-    {"liquidity_missing", "liquidity_below_minimum", "api_unhealthy"}
+    {
+        "liquidity_missing",
+        "liquidity_below_minimum",
+        "api_unhealthy",
+        "polymarket_source_time_unavailable",
+        "polymarket_source_lag",
+        "polymarket_source_clock_ahead",
+    }
 )
 CANARY_PRE_SUBMISSION_CLOSED_EVENT = "closed_before_submission"
 CANARY_INTENT_TERMINAL_EVENTS = (
