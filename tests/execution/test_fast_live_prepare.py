@@ -510,7 +510,16 @@ def _insert_polymarket_source_time_event(
             payload={
                 "event_type": "price_change",
                 "market": "condition-source-time-health",
-                "price_changes": [],
+                "price_changes": [
+                    {
+                        "asset_id": "token-source-time-health",
+                        "best_bid": "0.52",
+                        "best_ask": "0.53",
+                        "price": "0.53",
+                        "side": "SELL",
+                        "size": "10",
+                    }
+                ],
             },
             dedupe_key=canonical_hash(
                 {
@@ -539,6 +548,8 @@ def test_polymarket_source_time_health_accepts_recent_exchange_time() -> None:
     with engine.connect() as connection:
         health = fast_live_prepare_module._polymarket_source_time_health(
             connection,
+            condition_id="condition-source-time-health",
+            token_id="token-source-time-health",
             observed_at=BASE,
         )
 
@@ -561,6 +572,8 @@ def test_polymarket_source_time_health_rejects_recently_received_backlog() -> No
     with engine.connect() as connection:
         health = fast_live_prepare_module._polymarket_source_time_health(
             connection,
+            condition_id="condition-source-time-health",
+            token_id="token-source-time-health",
             observed_at=BASE,
         )
 
@@ -583,6 +596,8 @@ def test_polymarket_source_time_health_fails_closed_without_source_time() -> Non
     with engine.connect() as connection:
         health = fast_live_prepare_module._polymarket_source_time_health(
             connection,
+            condition_id="condition-source-time-health",
+            token_id="token-source-time-health",
             observed_at=BASE,
         )
 
@@ -604,6 +619,8 @@ def test_polymarket_source_time_health_rejects_material_clock_ahead() -> None:
     with engine.connect() as connection:
         health = fast_live_prepare_module._polymarket_source_time_health(
             connection,
+            condition_id="condition-source-time-health",
+            token_id="token-source-time-health",
             observed_at=BASE,
         )
 
