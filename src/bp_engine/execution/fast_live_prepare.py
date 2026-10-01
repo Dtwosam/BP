@@ -14,10 +14,10 @@ from bp_engine.execution.canary import (
     CANARY_MIN_PREPARE_ARM_WINDOW_SECONDS,
     CANARY_POLICY_VERSION,
     CANARY_TARGET_NOTIONAL_USD,
-    canary_policy,
     _ensure_initial_reconciliation,
     _latest_clean_account_snapshot,
     _retryable_risk_reasons,
+    canary_policy,
 )
 from bp_engine.execution.fast_live import payload_sha256
 from bp_engine.execution.fast_live_result import fast_live_account_snapshot
