@@ -50,7 +50,6 @@ from bp_engine.live_readiness.repository import LiveReadinessRepository
 from bp_engine.live_readiness.risk import evaluate_live_risk
 from bp_engine.storage import schema
 
-
 FAST_LIVE_MAX_POLYMARKET_SOURCE_AGE_SECONDS = Decimal("2")
 FAST_LIVE_MAX_POLYMARKET_SOURCE_FUTURE_SKEW_SECONDS = Decimal("1")
 
