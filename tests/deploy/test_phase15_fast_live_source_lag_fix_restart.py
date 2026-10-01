@@ -81,6 +81,10 @@ def test_source_lag_fix_restart_helper_is_exact_and_fail_closed() -> None:
 
     assert stop_source < stop_receiver < cleanup < stage < preflight < activation
 
+    assert "<<'PY' ||" not in text
+    assert "if ! PYTHONPATH=\"$ROOT/src\" python3 -" in text
+    assert 'if ! python3 - "$OLD_RUNTIME"' in text
+
     for forbidden in (
         "post_order(",
         "create_market_order",
