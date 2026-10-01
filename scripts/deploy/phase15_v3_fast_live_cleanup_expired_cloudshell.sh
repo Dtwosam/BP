@@ -141,8 +141,10 @@ elif [[ "$CLEANUP_MODE" == "operator_transition" ]]; then
   [[ "$RUNTIME_EXPIRED" == "false" ]] || fail "operator_transition_runtime_already_expired"
   [[ "$AUTH_ID" == "phase15-v3-fast-live-auto-continuous-12h-21ee9a70-20260930T150000Z" ]] ||
     fail "operator_transition_authorization_id_mismatch"
-  [[ "$RELEASE_MAIN" == "21ee9a7019d3af1678427162b65d3661444e0d9b" ]] ||
-    fail "operator_transition_release_main_mismatch"
+  git -C "$ROOT" cat-file -e "$RELEASE_MAIN^{commit}" ||
+    fail "operator_transition_release_main_unknown"
+  git -C "$ROOT" merge-base --is-ancestor "$RELEASE_MAIN" "$HELPER_HEAD" ||
+    fail "operator_transition_release_main_not_in_main_history"
   [[ "$AUTH_MODE" == "auto-telegram-continuous-v1" ]] ||
     fail "operator_transition_authorization_mode_mismatch"
   [[ "$RUNTIME_EXPIRES" == "2026-10-01T03:00:00.231215+00:00" ]] ||
@@ -173,6 +175,17 @@ gcloud compute ssh "$EXEC_VM" \
   --command="sudo systemctl is-active --quiet bp-phase15-fast-live-receiver.service && exit 21 || true;
              sudo test -f /var/lib/bp-canary/fast-live/KILL" ||
   fail "executor_session_not_quiescent"
+
+if [[ "$CLEANUP_MODE" == "operator_transition" ]]; then
+  gcloud compute ssh "$US_VM" \
+    --project="$PROJECT" --zone="$US_ZONE" --quiet \
+    --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$RELEASE_MAIN'" ||
+    fail "operator_transition_recorder_release_mismatch"
+  gcloud compute ssh "$EXEC_VM" \
+    --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
+    --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$RELEASE_MAIN'" ||
+    fail "operator_transition_executor_release_mismatch"
+fi
 
 # Source-side recovery must be fully durable before transport/session material is removed.
 gcloud compute ssh "$US_VM" \
