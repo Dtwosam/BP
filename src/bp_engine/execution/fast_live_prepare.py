@@ -50,6 +50,19 @@ from bp_engine.live_readiness.repository import LiveReadinessRepository
 from bp_engine.live_readiness.risk import evaluate_live_risk
 from bp_engine.storage import schema
 
+FAST_LIVE_MAX_POLYMARKET_SOURCE_AGE_SECONDS = Decimal("2")
+FAST_LIVE_MAX_POLYMARKET_SOURCE_FUTURE_SKEW_SECONDS = Decimal("1")
+
+
+@dataclass(frozen=True)
+class PolymarketSourceTimeHealth:
+    eligible: bool
+    reason: str | None
+    received_at: datetime | None
+    source_timestamp: datetime | None
+    source_age_seconds: Decimal | None
+    transport_lag_seconds: Decimal | None
+
 
 def continuous_fast_live_policy(*, max_consecutive_losses: int):
     return replace(
@@ -70,6 +83,161 @@ def frozen_v3_paper_config() -> PaperExecutionConfig:
         prediction_version="v3-frozen-paper-v1",
     )
 
+
+def _polymarket_source_time_health(
+    connection,
+    *,
+    condition_id: str,
+    token_id: str,
+    observed_at: datetime,
+) -> PolymarketSourceTimeHealth:
+    observed = _stored_utc(observed_at, "observed_at")
+    rows = connection.execute(
+        select(
+            schema.raw_market_events.c.received_at,
+            schema.raw_market_events.c.source_timestamp,
+            schema.raw_market_events.c.payload,
+        )
+        .where(
+            schema.raw_market_events.c.source == "polymarket",
+            schema.raw_market_events.c.stream == "market",
+            schema.raw_market_events.c.instrument == condition_id,
+            schema.raw_market_events.c.event_type == "price_change",
+            schema.raw_market_events.c.source_timestamp.is_not(None),
+            schema.raw_market_events.c.received_at <= observed,
+        )
+        .order_by(
+            schema.raw_market_events.c.received_at.desc(),
+            schema.raw_market_events.c.id.desc(),
+        )
+        .limit(128)
+    ).mappings().all()
+
+    row = None
+    for candidate in rows:
+        payload = candidate["payload"]
+        if not isinstance(payload, Mapping):
+            continue
+        changes = payload.get("price_changes")
+        if not isinstance(changes, list):
+            continue
+        if any(
+            isinstance(change, Mapping)
+            and str(change.get("asset_id") or "") == token_id
+            for change in changes
+        ):
+            row = candidate
+            break
+
+    if row is None:
+        return PolymarketSourceTimeHealth(
+            eligible=False,
+            reason="polymarket_source_time_unavailable",
+            received_at=None,
+            source_timestamp=None,
+            source_age_seconds=None,
+            transport_lag_seconds=None,
+        )
+
+    received_at = _stored_utc(row["received_at"], "polymarket.received_at")
+    source_timestamp = _stored_utc(
+        row["source_timestamp"],
+        "polymarket.source_timestamp",
+    )
+    source_age_seconds = Decimal(
+        str((observed - source_timestamp).total_seconds())
+    )
+    transport_lag_seconds = Decimal(
+        str((received_at - source_timestamp).total_seconds())
+    )
+
+    if (
+        source_age_seconds
+        < -FAST_LIVE_MAX_POLYMARKET_SOURCE_FUTURE_SKEW_SECONDS
+    ):
+        reason = "polymarket_source_clock_ahead"
+    elif source_age_seconds > FAST_LIVE_MAX_POLYMARKET_SOURCE_AGE_SECONDS:
+        reason = "polymarket_source_lag"
+    else:
+        reason = None
+
+    return PolymarketSourceTimeHealth(
+        eligible=reason is None,
+        reason=reason,
+        received_at=received_at,
+        source_timestamp=source_timestamp,
+        source_age_seconds=source_age_seconds,
+        transport_lag_seconds=transport_lag_seconds,
+    )
+
+
+def _polymarket_source_time_evidence(
+    health: PolymarketSourceTimeHealth,
+) -> dict[str, object]:
+    return {
+        "eligible": health.eligible,
+        "reason": health.reason,
+        "max_source_age_seconds": str(
+            FAST_LIVE_MAX_POLYMARKET_SOURCE_AGE_SECONDS
+        ),
+        "max_future_skew_seconds": str(
+            FAST_LIVE_MAX_POLYMARKET_SOURCE_FUTURE_SKEW_SECONDS
+        ),
+        "received_at": (
+            health.received_at.isoformat()
+            if health.received_at is not None
+            else None
+        ),
+        "source_timestamp": (
+            health.source_timestamp.isoformat()
+            if health.source_timestamp is not None
+            else None
+        ),
+        "source_age_seconds": (
+            str(health.source_age_seconds)
+            if health.source_age_seconds is not None
+            else None
+        ),
+        "transport_lag_seconds": (
+            str(health.transport_lag_seconds)
+            if health.transport_lag_seconds is not None
+            else None
+        ),
+    }
+
+
+_FAST_LIVE_SOURCE_TIME_RETRYABLE_REASONS = frozenset(
+    {
+        "polymarket_source_time_unavailable",
+        "polymarket_source_lag",
+        "polymarket_source_clock_ahead",
+    }
+)
+
+
+def _fast_live_retryable_risk_reasons(reasons: object) -> bool:
+    if not isinstance(reasons, (list, tuple)):
+        return False
+    normalized = tuple(
+        str(reason).strip()
+        for reason in reasons
+        if str(reason).strip()
+    )
+    if "live_interlock_blocked" in normalized:
+        specific = tuple(
+            reason
+            for reason in normalized
+            if reason != "live_interlock_blocked"
+        )
+        if not specific:
+            return False
+        normalized = specific
+
+    return bool(normalized) and all(
+        reason in _FAST_LIVE_SOURCE_TIME_RETRYABLE_REASONS
+        or _retryable_risk_reasons((reason,))
+        for reason in normalized
+    )
 
 @dataclass
 class FrozenPaperCashTracker:
@@ -435,6 +603,25 @@ def preview_fast_live_candidate(
                 "frozen paper order no longer matches source prediction"
             )
 
+        source_time_health = _polymarket_source_time_health(
+            connection,
+            condition_id=request.condition_id,
+            token_id=request.token_id,
+            observed_at=observed_at,
+        )
+        if not source_time_health.eligible:
+            return {
+                "status": "blocked",
+                "reason": source_time_health.reason,
+                "reasons": (source_time_health.reason,),
+                "retryable": True,
+                "prediction_id": request.prediction_id,
+                "paper_order_id": paper_order_id,
+                "polymarket_source_time": (
+                    _polymarket_source_time_evidence(source_time_health)
+                ),
+            }
+
         market_end_at = _stored_utc(
             prediction["market_end_at"],
             "market_end_at",
@@ -719,6 +906,19 @@ def prepare_fast_live_candidate(
             observed_at=observed_at,
             freshness_seconds=policy.max_prediction_age_seconds,
         )
+        source_time_health = _polymarket_source_time_health(
+            connection,
+            condition_id=request.condition_id,
+            token_id=request.token_id,
+            observed_at=observed_at,
+        )
+        effective_interlock_reasons = list(interlock.reasons)
+        if source_time_health.reason is not None:
+            effective_interlock_reasons.append(source_time_health.reason)
+        effective_interlock = InterlockDecision(
+            eligible=interlock.eligible and source_time_health.eligible,
+            reasons=tuple(effective_interlock_reasons),
+        )
         context = LiveRiskContext(
             prediction_id=str(prediction["prediction_id"]),
             prediction_semantic_sha256=str(prediction["semantic_sha256"]),
@@ -751,8 +951,8 @@ def prepare_fast_live_candidate(
         decision = evaluate_live_risk(
             policy=policy,
             context=context,
-            interlock_eligible=interlock.eligible,
-            interlock_reasons=interlock.reasons,
+            interlock_eligible=effective_interlock.eligible,
+            interlock_reasons=effective_interlock.reasons,
         )
         request_id = derive_id(
             "live-request",
@@ -777,8 +977,11 @@ def prepare_fast_live_candidate(
                 "api_healthy": api_healthy,
                 "official_open_order_count": official_open_order_count,
                 "collateral_balance_usd": collateral_balance_usd,
-                "interlock_eligible": interlock.eligible,
-                "interlock_reasons": interlock.reasons,
+                "interlock_eligible": effective_interlock.eligible,
+                "interlock_reasons": effective_interlock.reasons,
+                "polymarket_source_time": (
+                    _polymarket_source_time_evidence(source_time_health)
+                ),
                 "fast_live": True,
                 "finalized_from_preview": preview is not None,
             },
@@ -793,7 +996,9 @@ def prepare_fast_live_candidate(
                     else "live_risk_blocked"
                 ),
                 "reasons": decision.reasons,
-                "retryable": _retryable_risk_reasons(decision.reasons),
+                "retryable": _fast_live_retryable_risk_reasons(
+                    decision.reasons
+                ),
                 "prediction_id": request.prediction_id,
                 "paper_order_id": paper_order_id,
             }

@@ -487,3 +487,165 @@ def test_pending_gate_terminal_common_case_skips_reconciliation_scan(
         observed_at=BASE,
     ) is None
     assert connection.calls == 1
+
+
+
+def _insert_polymarket_source_time_event(
+    connection,
+    *,
+    received_at: datetime,
+    source_timestamp: datetime | None,
+) -> None:
+    connection.execute(
+        schema.raw_market_events.insert().values(
+            source="polymarket",
+            stream="market",
+            instrument="condition-source-time-health",
+            event_type="price_change",
+            source_timestamp=source_timestamp,
+            received_at=received_at,
+            sequence=None,
+            market_id="market-source-time-health",
+            asset_id=None,
+            payload={
+                "event_type": "price_change",
+                "market": "condition-source-time-health",
+                "price_changes": [
+                    {
+                        "asset_id": "token-source-time-health",
+                        "best_bid": "0.52",
+                        "best_ask": "0.53",
+                        "price": "0.53",
+                        "side": "SELL",
+                        "size": "10",
+                    }
+                ],
+            },
+            dedupe_key=canonical_hash(
+                {
+                    "received_at": received_at.isoformat(),
+                    "source_timestamp": (
+                        source_timestamp.isoformat()
+                        if source_timestamp is not None
+                        else None
+                    ),
+                }
+            ),
+        )
+    )
+
+
+def test_polymarket_source_time_health_accepts_recent_exchange_time() -> None:
+    engine = create_engine("sqlite://")
+    schema.metadata.create_all(engine)
+    with engine.begin() as connection:
+        _insert_polymarket_source_time_event(
+            connection,
+            received_at=BASE - timedelta(milliseconds=100),
+            source_timestamp=BASE - timedelta(milliseconds=400),
+        )
+
+    with engine.connect() as connection:
+        health = fast_live_prepare_module._polymarket_source_time_health(
+            connection,
+            condition_id="condition-source-time-health",
+            token_id="token-source-time-health",
+            observed_at=BASE,
+        )
+
+    assert health.eligible is True
+    assert health.reason is None
+    assert health.source_age_seconds == Decimal("0.4")
+    assert health.transport_lag_seconds == Decimal("0.3")
+
+
+def test_polymarket_source_time_health_rejects_recently_received_backlog() -> None:
+    engine = create_engine("sqlite://")
+    schema.metadata.create_all(engine)
+    with engine.begin() as connection:
+        _insert_polymarket_source_time_event(
+            connection,
+            received_at=BASE - timedelta(milliseconds=100),
+            source_timestamp=BASE - timedelta(seconds=20),
+        )
+
+    with engine.connect() as connection:
+        health = fast_live_prepare_module._polymarket_source_time_health(
+            connection,
+            condition_id="condition-source-time-health",
+            token_id="token-source-time-health",
+            observed_at=BASE,
+        )
+
+    assert health.eligible is False
+    assert health.reason == "polymarket_source_lag"
+    assert health.source_age_seconds == Decimal("20.0")
+    assert health.transport_lag_seconds == Decimal("19.9")
+
+
+def test_polymarket_source_time_health_fails_closed_without_source_time() -> None:
+    engine = create_engine("sqlite://")
+    schema.metadata.create_all(engine)
+    with engine.begin() as connection:
+        _insert_polymarket_source_time_event(
+            connection,
+            received_at=BASE - timedelta(milliseconds=100),
+            source_timestamp=None,
+        )
+
+    with engine.connect() as connection:
+        health = fast_live_prepare_module._polymarket_source_time_health(
+            connection,
+            condition_id="condition-source-time-health",
+            token_id="token-source-time-health",
+            observed_at=BASE,
+        )
+
+    assert health.eligible is False
+    assert health.reason == "polymarket_source_time_unavailable"
+    assert health.source_age_seconds is None
+
+
+def test_polymarket_source_time_health_rejects_material_clock_ahead() -> None:
+    engine = create_engine("sqlite://")
+    schema.metadata.create_all(engine)
+    with engine.begin() as connection:
+        _insert_polymarket_source_time_event(
+            connection,
+            received_at=BASE - timedelta(milliseconds=100),
+            source_timestamp=BASE + timedelta(seconds=2),
+        )
+
+    with engine.connect() as connection:
+        health = fast_live_prepare_module._polymarket_source_time_health(
+            connection,
+            condition_id="condition-source-time-health",
+            token_id="token-source-time-health",
+            observed_at=BASE,
+        )
+
+    assert health.eligible is False
+    assert health.reason == "polymarket_source_clock_ahead"
+    assert health.source_age_seconds == Decimal("-2.0")
+
+
+def test_polymarket_source_time_failures_are_retryable() -> None:
+    for reason in (
+        "polymarket_source_time_unavailable",
+        "polymarket_source_lag",
+        "polymarket_source_clock_ahead",
+    ):
+        assert fast_live_prepare_module._fast_live_retryable_risk_reasons((reason,)) is True
+        assert (
+            fast_live_prepare_module._fast_live_retryable_risk_reasons(
+                ("live_interlock_blocked", reason)
+            )
+            is True
+        )
+
+    assert (
+        fast_live_prepare_module._fast_live_retryable_risk_reasons(
+            ("live_interlock_blocked",)
+        )
+        is False
+    )
