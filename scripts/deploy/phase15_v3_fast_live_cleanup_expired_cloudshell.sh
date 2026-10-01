@@ -193,15 +193,37 @@ gcloud compute ssh "$EXEC_VM" \
              sudo test -f /var/lib/bp-canary/fast-live/KILL" ||
   fail "executor_session_not_quiescent"
 
+DEPLOYED_RELEASE_MAIN=""
 if [[ "$CLEANUP_MODE" == "operator_transition" ]]; then
-  gcloud compute ssh "$US_VM" \
-    --project="$PROJECT" --zone="$US_ZONE" --quiet \
-    --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$RELEASE_MAIN'" ||
-    fail "operator_transition_recorder_release_mismatch"
-  gcloud compute ssh "$EXEC_VM" \
-    --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
-    --command="sudo test \"\$(readlink -f /opt/bp-fast-live/current)\" = '/opt/bp-fast-live/releases/$RELEASE_MAIN'" ||
-    fail "operator_transition_executor_release_mismatch"
+  RECORDER_CURRENT="$(
+    gcloud compute ssh "$US_VM" \
+      --project="$PROJECT" --zone="$US_ZONE" --quiet \
+      --command="sudo readlink -f /opt/bp-fast-live/current"
+  )" || fail "operator_transition_recorder_release_read_failed"
+  EXECUTOR_CURRENT="$(
+    gcloud compute ssh "$EXEC_VM" \
+      --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
+      --command="sudo readlink -f /opt/bp-fast-live/current"
+  )" || fail "operator_transition_executor_release_read_failed"
+  RECORDER_PREFIX="/opt/bp-fast-live/releases/"
+  EXECUTOR_PREFIX="/opt/bp-fast-live/releases/"
+  [[ "$RECORDER_CURRENT" == "$RECORDER_PREFIX"* ]] ||
+    fail "operator_transition_recorder_release_path_invalid"
+  [[ "$EXECUTOR_CURRENT" == "$EXECUTOR_PREFIX"* ]] ||
+    fail "operator_transition_executor_release_path_invalid"
+  RECORDER_RELEASE_MAIN="${RECORDER_CURRENT#$RECORDER_PREFIX}"
+  EXECUTOR_RELEASE_MAIN="${EXECUTOR_CURRENT#$EXECUTOR_PREFIX}"
+  [[ "$RECORDER_RELEASE_MAIN" =~ ^[0-9a-f]{40}$ ]] ||
+    fail "operator_transition_recorder_release_invalid"
+  [[ "$EXECUTOR_RELEASE_MAIN" =~ ^[0-9a-f]{40}$ ]] ||
+    fail "operator_transition_executor_release_invalid"
+  [[ "$RECORDER_RELEASE_MAIN" == "$EXECUTOR_RELEASE_MAIN" ]] ||
+    fail "operator_transition_deployed_release_mismatch"
+  git -C "$ROOT" cat-file -e "$RECORDER_RELEASE_MAIN^{commit}" ||
+    fail "operator_transition_deployed_release_unknown"
+  git -C "$ROOT" merge-base --is-ancestor "$RECORDER_RELEASE_MAIN" "$HELPER_HEAD" ||
+    fail "operator_transition_deployed_release_not_in_main_history"
+  DEPLOYED_RELEASE_MAIN="$RECORDER_RELEASE_MAIN"
 fi
 
 # Source-side recovery must be fully durable before transport/session material is removed.
@@ -369,6 +391,9 @@ printf 'AUTHORIZATION_ID=%s\n' "$AUTH_ID"
 printf 'AUTHORIZATION_MODE=%s\n' "$AUTH_MODE"
 printf 'AUTHORIZATION_SOURCE_HOST=%s\n' "$AUTH_SOURCE_HOST"
 printf 'SESSION_RELEASE_MAIN=%s\n' "$RELEASE_MAIN"
+if [[ -n "$DEPLOYED_RELEASE_MAIN" ]]; then
+  printf 'DEPLOYED_RELEASE_MAIN=%s\n' "$DEPLOYED_RELEASE_MAIN"
+fi
 printf 'RUNTIME_EXPIRES_AT=%s\n' "$RUNTIME_EXPIRES"
 if [[ "$CLEANUP_MODE" == "zero_activity_abort" || "$CLEANUP_MODE" == "zero_activity_restart" ]]; then
   printf 'ZERO_ACTIVITY_VERIFIED=true\n'

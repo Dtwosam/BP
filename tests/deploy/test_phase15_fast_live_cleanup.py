@@ -211,8 +211,15 @@ def test_fast_live_cleanup_operator_transition_is_exactly_scoped() -> None:
     assert 'operator_transition_authorization_id_mismatch' in text
     assert 'operator_transition_release_main_unknown' in text
     assert 'operator_transition_release_main_not_in_main_history' in text
-    assert 'operator_transition_recorder_release_mismatch' in text
-    assert 'operator_transition_executor_release_mismatch' in text
-    assert "/opt/bp-fast-live/releases/$RELEASE_MAIN" in text
+    assert 'operator_transition_recorder_release_read_failed' in text
+    assert 'operator_transition_executor_release_read_failed' in text
+    assert 'operator_transition_recorder_release_path_invalid' in text
+    assert 'operator_transition_executor_release_path_invalid' in text
+    assert 'operator_transition_recorder_release_invalid' in text
+    assert 'operator_transition_executor_release_invalid' in text
+    assert 'operator_transition_deployed_release_mismatch' in text
+    assert 'operator_transition_deployed_release_unknown' in text
+    assert 'operator_transition_deployed_release_not_in_main_history' in text
+    assert 'DEPLOYED_RELEASE_MAIN=%s' in text
     assert 'operator_transition_authorization_mode_mismatch' in text
     assert 'operator_transition_runtime_expiry_outside_source_window' in text
