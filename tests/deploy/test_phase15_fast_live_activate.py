@@ -39,6 +39,8 @@ def test_fast_live_activation_inherits_continuous_session_authorization_mode() -
         "BP_FAST_LIVE_CONTINUOUS_SESSION=yes",
         "telegram-prepare/current-run",
         '[[ "$HEAD" == "$REMOTE_MAIN" ]]',
+        '[[ "$AUTH_MAIN" =~ ^[0-9a-f]{40}$ ]]',
+        'merge-base --is-ancestor "$AUTH_MAIN" "$HEAD"',
         "working_tree_not_clean",
     ):
         assert marker in text
@@ -107,7 +109,7 @@ def test_fast_live_activation_starts_receiver_armed_then_releases_and_starts_sou
         'geo.get("country") != "ZA"',
         "open_orders != 0",
         'collateral < Decimal("5")',
-        "/opt/bp-phase15-telegram-approval/releases/$HEAD",
+        "/opt/bp-phase15-telegram-approval/releases/$AUTH_MAIN",
         "/etc/bp/telegram-approval.env",
         "/etc/bp/telegram-approval-handoff.env",
         "telegram_approval_listener_start_failed",
@@ -119,6 +121,7 @@ def test_fast_live_activation_starts_receiver_armed_then_releases_and_starts_sou
         "telegram_approval_previous_state_read_failed",
         "TELEGRAM_APPROVAL_ACTIVE=true",
         "TELEGRAM_APPROVAL_RELEASE_MAIN=%s",
+        "CONTROL_MAIN=%s",
     ):
         assert marker in text
 
@@ -154,5 +157,5 @@ def test_fast_live_runtime_authorization_validation_uses_fail_closed_heredoc_gua
     text = ACTIVATE.read_text(encoding="utf-8")
 
     assert "<<'PY' ||\n  fail \"runtime_authorization_validation_failed\"" not in text
-    assert 'if ! PYTHONPATH="$ROOT/src" python3 - "$STATE" "$RUNTIME_AUTH" "$HEAD" <<\'PY\'' in text
+    assert 'if ! PYTHONPATH="$ROOT/src" python3 - "$STATE" "$RUNTIME_AUTH" "$AUTH_MAIN" <<\'PY\'' in text
     assert 'fail "runtime_authorization_validation_failed"' in text
