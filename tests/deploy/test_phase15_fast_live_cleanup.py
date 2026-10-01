@@ -262,5 +262,8 @@ def test_fast_live_cleanup_source_lag_restart_is_exactly_scoped() -> None:
     assert "assert not attempts" in text
     assert "assert not results" in text
     assert 'Path("/var/lib/bp/phase15-fast-live/published")' in text
+    assert 'payload.get("network_submission_attempt_consumed") is False' in text
+    assert 'payload.get("real_order_submitted") is False' in text
     assert 'result.get("network_submission_attempt_consumed") is False' in text
-    assert 'result.get("real_order_submitted") is False' in text
+    assert 'recorded.get("event_type") == "closed_before_submission"' in text
+    assert 'recorded.get("official_reconciliation_required") is False' in text

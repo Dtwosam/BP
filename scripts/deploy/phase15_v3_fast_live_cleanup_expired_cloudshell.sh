@@ -314,11 +314,16 @@ if root.is_dir():
         if str(payload.get("authorization_id") or "") != authorization_id:
             continue
         matching += 1
+        assert payload.get("network_submission_attempt_consumed") is False
+        assert payload.get("real_order_submitted") is False
+
         result_path = root / "results" / receipt.name
         assert result_path.is_file()
         result = json.loads(result_path.read_text(encoding="utf-8"))
         assert result.get("network_submission_attempt_consumed") is False
-        assert result.get("real_order_submitted") is False
+        recorded = result.get("recorded") or {}
+        assert recorded.get("event_type") == "closed_before_submission"
+        assert recorded.get("official_reconciliation_required") is False
 print(f"SOURCE_LAG_SESSION_PUBLICATION_COUNT={matching}")
 PY
   then
