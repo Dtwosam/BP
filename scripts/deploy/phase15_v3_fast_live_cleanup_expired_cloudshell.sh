@@ -10,6 +10,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 EXPIRED_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_EXPIRED_CLEANUP:-}"
 ABORT_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_ZERO_ACTIVITY_ABORT:-}"
 RESTART_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_ZERO_ACTIVITY_RESTART:-}"
+SOURCE_LAG_RESTART_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_SOURCE_LAG_RESTART:-}"
 TRANSITION_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_SESSION_TRANSITION:-}"
 CLEANUP_MODE=""
 if [[ "$EXPIRED_ACCEPT" == "I_ACCEPT_CLEAN_EXPIRED_CONTINUOUS_LIVE_SESSION" ]]; then
@@ -18,6 +19,8 @@ elif [[ "$ABORT_ACCEPT" == "I_ACCEPT_ABORT_ZERO_ACTIVITY_FAST_LIVE_SESSION_AFTER
   CLEANUP_MODE="zero_activity_abort"
 elif [[ "$RESTART_ACCEPT" == "I_ACCEPT_DEPLOY_FAST_LIVE_ZERO_FILL_FIX_AND_RESTART_SESSION" ]]; then
   CLEANUP_MODE="zero_activity_restart"
+elif [[ "$SOURCE_LAG_RESTART_ACCEPT" == "I_ACCEPT_ROTATE_ZERO_ATTEMPT_SOURCE_LAG_SESSION" ]]; then
+  CLEANUP_MODE="source_lag_restart"
 elif [[ "$TRANSITION_ACCEPT" == "I_ACCEPT_TRANSITION_STOPPED_FAST_LIVE_SESSION_TO_AUTHORIZED_V2" ]]; then
   CLEANUP_MODE="operator_transition"
 else
@@ -137,6 +140,16 @@ elif [[ "$CLEANUP_MODE" == "zero_activity_restart" ]]; then
     fail "zero_activity_restart_authorization_mode_mismatch"
   [[ "$RUNTIME_EXPIRES" == "2026-09-30T11:58:23.648915+00:00" ]] ||
     fail "zero_activity_restart_runtime_expiry_mismatch"
+elif [[ "$CLEANUP_MODE" == "source_lag_restart" ]]; then
+  [[ "$RUNTIME_EXPIRED" == "false" ]] || fail "source_lag_restart_runtime_already_expired"
+  [[ "$AUTH_ID" == "phase15-v3-fast-live-auto-continuous-v2-12h-2302945a-20261001T124442Z" ]] ||
+    fail "source_lag_restart_authorization_id_mismatch"
+  [[ "$RELEASE_MAIN" == "2302945a0fd6fe7f04654a6c7915767bdde5ef7d" ]] ||
+    fail "source_lag_restart_release_main_mismatch"
+  [[ "$AUTH_MODE" == "auto-telegram-continuous-v2" ]] ||
+    fail "source_lag_restart_authorization_mode_mismatch"
+  [[ "$RUNTIME_EXPIRES" == "2026-10-02T00:44:42+00:00" ]] ||
+    fail "source_lag_restart_runtime_expiry_mismatch"
 elif [[ "$CLEANUP_MODE" == "operator_transition" ]]; then
   [[ "$RUNTIME_EXPIRED" == "false" ]] || fail "operator_transition_runtime_already_expired"
   [[ "$AUTH_ID" == "phase15-v3-fast-live-auto-continuous-12h-21ee9a70-20260930T150000Z" ]] ||
@@ -254,6 +267,60 @@ gcloud compute ssh "$EXEC_VM" \
   --command="sudo sh -c '! grep -R -F -q cancellation_pending\":true /var/lib/bp-canary/fast-live/attempts 2>/dev/null &&
                           ! grep -R -F -q recovery_result_publish_pending\":true /var/lib/bp-canary/fast-live/attempts 2>/dev/null'" ||
   fail "executor_recovery_not_complete"
+
+if [[ "$CLEANUP_MODE" == "source_lag_restart" ]]; then
+  gcloud compute ssh "$EXEC_VM" \
+    --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
+    --command="sudo python3 - '$AUTH_ID'" <<'PY' ||
+    fail "source_lag_restart_attempt_scan_failed"
+from pathlib import Path
+import json
+import sys
+
+authorization_id = sys.argv[1]
+root = Path("/var/lib/bp-canary/fast-live/attempts")
+attempts = []
+results = []
+if root.is_dir():
+    for path in sorted(root.glob("*/attempt.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if str(payload.get("authorization_id") or "") == authorization_id:
+            attempts.append(str(path))
+    for path in sorted(root.glob("*/result.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if str(payload.get("authorization_id") or "") == authorization_id:
+            results.append(str(path))
+print(f"SOURCE_LAG_SESSION_ATTEMPT_MARKER_COUNT={len(attempts)}")
+print(f"SOURCE_LAG_SESSION_EXECUTION_RESULT_COUNT={len(results)}")
+assert not attempts
+assert not results
+PY
+
+  gcloud compute ssh "$US_VM" \
+    --project="$PROJECT" --zone="$US_ZONE" --quiet \
+    --command="sudo python3 - '$AUTH_ID'" <<'PY' ||
+    fail "source_lag_restart_publication_scan_failed"
+from pathlib import Path
+import json
+import sys
+
+authorization_id = sys.argv[1]
+root = Path("/var/lib/bp/phase15-fast-live/published")
+matching = 0
+if root.is_dir():
+    for receipt in sorted(root.glob("*.json")):
+        payload = json.loads(receipt.read_text(encoding="utf-8"))
+        if str(payload.get("authorization_id") or "") != authorization_id:
+            continue
+        matching += 1
+        result_path = root / "results" / receipt.name
+        assert result_path.is_file()
+        result = json.loads(result_path.read_text(encoding="utf-8"))
+        assert result.get("network_submission_attempt_consumed") is False
+        assert result.get("real_order_submitted") is False
+print(f"SOURCE_LAG_SESSION_PUBLICATION_COUNT={matching}")
+PY
+fi
 
 if [[ "$CLEANUP_MODE" == "zero_activity_abort" ]]; then
   read -r LIVE_PUBLICATIONS LIVE_RESULTS LIVE_SETTLEMENTS < <(
@@ -395,7 +462,7 @@ if [[ -n "$DEPLOYED_RELEASE_MAIN" ]]; then
   printf 'DEPLOYED_RELEASE_MAIN=%s\n' "$DEPLOYED_RELEASE_MAIN"
 fi
 printf 'RUNTIME_EXPIRES_AT=%s\n' "$RUNTIME_EXPIRES"
-if [[ "$CLEANUP_MODE" == "zero_activity_abort" || "$CLEANUP_MODE" == "zero_activity_restart" ]]; then
+if [[ "$CLEANUP_MODE" == "zero_activity_abort" || "$CLEANUP_MODE" == "zero_activity_restart" || "$CLEANUP_MODE" == "source_lag_restart" ]]; then
   printf 'ZERO_ACTIVITY_VERIFIED=true\n'
 fi
 printf 'KILL_SWITCH_ENGAGED=true\n'
