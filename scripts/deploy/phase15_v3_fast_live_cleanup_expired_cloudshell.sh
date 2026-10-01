@@ -10,6 +10,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 EXPIRED_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_EXPIRED_CLEANUP:-}"
 ABORT_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_ZERO_ACTIVITY_ABORT:-}"
 RESTART_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_ZERO_ACTIVITY_RESTART:-}"
+TRANSITION_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_SESSION_TRANSITION:-}"
 CLEANUP_MODE=""
 if [[ "$EXPIRED_ACCEPT" == "I_ACCEPT_CLEAN_EXPIRED_CONTINUOUS_LIVE_SESSION" ]]; then
   CLEANUP_MODE="expired"
@@ -17,6 +18,8 @@ elif [[ "$ABORT_ACCEPT" == "I_ACCEPT_ABORT_ZERO_ACTIVITY_FAST_LIVE_SESSION_AFTER
   CLEANUP_MODE="zero_activity_abort"
 elif [[ "$RESTART_ACCEPT" == "I_ACCEPT_DEPLOY_FAST_LIVE_ZERO_FILL_FIX_AND_RESTART_SESSION" ]]; then
   CLEANUP_MODE="zero_activity_restart"
+elif [[ "$TRANSITION_ACCEPT" == "I_ACCEPT_TRANSITION_STOPPED_FAST_LIVE_SESSION_TO_AUTHORIZED_V2" ]]; then
+  CLEANUP_MODE="operator_transition"
 else
   fail "explicit_session_cleanup_acceptance_required"
 fi
@@ -134,6 +137,16 @@ elif [[ "$CLEANUP_MODE" == "zero_activity_restart" ]]; then
     fail "zero_activity_restart_authorization_mode_mismatch"
   [[ "$RUNTIME_EXPIRES" == "2026-09-30T11:58:23.648915+00:00" ]] ||
     fail "zero_activity_restart_runtime_expiry_mismatch"
+elif [[ "$CLEANUP_MODE" == "operator_transition" ]]; then
+  [[ "$RUNTIME_EXPIRED" == "false" ]] || fail "operator_transition_runtime_already_expired"
+  [[ "$AUTH_ID" == "phase15-v3-fast-live-auto-continuous-12h-21ee9a70-20260930T150000Z" ]] ||
+    fail "operator_transition_authorization_id_mismatch"
+  [[ "$RELEASE_MAIN" == "21ee9a7019d3af1678427162b65d3661444e0d9b" ]] ||
+    fail "operator_transition_release_main_mismatch"
+  [[ "$AUTH_MODE" == "auto-telegram-continuous-v1" ]] ||
+    fail "operator_transition_authorization_mode_mismatch"
+  [[ "$RUNTIME_EXPIRES" == "2026-10-01T03:00:00.231215+00:00" ]] ||
+    fail "operator_transition_runtime_expiry_mismatch"
 else
   fail "cleanup_mode_invalid"
 fi

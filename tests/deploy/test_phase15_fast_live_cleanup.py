@@ -29,9 +29,11 @@ def test_fast_live_expired_cleanup_is_fail_closed_and_session_scoped() -> None:
         "I_ACCEPT_CLEAN_EXPIRED_CONTINUOUS_LIVE_SESSION",
         "I_ACCEPT_ABORT_ZERO_ACTIVITY_FAST_LIVE_SESSION_AFTER_VALIDATION_DEFECT",
         "I_ACCEPT_DEPLOY_FAST_LIVE_ZERO_FILL_FIX_AND_RESTART_SESSION",
+        "I_ACCEPT_TRANSITION_STOPPED_FAST_LIVE_SESSION_TO_AUTHORIZED_V2",
         'CLEANUP_MODE="expired"',
         'CLEANUP_MODE="zero_activity_abort"',
         'CLEANUP_MODE="zero_activity_restart"',
+        'CLEANUP_MODE="operator_transition"',
         "runtime_authorization_not_expired",
         "zero_activity_abort_runtime_already_expired",
         "phase15-v3-fast-live-auto-continuous-5d305254b06ef0cbce33065e",
@@ -188,3 +190,29 @@ def test_fast_live_cleanup_zero_activity_restart_is_exactly_scoped() -> None:
         '"$CLEANUP_MODE" == "zero_activity_restart" ]]'
         in text
     )
+
+
+def test_fast_live_cleanup_operator_transition_is_exactly_scoped() -> None:
+    text = CLEANUP.read_text(encoding="utf-8")
+
+    assert (
+        '[[ "$AUTH_ID" == '
+        '"phase15-v3-fast-live-auto-continuous-12h-21ee9a70-20260930T150000Z" ]]'
+        in text
+    )
+    assert (
+        '[[ "$RELEASE_MAIN" == '
+        '"21ee9a7019d3af1678427162b65d3661444e0d9b" ]]'
+        in text
+    )
+    assert '[[ "$AUTH_MODE" == "auto-telegram-continuous-v1" ]]' in text
+    assert (
+        '[[ "$RUNTIME_EXPIRES" == '
+        '"2026-10-01T03:00:00.231215+00:00" ]]'
+        in text
+    )
+    assert 'operator_transition_runtime_already_expired' in text
+    assert 'operator_transition_authorization_id_mismatch' in text
+    assert 'operator_transition_release_main_mismatch' in text
+    assert 'operator_transition_authorization_mode_mismatch' in text
+    assert 'operator_transition_runtime_expiry_mismatch' in text
