@@ -269,10 +269,9 @@ gcloud compute ssh "$EXEC_VM" \
   fail "executor_recovery_not_complete"
 
 if [[ "$CLEANUP_MODE" == "source_lag_restart" ]]; then
-  gcloud compute ssh "$EXEC_VM" \
+  if ! gcloud compute ssh "$EXEC_VM" \
     --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
-    --command="sudo python3 - '$AUTH_ID'" <<'PY' ||
-    fail "source_lag_restart_attempt_scan_failed"
+    --command="sudo python3 - '$AUTH_ID'" <<'PY'
 from pathlib import Path
 import json
 import sys
@@ -295,11 +294,13 @@ print(f"SOURCE_LAG_SESSION_EXECUTION_RESULT_COUNT={len(results)}")
 assert not attempts
 assert not results
 PY
+  then
+    fail "source_lag_restart_attempt_scan_failed"
+  fi
 
-  gcloud compute ssh "$US_VM" \
+  if ! gcloud compute ssh "$US_VM" \
     --project="$PROJECT" --zone="$US_ZONE" --quiet \
-    --command="sudo python3 - '$AUTH_ID'" <<'PY' ||
-    fail "source_lag_restart_publication_scan_failed"
+    --command="sudo python3 - '$AUTH_ID'" <<'PY'
 from pathlib import Path
 import json
 import sys
@@ -320,6 +321,9 @@ if root.is_dir():
         assert result.get("real_order_submitted") is False
 print(f"SOURCE_LAG_SESSION_PUBLICATION_COUNT={matching}")
 PY
+  then
+    fail "source_lag_restart_publication_scan_failed"
+  fi
 fi
 
 if [[ "$CLEANUP_MODE" == "zero_activity_abort" ]]; then
