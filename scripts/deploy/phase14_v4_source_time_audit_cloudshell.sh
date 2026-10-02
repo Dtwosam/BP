@@ -168,7 +168,7 @@ try:
                     FROM raw_market_events
                     WHERE source_timestamp IS NOT NULL
                       AND received_at >= :epoch_start - INTERVAL '1 hour'
-                      AND received_at < :HOLDOUT_START
+                      AND received_at < :holdout_start
                       AND (
                         (
                           source = 'coinbase'
@@ -234,7 +234,7 @@ try:
             ),
             {
                 "epoch_start": EPOCH_START,
-                "HOLDOUT_START": HOLDOUT_START,
+                "holdout_start": HOLDOUT_START,
             },
         ).mappings().all()
 
@@ -281,7 +281,7 @@ try:
                     WHERE mf.feature_version = :feature_version
                       AND mf.feature_offset_seconds = :selected_offset
                       AND mf.market_start_at >= :epoch_start
-                      AND mf.market_start_at < :HOLDOUT_START
+                      AND mf.market_start_at < :holdout_start
                     ORDER BY mf.condition_id, mf.id DESC
                 )
                 SELECT
@@ -337,7 +337,7 @@ try:
                 "feature_version": FEATURE_VERSION,
                 "selected_offset": SELECTED_OFFSET_SECONDS,
                 "epoch_start": EPOCH_START,
-                "HOLDOUT_START": HOLDOUT_START,
+                "holdout_start": HOLDOUT_START,
             },
         ).mappings().all()
 
@@ -385,7 +385,7 @@ result = {
         "research_plan_version": RESEARCH_PLAN_VERSION,
         "feature_version": FEATURE_VERSION,
         "epoch_start": EPOCH_START.isoformat(),
-        "HOLDOUT_START_exclusive": HOLDOUT_START.isoformat(),
+        "holdout_start_exclusive": HOLDOUT_START.isoformat(),
         "selected_offset_seconds": SELECTED_OFFSET_SECONDS,
         "final_holdout_labels_read": False,
     },
