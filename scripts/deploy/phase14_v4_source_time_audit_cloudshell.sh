@@ -59,12 +59,15 @@ from sqlalchemy import create_engine, select, text
 
 from bp_engine.config import Settings
 from bp_engine.storage import schema
-from bp_engine.v4_research.config import FROZEN_V4_GATE_B_CONFIG
-
 SOURCE_TIME_LIMIT_SECONDS = Decimal("2")
 LEGACY_FRESHNESS_SECONDS = Decimal("10")
 MAX_FUTURE_SKEW_SECONDS = Decimal("1")
 SELECTED_OFFSET_SECONDS = 240
+RESEARCH_PLAN_VERSION = "v4-gate-b-preregister-v2"
+FEATURE_VERSION = "core-v4-regime-aware"
+EPOCH_START = datetime(2026, 9, 24, 0, 0, tzinfo=UTC)
+EPOCH_END = datetime(2026, 9, 30, 0, 0, tzinfo=UTC)
+HOLDOUT_START = datetime(2026, 9, 29, 0, 0, tzinfo=UTC)
 ZERO = Decimal("0")
 
 
@@ -102,8 +105,6 @@ def summarize(values: list[Decimal]) -> dict[str, Any]:
     }
 
 
-config = FROZEN_V4_GATE_B_CONFIG
-holdout_start = config.epoch_end - config.final_holdout_duration
 settings = Settings(_env_file="/etc/bp/bp.env")
 engine = create_engine(
     settings.database_url,
@@ -127,10 +128,10 @@ try:
                     schema.market_features.c.features,
                     schema.market_features.c.missing_flags,
                 ).where(
-                    schema.market_features.c.feature_version == config.feature_version,
+                    schema.market_features.c.feature_version == FEATURE_VERSION,
                     schema.market_features.c.feature_offset_seconds == SELECTED_OFFSET_SECONDS,
-                    schema.market_features.c.market_start_at >= config.epoch_start,
-                    schema.market_features.c.market_start_at < holdout_start,
+                    schema.market_features.c.market_start_at >= EPOCH_START,
+                    schema.market_features.c.market_start_at < HOLDOUT_START,
                 )
             ).mappings()
         ]
@@ -232,8 +233,8 @@ try:
                 """
             ),
             {
-                "epoch_start": config.epoch_start,
-                "holdout_start": holdout_start,
+                "epoch_start": EPOCH_START,
+                "holdout_start": HOLDOUT_START,
             },
         ).mappings().all()
 
@@ -333,10 +334,10 @@ try:
                 """
             ),
             {
-                "feature_version": config.feature_version,
+                "feature_version": FEATURE_VERSION,
                 "selected_offset": SELECTED_OFFSET_SECONDS,
-                "epoch_start": config.epoch_start,
-                "holdout_start": holdout_start,
+                "epoch_start": EPOCH_START,
+                "holdout_start": HOLDOUT_START,
             },
         ).mappings().all()
 
@@ -381,10 +382,10 @@ result = {
     "generated_at": datetime.now(UTC).isoformat(),
     "audit": "v4_source_time_integrity_v1",
     "scope": {
-        "research_plan_version": config.research_plan_version,
-        "feature_version": config.feature_version,
-        "epoch_start": config.epoch_start.isoformat(),
-        "holdout_start_exclusive": holdout_start.isoformat(),
+        "research_plan_version": RESEARCH_PLAN_VERSION,
+        "feature_version": FEATURE_VERSION,
+        "epoch_start": EPOCH_START.isoformat(),
+        "holdout_start_exclusive": HOLDOUT_START.isoformat(),
         "selected_offset_seconds": SELECTED_OFFSET_SECONDS,
         "final_holdout_labels_read": False,
     },
