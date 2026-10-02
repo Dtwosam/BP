@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -17,6 +18,7 @@ def _load_module():
     spec = importlib.util.spec_from_file_location("v3_fresh_book_pnl_report", SCRIPT)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -45,7 +47,13 @@ def _market_values(condition_id: str, start: datetime, outcome: str) -> dict[str
     }
 
 
-def _label_values(condition_id: str, start: datetime, outcome: str, *, version: str = "official-outcome-v1") -> dict[str, object]:
+def _label_values(
+    condition_id: str,
+    start: datetime,
+    outcome: str,
+    *,
+    version: str = "official-outcome-v1",
+) -> dict[str, object]:
     return {
         "condition_id": condition_id,
         "gamma_market_id": f"gamma-{condition_id}",
@@ -73,7 +81,14 @@ def _write_epoch(path: Path, records: list[dict[str, object]]) -> None:
     )
 
 
-def _trade(prediction_id: str, condition_id: str, side: str, *, shares: str = "10", cost: str = "4") -> dict[str, object]:
+def _trade(
+    prediction_id: str,
+    condition_id: str,
+    side: str,
+    *,
+    shares: str = "10",
+    cost: str = "4",
+) -> dict[str, object]:
     return {
         "event": "fresh_book_shadow_evaluated",
         "prediction_id": prediction_id,
