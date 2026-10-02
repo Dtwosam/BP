@@ -38,7 +38,7 @@ def _decimal(value: object, name: str) -> Decimal:
         raise FreshBookPnlReportError(f"{name} must be numeric")
     try:
         result = value if isinstance(value, Decimal) else Decimal(str(value))
-    except (InvalidOperation, ValueError) as exc:
+    except (InvalidOperation, TypeError, ValueError) as exc:
         raise FreshBookPnlReportError(f"{name} must be numeric") from exc
     if not result.is_finite():
         raise FreshBookPnlReportError(f"{name} must be finite")
