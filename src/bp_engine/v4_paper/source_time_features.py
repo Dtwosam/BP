@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -207,11 +207,9 @@ class V4SourceTimeReader:
                     )
                 )
         elif source == "bybit":
-            statement = statement.where(
-                raw_market_events.c.event_type
-                == ("ticker" if ticker_only else raw_market_events.c.event_type)
-            )
-            if not ticker_only:
+            if ticker_only:
+                statement = statement.where(raw_market_events.c.event_type == "ticker")
+            else:
                 statement = statement.where(
                     raw_market_events.c.event_type.in_(("ticker", "trade"))
                 )
