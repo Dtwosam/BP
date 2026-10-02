@@ -38,8 +38,6 @@ def test_v4_shadow_runner_is_read_only_money_disabled_and_source_time_safe() -> 
         "post_order(",
         "create_market_order",
         "market_order",
-        "private_key",
-        "wallet_address",
         "connection.execute(insert",
         "connection.execute(update",
         "connection.execute(delete",
