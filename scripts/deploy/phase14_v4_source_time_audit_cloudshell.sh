@@ -50,7 +50,6 @@ sudo -u bp env \
 from __future__ import annotations
 
 import json
-from collections import defaultdict
 from datetime import UTC, datetime
 from decimal import Decimal
 from statistics import median
@@ -156,9 +155,6 @@ try:
                     SELECT
                         source,
                         stream,
-                        event_type,
-                        received_at,
-                        source_timestamp,
                         EXTRACT(EPOCH FROM (received_at - source_timestamp)) AS transport_lag_seconds,
                         EXTRACT(
                             EPOCH FROM (
@@ -194,9 +190,45 @@ try:
                 SELECT
                     source,
                     stream,
-                    transport_lag_seconds,
-                    event_gap_seconds
+                    COUNT(*) AS event_count,
+                    MIN(transport_lag_seconds) AS transport_min,
+                    percentile_cont(0.5) WITHIN GROUP (
+                        ORDER BY transport_lag_seconds
+                    ) AS transport_median,
+                    percentile_cont(0.95) WITHIN GROUP (
+                        ORDER BY transport_lag_seconds
+                    ) AS transport_p95,
+                    percentile_cont(0.99) WITHIN GROUP (
+                        ORDER BY transport_lag_seconds
+                    ) AS transport_p99,
+                    MAX(transport_lag_seconds) AS transport_max,
+                    COUNT(*) FILTER (
+                        WHERE transport_lag_seconds > 2
+                    ) AS transport_over_2s,
+                    COUNT(*) FILTER (
+                        WHERE transport_lag_seconds > 10
+                    ) AS transport_over_10s,
+                    COUNT(*) FILTER (
+                        WHERE transport_lag_seconds < -1
+                    ) AS source_clock_ahead_over_1s,
+                    COUNT(event_gap_seconds) AS gap_count,
+                    MIN(event_gap_seconds) AS gap_min,
+                    percentile_cont(0.5) WITHIN GROUP (
+                        ORDER BY event_gap_seconds
+                    ) AS gap_median,
+                    percentile_cont(0.95) WITHIN GROUP (
+                        ORDER BY event_gap_seconds
+                    ) AS gap_p95,
+                    percentile_cont(0.99) WITHIN GROUP (
+                        ORDER BY event_gap_seconds
+                    ) AS gap_p99,
+                    MAX(event_gap_seconds) AS gap_max,
+                    COUNT(*) FILTER (
+                        WHERE event_gap_seconds > 10
+                    ) AS gaps_over_10s
                 FROM priced
+                GROUP BY source, stream
+                ORDER BY source, stream
                 """
             ),
             {
@@ -206,25 +238,31 @@ try:
         ).mappings().all()
 
         feed_health: dict[str, dict[str, Any]] = {}
-        grouped: dict[str, dict[str, list[Decimal]]] = defaultdict(
-            lambda: {"transport": [], "gaps": []}
-        )
         for row in feed_rows:
             key = f'{row["source"]}:{row["stream"]}'
-            grouped[key]["transport"].append(dec(row["transport_lag_seconds"]))
-            if row["event_gap_seconds"] is not None:
-                grouped[key]["gaps"].append(dec(row["event_gap_seconds"]))
-
-        for key, values in sorted(grouped.items()):
-            transport = values["transport"]
-            gaps = values["gaps"]
             feed_health[key] = {
-                "transport_lag_seconds": summarize(transport),
-                "price_event_gap_seconds": summarize(gaps),
-                "transport_lag_over_2s": sum(v > SOURCE_TIME_LIMIT_SECONDS for v in transport),
-                "transport_lag_over_10s": sum(v > LEGACY_FRESHNESS_SECONDS for v in transport),
-                "source_clock_ahead_over_1s": sum(v < -MAX_FUTURE_SKEW_SECONDS for v in transport),
-                "price_event_gaps_over_10s": sum(v > LEGACY_FRESHNESS_SECONDS for v in gaps),
+                "transport_lag_seconds": {
+                    "count": int(row["event_count"]),
+                    "min": row["transport_min"],
+                    "median": row["transport_median"],
+                    "p95": row["transport_p95"],
+                    "p99": row["transport_p99"],
+                    "max": row["transport_max"],
+                },
+                "price_event_gap_seconds": {
+                    "count": int(row["gap_count"]),
+                    "min": row["gap_min"],
+                    "median": row["gap_median"],
+                    "p95": row["gap_p95"],
+                    "p99": row["gap_p99"],
+                    "max": row["gap_max"],
+                },
+                "transport_lag_over_2s": int(row["transport_over_2s"]),
+                "transport_lag_over_10s": int(row["transport_over_10s"]),
+                "source_clock_ahead_over_1s": int(
+                    row["source_clock_ahead_over_1s"]
+                ),
+                "price_event_gaps_over_10s": int(row["gaps_over_10s"]),
             }
 
         execution_rows = connection.execute(
