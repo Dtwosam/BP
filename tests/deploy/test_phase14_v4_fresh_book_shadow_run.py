@@ -30,7 +30,7 @@ def test_v4_fresh_book_shadow_run_helper_is_hash_bound_and_money_disabled() -> N
         "EXPECTED_MODEL_SIZE_BYTES=230132",
         "RUN_SECONDS >= 300 && RUN_SECONDS <= 43200",
         "git archive --format=tar.gz",
-        "default_transaction_read_only",
+        '"database_read_only":true',
         "MODE=research",
         "LIVE_TRADING_ENABLED=false",
         "MAX_TRADE_SIZE_USD=0",
