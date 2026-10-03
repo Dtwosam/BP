@@ -5,14 +5,17 @@ import glob
 import json
 from collections import Counter
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from statistics import median
 from typing import Any
 
 from sqlalchemy import Connection, create_engine, select, text
 
 from bp_engine.config import Settings
 from bp_engine.storage import schema
+from bp_engine.v4_paper.inference import FROZEN_V4_OFFSET_SECONDS
 from bp_engine.v4_paper.source_time_features import V4_CORE_SOURCE_REQUIRED_FLAGS
 
 OFFICIAL_LABEL_VERSION = "official-outcome-v1"
@@ -20,6 +23,12 @@ EVALUATED_EVENT = "v4_fresh_book_shadow_evaluated"
 QUOTE_UNAVAILABLE_EVENT = "v4_fresh_book_shadow_quote_unavailable"
 SOURCE_INELIGIBLE_EVENT = "v4_fresh_book_shadow_source_ineligible"
 EXTREME_EDGE_THRESHOLD = Decimal("0.50")
+SOURCE_TIMING_SEARCH_SECONDS = 10.0
+_SOURCE_SPECS = {
+    "coinbase": ("coinbase", "spot", "BTC-USD"),
+    "bybit_spot": ("bybit", "spot", "BTCUSDT"),
+    "bybit_linear": ("bybit", "linear", "BTCUSDT"),
+}
 _ZERO = Decimal("0")
 
 
@@ -72,6 +81,263 @@ def _source_reason_dimensions(reason: str) -> tuple[str, str, str]:
             f"unrecognized source-ineligible reason: {reason}"
         )
     return venue, anchor, failure_type
+
+
+def _db_utc(value: datetime) -> datetime:
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _parse_iso_utc(value: object, name: str) -> datetime:
+    if not isinstance(value, str) or not value:
+        raise V4FreshBookPnlReportError(f"{name} must be an ISO timestamp")
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise V4FreshBookPnlReportError(f"{name} must be timezone-aware")
+    return parsed.astimezone(UTC)
+
+
+def _positive_decimal(value: object) -> Decimal | None:
+    if value in (None, "") or isinstance(value, bool):
+        return None
+    try:
+        parsed = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+    if not parsed.is_finite() or parsed <= _ZERO:
+        return None
+    return parsed
+
+
+def _raw_row_has_price(row: dict[str, Any]) -> bool:
+    payload = row.get("payload")
+    if not isinstance(payload, dict):
+        return False
+    source = str(row.get("source") or "")
+    event_type = str(row.get("event_type") or "")
+    if source == "coinbase":
+        events = payload.get("events")
+        if not isinstance(events, list) or not events or not isinstance(events[0], dict):
+            return False
+        first = events[0]
+        if event_type.startswith("ticker_"):
+            tickers = first.get("tickers")
+            return bool(
+                isinstance(tickers, list)
+                and tickers
+                and isinstance(tickers[0], dict)
+                and _positive_decimal(tickers[0].get("price")) is not None
+            )
+        if event_type.startswith("market_trades_"):
+            trades = first.get("trades")
+            return bool(
+                isinstance(trades, list)
+                and trades
+                and isinstance(trades[-1], dict)
+                and _positive_decimal(trades[-1].get("price")) is not None
+            )
+        return False
+    if source == "bybit":
+        data = payload.get("data")
+        if event_type == "ticker" and isinstance(data, dict):
+            return _positive_decimal(data.get("lastPrice")) is not None
+        if event_type == "trade" and isinstance(data, list) and data:
+            trade = data[-1]
+            return bool(
+                isinstance(trade, dict)
+                and _positive_decimal(trade.get("p")) is not None
+            )
+    return False
+
+
+def _timing_row_details(
+    row: dict[str, Any],
+    requested_at: datetime,
+) -> dict[str, Any]:
+    source_at = _db_utc(row["source_timestamp"])
+    received_at = _db_utc(row["received_at"])
+    source_delta = (source_at - requested_at).total_seconds()
+    received_delta = (received_at - requested_at).total_seconds()
+    transport_lag = (received_at - source_at).total_seconds()
+    in_source_window = -2.0 <= source_delta <= 1.0
+    metadata_eligible = (
+        in_source_window
+        and transport_lag >= -1.0
+        and received_delta <= 0.0
+    )
+    return {
+        "row_id": int(row["id"]),
+        "event_type": str(row["event_type"]),
+        "source_at": source_at.isoformat(),
+        "received_at": received_at.isoformat(),
+        "source_delta_seconds": source_delta,
+        "received_delta_seconds": received_delta,
+        "transport_lag_seconds": transport_lag,
+        "in_source_window": in_source_window,
+        "metadata_eligible": metadata_eligible,
+    }
+
+
+def _classify_timing_rows(
+    rows: list[dict[str, Any]],
+    requested_at: datetime,
+) -> dict[str, Any]:
+    usable = [row for row in rows if _raw_row_has_price(row)]
+    if not usable:
+        return {
+            "classification": "no_usable_event_within_10s",
+            "nearest": None,
+        }
+
+    details = [_timing_row_details(row, requested_at) for row in usable]
+    nearest = min(
+        details,
+        key=lambda item: (
+            abs(float(item["source_delta_seconds"])),
+            abs(float(item["received_delta_seconds"])),
+            int(item["row_id"]),
+        ),
+    )
+    if any(bool(item["metadata_eligible"]) for item in details):
+        classification = "eventually_metadata_eligible"
+    elif any(
+        bool(item["in_source_window"])
+        and float(item["received_delta_seconds"]) > 0.0
+        and float(item["transport_lag_seconds"]) >= -1.0
+        for item in details
+    ):
+        classification = "late_received_after_cutoff"
+    elif any(bool(item["in_source_window"]) for item in details):
+        classification = "source_window_rejected_by_transport"
+    else:
+        classification = "no_usable_event_in_source_window"
+    return {
+        "classification": classification,
+        "nearest": nearest,
+    }
+
+
+def _nearest_timing_rows(
+    connection: Connection,
+    *,
+    venue: str,
+    requested_at: datetime,
+) -> list[dict[str, Any]]:
+    source, stream, instrument = _SOURCE_SPECS[venue]
+    window = timedelta(seconds=SOURCE_TIMING_SEARCH_SECONDS)
+    statement = select(schema.raw_market_events).where(
+        schema.raw_market_events.c.source == source,
+        schema.raw_market_events.c.stream == stream,
+        schema.raw_market_events.c.instrument == instrument,
+        schema.raw_market_events.c.source_timestamp.is_not(None),
+        schema.raw_market_events.c.source_timestamp >= requested_at - window,
+        schema.raw_market_events.c.source_timestamp <= requested_at + window,
+    )
+    if source == "coinbase":
+        statement = statement.where(
+            schema.raw_market_events.c.event_type.like("ticker_%")
+            | schema.raw_market_events.c.event_type.like("market_trades_%")
+        )
+    else:
+        statement = statement.where(
+            schema.raw_market_events.c.event_type.in_(("ticker", "trade"))
+        )
+    return [dict(row) for row in connection.execute(statement).mappings()]
+
+
+def _distribution(values: list[float]) -> dict[str, float] | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    p95_index = max(0, min(len(ordered) - 1, int(0.95 * len(ordered) + 0.999999) - 1))
+    return {
+        "min": ordered[0],
+        "median": float(median(ordered)),
+        "p95": ordered[p95_index],
+        "max": ordered[-1],
+    }
+
+
+def _source_timing_diagnostic(
+    connection: Connection,
+    records: list[dict[str, Any]],
+) -> dict[str, Any]:
+    by_reason: dict[str, dict[str, Any]] = {}
+    cache: dict[tuple[str, datetime], dict[str, Any]] = {}
+
+    for record in records:
+        decision_at = _parse_iso_utc(record.get("decision_at"), "decision_at")
+        raw_reasons = record.get("source_ineligible_reasons")
+        if not isinstance(raw_reasons, list):
+            continue
+        for raw_reason in raw_reasons:
+            reason = str(raw_reason)
+            venue, anchor, failure_type = _source_reason_dimensions(reason)
+            if failure_type != "missing":
+                continue
+            requested_at = (
+                decision_at
+                if anchor == "current"
+                else decision_at - timedelta(seconds=FROZEN_V4_OFFSET_SECONDS)
+            )
+            key = (venue, requested_at)
+            diagnostic = cache.get(key)
+            if diagnostic is None:
+                rows = _nearest_timing_rows(
+                    connection,
+                    venue=venue,
+                    requested_at=requested_at,
+                )
+                diagnostic = _classify_timing_rows(rows, requested_at)
+                cache[key] = diagnostic
+
+            bucket = by_reason.setdefault(
+                reason,
+                {
+                    "missing_count": 0,
+                    "classification_counts": Counter(),
+                    "nearest_source_delta_seconds": [],
+                    "nearest_received_delta_seconds": [],
+                    "nearest_transport_lag_seconds": [],
+                },
+            )
+            bucket["missing_count"] += 1
+            bucket["classification_counts"][diagnostic["classification"]] += 1
+            nearest = diagnostic["nearest"]
+            if nearest is not None:
+                bucket["nearest_source_delta_seconds"].append(
+                    float(nearest["source_delta_seconds"])
+                )
+                bucket["nearest_received_delta_seconds"].append(
+                    float(nearest["received_delta_seconds"])
+                )
+                bucket["nearest_transport_lag_seconds"].append(
+                    float(nearest["transport_lag_seconds"])
+                )
+
+    rendered: dict[str, Any] = {}
+    for reason, bucket in sorted(by_reason.items()):
+        rendered[reason] = {
+            "missing_count": bucket["missing_count"],
+            "classification_counts": dict(
+                sorted(bucket["classification_counts"].items())
+            ),
+            "nearest_source_delta_seconds": _distribution(
+                bucket["nearest_source_delta_seconds"]
+            ),
+            "nearest_received_delta_seconds": _distribution(
+                bucket["nearest_received_delta_seconds"]
+            ),
+            "nearest_transport_lag_seconds": _distribution(
+                bucket["nearest_transport_lag_seconds"]
+            ),
+        }
+    return {
+        "search_window_seconds": SOURCE_TIMING_SEARCH_SECONDS,
+        "frozen_offset_seconds": FROZEN_V4_OFFSET_SECONDS,
+        "by_reason": rendered,
+    }
 
 
 def _source_ineligible_summary(
@@ -358,6 +624,10 @@ def build_report(
             "source_ineligible": sum(epoch["source_ineligible"] for epoch in epochs),
             "source_ineligible_breakdown": _source_ineligible_summary(
                 all_source_ineligible_records
+            ),
+            "source_timing_diagnostic": _source_timing_diagnostic(
+                connection,
+                all_source_ineligible_records,
             ),
             "duplicate_prediction_count_across_epochs": duplicate_across_epochs,
             **_metrics(all_trades, outcomes),
