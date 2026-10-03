@@ -6,6 +6,7 @@ ZONE="${PHASE14_V4_VISIBILITY_ZONE:-us-east1-c}"
 VM="${PHASE14_V4_VISIBILITY_VM:-bp-recorder}"
 ENV_FILE="${PHASE14_V4_VISIBILITY_ENV_FILE:-/etc/bp/bp.env}"
 EXPECTED_DEPLOYED_HEAD='52b4355d6f077373b873f7a6f42bc37a20ddbc7b'
+ALLOW_MAINTENANCE_HANDOFF="${PHASE14_V4_VISIBILITY_ALLOW_MAINTENANCE_HANDOFF:-false}"
 
 fail() {
   printf 'PHASE14_V4_RECORDER_VISIBILITY_PREFLIGHT=FAIL:%s\n' "$1" >&2
@@ -22,6 +23,7 @@ git pull --ff-only origin main >/dev/null || fail "pull_main_failed"
 LOCAL_HEAD="$(git rev-parse HEAD)"
 REMOTE_MAIN="$(git rev-parse origin/main)"
 [[ "$LOCAL_HEAD" == "$REMOTE_MAIN" ]] || fail "main_head_mismatch"
+[[ "$ALLOW_MAINTENANCE_HANDOFF" == "true" || "$ALLOW_MAINTENANCE_HANDOFF" == "false" ]] || fail "maintenance_handoff_flag_invalid"
 command -v gcloud >/dev/null 2>&1 || fail "gcloud_missing"
 gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q . || fail "gcloud_auth_missing"
 
@@ -34,6 +36,7 @@ set -Eeuo pipefail
 REPO='/opt/bp'
 ENV_FILE='/etc/bp/bp.env'
 EXPECTED_DEPLOYED_HEAD='52b4355d6f077373b873f7a6f42bc37a20ddbc7b'
+ALLOW_MAINTENANCE_HANDOFF='__ALLOW_MAINTENANCE_HANDOFF__'
 
 fail() {
   echo "PHASE14_V4_RECORDER_VISIBILITY_PREFLIGHT=FAIL:$1" >&2
@@ -73,7 +76,15 @@ read_env() {
 for unit in bp-postgres.service bp-recorder.service bp-v3-frozen-predictor.service bp-v3-paper-execution.service; do
   systemctl is-active --quiet "$unit" || fail "service_not_active:$unit"
 done
-for timer in bp-storage-maintenance.timer bp-storage-disk-health.timer bp-v2-forward-coverage.timer bp-v4-forward-coverage.timer; do
+systemctl is-enabled --quiet bp-storage-maintenance.timer || fail "timer_not_enabled:bp-storage-maintenance.timer"
+if [[ "$ALLOW_MAINTENANCE_HANDOFF" == "true" ]]; then
+  if systemctl is-active --quiet bp-storage-maintenance.timer; then
+    fail "maintenance_timer_active_during_handoff"
+  fi
+else
+  systemctl is-active --quiet bp-storage-maintenance.timer || fail "timer_not_active:bp-storage-maintenance.timer"
+fi
+for timer in bp-storage-disk-health.timer bp-v2-forward-coverage.timer bp-v4-forward-coverage.timer; do
   systemctl is-enabled --quiet "$timer" || fail "timer_not_enabled:$timer"
   systemctl is-active --quiet "$timer" || fail "timer_not_active:$timer"
 done
@@ -103,6 +114,7 @@ printf 'PRODUCTION_MUTATION=false\n'
 REMOTE
 
 REMOTE_SCRIPT="${REMOTE_SCRIPT/__REPORT_B64__/$REPORT_B64}"
+REMOTE_SCRIPT="${REMOTE_SCRIPT/__ALLOW_MAINTENANCE_HANDOFF__/$ALLOW_MAINTENANCE_HANDOFF}"
 REMOTE_B64="$(printf '%s' "$REMOTE_SCRIPT" | base64 | tr -d '\n')"
 
 printf 'PROJECT=%s\n' "$PROJECT"
@@ -111,5 +123,6 @@ printf 'ZONE=%s\n' "$ZONE"
 printf 'CONTROL_MAIN=%s\n' "$LOCAL_HEAD"
 printf 'EXPECTED_DEPLOYED_HEAD=%s\n' "$EXPECTED_DEPLOYED_HEAD"
 printf 'REPORT_READ_ONLY=true\n'
+printf 'MAINTENANCE_HANDOFF_MODE=%s\n' "$ALLOW_MAINTENANCE_HANDOFF"
 
 gcloud compute ssh "$VM" --project="$PROJECT" --zone="$ZONE" --quiet --command="printf '%s' '$REMOTE_B64' | base64 -d | sudo bash"
