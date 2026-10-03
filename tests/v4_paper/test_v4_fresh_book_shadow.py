@@ -6,6 +6,7 @@ from decimal import Decimal
 import pytest
 
 from bp_engine.v4_paper.fresh_book_shadow import (
+    EXTREME_EDGE_OBSERVATION_THRESHOLD,
     TARGET_NOTIONAL_USD,
     V4FreshBookShadowError,
     evaluate_v4_fresh_book_shadow,
@@ -65,3 +66,30 @@ def test_v4_fresh_book_shadow_rejects_wrong_model() -> None:
             (("0.40", "100"),),
             quote_observed_at=datetime(2026, 10, 2, 12, 4, tzinfo=UTC),
         )
+
+
+def test_v4_extreme_edge_is_observed_but_not_blocked() -> None:
+    result = evaluate_v4_fresh_book_shadow(
+        _prediction(0.8),
+        (("0.10", "100"),),
+        quote_observed_at=datetime(2026, 10, 2, 12, 4, 0, 100000, tzinfo=UTC),
+    )
+
+    assert result.cost_adjusted_edge is not None
+    assert result.cost_adjusted_edge > EXTREME_EDGE_OBSERVATION_THRESHOLD
+    assert result.extreme_edge_observation is True
+    assert result.trade is True
+    assert result.filled_shares > 0
+
+
+def test_v4_normal_edge_is_not_tagged_extreme() -> None:
+    result = evaluate_v4_fresh_book_shadow(
+        _prediction(0.8),
+        (("0.40", "100"),),
+        quote_observed_at=datetime(2026, 10, 2, 12, 4, 0, 100000, tzinfo=UTC),
+    )
+
+    assert result.cost_adjusted_edge is not None
+    assert result.cost_adjusted_edge < EXTREME_EDGE_OBSERVATION_THRESHOLD
+    assert result.extreme_edge_observation is False
+    assert result.trade is True
