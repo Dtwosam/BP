@@ -12,6 +12,7 @@ from statistics import median
 from typing import Any
 
 from sqlalchemy import Connection, create_engine, select, text
+from sqlalchemy.exc import OperationalError
 
 from bp_engine.config import Settings
 from bp_engine.storage import schema
@@ -23,8 +24,8 @@ EVALUATED_EVENT = "v4_fresh_book_shadow_evaluated"
 QUOTE_UNAVAILABLE_EVENT = "v4_fresh_book_shadow_quote_unavailable"
 SOURCE_INELIGIBLE_EVENT = "v4_fresh_book_shadow_source_ineligible"
 EXTREME_EDGE_THRESHOLD = Decimal("0.50")
-SOURCE_TIMING_SEARCH_SECONDS = 10.0
-SOURCE_TIMING_RECEIVED_SEARCH_SECONDS = 30.0
+SOURCE_TIMING_RECEIVED_WINDOW_SECONDS = 4.0
+SOURCE_TIMING_ROW_LIMIT_PER_SIDE = 200
 SOURCE_TIMING_SAMPLE_LIMIT_PER_REASON = 3
 _SOURCE_SPECS = {
     "coinbase": ("coinbase", "spot", "BTC-USD"),
@@ -188,7 +189,7 @@ def _classify_timing_rows(
     usable = [row for row in rows if _raw_row_has_price(row)]
     if not usable:
         return {
-            "classification": "no_usable_event_within_10s",
+            "classification": "no_usable_event_near_cutoff",
             "nearest": None,
         }
 
@@ -220,25 +221,47 @@ def _classify_timing_rows(
     }
 
 
-def _nearest_timing_rows(
+def _timing_rows_received_side(
     connection: Connection,
     *,
     venue: str,
     requested_at: datetime,
+    after_cutoff: bool,
 ) -> list[dict[str, Any]]:
     source, stream, instrument = _SOURCE_SPECS[venue]
-    source_window = timedelta(seconds=SOURCE_TIMING_SEARCH_SECONDS)
-    received_window = timedelta(seconds=SOURCE_TIMING_RECEIVED_SEARCH_SECONDS)
-    statement = select(schema.raw_market_events).where(
+    window = timedelta(seconds=SOURCE_TIMING_RECEIVED_WINDOW_SECONDS)
+    columns = (
+        schema.raw_market_events.c.id,
+        schema.raw_market_events.c.source,
+        schema.raw_market_events.c.stream,
+        schema.raw_market_events.c.instrument,
+        schema.raw_market_events.c.event_type,
+        schema.raw_market_events.c.source_timestamp,
+        schema.raw_market_events.c.received_at,
+        schema.raw_market_events.c.payload,
+    )
+    statement = select(*columns).where(
         schema.raw_market_events.c.source == source,
         schema.raw_market_events.c.stream == stream,
         schema.raw_market_events.c.instrument == instrument,
-        schema.raw_market_events.c.received_at >= requested_at - received_window,
-        schema.raw_market_events.c.received_at <= requested_at + received_window,
         schema.raw_market_events.c.source_timestamp.is_not(None),
-        schema.raw_market_events.c.source_timestamp >= requested_at - source_window,
-        schema.raw_market_events.c.source_timestamp <= requested_at + source_window,
     )
+    if after_cutoff:
+        statement = statement.where(
+            schema.raw_market_events.c.received_at > requested_at,
+            schema.raw_market_events.c.received_at <= requested_at + window,
+        ).order_by(
+            schema.raw_market_events.c.received_at.asc(),
+            schema.raw_market_events.c.id.asc(),
+        )
+    else:
+        statement = statement.where(
+            schema.raw_market_events.c.received_at >= requested_at - window,
+            schema.raw_market_events.c.received_at <= requested_at,
+        ).order_by(
+            schema.raw_market_events.c.received_at.desc(),
+            schema.raw_market_events.c.id.desc(),
+        )
     if source == "coinbase":
         statement = statement.where(
             schema.raw_market_events.c.event_type.like("ticker_%")
@@ -248,7 +271,29 @@ def _nearest_timing_rows(
         statement = statement.where(
             schema.raw_market_events.c.event_type.in_(("ticker", "trade"))
         )
+    statement = statement.limit(SOURCE_TIMING_ROW_LIMIT_PER_SIDE)
     return [dict(row) for row in connection.execute(statement).mappings()]
+
+
+def _cutoff_timing_rows(
+    connection: Connection,
+    *,
+    venue: str,
+    requested_at: datetime,
+) -> list[dict[str, Any]]:
+    before = _timing_rows_received_side(
+        connection,
+        venue=venue,
+        requested_at=requested_at,
+        after_cutoff=False,
+    )
+    after = _timing_rows_received_side(
+        connection,
+        venue=venue,
+        requested_at=requested_at,
+        after_cutoff=True,
+    )
+    return before + after
 
 
 def _distribution(values: list[float]) -> dict[str, float] | None:
@@ -315,12 +360,24 @@ def _source_timing_diagnostic(
             key = (venue, requested_at)
             diagnostic = cache.get(key)
             if diagnostic is None:
-                rows = _nearest_timing_rows(
-                    connection,
-                    venue=venue,
-                    requested_at=requested_at,
-                )
-                diagnostic = _classify_timing_rows(rows, requested_at)
+                try:
+                    rows = _cutoff_timing_rows(
+                        connection,
+                        venue=venue,
+                        requested_at=requested_at,
+                    )
+                    diagnostic = _classify_timing_rows(rows, requested_at)
+                except OperationalError as exc:
+                    connection.rollback()
+                    classification = (
+                        "query_timeout"
+                        if "statement timeout" in str(exc).lower()
+                        else "query_failed"
+                    )
+                    diagnostic = {
+                        "classification": classification,
+                        "nearest": None,
+                    }
                 cache[key] = diagnostic
             classification_counts[diagnostic["classification"]] += 1
             nearest = diagnostic["nearest"]
@@ -338,8 +395,8 @@ def _source_timing_diagnostic(
             "nearest_transport_lag_seconds": _distribution(transport_lags),
         }
     return {
-        "search_window_seconds": SOURCE_TIMING_SEARCH_SECONDS,
-        "received_search_window_seconds": SOURCE_TIMING_RECEIVED_SEARCH_SECONDS,
+        "received_window_seconds": SOURCE_TIMING_RECEIVED_WINDOW_SECONDS,
+        "row_limit_per_side": SOURCE_TIMING_ROW_LIMIT_PER_SIDE,
         "sample_limit_per_reason": SOURCE_TIMING_SAMPLE_LIMIT_PER_REASON,
         "frozen_offset_seconds": FROZEN_V4_OFFSET_SECONDS,
         "by_reason": rendered,
