@@ -29,18 +29,41 @@ command -v gcloud >/dev/null 2>&1 || fail "gcloud_missing"
 gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q . ||
   fail "gcloud_auth_missing"
 
-LEDGER_SCRIPT="$ROOT/scripts/report_v3_fresh_book_trades.py"
-FORENSICS_SCRIPT="$ROOT/scripts/report_v3_feature_forensics.py"
-[[ -r "$LEDGER_SCRIPT" ]] || fail "trade_ledger_script_missing"
-[[ -r "$FORENSICS_SCRIPT" ]] || fail "forensics_script_missing"
+for path in \
+  scripts/report_v3_fresh_book_trades.py \
+  scripts/report_v3_feature_forensics.py \
+  src/bp_engine/features/v3_models.py \
+  src/bp_engine/features/v3_service.py \
+  src/bp_engine/v3_paper/service.py; do
+  git cat-file -e "$LOCAL_HEAD:$path" || fail "source_path_missing:$path"
+done
 
-LEDGER_B64="$(base64 < "$LEDGER_SCRIPT" | tr -d '\n')"
-FORENSICS_B64="$(base64 < "$FORENSICS_SCRIPT" | tr -d '\n')"
+ARCHIVE="$(mktemp /tmp/bp-v3-feature-forensics.XXXXXX.tar.gz)"
+cleanup() {
+  rm -f "$ARCHIVE"
+}
+trap cleanup EXIT
+
+git archive --format=tar.gz --output="$ARCHIVE" "$LOCAL_HEAD"
+
+if command -v sha256sum >/dev/null 2>&1; then
+  ARCHIVE_SHA="$(sha256sum "$ARCHIVE" | awk '{print $1}')"
+else
+  ARCHIVE_SHA="$(shasum -a 256 "$ARCHIVE" | awk '{print $1}')"
+fi
+[[ "$ARCHIVE_SHA" =~ ^[0-9a-f]{64}$ ]] || fail "archive_sha_invalid"
+
+REMOTE_ARCHIVE="/tmp/bp-v3-feature-forensics-${LOCAL_HEAD}.tar.gz"
+gcloud compute scp "$ARCHIVE" "$VM:$REMOTE_ARCHIVE" \
+  --project="$PROJECT" \
+  --zone="$ZONE" \
+  --quiet >/dev/null || fail "archive_upload_failed"
 
 printf 'PROJECT=%s\n' "$PROJECT"
 printf 'VM=%s\n' "$VM"
 printf 'ZONE=%s\n' "$ZONE"
 printf 'CONTROL_MAIN=%s\n' "$LOCAL_HEAD"
+printf 'ARCHIVE_SHA256=%s\n' "$ARCHIVE_SHA"
 printf 'REPORT_READ_ONLY=true\n'
 printf 'V4_HOLDOUT_LABELS_READ=false\n'
 
@@ -48,15 +71,60 @@ gcloud compute ssh "$VM" \
   --project="$PROJECT" \
   --zone="$ZONE" \
   --quiet \
-  --command="set -Eeuo pipefail
-tmp=\$(mktemp -d /tmp/bp-v3-forensics.XXXXXX)
-trap 'rm -rf \"\$tmp\"' EXIT
-chmod 0755 \"\$tmp\"
-printf '%s' '$LEDGER_B64' | base64 -d > \"\$tmp/report_v3_fresh_book_trades.py\"
-printf '%s' '$FORENSICS_B64' | base64 -d > \"\$tmp/report_v3_feature_forensics.py\"
-chmod 0644 \"\$tmp/\"*.py
-cd \"\$tmp\"
-sudo -u bp env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/opt/bp/src \
-  /opt/bp/.venv/bin/python report_v3_feature_forensics.py \
-  --env-file '$ENV_FILE' \
-  --evidence-glob '/var/lib/bp/evidence/v3-fresh-book-shadow-*.jsonl'"
+  --command="bash -s -- '$REMOTE_ARCHIVE' '$LOCAL_HEAD' '$ARCHIVE_SHA' '$ENV_FILE'" <<'REMOTE'
+set -Eeuo pipefail
+
+archive="$1"
+head="$2"
+expected_archive_sha="$3"
+env_file="$4"
+tmp=""
+
+cleanup_remote() {
+  local rc=$?
+  trap - EXIT
+  set +e
+  [[ -n "$tmp" ]] && rm -rf "$tmp"
+  rm -f "$archive"
+  exit "$rc"
+}
+trap cleanup_remote EXIT
+
+fail() {
+  printf 'PHASE15_V3_FEATURE_FORENSICS=FAIL:%s\n' "$1" >&2
+  exit 1
+}
+
+[[ "$head" =~ ^[0-9a-f]{40}$ ]] || fail "head_invalid"
+[[ "$expected_archive_sha" =~ ^[0-9a-f]{64}$ ]] ||
+  fail "expected_archive_sha_invalid"
+[[ "$env_file" == /* ]] || fail "env_file_not_absolute"
+[[ -r "$archive" ]] || fail "archive_missing"
+[[ -x /opt/bp/.venv/bin/python ]] || fail "production_python_missing"
+
+actual_archive_sha="$(sha256sum "$archive" | awk '{print $1}')"
+[[ "$actual_archive_sha" == "$expected_archive_sha" ]] ||
+  fail "archive_sha_mismatch"
+
+tmp="$(mktemp -d /tmp/bp-v3-forensics.XXXXXX)"
+repo="$tmp/repo"
+mkdir -p "$repo"
+tar -xzf "$archive" -C "$repo"
+chmod -R a+rX "$repo"
+
+for path in \
+  scripts/report_v3_fresh_book_trades.py \
+  scripts/report_v3_feature_forensics.py \
+  src/bp_engine/features/v3_models.py \
+  src/bp_engine/features/v3_service.py \
+  src/bp_engine/v3_paper/service.py; do
+  [[ -r "$repo/$path" ]] || fail "staged_source_missing:$path"
+done
+
+sudo -u bp env \
+  PYTHONDONTWRITEBYTECODE=1 \
+  PYTHONPATH="$repo/src" \
+  /opt/bp/.venv/bin/python "$repo/scripts/report_v3_feature_forensics.py" \
+  --env-file "$env_file" \
+  --evidence-glob '/var/lib/bp/evidence/v3-fresh-book-shadow-*.jsonl'
+REMOTE
