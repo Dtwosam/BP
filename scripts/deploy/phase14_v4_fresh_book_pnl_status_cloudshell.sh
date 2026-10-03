@@ -44,16 +44,21 @@ gcloud compute ssh "$VM" \
   --zone="$ZONE" \
   --quiet \
   --command="set -Eeuo pipefail
-release=/var/lib/bp/runtime/v4-source-time-fresh-book-shadow-$LOCAL_HEAD
+latest=\$(ls -1t /var/lib/bp/evidence/v4-fresh-book-shadow-*.jsonl 2>/dev/null | head -n1)
+[[ -n \"\$latest\" ]] || { echo PHASE14_V4_FRESH_BOOK_PNL_STATUS=FAIL:evidence_missing >&2; exit 1; }
+run_name=\$(basename \"\$latest\" .jsonl)
+head_short=\${run_name##*-}
+mapfile -t releases < <(find /var/lib/bp/runtime -maxdepth 1 -mindepth 1 -type d -name \"v4-source-time-fresh-book-shadow-\${head_short}*\" -print | sort)
+(( \${#releases[@]} == 1 )) || { echo PHASE14_V4_FRESH_BOOK_PNL_STATUS=FAIL:runtime_source_ambiguous >&2; exit 1; }
+release=\${releases[0]}
 [[ -d \"\$release/src/bp_engine\" ]] || { echo PHASE14_V4_FRESH_BOOK_PNL_STATUS=FAIL:runtime_source_missing >&2; exit 1; }
 tmp=\$(mktemp -d /tmp/bp-v4-pnl.XXXXXX)
 trap 'rm -rf \"\$tmp\"' EXIT
 chmod 0755 \"\$tmp\"
 printf '%s' '$REPORT_B64' | base64 -d > \"\$tmp/report_v4_fresh_book_pnl.py\"
 chmod 0644 \"\$tmp/report_v4_fresh_book_pnl.py\"
-latest=\$(ls -1t /var/lib/bp/evidence/v4-fresh-book-shadow-*.jsonl 2>/dev/null | head -n1)
-[[ -n \"\$latest\" ]] || { echo PHASE14_V4_FRESH_BOOK_PNL_STATUS=FAIL:evidence_missing >&2; exit 1; }
-printf 'EVIDENCE_FILE=%s\n' \"\$latest\"
+printf 'EVIDENCE_FILE=%s\\n' \"\$latest\"
+printf 'RUNTIME_SOURCE=%s\\n' \"\$release\"
 sudo -u bp env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=\"\$release/src\" \
   /opt/bp/.venv/bin/python \"\$tmp/report_v4_fresh_book_pnl.py\" \
   --env-file '$ENV_FILE' \
