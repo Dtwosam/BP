@@ -103,6 +103,7 @@ def test_v4_pnl_source_uses_official_labels_and_read_only_db() -> None:
         "edge_le_0_50",
         "statement_timeout=5000",
         "SOURCE_TIMING_SAMPLE_LIMIT_PER_REASON",
+        "SOURCE_TIMING_ROW_LIMIT_PER_SIDE",
     ):
         assert marker in source
     assert "resolved_outcome" not in source
@@ -195,7 +196,7 @@ def test_classify_timing_rows_detects_eventually_metadata_eligible() -> None:
     assert diagnostic["nearest"]["received_delta_seconds"] == -0.1
 
 
-def test_nearest_timing_rows_bounds_by_received_time() -> None:
+def test_cutoff_timing_rows_use_narrow_received_windows_and_limits() -> None:
     module = _load()
     requested = datetime(2026, 10, 3, 12, 4, tzinfo=UTC)
 
@@ -207,24 +208,27 @@ def test_nearest_timing_rows_bounds_by_received_time() -> None:
             return iter(())
 
     class _Connection:
-        statement = None
+        statements = []
 
         def execute(self, statement):
-            self.statement = statement
+            self.statements.append(statement)
             return _Rows()
 
     connection = _Connection()
-    rows = module._nearest_timing_rows(
+    rows = module._cutoff_timing_rows(
         connection,
         venue="bybit_spot",
         requested_at=requested,
     )
 
     assert rows == []
-    statement = str(connection.statement)
-    assert "raw_market_events.received_at >=" in statement
-    assert "raw_market_events.received_at <=" in statement
-    assert module.SOURCE_TIMING_RECEIVED_SEARCH_SECONDS == 30.0
+    assert len(connection.statements) == 2
+    rendered = [str(statement) for statement in connection.statements]
+    assert all("raw_market_events.received_at" in statement for statement in rendered)
+    assert all("raw_market_events.source_timestamp >=" not in statement for statement in rendered)
+    assert all(" LIMIT " in statement for statement in rendered)
+    assert module.SOURCE_TIMING_RECEIVED_WINDOW_SECONDS == 4.0
+    assert module.SOURCE_TIMING_ROW_LIMIT_PER_SIDE == 200
 
 
 def test_source_timing_diagnostic_samples_large_reason_sets() -> None:
@@ -261,9 +265,42 @@ def test_source_timing_diagnostic_samples_large_reason_sets() -> None:
     assert reason["missing_count"] == 10
     assert reason["diagnosed_count"] == 3
     assert reason["classification_counts"] == {
-        "no_usable_event_within_10s": 3
+        "no_usable_event_near_cutoff": 3
     }
-    assert connection.execute_count == 3
+    assert connection.execute_count == 6
+
+
+def test_source_timing_diagnostic_recovers_from_query_timeout() -> None:
+    module = _load()
+    requested = datetime(2026, 10, 3, 12, 4, tzinfo=UTC)
+
+    class _Connection:
+        rolled_back = False
+
+        def execute(self, statement):
+            raise module.OperationalError(
+                "select",
+                {},
+                Exception("canceling statement due to statement timeout"),
+            )
+
+        def rollback(self):
+            self.rolled_back = True
+
+    connection = _Connection()
+    diagnostic = module._source_timing_diagnostic(
+        connection,
+        [
+            {
+                "decision_at": requested.isoformat(),
+                "source_ineligible_reasons": ["bybit_linear_current_missing"],
+            }
+        ],
+    )
+
+    reason = diagnostic["by_reason"]["bybit_linear_current_missing"]
+    assert reason["classification_counts"] == {"query_timeout": 1}
+    assert connection.rolled_back is True
 
 
 def test_classify_timing_rows_detects_no_event_in_source_window() -> None:
