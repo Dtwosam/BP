@@ -101,6 +101,8 @@ def test_v4_pnl_source_uses_official_labels_and_read_only_db() -> None:
         "v4_fresh_book_shadow_source_ineligible",
         "edge_gt_0_50",
         "edge_le_0_50",
+        "statement_timeout=5000",
+        "SOURCE_TIMING_SAMPLE_LIMIT_PER_REASON",
     ):
         assert marker in source
     assert "resolved_outcome" not in source
@@ -223,6 +225,45 @@ def test_nearest_timing_rows_bounds_by_received_time() -> None:
     assert "raw_market_events.received_at >=" in statement
     assert "raw_market_events.received_at <=" in statement
     assert module.SOURCE_TIMING_RECEIVED_SEARCH_SECONDS == 30.0
+
+
+def test_source_timing_diagnostic_samples_large_reason_sets() -> None:
+    module = _load()
+    requested = datetime(2026, 10, 3, 12, 4, tzinfo=UTC)
+
+    class _Rows:
+        def mappings(self):
+            return self
+
+        def __iter__(self):
+            return iter(())
+
+    class _Connection:
+        execute_count = 0
+
+        def execute(self, statement):
+            self.execute_count += 1
+            return _Rows()
+
+    records = [
+        {
+            "decision_at": (requested + timedelta(minutes=index)).isoformat(),
+            "source_ineligible_reasons": ["coinbase_current_missing"],
+        }
+        for index in range(10)
+    ]
+    connection = _Connection()
+
+    diagnostic = module._source_timing_diagnostic(connection, records)
+
+    reason = diagnostic["by_reason"]["coinbase_current_missing"]
+    assert diagnostic["sample_limit_per_reason"] == 3
+    assert reason["missing_count"] == 10
+    assert reason["diagnosed_count"] == 3
+    assert reason["classification_counts"] == {
+        "no_usable_event_within_10s": 3
+    }
+    assert connection.execute_count == 3
 
 
 def test_classify_timing_rows_detects_no_event_in_source_window() -> None:
