@@ -26,7 +26,7 @@ def test_v4_visibility_report_is_read_only_and_bounded() -> None:
         'isolation_level="AUTOCOMMIT"',
         "LOOKBACK_SECONDS = 10.0",
         "DEFAULT_SAMPLES = 80",
-        "metadata_ready_fraction",
+        "timestamp_window_ready_fraction",
         "max_same_row_streak_seconds",
         "pg_stat_activity",
         "pg_blocking_pids",
