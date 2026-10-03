@@ -25,6 +25,7 @@ SOURCE_INELIGIBLE_EVENT = "v4_fresh_book_shadow_source_ineligible"
 EXTREME_EDGE_THRESHOLD = Decimal("0.50")
 SOURCE_TIMING_SEARCH_SECONDS = 10.0
 SOURCE_TIMING_RECEIVED_SEARCH_SECONDS = 30.0
+SOURCE_TIMING_SAMPLE_LIMIT_PER_REASON = 3
 _SOURCE_SPECS = {
     "coinbase": ("coinbase", "spot", "BTC-USD"),
     "bybit_spot": ("bybit", "spot", "BTCUSDT"),
@@ -263,12 +264,24 @@ def _distribution(values: list[float]) -> dict[str, float] | None:
     }
 
 
+def _evenly_spaced_sample[T](items: list[T], limit: int) -> list[T]:
+    if limit <= 0:
+        return []
+    if len(items) <= limit:
+        return list(items)
+    if limit == 1:
+        return [items[len(items) // 2]]
+    return [
+        items[index * (len(items) - 1) // (limit - 1)]
+        for index in range(limit)
+    ]
+
+
 def _source_timing_diagnostic(
     connection: Connection,
     records: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    by_reason: dict[str, dict[str, Any]] = {}
-    cache: dict[tuple[str, datetime], dict[str, Any]] = {}
+    occurrences: dict[str, list[tuple[str, datetime]]] = {}
 
     for record in records:
         decision_at = _parse_iso_utc(record.get("decision_at"), "decision_at")
@@ -285,6 +298,20 @@ def _source_timing_diagnostic(
                 if anchor == "current"
                 else decision_at - timedelta(seconds=FROZEN_V4_OFFSET_SECONDS)
             )
+            occurrences.setdefault(reason, []).append((venue, requested_at))
+
+    rendered: dict[str, Any] = {}
+    cache: dict[tuple[str, datetime], dict[str, Any]] = {}
+    for reason, reason_occurrences in sorted(occurrences.items()):
+        classification_counts: Counter[str] = Counter()
+        source_deltas: list[float] = []
+        received_deltas: list[float] = []
+        transport_lags: list[float] = []
+        sampled = _evenly_spaced_sample(
+            reason_occurrences,
+            SOURCE_TIMING_SAMPLE_LIMIT_PER_REASON,
+        )
+        for venue, requested_at in sampled:
             key = (venue, requested_at)
             diagnostic = cache.get(key)
             if diagnostic is None:
@@ -295,51 +322,25 @@ def _source_timing_diagnostic(
                 )
                 diagnostic = _classify_timing_rows(rows, requested_at)
                 cache[key] = diagnostic
-
-            bucket = by_reason.setdefault(
-                reason,
-                {
-                    "missing_count": 0,
-                    "classification_counts": Counter(),
-                    "nearest_source_delta_seconds": [],
-                    "nearest_received_delta_seconds": [],
-                    "nearest_transport_lag_seconds": [],
-                },
-            )
-            bucket["missing_count"] += 1
-            bucket["classification_counts"][diagnostic["classification"]] += 1
+            classification_counts[diagnostic["classification"]] += 1
             nearest = diagnostic["nearest"]
             if nearest is not None:
-                bucket["nearest_source_delta_seconds"].append(
-                    float(nearest["source_delta_seconds"])
-                )
-                bucket["nearest_received_delta_seconds"].append(
-                    float(nearest["received_delta_seconds"])
-                )
-                bucket["nearest_transport_lag_seconds"].append(
-                    float(nearest["transport_lag_seconds"])
-                )
+                source_deltas.append(float(nearest["source_delta_seconds"]))
+                received_deltas.append(float(nearest["received_delta_seconds"]))
+                transport_lags.append(float(nearest["transport_lag_seconds"]))
 
-    rendered: dict[str, Any] = {}
-    for reason, bucket in sorted(by_reason.items()):
         rendered[reason] = {
-            "missing_count": bucket["missing_count"],
-            "classification_counts": dict(
-                sorted(bucket["classification_counts"].items())
-            ),
-            "nearest_source_delta_seconds": _distribution(
-                bucket["nearest_source_delta_seconds"]
-            ),
-            "nearest_received_delta_seconds": _distribution(
-                bucket["nearest_received_delta_seconds"]
-            ),
-            "nearest_transport_lag_seconds": _distribution(
-                bucket["nearest_transport_lag_seconds"]
-            ),
+            "missing_count": len(reason_occurrences),
+            "diagnosed_count": len(sampled),
+            "classification_counts": dict(sorted(classification_counts.items())),
+            "nearest_source_delta_seconds": _distribution(source_deltas),
+            "nearest_received_delta_seconds": _distribution(received_deltas),
+            "nearest_transport_lag_seconds": _distribution(transport_lags),
         }
     return {
         "search_window_seconds": SOURCE_TIMING_SEARCH_SECONDS,
         "received_search_window_seconds": SOURCE_TIMING_RECEIVED_SEARCH_SECONDS,
+        "sample_limit_per_reason": SOURCE_TIMING_SAMPLE_LIMIT_PER_REASON,
         "frozen_offset_seconds": FROZEN_V4_OFFSET_SECONDS,
         "by_reason": rendered,
     }
@@ -672,7 +673,7 @@ def main() -> int:
     engine = create_engine(
         settings.database_url,
         pool_pre_ping=True,
-        connect_args={"options": "-c default_transaction_read_only=on"},
+        connect_args={"options": "-c default_transaction_read_only=on -c statement_timeout=5000"},
     )
     try:
         with engine.connect() as connection:
