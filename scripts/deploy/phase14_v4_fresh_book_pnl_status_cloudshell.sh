@@ -53,9 +53,9 @@ chmod 0644 \"\$tmp/report_v4_fresh_book_pnl.py\"
 latest=\$(sudo -u bp bash -c '
   shopt -s nullglob
   files=(/var/lib/bp/evidence/v4-fresh-book-shadow-*.jsonl)
-  (( ${#files[@]} > 0 )) || exit 3
-  newest=${files[0]}
-  for file in \"${files[@]}\"; do
+  (( \${#files[@]} > 0 )) || exit 3
+  newest=\${files[0]}
+  for file in \"\${files[@]}\"; do
     [[ \"\$file\" -nt \"\$newest\" ]] && newest=\$file
   done
   printf \"%s\\n\" \"\$newest\"
