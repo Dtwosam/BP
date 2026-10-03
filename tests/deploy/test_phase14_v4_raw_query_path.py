@@ -23,11 +23,15 @@ def test_v4_raw_query_path_is_read_only_metadata_and_explain() -> None:
     for marker in (
         "default_transaction_read_only=on",
         "SHOW default_transaction_read_only",
-        "pg_indexes",
+        "pg_index",
+        "pg_stat_activity",
+        "pg_blocking_pids",
         "pg_inherits",
         "pg_total_relation_size",
         "EXPLAIN (FORMAT JSON, COSTS OFF)",
         "statement_timeout=3000",
+        "_safe_section",
+        "v4_raw_query_path_v2",
         "database_writes_performed",
         "order_submission_performed",
     ):
