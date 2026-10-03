@@ -12,8 +12,8 @@ from typing import Any
 from sqlalchemy import Connection, create_engine, select, text
 
 from bp_engine.config import Settings
-from bp_engine.v4_paper.source_time_features import V4_CORE_SOURCE_REQUIRED_FLAGS
 from bp_engine.storage import schema
+from bp_engine.v4_paper.source_time_features import V4_CORE_SOURCE_REQUIRED_FLAGS
 
 OFFICIAL_LABEL_VERSION = "official-outcome-v1"
 EVALUATED_EVENT = "v4_fresh_book_shadow_evaluated"
