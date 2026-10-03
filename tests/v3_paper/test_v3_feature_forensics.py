@@ -248,7 +248,11 @@ def test_replay_recovers_exact_prediction_input_fingerprint() -> None:
         assert replay["fingerprint_match"] is True
         assert replay["book_hash_match"] is True
         assert replay["model_predictor_names"] == [
-            "coinbase_return_from_market_start"
+            "coinbase_return_from_market_start",
+            "missing__coinbase_market_start_missing",
+            "missing__coinbase_market_start_stale",
+            "missing__coinbase_current_missing",
+            "missing__coinbase_current_stale",
         ]
         assert replay["features"]["coinbase_return_from_market_start"] > 0
         assert replay["features"]["bybit_spot_return_from_market_start"] > 0
