@@ -193,6 +193,38 @@ def test_classify_timing_rows_detects_eventually_metadata_eligible() -> None:
     assert diagnostic["nearest"]["received_delta_seconds"] == -0.1
 
 
+def test_nearest_timing_rows_bounds_by_received_time() -> None:
+    module = _load()
+    requested = datetime(2026, 10, 3, 12, 4, tzinfo=UTC)
+
+    class _Rows:
+        def mappings(self):
+            return self
+
+        def __iter__(self):
+            return iter(())
+
+    class _Connection:
+        statement = None
+
+        def execute(self, statement):
+            self.statement = statement
+            return _Rows()
+
+    connection = _Connection()
+    rows = module._nearest_timing_rows(
+        connection,
+        venue="bybit_spot",
+        requested_at=requested,
+    )
+
+    assert rows == []
+    statement = str(connection.statement)
+    assert "raw_market_events.received_at >=" in statement
+    assert "raw_market_events.received_at <=" in statement
+    assert module.SOURCE_TIMING_RECEIVED_SEARCH_SECONDS == 30.0
+
+
 def test_classify_timing_rows_detects_no_event_in_source_window() -> None:
     module = _load()
     requested = datetime(2026, 10, 3, 12, 4, tzinfo=UTC)

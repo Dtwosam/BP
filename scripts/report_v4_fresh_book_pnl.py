@@ -24,6 +24,7 @@ QUOTE_UNAVAILABLE_EVENT = "v4_fresh_book_shadow_quote_unavailable"
 SOURCE_INELIGIBLE_EVENT = "v4_fresh_book_shadow_source_ineligible"
 EXTREME_EDGE_THRESHOLD = Decimal("0.50")
 SOURCE_TIMING_SEARCH_SECONDS = 10.0
+SOURCE_TIMING_RECEIVED_SEARCH_SECONDS = 30.0
 _SOURCE_SPECS = {
     "coinbase": ("coinbase", "spot", "BTC-USD"),
     "bybit_spot": ("bybit", "spot", "BTCUSDT"),
@@ -225,14 +226,17 @@ def _nearest_timing_rows(
     requested_at: datetime,
 ) -> list[dict[str, Any]]:
     source, stream, instrument = _SOURCE_SPECS[venue]
-    window = timedelta(seconds=SOURCE_TIMING_SEARCH_SECONDS)
+    source_window = timedelta(seconds=SOURCE_TIMING_SEARCH_SECONDS)
+    received_window = timedelta(seconds=SOURCE_TIMING_RECEIVED_SEARCH_SECONDS)
     statement = select(schema.raw_market_events).where(
         schema.raw_market_events.c.source == source,
         schema.raw_market_events.c.stream == stream,
         schema.raw_market_events.c.instrument == instrument,
+        schema.raw_market_events.c.received_at >= requested_at - received_window,
+        schema.raw_market_events.c.received_at <= requested_at + received_window,
         schema.raw_market_events.c.source_timestamp.is_not(None),
-        schema.raw_market_events.c.source_timestamp >= requested_at - window,
-        schema.raw_market_events.c.source_timestamp <= requested_at + window,
+        schema.raw_market_events.c.source_timestamp >= requested_at - source_window,
+        schema.raw_market_events.c.source_timestamp <= requested_at + source_window,
     )
     if source == "coinbase":
         statement = statement.where(
@@ -335,6 +339,7 @@ def _source_timing_diagnostic(
         }
     return {
         "search_window_seconds": SOURCE_TIMING_SEARCH_SECONDS,
+        "received_search_window_seconds": SOURCE_TIMING_RECEIVED_SEARCH_SECONDS,
         "frozen_offset_seconds": FROZEN_V4_OFFSET_SECONDS,
         "by_reason": rendered,
     }
