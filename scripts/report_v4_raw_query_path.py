@@ -73,28 +73,68 @@ def _indexes(connection, table_name: str) -> list[dict[str, Any]]:
         text(
             """
             SELECT
-                indexes.indexname,
-                indexes.indexdef,
-                pg_index.indisvalid,
-                pg_index.indisready
-            FROM pg_indexes AS indexes
-            JOIN pg_class AS table_relation
-              ON table_relation.relname = indexes.tablename
+                index_relation.relname AS indexname,
+                pg_get_indexdef(index_relation.oid) AS indexdef,
+                index_metadata.indisvalid,
+                index_metadata.indisready
+            FROM pg_class AS table_relation
             JOIN pg_namespace AS table_namespace
               ON table_namespace.oid = table_relation.relnamespace
-             AND table_namespace.nspname = indexes.schemaname
+            JOIN pg_index AS index_metadata
+              ON index_metadata.indrelid = table_relation.oid
             JOIN pg_class AS index_relation
-              ON index_relation.relname = indexes.indexname
-             AND index_relation.relnamespace = table_namespace.oid
-            JOIN pg_index ON pg_index.indexrelid = index_relation.oid
-            WHERE indexes.schemaname = current_schema()
-              AND indexes.tablename = :table_name
-            ORDER BY indexes.indexname
+              ON index_relation.oid = index_metadata.indexrelid
+            WHERE table_namespace.nspname = current_schema()
+              AND table_relation.relname = :table_name
+            ORDER BY index_relation.relname
             """
         ),
         {"table_name": table_name},
     ).mappings()
     return [dict(row) for row in rows]
+
+
+def _activity_snapshot(connection) -> list[dict[str, Any]]:
+    rows = connection.execute(
+        text(
+            """
+            SELECT
+                pid,
+                usename,
+                application_name,
+                state,
+                wait_event_type,
+                wait_event,
+                query_start,
+                xact_start,
+                backend_type,
+                pg_blocking_pids(pid) AS blocking_pids,
+                left(query, 240) AS query
+            FROM pg_stat_activity
+            WHERE datname = current_database()
+              AND pid <> pg_backend_pid()
+              AND state <> 'idle'
+            ORDER BY query_start NULLS LAST
+            LIMIT 20
+            """
+        )
+    ).mappings()
+    return [dict(row) for row in rows]
+
+
+def _safe_section(connection, callback) -> dict[str, Any]:
+    try:
+        return {"status": "ok", "value": callback()}
+    except OperationalError as exc:
+        connection.rollback()
+        return {
+            "status": (
+                "timeout"
+                if "statement timeout" in str(exc).lower()
+                else "failed"
+            ),
+            "error": str(exc).splitlines()[0],
+        }
 
 
 def _attached_to_parent(connection, child_name: str) -> bool:
@@ -163,29 +203,47 @@ def build_report(connection, evidence_file: Path) -> dict[str, Any]:
         "current": decision_at,
     }
 
-    parent_indexes = _indexes(connection, "raw_market_events")
     partitions: dict[str, Any] = {}
     for label, cutoff in cutoffs.items():
         name = _partition_name(cutoff)
         partitions[label] = {
             "cutoff": cutoff.isoformat(),
             "partition": name,
-            "relation": _relation_info(connection, name),
-            "attached": _attached_to_parent(connection, name),
-            "indexes": _indexes(connection, name),
+            "relation": _safe_section(
+                connection,
+                lambda name=name: _relation_info(connection, name),
+            ),
+            "attached": _safe_section(
+                connection,
+                lambda name=name: _attached_to_parent(connection, name),
+            ),
+            "indexes": _safe_section(
+                connection,
+                lambda name=name: _indexes(connection, name),
+            ),
         }
 
     return {
-        "report": "v4_raw_query_path_v1",
+        "report": "v4_raw_query_path_v2",
         "evidence_file": evidence_file.name,
         "representative_decision_at": decision_at.isoformat(),
-        "parent_relation": _relation_info(connection, "raw_market_events"),
-        "parent_indexes": parent_indexes,
-        "partitions": partitions,
+        "parent_relation": _safe_section(
+            connection,
+            lambda: _relation_info(connection, "raw_market_events"),
+        ),
+        "parent_indexes": _safe_section(
+            connection,
+            lambda: _indexes(connection, "raw_market_events"),
+        ),
+        "database_activity": _safe_section(
+            connection,
+            lambda: _activity_snapshot(connection),
+        ),
         "current_cutoff_explain": {
             venue: _explain(connection, venue=venue, requested_at=decision_at)
             for venue in _SOURCE_SPECS
         },
+        "partitions": partitions,
         "safety": {
             "database_read_only_required": True,
             "database_writes_performed": False,
