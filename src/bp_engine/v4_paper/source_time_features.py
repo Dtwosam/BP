@@ -19,7 +19,7 @@ from bp_engine.features.v4_calculators import (
 from bp_engine.features.v4_models import BTCStateObservation, V4FeatureTarget
 from bp_engine.storage.schema import raw_market_events
 
-V4_SOURCE_TIME_FEATURE_VERSION = "v4-source-time-features-v1"
+V4_SOURCE_TIME_FEATURE_VERSION = "v4-source-time-features-v2"
 MAX_SOURCE_AGE_SECONDS = 2.0
 MAX_FUTURE_SKEW_SECONDS = 1.0
 _QUERY_PADDING_SECONDS = 1.0
