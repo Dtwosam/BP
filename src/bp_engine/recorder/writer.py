@@ -74,13 +74,21 @@ class BatchWriter:
         batch.clear()
 
     async def _wait_for_event_or_stop(
-        self, stop: asyncio.Event
+        self,
+        stop: asyncio.Event,
+        *,
+        timeout_seconds: float | None = None,
     ) -> tuple[RawEvent | None, bool]:
         get_task = asyncio.create_task(self._buffer.get())
         stop_task = asyncio.create_task(stop.wait())
+        timeout = (
+            self._flush_interval_seconds
+            if timeout_seconds is None
+            else max(0.0, timeout_seconds)
+        )
         done, pending = await asyncio.wait(
             {get_task, stop_task},
-            timeout=self._flush_interval_seconds,
+            timeout=timeout,
             return_when=asyncio.FIRST_COMPLETED,
         )
 
@@ -99,18 +107,31 @@ class BatchWriter:
 
     async def _run_worker(self, stop: asyncio.Event) -> None:
         batch: list[RawEvent] = []
+        batch_started_at: float | None = None
+        loop = asyncio.get_running_loop()
 
         while True:
             if stop.is_set() and self._buffer.empty():
                 break
 
-            event, stopped = await self._wait_for_event_or_stop(stop)
+            timeout_seconds = None
+            if batch_started_at is not None:
+                elapsed = loop.time() - batch_started_at
+                timeout_seconds = self._flush_interval_seconds - elapsed
+
+            event, stopped = await self._wait_for_event_or_stop(
+                stop,
+                timeout_seconds=timeout_seconds,
+            )
             if event is None:
                 await self._flush(batch)
+                batch_started_at = None
                 if stopped and self._buffer.empty():
                     break
                 continue
 
+            if not batch:
+                batch_started_at = loop.time()
             batch.append(event)
             while len(batch) < self._batch_size:
                 try:
@@ -120,6 +141,7 @@ class BatchWriter:
 
             if len(batch) >= self._batch_size:
                 await self._flush(batch)
+                batch_started_at = None
 
         await self._flush(batch)
 
