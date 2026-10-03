@@ -44,19 +44,35 @@ gcloud compute ssh "$VM" \
   --zone="$ZONE" \
   --quiet \
   --command="set -Eeuo pipefail
-latest=\$(ls -1t /var/lib/bp/evidence/v4-fresh-book-shadow-*.jsonl 2>/dev/null | head -n1)
-[[ -n \"\$latest\" ]] || { echo PHASE14_V4_FRESH_BOOK_PNL_STATUS=FAIL:evidence_missing >&2; exit 1; }
-run_name=\$(basename \"\$latest\" .jsonl)
-head_short=\${run_name##*-}
-mapfile -t releases < <(find /var/lib/bp/runtime -maxdepth 1 -mindepth 1 -type d -name \"v4-source-time-fresh-book-shadow-\${head_short}*\" -print | sort)
-(( \${#releases[@]} == 1 )) || { echo PHASE14_V4_FRESH_BOOK_PNL_STATUS=FAIL:runtime_source_ambiguous >&2; exit 1; }
-release=\${releases[0]}
-[[ -d \"\$release/src/bp_engine\" ]] || { echo PHASE14_V4_FRESH_BOOK_PNL_STATUS=FAIL:runtime_source_missing >&2; exit 1; }
 tmp=\$(mktemp -d /tmp/bp-v4-pnl.XXXXXX)
 trap 'rm -rf \"\$tmp\"' EXIT
 chmod 0755 \"\$tmp\"
 printf '%s' '$REPORT_B64' | base64 -d > \"\$tmp/report_v4_fresh_book_pnl.py\"
 chmod 0644 \"\$tmp/report_v4_fresh_book_pnl.py\"
+
+latest=\$(sudo -u bp bash -c '
+  shopt -s nullglob
+  files=(/var/lib/bp/evidence/v4-fresh-book-shadow-*.jsonl)
+  (( ${#files[@]} > 0 )) || exit 3
+  newest=${files[0]}
+  for file in \"${files[@]}\"; do
+    [[ \"\$file\" -nt \"\$newest\" ]] && newest=\$file
+  done
+  printf \"%s\\n\" \"\$newest\"
+' || true)
+[[ -n \"\$latest\" ]] || { echo PHASE14_V4_FRESH_BOOK_PNL_STATUS=FAIL:evidence_missing >&2; exit 1; }
+
+run_name=\$(basename \"\$latest\" .jsonl)
+head_short=\${run_name##*-}
+release_list=\$(sudo -u bp find /var/lib/bp/runtime -maxdepth 1 -mindepth 1 -type d -name \"v4-source-time-fresh-book-shadow-\${head_short}*\" -print 2>/dev/null || true)
+releases=()
+while IFS= read -r item; do
+  [[ -n \"\$item\" ]] && releases+=(\"\$item\")
+done <<< \"\$release_list\"
+(( \${#releases[@]} == 1 )) || { echo PHASE14_V4_FRESH_BOOK_PNL_STATUS=FAIL:runtime_source_ambiguous >&2; exit 1; }
+release=\${releases[0]}
+sudo -u bp test -d \"\$release/src/bp_engine\" || { echo PHASE14_V4_FRESH_BOOK_PNL_STATUS=FAIL:runtime_source_missing >&2; exit 1; }
+
 printf 'EVIDENCE_FILE=%s\\n' \"\$latest\"
 printf 'RUNTIME_SOURCE=%s\\n' \"\$release\"
 sudo -u bp env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=\"\$release/src\" \
