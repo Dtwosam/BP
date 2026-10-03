@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -139,3 +140,74 @@ def test_source_ineligible_summary_counts_reasons_across_venues() -> None:
         "c1",
         "c2",
     ]
+
+
+def test_classify_timing_rows_detects_late_received_event() -> None:
+    module = _load()
+    requested = datetime(2026, 10, 3, 12, 4, tzinfo=UTC)
+    row = {
+        "id": 1,
+        "source": "bybit",
+        "stream": "spot",
+        "instrument": "BTCUSDT",
+        "event_type": "ticker",
+        "source_timestamp": requested - timedelta(milliseconds=200),
+        "received_at": requested + timedelta(milliseconds=350),
+        "payload": {"data": {"lastPrice": "60000"}},
+    }
+
+    diagnostic = module._classify_timing_rows([row], requested)
+
+    assert diagnostic["classification"] == "late_received_after_cutoff"
+    assert diagnostic["nearest"]["in_source_window"] is True
+    assert diagnostic["nearest"]["metadata_eligible"] is False
+    assert diagnostic["nearest"]["received_delta_seconds"] == 0.35
+
+
+def test_classify_timing_rows_detects_eventually_metadata_eligible() -> None:
+    module = _load()
+    requested = datetime(2026, 10, 3, 12, 4, tzinfo=UTC)
+    row = {
+        "id": 2,
+        "source": "coinbase",
+        "stream": "spot",
+        "instrument": "BTC-USD",
+        "event_type": "ticker_update",
+        "source_timestamp": requested - timedelta(milliseconds=500),
+        "received_at": requested - timedelta(milliseconds=100),
+        "payload": {
+            "events": [
+                {
+                    "tickers": [
+                        {"price": "60000"},
+                    ]
+                }
+            ]
+        },
+    }
+
+    diagnostic = module._classify_timing_rows([row], requested)
+
+    assert diagnostic["classification"] == "eventually_metadata_eligible"
+    assert diagnostic["nearest"]["metadata_eligible"] is True
+    assert diagnostic["nearest"]["received_delta_seconds"] == -0.1
+
+
+def test_classify_timing_rows_detects_no_event_in_source_window() -> None:
+    module = _load()
+    requested = datetime(2026, 10, 3, 12, 4, tzinfo=UTC)
+    row = {
+        "id": 3,
+        "source": "bybit",
+        "stream": "linear",
+        "instrument": "BTCUSDT",
+        "event_type": "trade",
+        "source_timestamp": requested - timedelta(seconds=5),
+        "received_at": requested - timedelta(seconds=4.9),
+        "payload": {"data": [{"p": "60000"}]},
+    }
+
+    diagnostic = module._classify_timing_rows([row], requested)
+
+    assert diagnostic["classification"] == "no_usable_event_in_source_window"
+    assert diagnostic["nearest"]["source_delta_seconds"] == -5.0
