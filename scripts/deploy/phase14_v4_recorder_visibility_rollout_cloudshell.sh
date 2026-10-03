@@ -32,7 +32,7 @@ cd "$ROOT"
 REMOTE_MAIN="$(git ls-remote origin refs/heads/main | awk 'NR==1 {print $1}')"
 [[ "$REMOTE_MAIN" == "$HELPER_HEAD" ]] || fail_local "remote_main_changed"
 
-git fetch --quiet origin "$CANDIDATE_BRANCH"
+git fetch --quiet origin "$CANDIDATE_BRANCH:refs/remotes/origin/$CANDIDATE_BRANCH"
 REMOTE_CANDIDATE="$(git rev-parse "refs/remotes/origin/$CANDIDATE_BRANCH")"
 [[ "$REMOTE_CANDIDATE" == "$CANDIDATE_HEAD" ]] || fail_local "candidate_branch_changed"
 git merge-base --is-ancestor "$FROM_HEAD" "$CANDIDATE_HEAD" || fail_local "candidate_not_descendant_of_deployed_head"
