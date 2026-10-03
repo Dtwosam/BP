@@ -5,11 +5,13 @@ import glob
 import json
 import math
 import statistics
+from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any
 
+import report_v3_fresh_book_trades as trade_report
 from sqlalchemy import Connection, create_engine, select, text
 
 from bp_engine.config import Settings
@@ -28,8 +30,6 @@ from bp_engine.v3_paper.service import (
     _predictors,
 )
 from bp_engine.v3_research.service import model_predictor_names
-
-import report_v3_fresh_book_trades as trade_report
 
 FORENSICS_VERSION = "v3-fresh-book-feature-forensics-v1"
 EXTREME_EDGE_THRESHOLD = Decimal("0.50")
