@@ -51,6 +51,7 @@ gcloud compute ssh "$VM" \
   --command="set -Eeuo pipefail
 tmp=\$(mktemp -d /tmp/bp-v3-forensics.XXXXXX)
 trap 'rm -rf \"\$tmp\"' EXIT
+chmod 0755 \"\$tmp\"
 printf '%s' '$LEDGER_B64' | base64 -d > \"\$tmp/report_v3_fresh_book_trades.py\"
 printf '%s' '$FORENSICS_B64' | base64 -d > \"\$tmp/report_v3_feature_forensics.py\"
 chmod 0644 \"\$tmp/\"*.py
