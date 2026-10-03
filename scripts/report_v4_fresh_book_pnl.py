@@ -7,8 +7,8 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
-from statistics import median
 from pathlib import Path
+from statistics import median
 from typing import Any
 
 from sqlalchemy import Connection, create_engine, select, text
