@@ -63,7 +63,9 @@ def test_fresh_book_shadow_run_is_bounded_transient_and_read_only() -> None:
     assert "run_seconds >= 300 && run_seconds <= 43200" in text
     assert "systemd-run" in text
     assert "--collect" in text
-    assert "RuntimeMaxSec=${run_seconds}s" in text
+    assert "runtime_max_seconds=$((run_seconds + 60))" in text
+    assert "RuntimeMaxSec=${runtime_max_seconds}s" in text
+    assert "RUNTIME_MAX_SECONDS" in text
     assert "startup_deadline=$((SECONDS + 60))" in text
     assert 'fail "shadow_unit_exited_before_start_record"' in text
     assert 'fail "shadow_start_record_timeout"' in text

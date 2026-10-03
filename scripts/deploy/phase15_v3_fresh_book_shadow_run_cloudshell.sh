@@ -66,6 +66,7 @@ head="$2"
 expected_sha="$3"
 env_file="$4"
 run_seconds="$5"
+runtime_max_seconds=$((run_seconds + 60))
 
 fail() {
   printf 'PHASE15_V3_FRESH_BOOK_SHADOW_RUN=FAIL:%s\n' "$1" >&2
@@ -199,7 +200,7 @@ systemd-run \
   --unit="$unit" \
   --uid=bp \
   --gid=bp \
-  --property="RuntimeMaxSec=${run_seconds}s" \
+  --property="RuntimeMaxSec=${runtime_max_seconds}s" \
   --property=NoNewPrivileges=true \
   --property=PrivateTmp=true \
   --property=ProtectHome=true \
@@ -259,6 +260,7 @@ printf 'RUN_ID=%s\n' "$run_id"
 printf 'UNIT=%s\n' "$unit"
 printf 'OUTPUT=%s\n' "$output"
 printf 'RUN_SECONDS=%s\n' "$run_seconds"
+printf 'RUNTIME_MAX_SECONDS=%s\n' "$runtime_max_seconds"
 printf 'FAST_LIVE_SOURCE_ACTIVE=false\n'
 printf 'FAST_LIVE_SOURCE_ENABLED=false\n'
 printf 'DATABASE_ACCESS=read_only\n'
