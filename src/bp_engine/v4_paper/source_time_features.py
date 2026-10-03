@@ -23,6 +23,20 @@ V4_SOURCE_TIME_FEATURE_VERSION = "v4-source-time-features-v1"
 MAX_SOURCE_AGE_SECONDS = 2.0
 MAX_FUTURE_SKEW_SECONDS = 1.0
 _QUERY_PADDING_SECONDS = 1.0
+V4_CORE_SOURCE_REQUIRED_FLAGS = (
+    "coinbase_market_start_missing",
+    "coinbase_market_start_stale",
+    "coinbase_current_missing",
+    "coinbase_current_stale",
+    "bybit_spot_market_start_missing",
+    "bybit_spot_market_start_stale",
+    "bybit_spot_current_missing",
+    "bybit_spot_current_stale",
+    "bybit_linear_market_start_missing",
+    "bybit_linear_market_start_stale",
+    "bybit_linear_current_missing",
+    "bybit_linear_current_stale",
+)
 
 
 class V4SourceTimeFeatureError(RuntimeError):
@@ -72,6 +86,17 @@ class SourceTimeV4Features:
             key: value.as_mapping()
             for key, value in sorted(self.source_evidence.items())
         }
+
+    def core_source_ineligible_reasons(self) -> tuple[str, ...]:
+        return tuple(
+            flag
+            for flag in V4_CORE_SOURCE_REQUIRED_FLAGS
+            if self.missing_flags.get(flag, True)
+        )
+
+    @property
+    def core_source_ready(self) -> bool:
+        return not self.core_source_ineligible_reasons()
 
 
 def _utc(value: datetime, name: str) -> datetime:
@@ -222,7 +247,7 @@ class V4SourceTimeReader:
                 statement.order_by(
                     raw_market_events.c.received_at.desc(),
                     raw_market_events.c.id.desc(),
-                ).limit(64)
+                )
             ).mappings()
         ]
 
@@ -257,6 +282,17 @@ class V4SourceTimeReader:
             transport_lag_seconds=transport_lag,
         )
 
+    @staticmethod
+    def _source_time_rank(
+        evidence: SourceTimeEventEvidence,
+    ) -> tuple[float, float, float, int]:
+        return (
+            abs(evidence.source_age_seconds),
+            -evidence.source_at.timestamp(),
+            -evidence.received_at.timestamp(),
+            -evidence.row_id,
+        )
+
     def latest_price(
         self,
         connection: Connection,
@@ -268,9 +304,9 @@ class V4SourceTimeReader:
         include_linear_ticker_state: bool = False,
     ) -> tuple[BTCStateObservation | None, tuple[SourceTimeEventEvidence, ...]]:
         requested = _utc(requested_at, "requested_at")
-        chosen_row: dict[str, Any] | None = None
-        chosen_evidence: SourceTimeEventEvidence | None = None
-        price: Decimal | None = None
+        price_candidates: list[
+            tuple[dict[str, Any], SourceTimeEventEvidence, Decimal]
+        ] = []
         for row in self._candidate_rows(
             connection,
             source=source,
@@ -281,20 +317,29 @@ class V4SourceTimeReader:
             evidence = self._evidence(row, requested)
             if evidence is None:
                 continue
-            parsed = _coinbase_price(row) if source == "coinbase" else _bybit_price(row)
+            parsed = (
+                _coinbase_price(row)
+                if source == "coinbase"
+                else _bybit_price(row)
+            )
             if parsed is None:
                 continue
-            chosen_row = row
-            chosen_evidence = evidence
-            price = parsed
-            break
+            price_candidates.append((row, evidence, parsed))
 
-        if chosen_row is None or chosen_evidence is None or price is None:
+        if not price_candidates:
             return None, ()
+
+        chosen_row, chosen_evidence, price = min(
+            price_candidates,
+            key=lambda item: self._source_time_rank(item[1]),
+        )
 
         state: dict[str, Any] = {"last_price": str(price)}
         evidence_items = [chosen_evidence]
         if include_linear_ticker_state:
+            ticker_candidates: list[
+                tuple[dict[str, Any], SourceTimeEventEvidence]
+            ] = []
             for ticker_row in self._candidate_rows(
                 connection,
                 source=source,
@@ -306,10 +351,16 @@ class V4SourceTimeReader:
                 ticker_evidence = self._evidence(ticker_row, requested)
                 if ticker_evidence is None:
                     continue
+                ticker_candidates.append((ticker_row, ticker_evidence))
+
+            if ticker_candidates:
+                ticker_row, ticker_evidence = min(
+                    ticker_candidates,
+                    key=lambda item: self._source_time_rank(item[1]),
+                )
                 state.update(_bybit_ticker_state(ticker_row))
                 if ticker_evidence.row_id != chosen_evidence.row_id:
                     evidence_items.append(ticker_evidence)
-                break
 
         observation = BTCStateObservation(
             row_id=chosen_evidence.row_id,
