@@ -408,7 +408,10 @@ rollback() {
   git -C "$REPO" checkout --detach --force "$FROM_HEAD" >/dev/null 2>&1 || true
   restore_generated_files
   systemctl daemon-reload >/dev/null 2>&1 || true
-  start_chain >/dev/null 2>&1 || true
+  systemctl reset-failed "$RECORDER_UNIT" "$V3_PREDICTOR" "$V3_EXECUTION" >/dev/null 2>&1 || true
+  systemctl start "$RECORDER_UNIT" >/dev/null 2>&1 || true
+  systemctl start "$V3_PREDICTOR" >/dev/null 2>&1 || true
+  systemctl start "$V3_EXECUTION" >/dev/null 2>&1 || true
   systemctl start "$MAINTENANCE_TIMER" >/dev/null 2>&1 || true
   echo "DEPLOYED_HEAD=$(git -C "$REPO" rev-parse HEAD 2>/dev/null || true)" >&2
   echo "RECORDER_ACTIVE=$(systemctl is-active "$RECORDER_UNIT" 2>/dev/null || true)" >&2
