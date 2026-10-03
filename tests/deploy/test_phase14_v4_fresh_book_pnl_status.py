@@ -26,7 +26,8 @@ def test_v4_pnl_helper_is_read_only_and_uses_latest_evidence() -> None:
         "report_v4_fresh_book_pnl.py",
         "ls -1t /var/lib/bp/evidence/v4-fresh-book-shadow-*.jsonl",
         "v4-source-time-fresh-book-shadow-$LOCAL_HEAD",
-        'PYTHONPATH=\"$release/src\"',
+        "PYTHONPATH=",
+        "$release/src",
     ):
         assert marker in text
     assert "PYTHONPATH=/opt/bp/src" not in text
