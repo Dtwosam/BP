@@ -28,7 +28,7 @@ def test_v4_fresh_book_shadow_run_helper_is_hash_bound_and_money_disabled() -> N
     for marker in (
         'EXPECTED_MODEL_SHA256="6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf"',
         "EXPECTED_MODEL_SIZE_BYTES=230132",
-        "RUN_SECONDS >= 300 && RUN_SECONDS <= 43200",
+        "RUN_SECONDS >= 300 && RUN_SECONDS <= 86400",
         "git archive --format=tar.gz",
         '"database_read_only":true',
         "MODE=research",
@@ -50,6 +50,9 @@ def test_v4_fresh_book_shadow_run_helper_is_hash_bound_and_money_disabled() -> N
         "CORE_SOURCE_POLICY=require_market_start_and_current_all_venues",
         "--quote-fresh-seconds 0.25",
         "--max-decision-lag-seconds 2.0",
+        'PHASE14_V4_FRESH_BOOK_SHADOW_RUN_SECONDS:-86400',
+        "RUN_SECONDS >= 300 && RUN_SECONDS <= 86400",
+        "run_seconds >= 300 && run_seconds <= 86400",
         "runtime_max_seconds=$((run_seconds + 60))",
         "RuntimeMaxSec=${runtime_max_seconds}s",
         "RUNTIME_MAX_SECONDS",
