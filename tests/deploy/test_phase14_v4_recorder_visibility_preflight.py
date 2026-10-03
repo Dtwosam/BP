@@ -83,3 +83,16 @@ def test_project_state_matches_visibility_preflight_expected_head() -> None:
         == "52b4355d6f077373b873f7a6f42bc37a20ddbc7b"
     )
     assert storage["recorder_v3_current_runtime_recorder_active"] is True
+
+
+def test_v4_visibility_preflight_supports_explicit_recovery_handoff_mode() -> None:
+    source = HELPER.read_text(encoding="utf-8")
+    for marker in (
+        "PHASE14_V4_VISIBILITY_ALLOW_MAINTENANCE_HANDOFF",
+        "maintenance_handoff_flag_invalid",
+        "maintenance_timer_active_during_handoff",
+        "MAINTENANCE_HANDOFF_MODE",
+    ):
+        assert marker in source
+    assert 'systemctl is-enabled --quiet bp-storage-maintenance.timer' in source
+    assert 'systemctl is-active --quiet bp-storage-maintenance.timer' in source
