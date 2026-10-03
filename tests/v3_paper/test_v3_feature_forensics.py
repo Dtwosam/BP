@@ -2,7 +2,17 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+from dataclasses import asdict
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from sqlalchemy import create_engine, insert
+
+from bp_engine.storage import schema
+from bp_engine.v3_paper import service as v3_service
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "report_v3_feature_forensics.py"
@@ -111,3 +121,137 @@ def test_forensics_source_requires_exact_input_replay() -> None:
     assert "schema.live_predictions" in source
     assert "schema.market_features" not in source
     assert "official-outcome-v1" not in source
+
+
+START = datetime(2026, 10, 1, 22, 0, tzinfo=UTC)
+END = START + timedelta(seconds=300)
+SCHEDULED = START + timedelta(seconds=240)
+
+
+def _insert_state(
+    connection,
+    *,
+    source: str,
+    stream: str,
+    instrument: str,
+    effective_at: datetime,
+    state: dict[str, object],
+    asset_id: str | None = None,
+) -> None:
+    suffix = asset_id or "none"
+    connection.execute(
+        insert(schema.market_state_1s).values(
+            bucket_at=effective_at,
+            state_key=f"{source}/{stream}/{instrument}/{suffix}/{effective_at.timestamp()}",
+            source=source,
+            stream=stream,
+            instrument=instrument,
+            market_id=instrument if source == "polymarket" else None,
+            asset_id=asset_id,
+            last_event_at=effective_at,
+            state=state,
+        )
+    )
+
+
+def _seed_inputs(connection, condition_id: str) -> None:
+    times = (
+        START - timedelta(seconds=1),
+        START + timedelta(seconds=119),
+        START + timedelta(seconds=179),
+        START + timedelta(seconds=209),
+        START + timedelta(seconds=239),
+    )
+    venues = (
+        ("coinbase", "spot", "BTC-USD", (100, 101, 102, 103, 104)),
+        ("bybit", "spot", "BTCUSDT", (200, 201, 202, 203, 204)),
+        ("bybit", "linear", "BTCUSDT", (201, 202, 203, 204, 205)),
+    )
+    for source, stream, instrument, prices in venues:
+        for index, (effective_at, price) in enumerate(zip(times, prices, strict=True)):
+            extra = {}
+            if stream == "linear" and index == len(times) - 1:
+                extra = {"funding_rate": "0.0001", "open_interest": "1000"}
+            _insert_state(
+                connection,
+                source=source,
+                stream=stream,
+                instrument=instrument,
+                effective_at=effective_at,
+                state={"last_price": str(price), **extra},
+            )
+
+    for side, bid, ask in (
+        ("up", "0.39", "0.40"),
+        ("down", "0.59", "0.60"),
+    ):
+        _insert_state(
+            connection,
+            source="polymarket",
+            stream="market",
+            instrument=condition_id,
+            effective_at=SCHEDULED - timedelta(seconds=1),
+            asset_id=f"{condition_id}-{side}",
+            state={"best_bid": bid, "best_ask": ask},
+        )
+
+
+def _bundle() -> dict[str, object]:
+    x = [[-0.04], [-0.02], [0.02], [0.04]]
+    y = [0, 0, 1, 1]
+    imputer = SimpleImputer(strategy="median").fit(x)
+    transformed = imputer.transform(x)
+    scaler = StandardScaler().fit(transformed)
+    estimator = LogisticRegression(random_state=0).fit(
+        scaler.transform(transformed),
+        y,
+    )
+    return {
+        "predictor_names": ("coinbase_return_from_market_start",),
+        "imputer": imputer,
+        "scaler": scaler,
+        "estimator": estimator,
+        "calibration_fit": {
+            "method": "identity",
+            "intercept": None,
+            "coefficient": None,
+        },
+    }
+
+
+def test_replay_recovers_exact_prediction_input_fingerprint() -> None:
+    module = _load_module()
+    engine = create_engine("sqlite://")
+    schema.metadata.create_all(engine)
+    condition_id = "forensic-replay"
+    market = v3_service.V3PaperMarket(
+        condition_id=condition_id,
+        slug="btc-updown-5m-forensic",
+        horizon_seconds=300,
+        market_start_at=START,
+        market_end_at=END,
+        scheduled_at=SCHEDULED,
+        up_token_id=f"{condition_id}-up",
+        down_token_id=f"{condition_id}-down",
+    )
+    try:
+        with engine.begin() as connection:
+            _seed_inputs(connection, condition_id)
+            prediction = v3_service.build_v3_paper_prediction(
+                connection,
+                market=market,
+                bundle=_bundle(),
+                clock=lambda: SCHEDULED + timedelta(seconds=1),
+            )
+            replay = module._replay_inputs(connection, asdict(prediction))
+
+        assert replay["fingerprint_match"] is True
+        assert replay["book_hash_match"] is True
+        assert replay["model_predictor_names"] == [
+            "coinbase_return_from_market_start"
+        ]
+        assert replay["features"]["coinbase_return_from_market_start"] > 0
+        assert replay["features"]["bybit_spot_return_from_market_start"] > 0
+        assert replay["features"]["bybit_linear_return_from_market_start"] > 0
+    finally:
+        engine.dispose()
