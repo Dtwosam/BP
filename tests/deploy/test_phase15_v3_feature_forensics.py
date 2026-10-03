@@ -37,6 +37,7 @@ def test_v3_feature_forensics_helper_stages_exact_main_read_only() -> None:
         "scripts/report_v3_fresh_book_trades.py",
         "scripts/report_v3_feature_forensics.py",
         "src/bp_engine/features/v3_models.py",
+        'chmod 0755 "$tmp"',
         'PYTHONPATH="$repo/src"',
         "/var/lib/bp/evidence/v3-fresh-book-shadow-*.jsonl",
     ):

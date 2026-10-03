@@ -107,6 +107,7 @@ actual_archive_sha="$(sha256sum "$archive" | awk '{print $1}')"
   fail "archive_sha_mismatch"
 
 tmp="$(mktemp -d /tmp/bp-v3-forensics.XXXXXX)"
+chmod 0755 "$tmp"
 repo="$tmp/repo"
 mkdir -p "$repo"
 tar -xzf "$archive" -C "$repo"
