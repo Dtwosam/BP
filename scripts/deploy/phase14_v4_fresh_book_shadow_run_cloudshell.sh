@@ -5,7 +5,7 @@ PROJECT="${PHASE14_V4_FRESH_BOOK_SHADOW_PROJECT:-project-4397f2c0-7098-4c1c-abb}
 ZONE="${PHASE14_V4_FRESH_BOOK_SHADOW_ZONE:-us-east1-c}"
 VM="${PHASE14_V4_FRESH_BOOK_SHADOW_VM:-bp-recorder}"
 ENV_FILE="${PHASE14_V4_FRESH_BOOK_SHADOW_ENV_FILE:-/etc/bp/bp.env}"
-RUN_SECONDS="${PHASE14_V4_FRESH_BOOK_SHADOW_RUN_SECONDS:-43200}"
+RUN_SECONDS="${PHASE14_V4_FRESH_BOOK_SHADOW_RUN_SECONDS:-86400}"
 EXPECTED_MODEL_SHA256="6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf"
 EXPECTED_MODEL_SIZE_BYTES=230132
 
@@ -19,7 +19,7 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 cd "$ROOT"
 
 [[ "$RUN_SECONDS" =~ ^[0-9]+$ ]] || fail "run_seconds_invalid"
-(( RUN_SECONDS >= 300 && RUN_SECONDS <= 43200 )) ||
+(( RUN_SECONDS >= 300 && RUN_SECONDS <= 86400 )) ||
   fail "run_seconds_out_of_authorized_range"
 
 [[ -z "$(git status --porcelain --untracked-files=all)" ]] ||
@@ -151,7 +151,7 @@ find_frozen_model() {
   fail "expected_model_sha_invalid"
 [[ "$expected_model_size" =~ ^[0-9]+$ ]] || fail "expected_model_size_invalid"
 [[ "$run_seconds" =~ ^[0-9]+$ ]] || fail "run_seconds_invalid"
-(( run_seconds >= 300 && run_seconds <= 43200 )) ||
+(( run_seconds >= 300 && run_seconds <= 86400 )) ||
   fail "run_seconds_out_of_authorized_range"
 [[ "$env_file" == /* ]] || fail "env_file_not_absolute"
 [[ -r "$archive" ]] || fail "archive_missing"
