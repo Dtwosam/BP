@@ -38,6 +38,9 @@ def test_v4_pnl_helper_is_read_only_and_uses_latest_evidence() -> None:
         assert marker in text
     assert "PYTHONPATH=/opt/bp/src" not in text
     assert "ls -1t /var/lib/bp/evidence" not in text
+    assert '(( \\${#files[@]} > 0 ))' in text
+    assert 'newest=\\${files[0]}' in text
+    assert 'for file in \\\"\\${files[@]}\\\"' in text
     for forbidden in (
         "systemctl start",
         "systemctl stop",
