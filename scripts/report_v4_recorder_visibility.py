@@ -148,7 +148,7 @@ def build_report(
             "row_seen_count": 0,
             "query_timeout_count": 0,
             "query_failure_count": 0,
-            "metadata_ready_count": 0,
+            "timestamp_window_ready_count": 0,
             "visible_age_seconds": [],
             "source_age_seconds": [],
             "transport_lag_seconds": [],
@@ -195,7 +195,7 @@ def build_report(
                 and transport_lag >= -1.0
                 and received_at <= observed_at
             ):
-                state["metadata_ready_count"] += 1
+                state["timestamp_window_ready_count"] += 1
 
             row_id = int(row["id"])
             if state["last_row_id"] is None:
@@ -223,9 +223,9 @@ def build_report(
             "row_seen_count": seen,
             "query_timeout_count": int(state["query_timeout_count"]),
             "query_failure_count": int(state["query_failure_count"]),
-            "metadata_ready_count": int(state["metadata_ready_count"]),
-            "metadata_ready_fraction": (
-                float(state["metadata_ready_count"]) / seen if seen else None
+            "timestamp_window_ready_count": int(state["timestamp_window_ready_count"]),
+            "timestamp_window_ready_fraction": (
+                float(state["timestamp_window_ready_count"]) / seen if seen else None
             ),
             "row_change_count": int(state["row_change_count"]),
             "max_same_row_streak_seconds": (
