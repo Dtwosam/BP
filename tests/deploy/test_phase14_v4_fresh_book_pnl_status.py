@@ -32,7 +32,7 @@ def test_v4_pnl_helper_is_read_only_and_uses_latest_evidence() -> None:
         "head_short",
         "runtime_source_ambiguous",
         "RUNTIME_SOURCE=",
-        "PYTHONPATH=",
+        "PYTHONPATH=",\n        "timeout --signal=TERM --kill-after=5s 120s",
         "$release/src",
     ):
         assert marker in text
