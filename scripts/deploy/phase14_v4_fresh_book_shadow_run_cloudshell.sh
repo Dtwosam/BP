@@ -244,6 +244,7 @@ from bp_engine.v4_paper.inference import (
 )
 from bp_engine.v4_paper.source_time_features import (
     MAX_SOURCE_AGE_SECONDS,
+    V4_CORE_SOURCE_REQUIRED_FLAGS,
     V4_SOURCE_TIME_FEATURE_VERSION,
 )
 bundle = load_frozen_v4_bundle("$model_target")
@@ -251,7 +252,8 @@ assert FROZEN_V4_MODEL_SHA256 == "$expected_model_sha"
 assert bundle["candidate"] == "full_v4_xgboost"
 assert bundle["offset_seconds"] == 240
 assert bundle["selected_min_edge"] == 0.05
-assert V4_SOURCE_TIME_FEATURE_VERSION == "v4-source-time-features-v1"
+assert V4_SOURCE_TIME_FEATURE_VERSION == "v4-source-time-features-v2"
+assert len(V4_CORE_SOURCE_REQUIRED_FLAGS) == 12
 assert MAX_SOURCE_AGE_SECONDS == 2.0
 PY
 
@@ -331,6 +333,10 @@ grep -q '"threshold_tuning_performed":false' "$output" || {
   cat "$output" >&2 || true
   fail "v4_shadow_threshold_freeze_record_missing"
 }
+grep -q '"core_source_policy":"require_market_start_and_current_all_venues"' "$output" || {
+  cat "$output" >&2 || true
+  fail "v4_shadow_core_source_policy_record_missing"
+}
 
 printf 'PHASE14_V4_FRESH_BOOK_SHADOW_RUN=PASS\n'
 printf 'CONTROL_MAIN=%s\n' "$head"
@@ -345,6 +351,8 @@ printf 'SOURCE_MODEL_PATH=%s\n' "$source_model"
 printf 'STAGED_MODEL_PATH=%s\n' "$model_target"
 printf 'MODEL_SHA256=%s\n' "$expected_model_sha"
 printf 'MODEL_SIZE_BYTES=%s\n' "$expected_model_size"
+printf 'SOURCE_FEATURE_VERSION=v4-source-time-features-v2\n'
+printf 'CORE_SOURCE_POLICY=require_market_start_and_current_all_venues\n'
 printf 'MAX_BTC_SOURCE_AGE_SECONDS=2.0\n'
 printf 'MAX_BTC_FUTURE_SKEW_SECONDS=1.0\n'
 printf 'MAX_DECISION_LAG_SECONDS=2.0\n'

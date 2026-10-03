@@ -7,6 +7,7 @@ from sqlalchemy import create_engine, insert
 from bp_engine.features.v4_models import V4FeatureTarget
 from bp_engine.storage.schema import metadata, raw_market_events
 from bp_engine.v4_paper.source_time_features import (
+    V4_CORE_SOURCE_REQUIRED_FLAGS,
     V4SourceTimeReader,
     build_source_time_v4_features,
 )
@@ -226,6 +227,115 @@ def test_build_source_time_v4_features_reconstructs_frozen_predictor_schema() ->
             evidence.source_age_seconds <= 2.0
             for evidence in features.source_evidence.values()
         )
+        assert features.core_source_ready is True
+        assert features.core_source_ineligible_reasons() == ()
+    finally:
+        connection.close()
+        engine.dispose()
+
+
+def test_source_time_reader_prefers_closest_provider_timestamp() -> None:
+    engine, connection = _connection()
+    requested = datetime(2026, 10, 2, 12, 0, tzinfo=UTC)
+    try:
+        _insert_event(
+            connection,
+            source="coinbase",
+            stream="spot",
+            instrument="BTC-USD",
+            requested_at=requested,
+            price=100.0,
+            sequence=101,
+            source_age_seconds=0.40,
+            received_lag_seconds=0.01,
+        )
+        _insert_event(
+            connection,
+            source="coinbase",
+            stream="spot",
+            instrument="BTC-USD",
+            requested_at=requested,
+            price=101.0,
+            sequence=102,
+            source_age_seconds=0.05,
+            received_lag_seconds=0.04,
+        )
+
+        observation, evidence = V4SourceTimeReader().latest_price(
+            connection,
+            source="coinbase",
+            stream="spot",
+            instrument="BTC-USD",
+            requested_at=requested,
+        )
+
+        assert observation is not None
+        assert float(observation.price) == 101.0
+        assert len(evidence) == 1
+        assert evidence[0].source_age_seconds == 0.05
+    finally:
+        connection.close()
+        engine.dispose()
+
+
+def test_core_source_readiness_requires_market_start_and_current_all_venues() -> None:
+    engine, connection = _connection()
+    start = datetime(2026, 10, 2, 12, 0, tzinfo=UTC)
+    decision = start + timedelta(seconds=240)
+    target = V4FeatureTarget(
+        condition_id="condition-v4-source-ready",
+        slug="btc-updown-5m-source-ready",
+        horizon_seconds=300,
+        market_start_at=start,
+        market_end_at=start + timedelta(seconds=300),
+    )
+    requested_times = sorted(
+        {
+            start,
+            decision - timedelta(seconds=120),
+            decision - timedelta(seconds=60),
+            decision - timedelta(seconds=30),
+            decision,
+            decision - timedelta(seconds=300),
+            decision - timedelta(seconds=900),
+            decision - timedelta(seconds=3600),
+        }
+    )
+    sequence = 200
+    try:
+        for source, stream, instrument in (
+            ("coinbase", "spot", "BTC-USD"),
+            ("bybit", "spot", "BTCUSDT"),
+            ("bybit", "linear", "BTCUSDT"),
+        ):
+            for requested in requested_times:
+                if stream == "linear" and requested == decision:
+                    continue
+                sequence += 1
+                _insert_event(
+                    connection,
+                    source=source,
+                    stream=stream,
+                    instrument=instrument,
+                    requested_at=requested,
+                    price=20000.0 + sequence,
+                    sequence=sequence,
+                )
+
+        features = build_source_time_v4_features(
+            connection,
+            target,
+            decision_at=decision,
+        )
+
+        assert features.core_source_ready is False
+        assert features.core_source_ineligible_reasons() == (
+            "bybit_linear_current_missing",
+        )
+        assert set(features.core_source_ineligible_reasons()).issubset(
+            V4_CORE_SOURCE_REQUIRED_FLAGS
+        )
+        assert features.predictors["bybit_linear_return_60m"] is None
     finally:
         connection.close()
         engine.dispose()

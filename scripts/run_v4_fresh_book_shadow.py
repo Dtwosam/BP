@@ -30,6 +30,7 @@ from bp_engine.v4_paper.inference import (
 from bp_engine.v4_paper.source_time_features import (
     MAX_FUTURE_SKEW_SECONDS,
     MAX_SOURCE_AGE_SECONDS,
+    V4_CORE_SOURCE_REQUIRED_FLAGS,
     V4_SOURCE_TIME_FEATURE_VERSION,
     build_source_time_v4_features,
 )
@@ -245,6 +246,7 @@ def main() -> int:
     evaluated_count = 0
     quote_unavailable_count = 0
     decision_missed_count = 0
+    source_ineligible_count = 0
     extreme_edge_evaluated_count = 0
     extreme_edge_trade_count = 0
     subscribed = 0
@@ -259,6 +261,8 @@ def main() -> int:
             "max_btc_source_age_seconds": MAX_SOURCE_AGE_SECONDS,
             "max_btc_future_skew_seconds": MAX_FUTURE_SKEW_SECONDS,
             "max_decision_lag_seconds": args.max_decision_lag_seconds,
+            "core_source_required_flags": list(V4_CORE_SOURCE_REQUIRED_FLAGS),
+            "core_source_policy": "require_market_start_and_current_all_venues",
             "quote_fresh_seconds": args.quote_fresh_seconds,
             "target_notional_usd": str(TARGET_NOTIONAL_USD),
             "frozen_min_edge": str(FROZEN_V4_MIN_EDGE),
@@ -333,6 +337,41 @@ def main() -> int:
                         target,
                         decision_at=decision_at,
                     )
+                    evidence_mapping = features.evidence_mapping()
+                    evidence_sha256 = canonical_hash(evidence_mapping)
+                    source_ineligible_reasons = (
+                        features.core_source_ineligible_reasons()
+                    )
+                    if source_ineligible_reasons:
+                        observed_at = datetime.now(UTC)
+                        seen.add(condition_id)
+                        source_ineligible_count += 1
+                        _emit(
+                            {
+                                "event": "v4_fresh_book_shadow_source_ineligible",
+                                "condition_id": condition_id,
+                                "decision_at": decision_at.isoformat(),
+                                "observed_at": observed_at.isoformat(),
+                                "decision_lag_seconds": (
+                                    observed_at - decision_at
+                                ).total_seconds(),
+                                "source_feature_version": (
+                                    V4_SOURCE_TIME_FEATURE_VERSION
+                                ),
+                                "source_evidence_sha256": evidence_sha256,
+                                "source_evidence": evidence_mapping,
+                                "missing_flags": features.missing_flags,
+                                "source_ineligible_reasons": list(
+                                    source_ineligible_reasons
+                                ),
+                                "trade": False,
+                                "reason": "core_source_ineligible",
+                                "holdout_labels_read": False,
+                                "order_submission_enabled": False,
+                            }
+                        )
+                        continue
+
                     probability_up = predict_frozen_v4_probability(
                         bundle,
                         features.predictors,
@@ -356,8 +395,6 @@ def main() -> int:
                         )
                         continue
 
-                    evidence_mapping = features.evidence_mapping()
-                    evidence_sha256 = canonical_hash(evidence_mapping)
                     prediction_id = _prediction_id(
                         condition_id=condition_id,
                         decision_at=decision_at,
@@ -469,6 +506,9 @@ def main() -> int:
             "evaluated_count": evaluated_count,
             "quote_unavailable_count": quote_unavailable_count,
             "decision_missed_count": decision_missed_count,
+            "source_ineligible_count": source_ineligible_count,
+            "core_source_required_flags": list(V4_CORE_SOURCE_REQUIRED_FLAGS),
+            "core_source_policy": "require_market_start_and_current_all_venues",
             "extreme_edge_evaluated_count": extreme_edge_evaluated_count,
             "extreme_edge_trade_count": extreme_edge_trade_count,
             "extreme_edge_observation_threshold": str(
