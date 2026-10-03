@@ -201,8 +201,8 @@ async def test_batch_writer_flush_interval_is_deadline_under_continuous_arrivals
     producer = asyncio.create_task(produce_continuously())
     await asyncio.wait_for(flushed.wait(), timeout=0.32)
 
-    stop.set()
     await producer
+    stop.set()
     await asyncio.wait_for(task, timeout=1)
 
     assert batches
