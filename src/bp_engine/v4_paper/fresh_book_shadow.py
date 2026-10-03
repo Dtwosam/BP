@@ -16,7 +16,8 @@ from bp_engine.v4_paper.inference import (
 )
 from bp_engine.v4_paper.source_time_features import V4_SOURCE_TIME_FEATURE_VERSION
 
-V4_FRESH_BOOK_SHADOW_VERSION = "paper-execution-v4-source-time-fresh-book-shadow-v1"
+V4_FRESH_BOOK_SHADOW_VERSION = "paper-execution-v4-source-time-fresh-book-shadow-v2"
+EXTREME_EDGE_OBSERVATION_THRESHOLD = Decimal("0.50")
 TARGET_NOTIONAL_USD = Decimal("5.00")
 SHARE_PRECISION = 6
 _ZERO = Decimal("0")
@@ -46,6 +47,7 @@ class V4FreshBookShadowResult:
     raw_edge: Decimal | None
     fee_per_share_at_signal: Decimal | None
     cost_adjusted_edge: Decimal | None
+    extreme_edge_observation: bool
     decision_reason: str
     trade: bool
     requested_shares: Decimal
@@ -235,6 +237,9 @@ def evaluate_v4_fresh_book_shadow(
     )
     total_fill_cost = gross_fill_cost + total_fees
     full_fill = requested_shares > _ZERO and filled_shares == requested_shares
+    extreme_edge_observation = (
+        adjusted is not None and adjusted > EXTREME_EDGE_OBSERVATION_THRESHOLD
+    )
 
     semantic_values = {
         "shadow_version": V4_FRESH_BOOK_SHADOW_VERSION,
@@ -254,6 +259,7 @@ def evaluate_v4_fresh_book_shadow(
         "raw_edge": None if raw_edge is None else str(raw_edge),
         "fee_per_share_at_signal": None if fee_signal is None else str(fee_signal),
         "cost_adjusted_edge": None if adjusted is None else str(adjusted),
+        "extreme_edge_observation": extreme_edge_observation,
         "decision_reason": decision.reason,
         "trade": decision.trade,
         "requested_shares": str(requested_shares),
@@ -283,6 +289,7 @@ def evaluate_v4_fresh_book_shadow(
         raw_edge=raw_edge,
         fee_per_share_at_signal=fee_signal,
         cost_adjusted_edge=adjusted,
+        extreme_edge_observation=extreme_edge_observation,
         decision_reason=decision.reason,
         trade=decision.trade,
         requested_shares=requested_shares,

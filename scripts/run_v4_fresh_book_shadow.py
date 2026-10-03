@@ -16,6 +16,7 @@ from bp_engine.features.hashing import canonical_hash
 from bp_engine.features.v4_models import V4FeatureTarget
 from bp_engine.storage import schema
 from bp_engine.v4_paper.fresh_book_shadow import (
+    EXTREME_EDGE_OBSERVATION_THRESHOLD,
     TARGET_NOTIONAL_USD,
     evaluate_v4_fresh_book_shadow,
 )
@@ -244,6 +245,8 @@ def main() -> int:
     evaluated_count = 0
     quote_unavailable_count = 0
     decision_missed_count = 0
+    extreme_edge_evaluated_count = 0
+    extreme_edge_trade_count = 0
     subscribed = 0
 
     _emit(
@@ -259,6 +262,10 @@ def main() -> int:
             "quote_fresh_seconds": args.quote_fresh_seconds,
             "target_notional_usd": str(TARGET_NOTIONAL_USD),
             "frozen_min_edge": str(FROZEN_V4_MIN_EDGE),
+            "extreme_edge_observation_threshold": str(
+                EXTREME_EDGE_OBSERVATION_THRESHOLD
+            ),
+            "extreme_edge_policy": "observe_only_no_block",
             "database_read_only": True,
             "order_submission_enabled": False,
             "wallet_material_loaded": False,
@@ -431,6 +438,10 @@ def main() -> int:
                         quote_observed_at=quote_at,
                     )
                     evaluated_count += 1
+                    if result.extreme_edge_observation:
+                        extreme_edge_evaluated_count += 1
+                        if result.trade:
+                            extreme_edge_trade_count += 1
                     payload = result.as_mapping()
                     payload.update(
                         {
@@ -458,6 +469,12 @@ def main() -> int:
             "evaluated_count": evaluated_count,
             "quote_unavailable_count": quote_unavailable_count,
             "decision_missed_count": decision_missed_count,
+            "extreme_edge_evaluated_count": extreme_edge_evaluated_count,
+            "extreme_edge_trade_count": extreme_edge_trade_count,
+            "extreme_edge_observation_threshold": str(
+                EXTREME_EDGE_OBSERVATION_THRESHOLD
+            ),
+            "extreme_edge_policy": "observe_only_no_block",
             "subscribed_token_count_high_water": subscribed,
             "database_read_only": True,
             "database_writes_performed": False,
