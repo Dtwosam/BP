@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+from collections import Counter
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -12,6 +13,7 @@ from sqlalchemy import Connection, create_engine, select, text
 
 from bp_engine.config import Settings
 from bp_engine.storage import schema
+from bp_engine.v4_paper.source_time_features import V4_CORE_SOURCE_REQUIRED_FLAGS
 
 OFFICIAL_LABEL_VERSION = "official-outcome-v1"
 EVALUATED_EVENT = "v4_fresh_book_shadow_evaluated"
@@ -47,6 +49,74 @@ def _decimal(value: object, name: str) -> Decimal:
     if not result.is_finite():
         raise V4FreshBookPnlReportError(f"{name} must be finite")
     return result
+
+
+def _source_reason_dimensions(reason: str) -> tuple[str, str, str]:
+    if reason not in V4_CORE_SOURCE_REQUIRED_FLAGS:
+        raise V4FreshBookPnlReportError(
+            f"unexpected source-ineligible reason: {reason}"
+        )
+    failure_type = "missing" if reason.endswith("_missing") else "stale"
+    stem = reason.removesuffix(f"_{failure_type}")
+    if stem.startswith("coinbase_"):
+        venue = "coinbase"
+        anchor = stem.removeprefix("coinbase_")
+    elif stem.startswith("bybit_spot_"):
+        venue = "bybit_spot"
+        anchor = stem.removeprefix("bybit_spot_")
+    elif stem.startswith("bybit_linear_"):
+        venue = "bybit_linear"
+        anchor = stem.removeprefix("bybit_linear_")
+    else:
+        raise V4FreshBookPnlReportError(
+            f"unrecognized source-ineligible reason: {reason}"
+        )
+    return venue, anchor, failure_type
+
+
+def _source_ineligible_summary(
+    records: list[dict[str, Any]],
+) -> dict[str, Any]:
+    reason_counts: Counter[str] = Counter()
+    combination_counts: Counter[str] = Counter()
+    venue_counts: Counter[str] = Counter()
+    anchor_counts: Counter[str] = Counter()
+    failure_type_counts: Counter[str] = Counter()
+    sample_condition_ids: dict[str, list[str]] = {}
+
+    for record in records:
+        raw_reasons = record.get("source_ineligible_reasons")
+        if not isinstance(raw_reasons, list) or not raw_reasons:
+            raise V4FreshBookPnlReportError(
+                "source-ineligible record missing reasons"
+            )
+        reasons = tuple(sorted(str(reason) for reason in raw_reasons))
+        combination_counts[" + ".join(reasons)] += 1
+        condition_id = str(record.get("condition_id") or "")
+        for reason in reasons:
+            venue, anchor, failure_type = _source_reason_dimensions(reason)
+            reason_counts[reason] += 1
+            venue_counts[venue] += 1
+            anchor_counts[anchor] += 1
+            failure_type_counts[failure_type] += 1
+            samples = sample_condition_ids.setdefault(reason, [])
+            if condition_id and condition_id not in samples and len(samples) < 3:
+                samples.append(condition_id)
+
+    return {
+        "record_count": len(records),
+        "reason_counts": dict(sorted(reason_counts.items())),
+        "venue_counts": dict(sorted(venue_counts.items())),
+        "anchor_counts": dict(sorted(anchor_counts.items())),
+        "failure_type_counts": dict(sorted(failure_type_counts.items())),
+        "reason_combination_counts": dict(
+            sorted(
+                combination_counts.items(),
+                key=lambda item: (-item[1], item[0]),
+            )
+        ),
+        "sample_condition_ids_by_reason": dict(sorted(sample_condition_ids.items())),
+    }
 
 
 def _trade_from_record(record: dict[str, Any]) -> PaperTrade | None:
@@ -90,6 +160,7 @@ def load_epoch(path: Path) -> dict[str, Any]:
     evaluated = 0
     quote_unavailable = 0
     source_ineligible = 0
+    source_ineligible_records: list[dict[str, Any]] = []
     trades: dict[str, PaperTrade] = {}
     duplicate_prediction_count = 0
     completed = False
@@ -112,6 +183,7 @@ def load_epoch(path: Path) -> dict[str, Any]:
                 quote_unavailable += 1
             elif event == SOURCE_INELIGIBLE_EVENT:
                 source_ineligible += 1
+                source_ineligible_records.append(record)
             elif event == "v4_fresh_book_shadow_completed":
                 completed = True
 
@@ -135,6 +207,10 @@ def load_epoch(path: Path) -> dict[str, Any]:
         "evaluated": evaluated,
         "quote_unavailable": quote_unavailable,
         "source_ineligible": source_ineligible,
+        "source_ineligible_records": source_ineligible_records,
+        "source_ineligible_breakdown": _source_ineligible_summary(
+            source_ineligible_records
+        ),
         "trades": trades,
         "duplicate_prediction_count": duplicate_prediction_count,
     }
@@ -246,6 +322,7 @@ def build_report(
             "evaluated": epoch["evaluated"],
             "quote_unavailable": epoch["quote_unavailable"],
             "source_ineligible": epoch["source_ineligible"],
+            "source_ineligible_breakdown": epoch["source_ineligible_breakdown"],
             "duplicate_prediction_count": epoch["duplicate_prediction_count"],
             **_metrics(epoch["trades"], outcomes),
         })
@@ -261,6 +338,12 @@ def build_report(
         if not trade.extreme_edge_observation
     }
 
+    all_source_ineligible_records = [
+        record
+        for epoch in epochs
+        for record in epoch["source_ineligible_records"]
+    ]
+
     return {
         "report": "v4_fresh_book_canonical_pnl_v1",
         "label_version": OFFICIAL_LABEL_VERSION,
@@ -273,6 +356,9 @@ def build_report(
             "evaluated": sum(epoch["evaluated"] for epoch in epochs),
             "quote_unavailable": sum(epoch["quote_unavailable"] for epoch in epochs),
             "source_ineligible": sum(epoch["source_ineligible"] for epoch in epochs),
+            "source_ineligible_breakdown": _source_ineligible_summary(
+                all_source_ineligible_records
+            ),
             "duplicate_prediction_count_across_epochs": duplicate_across_epochs,
             **_metrics(all_trades, outcomes),
         },
