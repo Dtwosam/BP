@@ -142,3 +142,17 @@ def test_v4_visibility_rollout_uses_portable_base64() -> None:
     source = read_helper()
     assert "base64 | tr -d '\\n'" in source
     assert "base64 -w0" not in source
+
+
+def test_v4_visibility_rollout_fetches_candidate_into_remote_tracking_ref() -> None:
+    source = read_helper()
+    assert (
+        'git fetch --quiet origin '
+        '"$CANDIDATE_BRANCH:refs/remotes/origin/$CANDIDATE_BRANCH"'
+        in source
+    )
+    assert (
+        'REMOTE_CANDIDATE="$(git rev-parse '
+        '"refs/remotes/origin/$CANDIDATE_BRANCH")"'
+        in source
+    )
