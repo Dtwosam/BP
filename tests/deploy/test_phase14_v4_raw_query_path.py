@@ -57,6 +57,7 @@ def test_v4_raw_query_path_helper_uses_latest_evidence_and_runtime_source() -> N
         "files=(/var/lib/bp/evidence/v4-fresh-book-shadow-*.jsonl)",
         "v4-source-time-fresh-book-shadow-",
         "PYTHONPATH=",
+        "timeout --signal=TERM --kill-after=5s 120s",
         "--evidence-file",
     ):
         assert marker in source

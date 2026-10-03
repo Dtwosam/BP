@@ -75,7 +75,7 @@ sudo -u bp test -d \"\$release/src/bp_engine\" || { echo PHASE14_V4_RAW_QUERY_PA
 
 printf 'EVIDENCE_FILE=%s\\n' \"\$latest\"
 printf 'RUNTIME_SOURCE=%s\\n' \"\$release\"
-sudo -u bp env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=\"\$release/src\" \
+timeout --signal=TERM --kill-after=5s 120s sudo -u bp env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=\"\$release/src\" \
   /opt/bp/.venv/bin/python \"\$tmp/report_v4_raw_query_path.py\" \
   --env-file '$ENV_FILE' \
   --evidence-file \"\$latest\""

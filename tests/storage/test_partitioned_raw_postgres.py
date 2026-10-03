@@ -170,6 +170,63 @@ def test_empty_legacy_table_initializes_hourly_raw_and_hash_dedupe_partitions(en
     ]
 
 
+def test_hour_partition_creation_fails_fast_behind_reader_lock(engine) -> None:
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(
+        engine,
+        now=now,
+        migrate_existing=False,
+    )
+
+    blocker = engine.connect()
+    transaction = blocker.begin()
+    try:
+        blocker.execute(text("LOCK TABLE raw_market_events IN ACCESS SHARE MODE"))
+
+        started = monotonic()
+        with pytest.raises(DBAPIError):
+            with engine.begin() as connection:
+                ensure_hour_partitions(
+                    connection,
+                    start_at=datetime(2026, 9, 4, 14, 0, tzinfo=UTC),
+                    hours_ahead=0,
+                )
+        elapsed = monotonic() - started
+    finally:
+        transaction.rollback()
+        blocker.close()
+
+    assert elapsed < 5.0
+
+
+def test_existing_hour_partition_does_not_wait_for_parent_ddl_lock(engine) -> None:
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(
+        engine,
+        now=now,
+        migrate_existing=False,
+    )
+
+    blocker = engine.connect()
+    transaction = blocker.begin()
+    try:
+        blocker.execute(text("LOCK TABLE raw_market_events IN ACCESS SHARE MODE"))
+        started = monotonic()
+        with engine.begin() as connection:
+            partitions = ensure_hour_partitions(
+                connection,
+                start_at=datetime(2026, 9, 4, 11, 0, tzinfo=UTC),
+                hours_ahead=0,
+            )
+        elapsed = monotonic() - started
+    finally:
+        transaction.rollback()
+        blocker.close()
+
+    assert [item.name for item in partitions] == ["raw_market_events_20260904_11"]
+    assert elapsed < 1.0
+
+
 def test_nonempty_legacy_table_requires_explicit_migration(engine) -> None:
     received_at = datetime(2026, 9, 3, 23, 59, tzinfo=UTC)
     with engine.begin() as connection:
