@@ -198,7 +198,10 @@ def build_report(
                 writer_xact_ages.append(float(xact_age))
             if query_age is not None:
                 writer_query_ages.append(float(query_age))
-            wait_key = f"{writer.get('wait_event_type') or 'none'}:{writer.get('wait_event') or 'none'}"
+            wait_key = (
+                f"{writer.get('wait_event_type') or 'none'}:"
+                f"{writer.get('wait_event') or 'none'}"
+            )
             writer_wait_counts[wait_key] = writer_wait_counts.get(wait_key, 0) + 1
 
         if sample_index + 1 < samples:
@@ -211,7 +214,9 @@ def build_report(
         received = state["received_at"]
         row_ids = state["row_ids"]
         row_change_count = sum(
-            1 for left, right in zip(row_ids, row_ids[1:]) if left != right
+            1
+            for left, right in zip(row_ids, row_ids[1:], strict=True)
+            if left != right
         )
         wall_seconds = (
             (observed[-1] - observed[0]).total_seconds()
