@@ -24,7 +24,9 @@ def test_v4_pnl_helper_is_read_only_and_uses_latest_evidence() -> None:
         "git pull --ff-only origin main",
         "REPORT_READ_ONLY=true",
         "report_v4_fresh_book_pnl.py",
-        "ls -1t /var/lib/bp/evidence/v4-fresh-book-shadow-*.jsonl",
+        "sudo -u bp bash -c",
+        "files=(/var/lib/bp/evidence/v4-fresh-book-shadow-*.jsonl)",
+        "sudo -u bp find /var/lib/bp/runtime",
         "head_short=",
         "v4-source-time-fresh-book-shadow-",
         "head_short",
@@ -35,6 +37,7 @@ def test_v4_pnl_helper_is_read_only_and_uses_latest_evidence() -> None:
     ):
         assert marker in text
     assert "PYTHONPATH=/opt/bp/src" not in text
+    assert "ls -1t /var/lib/bp/evidence" not in text
     for forbidden in (
         "systemctl start",
         "systemctl stop",
