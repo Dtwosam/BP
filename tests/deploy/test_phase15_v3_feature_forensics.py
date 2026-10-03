@@ -22,23 +22,28 @@ def test_v3_feature_forensics_helper_is_shell_valid() -> None:
     assert completed.returncode == 0, completed.stderr
 
 
-def test_v3_feature_forensics_helper_is_read_only() -> None:
+def test_v3_feature_forensics_helper_stages_exact_main_read_only() -> None:
     text = HELPER.read_text(encoding="utf-8")
 
     for marker in (
         "git fetch origin main",
         "git pull --ff-only origin main",
+        "git archive --format=tar.gz",
+        "ARCHIVE_SHA256=",
+        "gcloud compute scp",
+        "archive_sha_mismatch",
         "REPORT_READ_ONLY=true",
         "V4_HOLDOUT_LABELS_READ=false",
-        "report_v3_fresh_book_trades.py",
-        "report_v3_feature_forensics.py",
+        "scripts/report_v3_fresh_book_trades.py",
+        "scripts/report_v3_feature_forensics.py",
+        "src/bp_engine/features/v3_models.py",
+        'PYTHONPATH="$repo/src"',
         "/var/lib/bp/evidence/v3-fresh-book-shadow-*.jsonl",
-        "PYTHONPATH=/opt/bp/src",
-        'chmod 0755 \\"\\$tmp\\"',
     ):
         assert marker in text
 
     for forbidden in (
+        "PYTHONPATH=/opt/bp/src",
         "systemctl start",
         "systemctl stop",
         "systemctl restart",
