@@ -175,6 +175,41 @@ async def test_batch_writer_flushes_partial_batch_on_interval() -> None:
 
 
 @pytest.mark.asyncio
+async def test_batch_writer_flush_interval_is_deadline_under_continuous_arrivals() -> None:
+    buffer = EventBuffer(maxsize=100)
+    batches: list[list[RawEvent]] = []
+    flushed = asyncio.Event()
+
+    async def sink(items: list[RawEvent]) -> None:
+        batches.append(items)
+        flushed.set()
+
+    writer = BatchWriter(
+        buffer=buffer,
+        sink=sink,
+        batch_size=100,
+        flush_interval_seconds=0.2,
+    )
+    stop = asyncio.Event()
+    task = asyncio.create_task(writer.run(stop))
+
+    async def produce_continuously() -> None:
+        for sequence in range(20):
+            await buffer.put(event(sequence))
+            await asyncio.sleep(0.02)
+
+    producer = asyncio.create_task(produce_continuously())
+    await asyncio.wait_for(flushed.wait(), timeout=0.32)
+
+    stop.set()
+    await producer
+    await asyncio.wait_for(task, timeout=1)
+
+    assert batches
+    assert 1 <= len(batches[0]) < 20
+
+
+@pytest.mark.asyncio
 async def test_batch_writer_drains_buffer_during_graceful_shutdown() -> None:
     buffer = EventBuffer(maxsize=10)
     batches: list[list[RawEvent]] = []
