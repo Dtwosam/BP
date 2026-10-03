@@ -22,7 +22,14 @@ def test_v4_pnl_load_epoch_tracks_extreme_and_source_ineligible(tmp_path: Path) 
     module = _load()
     path = tmp_path / "v4.jsonl"
     records = [
-        {"event": "v4_fresh_book_shadow_source_ineligible"},
+        {
+            "event": "v4_fresh_book_shadow_source_ineligible",
+            "condition_id": "blocked-1",
+            "source_ineligible_reasons": [
+                "bybit_linear_current_missing",
+                "bybit_linear_market_start_stale",
+            ],
+        },
         {"event": "v4_fresh_book_shadow_quote_unavailable"},
         {
             "event": "v4_fresh_book_shadow_evaluated",
@@ -42,6 +49,17 @@ def test_v4_pnl_load_epoch_tracks_extreme_and_source_ineligible(tmp_path: Path) 
     epoch = module.load_epoch(path)
 
     assert epoch["source_ineligible"] == 1
+    breakdown = epoch["source_ineligible_breakdown"]
+    assert breakdown["reason_counts"] == {
+        "bybit_linear_current_missing": 1,
+        "bybit_linear_market_start_stale": 1,
+    }
+    assert breakdown["venue_counts"] == {"bybit_linear": 2}
+    assert breakdown["anchor_counts"] == {"current": 1, "market_start": 1}
+    assert breakdown["failure_type_counts"] == {"missing": 1, "stale": 1}
+    assert breakdown["reason_combination_counts"] == {
+        "bybit_linear_current_missing + bybit_linear_market_start_stale": 1
+    }
     assert epoch["quote_unavailable"] == 1
     assert epoch["evaluated"] == 1
     trade = epoch["trades"]["p1"]
@@ -85,3 +103,39 @@ def test_v4_pnl_source_uses_official_labels_and_read_only_db() -> None:
     ):
         assert marker in source
     assert "resolved_outcome" not in source
+
+
+def test_source_ineligible_summary_counts_reasons_across_venues() -> None:
+    module = _load()
+    summary = module._source_ineligible_summary(
+        [
+            {
+                "condition_id": "c1",
+                "source_ineligible_reasons": [
+                    "coinbase_current_missing",
+                    "bybit_spot_current_missing",
+                ],
+            },
+            {
+                "condition_id": "c2",
+                "source_ineligible_reasons": [
+                    "coinbase_current_missing",
+                    "bybit_linear_current_stale",
+                ],
+            },
+        ]
+    )
+
+    assert summary["record_count"] == 2
+    assert summary["reason_counts"]["coinbase_current_missing"] == 2
+    assert summary["venue_counts"] == {
+        "bybit_linear": 1,
+        "bybit_spot": 1,
+        "coinbase": 2,
+    }
+    assert summary["anchor_counts"] == {"current": 4}
+    assert summary["failure_type_counts"] == {"missing": 3, "stale": 1}
+    assert summary["sample_condition_ids_by_reason"]["coinbase_current_missing"] == [
+        "c1",
+        "c2",
+    ]
