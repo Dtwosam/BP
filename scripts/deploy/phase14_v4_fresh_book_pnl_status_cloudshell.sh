@@ -75,7 +75,7 @@ sudo -u bp test -d \"\$release/src/bp_engine\" || { echo PHASE14_V4_FRESH_BOOK_P
 
 printf 'EVIDENCE_FILE=%s\\n' \"\$latest\"
 printf 'RUNTIME_SOURCE=%s\\n' \"\$release\"
-sudo -u bp env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=\"\$release/src\" \
+timeout --signal=TERM --kill-after=5s 120s sudo -u bp env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=\"\$release/src\" \
   /opt/bp/.venv/bin/python \"\$tmp/report_v4_fresh_book_pnl.py\" \
   --env-file '$ENV_FILE' \
   --evidence-glob \"\$latest\""
