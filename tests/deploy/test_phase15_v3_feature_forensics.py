@@ -34,7 +34,7 @@ def test_v3_feature_forensics_helper_is_read_only() -> None:
         "report_v3_feature_forensics.py",
         "/var/lib/bp/evidence/v3-fresh-book-shadow-*.jsonl",
         "PYTHONPATH=/opt/bp/src",
-        'chmod 0755 \"$tmp\"',
+        'chmod 0755 \\"\\$tmp\\"',
     ):
         assert marker in text
 
