@@ -474,7 +474,7 @@ echo "MAX_TRADE_SIZE_USD=0"
 echo "MAX_DAILY_LOSS_USD=0"
 REMOTE
 
-REMOTE_B64=$(printf '%s' "$REMOTE_SCRIPT" | base64 -w0)
+REMOTE_B64=$(printf '%s' "$REMOTE_SCRIPT" | base64 | tr -d '\n')
 echo "PROJECT=$PROJECT"
 echo "VM=$VM"
 echo "ZONE=$ZONE"
