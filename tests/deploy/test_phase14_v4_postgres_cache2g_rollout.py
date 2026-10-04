@@ -223,3 +223,17 @@ def test_pg_cache2g_rollout_rollback_restores_postgres_before_chain() -> None:
         'systemctl start "$RECORDER_UNIT"'
     )
     assert 'POSTGRES_SHARED_BUFFERS=$(postgres_shared_buffers' in rollback
+
+
+def test_pg_cache2g_rollout_defines_cache_constants_locally_and_remotely() -> None:
+    source = read_helper()
+    remote = source[source.index("read -r -d '' REMOTE_SCRIPT") :]
+    for marker in (
+        "EXPECTED_SHARED_BUFFERS=128MB",
+        "TARGET_SHARED_BUFFERS=2GB",
+        "MIN_HOST_MEM_TOTAL_BYTES=",
+        "MIN_HOST_MEM_AVAILABLE_BYTES=",
+        "MIN_POST_TUNE_AVAILABLE_BYTES=",
+    ):
+        assert source.count(marker) >= 2
+        assert marker in remote
