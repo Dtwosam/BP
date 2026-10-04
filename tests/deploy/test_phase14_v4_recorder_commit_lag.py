@@ -29,6 +29,13 @@ def test_v4_commit_lag_probe_is_read_only_and_partition_pruned() -> None:
         "commit_lag_seconds",
         "xact_age_seconds",
         "query_age_seconds",
+        "active_writer_count",
+        "writer_phase_state",
+        "pg_stat_database",
+        "pg_stat_wal",
+        "wal_bytes_per_xact_commit",
+        "pg_total_relation_size",
+        "pg_indexes_size",
         "INSERT INTO raw_market_events",
         "INSERT INTO raw_event_dedupe",
         "DATABASE_WRITES_PERFORMED=false",
@@ -113,3 +120,26 @@ def test_v4_commit_lag_row_change_count_handles_adjacent_pairs() -> None:
     assert row_change_count([]) == 0
     assert row_change_count([10]) == 0
     assert row_change_count([10, 11, 11, 12]) == 2
+
+
+def test_v4_commit_lag_writer_phase_classification() -> None:
+    namespace = runpy.run_path(str(REPORT))
+    writer_phase = namespace["_writer_phase"]
+
+    assert writer_phase("INSERT INTO raw_market_events (id) VALUES (1)") == "raw_insert"
+    assert writer_phase("INSERT INTO raw_event_dedupe (dedupe_key) VALUES ('x')") == (
+        "dedupe_insert"
+    )
+    assert writer_phase("SELECT 1") == "other"
+
+
+def test_v4_commit_lag_counter_delta_is_monotone_and_fail_soft() -> None:
+    namespace = runpy.run_path(str(REPORT))
+    counter_delta = namespace["_counter_delta"]
+
+    assert counter_delta(None, {"x": 2.0}) is None
+    assert counter_delta({"x": 1.0}, None) is None
+    assert counter_delta({"x": 5.0, "y": 2.0}, {"x": 8.0, "y": 1.0}) == {
+        "x": 3.0,
+        "y": 0.0,
+    }
