@@ -57,7 +57,7 @@ def test_cache2g_batch500_ab_is_always_restore_experiment() -> None:
         'PHASE=candidate_set_shared_buffers_2GB',
         'PHASE=restore_env_and_postgres',
         "_restore_env(env_file, original_env, original_stat)",
-        '"restored_baseline": True',
+        'summary["restored_baseline"] = True',
         'print("PRODUCTION_FINAL_SHARED_BUFFERS=128MB")',
         'print("EXPERIMENT_PERSISTED=false")',
     ):
