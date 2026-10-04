@@ -168,3 +168,20 @@ def test_v4_commit_lag_probe_reports_cache_and_dedupe_health() -> None:
         "raw_event_dedupe_h%",
     ):
         assert marker in source
+
+
+def test_v4_commit_lag_helper_reports_postgres_memory_envelope() -> None:
+    source = HELPER.read_text(encoding="utf-8")
+    for marker in (
+        "MACHINE_TYPE=",
+        "MACHINE_MEMORY_MB=",
+        "HOST_MEM_TOTAL_BYTES=",
+        "HOST_MEM_AVAILABLE_BYTES=",
+        "HOST_SWAP_TOTAL_BYTES=",
+        "POSTGRES_CONTAINER_MEMORY_LIMIT_BYTES=",
+        "POSTGRES_CGROUP_MEMORY_MAX=",
+        "gcloud compute machine-types describe",
+        "docker inspect --format '{{.HostConfig.Memory}}'",
+        "docker exec",
+    ):
+        assert marker in source
