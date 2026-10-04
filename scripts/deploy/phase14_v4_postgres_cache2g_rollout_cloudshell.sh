@@ -816,7 +816,6 @@ echo "MAX_DAILY_LOSS_USD=0"
 REMOTE
 
 REMOTE_SCRIPT="${REMOTE_SCRIPT/__REPORT_B64__/$REPORT_B64}"
-REMOTE_B64="$(printf '%s' "$REMOTE_SCRIPT" | base64 | tr -d '\n')"
 
 echo "PROJECT=$PROJECT"
 echo "VM=$VM"
@@ -833,4 +832,40 @@ echo "This helper mutates the production checkout, PostgreSQL shared-buffer env,
 echo "It fails closed to the previous checkout and exact prior env/cache/batch settings, then restores automatic maintenance."
 echo "Live trading remains disabled and money limits remain zero."
 
-gcloud compute ssh "$VM"   --project="$PROJECT"   --zone="$ZONE"   --quiet   --command="printf '%s' '$REMOTE_B64' | base64 -d | sudo bash"
+REMOTE_OUTPUT="$(mktemp)"
+set +e
+printf '%s' "$REMOTE_SCRIPT" | \
+  gcloud compute ssh "$VM" \
+    --project="$PROJECT" \
+    --zone="$ZONE" \
+    --quiet \
+    --command="sudo bash -s" \
+    2>&1 | tee "$REMOTE_OUTPUT"
+PIPE_RC=("${PIPESTATUS[@]}")
+set -e
+
+STREAM_RC="${PIPE_RC[0]}"
+GCLOUD_RC="${PIPE_RC[1]}"
+TEE_RC="${PIPE_RC[2]}"
+
+TERMINAL_MARKER_PRESENT=false
+if grep -Eq '^PHASE14_V4_PG_CACHE2G_ROLLOUT_GATE=(PASS|FAIL)$|^PHASE14_V4_PG_CACHE2G_ROLLOUT_ROLLBACK=COMPLETE "$REMOTE_OUTPUT"; then
+  TERMINAL_MARKER_PRESENT=true
+fi
+
+if [[ "$TERMINAL_MARKER_PRESENT" != "true" ]]; then
+  rm -f "$REMOTE_OUTPUT"
+  fail_local "remote_terminal_marker_missing:stream_rc=$STREAM_RC:gcloud_rc=$GCLOUD_RC:tee_rc=$TEE_RC"
+fi
+
+rm -f "$REMOTE_OUTPUT"
+
+if (( GCLOUD_RC != 0 )); then
+  exit "$GCLOUD_RC"
+fi
+if (( STREAM_RC != 0 )); then
+  fail_local "remote_script_stream_failed:rc=$STREAM_RC"
+fi
+if (( TEE_RC != 0 )); then
+  fail_local "remote_output_capture_failed:rc=$TEE_RC"
+fi
