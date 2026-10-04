@@ -101,6 +101,17 @@ def build_report(connection) -> dict[str, Any]:
     if readonly != "on":
         raise RuntimeError("database connection is not read-only")
 
+    cache_sizes = connection.execute(
+        text(
+            """
+            SELECT
+                pg_size_bytes(current_setting('shared_buffers')) AS shared_buffers_bytes,
+                pg_size_bytes(current_setting('effective_cache_size'))
+                    AS effective_cache_size_bytes
+            """
+        )
+    ).mappings().one()
+
     tables = _dedupe_tables(connection)
     indexes = _dedupe_indexes(connection)
     expected_tables = [
@@ -222,6 +233,22 @@ def build_report(connection) -> dict[str, Any]:
                 else None
             ),
             "primary_key_bytes_per_live_tuple": bytes_per_live_tuple,
+        },
+        "postgresql_cache": {
+            "shared_buffers_bytes": int(cache_sizes["shared_buffers_bytes"] or 0),
+            "effective_cache_size_bytes": int(
+                cache_sizes["effective_cache_size_bytes"] or 0
+            ),
+            "primary_key_bytes_to_shared_buffers_ratio": (
+                total_pkey_bytes / int(cache_sizes["shared_buffers_bytes"])
+                if int(cache_sizes["shared_buffers_bytes"] or 0) > 0
+                else None
+            ),
+            "primary_key_bytes_to_effective_cache_size_ratio": (
+                total_pkey_bytes / int(cache_sizes["effective_cache_size_bytes"])
+                if int(cache_sizes["effective_cache_size_bytes"] or 0) > 0
+                else None
+            ),
         },
         "signals": {
             "all_primary_indexes_healthy": all_primary_healthy,
