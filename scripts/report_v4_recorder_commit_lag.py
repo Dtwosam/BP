@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from statistics import median
 from typing import Any
 
@@ -15,6 +15,7 @@ from bp_engine.storage.schema import raw_market_events
 
 DEFAULT_SAMPLES = 60
 DEFAULT_INTERVAL_SECONDS = 0.5
+DEFAULT_HORIZON_HOURS = 6.0
 
 SOURCE_SPECS = {
     "coinbase": ("coinbase", "spot", "BTC-USD"),
@@ -33,6 +34,12 @@ def parse_args() -> argparse.Namespace:
         "--interval-seconds",
         type=float,
         default=DEFAULT_INTERVAL_SECONDS,
+    )
+    parser.add_argument(
+        "--horizon-hours",
+        type=float,
+        default=DEFAULT_HORIZON_HOURS,
+        help="Recent received_at horizon used only for partition pruning.",
     )
     return parser.parse_args()
 
@@ -60,6 +67,8 @@ def _latest_v4_row(
     connection: Connection,
     *,
     venue: str,
+    observed_at: datetime,
+    horizon_hours: float,
 ) -> dict[str, Any] | None:
     source, stream, instrument = SOURCE_SPECS[venue]
     statement = select(
@@ -72,6 +81,8 @@ def _latest_v4_row(
         raw_market_events.c.stream == stream,
         raw_market_events.c.instrument == instrument,
         raw_market_events.c.source_timestamp.is_not(None),
+        raw_market_events.c.received_at
+        >= observed_at - timedelta(hours=horizon_hours),
     )
     if source == "coinbase":
         statement = statement.where(
@@ -132,11 +143,14 @@ def build_report(
     *,
     samples: int,
     interval_seconds: float,
+    horizon_hours: float,
 ) -> dict[str, Any]:
     if samples <= 1:
         raise ValueError("samples must be greater than one")
     if interval_seconds <= 0:
         raise ValueError("interval_seconds must be positive")
+    if horizon_hours <= 0:
+        raise ValueError("horizon_hours must be positive")
 
     readonly = str(
         connection.execute(text("SHOW default_transaction_read_only")).scalar_one()
@@ -152,6 +166,7 @@ def build_report(
             "row_ids": [],
             "query_timeout_count": 0,
             "query_failure_count": 0,
+            "no_row_within_horizon_count": 0,
         }
         for venue in SOURCE_SPECS
     }
@@ -167,7 +182,12 @@ def build_report(
         for venue in SOURCE_SPECS:
             state = venue_state[venue]
             try:
-                row = _latest_v4_row(connection, venue=venue)
+                row = _latest_v4_row(
+                    connection,
+                    venue=venue,
+                    observed_at=observed_at,
+                    horizon_hours=horizon_hours,
+                )
             except OperationalError as exc:
                 if "statement timeout" in str(exc).lower():
                     state["query_timeout_count"] += 1
@@ -175,6 +195,7 @@ def build_report(
                     state["query_failure_count"] += 1
                 continue
             if row is None:
+                state["no_row_within_horizon_count"] += 1
                 continue
 
             received_at = _utc(row["received_at"])
@@ -238,6 +259,9 @@ def build_report(
             "row_seen_count": len(row_ids),
             "query_timeout_count": int(state["query_timeout_count"]),
             "query_failure_count": int(state["query_failure_count"]),
+            "no_row_within_horizon_count": int(
+                state["no_row_within_horizon_count"]
+            ),
             "row_change_count": row_change_count,
             "first_committed_received_at": (
                 received[0].isoformat() if received else None
@@ -262,6 +286,7 @@ def build_report(
         "completed_at": completed_at.isoformat(),
         "samples": samples,
         "interval_seconds": interval_seconds,
+        "horizon_hours": horizon_hours,
         "venues": venues,
         "writer_activity": {
             "active_sample_count": writer_active_sample_count,
@@ -301,6 +326,7 @@ def main() -> int:
                 connection,
                 samples=args.samples,
                 interval_seconds=args.interval_seconds,
+                horizon_hours=args.horizon_hours,
             )
     finally:
         engine.dispose()
