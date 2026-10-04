@@ -44,6 +44,8 @@ REQUIRED_TIMERS = (
 )
 FAILURE_ATTRIBUTION_SAMPLES = 20
 FAILURE_ATTRIBUTION_INTERVAL_SECONDS = 0.25
+BOUNDED_CLEAN_WINDOW_SAMPLES = 80
+BOUNDED_CLEAN_WINDOW_INTERVAL_SECONDS = 0.5
 
 
 def parse_args() -> argparse.Namespace:
@@ -324,16 +326,77 @@ def _capture_readiness_failure_attribution(
         )
 
 
+def _only_long_transactions_block(report: dict[str, Any]) -> bool:
+    signals = dict(report["signals"])
+    required_true = (
+        "all_primary_indexes_healthy",
+        "no_invalid_indexes",
+        "no_prepared_transactions",
+        "transient_headroom_ok",
+    )
+    return (
+        signals.get("reindex_readiness_pass") is False
+        and signals.get("no_long_transactions") is False
+        and all(signals.get(name) is True for name in required_true)
+    )
+
+
+def _bounded_clean_window_report(settings: Settings) -> dict[str, Any]:
+    with _readonly_connection(settings) as connection:
+        return blockers.build_report(
+            connection,
+            samples=BOUNDED_CLEAN_WINDOW_SAMPLES,
+            interval_seconds=BOUNDED_CLEAN_WINDOW_INTERVAL_SECONDS,
+            long_transaction_seconds=blockers.DEFAULT_LONG_TRANSACTION_SECONDS,
+        )
+
+
+def _bounded_clean_window_ends_clean(report: dict[str, Any]) -> bool:
+    pid_summary = dict(report["pid_summary"])
+    signals = dict(report["signals"])
+    return (
+        not list(pid_summary.get("persistent_pids", ()))
+        and not list(pid_summary.get("appeared_pids", ()))
+        and signals.get("persistent_long_transaction_count") == 0
+        and signals.get("writer_quiesce_likely_required_for_bounded_reindex")
+        is False
+    )
+
+
 def _require_preflight_readiness(
     report: dict[str, Any],
     *,
     settings: Settings | None = None,
     evidence_dir: Path | None = None,
     stage: str | None = None,
-) -> None:
+) -> dict[str, Any]:
     signals = dict(report["signals"])
     if signals.get("reindex_readiness_pass") is True:
-        return
+        return report
+
+    if (
+        settings is not None
+        and evidence_dir is not None
+        and stage is not None
+        and _only_long_transactions_block(report)
+    ):
+        bounded_report = _bounded_clean_window_report(settings)
+        _write_json(
+            evidence_dir / f"{stage}-bounded-clean-window.json",
+            bounded_report,
+        )
+        if _bounded_clean_window_ends_clean(bounded_report):
+            retry_report = _readiness_report(settings)
+            _write_json(
+                evidence_dir / f"{stage}-after-bounded-clean-window.json",
+                retry_report,
+            )
+            retry_signals = dict(retry_report["signals"])
+            if retry_signals.get("reindex_readiness_pass") is True:
+                return retry_report
+            report = retry_report
+            signals = retry_signals
+
     if settings is not None and evidence_dir is not None and stage is not None:
         _capture_readiness_failure_attribution(
             settings,
@@ -429,7 +492,7 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
 
         pre_readiness = _readiness_report(settings)
         _write_json(evidence_dir / "pre-readiness.json", pre_readiness)
-        _require_preflight_readiness(
+        pre_readiness = _require_preflight_readiness(
             pre_readiness,
             settings=settings,
             evidence_dir=evidence_dir,
@@ -449,7 +512,7 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
             evidence_dir / "mutation-readiness.json",
             mutation_readiness,
         )
-        _require_preflight_readiness(
+        mutation_readiness = _require_preflight_readiness(
             mutation_readiness,
             settings=settings,
             evidence_dir=evidence_dir,
