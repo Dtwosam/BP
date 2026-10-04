@@ -17,7 +17,7 @@ def test_v4_commit_lag_helper_has_valid_bash() -> None:
     subprocess.run(["bash", "-n", str(HELPER)], check=True)
 
 
-def test_v4_commit_lag_probe_is_read_only_and_unbounded_by_recent_window() -> None:
+def test_v4_commit_lag_probe_is_read_only_and_partition_pruned() -> None:
     source = REPORT.read_text(encoding="utf-8")
     for marker in (
         "default_transaction_read_only=on",
@@ -35,7 +35,15 @@ def test_v4_commit_lag_probe_is_read_only_and_unbounded_by_recent_window() -> No
         "ORDER_SUBMISSION_PERFORMED=false",
     ):
         assert marker in source
-    assert "LOOKBACK_SECONDS" not in source
+    for marker in (
+        "DEFAULT_HORIZON_HOURS = 6.0",
+        "--horizon-hours",
+        "received_at",
+        "timedelta(hours=horizon_hours)",
+        "no_row_within_horizon_count",
+        '"horizon_hours": horizon_hours',
+    ):
+        assert marker in source
     for forbidden in (
         "connection.execute(insert(",
         "UPDATE raw_market_events",
@@ -87,3 +95,11 @@ def test_v4_commit_lag_helper_requires_rolled_back_healthy_runtime() -> None:
         "pg_terminate_backend",
     ):
         assert forbidden not in source
+
+
+def test_v4_commit_lag_probe_pruning_does_not_hide_severe_lag() -> None:
+    source = REPORT.read_text(encoding="utf-8")
+    assert 'state["no_row_within_horizon_count"] += 1' in source
+    assert '"no_row_within_horizon_count": int(' in source
+    assert "commit_lag_seconds" in source
+    assert "commit_advancement_ratio" in source
