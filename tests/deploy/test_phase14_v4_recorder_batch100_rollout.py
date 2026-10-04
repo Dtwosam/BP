@@ -162,3 +162,15 @@ def test_batch100_rollout_uses_portable_base64() -> None:
     source = read_helper()
     assert "base64 | tr -d '\\n'" in source
     assert "base64 -w0" not in source
+
+
+def test_batch100_rollout_prints_visibility_report_before_failed_rollback() -> None:
+    source = read_helper()
+    acceptance = source[
+        source.index("run_visibility_acceptance() {") : source.index("rollback() {")
+    ]
+    assert 'echo "PHASE14_V4_BATCH100_VISIBILITY_ACCEPTANCE=FAIL" >&2' in acceptance
+    assert 'cat "$VISIBILITY_FILE" >&2 || true' in acceptance
+    assert acceptance.index("PHASE14_V4_BATCH100_VISIBILITY_ACCEPTANCE=FAIL") < acceptance.index(
+        "return 1"
+    )
