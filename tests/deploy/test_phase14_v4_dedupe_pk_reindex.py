@@ -200,3 +200,22 @@ def test_v4_dedupe_pk_reindex_helper_streams_remote_script_over_stdin() -> None:
         '--command="printf \'%s\'',
     ):
         assert forbidden not in source
+
+
+def test_v4_dedupe_pk_reindex_helper_emits_remote_failure_marker() -> None:
+    source = HELPER.read_text(encoding="utf-8")
+    for marker in (
+        "set +e",
+        "rc=$?",
+        'echo "PHASE14_V4_DEDUPE_PK_REINDEX_GATE=FAIL"',
+        'exit "$rc"',
+    ):
+        assert marker in source
+
+    python_call = source.index("run_v4_dedupe_pk_reindex_rollout.py")
+    failure_marker = source.index(
+        'echo "PHASE14_V4_DEDUPE_PK_REINDEX_GATE=FAIL"',
+        python_call,
+    )
+    remote_end = source.index("REMOTE_SCRIPT", failure_marker)
+    assert python_call < failure_marker < remote_end
