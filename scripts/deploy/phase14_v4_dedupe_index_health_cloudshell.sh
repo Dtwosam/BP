@@ -64,6 +64,26 @@ read_env() {
 [[ "$(read_env "$ENV_FILE" MAX_TRADE_SIZE_USD)" == "0" ]] || fail "max_trade_size_nonzero"
 [[ "$(read_env "$ENV_FILE" MAX_DAILY_LOSS_USD)" == "0" ]] || fail "max_daily_loss_nonzero"
 
+"$REPO/.venv/bin/python" - "$REPO/PROJECT_STATE.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+values = []
+def walk(value):
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key == "automatic_promotion":
+                values.append(item)
+            walk(item)
+    elif isinstance(value, list):
+        for item in value:
+            walk(item)
+walk(payload)
+if not values or any(value is not False for value in values):
+    raise SystemExit("automatic_promotion must remain false")
+PY
+
 sudo -u bp env -u RECORDER_QUEUE_MAXSIZE -u RECORDER_BATCH_SIZE -u RECORDER_WRITER_WORKERS -u RECORDER_FLUSH_INTERVAL_SECONDS   "$REPO/.venv/bin/python" - "$ENV_FILE" <<'PY'
 import sys
 from bp_engine.config import Settings
