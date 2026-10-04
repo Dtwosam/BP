@@ -26,10 +26,14 @@ MAINTENANCE_SERVICE = "bp-storage-maintenance.service"
 MAINTENANCE_TIMER = "bp-storage-maintenance.timer"
 DISK_HEALTH_SERVICE = "bp-storage-disk-health.service"
 DISK_HEALTH_TIMER = "bp-storage-disk-health.timer"
+V2_SERVICE = "bp-v2-forward-coverage.service"
 V2_TIMER = "bp-v2-forward-coverage.timer"
+V4_SERVICE = "bp-v4-forward-coverage.service"
 V4_TIMER = "bp-v4-forward-coverage.timer"
 
 CORE_UNITS = (RECORDER_UNIT, V3_PREDICTOR_UNIT, V3_EXECUTION_UNIT)
+QUIESCED_TIMERS = (MAINTENANCE_TIMER, V2_TIMER, V4_TIMER)
+QUIESCED_ONESHOTS = (MAINTENANCE_SERVICE, V2_SERVICE, V4_SERVICE)
 REQUIRED_TIMERS = (
     MAINTENANCE_TIMER,
     DISK_HEALTH_TIMER,
@@ -309,7 +313,6 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
     for timer in REQUIRED_TIMERS:
         _require_timer_active_enabled(timer)
 
-    _wait_oneshot_idle_success(MAINTENANCE_SERVICE, 3600)
     _wait_oneshot_idle_success(DISK_HEALTH_SERVICE, 60)
 
     core_before = _core_snapshot()
@@ -328,7 +331,8 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
         "helper_head": args.helper_head,
         "deployed_head": args.expected_deployed_head,
         "core_before": core_before,
-        "maintenance_timer_restored": False,
+        "quiesced_timers": list(QUIESCED_TIMERS),
+        "quiesced_timers_restored": False,
         "effectiveness_requires_review": True,
         "safety": {
             "mode": "research",
@@ -340,8 +344,24 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
     }
     _write_json(evidence_dir / "rollout.json", summary)
 
-    timer_stopped = False
+    stopped_timers: list[str] = []
     try:
+        for timer in QUIESCED_TIMERS:
+            _systemctl("stop", timer)
+            stopped_timers.append(timer)
+            if _is_active(timer):
+                raise RuntimeError(f"quiesced timer remained active after stop: {timer}")
+            if not _is_enabled(timer):
+                raise RuntimeError(f"quiesced timer became disabled: {timer}")
+
+        for service in QUIESCED_ONESHOTS:
+            _wait_oneshot_idle_success(service, 3600)
+        _wait_oneshot_idle_success(DISK_HEALTH_SERVICE, 60)
+
+        _require_research_zero_money(env_file, safety_file)
+        _require_automatic_promotion_false(repo / "PROJECT_STATE.json")
+        _require_core_unchanged(core_before)
+
         pre_readiness = _readiness_report(settings)
         _write_json(evidence_dir / "pre-readiness.json", pre_readiness)
         _require_preflight_readiness(pre_readiness)
@@ -353,18 +373,6 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
         _write_json(evidence_dir / "pre-commit-lag.json", pre_lag)
 
         _require_core_unchanged(core_before)
-
-        _systemctl("stop", MAINTENANCE_TIMER)
-        timer_stopped = True
-        if _is_active(MAINTENANCE_TIMER):
-            raise RuntimeError("maintenance timer remained active after stop")
-        if not _is_enabled(MAINTENANCE_TIMER):
-            raise RuntimeError("maintenance timer became disabled")
-        _wait_oneshot_idle_success(MAINTENANCE_SERVICE, 3600)
-        _wait_oneshot_idle_success(DISK_HEALTH_SERVICE, 60)
-
-        _require_research_zero_money(env_file, safety_file)
-        _require_automatic_promotion_false(repo / "PROJECT_STATE.json")
 
         mutation_readiness = _readiness_report(settings)
         _write_json(
@@ -414,20 +422,30 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
         summary["error"] = f"{type(exc).__name__}: {exc}"
         raise
     finally:
-        if timer_stopped:
+        restore_results: dict[str, dict[str, object]] = {}
+        for timer in reversed(stopped_timers):
             restore = _run(
                 "systemctl",
                 "start",
-                MAINTENANCE_TIMER,
+                timer,
                 check=False,
             )
-            summary["maintenance_timer_restore_returncode"] = restore.returncode
-            summary["maintenance_timer_restored"] = (
-                restore.returncode == 0 and _is_active(MAINTENANCE_TIMER)
-            )
-            if not summary["maintenance_timer_restored"]:
+            active = _is_active(timer)
+            restore_results[timer] = {
+                "returncode": restore.returncode,
+                "active": active,
+                "stderr": restore.stderr.strip(),
+            }
+            if restore.returncode != 0 or not active:
                 summary["status"] = "failure"
-                summary["maintenance_timer_restore_stderr"] = restore.stderr.strip()
+        summary["timer_restore_results"] = restore_results
+        summary["quiesced_timers_restored"] = (
+            set(restore_results) == set(QUIESCED_TIMERS)
+            and all(
+                int(result["returncode"]) == 0 and bool(result["active"])
+                for result in restore_results.values()
+            )
+        )
         summary["completed_at"] = datetime.now(UTC).isoformat()
         _write_json(evidence_dir / "rollout.json", summary)
 

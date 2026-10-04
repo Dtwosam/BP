@@ -98,13 +98,20 @@ def test_v4_dedupe_pk_reindex_rollout_preserves_core_services() -> None:
         assert forbidden not in source
 
 
-def test_v4_dedupe_pk_reindex_rollout_restores_maintenance_timer() -> None:
+def test_v4_dedupe_pk_reindex_rollout_quiesces_and_restores_cycle_timers() -> None:
     source = ROLLOUT.read_text(encoding="utf-8")
     for marker in (
-        '_systemctl("stop", MAINTENANCE_TIMER)',
-        "timer_stopped = True",
-        '"systemctl",\n                "start",\n                MAINTENANCE_TIMER',
-        '"maintenance_timer_restored"',
+        'V2_SERVICE = "bp-v2-forward-coverage.service"',
+        'V4_SERVICE = "bp-v4-forward-coverage.service"',
+        "QUIESCED_TIMERS = (MAINTENANCE_TIMER, V2_TIMER, V4_TIMER)",
+        "QUIESCED_ONESHOTS = (MAINTENANCE_SERVICE, V2_SERVICE, V4_SERVICE)",
+        "for timer in QUIESCED_TIMERS:",
+        '_systemctl("stop", timer)',
+        "for service in QUIESCED_ONESHOTS:",
+        "_wait_oneshot_idle_success(service, 3600)",
+        "for timer in reversed(stopped_timers):",
+        '"quiesced_timers_restored"',
+        '"timer_restore_results"',
         "REQUIRED_TIMERS",
         "_require_timer_active_enabled(timer)",
     ):
@@ -164,7 +171,7 @@ def test_v4_dedupe_pk_reindex_helper_streams_without_checkout_mutation() -> None
         "report_v4_recorder_commit_lag.py",
         "RECORDER_REMAINS_ACTIVE=true",
         "V3_REMAINS_ACTIVE=true",
-        "MAINTENANCE_TIMER_TEMPORARILY_QUIESCED=true",
+        "MAINTENANCE_V2_V4_TIMERS_TEMPORARILY_QUIESCED=true",
     ):
         assert marker in source
 
@@ -219,3 +226,17 @@ def test_v4_dedupe_pk_reindex_helper_emits_remote_failure_marker() -> None:
     )
     remote_end = source.index("REMOTE_SCRIPT", failure_marker)
     assert python_call < failure_marker < remote_end
+
+
+def test_v4_dedupe_pk_reindex_rollout_requires_two_clean_gates_after_quiesce() -> None:
+    source = ROLLOUT.read_text(encoding="utf-8")
+    stop_at = source.index('for timer in QUIESCED_TIMERS:')
+    wait_at = source.index('for service in QUIESCED_ONESHOTS:', stop_at)
+    pre_gate_at = source.index('evidence_dir / "pre-readiness.json"', wait_at)
+    lag_at = source.index('evidence_dir / "pre-commit-lag.json"', pre_gate_at)
+    mutation_gate_at = source.index(
+        'evidence_dir / "mutation-readiness.json"',
+        lag_at,
+    )
+    reindex_at = source.index("reindex_runner.run(", mutation_gate_at)
+    assert stop_at < wait_at < pre_gate_at < lag_at < mutation_gate_at < reindex_at
