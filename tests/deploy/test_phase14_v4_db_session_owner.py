@@ -25,6 +25,7 @@ def test_v4_db_session_owner_report_is_strictly_read_only() -> None:
         "statement_timeout=5000",
         'isolation_level="AUTOCOMMIT"',
         "pg_stat_activity",
+        "backend_type = 'client backend'",
         "/proc/net/tcp",
         "/proc/net/tcp6",
         "/proc",
@@ -71,8 +72,11 @@ def test_v4_db_session_owner_only_matches_postgres_destination_port() -> None:
         'if int(socket["remote_port"]) != POSTGRES_PORT',
         'client_port = int(socket["local_port"])',
         "host_socket_owners",
+        "host_postgres_client_connections",
+        "host_client_summary",
         "matched_systemd_units",
-        "all_sessions_attributed",
+        "proxy_obscured_session_count",
+        "all_sessions_exactly_attributed",
     ):
         assert marker in source
 
@@ -87,6 +91,7 @@ def test_v4_db_session_owner_emits_sanitized_process_identity_only() -> None:
         "socket_family",
         "local_port",
         "remote_port",
+        'process_name == "docker-proxy"',
     ):
         assert marker in source
     for forbidden in (
