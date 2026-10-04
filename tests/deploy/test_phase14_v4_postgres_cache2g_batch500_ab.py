@@ -179,3 +179,9 @@ def test_cache2g_batch500_ab_helper_streams_exact_scripts() -> None:
         "remote_terminal_marker_missing",
     ):
         assert marker in source
+
+
+def test_cache2g_batch500_ab_expands_files_array_correctly() -> None:
+    source = HELPER.read_text(encoding="utf-8")
+    assert 'for path in "${FILES[@]}"; do' in source
+    assert 'for path in "$FILES[@]"; do' not in source
