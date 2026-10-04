@@ -9,7 +9,7 @@ from statistics import median
 from typing import Any
 
 from sqlalchemy import Connection, create_engine, or_, select, text
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 from bp_engine.config import Settings
 from bp_engine.storage.schema import raw_market_events
@@ -143,6 +143,149 @@ def _active_raw_writers(connection: Connection) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
+def _writer_phase(query: object) -> str:
+    value = str(query or "")
+    if "INSERT INTO raw_market_events" in value:
+        return "raw_insert"
+    if "INSERT INTO raw_event_dedupe" in value:
+        return "dedupe_insert"
+    return "other"
+
+
+def _database_counters(connection: Connection) -> dict[str, float] | None:
+    try:
+        row = connection.execute(
+            text(
+                """
+                SELECT
+                    xact_commit,
+                    xact_rollback,
+                    tup_inserted,
+                    blks_read,
+                    blks_hit,
+                    blk_read_time,
+                    blk_write_time,
+                    temp_bytes
+                FROM pg_stat_database
+                WHERE datname = current_database()
+                """
+            )
+        ).mappings().one()
+    except SQLAlchemyError:
+        return None
+    return {key: float(value or 0) for key, value in row.items()}
+
+
+def _wal_counters(connection: Connection) -> dict[str, float] | None:
+    try:
+        row = connection.execute(
+            text(
+                """
+                SELECT
+                    wal_records,
+                    wal_fpi,
+                    wal_bytes,
+                    wal_buffers_full,
+                    wal_write,
+                    wal_sync,
+                    wal_write_time,
+                    wal_sync_time
+                FROM pg_stat_wal
+                """
+            )
+        ).mappings().one()
+    except SQLAlchemyError:
+        return None
+    return {key: float(value or 0) for key, value in row.items()}
+
+
+def _counter_delta(
+    before: dict[str, float] | None,
+    after: dict[str, float] | None,
+) -> dict[str, float] | None:
+    if before is None or after is None:
+        return None
+    return {
+        key: max(0.0, float(after[key]) - float(before[key]))
+        for key in sorted(before.keys() & after.keys())
+    }
+
+
+def _storage_sizes(connection: Connection, observed_at: datetime) -> dict[str, Any] | None:
+    partition_name = f"raw_market_events_{observed_at.astimezone(UTC):%Y%m%d_%H}"
+    try:
+        partition = connection.execute(
+            text(
+                """
+                SELECT
+                    to_regclass(:partition_name)::text AS relation_name,
+                    COALESCE(pg_relation_size(to_regclass(:partition_name)), 0) AS heap_bytes,
+                    COALESCE(pg_indexes_size(to_regclass(:partition_name)), 0) AS index_bytes,
+                    COALESCE(pg_total_relation_size(to_regclass(:partition_name)), 0) AS total_bytes
+                """
+            ),
+            {"partition_name": partition_name},
+        ).mappings().one()
+        indexes = connection.execute(
+            text(
+                """
+                SELECT
+                    index_relation.relname AS index_name,
+                    pg_relation_size(index_relation.oid) AS bytes
+                FROM pg_index
+                JOIN pg_class AS table_relation
+                  ON table_relation.oid = pg_index.indrelid
+                JOIN pg_namespace AS table_namespace
+                  ON table_namespace.oid = table_relation.relnamespace
+                JOIN pg_class AS index_relation
+                  ON index_relation.oid = pg_index.indexrelid
+                WHERE table_namespace.nspname = current_schema()
+                  AND table_relation.relname = :partition_name
+                ORDER BY bytes DESC, index_name
+                """
+            ),
+            {"partition_name": partition_name},
+        ).mappings()
+        dedupe = connection.execute(
+            text(
+                """
+                SELECT
+                    COALESCE(sum(pg_relation_size(relation.oid)), 0) AS heap_bytes,
+                    COALESCE(sum(pg_indexes_size(relation.oid)), 0) AS index_bytes,
+                    COALESCE(sum(pg_total_relation_size(relation.oid)), 0) AS total_bytes
+                FROM pg_class AS relation
+                JOIN pg_namespace AS namespace
+                  ON namespace.oid = relation.relnamespace
+                WHERE namespace.nspname = current_schema()
+                  AND relation.relname LIKE 'raw_event_dedupe_h%'
+                """
+            )
+        ).mappings().one()
+    except SQLAlchemyError:
+        return None
+
+    return {
+        "raw_current_partition": {
+            "relation_name": partition["relation_name"],
+            "heap_bytes": int(partition["heap_bytes"] or 0),
+            "index_bytes": int(partition["index_bytes"] or 0),
+            "total_bytes": int(partition["total_bytes"] or 0),
+            "indexes": [
+                {
+                    "index_name": str(row["index_name"]),
+                    "bytes": int(row["bytes"] or 0),
+                }
+                for row in indexes
+            ],
+        },
+        "dedupe_children_total": {
+            "heap_bytes": int(dedupe["heap_bytes"] or 0),
+            "index_bytes": int(dedupe["index_bytes"] or 0),
+            "total_bytes": int(dedupe["total_bytes"] or 0),
+        },
+    }
+
+
 def build_report(
     connection: Connection,
     *,
@@ -179,7 +322,19 @@ def build_report(
     writer_query_ages: list[float] = []
     writer_active_sample_count = 0
     writer_wait_counts: dict[str, int] = {}
+    writer_concurrency: list[float] = []
+    writer_phase_state: dict[str, dict[str, Any]] = {
+        phase: {
+            "observation_count": 0,
+            "xact_age_seconds": [],
+            "query_age_seconds": [],
+            "wait_counts": {},
+        }
+        for phase in ("raw_insert", "dedupe_insert", "other")
+    }
 
+    database_before = _database_counters(connection)
+    wal_before = _wal_counters(connection)
     started_at = datetime.now(UTC)
     for sample_index in range(samples):
         observed_at = datetime.now(UTC)
@@ -215,6 +370,7 @@ def build_report(
             writers = _active_raw_writers(connection)
         except OperationalError:
             writers = []
+        writer_concurrency.append(float(len(writers)))
         if writers:
             writer_active_sample_count += 1
         for writer in writers:
@@ -230,10 +386,26 @@ def build_report(
             )
             writer_wait_counts[wait_key] = writer_wait_counts.get(wait_key, 0) + 1
 
+            phase = _writer_phase(writer.get("query"))
+            phase_state = writer_phase_state[phase]
+            phase_state["observation_count"] += 1
+            if xact_age is not None:
+                phase_state["xact_age_seconds"].append(float(xact_age))
+            if query_age is not None:
+                phase_state["query_age_seconds"].append(float(query_age))
+            phase_wait_counts = phase_state["wait_counts"]
+            phase_wait_counts[wait_key] = phase_wait_counts.get(wait_key, 0) + 1
+
         if sample_index + 1 < samples:
             time.sleep(interval_seconds)
 
     completed_at = datetime.now(UTC)
+    database_after = _database_counters(connection)
+    wal_after = _wal_counters(connection)
+    database_delta = _counter_delta(database_before, database_after)
+    wal_delta = _counter_delta(wal_before, wal_after)
+    sample_seconds = max(0.0, (completed_at - started_at).total_seconds())
+    storage_sizes = _storage_sizes(connection, completed_at)
     venues: dict[str, Any] = {}
     for venue, state in venue_state.items():
         observed = state["observed_at"]
@@ -292,9 +464,51 @@ def build_report(
         "writer_activity": {
             "active_sample_count": writer_active_sample_count,
             "sample_count": samples,
+            "active_writer_count": _distribution(writer_concurrency),
             "xact_age_seconds": _distribution(writer_xact_ages),
             "query_age_seconds": _distribution(writer_query_ages),
             "wait_counts": dict(sorted(writer_wait_counts.items())),
+            "phases": {
+                phase: {
+                    "observation_count": int(state["observation_count"]),
+                    "xact_age_seconds": _distribution(state["xact_age_seconds"]),
+                    "query_age_seconds": _distribution(state["query_age_seconds"]),
+                    "wait_counts": dict(sorted(state["wait_counts"].items())),
+                }
+                for phase, state in writer_phase_state.items()
+            },
+        },
+        "postgresql_write_cost": {
+            "sample_wall_seconds": sample_seconds,
+            "database_scope": "current_database_all_workloads",
+            "wal_scope": "cluster_global",
+            "database_delta": database_delta,
+            "wal_delta": wal_delta,
+            "derived": {
+                "xact_commits_per_second": (
+                    database_delta["xact_commit"] / sample_seconds
+                    if database_delta is not None and sample_seconds > 0
+                    else None
+                ),
+                "tuples_inserted_per_second": (
+                    database_delta["tup_inserted"] / sample_seconds
+                    if database_delta is not None and sample_seconds > 0
+                    else None
+                ),
+                "wal_bytes_per_second": (
+                    wal_delta["wal_bytes"] / sample_seconds
+                    if wal_delta is not None and sample_seconds > 0
+                    else None
+                ),
+                "wal_bytes_per_xact_commit": (
+                    wal_delta["wal_bytes"] / database_delta["xact_commit"]
+                    if wal_delta is not None
+                    and database_delta is not None
+                    and database_delta["xact_commit"] > 0
+                    else None
+                ),
+            },
+            "storage_sizes": storage_sizes,
         },
         "safety": {
             "database_read_only_required": True,
