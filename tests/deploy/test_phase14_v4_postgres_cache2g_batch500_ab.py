@@ -54,10 +54,11 @@ def test_cache2g_batch500_ab_is_always_restore_experiment() -> None:
         'CANDIDATE_SHARED_BUFFERS = "2GB"',
         "WARMUP_SECONDS = 300",
         '"always_restore_baseline": True',
-        'PHASE=candidate_set_shared_buffers_2GB',
-        'PHASE=restore_env_and_postgres',
-        "_restore_env(env_file, original_env, original_stat)",
+        'PHASE=candidate_recreate_postgres_2GB',
+        'PHASE=restore_deployed_postgres_128MB',
+        "compose_path=_deployed_compose(repo)",
         'summary["restored_baseline"] = True',
+        '"environment_file_mutated": False',
         'print("PRODUCTION_FINAL_SHARED_BUFFERS=128MB")',
         'print("EXPERIMENT_PERSISTED=false")',
     ):
@@ -65,7 +66,7 @@ def test_cache2g_batch500_ab_is_always_restore_experiment() -> None:
 
     success_at = source.index('summary["status"] = "success"')
     restore_at = source.index(
-        "_restore_env(env_file, original_env, original_stat)"
+        'print("PHASE=restore_deployed_postgres_128MB"'
     )
     assert restore_at < success_at
 
@@ -142,15 +143,15 @@ def test_cache2g_batch500_ab_quiesces_and_restores_cycle_timers() -> None:
         assert marker in source
 
 
-def test_cache2g_batch500_ab_stops_core_before_postgres_restart() -> None:
+def test_cache2g_batch500_ab_stops_core_before_postgres_recreate() -> None:
     source = RUNNER.read_text(encoding="utf-8")
     candidate = source[source.index('print("PHASE=candidate_quiesce"') :]
     assert candidate.index("_stop_core_chain()") < candidate.index(
-        "_restart_postgres()"
+        "candidate_postgres_identity = _recreate_postgres("
     )
-    assert candidate.index("_restart_postgres()") < candidate.index(
-        "_start_core_chain()"
-    )
+    assert candidate.index(
+        "candidate_postgres_identity = _recreate_postgres("
+    ) < candidate.index("_start_core_chain()")
 
 
 def test_cache2g_batch500_ab_failure_path_restores_baseline() -> None:
@@ -158,8 +159,8 @@ def test_cache2g_batch500_ab_failure_path_restores_baseline() -> None:
     failure = source[source.index("except Exception as exc:") :]
     for marker in (
         'print("PHASE=emergency_restore"',
-        "_restore_env(env_file, original_env, original_stat)",
-        "_restart_postgres()",
+        "compose_path=_deployed_compose(repo)",
+        "_recreate_postgres(",
         "_start_core_chain()",
         "_restore_cycle_timers()",
         "BASELINE_SHARED_BUFFERS",
@@ -173,6 +174,8 @@ def test_cache2g_batch500_ab_helper_streams_exact_scripts() -> None:
     for marker in (
         "scripts/run_v4_postgres_cache2g_batch500_ab.py",
         "scripts/report_v4_recorder_commit_lag.py",
+        "docker-compose.prod.yml",
+        '--candidate-compose "$tmp/docker-compose.prod.yml"',
         'cat > "$REMOTE_SCRIPT_PATH"',
         'sudo bash "$REMOTE_SCRIPT_PATH"',
         "PHASE14_V4_PG_CACHE2G_BATCH500_AB_GATE=(PASS|FAIL)",
@@ -185,3 +188,33 @@ def test_cache2g_batch500_ab_expands_files_array_correctly() -> None:
     source = HELPER.read_text(encoding="utf-8")
     assert 'for path in "${FILES[@]}"; do' in source
     assert 'for path in "$FILES[@]"; do' not in source
+
+
+def test_cache2g_batch500_ab_uses_staged_compose_without_env_file_mutation() -> None:
+    source = RUNNER.read_text(encoding="utf-8")
+    for marker in (
+        'required = "shared_buffers=${POSTGRES_SHARED_BUFFERS:-128MB}"',
+        'environment["POSTGRES_SHARED_BUFFERS"] = shared_buffers',
+        '"--force-recreate"',
+        '"--project-directory"',
+        '"compose_project"',
+        '"data_mount_source"',
+        '"environment_file_mutated": False',
+    ):
+        assert marker in source
+    assert "_replace_env_value(" not in source
+    assert "_restore_env(" not in source
+
+
+def test_cache2g_batch500_ab_preserves_compose_project_and_data_mount() -> None:
+    source = RUNNER.read_text(encoding="utf-8")
+    for marker in (
+        "def _discover_postgres_identity(",
+        "def _current_project_postgres_identity(",
+        'labels.get("com.docker.compose.project")',
+        'mount.get("Destination") == "/var/lib/postgresql/data"',
+        'identity["data_mount_source"] != expected_data_mount_source',
+        '"postgres data mount changed during candidate recreation',
+        '"restored postgres data mount mismatch"',
+    ):
+        assert marker in source
