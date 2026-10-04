@@ -164,7 +164,7 @@ def test_pg_cache2g_rollout_preserves_research_zero_money_boundary() -> None:
 
 def test_pg_cache2g_rollout_uses_portable_base64() -> None:
     source = read_helper()
-    assert "base64 | tr -d '\\n'" in source
+    assert 'REPORT_B64="$(base64 < "$REPORT" | tr -d \'\\n\')"' in source
     assert "base64 -w0" not in source
 
 
@@ -284,3 +284,25 @@ def test_pg_cache2g_rollout_labels_preflight_before_mutation_arm() -> None:
         "preflight:candidate-verify",
     ):
         assert remote.index(f"ROLLOUT_PHASE='{phase}'") < mutation_at
+
+
+
+def test_pg_cache2g_rollout_streams_remote_script_over_ssh_stdin() -> None:
+    source = read_helper()
+    assert 'printf \'%s\' "$REMOTE_SCRIPT" | \\' in source
+    assert '--command="sudo bash -s"' in source
+    assert "REMOTE_B64=" not in source
+    assert "--command=\"printf '%s' '$REMOTE_B64'" not in source
+
+
+def test_pg_cache2g_rollout_requires_remote_terminal_marker() -> None:
+    source = read_helper()
+    for marker in (
+        "TERMINAL_MARKER_PRESENT=false",
+        "PHASE14_V4_PG_CACHE2G_ROLLOUT_GATE=(PASS|FAIL)",
+        "PHASE14_V4_PG_CACHE2G_ROLLOUT_ROLLBACK=COMPLETE",
+        "remote_terminal_marker_missing:stream_rc=",
+        "remote_script_stream_failed:rc=",
+        "remote_output_capture_failed:rc=",
+    ):
+        assert marker in source
