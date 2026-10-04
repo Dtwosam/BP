@@ -73,7 +73,6 @@ REMOTE_SCRIPT
 REMOTE="${REMOTE/__PAYLOAD_B64__/$PAYLOAD_B64}"
 REMOTE="${REMOTE/__DEPLOYED_HEAD__/$DEPLOYED_Q}"
 REMOTE="${REMOTE/__HELPER_HEAD__/$HELPER_Q}"
-REMOTE_B64="$(printf '%s' "$REMOTE" | base64 | tr -d '\n')"
 
 echo "PROJECT=$PROJECT"
 echo "VM=$VM"
@@ -87,8 +86,40 @@ echo "MAINTENANCE_TIMER_TEMPORARILY_QUIESCED=true"
 echo "LIVE_TRADING_ENABLED=false"
 echo "This helper mutates production PostgreSQL indexes. Exact fresh approval is required."
 
-gcloud compute ssh "$VM" \
-  --project="$PROJECT" \
-  --zone="$ZONE" \
-  --quiet \
-  --command="printf '%s' '$REMOTE_B64' | base64 -d | sudo bash"
+REMOTE_OUTPUT="$(mktemp)"
+set +e
+printf '%s' "$REMOTE" | \
+  gcloud compute ssh "$VM" \
+    --project="$PROJECT" \
+    --zone="$ZONE" \
+    --quiet \
+    --command='REMOTE_SCRIPT_PATH="$(mktemp /tmp/bp-v4-dedupe-pk-reindex.XXXXXX.sh)" && cat > "$REMOTE_SCRIPT_PATH" && sudo bash "$REMOTE_SCRIPT_PATH"; rc=$?; rm -f "$REMOTE_SCRIPT_PATH"; exit "$rc"' \
+    2>&1 | tee "$REMOTE_OUTPUT"
+PIPE_RC=("${PIPESTATUS[@]}")
+set -e
+
+STREAM_RC="${PIPE_RC[0]}"
+GCLOUD_RC="${PIPE_RC[1]}"
+TEE_RC="${PIPE_RC[2]}"
+
+TERMINAL_MARKER_PRESENT=false
+if grep -Eq '^PHASE14_V4_DEDUPE_PK_REINDEX_GATE=(PASS|FAIL)$' "$REMOTE_OUTPUT"; then
+  TERMINAL_MARKER_PRESENT=true
+fi
+
+if [[ "$TERMINAL_MARKER_PRESENT" != "true" ]]; then
+  rm -f "$REMOTE_OUTPUT"
+  fail "remote_terminal_marker_missing:stream_rc=$STREAM_RC:gcloud_rc=$GCLOUD_RC:tee_rc=$TEE_RC"
+fi
+
+rm -f "$REMOTE_OUTPUT"
+
+if (( GCLOUD_RC != 0 )); then
+  exit "$GCLOUD_RC"
+fi
+if (( STREAM_RC != 0 )); then
+  fail "remote_script_stream_failed:rc=$STREAM_RC"
+fi
+if (( TEE_RC != 0 )); then
+  fail "remote_output_capture_failed:rc=$TEE_RC"
+fi
