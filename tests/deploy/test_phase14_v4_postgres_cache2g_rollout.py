@@ -208,7 +208,7 @@ def test_pg_cache2g_rollout_restarts_postgres_before_recorder_chain() -> None:
 
 def test_pg_cache2g_rollout_has_cold_cache_warmup_before_acceptance() -> None:
     source = read_helper()
-    mutation = source[source.index("start_chain") :]
+    mutation = source[source.rindex("start_chain") :]
     assert mutation.index("sleep 120") < mutation.index("run_soak")
     assert mutation.index("run_soak") < mutation.index("run_visibility_acceptance")
 
