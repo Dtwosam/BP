@@ -3,9 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import stat
 import subprocess
-import tempfile
 import time
 from datetime import UTC, datetime
 from pathlib import Path
