@@ -158,3 +158,40 @@ def test_v4_dedupe_reindex_blockers_helper_is_read_only() -> None:
         "pg_terminate_backend",
     ):
         assert forbidden not in source
+
+
+def test_v4_dedupe_reindex_blockers_classifies_allowlisted_relation_families() -> None:
+    namespace = runpy.run_path(str(REPORT))
+    relation_families = namespace["_relation_families"]
+    service_signature = namespace["_service_signature"]
+
+    query = (
+        "SELECT paper_orders.paper_order_id, raw_market_events.received_at "
+        "FROM paper_orders JOIN raw_market_events ON true"
+    )
+    assert relation_families(query) == ("paper_execution", "market_replay")
+    assert service_signature(query) == "legacy_paper_execution"
+
+    prospective = (
+        "SELECT live_prediction_evaluations.prediction_id, market_labels.label_version "
+        "FROM live_prediction_evaluations JOIN market_labels ON true"
+    )
+    assert relation_families(prospective) == (
+        "live_prediction",
+        "labels_features",
+    )
+    assert service_signature(prospective) == "prospective_outcomes_like"
+
+
+def test_v4_dedupe_reindex_blockers_query_signatures_do_not_emit_sql_text() -> None:
+    source = REPORT.read_text(encoding="utf-8")
+    for marker in (
+        '"relation_families"',
+        '"service_signatures"',
+        '"legacy_paper_execution"',
+        '"prospective_outcomes_like"',
+        '"raw_query_text_emitted": False',
+    ):
+        assert marker in source
+    assert '"query": query' not in source
+    assert '"query_text"' not in source
