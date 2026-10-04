@@ -5,19 +5,19 @@ import json
 import os
 import subprocess
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterator
-
-from sqlalchemy import create_engine, text
-
-from bp_engine.config import Settings
+from typing import Any
 
 import reindex_v4_dedupe_primary_indexes as reindex_runner
 import report_v4_dedupe_index_health as index_health
 import report_v4_dedupe_reindex_readiness as readiness
 import report_v4_recorder_commit_lag as commit_lag
+from sqlalchemy import create_engine, text
+
+from bp_engine.config import Settings
 
 RECORDER_UNIT = "bp-recorder.service"
 V3_PREDICTOR_UNIT = "bp-v3-frozen-predictor.service"
@@ -63,8 +63,7 @@ def _run(
         args,
         check=check,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
 
 
