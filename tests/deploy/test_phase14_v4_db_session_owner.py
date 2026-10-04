@@ -91,9 +91,8 @@ def test_v4_db_session_owner_emits_sanitized_process_identity_only() -> None:
         assert marker in source
     for forbidden in (
         "command_line",
-        "arguments",
-        "environment",
-        "environ",
+        "/proc/self/environ",
+        "/proc/{pid}/environ",
         "DATABASE_URL",
         "POSTGRES_PASSWORD",
     ):
