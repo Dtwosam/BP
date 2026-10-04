@@ -869,15 +869,3 @@ fi
 if (( TEE_RC != 0 )); then
   fail_local "remote_output_capture_failed:rc=$TEE_RC"
 fi
-
-rm -f "$REMOTE_OUTPUT"
-
-if (( GCLOUD_RC != 0 )); then
-  exit "$GCLOUD_RC"
-fi
-if (( STREAM_RC != 0 )); then
-  fail_local "remote_script_stream_failed:rc=$STREAM_RC"
-fi
-if (( TEE_RC != 0 )); then
-  fail_local "remote_output_capture_failed:rc=$TEE_RC"
-fi
