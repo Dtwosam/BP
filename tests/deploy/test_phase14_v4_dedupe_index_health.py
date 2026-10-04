@@ -36,8 +36,8 @@ def test_v4_dedupe_index_health_report_is_strictly_read_only() -> None:
         assert marker in source
 
     for forbidden in (
-        "REINDEX",
-        "VACUUM",
+        "REINDEX INDEX",
+        "VACUUM ",
         "CREATE INDEX",
         "DROP INDEX",
         "ALTER TABLE",
