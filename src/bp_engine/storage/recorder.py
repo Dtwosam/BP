@@ -65,7 +65,7 @@ class RecorderRepository:
                 """
                 + ", ".join(values_sql)
                 + """
-                ON CONFLICT (dedupe_key) DO NOTHING
+                ON CONFLICT DO NOTHING
                 RETURNING dedupe_key, id
                 """
             ),
