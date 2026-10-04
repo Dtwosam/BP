@@ -109,6 +109,7 @@ def _sample(connection, threshold_seconds: float) -> list[dict[str, Any]]:
                 GROUP BY lock.mode
             ) AS locks ON TRUE
             WHERE activity.datname = current_database()
+              AND activity.backend_type = 'client backend'
               AND activity.pid <> pg_backend_pid()
               AND activity.xact_start IS NOT NULL
               AND clock_timestamp() - activity.xact_start

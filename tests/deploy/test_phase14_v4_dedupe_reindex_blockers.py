@@ -25,6 +25,7 @@ def test_v4_dedupe_reindex_blockers_report_is_strictly_read_only() -> None:
         "statement_timeout=5000",
         'isolation_level="AUTOCOMMIT"',
         "pg_stat_activity",
+        "activity.backend_type = 'client backend'",
         "pg_locks",
         "RAW_QUERY_TEXT_EMITTED=false",
         "DATABASE_WRITES_PERFORMED=false",

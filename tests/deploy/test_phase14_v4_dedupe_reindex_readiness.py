@@ -26,6 +26,7 @@ def test_v4_dedupe_reindex_readiness_report_is_strictly_read_only() -> None:
         "statement_timeout=5000",
         'isolation_level="AUTOCOMMIT"',
         "pg_stat_activity",
+        "backend_type = 'client backend'",
         "pg_prepared_xacts",
         "pg_relation_size",
         "shutil.disk_usage",
