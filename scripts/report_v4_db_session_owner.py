@@ -136,6 +136,24 @@ def _process_name(pid: int) -> str | None:
         return None
 
 
+def _owner_record(
+    *,
+    pid: int,
+    socket: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "host_pid": pid,
+        "systemd_unit": _systemd_unit(pid),
+        "process_name": _process_name(pid),
+        "user": _uid_name(pid),
+        "socket_family": socket["family"],
+        "local_addr": socket["local_addr"],
+        "local_port": int(socket["local_port"]),
+        "remote_addr": socket["remote_addr"],
+        "remote_port": int(socket["remote_port"]),
+    }
+
+
 def _postgres_client_socket_owners() -> dict[int, list[dict[str, Any]]]:
     sockets = _parse_proc_net(Path("/proc/net/tcp"))
     sockets.extend(_parse_proc_net(Path("/proc/net/tcp6")))
@@ -147,19 +165,38 @@ def _postgres_client_socket_owners() -> dict[int, list[dict[str, Any]]]:
         client_port = int(socket["local_port"])
         for pid in sorted(set(inode_owners.get(str(socket["inode"]), []))):
             by_client_port.setdefault(client_port, []).append(
-                {
-                    "host_pid": pid,
-                    "systemd_unit": _systemd_unit(pid),
-                    "process_name": _process_name(pid),
-                    "user": _uid_name(pid),
-                    "socket_family": socket["family"],
-                    "local_addr": socket["local_addr"],
-                    "local_port": client_port,
-                    "remote_addr": socket["remote_addr"],
-                    "remote_port": int(socket["remote_port"]),
-                }
+                _owner_record(pid=pid, socket=socket)
             )
     return by_client_port
+
+
+def _host_postgres_client_connections() -> list[dict[str, Any]]:
+    sockets = _parse_proc_net(Path("/proc/net/tcp"))
+    sockets.extend(_parse_proc_net(Path("/proc/net/tcp6")))
+    inode_owners = _socket_inode_owners()
+    connections: list[dict[str, Any]] = []
+    seen: set[tuple[int, str]] = set()
+    for socket in sockets:
+        if int(socket["remote_port"]) != POSTGRES_PORT:
+            continue
+        inode = str(socket["inode"])
+        for pid in sorted(set(inode_owners.get(inode, []))):
+            process_name = _process_name(pid)
+            if process_name == "docker-proxy":
+                continue
+            key = (pid, inode)
+            if key in seen:
+                continue
+            seen.add(key)
+            connections.append(_owner_record(pid=pid, socket=socket))
+    return sorted(
+        connections,
+        key=lambda row: (
+            str(row.get("systemd_unit") or ""),
+            int(row["host_pid"]),
+            int(row["local_port"]),
+        ),
+    )
 
 
 def _long_transactions(
@@ -182,6 +219,7 @@ def _long_transactions(
                 wait_event
             FROM pg_stat_activity
             WHERE datname = current_database()
+              AND backend_type = 'client backend'
               AND pid <> pg_backend_pid()
               AND xact_start IS NOT NULL
               AND clock_timestamp() - xact_start
@@ -208,10 +246,19 @@ def build_report(
         raise RuntimeError("database connection is not read-only")
 
     socket_owners = _postgres_client_socket_owners()
+    host_clients = _host_postgres_client_connections()
     rows = _long_transactions(connection, long_transaction_seconds)
     sessions: list[dict[str, Any]] = []
     matched_units: set[str] = set()
+    host_client_units = sorted(
+        {
+            str(row["systemd_unit"])
+            for row in host_clients
+            if row.get("systemd_unit")
+        }
+    )
     unmatched_count = 0
+    proxy_obscured_count = 0
     for row in rows:
         client_port = (
             int(row["client_port"])
@@ -221,6 +268,11 @@ def build_report(
         owners = socket_owners.get(client_port, []) if client_port else []
         if not owners:
             unmatched_count += 1
+        if owners and all(
+            owner.get("process_name") == "docker-proxy"
+            for owner in owners
+        ):
+            proxy_obscured_count += 1
         for owner in owners:
             unit = owner.get("systemd_unit")
             if unit:
@@ -253,14 +305,23 @@ def build_report(
         )
 
     return {
-        "report": "v4_db_session_owner_v1",
+        "report": "v4_db_session_owner_v2",
         "long_transaction_seconds": long_transaction_seconds,
         "long_transaction_count": len(sessions),
         "sessions": sessions,
+        "host_postgres_client_connections": host_clients,
+        "host_client_summary": {
+            "connection_count": len(host_clients),
+            "systemd_units": host_client_units,
+        },
         "owner_summary": {
             "matched_systemd_units": sorted(matched_units),
             "unmatched_session_count": unmatched_count,
+            "proxy_obscured_session_count": proxy_obscured_count,
             "all_sessions_attributed": unmatched_count == 0,
+            "all_sessions_exactly_attributed": (
+                unmatched_count == 0 and proxy_obscured_count == 0
+            ),
         },
         "safety": {
             "database_read_only_required": True,
