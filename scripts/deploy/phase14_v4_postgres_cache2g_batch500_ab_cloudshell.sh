@@ -69,9 +69,6 @@ rc=$?
 set -e
 
 if (( rc != 0 )); then
-  if ! grep -q '^PHASE14_V4_PG_CACHE2G_BATCH500_AB_GATE=FAIL$' /dev/null; then
-    :
-  fi
   exit "$rc"
 fi
 REMOTE_SCRIPT
