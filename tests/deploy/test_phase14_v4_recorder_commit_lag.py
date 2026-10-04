@@ -36,6 +36,15 @@ def test_v4_commit_lag_probe_is_read_only_and_partition_pruned() -> None:
         "wal_bytes_per_xact_commit",
         "pg_total_relation_size",
         "pg_indexes_size",
+        "pg_settings",
+        "shared_buffers",
+        "effective_cache_size",
+        "pg_stat_user_tables",
+        "pg_statio_user_tables",
+        "pg_stat_user_indexes",
+        "pg_statio_user_indexes",
+        "estimated_dead_tuples",
+        "index_cache_hit_ratio",
         "INSERT INTO raw_market_events",
         "INSERT INTO raw_event_dedupe",
         "DATABASE_WRITES_PERFORMED=false",
@@ -143,3 +152,19 @@ def test_v4_commit_lag_counter_delta_is_monotone_and_fail_soft() -> None:
         "x": 3.0,
         "y": 0.0,
     }
+
+
+def test_v4_commit_lag_probe_reports_cache_and_dedupe_health() -> None:
+    source = REPORT.read_text(encoding="utf-8")
+    for marker in (
+        "postgresql_settings",
+        "dedupe_health",
+        "shared_buffers_bytes",
+        "effective_cache_size_bytes",
+        "dead_to_live_ratio",
+        "heap_cache_hit_ratio",
+        "index_cache_hit_ratio",
+        "last_autovacuum",
+        "raw_event_dedupe_h%",
+    ):
+        assert marker in source
