@@ -4,6 +4,7 @@ import argparse
 import json
 import time
 from datetime import UTC, datetime, timedelta
+from itertools import pairwise
 from statistics import median
 from typing import Any
 
@@ -48,6 +49,10 @@ def _utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
+
+
+def _row_change_count(row_ids: list[int]) -> int:
+    return sum(left != right for left, right in pairwise(row_ids))
 
 
 def _distribution(values: list[float]) -> dict[str, float] | None:
@@ -234,11 +239,7 @@ def build_report(
         observed = state["observed_at"]
         received = state["received_at"]
         row_ids = state["row_ids"]
-        row_change_count = sum(
-            1
-            for left, right in zip(row_ids, row_ids[1:], strict=True)
-            if left != right
-        )
+        row_change_count = _row_change_count(row_ids)
         wall_seconds = (
             (observed[-1] - observed[0]).total_seconds()
             if len(observed) >= 2
