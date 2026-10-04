@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shutil
+import stat
 import subprocess
 import tempfile
 import time
@@ -21,6 +21,13 @@ RECORDER_UNIT = "bp-recorder.service"
 V3_PREDICTOR_UNIT = "bp-v3-frozen-predictor.service"
 V3_EXECUTION_UNIT = "bp-v3-paper-execution.service"
 CORE_UNITS = (RECORDER_UNIT, V3_PREDICTOR_UNIT, V3_EXECUTION_UNIT)
+AUX_UNITS = (
+    "bp-dashboard-api.service",
+    "bp-dashboard-web.service",
+    "bp-paper-execution.service",
+    "bp-live-predictor.service",
+    "bp-prospective-outcomes.service",
+)
 
 MAINTENANCE_SERVICE = "bp-storage-maintenance.service"
 MAINTENANCE_TIMER = "bp-storage-maintenance.timer"
@@ -152,7 +159,7 @@ def _replace_env_value(path: Path, key: str, value: str) -> None:
             handle.write("\n".join(output) + "\n")
             handle.flush()
             os.fsync(handle.fileno())
-        os.chmod(tmp, original_stat.st_mode)
+        os.chmod(tmp, stat.S_IMODE(original_stat.st_mode))
         os.chown(tmp, original_stat.st_uid, original_stat.st_gid)
         os.replace(tmp, path)
     finally:
@@ -169,7 +176,7 @@ def _restore_env(path: Path, original_bytes: bytes, original_stat: os.stat_resul
             handle.write(original_bytes)
             handle.flush()
             os.fsync(handle.fileno())
-        os.chmod(tmp, original_stat.st_mode)
+        os.chmod(tmp, stat.S_IMODE(original_stat.st_mode))
         os.chown(tmp, original_stat.st_uid, original_stat.st_gid)
         os.replace(tmp, path)
     finally:
@@ -438,7 +445,7 @@ def _validate_steady_state(
     _require_automatic_promotion_false(Path("/opt/bp/PROJECT_STATE.json"))
     _require_recorder_binding(settings)
     _require_active(POSTGRES_UNIT)
-    for unit in CORE_UNITS:
+    for unit in (*CORE_UNITS, *AUX_UNITS):
         _require_active(unit)
     for timer in REQUIRED_TIMERS:
         _require_timer_active_enabled(timer)
@@ -477,7 +484,7 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
     _require_automatic_promotion_false(project_state)
     _require_recorder_binding(settings)
     _require_active(POSTGRES_UNIT)
-    for unit in CORE_UNITS:
+    for unit in (*CORE_UNITS, *AUX_UNITS):
         _require_active(unit)
     for timer in REQUIRED_TIMERS:
         _require_timer_active_enabled(timer)
@@ -528,8 +535,8 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
     restored = False
     try:
         print("PHASE=candidate_quiesce", flush=True)
-        _quiesce_cycle_timers()
         mutation_started = True
+        _quiesce_cycle_timers()
 
         print("PHASE=candidate_stop_core", flush=True)
         _stop_core_chain()
