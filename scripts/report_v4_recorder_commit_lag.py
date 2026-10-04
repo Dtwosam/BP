@@ -286,6 +286,219 @@ def _storage_sizes(connection: Connection, observed_at: datetime) -> dict[str, A
     }
 
 
+def _postgresql_settings(connection: Connection) -> dict[str, Any] | None:
+    names = (
+        "shared_buffers",
+        "effective_cache_size",
+        "work_mem",
+        "maintenance_work_mem",
+        "max_connections",
+        "random_page_cost",
+        "effective_io_concurrency",
+        "track_io_timing",
+        "synchronous_commit",
+        "checkpoint_timeout",
+        "max_wal_size",
+    )
+    try:
+        rows = connection.execute(
+            text(
+                """
+                SELECT
+                    name,
+                    setting,
+                    unit,
+                    context,
+                    source,
+                    pending_restart
+                FROM pg_settings
+                WHERE name = ANY(:names)
+                ORDER BY name
+                """
+            ),
+            {"names": list(names)},
+        ).mappings()
+        sizes = connection.execute(
+            text(
+                """
+                SELECT
+                    pg_size_bytes(current_setting('shared_buffers')) AS shared_buffers_bytes,
+                    pg_size_bytes(current_setting('effective_cache_size'))
+                        AS effective_cache_size_bytes,
+                    pg_size_bytes(current_setting('work_mem')) AS work_mem_bytes,
+                    pg_size_bytes(current_setting('maintenance_work_mem'))
+                        AS maintenance_work_mem_bytes
+                """
+            )
+        ).mappings().one()
+    except SQLAlchemyError:
+        return None
+
+    return {
+        "values": {
+            str(row["name"]): {
+                "setting": str(row["setting"]),
+                "unit": None if row["unit"] is None else str(row["unit"]),
+                "context": str(row["context"]),
+                "source": str(row["source"]),
+                "pending_restart": bool(row["pending_restart"]),
+            }
+            for row in rows
+        },
+        "sizes_bytes": {key: int(value or 0) for key, value in sizes.items()},
+    }
+
+
+def _dedupe_health(connection: Connection) -> dict[str, Any] | None:
+    try:
+        tables = list(
+            connection.execute(
+                text(
+                    """
+                    SELECT
+                        table_stats.relname AS table_name,
+                        table_stats.n_live_tup,
+                        table_stats.n_dead_tup,
+                        table_stats.last_autovacuum,
+                        table_stats.last_autoanalyze,
+                        table_stats.autovacuum_count,
+                        table_stats.autoanalyze_count,
+                        table_io.heap_blks_read,
+                        table_io.heap_blks_hit,
+                        table_io.idx_blks_read,
+                        table_io.idx_blks_hit,
+                        pg_relation_size(table_stats.relid) AS heap_bytes,
+                        pg_indexes_size(table_stats.relid) AS index_bytes,
+                        pg_total_relation_size(table_stats.relid) AS total_bytes
+                    FROM pg_stat_user_tables AS table_stats
+                    JOIN pg_statio_user_tables AS table_io
+                      ON table_io.relid = table_stats.relid
+                    WHERE table_stats.relname LIKE 'raw_event_dedupe_h%'
+                    ORDER BY table_stats.relname
+                    """
+                )
+            ).mappings()
+        )
+        indexes = list(
+            connection.execute(
+                text(
+                    """
+                    SELECT
+                        table_relation.relname AS table_name,
+                        index_relation.relname AS index_name,
+                        pg_relation_size(index_relation.oid) AS bytes,
+                        COALESCE(index_stats.idx_scan, 0) AS idx_scan,
+                        COALESCE(index_stats.idx_tup_read, 0) AS idx_tup_read,
+                        COALESCE(index_stats.idx_tup_fetch, 0) AS idx_tup_fetch,
+                        COALESCE(index_io.idx_blks_read, 0) AS idx_blks_read,
+                        COALESCE(index_io.idx_blks_hit, 0) AS idx_blks_hit
+                    FROM pg_index
+                    JOIN pg_class AS table_relation
+                      ON table_relation.oid = pg_index.indrelid
+                    JOIN pg_namespace AS table_namespace
+                      ON table_namespace.oid = table_relation.relnamespace
+                    JOIN pg_class AS index_relation
+                      ON index_relation.oid = pg_index.indexrelid
+                    LEFT JOIN pg_stat_user_indexes AS index_stats
+                      ON index_stats.indexrelid = index_relation.oid
+                    LEFT JOIN pg_statio_user_indexes AS index_io
+                      ON index_io.indexrelid = index_relation.oid
+                    WHERE table_namespace.nspname = current_schema()
+                      AND table_relation.relname LIKE 'raw_event_dedupe_h%'
+                    ORDER BY table_relation.relname, bytes DESC, index_name
+                    """
+                )
+            ).mappings()
+        )
+        stats_reset = connection.execute(
+            text(
+                """
+                SELECT stats_reset
+                FROM pg_stat_database
+                WHERE datname = current_database()
+                """
+            )
+        ).scalar_one_or_none()
+    except SQLAlchemyError:
+        return None
+
+    total_live = sum(int(row["n_live_tup"] or 0) for row in tables)
+    total_dead = sum(int(row["n_dead_tup"] or 0) for row in tables)
+    heap_reads = sum(int(row["heap_blks_read"] or 0) for row in tables)
+    heap_hits = sum(int(row["heap_blks_hit"] or 0) for row in tables)
+    index_reads = sum(int(row["idx_blks_read"] or 0) for row in tables)
+    index_hits = sum(int(row["idx_blks_hit"] or 0) for row in tables)
+
+    def hit_ratio(hits: int, reads: int) -> float | None:
+        total = hits + reads
+        return hits / total if total else None
+
+    return {
+        "stats_reset": None if stats_reset is None else _utc(stats_reset).isoformat(),
+        "child_count": len(tables),
+        "totals": {
+            "estimated_live_tuples": total_live,
+            "estimated_dead_tuples": total_dead,
+            "dead_to_live_ratio": (
+                total_dead / total_live if total_live > 0 else None
+            ),
+            "heap_bytes": sum(int(row["heap_bytes"] or 0) for row in tables),
+            "index_bytes": sum(int(row["index_bytes"] or 0) for row in tables),
+            "total_bytes": sum(int(row["total_bytes"] or 0) for row in tables),
+            "heap_blks_read": heap_reads,
+            "heap_blks_hit": heap_hits,
+            "heap_cache_hit_ratio": hit_ratio(heap_hits, heap_reads),
+            "idx_blks_read": index_reads,
+            "idx_blks_hit": index_hits,
+            "index_cache_hit_ratio": hit_ratio(index_hits, index_reads),
+        },
+        "children": [
+            {
+                "table_name": str(row["table_name"]),
+                "estimated_live_tuples": int(row["n_live_tup"] or 0),
+                "estimated_dead_tuples": int(row["n_dead_tup"] or 0),
+                "last_autovacuum": (
+                    None
+                    if row["last_autovacuum"] is None
+                    else _utc(row["last_autovacuum"]).isoformat()
+                ),
+                "last_autoanalyze": (
+                    None
+                    if row["last_autoanalyze"] is None
+                    else _utc(row["last_autoanalyze"]).isoformat()
+                ),
+                "autovacuum_count": int(row["autovacuum_count"] or 0),
+                "autoanalyze_count": int(row["autoanalyze_count"] or 0),
+                "heap_bytes": int(row["heap_bytes"] or 0),
+                "index_bytes": int(row["index_bytes"] or 0),
+                "total_bytes": int(row["total_bytes"] or 0),
+                "heap_blks_read": int(row["heap_blks_read"] or 0),
+                "heap_blks_hit": int(row["heap_blks_hit"] or 0),
+                "idx_blks_read": int(row["idx_blks_read"] or 0),
+                "idx_blks_hit": int(row["idx_blks_hit"] or 0),
+            }
+            for row in tables
+        ],
+        "indexes": [
+            {
+                "table_name": str(row["table_name"]),
+                "index_name": str(row["index_name"]),
+                "bytes": int(row["bytes"] or 0),
+                "idx_scan": int(row["idx_scan"] or 0),
+                "idx_tup_read": int(row["idx_tup_read"] or 0),
+                "idx_tup_fetch": int(row["idx_tup_fetch"] or 0),
+                "idx_blks_read": int(row["idx_blks_read"] or 0),
+                "idx_blks_hit": int(row["idx_blks_hit"] or 0),
+                "cache_hit_ratio": hit_ratio(
+                    int(row["idx_blks_hit"] or 0),
+                    int(row["idx_blks_read"] or 0),
+                ),
+            }
+            for row in indexes
+        ],
+    }
+
+
 def build_report(
     connection: Connection,
     *,
@@ -333,6 +546,8 @@ def build_report(
         for phase in ("raw_insert", "dedupe_insert", "other")
     }
 
+    postgresql_settings = _postgresql_settings(connection)
+    dedupe_health = _dedupe_health(connection)
     database_before = _database_counters(connection)
     wal_before = _wal_counters(connection)
     started_at = datetime.now(UTC)
@@ -480,6 +695,8 @@ def build_report(
         },
         "postgresql_write_cost": {
             "sample_wall_seconds": sample_seconds,
+            "settings": postgresql_settings,
+            "dedupe_health": dedupe_health,
             "database_scope": "current_database_all_workloads",
             "wal_scope": "cluster_global",
             "database_delta": database_delta,
