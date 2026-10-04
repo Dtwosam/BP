@@ -237,3 +237,50 @@ def test_pg_cache2g_rollout_defines_cache_constants_locally_and_remotely() -> No
     ):
         assert source.count(marker) >= 2
         assert marker in remote
+
+
+
+def test_pg_cache2g_rollout_wraps_candidate_fetch_with_explicit_failure() -> None:
+    source = read_helper()
+    remote = source[source.index("read -r -d '' REMOTE_SCRIPT") :]
+    fetch = (
+        'git -C "$REPO" fetch --no-tags origin '
+        '"refs/heads/$CANDIDATE_BRANCH:refs/remotes/origin/$CANDIDATE_BRANCH"'
+    )
+    assert f"if ! {fetch}; then" in remote
+    assert 'fail "candidate_fetch_failed"' in remote
+    assert remote.index("ROLLOUT_PHASE='preflight:candidate-fetch'") < remote.index(fetch)
+    assert remote.index(fetch) < remote.index("MUTATION_STARTED=1")
+
+
+def test_pg_cache2g_rollout_reports_unhandled_remote_errors_with_phase() -> None:
+    source = read_helper()
+    remote = source[source.index("read -r -d '' REMOTE_SCRIPT") :]
+    for marker in (
+        "ROLLOUT_PHASE='preflight:init'",
+        "on_unhandled_error()",
+        "REASON=unhandled_command_error:rc=$rc:line=$1",
+        "trap 'on_unhandled_error \"$LINENO\"' ERR",
+        'echo "ROLLOUT_PHASE=$ROLLOUT_PHASE" >&2',
+    ):
+        assert marker in remote
+
+
+def test_pg_cache2g_rollout_labels_preflight_before_mutation_arm() -> None:
+    source = read_helper()
+    remote = source[source.index("read -r -d '' REMOTE_SCRIPT") :]
+    mutation_at = remote.index("MUTATION_STARTED=1")
+    for phase in (
+        "preflight:checkout",
+        "preflight:safety",
+        "preflight:recorder-config",
+        "preflight:memory",
+        "preflight:postgres-cache",
+        "preflight:unit-files",
+        "preflight:v3-activation",
+        "preflight:services",
+        "preflight:timers",
+        "preflight:candidate-fetch",
+        "preflight:candidate-verify",
+    ):
+        assert remote.index(f"ROLLOUT_PHASE='{phase}'") < mutation_at
