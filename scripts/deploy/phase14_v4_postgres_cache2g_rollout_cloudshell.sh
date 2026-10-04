@@ -101,6 +101,7 @@ V4_TIMER=bp-v4-forward-coverage.timer
 
 MUTATION_STARTED=0
 ROLLBACK_ARMED=0
+ROLLOUT_PHASE='preflight:init'
 BACKUP_DIR=''
 DISK_BEFORE=''
 DISK_AFTER=''
@@ -117,9 +118,19 @@ EXECUTION_RESTARTS=''
 
 fail() {
   echo "PHASE14_V4_PG_CACHE2G_ROLLOUT_GATE=FAIL" >&2
+  echo "ROLLOUT_PHASE=$ROLLOUT_PHASE" >&2
   echo "REASON=$1" >&2
   exit 1
 }
+
+on_unhandled_error() {
+  local rc=$?
+  echo "PHASE14_V4_PG_CACHE2G_ROLLOUT_GATE=FAIL" >&2
+  echo "ROLLOUT_PHASE=$ROLLOUT_PHASE" >&2
+  echo "REASON=unhandled_command_error:rc=$rc:line=$1" >&2
+  return "$rc"
+}
+trap 'on_unhandled_error "$LINENO"' ERR
 
 read_env() {
   local path=$1 key=$2
@@ -597,24 +608,37 @@ trap cleanup EXIT
 [[ -d "$REPO/.git" ]] || fail "deployed_repo_missing"
 [[ -x "$REPO/.venv/bin/python" ]] || fail "python_runtime_missing"
 [[ "$(git -C "$REPO" rev-parse HEAD)" == "$FROM_HEAD" ]] || fail "unexpected_deployed_head"
+ROLLOUT_PHASE='preflight:checkout'
 validate_deployed_checkout
+ROLLOUT_PHASE='preflight:safety'
 require_research_zero_money
 require_automatic_promotion_false
+ROLLOUT_PHASE='preflight:recorder-config'
 require_recorder_config "$EXPECTED_BATCH_SIZE"
+ROLLOUT_PHASE='preflight:memory'
 require_memory_envelope "$MIN_HOST_MEM_AVAILABLE_BYTES"
+ROLLOUT_PHASE='preflight:postgres-cache'
 require_postgres_shared_buffers "$EXPECTED_SHARED_BUFFERS"
+ROLLOUT_PHASE='preflight:unit-files'
 validate_units
+ROLLOUT_PHASE='preflight:v3-activation'
 validate_v3_activation
 
+ROLLOUT_PHASE='preflight:services'
 for service in bp-postgres.service bp-recorder.service bp-dashboard-api.service bp-dashboard-web.service bp-paper-execution.service bp-live-predictor.service bp-prospective-outcomes.service bp-v3-frozen-predictor.service bp-v3-paper-execution.service; do
   systemctl is-active --quiet "$service" || fail "required_service_not_active:$service"
 done
+ROLLOUT_PHASE='preflight:timers'
 require_timer_active_enabled "$MAINTENANCE_TIMER"
 require_timer_active_enabled "$DISK_HEALTH_TIMER"
 require_timer_active_enabled "$V2_TIMER"
 require_timer_active_enabled "$V4_TIMER"
 
-git -C "$REPO" fetch --no-tags origin "refs/heads/$CANDIDATE_BRANCH:refs/remotes/origin/$CANDIDATE_BRANCH"
+ROLLOUT_PHASE='preflight:candidate-fetch'
+if ! git -C "$REPO" fetch --no-tags origin "refs/heads/$CANDIDATE_BRANCH:refs/remotes/origin/$CANDIDATE_BRANCH"; then
+  fail "candidate_fetch_failed"
+fi
+ROLLOUT_PHASE='preflight:candidate-verify'
 [[ "$(git -C "$REPO" rev-parse "refs/remotes/origin/$CANDIDATE_BRANCH")" == "$CANDIDATE_HEAD" ]] ||
   fail "candidate_head_changed"
 git -C "$REPO" merge-base --is-ancestor "$FROM_HEAD" "$CANDIDATE_HEAD" ||
@@ -633,36 +657,45 @@ if ! git -C "$REPO" diff --quiet HEAD -- apps/dashboard/tsconfig.json; then
   cp -a "$REPO/apps/dashboard/tsconfig.json" "$BACKUP_DIR/tsconfig.json"
 fi
 
+ROLLOUT_PHASE='mutation:armed'
 MUTATION_STARTED=1
 ROLLBACK_ARMED=1
 
+ROLLOUT_PHASE='mutation:maintenance-quiesce'
 systemctl stop "$MAINTENANCE_TIMER"
 require_timer_enabled_inactive "$MAINTENANCE_TIMER"
 wait_for_oneshot_idle_success "$MAINTENANCE_SERVICE" 3600
 wait_for_oneshot_idle_success "$DISK_HEALTH_SERVICE" 30
 
+ROLLOUT_PHASE='mutation:storage-before'
 DISK_BEFORE="$(mktemp /var/tmp/bp-v4-postgres-cache2g-rollout-disk-before.XXXXXX.json)"
 run_storage_health "$DISK_BEFORE"
 HOLDOUT_BEFORE="$(gate_b_fingerprint)"
 
+ROLLOUT_PHASE='mutation:stop-chain'
 systemctl stop "$V3_EXECUTION"
 systemctl stop "$V3_PREDICTOR"
 systemctl stop "$RECORDER_UNIT"
 
+ROLLOUT_PHASE='mutation:candidate-checkout'
 git -C "$REPO" checkout --detach --force "$CANDIDATE_HEAD"
 restore_generated_files
 [[ "$(git -C "$REPO" rev-parse HEAD)" == "$CANDIDATE_HEAD" ]] || fail "candidate_checkout_failed"
 validate_deployed_checkout
+ROLLOUT_PHASE='mutation:config'
 set_recorder_batch_size "$TARGET_BATCH_SIZE"
 set_postgres_shared_buffers "$TARGET_SHARED_BUFFERS"
 require_recorder_config "$TARGET_BATCH_SIZE"
+ROLLOUT_PHASE='mutation:postgres-restart'
 systemctl daemon-reload
 restart_postgres
 require_postgres_shared_buffers "$TARGET_SHARED_BUFFERS"
 require_memory_envelope "$MIN_POST_TUNE_AVAILABLE_BYTES"
 
+ROLLOUT_PHASE='mutation:start-chain'
 start_chain
 
+ROLLOUT_PHASE='verification:warmup'
 RECORDER_PID="$(systemctl show -p MainPID --value "$RECORDER_UNIT")"
 PREDICTOR_PID="$(systemctl show -p MainPID --value "$V3_PREDICTOR")"
 EXECUTION_PID="$(systemctl show -p MainPID --value "$V3_EXECUTION")"
@@ -671,14 +704,17 @@ PREDICTOR_RESTARTS="$(systemctl show -p NRestarts --value "$V3_PREDICTOR")"
 EXECUTION_RESTARTS="$(systemctl show -p NRestarts --value "$V3_EXECUTION")"
 
 sleep 120
+ROLLOUT_PHASE='verification:soak'
 run_soak
 verify_dashboard_safety
 require_research_zero_money
 require_recorder_config "$TARGET_BATCH_SIZE"
 require_postgres_shared_buffers "$TARGET_SHARED_BUFFERS"
 require_memory_envelope "$MIN_POST_TUNE_AVAILABLE_BYTES"
+ROLLOUT_PHASE='verification:visibility'
 run_visibility_acceptance
 
+ROLLOUT_PHASE='verification:stability'
 [[ "$(systemctl show -p MainPID --value "$RECORDER_UNIT")" == "$RECORDER_PID" ]] || fail "recorder_pid_changed"
 [[ "$(systemctl show -p MainPID --value "$V3_PREDICTOR")" == "$PREDICTOR_PID" ]] || fail "v3_predictor_pid_changed"
 [[ "$(systemctl show -p MainPID --value "$V3_EXECUTION")" == "$EXECUTION_PID" ]] || fail "v3_execution_pid_changed"
