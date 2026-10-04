@@ -275,3 +275,41 @@ def test_v4_dedupe_pk_reindex_failure_attribution_is_read_only() -> None:
         "REINDEX ",
     ):
         assert forbidden not in capture
+
+
+def test_v4_dedupe_pk_reindex_waits_for_clean_window_without_weakening_gate() -> None:
+    source = ROLLOUT.read_text(encoding="utf-8")
+    for marker in (
+        "BOUNDED_CLEAN_WINDOW_SAMPLES = 80",
+        "BOUNDED_CLEAN_WINDOW_INTERVAL_SECONDS = 0.5",
+        "def _only_long_transactions_block(",
+        'signals.get("no_long_transactions") is False',
+        "def _bounded_clean_window_report(",
+        "def _bounded_clean_window_ends_clean(",
+        'not list(pid_summary.get("persistent_pids", ()))',
+        'not list(pid_summary.get("appeared_pids", ()))',
+        'signals.get("persistent_long_transaction_count") == 0',
+        'signals.get("writer_quiesce_likely_required_for_bounded_reindex")',
+        'f"{stage}-bounded-clean-window.json"',
+        'f"{stage}-after-bounded-clean-window.json"',
+        "retry_report = _readiness_report(settings)",
+        'retry_signals.get("reindex_readiness_pass") is True',
+    ):
+        assert marker in source
+
+
+def test_v4_dedupe_pk_reindex_bounded_wait_does_not_mutate_services_or_database() -> None:
+    source = ROLLOUT.read_text(encoding="utf-8")
+    start = source.index("def _bounded_clean_window_report(")
+    end = source.index("\ndef _require_preflight_readiness(", start)
+    bounded = source[start:end]
+    assert "_readonly_connection(settings)" in bounded
+    for forbidden in (
+        "systemctl",
+        "pg_terminate_backend",
+        "DELETE ",
+        "UPDATE ",
+        "INSERT ",
+        "REINDEX ",
+    ):
+        assert forbidden not in bounded
