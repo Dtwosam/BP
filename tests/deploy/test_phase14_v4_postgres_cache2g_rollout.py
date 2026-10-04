@@ -287,10 +287,13 @@ def test_pg_cache2g_rollout_labels_preflight_before_mutation_arm() -> None:
 
 
 
-def test_pg_cache2g_rollout_streams_remote_script_over_ssh_stdin() -> None:
+def test_pg_cache2g_rollout_stages_remote_script_before_execution() -> None:
     source = read_helper()
     assert 'printf \'%s\' "$REMOTE_SCRIPT" | \\' in source
-    assert '--command="sudo bash -s"' in source
+    assert 'REMOTE_SCRIPT_PATH="$(mktemp /tmp/bp-v4-cache-rollout.XXXXXX.sh)"' in source
+    assert 'cat > "$REMOTE_SCRIPT_PATH" && sudo bash "$REMOTE_SCRIPT_PATH"' in source
+    assert 'rm -f "$REMOTE_SCRIPT_PATH"' in source
+    assert '--command="sudo bash -s"' not in source
     assert "REMOTE_B64=" not in source
     assert "--command=\"printf '%s' '$REMOTE_B64'" not in source
 
@@ -306,3 +309,12 @@ def test_pg_cache2g_rollout_requires_remote_terminal_marker() -> None:
         "remote_output_capture_failed:rc=",
     ):
         assert marker in source
+
+
+
+def test_pg_cache2g_rollout_does_not_execute_remote_commands_from_script_stdin() -> None:
+    source = read_helper()
+    transport = source[source.index('REMOTE_OUTPUT="$(mktemp)"') :]
+    stage_at = transport.index('cat > "$REMOTE_SCRIPT_PATH"')
+    execute_at = transport.index('sudo bash "$REMOTE_SCRIPT_PATH"')
+    assert stage_at < execute_at

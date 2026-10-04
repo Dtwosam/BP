@@ -839,7 +839,7 @@ printf '%s' "$REMOTE_SCRIPT" | \
     --project="$PROJECT" \
     --zone="$ZONE" \
     --quiet \
-    --command="sudo bash -s" \
+    --command='REMOTE_SCRIPT_PATH="$(mktemp /tmp/bp-v4-cache-rollout.XXXXXX.sh)" && cat > "$REMOTE_SCRIPT_PATH" && sudo bash "$REMOTE_SCRIPT_PATH"; rc=$?; rm -f "$REMOTE_SCRIPT_PATH"; exit "$rc"' \
     2>&1 | tee "$REMOTE_OUTPUT"
 PIPE_RC=("${PIPESTATUS[@]}")
 set -e
