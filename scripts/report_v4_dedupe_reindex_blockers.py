@@ -16,6 +16,51 @@ DEFAULT_SAMPLES = 80
 DEFAULT_INTERVAL_SECONDS = 0.5
 DEFAULT_LONG_TRANSACTION_SECONDS = 60.0
 
+_QUERY_RELATION_FAMILIES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "paper_execution",
+        (
+            "paper_orders",
+            "paper_fills",
+            "paper_order_terminal_events",
+            "paper_settlements",
+        ),
+    ),
+    (
+        "live_prediction",
+        (
+            "live_predictions",
+            "live_prediction_evaluations",
+        ),
+    ),
+    (
+        "market_replay",
+        (
+            "raw_market_events",
+            "market_state_1s",
+        ),
+    ),
+    (
+        "market_catalog",
+        ("polymarket_markets",),
+    ),
+    (
+        "labels_features",
+        (
+            "market_labels",
+            "market_features",
+        ),
+    ),
+    (
+        "recorder_dedupe",
+        ("raw_event_dedupe",),
+    ),
+    (
+        "storage_maintenance",
+        ("storage_maintenance_runs",),
+    ),
+)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -60,6 +105,40 @@ def _query_fingerprint(query: str | None) -> str | None:
     if not normalized:
         return None
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def _relation_families(query: str | None) -> tuple[str, ...]:
+    normalized = " ".join((query or "").lower().split())
+    if not normalized:
+        return ()
+    return tuple(
+        family
+        for family, relations in _QUERY_RELATION_FAMILIES
+        if any(relation in normalized for relation in relations)
+    )
+
+
+def _service_signature(query: str | None) -> str | None:
+    families = set(_relation_families(query))
+    if "paper_execution" in families:
+        return "legacy_paper_execution"
+    if "storage_maintenance" in families:
+        return "storage_maintenance"
+    if "recorder_dedupe" in families:
+        return "recorder_dedupe"
+    if "labels_features" in families and "live_prediction" in families:
+        return "prospective_outcomes_like"
+    if "market_replay" in families and "live_prediction" in families:
+        return "prediction_or_execution_read"
+    if "market_replay" in families:
+        return "market_replay_read"
+    if "live_prediction" in families and "market_catalog" in families:
+        return "prediction_catalog_read"
+    if "live_prediction" in families:
+        return "live_prediction_read"
+    if "market_catalog" in families:
+        return "market_catalog_read"
+    return None
 
 
 def _sample(connection, threshold_seconds: float) -> list[dict[str, Any]]:
@@ -175,6 +254,8 @@ def _sample(connection, threshold_seconds: float) -> list[dict[str, Any]]:
                 ),
                 "query_class": _query_class(query),
                 "query_fingerprint": _query_fingerprint(query),
+                "relation_families": _relation_families(query),
+                "service_signature": _service_signature(query),
                 "lock_modes": dict(row["lock_modes"] or {}),
             }
         )
@@ -233,6 +314,8 @@ def build_report(
                     "waits": Counter(),
                     "query_classes": Counter(),
                     "query_fingerprints": set(),
+                    "relation_families": Counter(),
+                    "service_signatures": Counter(),
                     "application_names": set(),
                     "users": set(),
                     "backend_xids": set(),
@@ -264,6 +347,10 @@ def build_report(
             )
             entry["waits"][wait_key] += 1
             entry["query_classes"][str(row["query_class"])] += 1
+            for family in row["relation_families"]:
+                entry["relation_families"][str(family)] += 1
+            if row["service_signature"] is not None:
+                entry["service_signatures"][str(row["service_signature"])] += 1
             if row["query_fingerprint"] is not None:
                 entry["query_fingerprints"].add(
                     str(row["query_fingerprint"])
@@ -311,6 +398,12 @@ def build_report(
                 ),
                 "query_fingerprint_count": len(
                     entry["query_fingerprints"]
+                ),
+                "relation_families": dict(
+                    sorted(entry["relation_families"].items())
+                ),
+                "service_signatures": dict(
+                    sorted(entry["service_signatures"].items())
                 ),
                 "application_names": sorted(entry["application_names"]),
                 "users": sorted(entry["users"]),
