@@ -40,6 +40,7 @@ gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q . ||
 FILES=(
   scripts/run_v4_postgres_cache2g_batch500_ab.py
   scripts/report_v4_recorder_commit_lag.py
+  docker-compose.prod.yml
 )
 PAYLOAD=""
 for path in "${FILES[@]}"; do
@@ -64,7 +65,7 @@ done
 chmod 0644 "$tmp"/*.py
 
 set +e
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$REPO/src:$tmp"   "$REPO/.venv/bin/python" "$tmp/run_v4_postgres_cache2g_batch500_ab.py"   --repo "$REPO"   --env-file /etc/bp/bp.env   --safety-file /etc/bp/bp-prospective-runtime-safety.env   --expected-deployed-head __DEPLOYED_HEAD__   --helper-head __HELPER_HEAD__   --execute
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$REPO/src:$tmp"   "$REPO/.venv/bin/python" "$tmp/run_v4_postgres_cache2g_batch500_ab.py"   --repo "$REPO"   --env-file /etc/bp/bp.env   --safety-file /etc/bp/bp-prospective-runtime-safety.env   --expected-deployed-head __DEPLOYED_HEAD__   --helper-head __HELPER_HEAD__   --candidate-compose "$tmp/docker-compose.prod.yml"   --execute
 rc=$?
 set -e
 
