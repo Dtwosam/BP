@@ -69,17 +69,23 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--expected-deployed-head", required=True)
     parser.add_argument("--helper-head", required=True)
+    parser.add_argument("--candidate-compose", required=True)
     parser.add_argument("--evidence-root", default="/var/lib/bp/evidence")
     parser.add_argument("--execute", action="store_true")
     return parser.parse_args()
 
 
-def _run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+def _run(
+    *args: str,
+    check: bool = True,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         args,
         check=check,
         text=True,
         capture_output=True,
+        env=env,
     )
 
 
@@ -134,55 +140,6 @@ def _read_env(path: Path) -> dict[str, str]:
         key, value = stripped.split("=", 1)
         values[key] = value
     return values
-
-
-def _replace_env_value(path: Path, key: str, value: str) -> None:
-    original_stat = path.stat()
-    lines = path.read_text(encoding="utf-8").splitlines()
-    output: list[str] = []
-    matches = 0
-    for line in lines:
-        if line.startswith(f"{key}="):
-            output.append(f"{key}={value}")
-            matches += 1
-        else:
-            output.append(line)
-    if matches > 1:
-        raise RuntimeError(f"duplicate environment key: {key}")
-    if matches == 0:
-        output.append(f"{key}={value}")
-
-    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
-    tmp = Path(tmp_name)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write("\n".join(output) + "\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.chmod(tmp, stat.S_IMODE(original_stat.st_mode))
-        os.chown(tmp, original_stat.st_uid, original_stat.st_gid)
-        os.replace(tmp, path)
-    finally:
-        if tmp.exists():
-            tmp.unlink()
-    _run("sync", "-f", str(path))
-
-
-def _restore_env(path: Path, original_bytes: bytes, original_stat: os.stat_result) -> None:
-    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
-    tmp = Path(tmp_name)
-    try:
-        with os.fdopen(fd, "wb") as handle:
-            handle.write(original_bytes)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.chmod(tmp, stat.S_IMODE(original_stat.st_mode))
-        os.chown(tmp, original_stat.st_uid, original_stat.st_gid)
-        os.replace(tmp, path)
-    finally:
-        if tmp.exists():
-            tmp.unlink()
-    _run("sync", "-f", str(path))
 
 
 def _require_research_zero_money(env_file: Path, safety_file: Path) -> None:
@@ -328,9 +285,142 @@ def _start_core_chain() -> None:
             time.sleep(1)
 
 
-def _restart_postgres() -> None:
-    _systemctl("restart", POSTGRES_UNIT)
+def _candidate_compose_valid(path: Path) -> None:
+    content = path.read_text(encoding="utf-8")
+    required = "shared_buffers=${POSTGRES_SHARED_BUFFERS:-128MB}"
+    if required not in content:
+        raise RuntimeError("candidate compose lacks shared_buffers override")
+
+
+def _deployed_compose(repo: Path) -> Path:
+    path = repo / "docker-compose.prod.yml"
+    if not path.is_file():
+        raise RuntimeError("deployed compose file missing")
+    return path
+
+
+def _postgres_identity_from_container(container_id: str) -> dict[str, str]:
+    payload = json.loads(_run("docker", "inspect", container_id).stdout)
+    if len(payload) != 1:
+        raise RuntimeError("postgres container inspect result invalid")
+    container = payload[0]
+    labels = (container.get("Config") or {}).get("Labels") or {}
+    project = str(labels.get("com.docker.compose.project") or "")
+    service = str(labels.get("com.docker.compose.service") or "")
+    if not project or service != "postgres":
+        raise RuntimeError("postgres compose identity missing")
+
+    mounts = [
+        mount
+        for mount in container.get("Mounts") or []
+        if mount.get("Destination") == "/var/lib/postgresql/data"
+    ]
+    if len(mounts) != 1:
+        raise RuntimeError("postgres data mount identity invalid")
+    mount = mounts[0]
+    source = str(mount.get("Source") or "")
+    if not source:
+        raise RuntimeError("postgres data mount source missing")
+    return {
+        "container_id": container_id,
+        "compose_project": project,
+        "data_mount_source": source,
+        "data_mount_type": str(mount.get("Type") or ""),
+        "data_mount_name": str(mount.get("Name") or ""),
+    }
+
+
+def _discover_postgres_identity(repo: Path, env_file: Path) -> dict[str, str]:
+    compose = _deployed_compose(repo)
+    container_id = _run(
+        "docker",
+        "compose",
+        "--project-directory",
+        str(repo),
+        "--env-file",
+        str(env_file),
+        "-f",
+        str(compose),
+        "ps",
+        "-q",
+        "postgres",
+    ).stdout.strip()
+    if not container_id:
+        raise RuntimeError("postgres container id missing")
+    return _postgres_identity_from_container(container_id)
+
+
+def _current_project_postgres_identity(project: str) -> dict[str, str]:
+    output = _run(
+        "docker",
+        "ps",
+        "--filter",
+        f"label=com.docker.compose.project={project}",
+        "--filter",
+        "label=com.docker.compose.service=postgres",
+        "--format",
+        "{{.ID}}",
+    ).stdout.splitlines()
+    ids = [item.strip() for item in output if item.strip()]
+    if len(ids) != 1:
+        raise RuntimeError(
+            f"expected exactly one running postgres container, got {len(ids)}"
+        )
+    return _postgres_identity_from_container(ids[0])
+
+
+def _wait_postgres_ready(settings: Settings, timeout_seconds: int = 60) -> None:
+    deadline = time.monotonic() + timeout_seconds
+    last_error: Exception | None = None
+    while time.monotonic() < deadline:
+        try:
+            _postgres_shared_buffers(settings)
+            return
+        except Exception as exc:
+            last_error = exc
+            time.sleep(1)
+    raise RuntimeError(f"postgres did not become queryable: {last_error}")
+
+
+def _recreate_postgres(
+    *,
+    repo: Path,
+    env_file: Path,
+    compose_path: Path,
+    compose_project: str,
+    shared_buffers: str,
+    expected_data_mount_source: str,
+    settings: Settings,
+) -> dict[str, str]:
+    environment = dict(os.environ)
+    environment["POSTGRES_SHARED_BUFFERS"] = shared_buffers
+    _run(
+        "docker",
+        "compose",
+        "-p",
+        compose_project,
+        "--project-directory",
+        str(repo),
+        "--env-file",
+        str(env_file),
+        "-f",
+        str(compose_path),
+        "up",
+        "-d",
+        "--force-recreate",
+        "postgres",
+        env=environment,
+    )
+    _wait_postgres_ready(settings)
+    identity = _current_project_postgres_identity(compose_project)
+    if identity["data_mount_source"] != expected_data_mount_source:
+        raise RuntimeError(
+            "postgres data mount changed during candidate recreation: "
+            f"expected={expected_data_mount_source} "
+            f"actual={identity['data_mount_source']}"
+        )
     _require_active(POSTGRES_UNIT)
+    return identity
 
 
 def _core_snapshot() -> dict[str, dict[str, str]]:
@@ -467,6 +557,8 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
     env_file = Path(args.env_file)
     safety_file = Path(args.safety_file)
     project_state = repo / "PROJECT_STATE.json"
+    candidate_compose = Path(args.candidate_compose)
+    _candidate_compose_valid(candidate_compose)
 
     deployed_head = _run(
         "git", "-C", str(repo), "rev-parse", "HEAD"
@@ -476,8 +568,6 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
             f"deployed checkout head changed: {deployed_head}"
         )
 
-    original_env = env_file.read_bytes()
-    original_stat = env_file.stat()
     settings = Settings(_env_file=str(env_file))
 
     _require_research_zero_money(env_file, safety_file)
@@ -491,6 +581,7 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
     _wait_oneshot_idle_success(DISK_HEALTH_SERVICE, 60)
     _require_postgres_shared_buffers(settings, BASELINE_SHARED_BUFFERS)
     baseline_memory = _require_memory(MIN_BASELINE_AVAILABLE_BYTES)
+    baseline_postgres_identity = _discover_postgres_identity(repo, env_file)
 
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     evidence_dir = (
@@ -513,6 +604,8 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
         "always_restore_baseline": True,
         "restored_baseline": False,
         "baseline_memory": baseline_memory,
+        "baseline_postgres_identity": baseline_postgres_identity,
+        "environment_file_mutated": False,
         "core_before": _core_snapshot(),
         "safety": {
             "mode": "research",
@@ -541,16 +634,19 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
         print("PHASE=candidate_stop_core", flush=True)
         _stop_core_chain()
 
-        print("PHASE=candidate_set_shared_buffers_2GB", flush=True)
-        _replace_env_value(
-            env_file,
-            "POSTGRES_SHARED_BUFFERS",
-            CANDIDATE_SHARED_BUFFERS,
-        )
-
-        print("PHASE=candidate_restart_postgres", flush=True)
-        _restart_postgres()
+        print("PHASE=candidate_recreate_postgres_2GB", flush=True)
         candidate_settings = Settings(_env_file=str(env_file))
+        candidate_postgres_identity = _recreate_postgres(
+            repo=repo,
+            env_file=env_file,
+            compose_path=candidate_compose,
+            compose_project=baseline_postgres_identity["compose_project"],
+            shared_buffers=CANDIDATE_SHARED_BUFFERS,
+            expected_data_mount_source=baseline_postgres_identity[
+                "data_mount_source"
+            ],
+            settings=candidate_settings,
+        )
         _require_postgres_shared_buffers(
             candidate_settings,
             CANDIDATE_SHARED_BUFFERS,
@@ -582,6 +678,7 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
         summary["candidate_memory_after_restart"] = (
             candidate_memory_after_restart
         )
+        summary["candidate_postgres_identity"] = candidate_postgres_identity
         summary["candidate_state"] = candidate_state
         summary["comparison"] = _report_comparison(baseline, candidate)
         _write_json(evidence_dir / "summary.json", summary)
@@ -590,10 +687,19 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
         _quiesce_cycle_timers()
         _stop_core_chain()
 
-        print("PHASE=restore_env_and_postgres", flush=True)
-        _restore_env(env_file, original_env, original_stat)
-        _restart_postgres()
+        print("PHASE=restore_deployed_postgres_128MB", flush=True)
         restored_settings = Settings(_env_file=str(env_file))
+        restored_postgres_identity = _recreate_postgres(
+            repo=repo,
+            env_file=env_file,
+            compose_path=_deployed_compose(repo),
+            compose_project=baseline_postgres_identity["compose_project"],
+            shared_buffers=BASELINE_SHARED_BUFFERS,
+            expected_data_mount_source=baseline_postgres_identity[
+                "data_mount_source"
+            ],
+            settings=restored_settings,
+        )
         _require_postgres_shared_buffers(
             restored_settings,
             BASELINE_SHARED_BUFFERS,
@@ -612,6 +718,7 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
         restored = True
 
         summary["restored_baseline"] = True
+        summary["restored_postgres_identity"] = restored_postgres_identity
         summary["restored_state"] = restored_state
         summary["core_after"] = _core_snapshot()
         summary["status"] = "success"
@@ -647,13 +754,20 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
                     f"core_stop:{type(cleanup_exc).__name__}:{cleanup_exc}"
                 )
             try:
-                _restore_env(env_file, original_env, original_stat)
-            except Exception as cleanup_exc:
-                cleanup_errors.append(
-                    f"env_restore:{type(cleanup_exc).__name__}:{cleanup_exc}"
+                cleanup_settings = Settings(_env_file=str(env_file))
+                _recreate_postgres(
+                    repo=repo,
+                    env_file=env_file,
+                    compose_path=_deployed_compose(repo),
+                    compose_project=baseline_postgres_identity[
+                        "compose_project"
+                    ],
+                    shared_buffers=BASELINE_SHARED_BUFFERS,
+                    expected_data_mount_source=baseline_postgres_identity[
+                        "data_mount_source"
+                    ],
+                    settings=cleanup_settings,
                 )
-            try:
-                _restart_postgres()
             except Exception as cleanup_exc:
                 cleanup_errors.append(
                     f"postgres_restore:{type(cleanup_exc).__name__}:{cleanup_exc}"
@@ -676,6 +790,14 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
                     restored_settings,
                     BASELINE_SHARED_BUFFERS,
                 )
+                restored_identity = _current_project_postgres_identity(
+                    baseline_postgres_identity["compose_project"]
+                )
+                if (
+                    restored_identity["data_mount_source"]
+                    != baseline_postgres_identity["data_mount_source"]
+                ):
+                    raise RuntimeError("restored postgres data mount mismatch")
                 restored = True
             except Exception as cleanup_exc:
                 cleanup_errors.append(
