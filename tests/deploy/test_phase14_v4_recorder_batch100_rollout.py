@@ -75,16 +75,17 @@ def test_batch100_rollout_changes_only_batch_env_and_frozen_candidate() -> None:
 
 def test_batch100_rollout_quiesces_maintenance_before_storage_snapshot() -> None:
     source = read_helper()
-    stop_at = source.index('systemctl stop "$MAINTENANCE_TIMER"')
-    idle_at = source.index(
+    mutation = source[source.index("MUTATION_STARTED=1") :]
+    stop_at = mutation.index('systemctl stop "$MAINTENANCE_TIMER"')
+    idle_at = mutation.index(
         'wait_for_oneshot_idle_success "$MAINTENANCE_SERVICE" 3600'
     )
-    storage_at = source.index('run_storage_health "$DISK_BEFORE"')
-    recorder_stop_at = source.index('systemctl stop "$RECORDER_UNIT"')
+    storage_at = mutation.index('run_storage_health "$DISK_BEFORE"')
+    recorder_stop_at = mutation.index('systemctl stop "$RECORDER_UNIT"')
 
     assert stop_at < idle_at < storage_at < recorder_stop_at
     assert 'require_timer_active_enabled "$MAINTENANCE_TIMER"' in source
-    assert 'require_timer_enabled_inactive "$MAINTENANCE_TIMER"' in source
+    assert 'require_timer_enabled_inactive "$MAINTENANCE_TIMER"' in mutation
 
 
 def test_batch100_rollout_restarts_chain_in_dependency_order() -> None:
