@@ -367,6 +367,13 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
         _require_research_zero_money(env_file, safety_file)
         _require_automatic_promotion_false(repo / "PROJECT_STATE.json")
 
+        mutation_readiness = _readiness_report(settings)
+        _write_json(
+            evidence_dir / "mutation-readiness.json",
+            mutation_readiness,
+        )
+        _require_preflight_readiness(mutation_readiness)
+
         reindex_payload = reindex_runner.run(
             settings=settings,
             evidence_path=evidence_dir / "reindex.json",
