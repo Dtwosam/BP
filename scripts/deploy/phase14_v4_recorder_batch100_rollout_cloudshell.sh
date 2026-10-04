@@ -431,7 +431,7 @@ run_visibility_acceptance() {
 
   rm -rf "$tmp"
 
-  "$REPO/.venv/bin/python" - "$VISIBILITY_FILE" <<'PY'
+  if "$REPO/.venv/bin/python" - "$VISIBILITY_FILE" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -458,6 +458,13 @@ for venue in required:
     if ready is None or float(ready) < 0.5:
         raise SystemExit(f"{venue}: timestamp-window readiness below 50%")
 PY
+  then
+    return 0
+  fi
+
+  echo "PHASE14_V4_BATCH100_VISIBILITY_ACCEPTANCE=FAIL" >&2
+  cat "$VISIBILITY_FILE" >&2 || true
+  return 1
 }
 
 rollback() {
