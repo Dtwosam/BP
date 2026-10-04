@@ -164,7 +164,7 @@ def test_pg_cache2g_rollout_preserves_research_zero_money_boundary() -> None:
 
 def test_pg_cache2g_rollout_uses_portable_base64() -> None:
     source = read_helper()
-    assert "base64 | tr -d '\\n'" in source
+    assert 'REPORT_B64="$(base64 < "$REPORT" | tr -d \'\\n\')"' in source
     assert "base64 -w0" not in source
 
 
