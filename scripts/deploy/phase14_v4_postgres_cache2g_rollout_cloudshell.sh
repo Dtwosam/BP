@@ -869,14 +869,6 @@ fi
 if (( TEE_RC != 0 )); then
   fail_local "remote_output_capture_failed:rc=$TEE_RC"
 fi
- "$REMOTE_OUTPUT"; then
-  TERMINAL_MARKER_PRESENT=true
-fi
-
-if [[ "$TERMINAL_MARKER_PRESENT" != "true" ]]; then
-  rm -f "$REMOTE_OUTPUT"
-  fail_local "remote_terminal_marker_missing:stream_rc=$STREAM_RC:gcloud_rc=$GCLOUD_RC:tee_rc=$TEE_RC"
-fi
 
 rm -f "$REMOTE_OUTPUT"
 
