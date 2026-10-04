@@ -85,6 +85,27 @@ printf '%s' '__REPORT_B64__' | base64 -d > "$tmp/report_v4_recorder_commit_lag.p
 chmod 0644 "$tmp/report_v4_recorder_commit_lag.py"
 
 printf 'DEPLOYED_HEAD=%s\n' "$(git -C "$REPO" rev-parse HEAD)"
+
+mem_total_kib="$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)"
+mem_available_kib="$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)"
+swap_total_kib="$(awk '/^SwapTotal:/ {print $2}' /proc/meminfo)"
+printf 'HOST_MEM_TOTAL_BYTES=%s\n' "$((mem_total_kib * 1024))"
+printf 'HOST_MEM_AVAILABLE_BYTES=%s\n' "$((mem_available_kib * 1024))"
+printf 'HOST_SWAP_TOTAL_BYTES=%s\n' "$((swap_total_kib * 1024))"
+
+postgres_container_id="$(
+  docker compose --env-file "$ENV_FILE" -f "$REPO/docker-compose.prod.yml" ps -q postgres
+)"
+[[ -n "$postgres_container_id" ]] || fail "postgres_container_missing"
+postgres_memory_limit_bytes="$(
+  docker inspect --format '{{.HostConfig.Memory}}' "$postgres_container_id"
+)"
+postgres_cgroup_memory_max="$(
+  docker exec "$postgres_container_id" sh -c 'cat /sys/fs/cgroup/memory.max 2>/dev/null || true'
+)"
+printf 'POSTGRES_CONTAINER_MEMORY_LIMIT_BYTES=%s\n' "$postgres_memory_limit_bytes"
+printf 'POSTGRES_CGROUP_MEMORY_MAX=%s\n' "$postgres_cgroup_memory_max"
+
 timeout --signal=TERM --kill-after=5s 60s sudo -u bp env   PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$REPO/src"   "$REPO/.venv/bin/python" "$tmp/report_v4_recorder_commit_lag.py"   --env-file "$ENV_FILE"
 printf 'PHASE14_V4_RECORDER_COMMIT_LAG_PREFLIGHT=PASS\n'
 printf 'PRODUCTION_MUTATION=false\n'
@@ -99,5 +120,20 @@ printf 'ZONE=%s\n' "$ZONE"
 printf 'CONTROL_MAIN=%s\n' "$LOCAL_HEAD"
 printf 'EXPECTED_DEPLOYED_HEAD=%s\n' "$EXPECTED_DEPLOYED_HEAD"
 printf 'REPORT_READ_ONLY=true\n'
+MACHINE_TYPE="$(
+  gcloud compute instances describe "$VM" \
+    --project="$PROJECT" \
+    --zone="$ZONE" \
+    --format='value(machineType.basename())'
+)" || fail "machine_type_lookup_failed"
+[[ -n "$MACHINE_TYPE" ]] || fail "machine_type_missing"
+MACHINE_MEMORY_MB="$(
+  gcloud compute machine-types describe "$MACHINE_TYPE" \
+    --project="$PROJECT" \
+    --zone="$ZONE" \
+    --format='value(memoryMb)'
+)" || fail "machine_memory_lookup_failed"
+printf 'MACHINE_TYPE=%s\n' "$MACHINE_TYPE"
+printf 'MACHINE_MEMORY_MB=%s\n' "$MACHINE_MEMORY_MB"
 
 gcloud compute ssh "$VM"   --project="$PROJECT"   --zone="$ZONE"   --quiet   --command="printf '%s' '$REMOTE_B64' | base64 -d | sudo bash"
