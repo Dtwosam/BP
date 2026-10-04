@@ -462,6 +462,131 @@ def test_partitioned_writer_concurrent_duplicate_race_persists_one_row(engine) -
     assert ledger_count == 1
 
 
+def _install_compact_dedupe_digest_indexes(engine) -> None:
+    with engine.begin() as connection:
+        for remainder in range(16):
+            table_name = f"raw_event_dedupe_h{remainder:02d}"
+            index_name = f"{table_name}_digest_uidx"
+            connection.execute(
+                text(
+                    f"""
+                    CREATE UNIQUE INDEX {index_name}
+                    ON {table_name} (
+                        (decode(substring(dedupe_key FROM 8), 'hex'))
+                    )
+                    """
+                )
+            )
+        connection.execute(
+            text(
+                """
+                ALTER TABLE raw_event_dedupe
+                DROP CONSTRAINT raw_event_dedupe_pkey
+                """
+            )
+        )
+
+
+def test_partitioned_writer_compact_digest_indexes_preserve_replay_dedupe(engine) -> None:
+    now = datetime(2026, 9, 4, 13, 10, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now)
+    _install_compact_dedupe_digest_indexes(engine)
+    repository = RecorderRepository()
+    event = _event(now, sequence=20)
+
+    with engine.begin() as connection:
+        assert repository.insert_events(connection, [event]) == 1
+        assert repository.insert_events(connection, [event]) == 0
+
+    with engine.connect() as connection:
+        ledger_count = connection.execute(
+            text(
+                """
+                SELECT count(*)
+                FROM raw_event_dedupe
+                WHERE dedupe_key = :dedupe_key
+                """
+            ),
+            {"dedupe_key": event.dedupe_key},
+        ).scalar_one()
+        primary_count = connection.execute(
+            text(
+                """
+                SELECT count(*)
+                FROM pg_index AS index_meta
+                JOIN pg_class AS table_relation
+                  ON table_relation.oid = index_meta.indrelid
+                WHERE table_relation.relname LIKE 'raw_event_dedupe_h__'
+                  AND index_meta.indisprimary
+                """
+            )
+        ).scalar_one()
+        digest_unique_count = connection.execute(
+            text(
+                """
+                SELECT count(*)
+                FROM pg_index AS index_meta
+                JOIN pg_class AS table_relation
+                  ON table_relation.oid = index_meta.indrelid
+                JOIN pg_class AS index_relation
+                  ON index_relation.oid = index_meta.indexrelid
+                WHERE table_relation.relname LIKE 'raw_event_dedupe_h__'
+                  AND index_relation.relname LIKE 'raw_event_dedupe_h%_digest_uidx'
+                  AND index_meta.indisunique
+                  AND index_meta.indisvalid
+                  AND index_meta.indisready
+                """
+            )
+        ).scalar_one()
+
+    assert ledger_count == 1
+    assert primary_count == 0
+    assert digest_unique_count == 16
+
+
+def test_partitioned_writer_compact_digest_indexes_preserve_duplicate_race(engine) -> None:
+    now = datetime(2026, 9, 4, 13, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now)
+    _install_compact_dedupe_digest_indexes(engine)
+    event = _event(now, sequence=21)
+    barrier = Barrier(2)
+
+    def write_once() -> int:
+        repository = RecorderRepository()
+        with engine.begin() as connection:
+            barrier.wait(timeout=5)
+            return repository.insert_events(connection, [event])
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _index: write_once(), range(2)))
+
+    assert sorted(results) == [0, 1]
+    with engine.connect() as connection:
+        raw_count = connection.execute(
+            text(
+                """
+                SELECT count(*)
+                FROM raw_market_events
+                WHERE dedupe_key = :dedupe_key
+                """
+            ),
+            {"dedupe_key": event.dedupe_key},
+        ).scalar_one()
+        ledger_count = connection.execute(
+            text(
+                """
+                SELECT count(*)
+                FROM raw_event_dedupe
+                WHERE dedupe_key = :dedupe_key
+                """
+            ),
+            {"dedupe_key": event.dedupe_key},
+        ).scalar_one()
+
+    assert raw_count == 1
+    assert ledger_count == 1
+
+
 def test_partitioned_runtime_ensure_does_not_wait_on_active_dedupe_writer(engine) -> None:
     now = datetime(2026, 9, 4, 14, 5, tzinfo=UTC)
     ensure_partitioned_raw_storage(engine, now=now)
