@@ -60,6 +60,7 @@ printf '%s' '__PAYLOAD_B64__' | base64 -d | while IFS=: read -r path encoded; do
   printf '%s' "$encoded" | base64 -d > "$tmp/$name"
 done
 chmod 0644 "$tmp"/*.py
+set +e
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$REPO/src:$tmp" \
   "$REPO/.venv/bin/python" "$tmp/run_v4_dedupe_pk_reindex_rollout.py" \
   --repo "$REPO" \
@@ -68,6 +69,12 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$REPO/src:$tmp" \
   --expected-deployed-head __DEPLOYED_HEAD__ \
   --helper-head __HELPER_HEAD__ \
   --execute
+rc=$?
+set -e
+if (( rc != 0 )); then
+  echo "PHASE14_V4_DEDUPE_PK_REINDEX_GATE=FAIL"
+  exit "$rc"
+fi
 REMOTE_SCRIPT
 
 REMOTE="${REMOTE/__PAYLOAD_B64__/$PAYLOAD_B64}"
