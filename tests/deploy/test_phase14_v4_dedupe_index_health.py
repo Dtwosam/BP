@@ -72,6 +72,10 @@ def test_v4_dedupe_index_health_report_exposes_reindex_evidence_signal() -> None
         "MIN_REINDEX_SIGNAL_BYTES_PER_LIVE_TUPLE = 250.0",
         "primary_key_bytes_per_live_tuple",
         "primary_key_fraction_of_all_index_bytes",
+        "shared_buffers_bytes",
+        "effective_cache_size_bytes",
+        "primary_key_bytes_to_shared_buffers_ratio",
+        "primary_key_bytes_to_effective_cache_size_ratio",
         "reindex_evidence_threshold_met",
         "estimated_live_tuples",
         "estimated_dead_tuples",
@@ -123,6 +127,7 @@ def test_v4_dedupe_index_health_helper_is_read_only_on_production() -> None:
         "LIVE_TRADING_ENABLED",
         "MAX_TRADE_SIZE_USD",
         "MAX_DAILY_LOSS_USD",
+        "automatic_promotion must remain false",
     ):
         assert marker in source
 
