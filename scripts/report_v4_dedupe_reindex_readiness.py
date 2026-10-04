@@ -129,7 +129,7 @@ def _long_transactions(connection) -> list[dict[str, Any]]:
                   AND pid <> pg_backend_pid()
                   AND xact_start IS NOT NULL
                   AND clock_timestamp() - xact_start
-                        >= make_interval(secs => :seconds)
+                        >= (:seconds * interval '1 second')
                 ORDER BY xact_start
                 """
             ),
