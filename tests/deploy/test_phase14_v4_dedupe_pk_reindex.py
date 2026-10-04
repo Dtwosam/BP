@@ -187,6 +187,18 @@ def test_v4_dedupe_pk_reindex_helper_streams_remote_script_over_stdin() -> None:
         'cat > "$REMOTE_SCRIPT_PATH"',
         'sudo bash "$REMOTE_SCRIPT_PATH"',
         'PIPE_RC=("${PIPESTATUS[@]}")',
+        "grep -Eq '^PHASE14_V4_DEDUPE_PK_REINDEX_GATE=(PASS|FAIL)
+        "remote_output_capture_failed",
+    ):
+        assert marker in source
+
+    for forbidden in (
+        'REMOTE_B64="$(printf',
+        '$REMOTE_B64',
+        '--command="printf \'%s\'',
+    ):
+        assert forbidden not in source
+",
         "remote_terminal_marker_missing",
         "remote_script_stream_failed",
         "remote_output_capture_failed",
