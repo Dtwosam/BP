@@ -3,8 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from itertools import pairwise
 from datetime import UTC, datetime, timedelta
+from itertools import pairwise
 from statistics import median
 from typing import Any
 
