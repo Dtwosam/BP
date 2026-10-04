@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import runpy
 import subprocess
 from pathlib import Path
 
@@ -103,3 +104,12 @@ def test_v4_commit_lag_probe_pruning_does_not_hide_severe_lag() -> None:
     assert '"no_row_within_horizon_count": int(' in source
     assert "commit_lag_seconds" in source
     assert "commit_advancement_ratio" in source
+
+
+def test_v4_commit_lag_row_change_count_handles_adjacent_pairs() -> None:
+    namespace = runpy.run_path(str(REPORT))
+    row_change_count = namespace["_row_change_count"]
+
+    assert row_change_count([]) == 0
+    assert row_change_count([10]) == 0
+    assert row_change_count([10, 11, 11, 12]) == 2
