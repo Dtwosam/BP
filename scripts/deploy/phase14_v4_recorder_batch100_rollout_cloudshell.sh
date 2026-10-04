@@ -519,12 +519,6 @@ require_timer_active_enabled "$MAINTENANCE_TIMER"
 require_timer_active_enabled "$DISK_HEALTH_TIMER"
 require_timer_active_enabled "$V2_TIMER"
 require_timer_active_enabled "$V4_TIMER"
-wait_for_oneshot_idle_success "$MAINTENANCE_SERVICE" 3600
-wait_for_oneshot_idle_success "$DISK_HEALTH_SERVICE" 30
-
-DISK_BEFORE="$(mktemp /var/tmp/bp-v4-batch100-rollout-disk-before.XXXXXX.json)"
-run_storage_health "$DISK_BEFORE"
-HOLDOUT_BEFORE="$(gate_b_fingerprint)"
 
 git -C "$REPO" fetch --no-tags origin "refs/heads/$CANDIDATE_BRANCH:refs/remotes/origin/$CANDIDATE_BRANCH"
 [[ "$(git -C "$REPO" rev-parse "refs/remotes/origin/$CANDIDATE_BRANCH")" == "$CANDIDATE_HEAD" ]] ||
@@ -550,6 +544,12 @@ ROLLBACK_ARMED=1
 
 systemctl stop "$MAINTENANCE_TIMER"
 require_timer_enabled_inactive "$MAINTENANCE_TIMER"
+wait_for_oneshot_idle_success "$MAINTENANCE_SERVICE" 3600
+wait_for_oneshot_idle_success "$DISK_HEALTH_SERVICE" 30
+
+DISK_BEFORE="$(mktemp /var/tmp/bp-v4-batch100-rollout-disk-before.XXXXXX.json)"
+run_storage_health "$DISK_BEFORE"
+HOLDOUT_BEFORE="$(gate_b_fingerprint)"
 
 systemctl stop "$V3_EXECUTION"
 systemctl stop "$V3_PREDICTOR"
