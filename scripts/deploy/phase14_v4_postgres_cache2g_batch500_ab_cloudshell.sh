@@ -42,7 +42,7 @@ FILES=(
   scripts/report_v4_recorder_commit_lag.py
 )
 PAYLOAD=""
-for path in "$FILES[@]"; do
+for path in "${FILES[@]}"; do
   [[ -r "$ROOT/$path" ]] || fail "required_script_missing:$path"
   encoded="$(base64 < "$ROOT/$path" | tr -d '\n')"
   PAYLOAD="$PAYLOAD$path:$encoded"$'\n'
