@@ -12,7 +12,9 @@ from pathlib import Path
 from typing import Any
 
 import reindex_v4_dedupe_primary_indexes as reindex_runner
+import report_v4_db_session_owner as session_owner
 import report_v4_dedupe_index_health as index_health
+import report_v4_dedupe_reindex_blockers as blockers
 import report_v4_dedupe_reindex_readiness as readiness
 import report_v4_recorder_commit_lag as commit_lag
 from sqlalchemy import create_engine, text
@@ -40,6 +42,8 @@ REQUIRED_TIMERS = (
     V2_TIMER,
     V4_TIMER,
 )
+FAILURE_ATTRIBUTION_SAMPLES = 20
+FAILURE_ATTRIBUTION_INTERVAL_SECONDS = 0.25
 
 
 def parse_args() -> argparse.Namespace:
@@ -272,10 +276,71 @@ def _commit_lag_report(settings: Settings) -> dict[str, Any]:
         )
 
 
-def _require_preflight_readiness(report: dict[str, Any]) -> None:
+def _capture_readiness_failure_attribution(
+    settings: Settings,
+    evidence_dir: Path,
+    *,
+    stage: str,
+) -> None:
+    owner_path = evidence_dir / f"{stage}-session-owner.json"
+    blocker_path = evidence_dir / f"{stage}-blockers.json"
+
+    try:
+        with _readonly_connection(settings) as connection:
+            owner_report = session_owner.build_report(
+                connection,
+                long_transaction_seconds=(
+                    session_owner.DEFAULT_LONG_TRANSACTION_SECONDS
+                ),
+            )
+        _write_json(owner_path, owner_report)
+    except Exception as exc:
+        _write_json(
+            owner_path,
+            {
+                "report": "v4_db_session_owner_capture_error",
+                "error": f"{type(exc).__name__}: {exc}",
+            },
+        )
+
+    try:
+        with _readonly_connection(settings) as connection:
+            blocker_report = blockers.build_report(
+                connection,
+                samples=FAILURE_ATTRIBUTION_SAMPLES,
+                interval_seconds=FAILURE_ATTRIBUTION_INTERVAL_SECONDS,
+                long_transaction_seconds=(
+                    blockers.DEFAULT_LONG_TRANSACTION_SECONDS
+                ),
+            )
+        _write_json(blocker_path, blocker_report)
+    except Exception as exc:
+        _write_json(
+            blocker_path,
+            {
+                "report": "v4_dedupe_reindex_blocker_capture_error",
+                "error": f"{type(exc).__name__}: {exc}",
+            },
+        )
+
+
+def _require_preflight_readiness(
+    report: dict[str, Any],
+    *,
+    settings: Settings | None = None,
+    evidence_dir: Path | None = None,
+    stage: str | None = None,
+) -> None:
     signals = dict(report["signals"])
-    if signals.get("reindex_readiness_pass") is not True:
-        raise RuntimeError(f"reindex readiness did not pass: {signals}")
+    if signals.get("reindex_readiness_pass") is True:
+        return
+    if settings is not None and evidence_dir is not None and stage is not None:
+        _capture_readiness_failure_attribution(
+            settings,
+            evidence_dir,
+            stage=stage,
+        )
+    raise RuntimeError(f"reindex readiness did not pass: {signals}")
 
 
 def _require_post_index_integrity(report: dict[str, Any]) -> None:
@@ -364,7 +429,12 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
 
         pre_readiness = _readiness_report(settings)
         _write_json(evidence_dir / "pre-readiness.json", pre_readiness)
-        _require_preflight_readiness(pre_readiness)
+        _require_preflight_readiness(
+            pre_readiness,
+            settings=settings,
+            evidence_dir=evidence_dir,
+            stage="pre-readiness-failure",
+        )
 
         pre_health = _index_health_report(settings)
         _write_json(evidence_dir / "pre-index-health.json", pre_health)
@@ -379,7 +449,12 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
             evidence_dir / "mutation-readiness.json",
             mutation_readiness,
         )
-        _require_preflight_readiness(mutation_readiness)
+        _require_preflight_readiness(
+            mutation_readiness,
+            settings=settings,
+            evidence_dir=evidence_dir,
+            stage="mutation-readiness-failure",
+        )
 
         reindex_payload = reindex_runner.run(
             settings=settings,
@@ -420,6 +495,7 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
     except Exception as exc:
         summary["status"] = "failure"
         summary["error"] = f"{type(exc).__name__}: {exc}"
+        print(f"EVIDENCE_DIR={evidence_dir}", flush=True)
         raise
     finally:
         restore_results: dict[str, dict[str, object]] = {}

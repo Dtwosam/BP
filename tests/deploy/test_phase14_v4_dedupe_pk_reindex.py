@@ -169,6 +169,8 @@ def test_v4_dedupe_pk_reindex_helper_streams_without_checkout_mutation() -> None
         "report_v4_dedupe_reindex_readiness.py",
         "report_v4_dedupe_index_health.py",
         "report_v4_recorder_commit_lag.py",
+        "report_v4_dedupe_reindex_blockers.py",
+        "report_v4_db_session_owner.py",
         "RECORDER_REMAINS_ACTIVE=true",
         "V3_REMAINS_ACTIVE=true",
         "MAINTENANCE_V2_V4_TIMERS_TEMPORARILY_QUIESCED=true",
@@ -240,3 +242,36 @@ def test_v4_dedupe_pk_reindex_rollout_requires_two_clean_gates_after_quiesce() -
     )
     reindex_at = source.index("reindex_runner.run(", mutation_gate_at)
     assert stop_at < wait_at < pre_gate_at < lag_at < mutation_gate_at < reindex_at
+
+
+def test_v4_dedupe_pk_reindex_rollout_captures_failed_gate_attribution() -> None:
+    source = ROLLOUT.read_text(encoding="utf-8")
+    for marker in (
+        "import report_v4_db_session_owner as session_owner",
+        "import report_v4_dedupe_reindex_blockers as blockers",
+        "FAILURE_ATTRIBUTION_SAMPLES = 20",
+        "FAILURE_ATTRIBUTION_INTERVAL_SECONDS = 0.25",
+        "session_owner.build_report(",
+        "blockers.build_report(",
+        'stage="pre-readiness-failure"',
+        'stage="mutation-readiness-failure"',
+        'print(f"EVIDENCE_DIR={evidence_dir}"',
+    ):
+        assert marker in source
+
+
+def test_v4_dedupe_pk_reindex_failure_attribution_is_read_only() -> None:
+    source = ROLLOUT.read_text(encoding="utf-8")
+    capture_start = source.index("def _capture_readiness_failure_attribution(")
+    capture_end = source.index("\ndef _require_preflight_readiness(", capture_start)
+    capture = source[capture_start:capture_end]
+    assert "_readonly_connection(settings)" in capture
+    for forbidden in (
+        "systemctl",
+        "pg_terminate_backend",
+        "DELETE ",
+        "UPDATE ",
+        "INSERT ",
+        "REINDEX ",
+    ):
+        assert forbidden not in capture

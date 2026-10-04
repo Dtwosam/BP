@@ -38,6 +38,8 @@ FILES=(
   scripts/report_v4_dedupe_reindex_readiness.py
   scripts/report_v4_dedupe_index_health.py
   scripts/report_v4_recorder_commit_lag.py
+  scripts/report_v4_dedupe_reindex_blockers.py
+  scripts/report_v4_db_session_owner.py
 )
 PAYLOAD=""
 for path in "${FILES[@]}"; do
