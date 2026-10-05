@@ -775,11 +775,45 @@ def test_continuous_fast_live_renewed_source_authorization_is_12h_runtime_ready(
     assert auth["session_real_order_submission_count"] == 0
     assert auth["unresolved_result_count"] == 0
     assert auth["unresolved_settlement_count"] == 0
-    assert auth["expired_session_cleanup_required_before_reauthorization"] is True
-    assert auth["expired_session_cleanup_authorized"] is False
+    assert auth["runtime_authorization_present"] is False
+    assert auth["expired_session_cleanup_required_before_reauthorization"] is False
+    assert auth["expired_session_cleanup_authorized"] is True
+    assert auth["expired_session_cleanup_authorization_consumed"] is True
+    assert auth["expired_session_cleanup_performed"] is True
+    assert auth["expired_session_cleanup_passed"] is True
+    assert auth["session_runtime_files_present"] is False
+    assert auth["session_pubsub_resources_present"] is False
+    assert auth["recorder_runtime_authorization_present"] is False
+    assert auth["executor_runtime_authorization_present"] is False
+    assert auth["recorder_transport_key_present"] is False
+    assert auth["executor_transport_key_present"] is False
     assert auth["fresh_activation_authorization_required"] is True
+    assert auth["fresh_live_session_authorized"] is False
     assert auth["readonly_reconciliation_evidence"] == (
         "docs/evidence/phase15-v3-fast-live-expired-session-readonly-reconciliation-20261005.json"
+    )
+    assert auth["zero_attempt_cleanup_evidence"] == (
+        "docs/evidence/phase15-v3-fast-live-expired-zero-attempt-cleanup-20261005.json"
+    )
+    cleanup = gate["expired_zero_attempt_cleanup"]
+    assert cleanup["status"] == "PASS"
+    assert cleanup["cleanup_mode"] == "expired_zero_attempt"
+    assert cleanup["authorization_consumed"] is True
+    assert cleanup["zero_network_attempt_verified"] is True
+    assert cleanup["session_publication_count"] == 0
+    assert cleanup["session_network_submission_attempt_count"] == 0
+    assert cleanup["session_execution_result_count"] == 0
+    assert cleanup["session_real_order_submitted"] is False
+    assert cleanup["services_started"] is False
+    assert cleanup["cleanup_real_order_submitted"] is False
+    assert cleanup["kill_switch_engaged"] is True
+    assert cleanup["historical_state_preserved"] is True
+    assert cleanup["session_runtime_files_present"] is False
+    assert cleanup["session_pubsub_resources_present"] is False
+    assert cleanup["executor_open_order_count"] == 0
+    assert cleanup["executor_account_clean"] is True
+    assert cleanup["evidence"] == (
+        "docs/evidence/phase15-v3-fast-live-expired-zero-attempt-cleanup-20261005.json"
     )
     assert auth["target_notional_usd"] == 5
     assert auth["max_trade_size_usd"] == 10
