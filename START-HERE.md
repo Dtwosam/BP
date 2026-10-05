@@ -21,6 +21,11 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**5 October 2026 superseding status:** the latest continuous fast-live v2 authorization `phase15-v3-fast-live-auto-continuous-v2-12h-9824a0b1-20261001T201044Z` was activated in production, expired at `2026-10-02T08:10:44Z`, and is now inactive/fail-closed. Read-only reconciliation found zero publications, zero network submission attempts, and zero real orders bound to that authorization; `bp-phase15-fast-live-source.service` and the Johannesburg receiver are inactive, the executor kill switch is engaged, and there are no unresolved result or settlement records. The one preserved historical fast-live attempt/fill belongs to the earlier 30 September authorization and is already recorded by `docs/evidence/phase15_v3_fast_live_completed_session_cleanup_20261001.json`. Durable reconciliation for the expired October session is `docs/evidence/phase15-v3-fast-live-expired-session-readonly-reconciliation-20261005.json`.
+
+**No new live session is currently authorized.** Before any new fast-live candidate or activation, the expired runtime session must be cleaned up through the existing cleanup helper under fresh explicit production authorization. After cleanup passes, a fresh time-bounded continuous v2 authorization candidate may be generated and reviewed. The global `LIVE_TRADING_ENABLED` flag remains false.
+
+
 Phase 15 still authorizes **exactly one additional frozen-V3 live canary through the private Telegram approval path**. The first canary remains officially reconciled at zero fill and its submission attempt remains consumed.
 
 The private Telegram transport is now **production-active**. Exact activation from main `469049a9f6361f9c656e3d176029b10db7359689` with repaired helper blob `83157c6c04b9a996bab51012b4bda4dd31062320` passed after listener, stage, Pub/Sub, and activation-readiness checks all returned PASS. The existing topic/subscription were reused; publisher and all four Johannesburg transport services are active; global and Phase-15 `LIVE_TRADING_ENABLED` remain false; the executor is safe-idle; and no real order was submitted. The activation authorization is consumed, so activation must not be rerun without fresh explicit authorization.
@@ -80,17 +85,8 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 ## Immediate next task
 
-1. Treat the first-canary DB reconciliation repair as production **PASS**; do not rerun it without fresh explicit production authorization.
-2. Treat post-reconciliation watcher run `phase15-prepare-watch-20260926T195409Z-271b35ff` as active; its one-shot restart authorization is consumed.
-3. Use only the existing read-only watcher status/follow helpers while this 7200-second window is active.
-4. The three previously rejected `reconciliation_blocked` predictions remain terminally excluded; only a later **NEW** frozen-V3 candidate may proceed.
-5. Any candidate still requires review before the separate private Telegram approval boundary; Telegram `APPROVE`, executor arm/invocation, and order submission remain unperformed.
-6. Continue frozen-V3 paper observation and V4 Gate B collection unchanged.
-
-
-**Preserved Phase 14 historical context:** the V4 compact-dedupe storage migration is now a **historical production PASS** and must not be rerun: the live database is `COMPACT_COMPLETE` with all 16 compact digest unique indexes healthy and the legacy parent/child primary indexes absent by design. Durable sanitized evidence is `docs/evidence/phase-14-v4-compact-dedupe-production-20261005.json`. The helper lifecycle fix that restores recorder-dependent V3 services after recorder quiesce is merged to `main`.
-
-**Preserved Phase 14 historical context:** frozen V3 paper activation remains a **historical production PASS** and the recorder/frozen-V3 runtime remains **active after concurrent-partition-retirement rollout PASS**. The frozen identities remain model `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`, prediction `v3-frozen-paper-v1`, execution `paper-execution-v3-frozen-v1`, and `min_edge=0.075`. That paper program used `real_money         = $0.00` and remains **prospective observation only** while the separately bounded Phase 15 canary is evaluated.
-
-The **frozen V4 Gate B v1 future cohort** and **V4 regime-aware** feature collection continue unchanged. **Do not rerun the storage rollout.** The historical Phase 14 instruction to **keep all promotion/live boundaries closed** remains the governing boundary for every path except the separately authorized one-attempt Phase 15 canary. The historical read-only observation helper remains `bash scripts/deploy/phase14_observation_cloudshell.sh`; using it does not authorize any live-order action.
-
+1. Treat the October 1 `9824a0b1…` continuous fast-live session as **expired and inactive**; do not restart it.
+2. Preserve the September 30 filled/settled trade as historical evidence already closed out in `docs/evidence/phase15_v3_fast_live_completed_session_cleanup_20261001.json`; do not attribute that attempt to the October 1 session.
+3. The next production mutation, if desired, is **expired-session cleanup only** using the existing helper, and it requires fresh explicit authorization.
+4. Only after cleanup passes may a fresh continuous fast-live v2 authorization candidate be generated/reviewed. Staging/activation remains a separate fresh live-money authorization boundary.
+5. Continue frozen-V3 paper observation and V4 Gate B collection unchanged. No V3 tuning, V4 mutation, stake growth, geographic circumvention, or broad autonomous rollout is authorized.
