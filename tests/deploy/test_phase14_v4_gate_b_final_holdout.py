@@ -33,6 +33,8 @@ def test_v4_final_holdout_helper_is_exactly_hash_bound_and_one_shot() -> None:
         "HOLDOUT_ACCESS_COMMITTED_BEFORE_LABEL_READ",
         "os.O_EXCL",
         "os.fsync",
+        "MODEL_FILE_NAME",
+        "selection model filename invalid",
         "evaluate-holdout",
         "--plan",
         "--selection",
