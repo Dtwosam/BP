@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import runpy
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -23,7 +24,13 @@ def test_compact_dedupe_migration_runner_compiles() -> None:
 
 
 def test_compact_dedupe_migration_binds_exact_index_set() -> None:
-    namespace = runpy.run_path(str(RUNNER))
+    scripts = str(ROOT / "scripts")
+    sys.path.insert(0, scripts)
+    try:
+        namespace = runpy.run_path(str(RUNNER))
+    finally:
+        sys.path.remove(scripts)
+
     assert namespace["_expected_tables"]() == tuple(
         f"raw_event_dedupe_h{value:02d}" for value in range(16)
     )
