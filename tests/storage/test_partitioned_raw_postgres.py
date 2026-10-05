@@ -644,6 +644,39 @@ def test_partitioned_runtime_ensure_fails_closed_on_missing_dedupe_index(engine)
         )
 
 
+def test_partitioned_runtime_ensure_accepts_compact_dedupe_contract(engine) -> None:
+    now = datetime(2026, 9, 4, 14, 10, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now)
+    _install_compact_dedupe_digest_indexes(engine)
+
+    result = ensure_partitioned_raw_storage(
+        engine,
+        now=now + timedelta(hours=1),
+    )
+
+    assert result.mode is RawStorageMode.PARTITIONED
+    assert result.migrated_rows == 0
+    assert result.rollback_table is None
+
+
+def test_partitioned_runtime_ensure_rejects_partial_compact_dedupe_contract(engine) -> None:
+    now = datetime(2026, 9, 4, 14, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now)
+    _install_compact_dedupe_digest_indexes(engine)
+
+    with engine.begin() as connection:
+        connection.execute(text("DROP INDEX raw_event_dedupe_h00_digest_uidx"))
+
+    with pytest.raises(
+        RuntimeError,
+        match="partitioned dedupe uniqueness contract is missing or unhealthy",
+    ):
+        ensure_partitioned_raw_storage(
+            engine,
+            now=now + timedelta(hours=1),
+        )
+
+
 def test_partitioned_writer_missing_hour_rolls_back_dedupe_claim(engine) -> None:
     now = datetime(2026, 9, 4, 14, 5, tzinfo=UTC)
     ensure_partitioned_raw_storage(engine, now=now)
