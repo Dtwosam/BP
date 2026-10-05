@@ -382,6 +382,8 @@ def build_candidate(
                     )
             required_cleanup_false = (
                 "session_real_order_submitted",
+                "services_started",
+                "cleanup_real_order_submitted",
                 "session_runtime_files_present",
                 "session_pubsub_resources_present",
                 "recorder_source_active",
