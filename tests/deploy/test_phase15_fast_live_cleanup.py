@@ -326,6 +326,8 @@ def test_fast_live_cleanup_expired_zero_attempt_is_exactly_scoped() -> None:
         'recorded.get("official_reconciliation_required") is not False'
         in text
     )
+    assert "expired_zero_attempt_unexpected_publication_present" in text
+    assert '[[ "$SESSION_PUBLICATIONS" == "0" ]]' in text
     assert "ZERO_NETWORK_ATTEMPT_VERIFIED=true" in text
     assert "SESSION_REAL_ORDER_SUBMITTED=false" in text
     assert "CLEANUP_COMPLETED=true" in text
