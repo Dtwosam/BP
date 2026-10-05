@@ -87,6 +87,6 @@ This checkpoint is repository-only. It did not run readiness or planning against
 
 1. Treat the October 1 `9824a0b1…` continuous fast-live session as **expired and inactive**; do not restart it.
 2. Preserve the September 30 filled/settled trade as historical evidence already closed out in `docs/evidence/phase15_v3_fast_live_completed_session_cleanup_20261001.json`; do not attribute that attempt to the October 1 session.
-3. The next production mutation, if desired, is **expired-session cleanup only** using the existing helper, and it requires fresh explicit authorization.
+3. The next production mutation, if desired, is **expired-zero-attempt session cleanup only** using the exact `PHASE15_ACCEPT_FAST_LIVE_EXPIRED_ZERO_ATTEMPT_CLEANUP` helper mode. It is bound to the `9824a0b1…` authorization/release/expiry and must prove zero network attempts before removing session Pub/Sub/runtime material. It requires fresh explicit authorization.
 4. Only after cleanup passes may a fresh continuous fast-live v2 authorization candidate be generated/reviewed. Staging/activation remains a separate fresh live-money authorization boundary.
 5. Continue frozen-V3 paper observation and V4 Gate B collection unchanged. No V3 tuning, V4 mutation, stake growth, geographic circumvention, or broad autonomous rollout is authorized.
