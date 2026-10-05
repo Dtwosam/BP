@@ -36,6 +36,10 @@ CLEAN_WINDOW_SAMPLES = 80
 CLEAN_WINDOW_INTERVAL_SECONDS = 0.5
 
 RECORDER_UNIT = "bp-recorder.service"
+RECORDER_DEPENDENT_SERVICES = (
+    "bp-v3-frozen-predictor.service",
+    "bp-v3-paper-execution.service",
+)
 MAINTENANCE_SERVICE = "bp-storage-maintenance.service"
 MAINTENANCE_TIMER = "bp-storage-maintenance.timer"
 V2_SERVICE = "bp-v2-forward-coverage.service"
@@ -930,14 +934,20 @@ def _stop_recorder() -> None:
         raise RuntimeError("recorder remained active after stop")
 
 
-def _start_recorder() -> None:
-    _systemctl("start", RECORDER_UNIT)
+def _start_unit_and_wait(unit: str) -> None:
+    _systemctl("start", unit)
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
-        if _is_active(RECORDER_UNIT):
+        if _is_active(unit):
             return
         time.sleep(1)
-    raise RuntimeError("recorder did not become active")
+    raise RuntimeError(f"required service did not become active: {unit}")
+
+
+def _start_recorder_stack() -> None:
+    _start_unit_and_wait(RECORDER_UNIT)
+    for unit in RECORDER_DEPENDENT_SERVICES:
+        _start_unit_and_wait(unit)
 
 
 def _run_soak(repo: Path, env_file: Path) -> dict[str, Any]:
@@ -1106,7 +1116,7 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
         _write_json(evidence_dir / "after-drop-state.json", after_drop)
         _require_compact_post_state(after_drop)
 
-        _start_recorder()
+        _start_recorder_stack()
         recorder_stopped = False
         time.sleep(45)
 
@@ -1174,17 +1184,20 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
                 summary["pre_boundary_cleanup"] = cleanup_results
 
                 if recorder_stopped:
-                    start_result = _run(
-                        "systemctl",
-                        "start",
-                        RECORDER_UNIT,
-                        check=False,
-                    )
+                    restore_results: dict[str, dict[str, object]] = {}
+                    for unit in (RECORDER_UNIT, *RECORDER_DEPENDENT_SERVICES):
+                        start_result = _run(
+                            "systemctl",
+                            "start",
+                            unit,
+                            check=False,
+                        )
+                        restore_results[unit] = {
+                            "returncode": start_result.returncode,
+                            "active": _is_active(unit),
+                        }
                     recorder_stopped = not _is_active(RECORDER_UNIT)
-                    summary["recorder_restore"] = {
-                        "returncode": start_result.returncode,
-                        "active": not recorder_stopped,
-                    }
+                    summary["recorder_restore"] = restore_results
 
         restore_results: dict[str, dict[str, object]] = {}
         if not bool(summary["irreversible_boundary_crossed"]) or (

@@ -184,6 +184,26 @@ def test_compact_dedupe_migration_pre_boundary_failure_is_reversible() -> None:
         assert marker in source
 
 
+def test_compact_dedupe_migration_restores_recorder_dependent_services() -> None:
+    source = RUNNER.read_text(encoding="utf-8")
+    for marker in (
+        "RECORDER_DEPENDENT_SERVICES = (",
+        '"bp-v3-frozen-predictor.service"',
+        '"bp-v3-paper-execution.service"',
+        "def _start_unit_and_wait(unit: str)",
+        "def _start_recorder_stack()",
+        "for unit in RECORDER_DEPENDENT_SERVICES:",
+        "_start_recorder_stack()",
+        "for unit in (RECORDER_UNIT, *RECORDER_DEPENDENT_SERVICES):",
+    ):
+        assert marker in source
+
+    stop_at = source.index("_stop_recorder()")
+    drop_at = source.index("_drop_parent_primary_constraint(settings)", stop_at)
+    restart_stack_at = source.index("_start_recorder_stack()", drop_at)
+    assert stop_at < drop_at < restart_stack_at
+
+
 def test_compact_dedupe_migration_post_boundary_failure_never_restores_old_writer() -> None:
     source = RUNNER.read_text(encoding="utf-8")
     post_failure_start = source.index(
