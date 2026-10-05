@@ -12,6 +12,7 @@ from typing import Any
 
 import report_v4_dedupe_reindex_blockers as blockers
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import OperationalError
 
 from bp_engine.config import Settings
 
@@ -19,6 +20,12 @@ EXPECTED_CHILD_COUNT = 16
 MIN_TRANSIENT_FREE_BYTES = 2 * 1024**3
 TRANSIENT_TOTAL_PKEY_MULTIPLIER = 2
 INDEX_STATEMENT_TIMEOUT_SECONDS = 1200
+INDEX_LOCK_TIMEOUT_SECONDS = 5
+INDEX_LOCK_CLEAR_WAIT_SECONDS = 300
+INDEX_LOCK_POLL_SECONDS = 0.5
+INDEX_LOCK_CLEAR_CONSECUTIVE_SAMPLES = 3
+INDEX_LOCK_RETRY_ATTEMPTS = 3
+INDEX_LOCK_RETRY_SLEEP_SECONDS = 2.0
 DDL_LOCK_TIMEOUT_SECONDS = 5
 DROP_CONSTRAINT_TIMEOUT_SECONDS = 30
 CLEAN_WINDOW_SAMPLES = 80
@@ -530,7 +537,7 @@ def _mutation_engine(settings: Settings):
         connect_args={
             "options": (
                 f"-c statement_timeout={INDEX_STATEMENT_TIMEOUT_SECONDS * 1000} "
-                f"-c lock_timeout={DDL_LOCK_TIMEOUT_SECONDS * 1000} "
+                f"-c lock_timeout={INDEX_LOCK_TIMEOUT_SECONDS * 1000} "
                 "-c application_name=bp-v4-compact-dedupe-migration"
             )
         },
@@ -565,6 +572,324 @@ def _drop_compact_index(engine, index_name: str) -> None:
         connection.execute(
             text(f'DROP INDEX CONCURRENTLY IF EXISTS "{index_name}"')
         )
+
+
+def _is_lock_timeout(exc: BaseException) -> bool:
+    if not isinstance(exc, OperationalError):
+        return False
+    original = getattr(exc, "orig", None)
+    sqlstate = getattr(original, "sqlstate", None)
+    return sqlstate == "55P03" or "lock timeout" in str(original).lower()
+
+
+def _relation_lock_snapshot(
+    connection,
+    *,
+    table_name: str,
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "pid": int(row["pid"]),
+            "backend_type": str(row["backend_type"] or ""),
+            "user": str(row["usename"] or ""),
+            "application_name": str(row["application_name"] or ""),
+            "state": str(row["state"] or ""),
+            "lock_mode": str(row["lock_mode"]),
+            "wait_event_type": (
+                str(row["wait_event_type"])
+                if row["wait_event_type"] is not None
+                else None
+            ),
+            "wait_event": (
+                str(row["wait_event"])
+                if row["wait_event"] is not None
+                else None
+            ),
+            "xact_age_seconds": (
+                float(row["xact_age_seconds"])
+                if row["xact_age_seconds"] is not None
+                else None
+            ),
+        }
+        for row in connection.execute(
+            text(
+                """
+                SELECT
+                    lock.pid,
+                    activity.backend_type,
+                    activity.usename,
+                    activity.application_name,
+                    activity.state,
+                    lock.mode AS lock_mode,
+                    activity.wait_event_type,
+                    activity.wait_event,
+                    CASE
+                        WHEN activity.xact_start IS NULL THEN NULL
+                        ELSE EXTRACT(
+                            EPOCH FROM (
+                                clock_timestamp() - activity.xact_start
+                            )
+                        )
+                    END AS xact_age_seconds
+                FROM pg_locks AS lock
+                JOIN pg_class AS relation
+                  ON relation.oid = lock.relation
+                JOIN pg_namespace AS namespace
+                  ON namespace.oid = relation.relnamespace
+                LEFT JOIN pg_stat_activity AS activity
+                  ON activity.pid = lock.pid
+                WHERE namespace.nspname = current_schema()
+                  AND relation.relname = :table_name
+                  AND lock.granted IS TRUE
+                  AND lock.pid <> pg_backend_pid()
+                  AND lock.mode IN (
+                      'ShareUpdateExclusiveLock',
+                      'ShareLock',
+                      'ShareRowExclusiveLock',
+                      'ExclusiveLock',
+                      'AccessExclusiveLock'
+                  )
+                ORDER BY lock.mode, lock.pid
+                """
+            ),
+            {"table_name": table_name},
+        ).mappings()
+    ]
+
+
+def _wait_for_index_relation_lock_clear(
+    settings: Settings,
+    *,
+    table_name: str,
+    evidence_path: Path,
+) -> dict[str, Any]:
+    started_at = datetime.now(UTC)
+    started_monotonic = time.monotonic()
+    samples = 0
+    samples_with_conflicts = 0
+    maximum_conflicting_locks = 0
+    clear_samples = 0
+    last_conflicts: list[dict[str, Any]] = []
+
+    engine = _readonly_engine(settings)
+    try:
+        with engine.connect().execution_options(
+            isolation_level="AUTOCOMMIT"
+        ) as connection:
+            while True:
+                samples += 1
+                conflicts = _relation_lock_snapshot(
+                    connection,
+                    table_name=table_name,
+                )
+                if conflicts:
+                    samples_with_conflicts += 1
+                    maximum_conflicting_locks = max(
+                        maximum_conflicting_locks,
+                        len(conflicts),
+                    )
+                    clear_samples = 0
+                    last_conflicts = conflicts
+                else:
+                    clear_samples += 1
+                    if (
+                        clear_samples
+                        >= INDEX_LOCK_CLEAR_CONSECUTIVE_SAMPLES
+                    ):
+                        break
+
+                elapsed = time.monotonic() - started_monotonic
+                if elapsed >= INDEX_LOCK_CLEAR_WAIT_SECONDS:
+                    report = {
+                        "table_name": table_name,
+                        "started_at": started_at.isoformat(),
+                        "completed_at": datetime.now(UTC).isoformat(),
+                        "status": "timeout",
+                        "samples": samples,
+                        "samples_with_conflicts": samples_with_conflicts,
+                        "maximum_conflicting_locks": maximum_conflicting_locks,
+                        "last_conflicts": last_conflicts,
+                        "wait_seconds": elapsed,
+                    }
+                    _write_json(evidence_path, report)
+                    raise RuntimeError(
+                        "conflicting relation lock did not clear for "
+                        f"{table_name}"
+                    )
+
+                time.sleep(INDEX_LOCK_POLL_SECONDS)
+    finally:
+        engine.dispose()
+
+    report = {
+        "table_name": table_name,
+        "started_at": started_at.isoformat(),
+        "completed_at": datetime.now(UTC).isoformat(),
+        "status": "clear",
+        "samples": samples,
+        "samples_with_conflicts": samples_with_conflicts,
+        "maximum_conflicting_locks": maximum_conflicting_locks,
+        "last_conflicts": last_conflicts,
+        "wait_seconds": time.monotonic() - started_monotonic,
+    }
+    _write_json(evidence_path, report)
+    return report
+
+
+def _compact_index_row(
+    settings: Settings,
+    *,
+    index_name: str,
+) -> dict[str, Any] | None:
+    state = _state(settings)
+    matching = [
+        dict(row)
+        for row in state["compact_indexes"]
+        if str(row["index_name"]) == index_name
+    ]
+    if len(matching) > 1:
+        raise RuntimeError(
+            f"duplicate compact index metadata rows for {index_name}"
+        )
+    return matching[0] if matching else None
+
+
+def _drop_compact_index_with_retries(
+    engine,
+    settings: Settings,
+    *,
+    table_name: str,
+    index_name: str,
+    evidence_dir: Path,
+) -> None:
+    for attempt in range(1, INDEX_LOCK_RETRY_ATTEMPTS + 1):
+        if _compact_index_row(settings, index_name=index_name) is None:
+            return
+
+        _wait_for_index_relation_lock_clear(
+            settings,
+            table_name=table_name,
+            evidence_path=(
+                evidence_dir
+                / f"lock-wait-drop-{index_name}-{attempt}.json"
+            ),
+        )
+
+        try:
+            _drop_compact_index(engine, index_name)
+        except Exception as exc:
+            if (
+                not _is_lock_timeout(exc)
+                or attempt >= INDEX_LOCK_RETRY_ATTEMPTS
+            ):
+                raise
+            time.sleep(INDEX_LOCK_RETRY_SLEEP_SECONDS)
+            continue
+
+        if _compact_index_row(settings, index_name=index_name) is None:
+            return
+
+        if attempt < INDEX_LOCK_RETRY_ATTEMPTS:
+            time.sleep(INDEX_LOCK_RETRY_SLEEP_SECONDS)
+
+    raise RuntimeError(
+        f"compact index cleanup did not complete for {index_name}"
+    )
+
+
+def _create_compact_index_with_retries(
+    engine,
+    settings: Settings,
+    *,
+    table_name: str,
+    index_name: str,
+    evidence_dir: Path,
+) -> list[dict[str, Any]]:
+    attempts: list[dict[str, Any]] = []
+    attempts_path = evidence_dir / f"index-attempts-{index_name}.json"
+
+    for attempt in range(1, INDEX_LOCK_RETRY_ATTEMPTS + 1):
+        lock_report = _wait_for_index_relation_lock_clear(
+            settings,
+            table_name=table_name,
+            evidence_path=(
+                evidence_dir
+                / f"lock-wait-create-{index_name}-{attempt}.json"
+            ),
+        )
+
+        try:
+            _create_compact_index(
+                engine,
+                table_name=table_name,
+                index_name=index_name,
+            )
+        except Exception as exc:
+            if not _is_lock_timeout(exc):
+                raise
+
+            current = _compact_index_row(
+                settings,
+                index_name=index_name,
+            )
+            record = {
+                "attempt": attempt,
+                "result": "lock_timeout",
+                "sqlstate": getattr(
+                    getattr(exc, "orig", None),
+                    "sqlstate",
+                    None,
+                ),
+                "lock_wait": lock_report,
+                "index_present": current is not None,
+                "index_valid": (
+                    bool(current["is_valid"])
+                    if current is not None
+                    else None
+                ),
+                "index_ready": (
+                    bool(current["is_ready"])
+                    if current is not None
+                    else None
+                ),
+            }
+            attempts.append(record)
+            _write_json(attempts_path, attempts)
+
+            if current is not None and _compact_definition_ok(current):
+                return attempts
+
+            if current is not None:
+                _drop_compact_index_with_retries(
+                    engine,
+                    settings,
+                    table_name=table_name,
+                    index_name=index_name,
+                    evidence_dir=evidence_dir,
+                )
+
+            if attempt >= INDEX_LOCK_RETRY_ATTEMPTS:
+                raise RuntimeError(
+                    "compact index lock retries exhausted for "
+                    f"{index_name}"
+                ) from exc
+
+            time.sleep(INDEX_LOCK_RETRY_SLEEP_SECONDS)
+            continue
+
+        attempts.append(
+            {
+                "attempt": attempt,
+                "result": "created",
+                "lock_wait": lock_report,
+            }
+        )
+        _write_json(attempts_path, attempts)
+        return attempts
+
+    raise RuntimeError(
+        f"compact index creation did not complete for {index_name}"
+    )
 
 
 def _drop_parent_primary_constraint(settings: Settings) -> None:
@@ -694,6 +1019,7 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
         "irreversible_boundary_crossed": False,
         "attempted_compact_indexes": [],
         "created_compact_indexes": [],
+        "index_attempts": {},
         "quiesced_timers": list(QUIESCED_TIMERS),
         "quiesced_timers_restored": False,
     }
@@ -731,11 +1057,14 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
         ):
             summary["attempted_compact_indexes"].append(index_name)
             _write_json(evidence_dir / "rollout.json", summary)
-            _create_compact_index(
+            attempts = _create_compact_index_with_retries(
                 mutation_engine,
+                settings,
                 table_name=table_name,
                 index_name=index_name,
+                evidence_dir=evidence_dir,
             )
+            summary["index_attempts"][index_name] = attempts
             summary["created_compact_indexes"].append(index_name)
             _write_json(evidence_dir / "rollout.json", summary)
 
@@ -821,7 +1150,16 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
                         list(summary["attempted_compact_indexes"])
                     ):
                         try:
-                            _drop_compact_index(cleanup_engine, index_name)
+                            table_name = index_name.removesuffix(
+                                "_digest_uidx"
+                            )
+                            _drop_compact_index_with_retries(
+                                cleanup_engine,
+                                settings,
+                                table_name=table_name,
+                                index_name=index_name,
+                                evidence_dir=evidence_dir,
+                            )
                             cleanup_results[index_name] = "dropped"
                         except Exception as cleanup_exc:
                             cleanup_results[index_name] = (
