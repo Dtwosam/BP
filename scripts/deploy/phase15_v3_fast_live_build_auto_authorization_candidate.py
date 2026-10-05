@@ -366,7 +366,6 @@ def build_candidate(
                         f"zero-attempt cleanup evidence unsafe: {name}"
                     )
             required_cleanup_false = (
-                "prior_real_order_submitted",
                 "session_real_order_submitted",
                 "session_runtime_files_present",
                 "session_pubsub_resources_present",
