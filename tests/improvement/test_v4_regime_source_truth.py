@@ -83,6 +83,35 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert v4["max_trade_size_usd"] == 0
     assert v4["max_daily_loss_usd"] == 0
 
+    evaluator = v4["final_holdout_evaluator"]
+    assert evaluator["status"] == "REPOSITORY_IMPLEMENTED_NOT_EXECUTED"
+    assert evaluator["guarded_runner"] == (
+        "scripts/deploy/phase14_v4_gate_b_final_holdout_cloudshell.sh"
+    )
+    assert evaluator["frozen_plan_sha256"] == (
+        "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557"
+    )
+    assert evaluator["frozen_selection_sha256"] == (
+        "895cb70ae0cdbc22f4e3585c77db3ad20f8186d1ee1992a58025d89bb1e2bb1a"
+    )
+    assert evaluator["frozen_model_artifact_sha256"] == (
+        "6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf"
+    )
+    assert evaluator["final_holdout_market_count"] == 288
+    assert evaluator["holdout_labels_read"] is False
+    assert evaluator["holdout_evaluated"] is False
+    assert evaluator["one_shot_authorization_required"] is True
+    assert evaluator["one_shot_authorization_granted"] is False
+    assert evaluator["durable_attempt_marker_required_before_label_read"] is True
+    assert evaluator["model_refit_allowed"] is False
+    assert evaluator["threshold_tuning_allowed"] is False
+    assert evaluator["policy_reselection_allowed"] is False
+    assert evaluator["automatic_promotion"] is False
+    assert evaluator["paper_activation_authorized"] is False
+    assert evaluator["paper_activation_performed"] is False
+    assert evaluator["live_trading_enabled"] is False
+    assert evaluator["real_money_usd"] == 0
+
 
 def test_consumed_v3_holdout_is_durable_motivation_not_v4_tuning_data() -> None:
     evidence = json.loads(_text(V3_HOLDOUT_EVIDENCE))
