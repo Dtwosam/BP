@@ -535,6 +535,17 @@ delete_subscription_if_present "$RESULT_SUB"
 delete_topic_if_present "$ORDER_TOPIC"
 delete_topic_if_present "$RESULT_TOPIC"
 
+for sub in "$ORDER_SUB" "$RESULT_SUB"; do
+  if gcloud pubsub subscriptions describe "$sub" --project="$PROJECT" >/dev/null 2>&1; then
+    fail "subscription_still_present:$sub"
+  fi
+done
+for topic in "$ORDER_TOPIC" "$RESULT_TOPIC"; do
+  if gcloud pubsub topics describe "$topic" --project="$PROJECT" >/dev/null 2>&1; then
+    fail "topic_still_present:$topic"
+  fi
+done
+
 # Remove session-only runtime material only after its transport is gone.
 # Historical receipts, approvals, attempts, reconciliations, settlement
 # markers, and logs are deliberately preserved.
@@ -542,7 +553,9 @@ gcloud compute ssh "$US_VM" \
   --project="$PROJECT" --zone="$US_ZONE" --quiet \
   --command="sudo rm -f /etc/bp-fast-live/authorization.json /etc/bp-fast-live/PROJECT_STATE.json /etc/bp-fast-live/transport.key /etc/bp/phase15-fast-live-source.env;
              sudo test ! -e /etc/bp-fast-live/authorization.json;
+             sudo test ! -e /etc/bp-fast-live/PROJECT_STATE.json;
              sudo test ! -e /etc/bp-fast-live/transport.key;
+             sudo test ! -e /etc/bp/phase15-fast-live-source.env;
              sudo systemctl is-active --quiet bp-phase15-fast-live-source.service && exit 31 || true" ||
   fail "recorder_runtime_cleanup_failed"
 
@@ -550,7 +563,9 @@ gcloud compute ssh "$EXEC_VM" \
   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
   --command="sudo rm -f /etc/bp-fast-live/authorization.json /etc/bp-fast-live/PROJECT_STATE.json /etc/bp-fast-live/transport.key /etc/bp-fast-live/receiver.env;
              sudo test ! -e /etc/bp-fast-live/authorization.json;
+             sudo test ! -e /etc/bp-fast-live/PROJECT_STATE.json;
              sudo test ! -e /etc/bp-fast-live/transport.key;
+             sudo test ! -e /etc/bp-fast-live/receiver.env;
              sudo test -f /var/lib/bp-canary/fast-live/KILL;
              sudo systemctl is-active --quiet bp-phase15-fast-live-receiver.service && exit 32 || true" ||
   fail "executor_runtime_cleanup_failed"
