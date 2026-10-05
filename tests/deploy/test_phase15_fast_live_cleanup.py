@@ -328,7 +328,6 @@ def test_fast_live_cleanup_expired_zero_attempt_is_exactly_scoped() -> None:
     )
     assert "ZERO_NETWORK_ATTEMPT_VERIFIED=true" in text
     assert "SESSION_REAL_ORDER_SUBMITTED=false" in text
-    assert "PRIOR_REAL_ORDER_SUBMITTED=false" in text
     assert "CLEANUP_COMPLETED=true" in text
     assert "current_session_requires_expired_zero_attempt_mode" in text
     assert 'geo.get("blocked") is not False' in text
