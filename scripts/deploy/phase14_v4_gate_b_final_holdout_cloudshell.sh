@@ -167,6 +167,18 @@ require_zero_money
 SELECTION_SOURCE="$(find_file_by_sha256 "$EVIDENCE_ROOT" ".json" "$SELECTION_FILE_SHA256")" ||
   fail "frozen_selection_file_not_found"
 MODEL_SOURCE="$(find_model_by_sha256)" || fail "frozen_model_file_not_found"
+MODEL_FILE_NAME="$(
+  "$REPO/.venv/bin/python" - "$SELECTION_SOURCE" <<'PY'
+import json
+import sys
+from pathlib import Path
+selection = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+name = str((selection.get("model_artifact") or {}).get("file_name") or "")
+if not name or Path(name).name != name:
+    raise SystemExit("selection model filename invalid")
+print(name)
+PY
+)" || fail "frozen_model_filename_invalid"
 
 "$REPO/.venv/bin/python" - "$PLAN_SOURCE" "$SELECTION_SOURCE" \
   "$PLAN_SHA256" "$SELECTION_SHA256" "$MODEL_SHA256" "$MODEL_SIZE_BYTES" \
@@ -265,7 +277,7 @@ PY
 install -d -o bp -g bp -m 0750 "$RUN_DIR"
 install -o bp -g bp -m 0640 "$PLAN_SOURCE" "$RUN_DIR/plan.json"
 install -o bp -g bp -m 0640 "$SELECTION_SOURCE" "$RUN_DIR/selection.json"
-install -o bp -g bp -m 0640 "$MODEL_SOURCE" "$RUN_DIR/model.joblib"
+install -o bp -g bp -m 0640 "$MODEL_SOURCE" "$RUN_DIR/$MODEL_FILE_NAME"
 
 sudo -u bp env MODE=research LIVE_TRADING_ENABLED=false \
   MAX_TRADE_SIZE_USD=0 MAX_DAILY_LOSS_USD=0 PYTHONDONTWRITEBYTECODE=1 \
@@ -274,7 +286,7 @@ sudo -u bp env MODE=research LIVE_TRADING_ENABLED=false \
     --env-file "$ENV_FILE" evaluate-holdout \
     --plan "$RUN_DIR/plan.json" \
     --selection "$RUN_DIR/selection.json" \
-    --model "$RUN_DIR/model.joblib" \
+    --model "$RUN_DIR/$MODEL_FILE_NAME" \
     --output "$RUN_DIR/holdout.json" > "$RUN_DIR/summary.json" ||
   fail "v4_final_holdout_evaluation_failed"
 
@@ -322,7 +334,7 @@ if summary.get("paper_activation_performed") is not False:
 PY
 
 chmod 0440 "$ATTEMPT_MARKER" "$RUN_DIR/plan.json" "$RUN_DIR/selection.json" \
-  "$RUN_DIR/model.joblib" "$RUN_DIR/holdout.json" "$RUN_DIR/summary.json"
+  "$RUN_DIR/$MODEL_FILE_NAME" "$RUN_DIR/holdout.json" "$RUN_DIR/summary.json"
 
 echo "PHASE14_V4_GATE_B_FINAL_HOLDOUT=PASS"
 echo "HOLDOUT_TOUCHED=true"
