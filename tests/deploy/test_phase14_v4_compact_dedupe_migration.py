@@ -46,7 +46,7 @@ def test_compact_dedupe_migration_builds_indexes_sequentially_and_concurrently()
         "CREATE UNIQUE INDEX CONCURRENTLY",
         "decode(substring(dedupe_key FROM 8), 'hex')",
         "INDEX_STATEMENT_TIMEOUT_SECONDS = 1200",
-        "INDEX_LOCK_TIMEOUT_SECONDS = 5",
+        "INDEX_LOCK_TIMEOUT_SECONDS = 300",
         "INDEX_LOCK_CLEAR_WAIT_SECONDS = 300",
         "INDEX_LOCK_CLEAR_CONSECUTIVE_SAMPLES = 3",
         "INDEX_LOCK_RETRY_ATTEMPTS = 3",
@@ -95,6 +95,22 @@ def test_compact_dedupe_migration_lock_evidence_does_not_emit_query_text() -> No
     snapshot = source[snapshot_start:snapshot_end]
     assert "activity.query" not in snapshot
     assert '"query"' not in snapshot
+
+
+def test_compact_dedupe_migration_separates_online_index_and_pk_drop_lock_budgets() -> None:
+    scripts = str(ROOT / "scripts")
+    sys.path.insert(0, scripts)
+    try:
+        namespace = runpy.run_path(str(RUNNER))
+    finally:
+        sys.path.remove(scripts)
+
+    assert namespace["INDEX_LOCK_TIMEOUT_SECONDS"] == 300
+    assert namespace["DDL_LOCK_TIMEOUT_SECONDS"] == 5
+    assert (
+        namespace["INDEX_LOCK_TIMEOUT_SECONDS"]
+        > namespace["DDL_LOCK_TIMEOUT_SECONDS"]
+    )
 
 
 def test_compact_dedupe_migration_keeps_pk_drop_lock_budget_fail_fast() -> None:

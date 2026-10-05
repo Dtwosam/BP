@@ -20,7 +20,11 @@ EXPECTED_CHILD_COUNT = 16
 MIN_TRANSIENT_FREE_BYTES = 2 * 1024**3
 TRANSIENT_TOTAL_PKEY_MULTIPLIER = 2
 INDEX_STATEMENT_TIMEOUT_SECONDS = 1200
-INDEX_LOCK_TIMEOUT_SECONDS = 5
+# CREATE/DROP INDEX CONCURRENTLY can legitimately wait on virtual transaction
+# IDs held by live/idle-in-transaction writers after the relation lock itself
+# is available. Give that online DDL a bounded wait budget distinct from the
+# fail-fast irreversible PK-drop lock budget below.
+INDEX_LOCK_TIMEOUT_SECONDS = 300
 INDEX_LOCK_CLEAR_WAIT_SECONDS = 300
 INDEX_LOCK_POLL_SECONDS = 0.5
 INDEX_LOCK_CLEAR_CONSECUTIVE_SAMPLES = 3
