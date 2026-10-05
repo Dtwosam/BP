@@ -125,7 +125,10 @@ def test_compact_dedupe_migration_has_two_clean_windows_before_pk_drop() -> None
         assert marker in source
 
     pre_window = source.index('evidence_dir / "pre-clean-window.json"')
-    build_index = source.index("_create_compact_index(", pre_window)
+    build_index = source.index(
+        "_create_compact_index_with_retries(",
+        pre_window,
+    )
     mutation_window = source.index(
         'evidence_dir / "mutation-clean-window.json"',
         build_index,
