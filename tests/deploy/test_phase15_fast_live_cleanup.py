@@ -334,3 +334,8 @@ def test_fast_live_cleanup_expired_zero_attempt_is_exactly_scoped() -> None:
     assert 'geo.get("country") != "ZA"' in text
     assert "RECORDER_RUNTIME_AUTHORIZATION_PRESENT=false" in text
     assert "EXECUTOR_RUNTIME_AUTHORIZATION_PRESENT=false" in text
+    assert "subscription_still_present:$sub" in text
+    assert "topic_still_present:$topic" in text
+    assert "sudo test ! -e /etc/bp-fast-live/PROJECT_STATE.json" in text
+    assert "sudo test ! -e /etc/bp/phase15-fast-live-source.env" in text
+    assert "sudo test ! -e /etc/bp-fast-live/receiver.env" in text
