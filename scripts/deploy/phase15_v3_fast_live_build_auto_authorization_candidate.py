@@ -409,7 +409,7 @@ def build_candidate(
                     "zero-attempt cleanup evidence unsafe: session_execution_result_count"
                 )
             publication_count = int(cleanup.get("session_publication_count", -1))
-            if publication_count < 0:
+            if publication_count != 0:
                 raise CandidateError(
                     "zero-attempt cleanup evidence unsafe: session_publication_count"
                 )
