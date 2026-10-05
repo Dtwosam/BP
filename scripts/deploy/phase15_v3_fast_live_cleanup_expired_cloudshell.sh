@@ -153,7 +153,7 @@ elif [[ "$CLEANUP_MODE" == "zero_activity_restart" ]]; then
     fail "zero_activity_restart_authorization_mode_mismatch"
   [[ "$RUNTIME_EXPIRES" == "2026-09-30T11:58:23.648915+00:00" ]] ||
     fail "zero_activity_restart_runtime_expiry_mismatch"
-if [[ "$CLEANUP_MODE" == "source_lag_restart" ]]; then
+elif [[ "$CLEANUP_MODE" == "source_lag_restart" ]]; then
   [[ "$RUNTIME_EXPIRED" == "false" ]] || fail "source_lag_restart_runtime_already_expired"
   [[ "$AUTH_ID" == "phase15-v3-fast-live-auto-continuous-v2-12h-2302945a-20261001T124442Z" ]] ||
     fail "source_lag_restart_authorization_id_mismatch"
