@@ -163,8 +163,9 @@
   "live_trading_enabled": false,
   "next_actions": [
     "Treat the October 1 continuous fast-live v2 authorization as expired and inactive. Do not restart or reactivate it; its runtime authorization remains present only as expired production state and it produced zero publications, zero network attempts, and zero real orders of its own.",
-    "Before any new fast-live authorization is created or activated, run the existing expired-session cleanup path only after fresh explicit production authorization. Cleanup must preserve historical receipts/results/settlements, keep the Johannesburg kill switch engaged, and re-confirm zero unresolved results/settlements and zero open orders.",
-    "After cleanup passes, generate and review a fresh time-bounded continuous auto-Telegram fast-live v2 authorization candidate from current main. Any staging/activation is a new production/live-money authorization boundary.",
+    "Before any new fast-live authorization is created or activated, run the exact expired-zero-attempt cleanup path only after fresh explicit production authorization. Cleanup must preserve historical receipts/results/settlements, keep the Johannesburg kill switch engaged, re-confirm zero session publications/attempts/results, zero unresolved results/settlements, zero open orders, and verify all session Pub/Sub/runtime material is absent afterward.",
+    "After cleanup passes, use scripts/deploy/phase15_v3_fast_live_build_zero_attempt_cleanup_evidence.py locally to convert the sanitized cleanup PASS output into reviewed zero-attempt cleanup JSON evidence. This evidence-building step is non-deploying and must perform no production mutation or order submission.",
+    "Only after that cleanup evidence is reviewed may scripts/deploy/phase15_v3_fast_live_build_auto_authorization_candidate.py use --replace-expired-cleaned-zero-attempt-session to generate a fresh time-bounded continuous auto-Telegram v2 authorization candidate. Staging/activation remains a separate fresh production/live-money authorization boundary.",
     "Continue frozen-V3 paper observation and V4 Gate B collection unchanged. No V3 tuning, V4 mutation, stake growth, geographic circumvention, or broad autonomous live rollout is authorized."
   ],
   "not_completed": [
