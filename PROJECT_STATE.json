@@ -151,7 +151,7 @@
     "Phase 14 V4 compact-dedupe production migration completed successfully on 5 October 2026 using helper 4730d297473b2cd99a52102554bb58f6f23addb8 against deployed runtime a694c2299cd34f0b2ee92ded4a4da1643eff0604: all 16 compact digest unique indexes are valid/ready, the legacy parent PK and child primary indexes are absent by design, reconciliation classifies the database COMPACT_COMPLETE, all required services/timers are active, and the migration must not be rerun or the old PK recreated; sanitized evidence is docs/evidence/phase-14-v4-compact-dedupe-production-20261005.json"
   ],
   "current_phase": 15,
-  "current_phase_name": "controlled live launch — continuous Telegram auto-approved fast-live v2 authorized",
+  "current_phase_name": "controlled live launch — continuous Telegram auto-approved fast-live v2 expired/inactive",
   "desired_unverified_horizons": [
     "10m"
   ],
@@ -162,13 +162,10 @@
   },
   "live_trading_enabled": false,
   "next_actions": [
-    "Merge the hardened Phase 15 one-attempt frozen-V3 canary package. The Master live gate passes, but no live order has been submitted and the Johannesburg kill switch remains engaged by default.",
-    "Bootstrap the Johannesburg signer only through the hidden terminal prompt. The executor must verify blocked=false in ZA, zero official open orders, at least $5 collateral, and exact executor SHA; bootstrap submits no order.",
-    "Prepare one NEW frozen-V3 paper-derived $5 canary intent. Require at least $5 fresh displayed selected-side liquidity and persist live-risk evidence. Historical paper orders remain ineligible.",
-    "After reviewing the prepared payload, explicitly arm that exact intent/request/executor for at most 45 seconds with PHASE15_ACCEPT_REAL_MONEY=yes. Arming submits no order.",
-    "Manually submit exactly once. The executor rechecks geography/account state, atomically re-engages the kill switch before direct SDK post_order, attempts cancellation after two seconds, and echoes binding metadata. Missing or ambiguous output must never be retried.",
-    "Record only a result whose intent, authorization, request SHA, executor SHA, and ZA geoblock evidence match. Stop after that first submission attempt. Official reconciliation is mandatory before any later live action; no second attempt is currently authorized.",
-    "Continue V3 paper observation and V4 Gate B collection unchanged. No V3 tuning, V4 early-label/model actions, geographic circumvention, automatic promotion, stake growth, or broad live rollout."
+    "Treat the October 1 continuous fast-live v2 authorization as expired and inactive. Do not restart or reactivate it; its runtime authorization remains present only as expired production state and it produced zero publications, zero network attempts, and zero real orders of its own.",
+    "Before any new fast-live authorization is created or activated, run the existing expired-session cleanup path only after fresh explicit production authorization. Cleanup must preserve historical receipts/results/settlements, keep the Johannesburg kill switch engaged, and re-confirm zero unresolved results/settlements and zero open orders.",
+    "After cleanup passes, generate and review a fresh time-bounded continuous auto-Telegram fast-live v2 authorization candidate from current main. Any staging/activation is a new production/live-money authorization boundary.",
+    "Continue frozen-V3 paper observation and V4 Gate B collection unchanged. No V3 tuning, V4 mutation, stake growth, geographic circumvention, or broad autonomous live rollout is authorized."
   ],
   "not_completed": [
     "V3 Gate B successor v2 outcome-blind readiness and feature-only plan after the frozen epoch closes; model fitting and final-holdout access remain separate authorization boundaries",
@@ -4459,15 +4456,34 @@
       "auto_approver_upgrade_evidence": "docs/evidence/phase15_v3_telegram_auto_approver_continuous_upgrade_20260929T191739Z.json",
       "authorization_evidence": "docs/evidence/phase15_v3_fast_live_source_lag_reauthorization_20261001T201044Z.json",
       "continuous_candidate_generated": true,
-      "deployment_performed": false,
-      "activation_performed": false,
-      "kill_switch_removed": false,
-      "runtime_authorization_created": false,
+      "deployment_performed": true,
+      "activation_performed": true,
+      "kill_switch_removed": true,
+      "runtime_authorization_created": true,
       "real_order_submitted": false,
       "stake_growth_authorized": false,
       "v3_strategy_mutation_authorized": false,
       "v4_mutation_authorized": false,
-      "broad_autonomous_live_rollout_authorized": false
+      "broad_autonomous_live_rollout_authorized": false,
+      "activation_runtime_issued_at": "2026-10-01T20:45:06.013726+00:00",
+      "runtime_status_observed_at": "2026-10-05T19:40:31Z",
+      "runtime_authorization_present": true,
+      "runtime_expired": true,
+      "recorder_source_active": false,
+      "executor_receiver_active": false,
+      "executor_kill_switch_engaged": true,
+      "telegram_approval_active": true,
+      "telegram_current_run_present": false,
+      "result_integrity_fault_present": false,
+      "session_publication_count": 0,
+      "session_network_submission_attempt_count": 0,
+      "session_real_order_submission_count": 0,
+      "unresolved_result_count": 0,
+      "unresolved_settlement_count": 0,
+      "expired_session_cleanup_required_before_reauthorization": true,
+      "expired_session_cleanup_authorized": false,
+      "fresh_activation_authorization_required": true,
+      "readonly_reconciliation_evidence": "docs/evidence/phase15-v3-fast-live-expired-session-readonly-reconciliation-20261005.json"
     },
     "first_live_canary": {
       "authorization_id": "phase15-v3-canary-836931eb65b503b48071d29a",
@@ -5334,7 +5350,7 @@
     "source_execution_version": "paper-execution-v3-frozen-v1",
     "source_model_sha256": "124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7",
     "source_prediction_version": "v3-frozen-paper-v1",
-    "status": "CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_AUTHORIZED_NOT_ACTIVATED",
+    "status": "CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_EXPIRED_INACTIVE",
     "strategy_target_notional_usd": 5,
     "telegram_approval_listener_install_authorization": {
       "authorization_date": "2026-09-25",
@@ -6165,9 +6181,9 @@
     "secrets_in_git": false
   },
   "source_of_truth_version": "0.14.186",
-  "status": "PHASE_15_CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_AUTHORIZED_NOT_ACTIVATED",
+  "status": "PHASE_15_CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_EXPIRED_INACTIVE",
   "trading_mode": "RESEARCH",
-  "updated_at": "2026-10-01",
+  "updated_at": "2026-10-05",
   "verified_polymarket_horizons": [
     "5m",
     "15m"
