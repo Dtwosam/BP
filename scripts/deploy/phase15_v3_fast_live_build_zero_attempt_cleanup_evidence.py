@@ -76,6 +76,7 @@ def build_evidence(
         "CLEANUP_MODE": _CLEANUP_MODE,
         "AUTHORIZATION_MODE": _AUTH_MODE,
         "ZERO_NETWORK_ATTEMPT_VERIFIED": "true",
+        "SESSION_PUBLICATION_COUNT": "0",
         "SESSION_NETWORK_SUBMISSION_ATTEMPT_COUNT": "0",
         "SESSION_EXECUTION_RESULT_COUNT": "0",
         "SESSION_REAL_ORDER_SUBMITTED": "false",
@@ -120,6 +121,8 @@ def build_evidence(
         raise EvidenceError("cleanup evidence cannot precede runtime expiry")
 
     publication_count = _require_nonnegative_int(values, "SESSION_PUBLICATION_COUNT")
+    if publication_count != 0:
+        raise EvidenceError("cleanup output mismatch: SESSION_PUBLICATION_COUNT expected '0'")
     _require_nonnegative_int(values, "SESSION_NETWORK_SUBMISSION_ATTEMPT_COUNT")
     _require_nonnegative_int(values, "SESSION_EXECUTION_RESULT_COUNT")
     _require_nonnegative_int(values, "EXECUTOR_OPEN_ORDER_COUNT")
