@@ -107,6 +107,7 @@ def test_zero_attempt_cleanup_evidence_builder_accepts_exact_safe_output() -> No
         ("CLEANUP_MODE", "expired"),
         ("AUTHORIZATION_MODE", "auto-telegram-continuous-v1"),
         ("ZERO_NETWORK_ATTEMPT_VERIFIED", "false"),
+        ("SESSION_PUBLICATION_COUNT", "1"),
         ("SESSION_NETWORK_SUBMISSION_ATTEMPT_COUNT", "1"),
         ("SESSION_EXECUTION_RESULT_COUNT", "1"),
         ("SESSION_REAL_ORDER_SUBMITTED", "true"),
