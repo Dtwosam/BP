@@ -49,14 +49,28 @@ REMOTE_RUNTIME="$(
 [[ -n "$REMOTE_RUNTIME" ]] || fail "runtime_branch_missing"
 [[ "$REMOTE_RUNTIME" == "$DEPLOYED_HEAD" ]] || fail "runtime_branch_head_changed"
 
-ACTUAL_READINESS_SHA256="$(sha256sum "$READINESS_EVIDENCE" | awk '{print $1}')"
-ACTUAL_BLOCKER_SHA256="$(sha256sum "$BLOCKER_EVIDENCE" | awk '{print $1}')"
+sha256_file() {
+  local path=$1
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$path" | awk '{print $1}'
+    return
+  fi
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$path" | awk '{print $1}'
+    return
+  fi
+  fail "sha256_tool_missing"
+}
+
+ACTUAL_READINESS_SHA256="$(sha256_file "$READINESS_EVIDENCE")"
+ACTUAL_BLOCKER_SHA256="$(sha256_file "$BLOCKER_EVIDENCE")"
 [[ "$ACTUAL_READINESS_SHA256" == "$READINESS_SHA256" ]] ||
   fail "readiness_evidence_sha256_mismatch"
 [[ "$ACTUAL_BLOCKER_SHA256" == "$BLOCKER_SHA256" ]] ||
   fail "blocker_evidence_sha256_mismatch"
 
-"$ROOT/.venv/bin/python" -   "$READINESS_EVIDENCE"   "$BLOCKER_EVIDENCE"   "$EVIDENCE_CONTROL_MAIN"   "$EVIDENCE_DEPLOYED_HEAD"   "$EVIDENCE_WRITER_CANDIDATE" <<'PY'
+command -v python3 >/dev/null 2>&1 || fail "python3_missing"
+python3 -   "$READINESS_EVIDENCE"   "$BLOCKER_EVIDENCE"   "$EVIDENCE_CONTROL_MAIN"   "$EVIDENCE_DEPLOYED_HEAD"   "$EVIDENCE_WRITER_CANDIDATE" <<'PY'
 from __future__ import annotations
 
 import json
