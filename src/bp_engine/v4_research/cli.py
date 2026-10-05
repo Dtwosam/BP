@@ -13,6 +13,7 @@ import joblib
 from sqlalchemy import Connection, Engine, create_engine
 
 from bp_engine.config import Settings
+from bp_engine.v4_research.holdout import evaluate_v4_gate_b_holdout
 from bp_engine.v4_research.plan import build_v4_gate_b_plan
 from bp_engine.v4_research.readiness import assess_v4_gate_b_readiness
 from bp_engine.v4_research.service import (
@@ -99,6 +100,28 @@ def _write_model_exclusive(
     }
 
 
+def _load_model_verified(
+    path: str,
+    selection: dict[str, Any],
+) -> tuple[dict[str, Any], str, int]:
+    destination = Path(path)
+    payload = destination.read_bytes()
+    digest = hashlib.sha256(payload).hexdigest()
+    artifact = selection.get("model_artifact")
+    if not isinstance(artifact, dict):
+        raise ValueError("selection model artifact is missing")
+    if artifact.get("sha256") != digest:
+        raise ValueError("model artifact SHA-256 mismatch")
+    if artifact.get("file_name") != destination.name:
+        raise ValueError("model artifact filename mismatch")
+    if int(artifact.get("size_bytes", -1)) != len(payload):
+        raise ValueError("model artifact size mismatch")
+    value = joblib.load(destination)
+    if not isinstance(value, dict):
+        raise ValueError("model artifact must contain a mapping")
+    return value, digest, len(payload)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Outcome-blind V4 Gate B readiness and planning"
@@ -121,6 +144,15 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--plan", required=True)
     prepare.add_argument("--output", required=True)
     prepare.add_argument("--model-output", required=True)
+
+    holdout = subparsers.add_parser(
+        "evaluate-holdout",
+        help="evaluate the frozen V4 policy on the final holdout exactly once",
+    )
+    holdout.add_argument("--plan", required=True)
+    holdout.add_argument("--selection", required=True)
+    holdout.add_argument("--model", required=True)
+    holdout.add_argument("--output", required=True)
 
     return parser
 
@@ -200,6 +232,79 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
                 "policy_selected": True,
                 "automatic_promotion": False,
                 "activation_performed": False,
+            }
+
+        if args.command == "evaluate-holdout":
+            plan_path = Path(args.plan)
+            selection_path = Path(args.selection)
+            model_path = Path(args.model)
+            output_path = Path(args.output)
+            evidence_dir = plan_path.parent
+            if (
+                selection_path.parent != evidence_dir
+                or model_path.parent != evidence_dir
+                or output_path.parent != evidence_dir
+            ):
+                raise ValueError(
+                    "V4 holdout artifacts must share the frozen evidence directory"
+                )
+            if output_path.name != "holdout.json":
+                raise ValueError(
+                    "one-shot V4 holdout output must be named holdout.json"
+                )
+            if output_path.exists():
+                raise FileExistsError(args.output)
+
+            plan = _read_json(args.plan)
+            selection = _read_json(args.selection)
+            model_bundle, model_sha256, model_size_bytes = _load_model_verified(
+                args.model,
+                selection,
+            )
+            payload = _read_only(
+                engine,
+                lambda connection: evaluate_v4_gate_b_holdout(
+                    connection,
+                    plan=plan,
+                    selection=selection,
+                    model_bundle=model_bundle,
+                    model_sha256=model_sha256,
+                    model_file_name=model_path.name,
+                    model_size_bytes=model_size_bytes,
+                ),
+            )
+            _write_exclusive(args.output, payload)
+            forecast = payload["holdout_evaluation"]["forecast"]["metrics"]
+            economics = payload["holdout_evaluation"]["economics"]["overall"]
+            frozen = payload["frozen_selection"]
+            return {
+                "research_plan_version": payload["research_plan_version"],
+                "stage": payload["stage"],
+                "plan_sha256": payload["plan_sha256"],
+                "selection_sha256": payload["selection_sha256"],
+                "model_artifact_sha256": payload["model_artifact_sha256"],
+                "holdout_dataset_sha256": payload["holdout_dataset_sha256"],
+                "holdout_market_count": int(forecast["market_count"]),
+                "selected_forecast_candidate": frozen["candidate"],
+                "selected_offset_seconds": int(frozen["offset_seconds"]),
+                "selected_calibration_method": frozen["calibration_method"],
+                "selected_edge_policy": frozen["edge_policy"],
+                "selected_min_edge": frozen["min_edge"],
+                "holdout_accuracy": forecast["accuracy"],
+                "holdout_log_loss": forecast["log_loss"],
+                "holdout_brier_score": forecast["brier_score"],
+                "holdout_trade_count": int(economics["trade_count"]),
+                "holdout_realized_pnl_after_assumed_costs": economics[
+                    "realized_pnl_after_assumed_costs"
+                ],
+                "holdout_evidence_sha256": payload["holdout_evidence_sha256"],
+                "holdout_labels_read": True,
+                "holdout_evaluated_once": True,
+                "model_refit_performed": False,
+                "threshold_tuning_performed": False,
+                "automatic_promotion": False,
+                "paper_activation_performed": False,
+                "live_trading_enabled": False,
             }
     finally:
         engine.dispose()
