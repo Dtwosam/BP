@@ -627,16 +627,15 @@ Current order: (1) do not rerun this rollout and preserve its evidence; (2) buil
 
 ## Immediate next action
 
-Execute only the frozen-V3 one-order canary contract in `docs/PHASE-15-V3-LIVE-CANARY.md`.
+The superseding active objective is **V4 final-holdout evaluation followed, if appropriate after review, by V4 paper validation**. V3 live trading is closed/fail-closed and is not the next build target.
 
-1. **Bootstrap Johannesburg signer, no order.** Hidden local key input; root-only remote secret; pinned `polymarket-client==0.7.1`; kill switch engaged.
-2. **Prepare one new paper-derived V3 intent, no order.** Reuse the exact frozen paper order request, apply the existing live-risk engine, persist risk + intent before network submission, and retain the $5 strategy target under the $10 hard ceiling. The separately authorized persistent prepare-only sidecar on `bp-recorder` may perform only this bounded wait/prepare step for at most two hours; it cannot arm or submit, is not enabled across VM reboot, and its payload may proceed only through the fresh-current status gate in the Phase 15 runbook.
-3. **Review and arm, no order.** Explicit `PHASE15_ACCEPT_REAL_MONEY=yes`, activation ≤45 seconds, one submission attempt, kill switch removed only for that arm.
-4. **Manual one-shot submit.** Johannesburg rechecks geoblock and activation, atomically re-engages the kill switch before the SDK call, rejects >$10 notional, places the bounded limit BUY, then attempts cancellation after 2 seconds.
-5. **Record and stop.** Persist the sanitized result. Reconcile official order/fill state before any second order. No second order or stake increase is authorized.
-
-Keep the exact frozen V3 model/offset/edge policy unchanged. Continue V3 paper and V4 future collection in parallel. Do not alter V4's preregistered epoch or run V4 readiness before `2026-09-30T00:00:00Z`.
-
+1. Preserve the already-frozen V4 Gate B v2 plan and ordinary selection unchanged: 1,662 plan markets; `full_v4_xgboost`; 240-second offset; identity calibration; global `min_edge=0.05`; exact plan SHA-256 `9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557`; selection SHA-256 `895cb70ae0cdbc22f4e3585c77db3ad20f8186d1ee1992a58025d89bb1e2bb1a`; model artifact SHA-256 `6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf`.
+2. Merge and exact-head validate the repository-only V4 holdout evaluator and guarded runner. This step must not read the 288 final-holdout labels, refit the model, tune thresholds, reselect policy, activate paper, enable live trading, or use real money.
+3. Final-holdout access is a separate **one-shot explicit authorization boundary**. The guarded runner must bind authorization to exact current main plus the frozen plan/selection/model byte hashes and write an exclusive durable attempt marker before any label access.
+4. The holdout evaluator runs the database transaction read-only and produces immutable overall/regime/side probability and economic reports under the frozen policy. A failed/touched attempt may not be silently retried, replaced, or retuned.
+5. After the immutable holdout result is recorded and reviewed, decide separately whether to activate V4 paper trading. Paper activation must remain research-only/zero-money and is not authorized by holdout evaluation itself.
+6. Keep the V4 feature collector running only as background future observation. The Gate B dataset has already been collected; no additional seven-day collection window is required for this frozen run.
+7. Do not restart or replace the cleaned V3 fast-live session as part of this path. Global `LIVE_TRADING_ENABLED` remains false.
 
 **Preserved Phase 14 history:** frozen V3 paper used model SHA `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`. The historical read-only observation command remains `bash scripts/deploy/phase14_observation_cloudshell.sh`, and the repository module command remains `python -m bp_engine.phase14_observation_cli --env-file /etc/bp/bp.env`. The preserved frozen-paper runtime identities are `v3-frozen-paper-v1` / `paper-execution-v3-frozen-v1`. Frozen V3 paper remained **active after concurrent-partition-retirement rollout PASS** with `min_edge=0.075`, **$100 virtual starting cash**, and **$5 virtual target notional**. During that paper-only stage, **real money at zero** and **live-order paths disabled** were mandatory, and operators were instructed to **do not tune V3 from paper results**. Those facts remain historical evidence even though the separately gated Phase 15 one-attempt canary is now authorized.
 

@@ -213,9 +213,11 @@ def test_prepare_loader_is_condition_id_scoped_and_has_no_holdout_query_path() -
     assert "holdout" in source
 
 
-def test_v4_cli_exposes_prepare_but_no_holdout_command(tmp_path: Path) -> None:
+def test_v4_cli_exposes_prepare_and_separate_holdout_command(
+    tmp_path: Path,
+) -> None:
     parser = cli_module.build_parser()
-    args = parser.parse_args(
+    prepare = parser.parse_args(
         [
             "prepare",
             "--plan",
@@ -226,7 +228,22 @@ def test_v4_cli_exposes_prepare_but_no_holdout_command(tmp_path: Path) -> None:
             str(tmp_path / "model.joblib"),
         ]
     )
-    assert args.command == "prepare"
+    assert prepare.command == "prepare"
+
+    holdout = parser.parse_args(
+        [
+            "evaluate-holdout",
+            "--plan",
+            str(tmp_path / "plan.json"),
+            "--selection",
+            str(tmp_path / "selection.json"),
+            "--model",
+            str(tmp_path / "model.joblib"),
+            "--output",
+            str(tmp_path / "holdout.json"),
+        ]
+    )
+    assert holdout.command == "evaluate-holdout"
 
     parser_source = inspect.getsource(cli_module.build_parser)
-    assert "evaluate-holdout" not in parser_source
+    assert "evaluate-holdout" in parser_source

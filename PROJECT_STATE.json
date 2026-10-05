@@ -163,11 +163,11 @@
   },
   "live_trading_enabled": false,
   "next_actions": [
-    "Treat the October 1 `9824a0b1…` continuous fast-live v2 session as expired, inactive, and fully cleaned. Do not rerun the expired-session cleanup; its session Pub/Sub/runtime material is absent, the Johannesburg kill switch is engaged, and the cleanup authorization is consumed.",
-    "Use docs/evidence/phase15-v3-fast-live-expired-zero-attempt-cleanup-20261005.json as the reviewed zero-publication/zero-attempt cleanup evidence for any future replacement-candidate generation. Candidate generation remains local/repository-only and requires the builder's explicit reviewable-candidate acceptance; it does not authorize production mutation or live trading.",
-    "A fresh continuous auto-Telegram fast-live v2 authorization candidate may now be generated for review with --replace-expired-cleaned-zero-attempt-session. Do not stage or activate it from this cleanup completion alone.",
-    "Any future staging/activation, runtime authorization creation, kill-switch removal, service start, or live order submission is a new production/live-money authorization boundary and requires fresh explicit user authorization bound to the then-current main and reviewed artifacts.",
-    "Continue frozen-V3 paper observation and V4 Gate B collection unchanged. No V3 tuning, V4 mutation, stake growth, geographic circumvention, or broad autonomous live rollout is authorized."
+    "Keep Phase 15/V3 live trading closed. The October continuous fast-live session is expired, fully cleaned, and its cleanup authorization is consumed; do not generate or activate a replacement V3 live session while the V4 paper-validation track is the active objective.",
+    "V4 Gate B data collection and ordinary selection are complete. The frozen v2 plan contains 1,662 markets and the selected global policy is full_v4_xgboost at 240 seconds, identity calibration, and min_edge 0.05; the reserved 288-market final holdout remains untouched.",
+    "Complete repository validation and merge of the V4 one-shot final-holdout evaluator and guarded Cloud Shell runner. Repository implementation itself must not read holdout labels or mutate production.",
+    "After the evaluator is merged and exact-head CI is green, final-holdout label access/evaluation requires a fresh explicit one-shot authorization bound to the then-current main plus the frozen plan, selection, and model hashes. A durable attempt marker must be written before label access so a failed attempt cannot be silently retried.",
+    "After the one-shot holdout result is durably recorded and reviewed, V4 paper activation is a separate decision/boundary. Paper mode must remain zero real money and must not enable live trading. Continue V4 prospective feature collection only as background future observation; no additional 7-day collection is required for the already-frozen Gate B run."
   ],
   "not_completed": [
     "V3 Gate B successor v2 outcome-blind readiness and feature-only plan after the frozen epoch closes; model fitting and final-holdout access remain separate authorization boundaries",
@@ -3716,7 +3716,7 @@
     "live_trading_enabled": false,
     "max_daily_loss_usd": 0,
     "max_trade_size_usd": 0,
-    "next_action": "Final 288-market V4 Gate B holdout evaluation is a separate explicit one-shot authorization boundary. Do not access holdout labels, refit/tune using holdout results, activate V4, auto-promote, change live V3, or change real-money limits without separate authorization.",
+    "next_action": "Use the repository-implemented guarded V4 Gate B final-holdout evaluator only after a fresh explicit one-shot authorization bound to the then-current main and the frozen plan/selection/model artifacts. The 288-market holdout remains untouched. Evaluating it does not authorize paper activation, model refit, threshold tuning, policy reselection, automatic promotion, live trading, or real money. If the holdout is evaluated successfully, record the immutable result and review it before a separate V4 paper-activation decision.",
     "offsets_seconds": [
       60,
       120,
@@ -4086,6 +4086,31 @@
       "automatic_promotion": false,
       "activation_performed": false,
       "evidence": "docs/evidence/phase-14-v4-gate-b-v2-ordinary-selection-20260930.json"
+    },
+    "final_holdout_evaluator": {
+      "status": "REPOSITORY_IMPLEMENTED_NOT_EXECUTED",
+      "command": "python -m bp_engine.v4_research.cli --env-file <env> evaluate-holdout --plan <plan.json> --selection <selection.json> --model <model.joblib> --output <holdout.json>",
+      "guarded_runner": "scripts/deploy/phase14_v4_gate_b_final_holdout_cloudshell.sh",
+      "frozen_plan_sha256": "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557",
+      "frozen_plan_file_sha256": "564e0c299b360062c5d1e37ceb10050e5b600f4fc29f35451aef8c08a5884dad",
+      "frozen_selection_sha256": "895cb70ae0cdbc22f4e3585c77db3ad20f8186d1ee1992a58025d89bb1e2bb1a",
+      "frozen_selection_file_sha256": "cd7e42eb07fe675ebf4687bfc8162908428e4583e763efd9762b6ec7ec120a53",
+      "frozen_model_artifact_sha256": "6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf",
+      "frozen_model_artifact_size_bytes": 230132,
+      "final_holdout_market_count": 288,
+      "holdout_labels_read": false,
+      "holdout_evaluated": false,
+      "one_shot_authorization_required": true,
+      "one_shot_authorization_granted": false,
+      "durable_attempt_marker_required_before_label_read": true,
+      "model_refit_allowed": false,
+      "threshold_tuning_allowed": false,
+      "policy_reselection_allowed": false,
+      "automatic_promotion": false,
+      "paper_activation_authorized": false,
+      "paper_activation_performed": false,
+      "live_trading_enabled": false,
+      "real_money_usd": 0
     }
   },
   "phase_15_v3_canary_readiness": {
