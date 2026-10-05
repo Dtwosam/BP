@@ -777,7 +777,6 @@ def test_auto_candidate_can_replace_expired_cleaned_zero_attempt_session() -> No
     [
         ("cleanup_completed", False),
         ("zero_network_attempt_verified", False),
-        ("prior_real_order_submitted", True),
         ("session_real_order_submitted", True),
         ("session_network_submission_attempt_count", 1),
         ("session_execution_result_count", 1),
@@ -825,6 +824,107 @@ def test_zero_attempt_replacement_rejects_unsafe_cleanup_evidence(
     cleanup[field] = value
 
     with pytest.raises(module.CandidateError, match="zero-attempt cleanup evidence unsafe"):
+        module.build_candidate(
+            state=source,
+            upgrade_evidence=evidence,
+            expected_main=current_main,
+            authorization_id="fast-live-auto-continuous-after-zero-attempt-cleanup",
+            source_of_truth_version="0.14.182",
+            expires_at=replacement_at + timedelta(hours=12),
+            authorized_at=replacement_at,
+            upgrade_evidence_reference=evidence_reference,
+            replace_expired_cleaned_zero_attempt_session=True,
+            zero_attempt_cleanup_evidence=cleanup,
+            zero_attempt_cleanup_evidence_reference=(
+                "docs/evidence/zero-attempt-cleanup.json"
+            ),
+        )
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "deployment_performed",
+        "activation_performed",
+        "runtime_authorization_created",
+        "kill_switch_removed",
+    ],
+)
+def test_zero_attempt_replacement_requires_activated_source_session(
+    field: str,
+) -> None:
+    module = _candidate_module()
+    upgrade_main = "7" * 40
+    current_main = "8" * 40
+    evidence_reference = "docs/evidence/upgrade.json"
+    cleanup_reference = "docs/evidence/zero-attempt-cleanup.json"
+    authorized_at = datetime(2026, 10, 1, 20, 10, tzinfo=UTC)
+    replacement_at = authorized_at + timedelta(hours=13)
+    source, evidence = _renewable_state(
+        module,
+        upgrade_main=upgrade_main,
+        evidence_reference=evidence_reference,
+        authorized_at=authorized_at,
+    )
+    phase = source["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    old_auth = phase["fast_live_preauthorization"]
+    assert isinstance(old_auth, dict)
+    old_auth["deployment_performed"] = True
+    old_auth["activation_performed"] = True
+    old_auth["runtime_authorization_created"] = True
+    old_auth["kill_switch_removed"] = True
+    old_auth["real_order_submitted"] = False
+    cleanup = _zero_attempt_cleanup_evidence(existing=old_auth)
+    old_auth[field] = False
+
+    with pytest.raises(
+        module.CandidateError,
+        match=f"zero-attempt replacement requires activated session: {field}",
+    ):
+        module.build_candidate(
+            state=source,
+            upgrade_evidence=evidence,
+            expected_main=current_main,
+            authorization_id="fast-live-auto-continuous-after-zero-attempt-cleanup",
+            source_of_truth_version="0.14.182",
+            expires_at=replacement_at + timedelta(hours=12),
+            authorized_at=replacement_at,
+            upgrade_evidence_reference=evidence_reference,
+            replace_expired_cleaned_zero_attempt_session=True,
+            zero_attempt_cleanup_evidence=cleanup,
+            zero_attempt_cleanup_evidence_reference=cleanup_reference,
+        )
+
+
+def test_zero_attempt_replacement_rejects_source_real_order() -> None:
+    module = _candidate_module()
+    upgrade_main = "9" * 40
+    current_main = "a" * 40
+    evidence_reference = "docs/evidence/upgrade.json"
+    authorized_at = datetime(2026, 10, 1, 20, 10, tzinfo=UTC)
+    replacement_at = authorized_at + timedelta(hours=13)
+    source, evidence = _renewable_state(
+        module,
+        upgrade_main=upgrade_main,
+        evidence_reference=evidence_reference,
+        authorized_at=authorized_at,
+    )
+    phase = source["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    old_auth = phase["fast_live_preauthorization"]
+    assert isinstance(old_auth, dict)
+    old_auth["deployment_performed"] = True
+    old_auth["activation_performed"] = True
+    old_auth["runtime_authorization_created"] = True
+    old_auth["kill_switch_removed"] = True
+    old_auth["real_order_submitted"] = True
+    cleanup = _zero_attempt_cleanup_evidence(existing=old_auth)
+
+    with pytest.raises(
+        module.CandidateError,
+        match="zero-attempt replacement requires no real order",
+    ):
         module.build_candidate(
             state=source,
             upgrade_evidence=evidence,
