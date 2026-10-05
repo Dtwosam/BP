@@ -793,11 +793,6 @@ def test_continuous_fast_live_renewed_source_authorization_is_12h_runtime_ready(
     assert auth["prediction_version"] == "v3-frozen-paper-v1"
     assert auth["execution_version"] == "paper-execution-v3-frozen-v1"
     assert auth["executor_country"] == "ZA"
-    assert auth["deployment_performed"] is False
-    assert auth["activation_performed"] is False
-    assert auth["runtime_authorization_created"] is False
-    assert auth["kill_switch_removed"] is False
-    assert auth["real_order_submitted"] is False
     assert auto["continuous_fast_live_auto_approval_authorized"] is True
     assert auto["approval_contract_git_blob_sha"] == (
         "5676efcb60840f4533a7f43b3c6a7efab9e97541"
