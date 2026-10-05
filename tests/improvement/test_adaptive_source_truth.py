@@ -30,7 +30,7 @@ def test_project_state_keeps_live_gate_blocked_and_records_research_cycle() -> N
 
     assert state["source_of_truth_version"] == "0.14.186"
     assert state["current_phase"] == 15
-    assert state["status"] == "PHASE_15_CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_AUTHORIZED_NOT_ACTIVATED"
+    assert state["status"] == "PHASE_15_CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_EXPIRED_INACTIVE"
     assert state["trading_mode"] == "RESEARCH"
     assert state["live_trading_enabled"] is False
 
