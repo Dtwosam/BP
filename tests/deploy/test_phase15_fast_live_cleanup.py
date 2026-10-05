@@ -44,6 +44,7 @@ def test_fast_live_expired_cleanup_is_fail_closed_and_session_scoped() -> None:
         "expired_zero_attempt_authorization_mode_mismatch",
         "expired_zero_attempt_runtime_expiry_mismatch",
         "runtime_authorization_not_expired",
+        "current_session_requires_expired_zero_attempt_mode",
         "zero_activity_abort_runtime_already_expired",
         "phase15-v3-fast-live-auto-continuous-5d305254b06ef0cbce33065e",
         "bbb20f8f5f3b533ecad3c0798c944c61f31bcdfe",
@@ -74,6 +75,16 @@ def test_fast_live_expired_cleanup_is_fail_closed_and_session_scoped() -> None:
         "SESSION_NETWORK_SUBMISSION_ATTEMPT_COUNT",
         "SESSION_EXECUTION_RESULT_COUNT",
         "SESSION_REAL_ORDER_SUBMITTED=false",
+        "EXECUTOR_GEO_COUNTRY=ZA",
+        "EXECUTOR_GEO_BLOCKED=false",
+        "EXECUTOR_OPEN_ORDER_COUNT=0",
+        "EXECUTOR_ACCOUNT_CLEAN=true",
+        "RECORDER_RUNTIME_AUTHORIZATION_PRESENT=false",
+        "EXECUTOR_RUNTIME_AUTHORIZATION_PRESENT=false",
+        "RECORDER_TRANSPORT_KEY_PRESENT=false",
+        "EXECUTOR_TRANSPORT_KEY_PRESENT=false",
+        "RECORDER_SOURCE_ACTIVE=false",
+        "EXECUTOR_RECEIVER_ACTIVE=false",
         "LIVE_PUBLICATIONS",
         "LIVE_ATTEMPTS",
         "APPROVAL_CLAIMS",
@@ -315,3 +326,8 @@ def test_fast_live_cleanup_expired_zero_attempt_is_exactly_scoped() -> None:
     )
     assert "ZERO_NETWORK_ATTEMPT_VERIFIED=true" in text
     assert "SESSION_REAL_ORDER_SUBMITTED=false" in text
+    assert "current_session_requires_expired_zero_attempt_mode" in text
+    assert 'geo.get("blocked") is not False' in text
+    assert 'geo.get("country") != "ZA"' in text
+    assert "RECORDER_RUNTIME_AUTHORIZATION_PRESENT=false" in text
+    assert "EXECUTOR_RUNTIME_AUTHORIZATION_PRESENT=false" in text
