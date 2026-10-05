@@ -387,6 +387,10 @@ def test_auto_candidate_generator_is_non_deploying_and_non_overwriting() -> None
         "--renew-existing-unactivated",
         "renew_existing_unactivated",
         "RENEWAL_OF_EXISTING_UNACTIVATED_AUTHORIZATION",
+        "--replace-expired-cleaned-zero-attempt-session",
+        "replace_expired_cleaned_zero_attempt_session",
+        "REPLACEMENT_OF_EXPIRED_CLEANED_ZERO_ATTEMPT_SESSION",
+        "zero-attempt cleanup evidence",
         "verify_source_authorization",
         "requires_telegram_approval=True",
         "continuous_session=True",
@@ -678,6 +682,208 @@ def _completed_cleanup_evidence(
         "executor_geo_country": "ZA",
         "executor_geo_blocked": False,
     }
+
+
+def _zero_attempt_cleanup_evidence(
+    *,
+    existing: dict[str, object],
+) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "purpose": "phase15-v3-fast-live-expired-zero-attempt-cleanup-v1",
+        "status": "CLEANUP_VERIFIED",
+        "authorization_id": existing["authorization_id"],
+        "authorization_mode": existing["authorization_mode"],
+        "session_release_main": existing["authorized_at_main"],
+        "runtime_expires_at": existing["expires_at"],
+        "cleanup_mode": "expired_zero_attempt",
+        "cleanup_completed": True,
+        "prior_real_order_submitted": False,
+        "zero_network_attempt_verified": True,
+        "session_publication_count": 0,
+        "session_network_submission_attempt_count": 0,
+        "session_execution_result_count": 0,
+        "session_real_order_submitted": False,
+        "kill_switch_engaged": True,
+        "historical_state_preserved": True,
+        "session_runtime_files_present": False,
+        "session_pubsub_resources_present": False,
+        "recorder_source_active": False,
+        "executor_receiver_active": False,
+        "recorder_runtime_authorization_present": False,
+        "executor_runtime_authorization_present": False,
+        "recorder_transport_key_present": False,
+        "executor_transport_key_present": False,
+        "executor_account_clean": True,
+        "executor_open_order_count": 0,
+        "executor_geo_country": "ZA",
+        "executor_geo_blocked": False,
+    }
+
+
+def test_auto_candidate_can_replace_expired_cleaned_zero_attempt_session() -> None:
+    module = _candidate_module()
+    upgrade_main = "1" * 40
+    current_main = "2" * 40
+    evidence_reference = "docs/evidence/upgrade.json"
+    cleanup_reference = "docs/evidence/zero-attempt-cleanup.json"
+    first_authorized_at = datetime(2026, 10, 1, 20, 10, tzinfo=UTC)
+    replacement_authorized_at = first_authorized_at + timedelta(hours=13)
+    source, evidence = _renewable_state(
+        module,
+        upgrade_main=upgrade_main,
+        evidence_reference=evidence_reference,
+        authorized_at=first_authorized_at,
+    )
+    phase = source["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    old_auth = phase["fast_live_preauthorization"]
+    assert isinstance(old_auth, dict)
+    old_auth["deployment_performed"] = True
+    old_auth["activation_performed"] = True
+    old_auth["runtime_authorization_created"] = True
+    old_auth["kill_switch_removed"] = True
+    old_auth["real_order_submitted"] = False
+
+    cleanup = _zero_attempt_cleanup_evidence(existing=old_auth)
+
+    candidate = module.build_candidate(
+        state=source,
+        upgrade_evidence=evidence,
+        expected_main=current_main,
+        authorization_id="fast-live-auto-continuous-after-zero-attempt-cleanup",
+        source_of_truth_version="0.14.182",
+        expires_at=replacement_authorized_at + timedelta(hours=12),
+        authorized_at=replacement_authorized_at,
+        upgrade_evidence_reference=evidence_reference,
+        replace_expired_cleaned_zero_attempt_session=True,
+        zero_attempt_cleanup_evidence=cleanup,
+        zero_attempt_cleanup_evidence_reference=cleanup_reference,
+    )
+
+    renewed = candidate["phase_15_v3_live_canary"]["fast_live_preauthorization"]
+    assert renewed["authorization_id"] == (
+        "fast-live-auto-continuous-after-zero-attempt-cleanup"
+    )
+    assert renewed["authorized_at_main"] == current_main
+    assert renewed["deployment_performed"] is False
+    assert renewed["activation_performed"] is False
+    assert renewed["runtime_authorization_created"] is False
+    assert renewed["kill_switch_removed"] is False
+    assert renewed["real_order_submitted"] is False
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("cleanup_completed", False),
+        ("zero_network_attempt_verified", False),
+        ("prior_real_order_submitted", True),
+        ("session_real_order_submitted", True),
+        ("session_network_submission_attempt_count", 1),
+        ("session_execution_result_count", 1),
+        ("session_publication_count", -1),
+        ("kill_switch_engaged", False),
+        ("historical_state_preserved", False),
+        ("session_runtime_files_present", True),
+        ("session_pubsub_resources_present", True),
+        ("recorder_source_active", True),
+        ("executor_receiver_active", True),
+        ("recorder_runtime_authorization_present", True),
+        ("executor_runtime_authorization_present", True),
+        ("recorder_transport_key_present", True),
+        ("executor_transport_key_present", True),
+        ("executor_account_clean", False),
+        ("executor_geo_blocked", True),
+        ("executor_open_order_count", 1),
+    ],
+)
+def test_zero_attempt_replacement_rejects_unsafe_cleanup_evidence(
+    field: str,
+    value: object,
+) -> None:
+    module = _candidate_module()
+    upgrade_main = "3" * 40
+    current_main = "4" * 40
+    evidence_reference = "docs/evidence/upgrade.json"
+    authorized_at = datetime(2026, 10, 1, 20, 10, tzinfo=UTC)
+    replacement_at = authorized_at + timedelta(hours=13)
+    source, evidence = _renewable_state(
+        module,
+        upgrade_main=upgrade_main,
+        evidence_reference=evidence_reference,
+        authorized_at=authorized_at,
+    )
+    phase = source["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    old_auth = phase["fast_live_preauthorization"]
+    assert isinstance(old_auth, dict)
+    old_auth["deployment_performed"] = True
+    old_auth["activation_performed"] = True
+    old_auth["runtime_authorization_created"] = True
+    old_auth["kill_switch_removed"] = True
+    cleanup = _zero_attempt_cleanup_evidence(existing=old_auth)
+    cleanup[field] = value
+
+    with pytest.raises(module.CandidateError, match="zero-attempt cleanup evidence unsafe"):
+        module.build_candidate(
+            state=source,
+            upgrade_evidence=evidence,
+            expected_main=current_main,
+            authorization_id="fast-live-auto-continuous-after-zero-attempt-cleanup",
+            source_of_truth_version="0.14.182",
+            expires_at=replacement_at + timedelta(hours=12),
+            authorized_at=replacement_at,
+            upgrade_evidence_reference=evidence_reference,
+            replace_expired_cleaned_zero_attempt_session=True,
+            zero_attempt_cleanup_evidence=cleanup,
+            zero_attempt_cleanup_evidence_reference=(
+                "docs/evidence/zero-attempt-cleanup.json"
+            ),
+        )
+
+
+def test_zero_attempt_replacement_requires_expired_prior_authorization() -> None:
+    module = _candidate_module()
+    upgrade_main = "5" * 40
+    current_main = "6" * 40
+    evidence_reference = "docs/evidence/upgrade.json"
+    authorized_at = datetime(2026, 10, 1, 20, 10, tzinfo=UTC)
+    source, evidence = _renewable_state(
+        module,
+        upgrade_main=upgrade_main,
+        evidence_reference=evidence_reference,
+        authorized_at=authorized_at,
+    )
+    phase = source["phase_15_v3_live_canary"]
+    assert isinstance(phase, dict)
+    old_auth = phase["fast_live_preauthorization"]
+    assert isinstance(old_auth, dict)
+    old_auth["deployment_performed"] = True
+    old_auth["activation_performed"] = True
+    old_auth["runtime_authorization_created"] = True
+    old_auth["kill_switch_removed"] = True
+    cleanup = _zero_attempt_cleanup_evidence(existing=old_auth)
+
+    with pytest.raises(
+        module.CandidateError,
+        match="zero-attempt replacement requires expired authorization",
+    ):
+        module.build_candidate(
+            state=source,
+            upgrade_evidence=evidence,
+            expected_main=current_main,
+            authorization_id="fast-live-auto-continuous-too-early-zero-attempt",
+            source_of_truth_version="0.14.182",
+            expires_at=authorized_at + timedelta(hours=12),
+            authorized_at=authorized_at + timedelta(hours=1),
+            upgrade_evidence_reference=evidence_reference,
+            replace_expired_cleaned_zero_attempt_session=True,
+            zero_attempt_cleanup_evidence=cleanup,
+            zero_attempt_cleanup_evidence_reference=(
+                "docs/evidence/zero-attempt-cleanup.json"
+            ),
+        )
 
 
 def test_auto_candidate_can_replace_expired_completed_cleaned_session() -> None:
