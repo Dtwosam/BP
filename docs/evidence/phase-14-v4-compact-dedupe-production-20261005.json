@@ -1,0 +1,64 @@
+{
+  "evidence_version": "phase14-v4-compact-dedupe-production-v1",
+  "recorded_at": "2026-10-05",
+  "operation": "COMPACT_DEDUPE_UNIQUE_INDEX_MIGRATION",
+  "production_mutation": true,
+  "database_schema_mutation": true,
+  "deployed_runtime_head": "a694c2299cd34f0b2ee92ded4a4da1643eff0604",
+  "helper_head": "4730d297473b2cd99a52102554bb58f6f23addb8",
+  "successful_evidence_dir": "/var/lib/bp/evidence/phase14-v4-compact-dedupe-migration-20261005T142616Z-4730d297473b2cd99a52102554bb58f6f23addb8",
+  "successful_run": {
+    "started_at": "2026-10-05T14:26:16.806959+00:00",
+    "completed_at": "2026-10-05T14:45:10.573165+00:00",
+    "status": "success",
+    "attempted_compact_index_count": 16,
+    "created_compact_index_count": 16,
+    "irreversible_boundary_crossed": true,
+    "quiesced_timers_restored": true,
+    "recorder_active_at_end": true
+  },
+  "reconciled_database_contract": {
+    "classification": "COMPACT_COMPLETE",
+    "child_count": 16,
+    "children_exact": true,
+    "parent_partition_key": "HASH (dedupe_key)",
+    "parent_primary_constraint_present": false,
+    "child_primary_index_count": 0,
+    "compact_index_count": 16,
+    "compact_indexes_unique_valid_ready": true,
+    "invalid_or_not_ready_index_count": 0,
+    "prepared_transaction_count": 0,
+    "create_index_progress_count": 0,
+    "migration_session_count": 0
+  },
+  "post_reconciliation_runtime": {
+    "postgres_active": true,
+    "recorder_active": true,
+    "v3_frozen_predictor_active": true,
+    "v3_paper_execution_active": true,
+    "storage_maintenance_timer_active": true,
+    "storage_disk_health_timer_active": true,
+    "v2_forward_coverage_timer_active": true,
+    "v4_forward_coverage_timer_active": true
+  },
+  "safety": {
+    "mode": "research",
+    "live_trading_enabled": false,
+    "max_trade_size_usd": 0,
+    "max_daily_loss_usd": 0,
+    "automatic_promotion": false
+  },
+  "followup": {
+    "redundant_retry_evidence_dir": "/var/lib/bp/evidence/phase14-v4-compact-dedupe-migration-20261005T150021Z-4730d297473b2cd99a52102554bb58f6f23addb8",
+    "redundant_retry_status": "failed_pre_state_as_expected_after_successful_migration",
+    "redundant_retry_attempted_compact_index_count": 0,
+    "redundant_retry_irreversible_boundary_crossed": false,
+    "redundant_retry_quiesced_timers_restored": true,
+    "migration_must_not_be_rerun": true,
+    "old_parent_primary_key_must_not_be_recreated": true,
+    "lifecycle_helper_fix_main_head": "8da3df85e82ee00d23ad5a52134ba4eb96587f21",
+    "lifecycle_helper_fix_ci_run": 37361258276,
+    "lifecycle_helper_fix_ci_conclusion": "success",
+    "lifecycle_fix": "restore bp-v3-frozen-predictor.service and bp-v3-paper-execution.service after recorder restart"
+  }
+}
