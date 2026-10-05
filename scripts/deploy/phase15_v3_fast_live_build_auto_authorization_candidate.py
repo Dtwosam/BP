@@ -258,7 +258,7 @@ def build_candidate(
                     raise CandidateError(
                         f"existing authorization is not renewable: {field}"
                     )
-        else:
+        elif replace_completed_cleaned_session:
             if authorized < existing_expires:
                 raise CandidateError(
                     "completed-session replacement requires expired authorization"
