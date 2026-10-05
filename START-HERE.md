@@ -88,6 +88,8 @@ This checkpoint is repository-only. It did not run readiness or planning against
 6. Continue frozen-V3 paper observation and V4 Gate B collection unchanged.
 
 
+**Preserved Phase 14 historical context:** the V4 compact-dedupe storage migration is now a **historical production PASS** and must not be rerun: the live database is `COMPACT_COMPLETE` with all 16 compact digest unique indexes healthy and the legacy parent/child primary indexes absent by design. Durable sanitized evidence is `docs/evidence/phase-14-v4-compact-dedupe-production-20261005.json`. The helper lifecycle fix that restores recorder-dependent V3 services after recorder quiesce is merged to `main`.
+
 **Preserved Phase 14 historical context:** frozen V3 paper activation remains a **historical production PASS** and the recorder/frozen-V3 runtime remains **active after concurrent-partition-retirement rollout PASS**. The frozen identities remain model `124627e15cab3997b8abe54ec5237450d976ab5682953f45a1399a76b6dae0e7`, prediction `v3-frozen-paper-v1`, execution `paper-execution-v3-frozen-v1`, and `min_edge=0.075`. That paper program used `real_money         = $0.00` and remains **prospective observation only** while the separately bounded Phase 15 canary is evaluated.
 
 The **frozen V4 Gate B v1 future cohort** and **V4 regime-aware** feature collection continue unchanged. **Do not rerun the storage rollout.** The historical Phase 14 instruction to **keep all promotion/live boundaries closed** remains the governing boundary for every path except the separately authorized one-attempt Phase 15 canary. The historical read-only observation helper remains `bash scripts/deploy/phase14_observation_cloudshell.sh`; using it does not authorize any live-order action.
