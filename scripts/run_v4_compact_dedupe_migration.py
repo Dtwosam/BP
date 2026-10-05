@@ -692,6 +692,7 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
         "readiness_evidence_sha256": args.readiness_evidence_sha256,
         "blocker_evidence_sha256": args.blocker_evidence_sha256,
         "irreversible_boundary_crossed": False,
+        "attempted_compact_indexes": [],
         "created_compact_indexes": [],
         "quiesced_timers": list(QUIESCED_TIMERS),
         "quiesced_timers_restored": False,
@@ -728,6 +729,8 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
             _expected_compact_indexes(),
             strict=True,
         ):
+            summary["attempted_compact_indexes"].append(index_name)
+            _write_json(evidence_dir / "rollout.json", summary)
             _create_compact_index(
                 mutation_engine,
                 table_name=table_name,
@@ -815,7 +818,7 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
                 cleanup_engine = _mutation_engine(settings)
                 try:
                     for index_name in reversed(
-                        list(summary["created_compact_indexes"])
+                        list(summary["attempted_compact_indexes"])
                     ):
                         try:
                             _drop_compact_index(cleanup_engine, index_name)
@@ -865,6 +868,18 @@ def run_rollout(args: argparse.Namespace) -> dict[str, Any]:
                 for result in restore_results.values()
             )
         )
+        if (
+            summary["status"] == "success"
+            and not summary["quiesced_timers_restored"]
+        ):
+            summary["status"] = "failure"
+            summary["error"] = "required timers were not restored"
+            if bool(summary["irreversible_boundary_crossed"]):
+                _run("systemctl", "stop", RECORDER_UNIT, check=False)
+                summary["failure_policy"] = (
+                    "post-boundary fail-closed: recorder stopped because "
+                    "timer restoration failed"
+                )
         summary["recorder_active_at_end"] = _is_active(RECORDER_UNIT)
         summary["completed_at"] = datetime.now(UTC).isoformat()
         _write_json(evidence_dir / "rollout.json", summary)
