@@ -153,69 +153,6 @@ elif [[ "$CLEANUP_MODE" == "zero_activity_restart" ]]; then
     fail "zero_activity_restart_authorization_mode_mismatch"
   [[ "$RUNTIME_EXPIRES" == "2026-09-30T11:58:23.648915+00:00" ]] ||
     fail "zero_activity_restart_runtime_expiry_mismatch"
-elif [[ "$CLEANUP_MODE" == "expired_zero_attempt" ]]; then
-  read -r SESSION_ATTEMPTS SESSION_EXEC_RESULTS < <(
-    gcloud compute ssh "$EXEC_VM" \
-      --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
-      --command="sudo python3 - '$AUTH_ID'" <<'PY'
-from pathlib import Path
-import json
-import sys
-
-authorization_id = sys.argv[1]
-root = Path("/var/lib/bp-canary/fast-live/attempts")
-attempts = 0
-results = 0
-if root.is_dir():
-    for path in sorted(root.glob("*/attempt.json")):
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        if str(payload.get("authorization_id") or "") == authorization_id:
-            attempts += 1
-    for path in sorted(root.glob("*/result.json")):
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        if str(payload.get("authorization_id") or "") == authorization_id:
-            results += 1
-print(attempts, results)
-PY
-  ) || fail "expired_zero_attempt_executor_scan_failed"
-  [[ "$SESSION_ATTEMPTS" == "0" && "$SESSION_EXEC_RESULTS" == "0" ]] ||
-    fail "expired_zero_attempt_network_activity_present"
-
-  SESSION_PUBLICATIONS="$(
-    gcloud compute ssh "$US_VM" \
-      --project="$PROJECT" --zone="$US_ZONE" --quiet \
-      --command="sudo python3 - '$AUTH_ID'" <<'PY'
-from pathlib import Path
-import json
-import sys
-
-authorization_id = sys.argv[1]
-root = Path("/var/lib/bp/phase15-fast-live/published")
-matching = 0
-if root.is_dir():
-    for receipt in sorted(root.glob("*.json")):
-        payload = json.loads(receipt.read_text(encoding="utf-8"))
-        if str(payload.get("authorization_id") or "") != authorization_id:
-            continue
-        matching += 1
-        result_path = root / "results" / receipt.name
-        if not result_path.is_file():
-            raise SystemExit("matching_result_missing")
-        result = json.loads(result_path.read_text(encoding="utf-8"))
-        if result.get("network_submission_attempt_consumed") is not False:
-            raise SystemExit("matching_result_attempt_consumed")
-        recorded = result.get("recorded") or {}
-        if recorded.get("event_type") != "closed_before_submission":
-            raise SystemExit("matching_result_not_closed_before_submission")
-        if recorded.get("official_reconciliation_required") is not False:
-            raise SystemExit("matching_result_requires_official_reconciliation")
-print(matching)
-PY
-  )" || fail "expired_zero_attempt_publication_scan_failed"
-
-  ZERO_NETWORK_ATTEMPT_VERIFIED=true
-fi
-
 if [[ "$CLEANUP_MODE" == "source_lag_restart" ]]; then
   [[ "$RUNTIME_EXPIRED" == "false" ]] || fail "source_lag_restart_runtime_already_expired"
   [[ "$AUTH_ID" == "phase15-v3-fast-live-auto-continuous-v2-12h-2302945a-20261001T124442Z" ]] ||
@@ -343,6 +280,70 @@ gcloud compute ssh "$EXEC_VM" \
   --command="sudo sh -c '! grep -R -F -q cancellation_pending\":true /var/lib/bp-canary/fast-live/attempts 2>/dev/null &&
                           ! grep -R -F -q recovery_result_publish_pending\":true /var/lib/bp-canary/fast-live/attempts 2>/dev/null'" ||
   fail "executor_recovery_not_complete"
+
+if [[ "$CLEANUP_MODE" == "expired_zero_attempt" ]]; then
+  read -r SESSION_ATTEMPTS SESSION_EXEC_RESULTS < <(
+    gcloud compute ssh "$EXEC_VM" \
+      --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
+      --command="sudo python3 - '$AUTH_ID'" <<'PY'
+from pathlib import Path
+import json
+import sys
+
+authorization_id = sys.argv[1]
+root = Path("/var/lib/bp-canary/fast-live/attempts")
+attempts = 0
+results = 0
+if root.is_dir():
+    for path in sorted(root.glob("*/attempt.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if str(payload.get("authorization_id") or "") == authorization_id:
+            attempts += 1
+    for path in sorted(root.glob("*/result.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if str(payload.get("authorization_id") or "") == authorization_id:
+            results += 1
+print(attempts, results)
+PY
+  ) || fail "expired_zero_attempt_executor_scan_failed"
+  [[ "$SESSION_ATTEMPTS" == "0" && "$SESSION_EXEC_RESULTS" == "0" ]] ||
+    fail "expired_zero_attempt_network_activity_present"
+
+  SESSION_PUBLICATIONS="$(
+    gcloud compute ssh "$US_VM" \
+      --project="$PROJECT" --zone="$US_ZONE" --quiet \
+      --command="sudo python3 - '$AUTH_ID'" <<'PY'
+from pathlib import Path
+import json
+import sys
+
+authorization_id = sys.argv[1]
+root = Path("/var/lib/bp/phase15-fast-live/published")
+matching = 0
+if root.is_dir():
+    for receipt in sorted(root.glob("*.json")):
+        payload = json.loads(receipt.read_text(encoding="utf-8"))
+        if str(payload.get("authorization_id") or "") != authorization_id:
+            continue
+        matching += 1
+        result_path = root / "results" / receipt.name
+        if not result_path.is_file():
+            raise SystemExit("matching_result_missing")
+        result = json.loads(result_path.read_text(encoding="utf-8"))
+        if result.get("network_submission_attempt_consumed") is not False:
+            raise SystemExit("matching_result_attempt_consumed")
+        recorded = result.get("recorded") or {}
+        if recorded.get("event_type") != "closed_before_submission":
+            raise SystemExit("matching_result_not_closed_before_submission")
+        if recorded.get("official_reconciliation_required") is not False:
+            raise SystemExit("matching_result_requires_official_reconciliation")
+print(matching)
+PY
+  )" || fail "expired_zero_attempt_publication_scan_failed"
+
+  ZERO_NETWORK_ATTEMPT_VERIFIED=true
+fi
+
 
 if [[ "$CLEANUP_MODE" == "source_lag_restart" ]]; then
   if ! gcloud compute ssh "$EXEC_VM" \
