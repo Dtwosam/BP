@@ -75,7 +75,6 @@ def test_fast_live_expired_cleanup_is_fail_closed_and_session_scoped() -> None:
         "SESSION_NETWORK_SUBMISSION_ATTEMPT_COUNT",
         "SESSION_EXECUTION_RESULT_COUNT",
         "SESSION_REAL_ORDER_SUBMITTED=false",
-        "PRIOR_REAL_ORDER_SUBMITTED=false",
         "CLEANUP_COMPLETED=true",
         "EXECUTOR_GEO_COUNTRY=ZA",
         "EXECUTOR_GEO_BLOCKED=false",
