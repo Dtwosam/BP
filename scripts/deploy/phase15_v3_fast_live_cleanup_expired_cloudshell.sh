@@ -342,6 +342,8 @@ if root.is_dir():
 print(matching)
 PY
   )" || fail "expired_zero_attempt_publication_scan_failed"
+  [[ "$SESSION_PUBLICATIONS" == "0" ]] ||
+    fail "expired_zero_attempt_unexpected_publication_present"
 
   ZERO_NETWORK_ATTEMPT_VERIFIED=true
 fi
