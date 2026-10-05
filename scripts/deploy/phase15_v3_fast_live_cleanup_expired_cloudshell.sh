@@ -135,6 +135,8 @@ if [[ "$CLEANUP_MODE" == "expired_zero_attempt" ]]; then
     fail "expired_zero_attempt_runtime_expiry_mismatch"
 elif [[ "$CLEANUP_MODE" == "expired" ]]; then
   [[ "$RUNTIME_EXPIRED" == "true" ]] || fail "runtime_authorization_not_expired"
+  [[ "$AUTH_ID" != "phase15-v3-fast-live-auto-continuous-v2-12h-9824a0b1-20261001T201044Z" ]] ||
+    fail "current_session_requires_expired_zero_attempt_mode"
 elif [[ "$CLEANUP_MODE" == "zero_activity_abort" ]]; then
   [[ "$RUNTIME_EXPIRED" == "false" ]] || fail "zero_activity_abort_runtime_already_expired"
   [[ "$AUTH_ID" == "phase15-v3-fast-live-auto-continuous-5d305254b06ef0cbce33065e" ]] ||
@@ -496,11 +498,20 @@ from pathlib import Path
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 if payload.get("status") != "ok":
     raise SystemExit("health_not_ok")
+geo = payload.get("geoblock") or {}
+if geo.get("blocked") is not False:
+    raise SystemExit("geoblock_blocked")
+if geo.get("country") != "ZA":
+    raise SystemExit("geoblock_country_mismatch")
 account = payload.get("account") or {}
 if int(account.get("open_order_count", -1)) != 0:
     raise SystemExit("open_orders_present")
 if account.get("clean_for_canary") is not True:
     raise SystemExit("account_not_clean")
+print("EXECUTOR_GEO_COUNTRY=ZA")
+print("EXECUTOR_GEO_BLOCKED=false")
+print("EXECUTOR_OPEN_ORDER_COUNT=0")
+print("EXECUTOR_ACCOUNT_CLEAN=true")
 PY
 
 delete_subscription_if_present() {
@@ -529,13 +540,19 @@ delete_topic_if_present "$RESULT_TOPIC"
 # markers, and logs are deliberately preserved.
 gcloud compute ssh "$US_VM" \
   --project="$PROJECT" --zone="$US_ZONE" --quiet \
-  --command="sudo rm -f /etc/bp-fast-live/authorization.json /etc/bp-fast-live/PROJECT_STATE.json /etc/bp-fast-live/transport.key /etc/bp/phase15-fast-live-source.env" ||
+  --command="sudo rm -f /etc/bp-fast-live/authorization.json /etc/bp-fast-live/PROJECT_STATE.json /etc/bp-fast-live/transport.key /etc/bp/phase15-fast-live-source.env;
+             sudo test ! -e /etc/bp-fast-live/authorization.json;
+             sudo test ! -e /etc/bp-fast-live/transport.key;
+             sudo systemctl is-active --quiet bp-phase15-fast-live-source.service && exit 31 || true" ||
   fail "recorder_runtime_cleanup_failed"
 
 gcloud compute ssh "$EXEC_VM" \
   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
   --command="sudo rm -f /etc/bp-fast-live/authorization.json /etc/bp-fast-live/PROJECT_STATE.json /etc/bp-fast-live/transport.key /etc/bp-fast-live/receiver.env;
-             sudo test -f /var/lib/bp-canary/fast-live/KILL" ||
+             sudo test ! -e /etc/bp-fast-live/authorization.json;
+             sudo test ! -e /etc/bp-fast-live/transport.key;
+             sudo test -f /var/lib/bp-canary/fast-live/KILL;
+             sudo systemctl is-active --quiet bp-phase15-fast-live-receiver.service && exit 32 || true" ||
   fail "executor_runtime_cleanup_failed"
 
 printf 'PHASE15_FAST_LIVE_CLEANUP=PASS\n'
@@ -561,6 +578,12 @@ fi
 printf 'KILL_SWITCH_ENGAGED=true\n'
 printf 'SESSION_RUNTIME_FILES_PRESENT=false\n'
 printf 'SESSION_PUBSUB_RESOURCES_PRESENT=false\n'
+printf 'RECORDER_RUNTIME_AUTHORIZATION_PRESENT=false\n'
+printf 'EXECUTOR_RUNTIME_AUTHORIZATION_PRESENT=false\n'
+printf 'RECORDER_TRANSPORT_KEY_PRESENT=false\n'
+printf 'EXECUTOR_TRANSPORT_KEY_PRESENT=false\n'
+printf 'RECORDER_SOURCE_ACTIVE=false\n'
+printf 'EXECUTOR_RECEIVER_ACTIVE=false\n'
 printf 'HISTORICAL_STATE_PRESERVED=true\n'
 printf 'SERVICES_STARTED=false\n'
 printf 'REAL_ORDER_SUBMITTED=false\n'
