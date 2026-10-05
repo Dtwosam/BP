@@ -26,6 +26,9 @@ _ACCEPT = "I_ACCEPT_GENERATE_REVIEWABLE_CONTINUOUS_AUTO_LIVE_AUTHORIZATION_CANDI
 _UPGRADE_PURPOSE = "phase15-v3-telegram-auto-approver-continuous-contract-upgrade-v1"
 _CANDIDATE_PURPOSE = "phase15-v3-fast-live-continuous-auto-authorization-candidate-v2"
 _COMPLETED_CLEANUP_PURPOSE = "phase15-v3-fast-live-completed-session-cleanup-v1"
+_ZERO_ATTEMPT_CLEANUP_PURPOSE = (
+    "phase15-v3-fast-live-expired-zero-attempt-cleanup-v1"
+)
 
 
 class CandidateError(RuntimeError):
@@ -86,8 +89,11 @@ def build_candidate(
     upgrade_evidence_reference: str,
     renew_existing_unactivated: bool = False,
     replace_completed_cleaned_session: bool = False,
+    replace_expired_cleaned_zero_attempt_session: bool = False,
     completed_session_cleanup_evidence: dict[str, Any] | None = None,
     completed_session_cleanup_evidence_reference: str = "",
+    zero_attempt_cleanup_evidence: dict[str, Any] | None = None,
+    zero_attempt_cleanup_evidence_reference: str = "",
 ) -> dict[str, Any]:
     authorized = _utc(authorized_at)
     expires = _utc(expires_at)
@@ -103,7 +109,14 @@ def build_candidate(
         raise CandidateError("authorization expiry must be in the future")
     if not upgrade_evidence_reference.strip():
         raise CandidateError("upgrade evidence reference missing")
-    if renew_existing_unactivated and replace_completed_cleaned_session:
+    replacement_mode_count = sum(
+        (
+            renew_existing_unactivated,
+            replace_completed_cleaned_session,
+            replace_expired_cleaned_zero_attempt_session,
+        )
+    )
+    if replacement_mode_count > 1:
         raise CandidateError("authorization replacement modes are mutually exclusive")
 
     if upgrade_evidence.get("schema_version") != 1:
@@ -116,6 +129,7 @@ def build_candidate(
     if (
         not renew_existing_unactivated
         and not replace_completed_cleaned_session
+        and not replace_expired_cleaned_zero_attempt_session
         and evidence_main != expected_main
     ):
         raise CandidateError("upgrade evidence main mismatch")
@@ -167,7 +181,9 @@ def build_candidate(
         raise CandidateError("auto-approver must remain active and authorized")
     existing_authorization = phase.get("fast_live_preauthorization")
     replacing_existing = (
-        renew_existing_unactivated or replace_completed_cleaned_session
+        renew_existing_unactivated
+        or replace_completed_cleaned_session
+        or replace_expired_cleaned_zero_attempt_session
     )
     if replacing_existing:
         if not isinstance(existing_authorization, dict):
@@ -208,6 +224,10 @@ def build_candidate(
                 raise CandidateError(
                     "renewal upgrade evidence reference mismatch"
                 )
+            if replace_expired_cleaned_zero_attempt_session:
+                raise CandidateError(
+                    "zero-attempt replacement upgrade evidence reference mismatch"
+                )
             raise CandidateError(
                 "completed-session replacement upgrade evidence reference mismatch"
             )
@@ -238,7 +258,7 @@ def build_candidate(
                     raise CandidateError(
                         f"existing authorization is not renewable: {field}"
                     )
-        else:
+        elif replace_completed_cleaned_session:
             if authorized < existing_expires:
                 raise CandidateError(
                     "completed-session replacement requires expired authorization"
@@ -302,6 +322,101 @@ def build_candidate(
                 raise CandidateError(
                     "completed-session cleanup evidence unsafe: executor_open_order_count"
                 )
+        elif replace_expired_cleaned_zero_attempt_session:
+            if authorized < existing_expires:
+                raise CandidateError(
+                    "zero-attempt replacement requires expired authorization"
+                )
+            required_existing_true = (
+                "deployment_performed",
+                "activation_performed",
+                "runtime_authorization_created",
+                "kill_switch_removed",
+            )
+            for name in required_existing_true:
+                if existing_authorization.get(name) is not True:
+                    raise CandidateError(
+                        f"zero-attempt replacement requires activated session: {name}"
+                    )
+            if existing_authorization.get("real_order_submitted") is not False:
+                raise CandidateError(
+                    "zero-attempt replacement requires no real order"
+                )
+            cleanup = zero_attempt_cleanup_evidence
+            if not isinstance(cleanup, dict):
+                raise CandidateError("zero-attempt cleanup evidence missing")
+            if not zero_attempt_cleanup_evidence_reference.strip():
+                raise CandidateError(
+                    "zero-attempt cleanup evidence reference missing"
+                )
+            if cleanup.get("schema_version") != 1:
+                raise CandidateError("zero-attempt cleanup evidence schema invalid")
+            if cleanup.get("purpose") != _ZERO_ATTEMPT_CLEANUP_PURPOSE:
+                raise CandidateError("zero-attempt cleanup evidence purpose invalid")
+            if cleanup.get("status") != "CLEANUP_VERIFIED":
+                raise CandidateError("zero-attempt cleanup evidence status invalid")
+            exact_matches = {
+                "authorization_id": existing_authorization.get("authorization_id"),
+                "authorization_mode": existing_authorization.get("authorization_mode"),
+                "session_release_main": existing_authorization.get("authorized_at_main"),
+                "runtime_expires_at": existing_authorization.get("expires_at"),
+                "cleanup_mode": "expired_zero_attempt",
+                "executor_geo_country": "ZA",
+            }
+            for name, expected in exact_matches.items():
+                if cleanup.get(name) != expected:
+                    raise CandidateError(
+                        f"zero-attempt cleanup evidence mismatch: {name}"
+                    )
+            required_cleanup_true = (
+                "cleanup_completed",
+                "zero_network_attempt_verified",
+                "kill_switch_engaged",
+                "historical_state_preserved",
+                "executor_account_clean",
+            )
+            for name in required_cleanup_true:
+                if cleanup.get(name) is not True:
+                    raise CandidateError(
+                        f"zero-attempt cleanup evidence unsafe: {name}"
+                    )
+            required_cleanup_false = (
+                "session_real_order_submitted",
+                "services_started",
+                "cleanup_real_order_submitted",
+                "session_runtime_files_present",
+                "session_pubsub_resources_present",
+                "recorder_source_active",
+                "executor_receiver_active",
+                "recorder_runtime_authorization_present",
+                "executor_runtime_authorization_present",
+                "recorder_transport_key_present",
+                "executor_transport_key_present",
+                "executor_geo_blocked",
+            )
+            for name in required_cleanup_false:
+                if cleanup.get(name) is not False:
+                    raise CandidateError(
+                        f"zero-attempt cleanup evidence unsafe: {name}"
+                    )
+            if int(cleanup.get("session_network_submission_attempt_count", -1)) != 0:
+                raise CandidateError(
+                    "zero-attempt cleanup evidence unsafe: "
+                    "session_network_submission_attempt_count"
+                )
+            if int(cleanup.get("session_execution_result_count", -1)) != 0:
+                raise CandidateError(
+                    "zero-attempt cleanup evidence unsafe: session_execution_result_count"
+                )
+            publication_count = int(cleanup.get("session_publication_count", -1))
+            if publication_count != 0:
+                raise CandidateError(
+                    "zero-attempt cleanup evidence unsafe: session_publication_count"
+                )
+            if int(cleanup.get("executor_open_order_count", -1)) != 0:
+                raise CandidateError(
+                    "zero-attempt cleanup evidence unsafe: executor_open_order_count"
+                )
     elif existing_authorization is not None:
         raise CandidateError("fast live preauthorization already exists")
     if state.get("live_trading_enabled") is not False:
@@ -330,7 +445,9 @@ def build_candidate(
     )
     candidate_auto["continuous_candidate_prompt_authorized"] = True
     if not (
-        renew_existing_unactivated or replace_completed_cleaned_session
+        renew_existing_unactivated
+        or replace_completed_cleaned_session
+        or replace_expired_cleaned_zero_attempt_session
     ):
         candidate_auto["continuous_contract_upgrade_main"] = expected_main
         candidate_auto["continuous_contract_upgraded_at"] = upgraded_at.isoformat()
@@ -425,6 +542,22 @@ def main() -> int:
         type=Path,
         help="Reviewed evidence for --replace-completed-cleaned-session.",
     )
+    parser.add_argument(
+        "--replace-expired-cleaned-zero-attempt-session",
+        action="store_true",
+        help=(
+            "Replace an activated, expired continuous authorization only after "
+            "exact cleanup evidence proves the session consumed zero network attempts."
+        ),
+    )
+    parser.add_argument(
+        "--zero-attempt-cleanup-evidence",
+        type=Path,
+        help=(
+            "Reviewed cleanup evidence for "
+            "--replace-expired-cleaned-zero-attempt-session."
+        ),
+    )
     args = parser.parse_args()
 
     if args.accept_candidate != _ACCEPT:
@@ -441,7 +574,14 @@ def main() -> int:
 
     state = _load_object(project_state, label="project state")
     upgrade = _load_object(upgrade_path, label="auto-approver upgrade evidence")
-    if args.renew_existing_unactivated and args.replace_completed_cleaned_session:
+    replacement_mode_count = sum(
+        (
+            args.renew_existing_unactivated,
+            args.replace_completed_cleaned_session,
+            args.replace_expired_cleaned_zero_attempt_session,
+        )
+    )
+    if replacement_mode_count > 1:
         raise SystemExit("authorization replacement modes are mutually exclusive")
     cleanup_path = (
         args.completed_session_cleanup_evidence.resolve()
@@ -453,6 +593,19 @@ def main() -> int:
         if cleanup_path is not None
         else None
     )
+    zero_attempt_cleanup_path = (
+        args.zero_attempt_cleanup_evidence.resolve()
+        if args.zero_attempt_cleanup_evidence is not None
+        else None
+    )
+    zero_attempt_cleanup_evidence = (
+        _load_object(
+            zero_attempt_cleanup_path,
+            label="zero-attempt cleanup evidence",
+        )
+        if zero_attempt_cleanup_path is not None
+        else None
+    )
     if args.replace_completed_cleaned_session and cleanup_path is None:
         raise SystemExit("completed-session cleanup evidence is required")
     if cleanup_path is not None and not args.replace_completed_cleaned_session:
@@ -460,8 +613,19 @@ def main() -> int:
             "completed-session cleanup evidence requires replacement mode"
         )
     if (
+        args.replace_expired_cleaned_zero_attempt_session
+        and zero_attempt_cleanup_path is None
+    ):
+        raise SystemExit("zero-attempt cleanup evidence is required")
+    if (
+        zero_attempt_cleanup_path is not None
+        and not args.replace_expired_cleaned_zero_attempt_session
+    ):
+        raise SystemExit("zero-attempt cleanup evidence requires replacement mode")
+    if (
         not args.renew_existing_unactivated
         and not args.replace_completed_cleaned_session
+        and not args.replace_expired_cleaned_zero_attempt_session
         and upgrade.get("project_state_sha256") != _raw_sha256(project_state)
     ):
         raise SystemExit("upgrade evidence project-state hash mismatch")
@@ -482,6 +646,16 @@ def main() -> int:
             raise SystemExit(
                 "completed-session cleanup evidence must be stored under the repository root"
             ) from exc
+    zero_attempt_cleanup_evidence_reference = ""
+    if zero_attempt_cleanup_path is not None:
+        try:
+            zero_attempt_cleanup_evidence_reference = str(
+                zero_attempt_cleanup_path.relative_to(project_state.parent)
+            )
+        except ValueError as exc:
+            raise SystemExit(
+                "zero-attempt cleanup evidence must be stored under the repository root"
+            ) from exc
 
     now = datetime.now(UTC)
     expires = datetime.fromisoformat(args.expires_at)
@@ -496,8 +670,15 @@ def main() -> int:
         upgrade_evidence_reference=evidence_reference,
         renew_existing_unactivated=args.renew_existing_unactivated,
         replace_completed_cleaned_session=args.replace_completed_cleaned_session,
+        replace_expired_cleaned_zero_attempt_session=(
+            args.replace_expired_cleaned_zero_attempt_session
+        ),
         completed_session_cleanup_evidence=cleanup_evidence,
         completed_session_cleanup_evidence_reference=cleanup_evidence_reference,
+        zero_attempt_cleanup_evidence=zero_attempt_cleanup_evidence,
+        zero_attempt_cleanup_evidence_reference=(
+            zero_attempt_cleanup_evidence_reference
+        ),
     )
     candidate_evidence = {
         "schema_version": 1,
@@ -531,18 +712,32 @@ def main() -> int:
         "replacement_of_completed_cleaned_session": (
             args.replace_completed_cleaned_session
         ),
+        "replacement_of_expired_cleaned_zero_attempt_session": (
+            args.replace_expired_cleaned_zero_attempt_session
+        ),
         "previous_authorization_id": (
             str(
                 (
                     state.get("phase_15_v3_live_canary") or {}
                 ).get("fast_live_preauthorization", {}).get("authorization_id") or ""
             )
-            if args.replace_completed_cleaned_session
+            if (
+                args.replace_completed_cleaned_session
+                or args.replace_expired_cleaned_zero_attempt_session
+            )
             else ""
         ),
         "completed_session_cleanup_evidence": cleanup_evidence_reference,
         "completed_session_cleanup_evidence_sha256": (
             _raw_sha256(cleanup_path) if cleanup_path is not None else ""
+        ),
+        "zero_attempt_cleanup_evidence": (
+            zero_attempt_cleanup_evidence_reference
+        ),
+        "zero_attempt_cleanup_evidence_sha256": (
+            _raw_sha256(zero_attempt_cleanup_path)
+            if zero_attempt_cleanup_path is not None
+            else ""
         ),
     }
 
@@ -568,6 +763,14 @@ def main() -> int:
     print(
         "REPLACEMENT_OF_COMPLETED_CLEANED_SESSION="
         + ("true" if args.replace_completed_cleaned_session else "false")
+    )
+    print(
+        "REPLACEMENT_OF_EXPIRED_CLEANED_ZERO_ATTEMPT_SESSION="
+        + (
+            "true"
+            if args.replace_expired_cleaned_zero_attempt_session
+            else "false"
+        )
     )
     print("AUTO_APPROVAL_REMAINS_AUTHORIZED=true")
     print("GLOBAL_LIVE_TRADING_ENABLED=false")

@@ -8,12 +8,15 @@ fail() {
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 EXPIRED_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_EXPIRED_CLEANUP:-}"
+EXPIRED_ZERO_ATTEMPT_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_EXPIRED_ZERO_ATTEMPT_CLEANUP:-}"
 ABORT_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_ZERO_ACTIVITY_ABORT:-}"
 RESTART_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_ZERO_ACTIVITY_RESTART:-}"
 SOURCE_LAG_RESTART_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_SOURCE_LAG_RESTART:-}"
 TRANSITION_ACCEPT="${PHASE15_ACCEPT_FAST_LIVE_SESSION_TRANSITION:-}"
 CLEANUP_MODE=""
-if [[ "$EXPIRED_ACCEPT" == "I_ACCEPT_CLEAN_EXPIRED_CONTINUOUS_LIVE_SESSION" ]]; then
+if [[ "$EXPIRED_ZERO_ATTEMPT_ACCEPT" == "I_ACCEPT_CLEAN_EXPIRED_ZERO_ATTEMPT_FAST_LIVE_SESSION" ]]; then
+  CLEANUP_MODE="expired_zero_attempt"
+elif [[ "$EXPIRED_ACCEPT" == "I_ACCEPT_CLEAN_EXPIRED_CONTINUOUS_LIVE_SESSION" ]]; then
   CLEANUP_MODE="expired"
 elif [[ "$ABORT_ACCEPT" == "I_ACCEPT_ABORT_ZERO_ACTIVITY_FAST_LIVE_SESSION_AFTER_VALIDATION_DEFECT" ]]; then
   CLEANUP_MODE="zero_activity_abort"
@@ -120,8 +123,20 @@ print(
 PY
 ) || fail "runtime_authorization_invalid"
 
-if [[ "$CLEANUP_MODE" == "expired" ]]; then
+if [[ "$CLEANUP_MODE" == "expired_zero_attempt" ]]; then
+  [[ "$RUNTIME_EXPIRED" == "true" ]] || fail "expired_zero_attempt_runtime_not_expired"
+  [[ "$AUTH_ID" == "phase15-v3-fast-live-auto-continuous-v2-12h-9824a0b1-20261001T201044Z" ]] ||
+    fail "expired_zero_attempt_authorization_id_mismatch"
+  [[ "$RELEASE_MAIN" == "9824a0b16f64b5018739a33634dc5e4dea673be8" ]] ||
+    fail "expired_zero_attempt_release_main_mismatch"
+  [[ "$AUTH_MODE" == "auto-telegram-continuous-v2" ]] ||
+    fail "expired_zero_attempt_authorization_mode_mismatch"
+  [[ "$RUNTIME_EXPIRES" == "2026-10-02T08:10:44+00:00" ]] ||
+    fail "expired_zero_attempt_runtime_expiry_mismatch"
+elif [[ "$CLEANUP_MODE" == "expired" ]]; then
   [[ "$RUNTIME_EXPIRED" == "true" ]] || fail "runtime_authorization_not_expired"
+  [[ "$AUTH_ID" != "phase15-v3-fast-live-auto-continuous-v2-12h-9824a0b1-20261001T201044Z" ]] ||
+    fail "current_session_requires_expired_zero_attempt_mode"
 elif [[ "$CLEANUP_MODE" == "zero_activity_abort" ]]; then
   [[ "$RUNTIME_EXPIRED" == "false" ]] || fail "zero_activity_abort_runtime_already_expired"
   [[ "$AUTH_ID" == "phase15-v3-fast-live-auto-continuous-5d305254b06ef0cbce33065e" ]] ||
@@ -267,6 +282,72 @@ gcloud compute ssh "$EXEC_VM" \
   --command="sudo sh -c '! grep -R -F -q cancellation_pending\":true /var/lib/bp-canary/fast-live/attempts 2>/dev/null &&
                           ! grep -R -F -q recovery_result_publish_pending\":true /var/lib/bp-canary/fast-live/attempts 2>/dev/null'" ||
   fail "executor_recovery_not_complete"
+
+if [[ "$CLEANUP_MODE" == "expired_zero_attempt" ]]; then
+  read -r SESSION_ATTEMPTS SESSION_EXEC_RESULTS < <(
+    gcloud compute ssh "$EXEC_VM" \
+      --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
+      --command="sudo python3 - '$AUTH_ID'" <<'PY'
+from pathlib import Path
+import json
+import sys
+
+authorization_id = sys.argv[1]
+root = Path("/var/lib/bp-canary/fast-live/attempts")
+attempts = 0
+results = 0
+if root.is_dir():
+    for path in sorted(root.glob("*/attempt.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if str(payload.get("authorization_id") or "") == authorization_id:
+            attempts += 1
+    for path in sorted(root.glob("*/result.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if str(payload.get("authorization_id") or "") == authorization_id:
+            results += 1
+print(attempts, results)
+PY
+  ) || fail "expired_zero_attempt_executor_scan_failed"
+  [[ "$SESSION_ATTEMPTS" == "0" && "$SESSION_EXEC_RESULTS" == "0" ]] ||
+    fail "expired_zero_attempt_network_activity_present"
+
+  SESSION_PUBLICATIONS="$(
+    gcloud compute ssh "$US_VM" \
+      --project="$PROJECT" --zone="$US_ZONE" --quiet \
+      --command="sudo python3 - '$AUTH_ID'" <<'PY'
+from pathlib import Path
+import json
+import sys
+
+authorization_id = sys.argv[1]
+root = Path("/var/lib/bp/phase15-fast-live/published")
+matching = 0
+if root.is_dir():
+    for receipt in sorted(root.glob("*.json")):
+        payload = json.loads(receipt.read_text(encoding="utf-8"))
+        if str(payload.get("authorization_id") or "") != authorization_id:
+            continue
+        matching += 1
+        result_path = root / "results" / receipt.name
+        if not result_path.is_file():
+            raise SystemExit("matching_result_missing")
+        result = json.loads(result_path.read_text(encoding="utf-8"))
+        if result.get("network_submission_attempt_consumed") is not False:
+            raise SystemExit("matching_result_attempt_consumed")
+        recorded = result.get("recorded") or {}
+        if recorded.get("event_type") != "closed_before_submission":
+            raise SystemExit("matching_result_not_closed_before_submission")
+        if recorded.get("official_reconciliation_required") is not False:
+            raise SystemExit("matching_result_requires_official_reconciliation")
+print(matching)
+PY
+  )" || fail "expired_zero_attempt_publication_scan_failed"
+  [[ "$SESSION_PUBLICATIONS" == "0" ]] ||
+    fail "expired_zero_attempt_unexpected_publication_present"
+
+  ZERO_NETWORK_ATTEMPT_VERIFIED=true
+fi
+
 
 if [[ "$CLEANUP_MODE" == "source_lag_restart" ]]; then
   if ! gcloud compute ssh "$EXEC_VM" \
@@ -419,11 +500,20 @@ from pathlib import Path
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 if payload.get("status") != "ok":
     raise SystemExit("health_not_ok")
+geo = payload.get("geoblock") or {}
+if geo.get("blocked") is not False:
+    raise SystemExit("geoblock_blocked")
+if geo.get("country") != "ZA":
+    raise SystemExit("geoblock_country_mismatch")
 account = payload.get("account") or {}
 if int(account.get("open_order_count", -1)) != 0:
     raise SystemExit("open_orders_present")
 if account.get("clean_for_canary") is not True:
     raise SystemExit("account_not_clean")
+print("EXECUTOR_GEO_COUNTRY=ZA")
+print("EXECUTOR_GEO_BLOCKED=false")
+print("EXECUTOR_OPEN_ORDER_COUNT=0")
+print("EXECUTOR_ACCOUNT_CLEAN=true")
 PY
 
 delete_subscription_if_present() {
@@ -447,18 +537,39 @@ delete_subscription_if_present "$RESULT_SUB"
 delete_topic_if_present "$ORDER_TOPIC"
 delete_topic_if_present "$RESULT_TOPIC"
 
+for sub in "$ORDER_SUB" "$RESULT_SUB"; do
+  if gcloud pubsub subscriptions describe "$sub" --project="$PROJECT" >/dev/null 2>&1; then
+    fail "subscription_still_present:$sub"
+  fi
+done
+for topic in "$ORDER_TOPIC" "$RESULT_TOPIC"; do
+  if gcloud pubsub topics describe "$topic" --project="$PROJECT" >/dev/null 2>&1; then
+    fail "topic_still_present:$topic"
+  fi
+done
+
 # Remove session-only runtime material only after its transport is gone.
 # Historical receipts, approvals, attempts, reconciliations, settlement
 # markers, and logs are deliberately preserved.
 gcloud compute ssh "$US_VM" \
   --project="$PROJECT" --zone="$US_ZONE" --quiet \
-  --command="sudo rm -f /etc/bp-fast-live/authorization.json /etc/bp-fast-live/PROJECT_STATE.json /etc/bp-fast-live/transport.key /etc/bp/phase15-fast-live-source.env" ||
+  --command="sudo rm -f /etc/bp-fast-live/authorization.json /etc/bp-fast-live/PROJECT_STATE.json /etc/bp-fast-live/transport.key /etc/bp/phase15-fast-live-source.env;
+             sudo test ! -e /etc/bp-fast-live/authorization.json;
+             sudo test ! -e /etc/bp-fast-live/PROJECT_STATE.json;
+             sudo test ! -e /etc/bp-fast-live/transport.key;
+             sudo test ! -e /etc/bp/phase15-fast-live-source.env;
+             sudo systemctl is-active --quiet bp-phase15-fast-live-source.service && exit 31 || true" ||
   fail "recorder_runtime_cleanup_failed"
 
 gcloud compute ssh "$EXEC_VM" \
   --project="$PROJECT" --zone="$EXEC_ZONE" --quiet \
   --command="sudo rm -f /etc/bp-fast-live/authorization.json /etc/bp-fast-live/PROJECT_STATE.json /etc/bp-fast-live/transport.key /etc/bp-fast-live/receiver.env;
-             sudo test -f /var/lib/bp-canary/fast-live/KILL" ||
+             sudo test ! -e /etc/bp-fast-live/authorization.json;
+             sudo test ! -e /etc/bp-fast-live/PROJECT_STATE.json;
+             sudo test ! -e /etc/bp-fast-live/transport.key;
+             sudo test ! -e /etc/bp-fast-live/receiver.env;
+             sudo test -f /var/lib/bp-canary/fast-live/KILL;
+             sudo systemctl is-active --quiet bp-phase15-fast-live-receiver.service && exit 32 || true" ||
   fail "executor_runtime_cleanup_failed"
 
 printf 'PHASE15_FAST_LIVE_CLEANUP=PASS\n'
@@ -471,12 +582,26 @@ if [[ -n "$DEPLOYED_RELEASE_MAIN" ]]; then
   printf 'DEPLOYED_RELEASE_MAIN=%s\n' "$DEPLOYED_RELEASE_MAIN"
 fi
 printf 'RUNTIME_EXPIRES_AT=%s\n' "$RUNTIME_EXPIRES"
+if [[ "$CLEANUP_MODE" == "expired_zero_attempt" ]]; then
+  printf 'ZERO_NETWORK_ATTEMPT_VERIFIED=true\n'
+  printf 'SESSION_PUBLICATION_COUNT=%s\n' "$SESSION_PUBLICATIONS"
+  printf 'SESSION_NETWORK_SUBMISSION_ATTEMPT_COUNT=%s\n' "$SESSION_ATTEMPTS"
+  printf 'SESSION_EXECUTION_RESULT_COUNT=%s\n' "$SESSION_EXEC_RESULTS"
+  printf 'SESSION_REAL_ORDER_SUBMITTED=false\n'
+fi
 if [[ "$CLEANUP_MODE" == "zero_activity_abort" || "$CLEANUP_MODE" == "zero_activity_restart" || "$CLEANUP_MODE" == "source_lag_restart" ]]; then
   printf 'ZERO_ACTIVITY_VERIFIED=true\n'
 fi
 printf 'KILL_SWITCH_ENGAGED=true\n'
 printf 'SESSION_RUNTIME_FILES_PRESENT=false\n'
 printf 'SESSION_PUBSUB_RESOURCES_PRESENT=false\n'
+printf 'RECORDER_RUNTIME_AUTHORIZATION_PRESENT=false\n'
+printf 'EXECUTOR_RUNTIME_AUTHORIZATION_PRESENT=false\n'
+printf 'RECORDER_TRANSPORT_KEY_PRESENT=false\n'
+printf 'EXECUTOR_TRANSPORT_KEY_PRESENT=false\n'
+printf 'RECORDER_SOURCE_ACTIVE=false\n'
+printf 'EXECUTOR_RECEIVER_ACTIVE=false\n'
 printf 'HISTORICAL_STATE_PRESERVED=true\n'
+printf 'CLEANUP_COMPLETED=true\n'
 printf 'SERVICES_STARTED=false\n'
 printf 'REAL_ORDER_SUBMITTED=false\n'

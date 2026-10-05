@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "purpose": "phase15-v3-fast-live-expired-session-readonly-reconciliation-v1",
+  "status": "PASS_EXPIRED_INACTIVE_ZERO_ATTEMPT_CURRENT_AUTHORIZATION",
+  "observed_at": "2026-10-05T19:40:31Z",
+  "observation_mode": "read_only",
+  "production_mutation": false,
+  "database_writes_performed": false,
+  "current_authorization": {
+    "authorization_id": "phase15-v3-fast-live-auto-continuous-v2-12h-9824a0b1-20261001T201044Z",
+    "authorization_mode": "auto-telegram-continuous-v2",
+    "release_main": "9824a0b16f64b5018739a33634dc5e4dea673be8",
+    "issued_at": "2026-10-01T20:45:06.013726+00:00",
+    "expires_at": "2026-10-02T08:10:44+00:00",
+    "continuous_session": true,
+    "runtime_authorization_present": true,
+    "runtime_expired": true,
+    "recorder_source_active": false,
+    "executor_receiver_active": false,
+    "executor_kill_switch_engaged": true,
+    "telegram_approval_active": true,
+    "telegram_current_run_present": false,
+    "result_integrity_fault_present": false,
+    "publications_bound_to_authorization": 0,
+    "network_submission_attempts_bound_to_authorization": 0,
+    "real_orders_submitted_bound_to_authorization": 0
+  },
+  "aggregate_preserved_history": {
+    "live_publication_count": 6,
+    "live_result_count": 6,
+    "live_settlement_count": 1,
+    "unresolved_result_count": 0,
+    "unresolved_settlement_count": 0,
+    "executor_attempt_count": 1,
+    "executor_result_count": 1,
+    "pending_cancellation_count": 0,
+    "pending_recovery_result_publish_count": 0,
+    "approval_decision_claim_count": 6,
+    "approval_decision_result_count": 6,
+    "note": "These counts span prior fast-live authorizations and must not be attributed to the current 9824a0b1 authorization."
+  },
+  "prior_filled_session": {
+    "already_recorded_elsewhere": true,
+    "durable_cleanup_evidence": "docs/evidence/phase15_v3_fast_live_completed_session_cleanup_20261001.json",
+    "authorization_id": "phase15-v3-fast-live-auto-continuous-12h-21ee9a70-20260930T150000Z",
+    "intent_id": "live-intent-206952939760c46649db35189bb8aaed",
+    "external_order_id": "0xc1b1bf6063307ac8b0b82f755982b4c99c33da07c7a1b080e3e35ce22eb8e970",
+    "confirmed_filled_shares": "15.88",
+    "confirmed_filled_notional_usd": "1.2704",
+    "realized_pnl_usd": "-1.35221376",
+    "settled": true
+  },
+  "current_account": {
+    "official_account_health": "ok",
+    "geo_blocked": false,
+    "geo_country": "ZA",
+    "official_open_orders": 0,
+    "collateral_usd": "28.64779",
+    "official_account_clean": true
+  },
+  "boundary": {
+    "new_live_activation_authorized": false,
+    "expired_session_cleanup_authorized": false,
+    "fresh_authorization_required_before_any_new_live_activation": true,
+    "no_retry_or_new_order_implied_by_this_evidence": true
+  }
+}

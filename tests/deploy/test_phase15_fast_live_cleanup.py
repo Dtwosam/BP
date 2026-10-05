@@ -26,17 +26,25 @@ def test_fast_live_expired_cleanup_is_fail_closed_and_session_scoped() -> None:
     text = CLEANUP.read_text(encoding="utf-8")
 
     for marker in (
+        "I_ACCEPT_CLEAN_EXPIRED_ZERO_ATTEMPT_FAST_LIVE_SESSION",
         "I_ACCEPT_CLEAN_EXPIRED_CONTINUOUS_LIVE_SESSION",
         "I_ACCEPT_ABORT_ZERO_ACTIVITY_FAST_LIVE_SESSION_AFTER_VALIDATION_DEFECT",
         "I_ACCEPT_DEPLOY_FAST_LIVE_ZERO_FILL_FIX_AND_RESTART_SESSION",
         "I_ACCEPT_ROTATE_ZERO_ATTEMPT_SOURCE_LAG_SESSION",
         "I_ACCEPT_TRANSITION_STOPPED_FAST_LIVE_SESSION_TO_AUTHORIZED_V2",
+        'CLEANUP_MODE="expired_zero_attempt"',
         'CLEANUP_MODE="expired"',
         'CLEANUP_MODE="zero_activity_abort"',
         'CLEANUP_MODE="zero_activity_restart"',
         'CLEANUP_MODE="source_lag_restart"',
         'CLEANUP_MODE="operator_transition"',
+        "expired_zero_attempt_runtime_not_expired",
+        "expired_zero_attempt_authorization_id_mismatch",
+        "expired_zero_attempt_release_main_mismatch",
+        "expired_zero_attempt_authorization_mode_mismatch",
+        "expired_zero_attempt_runtime_expiry_mismatch",
         "runtime_authorization_not_expired",
+        "current_session_requires_expired_zero_attempt_mode",
         "zero_activity_abort_runtime_already_expired",
         "phase15-v3-fast-live-auto-continuous-5d305254b06ef0cbce33065e",
         "bbb20f8f5f3b533ecad3c0798c944c61f31bcdfe",
@@ -59,6 +67,25 @@ def test_fast_live_expired_cleanup_is_fail_closed_and_session_scoped() -> None:
         "SOURCE_LAG_SESSION_ATTEMPT_MARKER_COUNT",
         "SOURCE_LAG_SESSION_EXECUTION_RESULT_COUNT",
         "SOURCE_LAG_SESSION_PUBLICATION_COUNT",
+        "expired_zero_attempt_executor_scan_failed",
+        "expired_zero_attempt_publication_scan_failed",
+        "expired_zero_attempt_network_activity_present",
+        "ZERO_NETWORK_ATTEMPT_VERIFIED=true",
+        "SESSION_PUBLICATION_COUNT",
+        "SESSION_NETWORK_SUBMISSION_ATTEMPT_COUNT",
+        "SESSION_EXECUTION_RESULT_COUNT",
+        "SESSION_REAL_ORDER_SUBMITTED=false",
+        "CLEANUP_COMPLETED=true",
+        "EXECUTOR_GEO_COUNTRY=ZA",
+        "EXECUTOR_GEO_BLOCKED=false",
+        "EXECUTOR_OPEN_ORDER_COUNT=0",
+        "EXECUTOR_ACCOUNT_CLEAN=true",
+        "RECORDER_RUNTIME_AUTHORIZATION_PRESENT=false",
+        "EXECUTOR_RUNTIME_AUTHORIZATION_PRESENT=false",
+        "RECORDER_TRANSPORT_KEY_PRESENT=false",
+        "EXECUTOR_TRANSPORT_KEY_PRESENT=false",
+        "RECORDER_SOURCE_ACTIVE=false",
+        "EXECUTOR_RECEIVER_ACTIVE=false",
         "LIVE_PUBLICATIONS",
         "LIVE_ATTEMPTS",
         "APPROVAL_CLAIMS",
@@ -267,3 +294,49 @@ def test_fast_live_cleanup_source_lag_restart_is_exactly_scoped() -> None:
     assert 'result.get("network_submission_attempt_consumed") is False' in text
     assert 'recorded.get("event_type") == "closed_before_submission"' in text
     assert 'recorded.get("official_reconciliation_required") is False' in text
+
+
+def test_fast_live_cleanup_expired_zero_attempt_is_exactly_scoped() -> None:
+    text = CLEANUP.read_text(encoding="utf-8")
+
+    assert "I_ACCEPT_CLEAN_EXPIRED_ZERO_ATTEMPT_FAST_LIVE_SESSION" in text
+    assert 'CLEANUP_MODE="expired_zero_attempt"' in text
+    assert (
+        '[[ "$AUTH_ID" == '
+        '"phase15-v3-fast-live-auto-continuous-v2-12h-9824a0b1-20261001T201044Z" ]]'
+        in text
+    )
+    assert (
+        '[[ "$RELEASE_MAIN" == '
+        '"9824a0b16f64b5018739a33634dc5e4dea673be8" ]]'
+        in text
+    )
+    assert '[[ "$AUTH_MODE" == "auto-telegram-continuous-v2" ]]' in text
+    assert (
+        '[[ "$RUNTIME_EXPIRES" == "2026-10-02T08:10:44+00:00" ]]'
+        in text
+    )
+    assert 'Path("/var/lib/bp-canary/fast-live/attempts")' in text
+    assert 'Path("/var/lib/bp/phase15-fast-live/published")' in text
+    assert '[[ "$SESSION_ATTEMPTS" == "0" && "$SESSION_EXEC_RESULTS" == "0" ]]' in text
+    assert 'result.get("network_submission_attempt_consumed") is not False' in text
+    assert 'recorded.get("event_type") != "closed_before_submission"' in text
+    assert (
+        'recorded.get("official_reconciliation_required") is not False'
+        in text
+    )
+    assert "expired_zero_attempt_unexpected_publication_present" in text
+    assert '[[ "$SESSION_PUBLICATIONS" == "0" ]]' in text
+    assert "ZERO_NETWORK_ATTEMPT_VERIFIED=true" in text
+    assert "SESSION_REAL_ORDER_SUBMITTED=false" in text
+    assert "CLEANUP_COMPLETED=true" in text
+    assert "current_session_requires_expired_zero_attempt_mode" in text
+    assert 'geo.get("blocked") is not False' in text
+    assert 'geo.get("country") != "ZA"' in text
+    assert "RECORDER_RUNTIME_AUTHORIZATION_PRESENT=false" in text
+    assert "EXECUTOR_RUNTIME_AUTHORIZATION_PRESENT=false" in text
+    assert "subscription_still_present:$sub" in text
+    assert "topic_still_present:$topic" in text
+    assert "sudo test ! -e /etc/bp-fast-live/PROJECT_STATE.json" in text
+    assert "sudo test ! -e /etc/bp/phase15-fast-live-source.env" in text
+    assert "sudo test ! -e /etc/bp-fast-live/receiver.env" in text

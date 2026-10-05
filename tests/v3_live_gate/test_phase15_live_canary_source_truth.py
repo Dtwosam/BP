@@ -31,12 +31,12 @@ def test_phase15_second_live_canary_is_reconciled_zero_fill() -> None:
 
     assert state["source_of_truth_version"] == "0.14.186"
     assert state["current_phase"] == 15
-    assert state["status"] == "PHASE_15_CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_AUTHORIZED_NOT_ACTIVATED"
+    assert state["status"] == "PHASE_15_CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_EXPIRED_INACTIVE"
     assert all(value == "pass" for value in master.values())
     assert state["phase_14_checkpoint"]["overall_live_gate"] == "pass"
     assert state["phase_14_checkpoint"]["phase15_permitted"] is True
 
-    assert gate["status"] == "CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_AUTHORIZED_NOT_ACTIVATED"
+    assert gate["status"] == "CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_EXPIRED_INACTIVE"
     assert gate["phase15_canary_authorized"] is True
     assert gate["source_prediction_version"] == "v3-frozen-paper-v1"
     assert gate["source_execution_version"] == "paper-execution-v3-frozen-v1"
@@ -761,6 +761,26 @@ def test_continuous_fast_live_renewed_source_authorization_is_12h_runtime_ready(
     assert auth["authorized_at_main"] == "9824a0b16f64b5018739a33634dc5e4dea673be8"
     assert auth["authorized_at"] == "2026-10-01T20:10:44+00:00"
     assert auth["expires_at"] == "2026-10-02T08:10:44+00:00"
+    assert auth["deployment_performed"] is True
+    assert auth["activation_performed"] is True
+    assert auth["runtime_authorization_created"] is True
+    assert auth["kill_switch_removed"] is True
+    assert auth["real_order_submitted"] is False
+    assert auth["runtime_expired"] is True
+    assert auth["recorder_source_active"] is False
+    assert auth["executor_receiver_active"] is False
+    assert auth["executor_kill_switch_engaged"] is True
+    assert auth["session_publication_count"] == 0
+    assert auth["session_network_submission_attempt_count"] == 0
+    assert auth["session_real_order_submission_count"] == 0
+    assert auth["unresolved_result_count"] == 0
+    assert auth["unresolved_settlement_count"] == 0
+    assert auth["expired_session_cleanup_required_before_reauthorization"] is True
+    assert auth["expired_session_cleanup_authorized"] is False
+    assert auth["fresh_activation_authorization_required"] is True
+    assert auth["readonly_reconciliation_evidence"] == (
+        "docs/evidence/phase15-v3-fast-live-expired-session-readonly-reconciliation-20261005.json"
+    )
     assert auth["target_notional_usd"] == 5
     assert auth["max_trade_size_usd"] == 10
     assert auth["max_total_exposure_usd"] == 10
@@ -773,11 +793,6 @@ def test_continuous_fast_live_renewed_source_authorization_is_12h_runtime_ready(
     assert auth["prediction_version"] == "v3-frozen-paper-v1"
     assert auth["execution_version"] == "paper-execution-v3-frozen-v1"
     assert auth["executor_country"] == "ZA"
-    assert auth["deployment_performed"] is False
-    assert auth["activation_performed"] is False
-    assert auth["runtime_authorization_created"] is False
-    assert auth["kill_switch_removed"] is False
-    assert auth["real_order_submitted"] is False
     assert auto["continuous_fast_live_auto_approval_authorized"] is True
     assert auto["approval_contract_git_blob_sha"] == (
         "5676efcb60840f4533a7f43b3c6a7efab9e97541"
