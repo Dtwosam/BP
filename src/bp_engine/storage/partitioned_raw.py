@@ -21,8 +21,8 @@ _RAW_PARENT_INDEX_NAMES = {
     "ix_raw_market_events_pm_book_replay_anchor",
     "ix_raw_market_events_pm_price_change_replay",
 }
-_DEDUPE_PARENT_INDEX_NAMES = {
-    "raw_event_dedupe_pkey",
+_DEDUPE_PRIMARY_INDEX_NAME = "raw_event_dedupe_pkey"
+_DEDUPE_REQUIRED_PARENT_INDEX_NAMES = {
     "ix_raw_event_dedupe_received_at",
 }
 
@@ -213,6 +213,55 @@ def _partition_children(connection: Connection, parent_name: str) -> tuple[str, 
     )
 
 
+def _compact_dedupe_indexes_healthy(
+    connection: Connection,
+    expected_children: tuple[str, ...],
+) -> bool:
+    expected = {
+        f"{table_name}_digest_uidx": table_name
+        for table_name in expected_children
+    }
+    rows = connection.execute(
+        text(
+            """
+            SELECT
+                table_relation.relname AS table_name,
+                index_relation.relname AS index_name,
+                index_meta.indisunique AS is_unique,
+                index_meta.indisvalid AS is_valid,
+                index_meta.indisready AS is_ready
+            FROM pg_index AS index_meta
+            JOIN pg_class AS table_relation
+              ON table_relation.oid = index_meta.indrelid
+            JOIN pg_namespace AS namespace
+              ON namespace.oid = table_relation.relnamespace
+            JOIN pg_class AS index_relation
+              ON index_relation.oid = index_meta.indexrelid
+            WHERE namespace.nspname = current_schema()
+              AND table_relation.relname LIKE 'raw_event_dedupe_h__'
+              AND index_relation.relname LIKE 'raw_event_dedupe_h%_digest_uidx'
+            """
+        )
+    ).mappings()
+
+    found: dict[str, dict[str, object]] = {}
+    for row in rows:
+        index_name = str(row["index_name"])
+        if index_name in expected:
+            found[index_name] = dict(row)
+
+    if set(found) != set(expected):
+        return False
+
+    return all(
+        str(row["table_name"]) == expected[index_name]
+        and bool(row["is_unique"])
+        and bool(row["is_valid"])
+        and bool(row["is_ready"])
+        for index_name, row in found.items()
+    )
+
+
 def _validate_partitioned_runtime_objects(connection: Connection) -> None:
     if not _relation_exists(connection, _SEQUENCE_NAME):
         raise RuntimeError(f"partitioned raw sequence {_SEQUENCE_NAME!r} is missing")
@@ -227,8 +276,9 @@ def _validate_partitioned_runtime_objects(connection: Connection) -> None:
             f"partitioned raw parent indexes are missing: {missing_raw_indexes}"
         )
 
+    dedupe_parent_indexes = _index_names(connection, "raw_event_dedupe")
     missing_dedupe_indexes = sorted(
-        _DEDUPE_PARENT_INDEX_NAMES - _index_names(connection, "raw_event_dedupe")
+        _DEDUPE_REQUIRED_PARENT_INDEX_NAMES - dedupe_parent_indexes
     )
     if missing_dedupe_indexes:
         raise RuntimeError(
@@ -244,6 +294,14 @@ def _validate_partitioned_runtime_objects(connection: Connection) -> None:
         raise RuntimeError(
             "partitioned dedupe child set drifted: "
             f"expected {list(expected_children)!r}, found {list(actual_children)!r}"
+        )
+
+    if (
+        _DEDUPE_PRIMARY_INDEX_NAME not in dedupe_parent_indexes
+        and not _compact_dedupe_indexes_healthy(connection, expected_children)
+    ):
+        raise RuntimeError(
+            "partitioned dedupe uniqueness contract is missing or unhealthy"
         )
 
 
