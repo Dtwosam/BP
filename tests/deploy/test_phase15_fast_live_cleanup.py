@@ -75,6 +75,8 @@ def test_fast_live_expired_cleanup_is_fail_closed_and_session_scoped() -> None:
         "SESSION_NETWORK_SUBMISSION_ATTEMPT_COUNT",
         "SESSION_EXECUTION_RESULT_COUNT",
         "SESSION_REAL_ORDER_SUBMITTED=false",
+        "PRIOR_REAL_ORDER_SUBMITTED=false",
+        "CLEANUP_COMPLETED=true",
         "EXECUTOR_GEO_COUNTRY=ZA",
         "EXECUTOR_GEO_BLOCKED=false",
         "EXECUTOR_OPEN_ORDER_COUNT=0",
@@ -326,6 +328,8 @@ def test_fast_live_cleanup_expired_zero_attempt_is_exactly_scoped() -> None:
     )
     assert "ZERO_NETWORK_ATTEMPT_VERIFIED=true" in text
     assert "SESSION_REAL_ORDER_SUBMITTED=false" in text
+    assert "PRIOR_REAL_ORDER_SUBMITTED=false" in text
+    assert "CLEANUP_COMPLETED=true" in text
     assert "current_session_requires_expired_zero_attempt_mode" in text
     assert 'geo.get("blocked") is not False' in text
     assert 'geo.get("country") != "ZA"' in text
