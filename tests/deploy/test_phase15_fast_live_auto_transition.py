@@ -784,7 +784,7 @@ def test_auto_candidate_can_replace_expired_cleaned_zero_attempt_session() -> No
         ("cleanup_real_order_submitted", True),
         ("session_network_submission_attempt_count", 1),
         ("session_execution_result_count", 1),
-        ("session_publication_count", -1),
+        ("session_publication_count", 1),
         ("kill_switch_engaged", False),
         ("historical_state_preserved", False),
         ("session_runtime_files_present", True),
