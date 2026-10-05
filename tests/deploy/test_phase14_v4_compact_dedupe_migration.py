@@ -46,6 +46,10 @@ def test_compact_dedupe_migration_builds_indexes_sequentially_and_concurrently()
         "CREATE UNIQUE INDEX CONCURRENTLY",
         "decode(substring(dedupe_key FROM 8), 'hex')",
         "INDEX_STATEMENT_TIMEOUT_SECONDS = 1200",
+        "INDEX_LOCK_TIMEOUT_SECONDS = 5",
+        "INDEX_LOCK_CLEAR_WAIT_SECONDS = 300",
+        "INDEX_LOCK_CLEAR_CONSECUTIVE_SAMPLES = 3",
+        "INDEX_LOCK_RETRY_ATTEMPTS = 3",
         "DDL_LOCK_TIMEOUT_SECONDS = 5",
         "for table_name, index_name in zip(",
         "strict=True",
@@ -61,6 +65,51 @@ def test_compact_dedupe_migration_builds_indexes_sequentially_and_concurrently()
         "pg_terminate_backend",
     ):
         assert forbidden not in source
+
+
+def test_compact_dedupe_migration_waits_and_retries_transient_index_locks() -> None:
+    source = RUNNER.read_text(encoding="utf-8")
+    for marker in (
+        "_wait_for_index_relation_lock_clear(",
+        "_relation_lock_snapshot(",
+        "'ShareUpdateExclusiveLock'",
+        "'AccessExclusiveLock'",
+        'sqlstate == "55P03"',
+        "_create_compact_index_with_retries(",
+        "_drop_compact_index_with_retries(",
+        "lock-wait-create-",
+        "lock-wait-drop-",
+        "index-attempts-",
+        '"result": "lock_timeout"',
+    ):
+        assert marker in source
+
+
+def test_compact_dedupe_migration_lock_evidence_does_not_emit_query_text() -> None:
+    source = RUNNER.read_text(encoding="utf-8")
+    snapshot_start = source.index("def _relation_lock_snapshot(")
+    snapshot_end = source.index(
+        "def _wait_for_index_relation_lock_clear(",
+        snapshot_start,
+    )
+    snapshot = source[snapshot_start:snapshot_end]
+    assert "activity.query" not in snapshot
+    assert '"query"' not in snapshot
+
+
+def test_compact_dedupe_migration_keeps_pk_drop_lock_budget_fail_fast() -> None:
+    source = RUNNER.read_text(encoding="utf-8")
+    mutation_engine_start = source.index("def _mutation_engine(")
+    create_start = source.index("def _create_compact_index(", mutation_engine_start)
+    mutation_engine = source[mutation_engine_start:create_start]
+    assert "INDEX_LOCK_TIMEOUT_SECONDS" in mutation_engine
+    assert "DDL_LOCK_TIMEOUT_SECONDS" not in mutation_engine
+
+    drop_start = source.index("def _drop_parent_primary_constraint(")
+    drop_end = source.index("def _stop_recorder()", drop_start)
+    drop_constraint = source[drop_start:drop_end]
+    assert "DDL_LOCK_TIMEOUT_SECONDS" in drop_constraint
+    assert "INDEX_LOCK_TIMEOUT_SECONDS" not in drop_constraint
 
 
 def test_compact_dedupe_migration_has_two_clean_windows_before_pk_drop() -> None:
@@ -109,7 +158,7 @@ def test_compact_dedupe_migration_pre_boundary_failure_is_reversible() -> None:
         'if bool(summary["irreversible_boundary_crossed"]):',
         "post-boundary fail-closed: recorder stopped",
         'list(summary["attempted_compact_indexes"])',
-        "_drop_compact_index(cleanup_engine, index_name)",
+        "_drop_compact_index_with_retries(",
         '"recorder_restore"',
         "for timer in reversed(stopped_timers):",
     ):
