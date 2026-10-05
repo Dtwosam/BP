@@ -698,7 +698,6 @@ def _zero_attempt_cleanup_evidence(
         "runtime_expires_at": existing["expires_at"],
         "cleanup_mode": "expired_zero_attempt",
         "cleanup_completed": True,
-        "prior_real_order_submitted": False,
         "zero_network_attempt_verified": True,
         "session_publication_count": 0,
         "session_network_submission_attempt_count": 0,
