@@ -327,6 +327,21 @@ def build_candidate(
                 raise CandidateError(
                     "zero-attempt replacement requires expired authorization"
                 )
+            required_existing_true = (
+                "deployment_performed",
+                "activation_performed",
+                "runtime_authorization_created",
+                "kill_switch_removed",
+            )
+            for name in required_existing_true:
+                if existing_authorization.get(name) is not True:
+                    raise CandidateError(
+                        f"zero-attempt replacement requires activated session: {name}"
+                    )
+            if existing_authorization.get("real_order_submitted") is not False:
+                raise CandidateError(
+                    "zero-attempt replacement requires no real order"
+                )
             cleanup = zero_attempt_cleanup_evidence
             if not isinstance(cleanup, dict):
                 raise CandidateError("zero-attempt cleanup evidence missing")
