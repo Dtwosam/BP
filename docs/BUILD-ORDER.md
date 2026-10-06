@@ -627,13 +627,13 @@ Current order: (1) do not rerun this rollout and preserve its evidence; (2) buil
 
 ## Immediate next action
 
-The superseding active objective is **V4 final-holdout evaluation followed, if appropriate after review, by V4 paper validation**. V3 live trading is closed/fail-closed and is not the next build target.
+The superseding active objective is **V4 one-shot holdout review followed, if appropriate, by a separate V4 paper-validation decision**. V3 live trading is closed/fail-closed and is not the next build target.
 
 1. Preserve the already-frozen V4 Gate B v2 plan and ordinary selection unchanged: 1,662 plan markets; `full_v4_xgboost`; 240-second offset; identity calibration; global `min_edge=0.05`; exact plan SHA-256 `9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557`; selection SHA-256 `895cb70ae0cdbc22f4e3585c77db3ad20f8186d1ee1992a58025d89bb1e2bb1a`; model artifact SHA-256 `6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf`.
-2. Repository-only V4 holdout evaluator/runner engineering is complete on main `d73c980df4807d95425f975af0716b671053868c`; post-merge CI `37444469680` passed. Its local-only `PHASE14_V4_GATE_B_FINAL_HOLDOUT_PREFLIGHT_ONLY=true` mode prints the exact approval token after refreshing exact main, then exits before any `gcloud`, production-host, database, or holdout access.
-3. Final-holdout access is now the next separate **one-shot explicit authorization boundary**. The guarded runner must bind authorization to exact current main plus the frozen plan/selection/model byte hashes and write an exclusive durable attempt marker before any label access.
-4. The holdout evaluator runs the database transaction read-only and produces immutable overall/regime/side probability and economic reports under the frozen policy. A failed/touched attempt may not be silently retried, replaced, or retuned.
-5. After the immutable holdout result is recorded and reviewed, decide separately whether to activate V4 paper trading. Paper activation must remain research-only/zero-money and is not authorized by holdout evaluation itself.
+2. The 288-market final holdout was evaluated exactly once on authorized main `8c5e6018690f8c48dfcdb8280cc81610d0acf235` at `2026-10-06T10:55:38Z`. The guarded runner returned PASS, wrote the durable attempt marker, performed no DB writes/refit/tuning/reselection/promotion/activation, and kept real money at zero. The holdout is now permanently consumed and rerun/replacement is forbidden.
+3. Review the immutable result files under `/var/lib/bp/evidence/phase14-v4-gate-b-final-holdout-20261006T105538Z-8c5e6018690f/` and record overall/regime/side forecast metrics, economics, execution availability, drawdown/losing streak, and the edge frontier. Do not use those results to retune the consumed experiment.
+4. The evaluation emitted a scikit-learn `InconsistentVersionWarning`: the serialized `SimpleImputer` came from 1.9.1 while the evaluation runtime used 1.9.0. Frozen-V4 paper inference must fail closed on that mismatch; repository guard PR #504 merged as `e27fe0a77c6566ce0fe697d725bc251a98621396`. Resolve runtime compatibility before any paper activation.
+5. Only after immutable holdout review and runtime compatibility resolution, decide separately whether to activate V4 paper trading. Paper activation remains unauthorized and must stay research-only/zero-money with live trading disabled.
 6. Keep the V4 feature collector running only as background future observation. The Gate B dataset has already been collected; no additional seven-day collection window is required for this frozen run.
 7. Do not restart or replace the cleaned V3 fast-live session as part of this path. Global `LIVE_TRADING_ENABLED` remains false.
 
