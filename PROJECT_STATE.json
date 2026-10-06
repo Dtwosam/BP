@@ -153,7 +153,8 @@
     "V4 final-holdout evaluator/guarded-runner engineering merged to main as d73c980df4807d95425f975af0716b671053868c; post-merge CI 37444469680 passed, and local-only authorization preflight exits before gcloud/production/database/holdout access while the 288-market final holdout remains untouched",
     "V4 Gate B v2 final holdout evaluated exactly once on authorized main 8c5e6018690f8c48dfcdb8280cc81610d0acf235 at 2026-10-06T10:55:38Z: 288-market holdout touched/consumed, operational runner PASS, durable attempt marker present, DB writes/refit/tuning/reselection/promotion/paper activation/live trading all false, real money zero; result metrics still awaiting review",
     "V4 Gate B v2 final holdout review completed on 6 October 2026: 288 markets, 90.625% forecast accuracy, 84 frozen-policy trades, 77.38% traded accuracy, +11.675646 after assumed costs, profit factor 2.3144; bull and sideways/mixed positive but evaluable bear regime negative (-0.520976, PF 0.8682). Aggregate evidence supports a separate zero-money paper decision only after exact scikit-learn 1.9.1 runtime compatibility; no holdout-driven policy change, activation, live trading, or real money authorized",
-    "V4 paper-runtime compatibility engineering merged to main 50cdb1a2fdf0a1e1f785528cd82a137449611529 with post-merge CI 37458163255 green: future zero-money V4 paper shadow uses an isolated atomically staged venv pinned to scikit-learn 1.9.1, XGBoost 3.4.1, and joblib 1.5.3, validates exact versions before frozen model loading, and requires an explicit main/model/runtime-bound approval before any gcloud or production contact; no production runtime validation, paper activation, live trading, or real money occurred"
+    "V4 paper-runtime compatibility engineering merged to main 50cdb1a2fdf0a1e1f785528cd82a137449611529 with post-merge CI 37458163255 green: future zero-money V4 paper shadow uses an isolated atomically staged venv pinned to scikit-learn 1.9.1, XGBoost 3.4.1, and joblib 1.5.3, validates exact versions before frozen model loading, and requires an explicit main/model/runtime-bound approval before any gcloud or production contact; no production runtime validation, paper activation, live trading, or real money occurred",
+    "First explicitly authorized V4 zero-money paper-shadow attempt on main 8a472b752625477cf26969e776823a620a39c519 reached production runtime staging but failed closed before shadow start with frozen V4 scikit-learn runtime mismatch required=1.9.1 current=1.9.0; no live trading or real money occurred. Runner staging/version validation was corrected and merged as e8d03a4b852449038a55cd428ece52a1d294ae7f with post-merge CI 37460465090 green; fresh authorization is required before any retry"
   ],
   "current_phase": 15,
   "current_phase_name": "controlled live launch — continuous Telegram auto-approved fast-live v2 expired/inactive",
@@ -170,9 +171,9 @@
     "Keep Phase 15/V3 live trading closed. Do not restart or replace the expired/cleaned V3 live session while V4 paper validation is the active objective.",
     "Treat the V4 Gate B v2 final holdout as permanently consumed and fully reviewed. Do not rerun, replace, refit, recalibrate, change min_edge, or add side/regime filters from it.",
     "Preserve the exact frozen V4 policy: full_v4_xgboost at 240 seconds, identity calibration, global min_edge 0.05. Aggregate holdout evidence supports prospective zero-money paper observation, not automatic promotion; the evaluable bear regime remains a known weakness.",
-    "V4 paper-runtime engineering is merged on main 50cdb1a2fdf0a1e1f785528cd82a137449611529 with CI 37458163255 green. The future shadow uses an isolated venv pinned to scikit-learn 1.9.1, XGBoost 3.4.1, and joblib 1.5.3, validates exact versions before model load, and never relies on the shared /opt/bp/.venv.",
-    "Stop at the separate explicit zero-money paper-shadow authorization boundary. Production runtime validation and paper observation have not occurred; the local-only preflight may print the exact main/model/runtime-bound approval token without gcloud or production contact.",
-    "V4 paper activation remains unauthorized. Live trading remains disabled and real money remains zero."
+    "Treat the first V4 paper-shadow authorization bound to main 8a472b752625477cf26969e776823a620a39c519 as consumed. It reached production staging but failed closed before shadow start on required scikit-learn 1.9.1 versus observed 1.9.0. No live trading or real money occurred.",
+    "Use only the corrected runner on main e8d03a4b852449038a55cd428ece52a1d294ae7f (post-merge CI 37460465090 green). It constrains the project install to frozen ML pins, validates module and distribution-metadata versions as bp, uses PYTHONNOUSERSITE=1, and marks an in-place venv ready only after exact-version and frozen-model-load verification.",
+    "Stop at a fresh explicit zero-money paper-shadow authorization boundary. Do not reuse the failed token. Production runtime validation has not yet passed; paper activation remains unauthorized, live trading disabled, and real money zero."
   ],
   "not_completed": [
     "V3 Gate B successor v2 outcome-blind readiness and feature-only plan after the frozen epoch closes; model fitting and final-holdout access remain separate authorization boundaries",
@@ -3721,7 +3722,7 @@
     "live_trading_enabled": false,
     "max_daily_loss_usd": 0,
     "max_trade_size_usd": 0,
-    "next_action": "The V4 zero-money paper/shadow runtime engineering is merged and CI-green, using an isolated runtime pinned to scikit-learn 1.9.1, XGBoost 3.4.1, and joblib 1.5.3 with fail-closed exact-version checks before frozen model loading. Production runtime validation and paper observation have not been performed. Stop at the separate explicit zero-money paper-shadow authorization boundary; do not activate paper, change the frozen full_v4_xgboost/240s/identity/min_edge=0.05 policy, enable live trading, or use real money without fresh authorization.",
+    "next_action": "The first explicitly authorized zero-money V4 paper-shadow attempt on main 8a472b752625477cf26969e776823a620a39c519 reached remote runtime staging but failed closed before shadow start because the model loader observed scikit-learn 1.9.0 instead of required 1.9.1. Treat that authorization as consumed. The staging bug is fixed on main e8d03a4b852449038a55cd428ece52a1d294ae7f with CI 37460465090 green. Stop at a fresh explicit main/model/runtime-bound authorization boundary; do not reuse the old token, start paper, change the frozen policy, enable live trading, or use real money without fresh authorization.",
     "offsets_seconds": [
       60,
       120,
@@ -3756,7 +3757,7 @@
       "unknown"
     ],
     "source_design": "docs/superpowers/specs/2026-09-20-phase-14-v4-regime-aware-challenger.md",
-    "status": "GATE_B_V2_FINAL_HOLDOUT_REVIEWED_PAPER_RUNTIME_ENGINEERING_READY_AWAITING_AUTHORIZATION",
+    "status": "GATE_B_V2_FINAL_HOLDOUT_REVIEWED_PAPER_RUNTIME_FIXED_AWAITING_FRESH_AUTHORIZATION",
     "successor_scope": "COMPREHENSIVE_V3_WEAKNESS_REMEDIATION",
     "training_performed": true,
     "v3_final_holdout_tuning_allowed": false,
@@ -4136,7 +4137,7 @@
       "sklearn_version_mismatch_observed": true,
       "artifact_sklearn_version": "1.9.1",
       "evaluation_runtime_sklearn_version": "1.9.0",
-      "paper_runtime_version_guard_main": "50cdb1a2fdf0a1e1f785528cd82a137449611529",
+      "paper_runtime_version_guard_main": "e8d03a4b852449038a55cd428ece52a1d294ae7f",
       "model_refit_performed": false,
       "threshold_tuning_performed": false,
       "policy_reselection_performed": false,
@@ -4171,7 +4172,7 @@
       "required_paper_sklearn_version": "1.9.1",
       "observed_production_sklearn_version": "1.9.0",
       "paper_runtime_compatible": false,
-      "paper_runtime_blocker": "production_runtime_not_yet_validated",
+      "paper_runtime_blocker": "fresh_authorized_production_runtime_validation_required_after_staging_fix",
       "paper_runtime_engineering_ready": true,
       "production_runtime_validation_performed": false
     },
@@ -4196,13 +4197,13 @@
       "live_trading_enabled": false,
       "real_money_usd": 0,
       "paper_runtime_engineering_ready": true,
-      "paper_runtime_repository_main": "50cdb1a2fdf0a1e1f785528cd82a137449611529",
+      "paper_runtime_repository_main": "e8d03a4b852449038a55cd428ece52a1d294ae7f",
       "production_runtime_validation_performed": false
     },
     "paper_runtime": {
-      "status": "REPOSITORY_ENGINEERING_MERGED_CI_GREEN_AWAITING_EXPLICIT_ZERO_MONEY_PAPER_AUTHORIZATION",
-      "repository_main": "50cdb1a2fdf0a1e1f785528cd82a137449611529",
-      "post_merge_ci_run": 37458163255,
+      "status": "FAILED_AUTHORIZED_STAGE_FIXED_AWAITING_FRESH_EXPLICIT_ZERO_MONEY_PAPER_AUTHORIZATION",
+      "repository_main": "e8d03a4b852449038a55cd428ece52a1d294ae7f",
+      "post_merge_ci_run": 37460465090,
       "post_merge_ci_passed": true,
       "runner": "scripts/deploy/phase14_v4_fresh_book_shadow_run_cloudshell.sh",
       "runtime_requirements": "deploy/phase14-v4-paper-runtime-requirements.txt",
@@ -4212,7 +4213,7 @@
       "required_xgboost_version": "3.4.1",
       "required_joblib_version": "1.5.3",
       "exact_version_validation_before_model_load": true,
-      "atomic_venv_staging": true,
+      "atomic_venv_staging": false,
       "preflight_only_supported": true,
       "preflight_env": "PHASE14_V4_FRESH_BOOK_SHADOW_PREFLIGHT_ONLY=true",
       "approval_env": "PHASE14_V4_FRESH_BOOK_SHADOW_APPROVAL",
@@ -4224,7 +4225,21 @@
       "paper_activation_authorized": false,
       "paper_activation_performed": false,
       "live_trading_enabled": false,
-      "real_money_usd": 0
+      "real_money_usd": 0,
+      "in_place_venv_with_cleanup_on_failure": true,
+      "runtime_ready_marker_required": true,
+      "exact_metadata_and_module_version_validation": true,
+      "python_no_user_site": true,
+      "project_install_constrained_to_runtime_pins": true,
+      "production_runtime_validation_attempted": true,
+      "production_runtime_validation_passed": false,
+      "failed_attempt_authorized_main": "8a472b752625477cf26969e776823a620a39c519",
+      "failed_attempt_authorization_consumed": true,
+      "failed_attempt_reached_production": true,
+      "failed_attempt_reached_runtime_staging": true,
+      "failed_attempt_shadow_started": false,
+      "failed_attempt_reason": "frozen_v4_sklearn_runtime_mismatch_required_1.9.1_current_1.9.0",
+      "failed_attempt_runner_status": "FAIL:remote_stage_or_start_failed"
     }
   },
   "phase_15_v3_canary_readiness": {
