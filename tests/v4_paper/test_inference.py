@@ -10,6 +10,7 @@ import pytest
 from sklearn.exceptions import InconsistentVersionWarning
 from sklearn.impute import SimpleImputer
 
+import bp_engine.v4_paper.inference as inference_module
 from bp_engine.v4_paper.inference import (
     FROZEN_V4_CANDIDATE,
     FROZEN_V4_DATASET_SHA256,
@@ -18,6 +19,7 @@ from bp_engine.v4_paper.inference import (
     FROZEN_V4_LEGACY_BOOK_AGE_SECONDS,
     FROZEN_V4_PLAN_SHA256,
     FROZEN_V4_RESEARCH_PLAN_VERSION,
+    FROZEN_V4_SKLEARN_VERSION,
     FrozenV4ModelError,
     load_frozen_v4_bundle,
     predict_frozen_v4_probability,
@@ -77,7 +79,7 @@ def test_load_hashes_before_trusted_deserialization(tmp_path: Path) -> None:
         )
 
 
-def test_load_fails_closed_on_sklearn_version_mismatch(
+def test_load_fails_closed_before_deserialization_on_runtime_mismatch(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -86,14 +88,50 @@ def test_load_fails_closed_on_sklearn_version_mismatch(
     payload = path.read_bytes()
     digest = hashlib.sha256(payload).hexdigest()
 
+    monkeypatch.setattr(
+        inference_module,
+        "package_version",
+        lambda name: "1.9.0" if name == "scikit-learn" else "unexpected",
+    )
+
+    def _unexpected_load(source):
+        raise AssertionError("joblib.load must not run on a mismatched sklearn runtime")
+
+    monkeypatch.setattr(joblib, "load", _unexpected_load)
+
+    with pytest.raises(
+        FrozenV4ModelError,
+        match=r"scikit-learn runtime mismatch: required=1\.9\.1 current=1\.9\.0",
+    ):
+        load_frozen_v4_bundle(
+            path,
+            expected_sha256=digest,
+            expected_size_bytes=len(payload),
+        )
+
+
+def test_load_fails_closed_on_embedded_sklearn_version_warning(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "model.joblib"
+    joblib.dump(_bundle(), path)
+    payload = path.read_bytes()
+    digest = hashlib.sha256(payload).hexdigest()
+
+    monkeypatch.setattr(
+        inference_module,
+        "package_version",
+        lambda name: FROZEN_V4_SKLEARN_VERSION,
+    )
     original_load = joblib.load
 
     def _mismatched_load(source):
         warnings.warn(
             InconsistentVersionWarning(
                 estimator_name="SimpleImputer",
-                current_sklearn_version="1.9.0",
-                original_sklearn_version="1.9.1",
+                current_sklearn_version=FROZEN_V4_SKLEARN_VERSION,
+                original_sklearn_version="1.9.0",
             ),
             stacklevel=2,
         )
@@ -103,7 +141,7 @@ def test_load_fails_closed_on_sklearn_version_mismatch(
 
     with pytest.raises(
         FrozenV4ModelError,
-        match=r"scikit-learn version mismatch: artifact=1\.9\.1 runtime=1\.9\.0",
+        match=r"scikit-learn version mismatch: artifact=1\.9\.0 runtime=1\.9\.1",
     ):
         load_frozen_v4_bundle(
             path,
