@@ -474,7 +474,11 @@ def build_default_recorder_service(settings: object) -> RecorderService:
         refresh_interval_seconds=settings.polymarket_refresh_interval_seconds,
     )
 
-    spot_topics = ["orderbook.50.BTCUSDT", "publicTrade.BTCUSDT"]
+    spot_topics = [
+        "orderbook.50.BTCUSDT",
+        "publicTrade.BTCUSDT",
+        "tickers.BTCUSDT",
+    ]
     linear_topics = [
         "orderbook.50.BTCUSDT",
         "publicTrade.BTCUSDT",
