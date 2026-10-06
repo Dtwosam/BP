@@ -29,9 +29,9 @@ def test_phase15_second_live_canary_is_reconciled_zero_fill() -> None:
     gate = state["phase_15_v3_live_canary"]
     master = state["phase_14_checkpoint"]["master_live_gate"]
 
-    assert state["source_of_truth_version"] == "0.14.186"
-    assert state["current_phase"] == 15
-    assert state["status"] == "PHASE_15_CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_EXPIRED_INACTIVE"
+    assert state["source_of_truth_version"] == "0.14.187"
+    assert state["current_phase"] == 14
+    assert state["status"] == "PHASE_14_V4_ZERO_MONEY_PAPER_SHADOW_STARTED_PENDING_COMPLETION"
     assert all(value == "pass" for value in master.values())
     assert state["phase_14_checkpoint"]["overall_live_gate"] == "pass"
     assert state["phase_14_checkpoint"]["phase15_permitted"] is True

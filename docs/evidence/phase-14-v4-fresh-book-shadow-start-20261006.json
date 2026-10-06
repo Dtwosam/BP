@@ -1,0 +1,67 @@
+{
+  "status": "V4_ZERO_MONEY_FRESH_BOOK_SHADOW_START_PASS",
+  "recorded_at_date": "2026-10-06",
+  "authorized_main": "f5c76576619c35e65fc8a317d47c8a31dd263950",
+  "authorization_sequence": 4,
+  "authorization_consumed": true,
+  "startup_only": true,
+  "completion_pending": true,
+  "runner": "scripts/deploy/phase14_v4_fresh_book_shadow_run_cloudshell.sh",
+  "runner_status": "PHASE14_V4_FRESH_BOOK_SHADOW_RUN=PASS",
+  "archive_sha256": "3335ff84094663561b55584720428772c583911ac85127274433e65e7b0d3c18",
+  "runtime": "/var/lib/bp/runtime/v4-source-time-fresh-book-shadow-f5c76576619c35e65fc8a317d47c8a31dd263950",
+  "run_id": "v4-fresh-book-shadow-20261006T140323Z-f5c76576619c",
+  "unit": "bp-v4-fresh-book-shadow-20261006T140323Z-f5c76576619c.service",
+  "output": "/var/lib/bp/evidence/v4-fresh-book-shadow-20261006T140323Z-f5c76576619c.jsonl",
+  "run_seconds": 86400,
+  "runtime_max_seconds": 86460,
+  "frozen_model": {
+    "source_path": "/var/lib/bp/evidence/phase14-v4-gate-b-final-holdout-20261006T105538Z-8c5e6018690f/v4-gate-b-v2-model-20260930.joblib",
+    "staged_path": "/var/lib/bp/runtime/v4-source-time-fresh-book-shadow-f5c76576619c35e65fc8a317d47c8a31dd263950/frozen-v4-model.joblib",
+    "sha256": "6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf",
+    "size_bytes": 230132,
+    "candidate": "full_v4_xgboost",
+    "offset_seconds": 240,
+    "calibration": "identity",
+    "min_edge": 0.05
+  },
+  "runtime_versions": {
+    "scikit_learn": "1.9.1",
+    "xgboost_distribution": "xgboost-cpu",
+    "xgboost": "3.4.1",
+    "joblib": "1.5.3"
+  },
+  "source_contract": {
+    "feature_version": "v4-source-time-features-v2",
+    "core_source_policy": "require_market_start_and_current_all_venues",
+    "max_btc_source_age_seconds": 2,
+    "max_btc_future_skew_seconds": 1,
+    "max_decision_lag_seconds": 2,
+    "quote_fresh_seconds": 0.25,
+    "target_notional_usd": 5
+  },
+  "safety": {
+    "mode": "research",
+    "fast_live_source_active": false,
+    "fast_live_source_enabled": false,
+    "database_access": "read_only",
+    "database_writes_performed": false,
+    "holdout_labels_read": false,
+    "model_refit_performed": false,
+    "threshold_tuning_performed": false,
+    "order_submission_enabled": false,
+    "order_submission_performed": false,
+    "wallet_material_loaded": false,
+    "live_trading_enabled": false,
+    "real_money_usd": 0
+  },
+  "interpretation": {
+    "production_runtime_validation_passed": true,
+    "frozen_model_validation_passed": true,
+    "shadow_start_record_observed": true,
+    "full_24h_shadow_completed": false,
+    "pnl_or_quality_conclusion_available": false,
+    "do_not_restart_or_reauthorize_while_current_bounded_run_is_active": true,
+    "next_action": "After the bounded run ends, collect and review its immutable output read-only before any further paper/live decision."
+  }
+}
