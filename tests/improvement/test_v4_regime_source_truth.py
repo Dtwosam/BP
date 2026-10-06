@@ -84,7 +84,7 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert v4["max_daily_loss_usd"] == 0
 
     evaluator = v4["final_holdout_evaluator"]
-    assert evaluator["status"] == "FINAL_HOLDOUT_REVIEWED_PAPER_DECISION_READY_RUNTIME_BLOCKED"
+    assert evaluator["status"] == "FINAL_HOLDOUT_REVIEWED_PAPER_SHADOW_STARTED_RUNTIME_COMPATIBLE"
     assert evaluator["guarded_runner"] == (
         "scripts/deploy/phase14_v4_gate_b_final_holdout_cloudshell.sh"
     )
@@ -519,7 +519,7 @@ def test_v4_gate_b_v2_ordinary_selection_is_frozen_and_holdout_untouched() -> No
     selection = v4["gate_b_ordinary_selection"]
 
     assert v4["status"] == (
-        "GATE_B_V2_FINAL_HOLDOUT_REVIEWED_XGBOOST_METADATA_FIX_READY_AWAITING_FOURTH_FRESH_AUTHORIZATION"
+        "V4_ZERO_MONEY_FRESH_BOOK_SHADOW_STARTED_24H_OBSERVATION_PENDING_COMPLETION"
     )
     assert selection["plan_sha256"] == (
         "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557"
