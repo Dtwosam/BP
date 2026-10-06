@@ -8,6 +8,10 @@ ENV_FILE="${PHASE14_V4_FRESH_BOOK_SHADOW_ENV_FILE:-/etc/bp/bp.env}"
 RUN_SECONDS="${PHASE14_V4_FRESH_BOOK_SHADOW_RUN_SECONDS:-86400}"
 EXPECTED_MODEL_SHA256="6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf"
 EXPECTED_MODEL_SIZE_BYTES=230132
+EXPECTED_SKLEARN_VERSION="1.9.1"
+EXPECTED_XGBOOST_VERSION="3.4.1"
+EXPECTED_JOBLIB_VERSION="1.5.3"
+PREFLIGHT_ONLY="${PHASE14_V4_FRESH_BOOK_SHADOW_PREFLIGHT_ONLY:-false}"
 
 fail() {
   printf 'PHASE14_V4_FRESH_BOOK_SHADOW_RUN=FAIL:%s\n' "$1" >&2
@@ -31,6 +35,33 @@ git pull --ff-only origin main >/dev/null || fail "pull_main_failed"
 LOCAL_HEAD="$(git rev-parse HEAD)"
 REMOTE_MAIN="$(git rev-parse origin/main)"
 [[ "$LOCAL_HEAD" == "$REMOTE_MAIN" ]] || fail "main_head_mismatch"
+
+EXPECTED_APPROVAL="I_APPROVE_PHASE14_V4_ZERO_MONEY_PAPER_SHADOW:${LOCAL_HEAD}:${EXPECTED_MODEL_SHA256}:${EXPECTED_SKLEARN_VERSION}:${EXPECTED_XGBOOST_VERSION}:${EXPECTED_JOBLIB_VERSION}"
+case "$PREFLIGHT_ONLY" in
+  true)
+    printf 'PHASE14_V4_FRESH_BOOK_SHADOW_PREFLIGHT=PASS\n'
+    printf 'CANDIDATE_MAIN=%s\n' "$LOCAL_HEAD"
+    printf 'MODEL_SHA256=%s\n' "$EXPECTED_MODEL_SHA256"
+    printf 'SCIKIT_LEARN_VERSION=%s\n' "$EXPECTED_SKLEARN_VERSION"
+    printf 'XGBOOST_VERSION=%s\n' "$EXPECTED_XGBOOST_VERSION"
+    printf 'JOBLIB_VERSION=%s\n' "$EXPECTED_JOBLIB_VERSION"
+    printf 'EXPECTED_APPROVAL=%s\n' "$EXPECTED_APPROVAL"
+    printf 'PRODUCTION_HOST_CONTACTED=false\n'
+    printf 'PRODUCTION_MUTATION_PERFORMED=false\n'
+    printf 'PAPER_ACTIVATION_PERFORMED=false\n'
+    printf 'LIVE_TRADING_ENABLED=false\n'
+    printf 'REAL_MONEY_USD=0\n'
+    exit 0
+    ;;
+  false)
+    ;;
+  *)
+    fail "preflight_only_invalid"
+    ;;
+esac
+
+[[ "${PHASE14_V4_FRESH_BOOK_SHADOW_APPROVAL:-}" == "$EXPECTED_APPROVAL" ]] ||
+  fail "explicit_zero_money_paper_shadow_approval_missing_or_mismatched"
 
 command -v gcloud >/dev/null 2>&1 || fail "gcloud_missing"
 gcloud auth list --filter=status:ACTIVE --format='value(account)' | grep -q . ||
@@ -62,7 +93,7 @@ gcloud compute ssh "$VM" \
   --project="$PROJECT" \
   --zone="$ZONE" \
   --quiet \
-  --command="sudo bash -s -- '$REMOTE_ARCHIVE' '$LOCAL_HEAD' '$ARCHIVE_SHA' '$ENV_FILE' '$RUN_SECONDS' '$EXPECTED_MODEL_SHA256' '$EXPECTED_MODEL_SIZE_BYTES'" <<'REMOTE'
+  --command="sudo bash -s -- '$REMOTE_ARCHIVE' '$LOCAL_HEAD' '$ARCHIVE_SHA' '$ENV_FILE' '$RUN_SECONDS' '$EXPECTED_MODEL_SHA256' '$EXPECTED_MODEL_SIZE_BYTES' '$EXPECTED_SKLEARN_VERSION' '$EXPECTED_XGBOOST_VERSION' '$EXPECTED_JOBLIB_VERSION'" <<'REMOTE'
 set -Eeuo pipefail
 
 archive="$1"
@@ -72,6 +103,9 @@ env_file="$4"
 run_seconds="$5"
 expected_model_sha="$6"
 expected_model_size="$7"
+expected_sklearn_version="$8"
+expected_xgboost_version="$9"
+expected_joblib_version="${10}"
 runtime_max_seconds=$((run_seconds + 60))
 
 fail() {
@@ -88,6 +122,8 @@ RUNTIME_ROOT=/var/lib/bp/runtime
 EVIDENCE_ROOT=/var/lib/bp/evidence
 release="$RUNTIME_ROOT/v4-source-time-fresh-book-shadow-$head"
 model_target="$release/frozen-v4-model.joblib"
+runtime_requirements="$release/deploy/phase14-v4-paper-runtime-requirements.txt"
+venv="$RUNTIME_ROOT/v4-paper-venv-$head"
 stage_tmp=""
 unit=""
 
@@ -150,12 +186,15 @@ find_frozen_model() {
 [[ "$expected_model_sha" =~ ^[0-9a-f]{64}$ ]] ||
   fail "expected_model_sha_invalid"
 [[ "$expected_model_size" =~ ^[0-9]+$ ]] || fail "expected_model_size_invalid"
+[[ "$expected_sklearn_version" == "1.9.1" ]] || fail "expected_sklearn_version_invalid"
+[[ "$expected_xgboost_version" == "3.4.1" ]] || fail "expected_xgboost_version_invalid"
+[[ "$expected_joblib_version" == "1.5.3" ]] || fail "expected_joblib_version_invalid"
 [[ "$run_seconds" =~ ^[0-9]+$ ]] || fail "run_seconds_invalid"
 (( run_seconds >= 300 && run_seconds <= 86400 )) ||
   fail "run_seconds_out_of_authorized_range"
 [[ "$env_file" == /* ]] || fail "env_file_not_absolute"
 [[ -r "$archive" ]] || fail "archive_missing"
-[[ -x "$REPO/.venv/bin/python" ]] || fail "production_python_missing"
+command -v python3 >/dev/null 2>&1 || fail "python3_missing"
 
 actual_archive_sha="$(sha256sum "$archive" | awk '{print $1}')"
 [[ "$actual_archive_sha" == "$expected_archive_sha" ]] ||
@@ -223,6 +262,40 @@ fi
 [[ "$(sha256sum "$model_target" | awk '{print $1}')" == "$expected_model_sha" ]] ||
   fail "staged_model_sha_mismatch"
 
+[[ -r "$runtime_requirements" ]] || fail "paper_runtime_requirements_missing"
+grep -Fxq "scikit-learn==$expected_sklearn_version" "$runtime_requirements" ||
+  fail "paper_runtime_sklearn_pin_missing"
+grep -Fxq "xgboost-cpu==$expected_xgboost_version" "$runtime_requirements" ||
+  fail "paper_runtime_xgboost_pin_missing"
+grep -Fxq "joblib==$expected_joblib_version" "$runtime_requirements" ||
+  fail "paper_runtime_joblib_pin_missing"
+
+if [[ ! -x "$venv/bin/python" ]]; then
+  rm -rf "$venv"
+  python3 -m venv "$venv" || fail "paper_runtime_venv_create_failed"
+  "$venv/bin/pip" install --disable-pip-version-check --no-input     -r "$runtime_requirements" || fail "paper_runtime_ml_install_failed"
+  "$venv/bin/pip" install --disable-pip-version-check --no-input     "$release" || fail "paper_runtime_project_install_failed"
+fi
+"$venv/bin/pip" check >/dev/null || fail "paper_runtime_pip_check_failed"
+"$venv/bin/python" - "$expected_sklearn_version" "$expected_xgboost_version" "$expected_joblib_version" <<'PY'
+from importlib.metadata import version
+import sys
+
+expected_sklearn, expected_xgboost, expected_joblib = sys.argv[1:4]
+actual = {
+    "scikit-learn": version("scikit-learn"),
+    "xgboost": version("xgboost"),
+    "joblib": version("joblib"),
+}
+expected = {
+    "scikit-learn": expected_sklearn,
+    "xgboost": expected_xgboost,
+    "joblib": expected_joblib,
+}
+if actual != expected:
+    raise SystemExit(f"paper runtime version mismatch: expected={expected} actual={actual}")
+PY
+
 runuser -u bp -- test -r "$release/scripts/run_v4_fresh_book_shadow.py"
 runuser -u bp -- test -r "$release/src/bp_engine/v4_paper/inference.py"
 runuser -u bp -- test -r "$release/src/bp_engine/v4_paper/source_time_features.py"
@@ -237,7 +310,7 @@ runuser -u bp -- env \
   MAX_DAILY_LOSS_USD=0 \
   PYTHONDONTWRITEBYTECODE=1 \
   PYTHONPATH="$release/src" \
-  "$REPO/.venv/bin/python" - <<PY
+  "$venv/bin/python" - <<PY
 from bp_engine.v4_paper.inference import (
     FROZEN_V4_MODEL_SHA256,
     load_frozen_v4_bundle,
@@ -282,7 +355,7 @@ systemd-run \
   --setenv=MAX_DAILY_LOSS_USD=0 \
   --setenv=PYTHONDONTWRITEBYTECODE=1 \
   --setenv="PYTHONPATH=$release/src" \
-  "$REPO/.venv/bin/python" \
+  "$venv/bin/python" \
   "$release/scripts/run_v4_fresh_book_shadow.py" \
   --model-path "$model_target" \
   --env-file "$env_file" \
@@ -351,6 +424,10 @@ printf 'SOURCE_MODEL_PATH=%s\n' "$source_model"
 printf 'STAGED_MODEL_PATH=%s\n' "$model_target"
 printf 'MODEL_SHA256=%s\n' "$expected_model_sha"
 printf 'MODEL_SIZE_BYTES=%s\n' "$expected_model_size"
+printf 'PAPER_RUNTIME=%s\n' "$venv"
+printf 'SCIKIT_LEARN_VERSION=%s\n' "$expected_sklearn_version"
+printf 'XGBOOST_VERSION=%s\n' "$expected_xgboost_version"
+printf 'JOBLIB_VERSION=%s\n' "$expected_joblib_version"
 printf 'SOURCE_FEATURE_VERSION=v4-source-time-features-v2\n'
 printf 'CORE_SOURCE_POLICY=require_market_start_and_current_all_venues\n'
 printf 'MAX_BTC_SOURCE_AGE_SECONDS=2.0\n'
