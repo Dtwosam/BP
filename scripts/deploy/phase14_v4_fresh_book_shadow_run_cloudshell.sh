@@ -125,6 +125,7 @@ model_target="$release/frozen-v4-model.joblib"
 runtime_requirements="$release/deploy/phase14-v4-paper-runtime-requirements.txt"
 venv="$RUNTIME_ROOT/v4-paper-venv-$head"
 stage_tmp=""
+venv_tmp=""
 unit=""
 
 cleanup_remote() {
@@ -136,6 +137,7 @@ cleanup_remote() {
   fi
   rm -f "$archive"
   [[ -n "$stage_tmp" ]] && rm -rf "$stage_tmp"
+  [[ -n "$venv_tmp" ]] && rm -rf "$venv_tmp"
   exit "$rc"
 }
 trap cleanup_remote EXIT
@@ -270,11 +272,17 @@ grep -Fxq "xgboost-cpu==$expected_xgboost_version" "$runtime_requirements" ||
 grep -Fxq "joblib==$expected_joblib_version" "$runtime_requirements" ||
   fail "paper_runtime_joblib_pin_missing"
 
-if [[ ! -x "$venv/bin/python" ]]; then
-  rm -rf "$venv"
-  python3 -m venv "$venv" || fail "paper_runtime_venv_create_failed"
-  "$venv/bin/pip" install --disable-pip-version-check --no-input     -r "$runtime_requirements" || fail "paper_runtime_ml_install_failed"
-  "$venv/bin/pip" install --disable-pip-version-check --no-input     "$release" || fail "paper_runtime_project_install_failed"
+if [[ -e "$venv" ]]; then
+  [[ -d "$venv" && ! -L "$venv" && -x "$venv/bin/python" ]] ||
+    fail "existing_paper_runtime_invalid"
+else
+  venv_tmp="$(mktemp -d "$RUNTIME_ROOT/.v4-paper-venv-$head.XXXXXX")"
+  python3 -m venv "$venv_tmp" || fail "paper_runtime_venv_create_failed"
+  "$venv_tmp/bin/pip" install --disable-pip-version-check --no-input     -r "$runtime_requirements" || fail "paper_runtime_ml_install_failed"
+  "$venv_tmp/bin/pip" install --disable-pip-version-check --no-input     "$release" || fail "paper_runtime_project_install_failed"
+  "$venv_tmp/bin/pip" check >/dev/null || fail "paper_runtime_pip_check_failed"
+  mv "$venv_tmp" "$venv"
+  venv_tmp=""
 fi
 "$venv/bin/pip" check >/dev/null || fail "paper_runtime_pip_check_failed"
 "$venv/bin/python" - "$expected_sklearn_version" "$expected_xgboost_version" "$expected_joblib_version" <<'PY'
