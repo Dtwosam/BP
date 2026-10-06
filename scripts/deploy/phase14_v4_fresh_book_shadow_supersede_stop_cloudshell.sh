@@ -154,11 +154,28 @@ from pathlib import Path
 
 path = Path(sys.argv[1])
 expected_model_sha = sys.argv[2]
-records = [
-    json.loads(line)
-    for line in path.read_text(encoding="utf-8").splitlines()
-    if line.strip()
-]
+records = []
+ignored_non_json_lines = 0
+for line_number, raw in enumerate(
+    path.read_text(encoding="utf-8").splitlines(),
+    start=1,
+):
+    stripped = raw.strip()
+    if not stripped:
+        continue
+    if not stripped.startswith("{"):
+        ignored_non_json_lines += 1
+        continue
+    try:
+        parsed = json.loads(stripped)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"malformed JSON evidence at line {line_number}: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise SystemExit(f"non-object JSON evidence at line {line_number}")
+    records.append(parsed)
+
+if not records:
+    raise SystemExit("old shadow evidence contains no JSON event records")
 starts = [row for row in records if row.get("event") == "v4_fresh_book_shadow_started"]
 if len(starts) != 1:
     raise SystemExit(f"expected one old start event, got {len(starts)}")
@@ -190,6 +207,7 @@ paper_trades = sum(
 )
 if source_ineligible <= 0:
     raise SystemExit("old shadow has no source-ineligible evidence")
+print(f"OLD_EVIDENCE_NON_JSON_LINE_COUNT={ignored_non_json_lines}")
 print(f"OLD_SOURCE_INELIGIBLE_COUNT={source_ineligible}")
 print(f"OLD_PREDICTION_COUNT={predictions}")
 print(f"OLD_EVALUATED_COUNT={evaluated}")
