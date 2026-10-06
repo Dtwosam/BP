@@ -19,6 +19,8 @@ EXPECTED_DECISION_LAG_SECONDS = Decimal("2.0")
 EXPECTED_QUOTE_FRESH_SECONDS = Decimal("0.25")
 EXPECTED_TARGET_NOTIONAL_USD = Decimal("5.00")
 EXPECTED_MIN_EDGE = Decimal("0.05")
+EXPECTED_SOURCE_RETRY_POLICY = "retry_core_source_ineligible_within_max_decision_lag"
+EXPECTED_SOURCE_RECEIVED_CUTOFF = "received_at_lte_decision_at"
 
 
 class V4FreshBookShadowCloseoutError(RuntimeError):
@@ -295,6 +297,18 @@ def verify_closeout(
             completed.get("source_retry_pending_count"),
             "source_retry_pending_count",
         )
+        _require(started, "source_retry_policy", EXPECTED_SOURCE_RETRY_POLICY)
+        _require(
+            started,
+            "source_received_cutoff",
+            EXPECTED_SOURCE_RECEIVED_CUTOFF,
+        )
+        _require(completed, "source_retry_policy", EXPECTED_SOURCE_RETRY_POLICY)
+        _require(
+            completed,
+            "source_received_cutoff",
+            EXPECTED_SOURCE_RECEIVED_CUTOFF,
+        )
         if retry_pending != 0:
             raise V4FreshBookShadowCloseoutError(
                 "source-retry pending count must be zero at completion"
@@ -360,6 +374,12 @@ def verify_closeout(
         "source_retry_recovered_count": retry_recovered,
         "source_retry_exhausted_count": retry_exhausted,
         "source_retry_pending_count": retry_pending,
+        "source_retry_policy": (
+            EXPECTED_SOURCE_RETRY_POLICY if retry_accounting_present else None
+        ),
+        "source_received_cutoff": (
+            EXPECTED_SOURCE_RECEIVED_CUTOFF if retry_accounting_present else None
+        ),
         "database_read_only": True,
         "database_writes_performed": False,
         "order_submission_performed": False,
