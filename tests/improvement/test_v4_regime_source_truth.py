@@ -146,6 +146,34 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert evaluator["live_trading_enabled"] is False
     assert evaluator["real_money_usd"] == 0
 
+    paper_runtime = v4["paper_runtime"]
+    assert paper_runtime["status"] == (
+        "REPOSITORY_ENGINEERING_MERGED_CI_GREEN_AWAITING_EXPLICIT_ZERO_MONEY_PAPER_AUTHORIZATION"
+    )
+    assert paper_runtime["repository_main"] == (
+        "50cdb1a2fdf0a1e1f785528cd82a137449611529"
+    )
+    assert paper_runtime["post_merge_ci_run"] == 37458163255
+    assert paper_runtime["post_merge_ci_passed"] is True
+    assert paper_runtime["runtime_requirements"] == (
+        "deploy/phase14-v4-paper-runtime-requirements.txt"
+    )
+    assert paper_runtime["uses_shared_production_venv"] is False
+    assert paper_runtime["required_sklearn_version"] == "1.9.1"
+    assert paper_runtime["required_xgboost_version"] == "3.4.1"
+    assert paper_runtime["required_joblib_version"] == "1.5.3"
+    assert paper_runtime["exact_version_validation_before_model_load"] is True
+    assert paper_runtime["atomic_venv_staging"] is True
+    assert paper_runtime["preflight_only_supported"] is True
+    assert paper_runtime["preflight_contacts_production"] is False
+    assert paper_runtime["preflight_mutates_production"] is False
+    assert paper_runtime["production_runtime_validation_performed"] is False
+    assert paper_runtime["paper_shadow_started"] is False
+    assert paper_runtime["paper_activation_authorized"] is False
+    assert paper_runtime["paper_activation_performed"] is False
+    assert paper_runtime["live_trading_enabled"] is False
+    assert paper_runtime["real_money_usd"] == 0
+
 
 def test_consumed_v3_holdout_is_durable_motivation_not_v4_tuning_data() -> None:
     evidence = json.loads(_text(V3_HOLDOUT_EVIDENCE))
@@ -403,7 +431,7 @@ def test_v4_gate_b_v2_ordinary_selection_is_frozen_and_holdout_untouched() -> No
     selection = v4["gate_b_ordinary_selection"]
 
     assert v4["status"] == (
-        "GATE_B_V2_FINAL_HOLDOUT_REVIEWED_PAPER_DECISION_READY_RUNTIME_BLOCKED"
+        "GATE_B_V2_FINAL_HOLDOUT_REVIEWED_PAPER_RUNTIME_ENGINEERING_READY_AWAITING_AUTHORIZATION"
     )
     assert selection["plan_sha256"] == (
         "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557"

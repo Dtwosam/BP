@@ -152,7 +152,8 @@
     "Phase 15 expired zero-attempt fast-live cleanup passed on 5 October 2026 from main d0b1412023849ede8054beb9650d713037573730 using helper blob 0046d6a3636bcd3ffb917813cfc29de38404ee74 for authorization phase15-v3-fast-live-auto-continuous-v2-12h-9824a0b1-20261001T201044Z: zero publications/attempts/results and zero real orders were reconfirmed, the Johannesburg kill switch remained engaged, session Pub/Sub/runtime material was removed and verified absent, historical state was preserved, and the one-shot cleanup authorization is consumed; evidence is docs/evidence/phase15-v3-fast-live-expired-zero-attempt-cleanup-20261005.json",
     "V4 final-holdout evaluator/guarded-runner engineering merged to main as d73c980df4807d95425f975af0716b671053868c; post-merge CI 37444469680 passed, and local-only authorization preflight exits before gcloud/production/database/holdout access while the 288-market final holdout remains untouched",
     "V4 Gate B v2 final holdout evaluated exactly once on authorized main 8c5e6018690f8c48dfcdb8280cc81610d0acf235 at 2026-10-06T10:55:38Z: 288-market holdout touched/consumed, operational runner PASS, durable attempt marker present, DB writes/refit/tuning/reselection/promotion/paper activation/live trading all false, real money zero; result metrics still awaiting review",
-    "V4 Gate B v2 final holdout review completed on 6 October 2026: 288 markets, 90.625% forecast accuracy, 84 frozen-policy trades, 77.38% traded accuracy, +11.675646 after assumed costs, profit factor 2.3144; bull and sideways/mixed positive but evaluable bear regime negative (-0.520976, PF 0.8682). Aggregate evidence supports a separate zero-money paper decision only after exact scikit-learn 1.9.1 runtime compatibility; no holdout-driven policy change, activation, live trading, or real money authorized"
+    "V4 Gate B v2 final holdout review completed on 6 October 2026: 288 markets, 90.625% forecast accuracy, 84 frozen-policy trades, 77.38% traded accuracy, +11.675646 after assumed costs, profit factor 2.3144; bull and sideways/mixed positive but evaluable bear regime negative (-0.520976, PF 0.8682). Aggregate evidence supports a separate zero-money paper decision only after exact scikit-learn 1.9.1 runtime compatibility; no holdout-driven policy change, activation, live trading, or real money authorized",
+    "V4 paper-runtime compatibility engineering merged to main 50cdb1a2fdf0a1e1f785528cd82a137449611529 with post-merge CI 37458163255 green: future zero-money V4 paper shadow uses an isolated atomically staged venv pinned to scikit-learn 1.9.1, XGBoost 3.4.1, and joblib 1.5.3, validates exact versions before frozen model loading, and requires an explicit main/model/runtime-bound approval before any gcloud or production contact; no production runtime validation, paper activation, live trading, or real money occurred"
   ],
   "current_phase": 15,
   "current_phase_name": "controlled live launch — continuous Telegram auto-approved fast-live v2 expired/inactive",
@@ -167,11 +168,11 @@
   "live_trading_enabled": false,
   "next_actions": [
     "Keep Phase 15/V3 live trading closed. Do not restart or replace the expired/cleaned V3 live session while V4 paper validation is the active objective.",
-    "Treat the V4 Gate B v2 final holdout as permanently consumed and fully reviewed. Its immutable evidence hash is b34f2a2263eb5376687caff42a8249359a0b18abb020cd2a4bd8b5d6c92e849f; do not rerun, replace, refit, recalibrate, or tune from it.",
-    "Preserve the frozen V4 policy exactly as full_v4_xgboost at 240 seconds, identity calibration, min_edge 0.05. The holdout's [0.05,0.075) band was negative, but changing the threshold now would be prohibited holdout tuning.",
-    "The reviewed aggregate holdout supports moving to a separate zero-money V4 paper-observation decision, but uniform regime robustness is not established because the evaluable bear slice was negative after costs. Paper is observation, not promotion.",
-    "Before any V4 paper activation, resolve runtime compatibility: the artifact preprocessing was serialized under scikit-learn 1.9.1 while the production evaluation runtime was 1.9.0. Frozen-V4 loading must require 1.9.1 exactly and fail before deserialization otherwise.",
-    "V4 paper activation remains separately unauthorized. Live trading remains disabled and real money remains zero."
+    "Treat the V4 Gate B v2 final holdout as permanently consumed and fully reviewed. Do not rerun, replace, refit, recalibrate, change min_edge, or add side/regime filters from it.",
+    "Preserve the exact frozen V4 policy: full_v4_xgboost at 240 seconds, identity calibration, global min_edge 0.05. Aggregate holdout evidence supports prospective zero-money paper observation, not automatic promotion; the evaluable bear regime remains a known weakness.",
+    "V4 paper-runtime engineering is merged on main 50cdb1a2fdf0a1e1f785528cd82a137449611529 with CI 37458163255 green. The future shadow uses an isolated venv pinned to scikit-learn 1.9.1, XGBoost 3.4.1, and joblib 1.5.3, validates exact versions before model load, and never relies on the shared /opt/bp/.venv.",
+    "Stop at the separate explicit zero-money paper-shadow authorization boundary. Production runtime validation and paper observation have not occurred; the local-only preflight may print the exact main/model/runtime-bound approval token without gcloud or production contact.",
+    "V4 paper activation remains unauthorized. Live trading remains disabled and real money remains zero."
   ],
   "not_completed": [
     "V3 Gate B successor v2 outcome-blind readiness and feature-only plan after the frozen epoch closes; model fitting and final-holdout access remain separate authorization boundaries",
@@ -3720,7 +3721,7 @@
     "live_trading_enabled": false,
     "max_daily_loss_usd": 0,
     "max_trade_size_usd": 0,
-    "next_action": "Preserve the consumed 288-market V4 final holdout and frozen full_v4_xgboost/240s/identity/min_edge=0.05 policy unchanged. The reviewed holdout supports a separate zero-money V4 paper-observation decision, but paper activation remains unauthorized and blocked until the runtime uses scikit-learn 1.9.1 exactly. Do not raise min_edge from holdout evidence, add side/regime filters, refit, recalibrate, rerun/replace the holdout, enable live trading, or use real money.",
+    "next_action": "The V4 zero-money paper/shadow runtime engineering is merged and CI-green, using an isolated runtime pinned to scikit-learn 1.9.1, XGBoost 3.4.1, and joblib 1.5.3 with fail-closed exact-version checks before frozen model loading. Production runtime validation and paper observation have not been performed. Stop at the separate explicit zero-money paper-shadow authorization boundary; do not activate paper, change the frozen full_v4_xgboost/240s/identity/min_edge=0.05 policy, enable live trading, or use real money without fresh authorization.",
     "offsets_seconds": [
       60,
       120,
@@ -3755,7 +3756,7 @@
       "unknown"
     ],
     "source_design": "docs/superpowers/specs/2026-09-20-phase-14-v4-regime-aware-challenger.md",
-    "status": "GATE_B_V2_FINAL_HOLDOUT_REVIEWED_PAPER_DECISION_READY_RUNTIME_BLOCKED",
+    "status": "GATE_B_V2_FINAL_HOLDOUT_REVIEWED_PAPER_RUNTIME_ENGINEERING_READY_AWAITING_AUTHORIZATION",
     "successor_scope": "COMPREHENSIVE_V3_WEAKNESS_REMEDIATION",
     "training_performed": true,
     "v3_final_holdout_tuning_allowed": false,
@@ -4135,7 +4136,7 @@
       "sklearn_version_mismatch_observed": true,
       "artifact_sklearn_version": "1.9.1",
       "evaluation_runtime_sklearn_version": "1.9.0",
-      "paper_runtime_version_guard_main": "e27fe0a77c6566ce0fe697d725bc251a98621396",
+      "paper_runtime_version_guard_main": "50cdb1a2fdf0a1e1f785528cd82a137449611529",
       "model_refit_performed": false,
       "threshold_tuning_performed": false,
       "policy_reselection_performed": false,
@@ -4170,7 +4171,9 @@
       "required_paper_sklearn_version": "1.9.1",
       "observed_production_sklearn_version": "1.9.0",
       "paper_runtime_compatible": false,
-      "paper_runtime_blocker": "scikit_learn_runtime_mismatch"
+      "paper_runtime_blocker": "production_runtime_not_yet_validated",
+      "paper_runtime_engineering_ready": true,
+      "production_runtime_validation_performed": false
     },
     "final_holdout_review": {
       "status": "REVIEWED",
@@ -4190,6 +4193,36 @@
       "runtime_compatibility_blocked": true,
       "required_sklearn_version": "1.9.1",
       "paper_activation_authorized": false,
+      "live_trading_enabled": false,
+      "real_money_usd": 0,
+      "paper_runtime_engineering_ready": true,
+      "paper_runtime_repository_main": "50cdb1a2fdf0a1e1f785528cd82a137449611529",
+      "production_runtime_validation_performed": false
+    },
+    "paper_runtime": {
+      "status": "REPOSITORY_ENGINEERING_MERGED_CI_GREEN_AWAITING_EXPLICIT_ZERO_MONEY_PAPER_AUTHORIZATION",
+      "repository_main": "50cdb1a2fdf0a1e1f785528cd82a137449611529",
+      "post_merge_ci_run": 37458163255,
+      "post_merge_ci_passed": true,
+      "runner": "scripts/deploy/phase14_v4_fresh_book_shadow_run_cloudshell.sh",
+      "runtime_requirements": "deploy/phase14-v4-paper-runtime-requirements.txt",
+      "isolated_venv_pattern": "/var/lib/bp/runtime/v4-paper-venv-<main>",
+      "uses_shared_production_venv": false,
+      "required_sklearn_version": "1.9.1",
+      "required_xgboost_version": "3.4.1",
+      "required_joblib_version": "1.5.3",
+      "exact_version_validation_before_model_load": true,
+      "atomic_venv_staging": true,
+      "preflight_only_supported": true,
+      "preflight_env": "PHASE14_V4_FRESH_BOOK_SHADOW_PREFLIGHT_ONLY=true",
+      "approval_env": "PHASE14_V4_FRESH_BOOK_SHADOW_APPROVAL",
+      "approval_prefix": "I_APPROVE_PHASE14_V4_ZERO_MONEY_PAPER_SHADOW",
+      "preflight_contacts_production": false,
+      "preflight_mutates_production": false,
+      "production_runtime_validation_performed": false,
+      "paper_shadow_started": false,
+      "paper_activation_authorized": false,
+      "paper_activation_performed": false,
       "live_trading_enabled": false,
       "real_money_usd": 0
     }
