@@ -256,6 +256,62 @@ def verify_closeout(
         completed.get("source_ineligible_count"),
         "source_ineligible_count",
     )
+
+    retry_fields = (
+        "source_retry_deferral_count",
+        "source_retry_recovered_count",
+        "source_retry_exhausted_count",
+        "source_retry_pending_count",
+    )
+    retry_field_presence = tuple(name in completed for name in retry_fields)
+    retry_accounting_present = any(retry_field_presence)
+    retry_deferrals: int | None = None
+    retry_recovered: int | None = None
+    retry_exhausted: int | None = None
+    retry_pending: int | None = None
+    if retry_accounting_present:
+        if not all(retry_field_presence):
+            missing = [
+                name
+                for name, present in zip(retry_fields, retry_field_presence, strict=True)
+                if not present
+            ]
+            raise V4FreshBookShadowCloseoutError(
+                "partial source-retry accounting: missing=" + ",".join(missing)
+            )
+        retry_deferrals = _integer(
+            completed.get("source_retry_deferral_count"),
+            "source_retry_deferral_count",
+        )
+        retry_recovered = _integer(
+            completed.get("source_retry_recovered_count"),
+            "source_retry_recovered_count",
+        )
+        retry_exhausted = _integer(
+            completed.get("source_retry_exhausted_count"),
+            "source_retry_exhausted_count",
+        )
+        retry_pending = _integer(
+            completed.get("source_retry_pending_count"),
+            "source_retry_pending_count",
+        )
+        if retry_pending != 0:
+            raise V4FreshBookShadowCloseoutError(
+                "source-retry pending count must be zero at completion"
+            )
+        if retry_recovered + retry_exhausted > retry_deferrals:
+            raise V4FreshBookShadowCloseoutError(
+                "source-retry terminal accounting exceeds deferrals"
+            )
+        if retry_recovered > predictions:
+            raise V4FreshBookShadowCloseoutError(
+                "source-retry recovered count exceeds predictions"
+            )
+        if retry_exhausted > source_ineligible:
+            raise V4FreshBookShadowCloseoutError(
+                "source-retry exhausted count exceeds source-ineligible count"
+            )
+
     extreme_evaluated = _integer(
         completed.get("extreme_edge_evaluated_count"),
         "extreme_edge_evaluated_count",
@@ -299,6 +355,11 @@ def verify_closeout(
         "quote_unavailable_count": quote_unavailable,
         "decision_missed_count": decision_missed,
         "source_ineligible_count": source_ineligible,
+        "source_retry_accounting_present": retry_accounting_present,
+        "source_retry_deferral_count": retry_deferrals,
+        "source_retry_recovered_count": retry_recovered,
+        "source_retry_exhausted_count": retry_exhausted,
+        "source_retry_pending_count": retry_pending,
         "database_read_only": True,
         "database_writes_performed": False,
         "order_submission_performed": False,
