@@ -150,7 +150,8 @@
     "Phase 14 V3 Gate B successor v2 repository runtime implemented at 659d9524fe8bfeba182b7cf7c8d9b664280f7562 with CI 34841954823; historical manifests are evidence-only, pre-epoch markets are structurally ineligible, and no readiness, planning, training, or final-holdout access was performed",
     "Phase 14 V4 compact-dedupe production migration completed successfully on 5 October 2026 using helper 4730d297473b2cd99a52102554bb58f6f23addb8 against deployed runtime a694c2299cd34f0b2ee92ded4a4da1643eff0604: all 16 compact digest unique indexes are valid/ready, the legacy parent PK and child primary indexes are absent by design, reconciliation classifies the database COMPACT_COMPLETE, all required services/timers are active, and the migration must not be rerun or the old PK recreated; sanitized evidence is docs/evidence/phase-14-v4-compact-dedupe-production-20261005.json",
     "Phase 15 expired zero-attempt fast-live cleanup passed on 5 October 2026 from main d0b1412023849ede8054beb9650d713037573730 using helper blob 0046d6a3636bcd3ffb917813cfc29de38404ee74 for authorization phase15-v3-fast-live-auto-continuous-v2-12h-9824a0b1-20261001T201044Z: zero publications/attempts/results and zero real orders were reconfirmed, the Johannesburg kill switch remained engaged, session Pub/Sub/runtime material was removed and verified absent, historical state was preserved, and the one-shot cleanup authorization is consumed; evidence is docs/evidence/phase15-v3-fast-live-expired-zero-attempt-cleanup-20261005.json",
-    "V4 final-holdout evaluator/guarded-runner engineering merged to main as d73c980df4807d95425f975af0716b671053868c; post-merge CI 37444469680 passed, and local-only authorization preflight exits before gcloud/production/database/holdout access while the 288-market final holdout remains untouched"
+    "V4 final-holdout evaluator/guarded-runner engineering merged to main as d73c980df4807d95425f975af0716b671053868c; post-merge CI 37444469680 passed, and local-only authorization preflight exits before gcloud/production/database/holdout access while the 288-market final holdout remains untouched",
+    "V4 Gate B v2 final holdout evaluated exactly once on authorized main 8c5e6018690f8c48dfcdb8280cc81610d0acf235 at 2026-10-06T10:55:38Z: 288-market holdout touched/consumed, operational runner PASS, durable attempt marker present, DB writes/refit/tuning/reselection/promotion/paper activation/live trading all false, real money zero; result metrics still awaiting review"
   ],
   "current_phase": 15,
   "current_phase_name": "controlled live launch — continuous Telegram auto-approved fast-live v2 expired/inactive",
@@ -165,10 +166,10 @@
   "live_trading_enabled": false,
   "next_actions": [
     "Keep Phase 15/V3 live trading closed. The October continuous fast-live session is expired, fully cleaned, and its cleanup authorization is consumed; do not generate or activate a replacement V3 live session while the V4 paper-validation track is the active objective.",
-    "V4 Gate B data collection and ordinary selection are complete. The frozen v2 plan contains 1,662 markets and the selected global policy is full_v4_xgboost at 240 seconds, identity calibration, and min_edge 0.05; the reserved 288-market final holdout remains untouched.",
-    "V4 final-holdout evaluator and guarded runner engineering is complete on exact main d73c980df4807d95425f975af0716b671053868c; post-merge CI 37444469680 passed. The local-only preflight prints the exact main/plan/selection/model-bound approval token and exits before gcloud, production-host, database, or holdout access.",
-    "The next boundary is a fresh explicit one-shot final-holdout authorization bound to the then-current main plus the frozen plan, selection, and model byte hashes. A durable attempt marker must be written before label access so a failed attempt cannot be silently retried.",
-    "After the one-shot holdout result is durably recorded and reviewed, V4 paper activation is a separate decision/boundary. Paper mode must remain zero real money and must not enable live trading. Continue V4 prospective feature collection only as background future observation; no additional 7-day collection is required for the already-frozen Gate B run."
+    "Treat the V4 Gate B v2 final holdout as permanently consumed. The one-shot evaluation passed operationally on authorized candidate main 8c5e6018690f8c48dfcdb8280cc81610d0acf235, with 288 markets, no DB writes, no refit/tuning/reselection, no activation, and zero real money. Do not rerun or replace the holdout.",
+    "Read and review the immutable holdout.json/summary.json from /var/lib/bp/evidence/phase14-v4-gate-b-final-holdout-20261006T105538Z-8c5e6018690f before any paper decision; source truth currently records result_metrics_reviewed=false.",
+    "Resolve the observed scikit-learn artifact/runtime mismatch (artifact SimpleImputer 1.9.1 loaded under runtime 1.9.0). Frozen-V4 paper inference is being hardened to fail closed on this mismatch; do not activate paper until runtime compatibility is explicit.",
+    "After immutable holdout metrics are reviewed and runtime compatibility is resolved, V4 paper activation remains a separate explicit zero-money decision. Live trading remains disabled."
   ],
   "not_completed": [
     "V3 Gate B successor v2 outcome-blind readiness and feature-only plan after the frozen epoch closes; model fitting and final-holdout access remain separate authorization boundaries",
@@ -3580,7 +3581,7 @@
     "current_collector_change_required": false,
     "dataset_version": "supervised-core-v4-regime-aware-v1",
     "feature_version": "core-v4-regime-aware",
-    "final_holdout_access_performed": false,
+    "final_holdout_access_performed": true,
     "forecast_sources": [
       "coinbase_spot",
       "bybit_spot",
@@ -3717,7 +3718,7 @@
     "live_trading_enabled": false,
     "max_daily_loss_usd": 0,
     "max_trade_size_usd": 0,
-    "next_action": "Run only the local-only V4 final-holdout authorization preflight as needed to obtain the exact approval token, then require a fresh explicit one-shot authorization before any holdout-label access. The 288-market holdout remains untouched. Evaluation does not authorize paper activation, model refit, threshold tuning, policy reselection, automatic promotion, live trading, or real money.",
+    "next_action": "Review the immutable one-shot V4 final-holdout evidence and resolve the observed scikit-learn 1.9.1 artifact versus 1.9.0 runtime mismatch before any V4 paper activation decision. The 288-market holdout is permanently consumed and must not be rerun, replaced, or used for tuning. Paper activation remains separately unauthorized, zero-money, and live trading remains disabled.",
     "offsets_seconds": [
       60,
       120,
@@ -4089,7 +4090,7 @@
       "evidence": "docs/evidence/phase-14-v4-gate-b-v2-ordinary-selection-20260930.json"
     },
     "final_holdout_evaluator": {
-      "status": "REPOSITORY_IMPLEMENTED_MERGED_CI_GREEN_AWAITING_AUTHORIZATION",
+      "status": "FINAL_HOLDOUT_EVALUATED_ONCE_AWAITING_RESULT_REVIEW",
       "command": "python -m bp_engine.v4_research.cli --env-file <env> evaluate-holdout --plan <plan.json> --selection <selection.json> --model <model.joblib> --output <holdout.json>",
       "guarded_runner": "scripts/deploy/phase14_v4_gate_b_final_holdout_cloudshell.sh",
       "frozen_plan_sha256": "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557",
@@ -4099,10 +4100,10 @@
       "frozen_model_artifact_sha256": "6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf",
       "frozen_model_artifact_size_bytes": 230132,
       "final_holdout_market_count": 288,
-      "holdout_labels_read": false,
-      "holdout_evaluated": false,
+      "holdout_labels_read": true,
+      "holdout_evaluated": true,
       "one_shot_authorization_required": true,
-      "one_shot_authorization_granted": false,
+      "one_shot_authorization_granted": true,
       "durable_attempt_marker_required_before_label_read": true,
       "model_refit_allowed": false,
       "threshold_tuning_allowed": false,
@@ -4119,7 +4120,23 @@
       "preflight_env": "PHASE14_V4_GATE_B_FINAL_HOLDOUT_PREFLIGHT_ONLY=true",
       "preflight_contacts_production": false,
       "preflight_accesses_database": false,
-      "preflight_accesses_holdout": false
+      "preflight_accesses_holdout": false,
+      "one_shot_authorization_consumed": true,
+      "authorized_candidate_main": "8c5e6018690f8c48dfcdb8280cc81610d0acf235",
+      "execution_status": "PASS",
+      "evaluated_at": "2026-10-06T10:55:38Z",
+      "attempt_marker": "/var/lib/bp/evidence/v4-gate-b-final-holdout-v2-attempt.json",
+      "evidence_dir": "/var/lib/bp/evidence/phase14-v4-gate-b-final-holdout-20261006T105538Z-8c5e6018690f",
+      "database_writes_performed": false,
+      "result_metrics_reviewed": false,
+      "rerun_allowed": false,
+      "sklearn_version_mismatch_observed": true,
+      "artifact_sklearn_version": "1.9.1",
+      "evaluation_runtime_sklearn_version": "1.9.0",
+      "paper_runtime_version_guard_main": "e27fe0a77c6566ce0fe697d725bc251a98621396",
+      "model_refit_performed": false,
+      "threshold_tuning_performed": false,
+      "policy_reselection_performed": false
     }
   },
   "phase_15_v3_canary_readiness": {
