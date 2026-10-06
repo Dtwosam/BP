@@ -84,10 +84,22 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert v4["max_daily_loss_usd"] == 0
 
     evaluator = v4["final_holdout_evaluator"]
-    assert evaluator["status"] == "REPOSITORY_IMPLEMENTED_NOT_EXECUTED"
+    assert evaluator["status"] == "REPOSITORY_IMPLEMENTED_MERGED_CI_GREEN_AWAITING_AUTHORIZATION"
     assert evaluator["guarded_runner"] == (
         "scripts/deploy/phase14_v4_gate_b_final_holdout_cloudshell.sh"
     )
+    assert evaluator["repository_main"] == (
+        "d73c980df4807d95425f975af0716b671053868c"
+    )
+    assert evaluator["post_merge_ci_run"] == 37444469680
+    assert evaluator["post_merge_ci_passed"] is True
+    assert evaluator["preflight_only_supported"] is True
+    assert evaluator["preflight_env"] == (
+        "PHASE14_V4_GATE_B_FINAL_HOLDOUT_PREFLIGHT_ONLY=true"
+    )
+    assert evaluator["preflight_contacts_production"] is False
+    assert evaluator["preflight_accesses_database"] is False
+    assert evaluator["preflight_accesses_holdout"] is False
     assert evaluator["frozen_plan_sha256"] == (
         "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557"
     )

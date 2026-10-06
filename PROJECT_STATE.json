@@ -149,7 +149,8 @@
     "Phase 14 V2 outcome-label coverage rollout passed in production at 2026-09-11T12:48:01Z using helper/main 17833c64ba7b3836ad4f047167d7d2d861fd2bc0: deployed exact immutable candidate 7c3af78da1922a0e5187c24b799951130cc98887 from 71b33d3beaba4a11ef93e7c5bde1c517323f3440, restarted only bp-prospective-outcomes.service, kept unrelated long-running service PIDs unchanged, returned storage status ok, preserved research/live-disabled/zero-money/automatic-promotion-false safety, performed no holdout or Gate B action, and wrote durable evidence /var/lib/bp/evidence/phase14-v2-outcome-label-rollout-20260911T124801Z.json.",
     "Phase 14 V3 Gate B successor v2 repository runtime implemented at 659d9524fe8bfeba182b7cf7c8d9b664280f7562 with CI 34841954823; historical manifests are evidence-only, pre-epoch markets are structurally ineligible, and no readiness, planning, training, or final-holdout access was performed",
     "Phase 14 V4 compact-dedupe production migration completed successfully on 5 October 2026 using helper 4730d297473b2cd99a52102554bb58f6f23addb8 against deployed runtime a694c2299cd34f0b2ee92ded4a4da1643eff0604: all 16 compact digest unique indexes are valid/ready, the legacy parent PK and child primary indexes are absent by design, reconciliation classifies the database COMPACT_COMPLETE, all required services/timers are active, and the migration must not be rerun or the old PK recreated; sanitized evidence is docs/evidence/phase-14-v4-compact-dedupe-production-20261005.json",
-    "Phase 15 expired zero-attempt fast-live cleanup passed on 5 October 2026 from main d0b1412023849ede8054beb9650d713037573730 using helper blob 0046d6a3636bcd3ffb917813cfc29de38404ee74 for authorization phase15-v3-fast-live-auto-continuous-v2-12h-9824a0b1-20261001T201044Z: zero publications/attempts/results and zero real orders were reconfirmed, the Johannesburg kill switch remained engaged, session Pub/Sub/runtime material was removed and verified absent, historical state was preserved, and the one-shot cleanup authorization is consumed; evidence is docs/evidence/phase15-v3-fast-live-expired-zero-attempt-cleanup-20261005.json"
+    "Phase 15 expired zero-attempt fast-live cleanup passed on 5 October 2026 from main d0b1412023849ede8054beb9650d713037573730 using helper blob 0046d6a3636bcd3ffb917813cfc29de38404ee74 for authorization phase15-v3-fast-live-auto-continuous-v2-12h-9824a0b1-20261001T201044Z: zero publications/attempts/results and zero real orders were reconfirmed, the Johannesburg kill switch remained engaged, session Pub/Sub/runtime material was removed and verified absent, historical state was preserved, and the one-shot cleanup authorization is consumed; evidence is docs/evidence/phase15-v3-fast-live-expired-zero-attempt-cleanup-20261005.json",
+    "V4 final-holdout evaluator/guarded-runner engineering merged to main as d73c980df4807d95425f975af0716b671053868c; post-merge CI 37444469680 passed, and local-only authorization preflight exits before gcloud/production/database/holdout access while the 288-market final holdout remains untouched"
   ],
   "current_phase": 15,
   "current_phase_name": "controlled live launch — continuous Telegram auto-approved fast-live v2 expired/inactive",
@@ -165,8 +166,8 @@
   "next_actions": [
     "Keep Phase 15/V3 live trading closed. The October continuous fast-live session is expired, fully cleaned, and its cleanup authorization is consumed; do not generate or activate a replacement V3 live session while the V4 paper-validation track is the active objective.",
     "V4 Gate B data collection and ordinary selection are complete. The frozen v2 plan contains 1,662 markets and the selected global policy is full_v4_xgboost at 240 seconds, identity calibration, and min_edge 0.05; the reserved 288-market final holdout remains untouched.",
-    "Complete repository validation and merge of the V4 one-shot final-holdout evaluator and guarded Cloud Shell runner. Repository implementation itself must not read holdout labels or mutate production.",
-    "After the evaluator is merged and exact-head CI is green, final-holdout label access/evaluation requires a fresh explicit one-shot authorization bound to the then-current main plus the frozen plan, selection, and model hashes. A durable attempt marker must be written before label access so a failed attempt cannot be silently retried.",
+    "V4 final-holdout evaluator and guarded runner engineering is complete on exact main d73c980df4807d95425f975af0716b671053868c; post-merge CI 37444469680 passed. The local-only preflight prints the exact main/plan/selection/model-bound approval token and exits before gcloud, production-host, database, or holdout access.",
+    "The next boundary is a fresh explicit one-shot final-holdout authorization bound to the then-current main plus the frozen plan, selection, and model byte hashes. A durable attempt marker must be written before label access so a failed attempt cannot be silently retried.",
     "After the one-shot holdout result is durably recorded and reviewed, V4 paper activation is a separate decision/boundary. Paper mode must remain zero real money and must not enable live trading. Continue V4 prospective feature collection only as background future observation; no additional 7-day collection is required for the already-frozen Gate B run."
   ],
   "not_completed": [
@@ -3716,7 +3717,7 @@
     "live_trading_enabled": false,
     "max_daily_loss_usd": 0,
     "max_trade_size_usd": 0,
-    "next_action": "Use the repository-implemented guarded V4 Gate B final-holdout evaluator only after a fresh explicit one-shot authorization bound to the then-current main and the frozen plan/selection/model artifacts. The 288-market holdout remains untouched. Evaluating it does not authorize paper activation, model refit, threshold tuning, policy reselection, automatic promotion, live trading, or real money. If the holdout is evaluated successfully, record the immutable result and review it before a separate V4 paper-activation decision.",
+    "next_action": "Run only the local-only V4 final-holdout authorization preflight as needed to obtain the exact approval token, then require a fresh explicit one-shot authorization before any holdout-label access. The 288-market holdout remains untouched. Evaluation does not authorize paper activation, model refit, threshold tuning, policy reselection, automatic promotion, live trading, or real money.",
     "offsets_seconds": [
       60,
       120,
@@ -4088,7 +4089,7 @@
       "evidence": "docs/evidence/phase-14-v4-gate-b-v2-ordinary-selection-20260930.json"
     },
     "final_holdout_evaluator": {
-      "status": "REPOSITORY_IMPLEMENTED_NOT_EXECUTED",
+      "status": "REPOSITORY_IMPLEMENTED_MERGED_CI_GREEN_AWAITING_AUTHORIZATION",
       "command": "python -m bp_engine.v4_research.cli --env-file <env> evaluate-holdout --plan <plan.json> --selection <selection.json> --model <model.joblib> --output <holdout.json>",
       "guarded_runner": "scripts/deploy/phase14_v4_gate_b_final_holdout_cloudshell.sh",
       "frozen_plan_sha256": "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557",
@@ -4110,7 +4111,15 @@
       "paper_activation_authorized": false,
       "paper_activation_performed": false,
       "live_trading_enabled": false,
-      "real_money_usd": 0
+      "real_money_usd": 0,
+      "repository_main": "d73c980df4807d95425f975af0716b671053868c",
+      "post_merge_ci_run": 37444469680,
+      "post_merge_ci_passed": true,
+      "preflight_only_supported": true,
+      "preflight_env": "PHASE14_V4_GATE_B_FINAL_HOLDOUT_PREFLIGHT_ONLY=true",
+      "preflight_contacts_production": false,
+      "preflight_accesses_database": false,
+      "preflight_accesses_holdout": false
     }
   },
   "phase_15_v3_canary_readiness": {
@@ -6264,7 +6273,7 @@
   "source_of_truth_version": "0.14.186",
   "status": "PHASE_15_CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_EXPIRED_INACTIVE",
   "trading_mode": "RESEARCH",
-  "updated_at": "2026-10-05",
+  "updated_at": "2026-10-06",
   "verified_polymarket_horizons": [
     "5m",
     "15m"
