@@ -54,12 +54,16 @@ fi
 if [[ "$1" == "status" && "$2" == "--porcelain" ]]; then
   exit 0
 fi
+if [[ "$1" == "branch" && "$2" == "--show-current" ]]; then
+  printf 'main\n'
+  exit 0
+fi
 if [[ "$1" == "rev-parse" && ( "$2" == "HEAD" || "$2" == "origin/main" ) ]]; then
   printf '%s\\n' "$FAKE_MAIN_SHA"
   exit 0
 fi
 case "$1" in
-  fetch|switch|pull) exit 0 ;;
+  fetch) exit 0 ;;
 esac
 exit 97
 """,
@@ -115,6 +119,79 @@ exit 99
     )
 
 
+def test_v4_fresh_book_shadow_refuses_stale_local_main_before_gcloud(
+    tmp_path: Path,
+) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+
+    fake_git = fake_bin / "git"
+    fake_git.write_text(
+        """#!/usr/bin/env bash
+set -eu
+if [[ "$1" == "rev-parse" && "$2" == "--show-toplevel" ]]; then
+  printf '%s\\n' "$FAKE_REPO_ROOT"
+  exit 0
+fi
+if [[ "$1" == "status" && "$2" == "--porcelain" ]]; then
+  exit 0
+fi
+if [[ "$1" == "branch" && "$2" == "--show-current" ]]; then
+  printf 'main\\n'
+  exit 0
+fi
+if [[ "$1" == "fetch" ]]; then
+  exit 0
+fi
+if [[ "$1" == "rev-parse" && "$2" == "HEAD" ]]; then
+  printf '%s\\n' "$FAKE_LOCAL_SHA"
+  exit 0
+fi
+if [[ "$1" == "rev-parse" && "$2" == "origin/main" ]]; then
+  printf '%s\\n' "$FAKE_REMOTE_SHA"
+  exit 0
+fi
+exit 97
+""",
+        encoding="utf-8",
+    )
+    fake_git.chmod(0o755)
+
+    gcloud_sentinel = tmp_path / "gcloud-called"
+    fake_gcloud = fake_bin / "gcloud"
+    fake_gcloud.write_text(
+        """#!/usr/bin/env bash
+printf 'called\\n' > "$FAKE_GCLOUD_SENTINEL"
+exit 99
+""",
+        encoding="utf-8",
+    )
+    fake_gcloud.chmod(0o755)
+
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}:{env['PATH']}"
+    env["FAKE_REPO_ROOT"] = str(tmp_path)
+    env["FAKE_LOCAL_SHA"] = "a" * 40
+    env["FAKE_REMOTE_SHA"] = "b" * 40
+    env["FAKE_GCLOUD_SENTINEL"] = str(gcloud_sentinel)
+
+    completed = subprocess.run(
+        ["bash", str(HELPER)],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert completed.returncode != 0
+    assert not gcloud_sentinel.exists()
+    assert "PHASE14_V4_FRESH_BOOK_SHADOW_RUN=FAIL:local_main_stale_update_before_run" in (
+        completed.stderr
+    )
+    assert f"LOCAL_HEAD={'a' * 40}" in completed.stderr
+    assert f"REMOTE_MAIN={'b' * 40}" in completed.stderr
+
+
 def test_v4_fresh_book_shadow_run_helper_is_hash_bound_and_money_disabled() -> None:
     text = HELPER.read_text(encoding="utf-8")
 
@@ -125,6 +202,8 @@ def test_v4_fresh_book_shadow_run_helper_is_hash_bound_and_money_disabled() -> N
         'EXPECTED_XGBOOST_VERSION="3.4.1"',
         'EXPECTED_JOBLIB_VERSION="1.5.3"',
         "I_APPROVE_PHASE14_V4_ZERO_MONEY_PAPER_SHADOW:",
+        "local_branch_not_main",
+        "local_main_stale_update_before_run",
         "PHASE14_V4_FRESH_BOOK_SHADOW_PREFLIGHT=PASS",
         "explicit_zero_money_paper_shadow_approval_missing_or_mismatched",
         "PRODUCTION_HOST_CONTACTED=false",
@@ -205,6 +284,8 @@ def test_v4_fresh_book_shadow_run_helper_is_hash_bound_and_money_disabled() -> N
         "gcloud auth list"
     )
     assert "/opt/bp/.venv/bin/python" not in text
+    assert "git switch main" not in text
+    assert "git pull --ff-only origin main" not in text
     assert 'mv "$venv_tmp" "$venv"' not in text
     assert '"$venv/bin/python" -m pip install' in text
     assert '--constraint "$runtime_requirements" "$release"' in text

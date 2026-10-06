@@ -28,13 +28,19 @@ cd "$ROOT"
 
 [[ -z "$(git status --porcelain --untracked-files=all)" ]] ||
   fail "local_working_tree_dirty"
+
+CURRENT_BRANCH="$(git branch --show-current)"
+[[ "$CURRENT_BRANCH" == "main" ]] || fail "local_branch_not_main"
+
 git fetch origin main --quiet || fail "fetch_main_failed"
-git switch main >/dev/null || fail "switch_main_failed"
-git pull --ff-only origin main >/dev/null || fail "pull_main_failed"
 
 LOCAL_HEAD="$(git rev-parse HEAD)"
 REMOTE_MAIN="$(git rev-parse origin/main)"
-[[ "$LOCAL_HEAD" == "$REMOTE_MAIN" ]] || fail "main_head_mismatch"
+if [[ "$LOCAL_HEAD" != "$REMOTE_MAIN" ]]; then
+  printf 'LOCAL_HEAD=%s\n' "$LOCAL_HEAD" >&2
+  printf 'REMOTE_MAIN=%s\n' "$REMOTE_MAIN" >&2
+  fail "local_main_stale_update_before_run"
+fi
 
 EXPECTED_APPROVAL="I_APPROVE_PHASE14_V4_ZERO_MONEY_PAPER_SHADOW:${LOCAL_HEAD}:${EXPECTED_MODEL_SHA256}:${EXPECTED_SKLEARN_VERSION}:${EXPECTED_XGBOOST_VERSION}:${EXPECTED_JOBLIB_VERSION}"
 case "$PREFLIGHT_ONLY" in
