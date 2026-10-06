@@ -148,12 +148,12 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
 
     paper_runtime = v4["paper_runtime"]
     assert paper_runtime["status"] == (
-        "REPOSITORY_ENGINEERING_MERGED_CI_GREEN_AWAITING_EXPLICIT_ZERO_MONEY_PAPER_AUTHORIZATION"
+        "FAILED_AUTHORIZED_STAGE_FIXED_AWAITING_FRESH_EXPLICIT_ZERO_MONEY_PAPER_AUTHORIZATION"
     )
     assert paper_runtime["repository_main"] == (
-        "50cdb1a2fdf0a1e1f785528cd82a137449611529"
+        "e8d03a4b852449038a55cd428ece52a1d294ae7f"
     )
-    assert paper_runtime["post_merge_ci_run"] == 37458163255
+    assert paper_runtime["post_merge_ci_run"] == 37460465090
     assert paper_runtime["post_merge_ci_passed"] is True
     assert paper_runtime["runtime_requirements"] == (
         "deploy/phase14-v4-paper-runtime-requirements.txt"
@@ -163,7 +163,24 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert paper_runtime["required_xgboost_version"] == "3.4.1"
     assert paper_runtime["required_joblib_version"] == "1.5.3"
     assert paper_runtime["exact_version_validation_before_model_load"] is True
-    assert paper_runtime["atomic_venv_staging"] is True
+    assert paper_runtime["atomic_venv_staging"] is False
+    assert paper_runtime["in_place_venv_with_cleanup_on_failure"] is True
+    assert paper_runtime["runtime_ready_marker_required"] is True
+    assert paper_runtime["exact_metadata_and_module_version_validation"] is True
+    assert paper_runtime["python_no_user_site"] is True
+    assert paper_runtime["project_install_constrained_to_runtime_pins"] is True
+    assert paper_runtime["production_runtime_validation_attempted"] is True
+    assert paper_runtime["production_runtime_validation_passed"] is False
+    assert paper_runtime["failed_attempt_authorized_main"] == (
+        "8a472b752625477cf26969e776823a620a39c519"
+    )
+    assert paper_runtime["failed_attempt_authorization_consumed"] is True
+    assert paper_runtime["failed_attempt_reached_production"] is True
+    assert paper_runtime["failed_attempt_reached_runtime_staging"] is True
+    assert paper_runtime["failed_attempt_shadow_started"] is False
+    assert paper_runtime["failed_attempt_runner_status"] == (
+        "FAIL:remote_stage_or_start_failed"
+    )
     assert paper_runtime["preflight_only_supported"] is True
     assert paper_runtime["preflight_contacts_production"] is False
     assert paper_runtime["preflight_mutates_production"] is False
@@ -431,7 +448,7 @@ def test_v4_gate_b_v2_ordinary_selection_is_frozen_and_holdout_untouched() -> No
     selection = v4["gate_b_ordinary_selection"]
 
     assert v4["status"] == (
-        "GATE_B_V2_FINAL_HOLDOUT_REVIEWED_PAPER_RUNTIME_ENGINEERING_READY_AWAITING_AUTHORIZATION"
+        "GATE_B_V2_FINAL_HOLDOUT_REVIEWED_PAPER_RUNTIME_FIXED_AWAITING_FRESH_AUTHORIZATION"
     )
     assert selection["plan_sha256"] == (
         "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557"
