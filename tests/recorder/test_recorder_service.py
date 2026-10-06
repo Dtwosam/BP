@@ -12,7 +12,7 @@ from bp_engine.recorder.service import (
     _RoutedBufferedEventSink,
     _is_v4_source_time_event,
 )
-from bp_engine.recorder.writer import EventBuffer
+from bp_engine.recorder.writer import BatchWriter, EventBuffer
 
 
 def raw_event(sequence: int, second: int) -> RawEvent:
@@ -264,6 +264,80 @@ async def test_routed_sink_separates_v4_source_events_without_dropping() -> None
     assert priority.get_nowait() == v4_event
     assert bulk.get_nowait() == bulk_event
     assert incidents == []
+
+
+@pytest.mark.asyncio
+async def test_priority_writer_flushes_while_bulk_writer_is_blocked() -> None:
+    priority = EventBuffer(maxsize=10)
+    bulk = EventBuffer(maxsize=10)
+    incidents: list[FeedIncident] = []
+    routed = _RoutedBufferedEventSink(
+        priority_sink=_BufferedEventSink(priority, incidents.append),
+        bulk_sink=_BufferedEventSink(bulk, incidents.append),
+        incident_sink=incidents.append,
+    )
+
+    bulk_entered = asyncio.Event()
+    release_bulk = asyncio.Event()
+    priority_flushed = asyncio.Event()
+    priority_sequences: list[str] = []
+
+    async def write_bulk(items: list[RawEvent]) -> None:
+        bulk_entered.set()
+        await release_bulk.wait()
+
+    async def write_priority(items: list[RawEvent]) -> None:
+        priority_sequences.extend(str(item.sequence) for item in items)
+        priority_flushed.set()
+
+    bulk_writer = BatchWriter(
+        buffer=bulk,
+        sink=write_bulk,
+        batch_size=1,
+        flush_interval_seconds=1,
+        worker_count=1,
+    )
+    priority_writer = BatchWriter(
+        buffer=priority,
+        sink=write_priority,
+        batch_size=1,
+        flush_interval_seconds=1,
+        worker_count=1,
+    )
+    stop = asyncio.Event()
+    bulk_task = asyncio.create_task(bulk_writer.run(stop))
+    priority_task = asyncio.create_task(priority_writer.run(stop))
+
+    await routed(
+        source_event(
+            source="bybit",
+            stream="linear",
+            instrument="BTCUSDT",
+            event_type="orderbook_delta",
+            sequence=11,
+        )
+    )
+    await asyncio.wait_for(bulk_entered.wait(), timeout=1)
+
+    await routed(
+        source_event(
+            source="bybit",
+            stream="linear",
+            instrument="BTCUSDT",
+            event_type="ticker",
+            sequence=12,
+        )
+    )
+    await asyncio.wait_for(priority_flushed.wait(), timeout=1)
+
+    assert priority_sequences == ["12"]
+
+    release_bulk.set()
+    stop.set()
+    await asyncio.wait_for(
+        asyncio.gather(bulk_task, priority_task),
+        timeout=1,
+    )
 
 
 @pytest.mark.asyncio
