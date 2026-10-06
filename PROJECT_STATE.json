@@ -3753,7 +3753,7 @@
       "unknown"
     ],
     "source_design": "docs/superpowers/specs/2026-09-20-phase-14-v4-regime-aware-challenger.md",
-    "status": "GATE_B_V2_ORDINARY_SELECTION_FROZEN_AWAITING_FINAL_HOLDOUT_AUTHORIZATION",
+    "status": "GATE_B_V2_FINAL_HOLDOUT_EVALUATED_AWAITING_REVIEW",
     "successor_scope": "COMPREHENSIVE_V3_WEAKNESS_REMEDIATION",
     "training_performed": true,
     "v3_final_holdout_tuning_allowed": false,
