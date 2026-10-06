@@ -151,6 +151,25 @@ def test_v4_source_priority_rollout_requires_strict_visibility_acceptance() -> N
         assert marker in source
 
 
+def test_v4_source_priority_rollout_assigns_backup_before_mutation() -> None:
+    source = _source()
+    assignment = (
+        'BACKUP_DIR="$(mktemp -d '
+        '/var/tmp/bp-v4-source-priority-rollout-backup.XXXXXX)"'
+    )
+    assert assignment in source
+    assert '\n"$(mktemp -d /var/tmp/bp-v4-source-priority-rollout-backup.XXXXXX)"\n' not in source
+
+    backup_at = source.index(assignment)
+    env_backup_at = source.index('cp -a "$ENV_FILE" "$BACKUP_DIR/bp.env"')
+    mutation_at = source.index("MUTATION_STARTED=1")
+    rollback_at = source.index("ROLLBACK_ARMED=1")
+    timer_stop_at = source.index('systemctl stop "$MAINTENANCE_TIMER"', mutation_at)
+
+    assert backup_at < env_backup_at < mutation_at < timer_stop_at
+    assert backup_at < rollback_at < timer_stop_at
+
+
 def test_v4_source_priority_rollout_preserves_active_shadow_pid() -> None:
     source = _source()
     for marker in (

@@ -696,7 +696,7 @@ EXPECTED_DIFF="$(printf '%s\n'   src/bp_engine/recorder/writer.py   src/bp_engin
 ACTUAL_DIFF="$(git -C "$REPO" diff --name-only "$FROM_HEAD" "$CANDIDATE_HEAD" | sort)"
 [[ "$ACTUAL_DIFF" == "$EXPECTED_DIFF" ]] || fail "candidate_scope_mismatch"
 
-"$(mktemp -d /var/tmp/bp-v4-source-priority-rollout-backup.XXXXXX)"
+BACKUP_DIR="$(mktemp -d /var/tmp/bp-v4-source-priority-rollout-backup.XXXXXX)"
 cp -a "$ENV_FILE" "$BACKUP_DIR/bp.env"
 if ! git -C "$REPO" diff --quiet HEAD -- apps/dashboard/next-env.d.ts; then
   cp -a "$REPO/apps/dashboard/next-env.d.ts" "$BACKUP_DIR/next-env.d.ts"
