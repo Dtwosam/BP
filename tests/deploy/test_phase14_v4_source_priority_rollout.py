@@ -10,9 +10,10 @@ HELPER = (
     / "deploy"
     / "phase14_v4_source_priority_rollout_cloudshell.sh"
 )
+RECORDER_SERVICE = ROOT / "src" / "bp_engine" / "recorder" / "service.py"
 
 FROM_HEAD = "a694c2299cd34f0b2ee92ded4a4da1643eff0604"
-CANDIDATE_HEAD = "872c56e17487d759be657d89e845ba0fb68adde6"
+CANDIDATE_HEAD = "9080227863fbb408993008c9b7bb7714629a8266"
 CANDIDATE_BRANCH = "ops/v4-source-priority-spot-ticker-candidate-20261006"
 SHADOW_RUN_ID = "v4-fresh-book-shadow-20261006T185619Z-271db613e003"
 
@@ -139,11 +140,24 @@ def test_v4_source_priority_rollout_binds_priority_source_contract() -> None:
         assert marker in source
 
 
+def test_recorder_service_subscribes_bybit_spot_ticker() -> None:
+    source = RECORDER_SERVICE.read_text(encoding="utf-8")
+    spot_start = source.index("    spot_topics = [")
+    linear_start = source.index("    linear_topics = [", spot_start)
+    spot_topics = source[spot_start:linear_start]
+    for topic in (
+        '"orderbook.50.BTCUSDT"',
+        '"publicTrade.BTCUSDT"',
+        '"tickers.BTCUSDT"',
+    ):
+        assert topic in spot_topics
+    assert spot_topics.count('"tickers.BTCUSDT"') == 1
+
+
 def test_v4_source_priority_rollout_binds_bybit_spot_ticker_before_mutation() -> None:
     source = _source()
     for marker in (
         "EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'",
-        "_BYBIT_SPOT_TOPICS = (",
         "candidate_spot_orderbook_topic_missing",
         "candidate_spot_trade_topic_missing",
         "candidate_spot_ticker_topic_missing",
