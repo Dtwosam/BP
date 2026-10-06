@@ -10,7 +10,7 @@ PREFLIGHT_ONLY="${PHASE14_V4_SOURCE_PRIORITY_ROLLOUT_PREFLIGHT_ONLY:-false}"
 
 FROM_HEAD='a694c2299cd34f0b2ee92ded4a4da1643eff0604'
 CANDIDATE_BRANCH='ops/v4-source-priority-spot-ticker-candidate-20261006'
-CANDIDATE_HEAD='872c56e17487d759be657d89e845ba0fb68adde6'
+CANDIDATE_HEAD='9080227863fbb408993008c9b7bb7714629a8266'
 EXPECTED_BATCH_SIZE=500
 EXPECTED_QUEUE_MAXSIZE=50000
 EXPECTED_WRITER_WORKERS=4
@@ -59,7 +59,7 @@ for path in "$RUNTIME_PATH" "$PARTITIONED_PATH" "$SERVICE_PATH" "$CONFIG_PATH" "
     fail_local "candidate_blob_not_exact_main:$path"
 done
 
-SPOT_TOPICS="$(git show "$CANDIDATE_HEAD:$SERVICE_PATH" | sed -n '/^_BYBIT_SPOT_TOPICS = (/,/^)/p')"
+SPOT_TOPICS="$(git show "$CANDIDATE_HEAD:$SERVICE_PATH" | sed -n '/^    spot_topics = \\[/,/^    \\]/p')"
 grep -Fq '"orderbook.50.BTCUSDT"' <<<"$SPOT_TOPICS" || fail_local "candidate_spot_orderbook_topic_missing"
 grep -Fq '"publicTrade.BTCUSDT"' <<<"$SPOT_TOPICS" || fail_local "candidate_spot_trade_topic_missing"
 grep -Fq "\"$EXPECTED_SPOT_TICKER_TOPIC\"" <<<"$SPOT_TOPICS" || fail_local "candidate_spot_ticker_topic_missing"
@@ -96,7 +96,7 @@ set -Eeuo pipefail
 
 FROM_HEAD='a694c2299cd34f0b2ee92ded4a4da1643eff0604'
 CANDIDATE_BRANCH='ops/v4-source-priority-spot-ticker-candidate-20261006'
-CANDIDATE_HEAD='872c56e17487d759be657d89e845ba0fb68adde6'
+CANDIDATE_HEAD='9080227863fbb408993008c9b7bb7714629a8266'
 EXPECTED_BATCH_SIZE=500
 EXPECTED_QUEUE_MAXSIZE=50000
 EXPECTED_WRITER_WORKERS=4
@@ -704,7 +704,7 @@ EXPECTED_DIFF="$(printf '%s\n'   src/bp_engine/recorder/writer.py   src/bp_engin
 ACTUAL_DIFF="$(git -C "$REPO" diff --name-only "$FROM_HEAD" "$CANDIDATE_HEAD" | sort)"
 [[ "$ACTUAL_DIFF" == "$EXPECTED_DIFF" ]] || fail "candidate_scope_mismatch"
 
-SPOT_TOPICS="$(git -C "$REPO" show "$CANDIDATE_HEAD:src/bp_engine/recorder/service.py" | sed -n '/^_BYBIT_SPOT_TOPICS = (/,/^)/p')"
+SPOT_TOPICS="$(git -C "$REPO" show "$CANDIDATE_HEAD:src/bp_engine/recorder/service.py" | sed -n '/^    spot_topics = \\[/,/^    \\]/p')"
 grep -Fq '"orderbook.50.BTCUSDT"' <<<"$SPOT_TOPICS" || fail "candidate_spot_orderbook_topic_missing"
 grep -Fq '"publicTrade.BTCUSDT"' <<<"$SPOT_TOPICS" || fail "candidate_spot_trade_topic_missing"
 grep -Fq "\"$EXPECTED_SPOT_TICKER_TOPIC\"" <<<"$SPOT_TOPICS" || fail "candidate_spot_ticker_topic_missing"
