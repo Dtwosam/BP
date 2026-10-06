@@ -82,6 +82,8 @@ exit 97
                 "source_retry_exhausted_count",
                 "decision_lag < args.max_decision_lag_seconds",
                 "core_source_ineligible_retry_window_exhausted",
+                "probe_core_source_time_v4_readiness",
+                "core_six_anchor_only",
             )
         ),
         encoding="utf-8",
@@ -93,6 +95,7 @@ exit 97
     source_features.write_text(
         "\n".join(
             (
+                "def probe_core_source_time_v4_readiness(",
                 "raw_market_events.c.received_at <= requested",
                 "if received_at > requested:",
             )
@@ -138,6 +141,7 @@ exit 99
         "SOURCE_RETRY_CONTRACT=bounded_within_max_decision_lag"
         in completed.stdout
     )
+    assert "SOURCE_RETRY_PROBE=core_six_anchor_only" in completed.stdout
     assert (
         "SOURCE_RECEIVED_CUTOFF=received_at_lte_decision_at"
         in completed.stdout
@@ -244,10 +248,13 @@ def test_v4_fresh_book_shadow_run_helper_is_hash_bound_and_money_disabled() -> N
         "shadow_runner_retry_contract_missing",
         "source_time_strict_received_cutoff_missing",
         "source_time_received_guard_missing",
+        "source_time_core_readiness_probe_missing",
         "staged_shadow_runner_retry_contract_missing",
         "staged_source_time_strict_received_cutoff_missing",
         "staged_source_time_received_guard_missing",
+        "staged_source_time_core_readiness_probe_missing",
         "SOURCE_RETRY_CONTRACT=bounded_within_max_decision_lag",
+        "SOURCE_RETRY_PROBE=core_six_anchor_only",
         "SOURCE_RECEIVED_CUTOFF=received_at_lte_decision_at",
         "PHASE14_V4_FRESH_BOOK_SHADOW_PREFLIGHT=PASS",
         "explicit_zero_money_paper_shadow_approval_missing_or_mismatched",
