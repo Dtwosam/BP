@@ -12,8 +12,8 @@ HELPER = (
 )
 
 FROM_HEAD = "a694c2299cd34f0b2ee92ded4a4da1643eff0604"
-CANDIDATE_HEAD = "bd815c42a2c8d7be00455f2e24279c5d380e7096"
-CANDIDATE_BRANCH = "ops/v4-source-priority-candidate-20261006"
+CANDIDATE_HEAD = "872c56e17487d759be657d89e845ba0fb68adde6"
+CANDIDATE_BRANCH = "ops/v4-source-priority-spot-ticker-candidate-20261006"
 SHADOW_RUN_ID = "v4-fresh-book-shadow-20261006T185619Z-271db613e003"
 
 
@@ -45,6 +45,7 @@ def test_v4_source_priority_rollout_is_exact_candidate_and_approval_bound() -> N
         "candidate_scope_mismatch",
         "candidate_blob_not_exact_main",
         "production_approval_mismatch",
+        "EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'",
     ):
         assert marker in source
     assert source.index("production_approval_mismatch") < source.index(
@@ -57,6 +58,7 @@ def test_v4_source_priority_rollout_has_local_only_preflight() -> None:
     for marker in (
         "PHASE14_V4_SOURCE_PRIORITY_ROLLOUT_PREFLIGHT_ONLY",
         "PHASE14_V4_SOURCE_PRIORITY_ROLLOUT_PREFLIGHT=PASS",
+        "EXPECTED_SPOT_TICKER_TOPIC=$EXPECTED_SPOT_TICKER_TOPIC",
         "EXPECTED_APPROVAL=$EXPECTED_APPROVAL",
         "PRODUCTION_MUTATION=false",
         "GCLOUD_CONTACT=false",
@@ -135,6 +137,26 @@ def test_v4_source_priority_rollout_binds_priority_source_contract() -> None:
         "priority_source_contract_missing",
     ):
         assert marker in source
+
+
+def test_v4_source_priority_rollout_binds_bybit_spot_ticker_before_mutation() -> None:
+    source = _source()
+    for marker in (
+        "EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'",
+        "_BYBIT_SPOT_TOPICS = (",
+        "candidate_spot_orderbook_topic_missing",
+        "candidate_spot_trade_topic_missing",
+        "candidate_spot_ticker_topic_missing",
+        "BYBIT_SPOT_TICKER_SOURCE_CONTRACT=true",
+        '"bybit_spot_ticker_topic": "tickers.BTCUSDT"',
+        '"bybit_spot_ticker_source_contract": True',
+    ):
+        assert marker in source
+
+    semantic_gate = source.index('SPOT_TOPICS="$(git -C "$REPO" show')
+    backup = source.index('BACKUP_DIR="$(mktemp -d', semantic_gate)
+    mutation = source.index("MUTATION_STARTED=1", semantic_gate)
+    assert semantic_gate < backup < mutation
 
 
 def test_v4_source_priority_rollout_requires_strict_visibility_acceptance() -> None:
