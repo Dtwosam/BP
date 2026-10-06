@@ -72,7 +72,6 @@ class SourceTimeEventEvidence:
 
 
 @dataclass(frozen=True)
-@dataclass(frozen=True)
 class CoreSourceTimeReadiness:
     condition_id: str
     decision_at: datetime
@@ -97,6 +96,7 @@ class CoreSourceTimeReadiness:
         return not self.core_source_ineligible_reasons()
 
 
+@dataclass(frozen=True)
 class SourceTimeV4Features:
     feature_version: str
     condition_id: str
