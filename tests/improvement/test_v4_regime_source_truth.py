@@ -76,7 +76,7 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert v4["initial_polymarket_predictor_key_count"] == 0
     assert v4["initial_regime_invariant_violation_count"] == 0
     assert v4["training_performed"] is True
-    assert v4["final_holdout_access_performed"] is False
+    assert v4["final_holdout_access_performed"] is True
     assert v4["paper_activation_performed"] is False
     assert v4["automatic_promotion"] is False
     assert v4["live_trading_enabled"] is False
@@ -84,7 +84,7 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert v4["max_daily_loss_usd"] == 0
 
     evaluator = v4["final_holdout_evaluator"]
-    assert evaluator["status"] == "REPOSITORY_IMPLEMENTED_MERGED_CI_GREEN_AWAITING_AUTHORIZATION"
+    assert evaluator["status"] == "FINAL_HOLDOUT_EVALUATED_ONCE_AWAITING_RESULT_REVIEW"
     assert evaluator["guarded_runner"] == (
         "scripts/deploy/phase14_v4_gate_b_final_holdout_cloudshell.sh"
     )
@@ -110,10 +110,17 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
         "6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf"
     )
     assert evaluator["final_holdout_market_count"] == 288
-    assert evaluator["holdout_labels_read"] is False
-    assert evaluator["holdout_evaluated"] is False
+    assert evaluator["holdout_labels_read"] is True
+    assert evaluator["holdout_evaluated"] is True
     assert evaluator["one_shot_authorization_required"] is True
-    assert evaluator["one_shot_authorization_granted"] is False
+    assert evaluator["one_shot_authorization_granted"] is True
+    assert evaluator["one_shot_authorization_consumed"] is True
+    assert evaluator["rerun_allowed"] is False
+    assert evaluator["result_metrics_reviewed"] is False
+    assert evaluator["database_writes_performed"] is False
+    assert evaluator["sklearn_version_mismatch_observed"] is True
+    assert evaluator["artifact_sklearn_version"] == "1.9.1"
+    assert evaluator["evaluation_runtime_sklearn_version"] == "1.9.0"
     assert evaluator["durable_attempt_marker_required_before_label_read"] is True
     assert evaluator["model_refit_allowed"] is False
     assert evaluator["threshold_tuning_allowed"] is False
@@ -380,9 +387,7 @@ def test_v4_gate_b_v2_ordinary_selection_is_frozen_and_holdout_untouched() -> No
     v4 = state["phase_14_v4_regime_aware"]
     selection = v4["gate_b_ordinary_selection"]
 
-    assert v4["status"] == (
-        "GATE_B_V2_ORDINARY_SELECTION_FROZEN_AWAITING_FINAL_HOLDOUT_AUTHORIZATION"
-    )
+    assert v4["status"] == "GATE_B_V2_FINAL_HOLDOUT_EVALUATED_AWAITING_REVIEW"
     assert selection["plan_sha256"] == (
         "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557"
     )
