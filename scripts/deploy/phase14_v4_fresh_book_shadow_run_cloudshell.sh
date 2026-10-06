@@ -307,7 +307,7 @@ fi
 
 "$venv/bin/python" -m pip check >/dev/null || fail "paper_runtime_pip_check_failed"
 
-runuser -u bp -- env \
+if ! runuser -u bp -- env \
   PYTHONNOUSERSITE=1 \
   "$venv/bin/python" - "$expected_sklearn_version" "$expected_xgboost_version" "$expected_joblib_version" <<'PY'
 from importlib.metadata import version
@@ -329,7 +329,7 @@ module_versions = {
 }
 metadata_versions = {
     "scikit-learn": version("scikit-learn"),
-    "xgboost": version("xgboost"),
+    "xgboost": version("xgboost-cpu"),
     "joblib": version("joblib"),
 }
 if module_versions != expected:
@@ -341,6 +341,9 @@ if metadata_versions != expected:
         f"paper runtime metadata version mismatch: expected={expected} actual={metadata_versions}"
     )
 PY
+then
+  fail "paper_runtime_version_validation_failed"
+fi
 
 runuser -u bp -- env \
   MODE=research \

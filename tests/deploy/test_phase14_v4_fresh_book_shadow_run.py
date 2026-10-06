@@ -225,6 +225,8 @@ def test_v4_fresh_book_shadow_run_helper_is_hash_bound_and_money_disabled() -> N
         "--constraint",
         "PYTHONNOUSERSITE=1",
         'version("scikit-learn")',
+        'version("xgboost-cpu")',
+        "paper_runtime_version_validation_failed",
         "paper runtime metadata version mismatch",
         "paper runtime module version mismatch",
         '.ready',
@@ -289,6 +291,7 @@ def test_v4_fresh_book_shadow_run_helper_is_hash_bound_and_money_disabled() -> N
     assert 'mv "$venv_tmp" "$venv"' not in text
     assert '"$venv/bin/python" -m pip install' in text
     assert '--constraint "$runtime_requirements" "$release"' in text
+    assert 'version("xgboost")' not in text
     assert text.index('paper runtime metadata version mismatch') < text.index(
         'load_frozen_v4_bundle'
     )
