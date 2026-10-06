@@ -20,7 +20,7 @@ def _text(path: str) -> str:
 
 def test_v4_source_truth_is_separate_and_prospective() -> None:
     state = json.loads(_text("PROJECT_STATE.json"))
-    assert state["source_of_truth_version"] == "0.14.186"
+    assert state["source_of_truth_version"] == "0.14.187"
 
     v4 = state["phase_14_v4_regime_aware"]
     assert v4["feature_version"] == "core-v4-regime-aware"
@@ -148,12 +148,12 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
 
     paper_runtime = v4["paper_runtime"]
     assert paper_runtime["status"] == (
-        "THIRD_AUTHORIZED_STAGE_FAILED_XGBOOST_METADATA_FIX_READY_AWAITING_FOURTH_FRESH_AUTHORIZATION"
+        "FOURTH_AUTHORIZED_RUNTIME_VALIDATION_PASS_SHADOW_STARTED_24H_OBSERVATION_PENDING_COMPLETION"
     )
     assert paper_runtime["repository_main"] == (
-        "14e07b3b17a37b80f0f13950418c21a2226ae20e"
+        "f5c76576619c35e65fc8a317d47c8a31dd263950"
     )
-    assert paper_runtime["post_merge_ci_run"] == 37470959696
+    assert paper_runtime["post_merge_ci_run"] == 37472314160
     assert paper_runtime["post_merge_ci_passed"] is True
     assert paper_runtime["runtime_requirements"] == (
         "deploy/phase14-v4-paper-runtime-requirements.txt"
@@ -170,7 +170,7 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert paper_runtime["python_no_user_site"] is True
     assert paper_runtime["project_install_constrained_to_runtime_pins"] is True
     assert paper_runtime["production_runtime_validation_attempted"] is True
-    assert paper_runtime["production_runtime_validation_passed"] is False
+    assert paper_runtime["production_runtime_validation_passed"] is True
     assert paper_runtime["failed_attempt_authorized_main"] == (
         "8a472b752625477cf26969e776823a620a39c519"
     )
@@ -222,7 +222,7 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert paper_runtime["third_failed_attempt_outer_status"] == (
         "FAIL:remote_stage_or_start_failed"
     )
-    assert len(paper_runtime["authorized_attempts"]) == 3
+    assert len(paper_runtime["authorized_attempts"]) == 4
     assert paper_runtime["authorized_attempts"][1]["installed_runtime_versions"] == {
         "scikit-learn": "1.9.1",
         "xgboost": "3.4.1",
@@ -234,11 +234,29 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
         "joblib": "1.5.3",
     }
     assert paper_runtime["authorized_attempts"][2]["model_validation_reached"] is False
+    fourth = paper_runtime["authorized_attempts"][3]
+    assert fourth["authorized_main"] == "f5c76576619c35e65fc8a317d47c8a31dd263950"
+    assert fourth["authorization_consumed"] is True
+    assert fourth["runtime_validation_passed"] is True
+    assert fourth["model_validation_reached"] is True
+    assert fourth["shadow_started"] is True
+    assert fourth["result"] == "START_PASS_COMPLETION_PENDING"
+    assert fourth["run_seconds"] == 86400
+    assert fourth["installed_runtime_versions"] == {
+        "scikit-learn": "1.9.1",
+        "xgboost-cpu": "3.4.1",
+        "joblib": "1.5.3",
+    }
+    assert paper_runtime["paper_shadow_start_evidence"] == (
+        "docs/evidence/phase-14-v4-fresh-book-shadow-start-20261006.json"
+    )
+    assert paper_runtime["paper_shadow_completion_pending"] is True
+    assert paper_runtime["paper_shadow_full_run_completed"] is False
     assert paper_runtime["preflight_only_supported"] is True
     assert paper_runtime["preflight_contacts_production"] is False
     assert paper_runtime["preflight_mutates_production"] is False
-    assert paper_runtime["production_runtime_validation_performed"] is False
-    assert paper_runtime["paper_shadow_started"] is False
+    assert paper_runtime["production_runtime_validation_performed"] is True
+    assert paper_runtime["paper_shadow_started"] is True
     assert paper_runtime["paper_activation_authorized"] is False
     assert paper_runtime["paper_activation_performed"] is False
     assert paper_runtime["live_trading_enabled"] is False
