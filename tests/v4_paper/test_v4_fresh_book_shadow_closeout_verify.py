@@ -138,6 +138,37 @@ def test_closeout_verifier_accepts_exact_completed_safe_run(tmp_path: Path) -> N
     assert report["order_submission_performed"] is False
     assert report["source_retry_accounting_present"] is False
     assert report["source_retry_deferral_count"] is None
+    assert report["ignored_non_json_line_count"] == 0
+
+
+def test_closeout_verifier_ignores_plain_stderr_lines(tmp_path: Path) -> None:
+    module = _load()
+    path = _write(tmp_path, _records())
+    original = path.read_text(encoding="utf-8")
+    path.write_text(
+        "UserWarning: model metadata notice on stderr\n" + original,
+        encoding="utf-8",
+    )
+
+    report = _verify(module, path)
+
+    assert report["status"] == "PASS"
+    assert report["ignored_non_json_line_count"] == 1
+
+
+def test_closeout_verifier_rejects_malformed_json_looking_line(
+    tmp_path: Path,
+) -> None:
+    module = _load()
+    path = _write(tmp_path, _records())
+    original = path.read_text(encoding="utf-8")
+    path.write_text("{not-json}\n" + original, encoding="utf-8")
+
+    with pytest.raises(
+        module.V4FreshBookShadowCloseoutError,
+        match="malformed JSON at line 1",
+    ):
+        _verify(module, path)
 
 
 def test_closeout_verifier_accepts_complete_retry_accounting(tmp_path: Path) -> None:
