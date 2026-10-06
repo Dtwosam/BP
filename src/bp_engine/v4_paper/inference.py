@@ -109,16 +109,17 @@ def load_frozen_v4_bundle(
     if digest != expected_sha256:
         raise FrozenV4ModelError("frozen V4 model SHA-256 mismatch")
 
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", InconsistentVersionWarning)
-            current_sklearn = package_version("scikit-learn")
+    current_sklearn = package_version("scikit-learn")
     if current_sklearn != FROZEN_V4_SKLEARN_VERSION:
         raise FrozenV4ModelError(
             "frozen V4 scikit-learn runtime mismatch: "
             f"required={FROZEN_V4_SKLEARN_VERSION} current={current_sklearn}"
         )
-    loaded = joblib.load(io.BytesIO(payload))
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", InconsistentVersionWarning)
+            loaded = joblib.load(io.BytesIO(payload))
     except InconsistentVersionWarning as exc:
         raise FrozenV4ModelError(
             "frozen V4 scikit-learn version mismatch: "
