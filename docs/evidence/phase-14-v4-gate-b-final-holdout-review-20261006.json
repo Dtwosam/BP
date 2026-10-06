@@ -1,0 +1,186 @@
+{
+  "status": "V4_GATE_B_FINAL_HOLDOUT_REVIEWED",
+  "reviewed_at": "2026-10-06",
+  "source": {
+    "authorized_candidate_main": "8c5e6018690f8c48dfcdb8280cc81610d0acf235",
+    "holdout_evaluated_at": "2026-10-06T10:55:38Z",
+    "evidence_dir": "/var/lib/bp/evidence/phase14-v4-gate-b-final-holdout-20261006T105538Z-8c5e6018690f",
+    "holdout_evidence_sha256": "b34f2a2263eb5376687caff42a8249359a0b18abb020cd2a4bd8b5d6c92e849f",
+    "holdout_market_count": 288,
+    "plan_sha256": "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557",
+    "selection_sha256": "895cb70ae0cdbc22f4e3585c77db3ad20f8186d1ee1992a58025d89bb1e2bb1a",
+    "model_artifact_sha256": "6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf"
+  },
+  "frozen_selection": {
+    "candidate": "full_v4_xgboost",
+    "offset_seconds": 240,
+    "calibration_method": "identity",
+    "edge_policy": "trade_threshold",
+    "min_edge": 0.05,
+    "fee_rate": 0.07,
+    "slippage_buffer": 0.01,
+    "max_selected_book_age_seconds": 10
+  },
+  "runtime": {
+    "artifact_sklearn_version": "1.9.1",
+    "evaluation_runtime_sklearn_version": "1.9.0",
+    "evaluation_runtime_xgboost_version": "3.4.1",
+    "evaluation_runtime_joblib_version": "1.5.3",
+    "sklearn_version_mismatch_observed": true,
+    "interpretation": "The one-shot result is preserved as consumed evidence with a runtime-provenance caveat. It must not be rerun on the holdout. Future V4 paper inference must use the exact frozen artifact under a compatible scikit-learn 1.9.1 runtime and fail closed otherwise."
+  },
+  "forecast_overall": {
+    "accuracy": 0.90625,
+    "balanced_accuracy": 0.906280146633224,
+    "log_loss": 0.3254287288635356,
+    "brier_score": 0.08329171702240418,
+    "ece": 0.07037008842012754
+  },
+  "economics_overall": {
+    "trade_count": 84,
+    "trade_coverage": 0.2916666666666667,
+    "wins": 65,
+    "losses": 19,
+    "correct_trades": 65,
+    "traded_accuracy": 0.7738095238095238,
+    "realized_pnl_after_assumed_costs": 11.675645999999999,
+    "mean_realized_pnl_after_assumed_costs": 0.1389957857142857,
+    "profit_factor": 2.3143859832402827,
+    "max_drawdown": 1.6657130000000002,
+    "max_losing_streak": 4,
+    "executable_markets": 235,
+    "no_fill_markets": 53,
+    "trade_side_counts": {
+      "up": 38,
+      "down": 46
+    },
+    "trade_side_pnl": {
+      "up": 7.399050000000001,
+      "down": 4.2765960000000005
+    }
+  },
+  "regime_summary": {
+    "bull": {
+      "market_count": 79,
+      "forecast_accuracy": 0.9367088607594937,
+      "forecast_log_loss": 0.2720528457336759,
+      "forecast_brier_score": 0.0659657867557665,
+      "forecast_ece": 0.068287323547315,
+      "trade_count": 16,
+      "traded_accuracy": 0.8125,
+      "after_cost_pnl": 2.655928,
+      "profit_factor": 2.644473311567412,
+      "max_drawdown": 0.9846619999999997,
+      "max_losing_streak": 1
+    },
+    "bear": {
+      "market_count": 68,
+      "forecast_accuracy": 0.8823529411764706,
+      "forecast_balanced_accuracy": 0.6413793103448275,
+      "forecast_log_loss": 0.49591102956588423,
+      "forecast_brier_score": 0.10890096663697346,
+      "forecast_ece": 0.11123505602196977,
+      "trade_count": 22,
+      "traded_accuracy": 0.6363636363636364,
+      "after_cost_pnl": -0.5209760000000004,
+      "profit_factor": 0.8681725879975859,
+      "max_drawdown": 2.164035,
+      "max_losing_streak": 3
+    },
+    "sideways_mixed": {
+      "market_count": 141,
+      "forecast_accuracy": 0.900709219858156,
+      "forecast_balanced_accuracy": 0.9008196721311476,
+      "forecast_log_loss": 0.27311595098764346,
+      "forecast_brier_score": 0.08064859303143726,
+      "forecast_ece": 0.06740442118590954,
+      "trade_count": 46,
+      "traded_accuracy": 0.8260869565217391,
+      "after_cost_pnl": 9.540694,
+      "profit_factor": 3.877214600470212,
+      "max_drawdown": 0.8212000000000002,
+      "max_losing_streak": 1
+    },
+    "unknown": {
+      "market_count": 0,
+      "status": "insufficient_slice_evidence"
+    }
+  },
+  "outcome_side_summary": {
+    "up": {
+      "market_count": 142,
+      "forecast_accuracy": 0.9084507042253521,
+      "trade_count": 41,
+      "traded_accuracy": 0.7317073170731707,
+      "after_cost_pnl": 5.734533999999999,
+      "profit_factor": 2.087374977269456
+    },
+    "down": {
+      "market_count": 146,
+      "forecast_accuracy": 0.9041095890410958,
+      "trade_count": 43,
+      "traded_accuracy": 0.813953488372093,
+      "after_cost_pnl": 5.9411119999999995,
+      "profit_factor": 2.6460907812619046
+    }
+  },
+  "sparse_regime_by_outcome_observations": {
+    "bear_up": {
+      "market_count": 10,
+      "status": "insufficient_slice_evidence",
+      "trade_count": 8,
+      "traded_accuracy": 0.125,
+      "after_cost_pnl": -2.8248990000000003,
+      "profit_factor": 0.2553370517726643,
+      "max_drawdown": 2.9627540000000003,
+      "max_losing_streak": 6
+    },
+    "bull_down": {
+      "market_count": 8,
+      "status": "insufficient_slice_evidence",
+      "trade_count": 3,
+      "traded_accuracy": 0,
+      "after_cost_pnl": -1.6150630000000001,
+      "profit_factor": 0,
+      "max_drawdown": 1.6150630000000001,
+      "max_losing_streak": 3
+    }
+  },
+  "edge_frontier_observation": {
+    "frozen_min_edge": 0.05,
+    "band_0_05_to_0_075": {
+      "count": 14,
+      "accuracy": 0.7857142857142857,
+      "after_cost_pnl": -1.3742370000000008
+    },
+    "bands_above_0_075_all_positive_in_consumed_holdout": true,
+    "policy_change_allowed": false,
+    "interpretation": "This is diagnostic only. Raising min_edge from 0.05 after seeing the final holdout would be prohibited holdout tuning. Any V4 paper run must keep the frozen min_edge=0.05 policy."
+  },
+  "review": {
+    "aggregate_holdout_supports_paper_observation": true,
+    "uniform_regime_robustness_established": false,
+    "bear_regime_weakness_observed": true,
+    "runtime_compatibility_required_before_paper": true,
+    "paper_activation_authorized": false,
+    "paper_activation_performed": false,
+    "automatic_promotion": false,
+    "live_trading_supported_by_this_review": false,
+    "live_trading_enabled": false,
+    "real_money_usd": 0,
+    "holdout_reusable_for_tuning": false,
+    "holdout_rerun_allowed": false,
+    "decision": "PROCEED_TO_SEPARATE_ZERO_MONEY_V4_PAPER_ACTIVATION_DECISION_ONLY_AFTER_RUNTIME_COMPATIBILITY",
+    "rationale": "Aggregate forecast quality and frozen-policy after-cost economics are strong and consistent enough to justify prospective zero-money observation. However the evaluable bear regime is economically negative, sparse bear-up and bull-down slices are weak, the lowest traded edge band is negative, and the holdout evaluation used a scikit-learn runtime different from the artifact's preprocessing version. These findings forbid automatic promotion or holdout-driven policy changes and make prospective paper observation the appropriate next boundary."
+  },
+  "safety": {
+    "database_writes_performed": false,
+    "model_refit_performed": false,
+    "threshold_tuning_performed": false,
+    "policy_reselection_performed": false,
+    "automatic_promotion": false,
+    "paper_activation_performed": false,
+    "live_trading_enabled": false,
+    "real_money_usd": 0
+  }
+}
