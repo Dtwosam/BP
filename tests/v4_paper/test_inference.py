@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import hashlib
+import warnings
 from pathlib import Path
 
 import joblib
 import numpy as np
 import pytest
+from sklearn.exceptions import InconsistentVersionWarning
 from sklearn.impute import SimpleImputer
 
 from bp_engine.v4_paper.inference import (
@@ -71,6 +73,41 @@ def test_load_hashes_before_trusted_deserialization(tmp_path: Path) -> None:
         load_frozen_v4_bundle(
             path,
             expected_sha256="0" * 64,
+            expected_size_bytes=len(payload),
+        )
+
+
+def test_load_fails_closed_on_sklearn_version_mismatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "model.joblib"
+    joblib.dump(_bundle(), path)
+    payload = path.read_bytes()
+    digest = hashlib.sha256(payload).hexdigest()
+
+    original_load = joblib.load
+
+    def _mismatched_load(source):
+        warnings.warn(
+            InconsistentVersionWarning(
+                estimator_name="SimpleImputer",
+                current_sklearn_version="1.9.0",
+                original_sklearn_version="1.9.1",
+            ),
+            stacklevel=2,
+        )
+        return original_load(source)
+
+    monkeypatch.setattr(joblib, "load", _mismatched_load)
+
+    with pytest.raises(
+        FrozenV4ModelError,
+        match=r"scikit-learn version mismatch: artifact=1\.9\.1 runtime=1\.9\.0",
+    ):
+        load_frozen_v4_bundle(
+            path,
+            expected_sha256=digest,
             expected_size_bytes=len(payload),
         )
 
