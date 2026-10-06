@@ -84,16 +84,20 @@ def _require_decimal(
         )
 
 
-def _load_records(path: Path) -> list[dict[str, Any]]:
+def _load_records(path: Path) -> tuple[list[dict[str, Any]], int]:
     if not path.is_file() or path.is_symlink():
         raise V4FreshBookShadowCloseoutError(
             "evidence must be a regular non-symlink file"
         )
     records: list[dict[str, Any]] = []
+    ignored_non_json_lines = 0
     with path.open("r", encoding="utf-8") as handle:
         for line_number, raw in enumerate(handle, start=1):
             stripped = raw.strip()
             if not stripped:
+                continue
+            if not stripped.startswith("{"):
+                ignored_non_json_lines += 1
                 continue
             try:
                 parsed = json.loads(stripped)
@@ -107,8 +111,10 @@ def _load_records(path: Path) -> list[dict[str, Any]]:
                 )
             records.append(parsed)
     if not records:
-        raise V4FreshBookShadowCloseoutError("evidence file is empty")
-    return records
+        raise V4FreshBookShadowCloseoutError(
+            "evidence file contains no JSON event records"
+        )
+    return records, ignored_non_json_lines
 
 
 def _sha256(path: Path) -> str:
@@ -149,7 +155,7 @@ def verify_closeout(
             "duration_tolerance_seconds must be non-negative"
         )
 
-    records = _load_records(path)
+    records, ignored_non_json_lines = _load_records(path)
     starts = [record for record in records if record.get("event") == STARTED_EVENT]
     completions = [
         record for record in records if record.get("event") == COMPLETED_EVENT
@@ -359,6 +365,7 @@ def verify_closeout(
         "run_id": expected_run_id,
         "evidence_file": str(path),
         "evidence_sha256": _sha256(path),
+        "ignored_non_json_line_count": ignored_non_json_lines,
         "model_sha256": expected_model_sha256,
         "source_feature_version": EXPECTED_SOURCE_FEATURE_VERSION,
         "expected_run_seconds": expected_run_seconds,
