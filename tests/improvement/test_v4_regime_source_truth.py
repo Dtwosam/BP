@@ -148,12 +148,12 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
 
     paper_runtime = v4["paper_runtime"]
     assert paper_runtime["status"] == (
-        "SECOND_AUTHORIZED_STAGE_FAILED_STALE_LAUNCHER_FIXED_AWAITING_THIRD_FRESH_AUTHORIZATION"
+        "THIRD_AUTHORIZED_STAGE_FAILED_XGBOOST_METADATA_FIX_READY_AWAITING_FOURTH_FRESH_AUTHORIZATION"
     )
     assert paper_runtime["repository_main"] == (
-        "5fe1d8782b2c9f95e71c3d5d297372a26dca4070"
+        "14e07b3b17a37b80f0f13950418c21a2226ae20e"
     )
-    assert paper_runtime["post_merge_ci_run"] == 37466453668
+    assert paper_runtime["post_merge_ci_run"] == 37470959696
     assert paper_runtime["post_merge_ci_passed"] is True
     assert paper_runtime["runtime_requirements"] == (
         "deploy/phase14-v4-paper-runtime-requirements.txt"
@@ -201,12 +201,39 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert paper_runtime["second_failed_attempt_outer_status"] == (
         "FAIL:remote_stage_or_start_failed"
     )
-    assert len(paper_runtime["authorized_attempts"]) == 2
+    assert paper_runtime["xgboost_metadata_distribution_name"] == "xgboost-cpu"
+    assert paper_runtime["named_version_validation_failure"] == (
+        "paper_runtime_version_validation_failed"
+    )
+    assert paper_runtime["third_failed_attempt_authorized_main"] == (
+        "62dbf0d653d7434b6d0bc610009228efff29cb29"
+    )
+    assert paper_runtime["third_failed_attempt_authorization_consumed"] is True
+    assert paper_runtime["third_failed_attempt_reached_production"] is True
+    assert paper_runtime["third_failed_attempt_reached_runtime_staging"] is True
+    assert paper_runtime["third_failed_attempt_ml_pins_installed"] is True
+    assert paper_runtime["third_failed_attempt_project_installed"] is True
+    assert paper_runtime["third_failed_attempt_sklearn_version"] == "1.9.1"
+    assert paper_runtime["third_failed_attempt_xgboost_distribution"] == "xgboost-cpu"
+    assert paper_runtime["third_failed_attempt_xgboost_version"] == "3.4.1"
+    assert paper_runtime["third_failed_attempt_joblib_version"] == "1.5.3"
+    assert paper_runtime["third_failed_attempt_model_validation_reached"] is False
+    assert paper_runtime["third_failed_attempt_shadow_started"] is False
+    assert paper_runtime["third_failed_attempt_outer_status"] == (
+        "FAIL:remote_stage_or_start_failed"
+    )
+    assert len(paper_runtime["authorized_attempts"]) == 3
     assert paper_runtime["authorized_attempts"][1]["installed_runtime_versions"] == {
         "scikit-learn": "1.9.1",
         "xgboost": "3.4.1",
         "joblib": "1.5.3",
     }
+    assert paper_runtime["authorized_attempts"][2]["installed_runtime_versions"] == {
+        "scikit-learn": "1.9.1",
+        "xgboost-cpu": "3.4.1",
+        "joblib": "1.5.3",
+    }
+    assert paper_runtime["authorized_attempts"][2]["model_validation_reached"] is False
     assert paper_runtime["preflight_only_supported"] is True
     assert paper_runtime["preflight_contacts_production"] is False
     assert paper_runtime["preflight_mutates_production"] is False
@@ -474,7 +501,7 @@ def test_v4_gate_b_v2_ordinary_selection_is_frozen_and_holdout_untouched() -> No
     selection = v4["gate_b_ordinary_selection"]
 
     assert v4["status"] == (
-        "GATE_B_V2_FINAL_HOLDOUT_REVIEWED_PAPER_LAUNCHER_FIXED_AWAITING_THIRD_FRESH_AUTHORIZATION"
+        "GATE_B_V2_FINAL_HOLDOUT_REVIEWED_XGBOOST_METADATA_FIX_READY_AWAITING_FOURTH_FRESH_AUTHORIZATION"
     )
     assert selection["plan_sha256"] == (
         "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557"
