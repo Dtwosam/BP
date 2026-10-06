@@ -42,6 +42,8 @@ FORBIDDEN_ENV = (
     "GOOGLE_APPLICATION_CREDENTIALS",
 )
 MAX_DECISION_LAG_SECONDS = 2.0
+SOURCE_RETRY_POLICY = "retry_core_source_ineligible_within_max_decision_lag"
+SOURCE_RECEIVED_CUTOFF = "received_at_lte_decision_at"
 
 
 def _parse_args() -> argparse.Namespace:
@@ -266,6 +268,8 @@ def main() -> int:
             "max_btc_source_age_seconds": MAX_SOURCE_AGE_SECONDS,
             "max_btc_future_skew_seconds": MAX_FUTURE_SKEW_SECONDS,
             "max_decision_lag_seconds": args.max_decision_lag_seconds,
+            "source_retry_policy": SOURCE_RETRY_POLICY,
+            "source_received_cutoff": SOURCE_RECEIVED_CUTOFF,
             "core_source_required_flags": list(V4_CORE_SOURCE_REQUIRED_FLAGS),
             "core_source_policy": "require_market_start_and_current_all_venues",
             "quote_fresh_seconds": args.quote_fresh_seconds,
@@ -568,6 +572,8 @@ def main() -> int:
             "source_retry_recovered_count": source_retry_recovered_count,
             "source_retry_exhausted_count": source_retry_exhausted_count,
             "source_retry_pending_count": len(source_retry_count_by_condition),
+            "source_retry_policy": SOURCE_RETRY_POLICY,
+            "source_received_cutoff": SOURCE_RECEIVED_CUTOFF,
             "core_source_required_flags": list(V4_CORE_SOURCE_REQUIRED_FLAGS),
             "core_source_policy": "require_market_start_and_current_all_venues",
             "extreme_edge_evaluated_count": extreme_edge_evaluated_count,
