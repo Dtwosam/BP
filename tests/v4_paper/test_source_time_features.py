@@ -10,6 +10,7 @@ from bp_engine.v4_paper.source_time_features import (
     V4_CORE_SOURCE_REQUIRED_FLAGS,
     V4SourceTimeReader,
     build_source_time_v4_features,
+    probe_core_source_time_v4_readiness,
 )
 from bp_engine.v4_research.config import V4_PREDICTOR_NAMES
 
@@ -205,6 +206,100 @@ def test_source_time_reader_rejects_event_received_after_decision() -> None:
         )
         assert observation is None
         assert evidence == ()
+    finally:
+        connection.close()
+        engine.dispose()
+
+
+def test_core_readiness_probe_checks_only_required_six_anchors() -> None:
+    engine, connection = _connection()
+    start = datetime(2026, 10, 2, 12, 0, tzinfo=UTC)
+    decision = start + timedelta(seconds=240)
+    target = V4FeatureTarget(
+        condition_id="condition-v4-probe",
+        slug="btc-updown-5m-probe",
+        horizon_seconds=300,
+        market_start_at=start,
+        market_end_at=start + timedelta(seconds=300),
+    )
+    sequence = 1000
+    try:
+        for source, stream, instrument in (
+            ("coinbase", "spot", "BTC-USD"),
+            ("bybit", "spot", "BTCUSDT"),
+            ("bybit", "linear", "BTCUSDT"),
+        ):
+            for requested in (start, decision):
+                sequence += 1
+                _insert_event(
+                    connection,
+                    source=source,
+                    stream=stream,
+                    instrument=instrument,
+                    requested_at=requested,
+                    price=30000.0 + sequence,
+                    sequence=sequence,
+                )
+
+        readiness = probe_core_source_time_v4_readiness(
+            connection,
+            target,
+            decision_at=decision,
+        )
+
+        assert readiness.core_source_ready is True
+        assert readiness.core_source_ineligible_reasons() == ()
+        assert len(readiness.source_evidence) == 6
+        assert set(readiness.missing_flags) == set(V4_CORE_SOURCE_REQUIRED_FLAGS)
+        assert not any(readiness.missing_flags.values())
+    finally:
+        connection.close()
+        engine.dispose()
+
+
+def test_core_readiness_probe_reports_missing_required_anchor() -> None:
+    engine, connection = _connection()
+    start = datetime(2026, 10, 2, 12, 0, tzinfo=UTC)
+    decision = start + timedelta(seconds=240)
+    target = V4FeatureTarget(
+        condition_id="condition-v4-probe-missing",
+        slug="btc-updown-5m-probe-missing",
+        horizon_seconds=300,
+        market_start_at=start,
+        market_end_at=start + timedelta(seconds=300),
+    )
+    sequence = 1100
+    try:
+        for source, stream, instrument in (
+            ("coinbase", "spot", "BTC-USD"),
+            ("bybit", "spot", "BTCUSDT"),
+            ("bybit", "linear", "BTCUSDT"),
+        ):
+            for requested in (start, decision):
+                if stream == "linear" and requested == decision:
+                    continue
+                sequence += 1
+                _insert_event(
+                    connection,
+                    source=source,
+                    stream=stream,
+                    instrument=instrument,
+                    requested_at=requested,
+                    price=31000.0 + sequence,
+                    sequence=sequence,
+                )
+
+        readiness = probe_core_source_time_v4_readiness(
+            connection,
+            target,
+            decision_at=decision,
+        )
+
+        assert readiness.core_source_ready is False
+        assert readiness.core_source_ineligible_reasons() == (
+            "bybit_linear_current_missing",
+        )
+        assert readiness.missing_flags["bybit_linear_current_missing"] is True
     finally:
         connection.close()
         engine.dispose()
