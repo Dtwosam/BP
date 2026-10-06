@@ -9,8 +9,8 @@ from bp_engine.recorder.service import (
     PolymarketCollectorComponent,
     RecorderService,
     _BufferedEventSink,
-    _RoutedBufferedEventSink,
     _is_v4_source_time_event,
+    _RoutedBufferedEventSink,
 )
 from bp_engine.recorder.writer import BatchWriter, EventBuffer
 
