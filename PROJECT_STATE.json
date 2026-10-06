@@ -154,7 +154,8 @@
     "V4 Gate B v2 final holdout evaluated exactly once on authorized main 8c5e6018690f8c48dfcdb8280cc81610d0acf235 at 2026-10-06T10:55:38Z: 288-market holdout touched/consumed, operational runner PASS, durable attempt marker present, DB writes/refit/tuning/reselection/promotion/paper activation/live trading all false, real money zero; result metrics still awaiting review",
     "V4 Gate B v2 final holdout review completed on 6 October 2026: 288 markets, 90.625% forecast accuracy, 84 frozen-policy trades, 77.38% traded accuracy, +11.675646 after assumed costs, profit factor 2.3144; bull and sideways/mixed positive but evaluable bear regime negative (-0.520976, PF 0.8682). Aggregate evidence supports a separate zero-money paper decision only after exact scikit-learn 1.9.1 runtime compatibility; no holdout-driven policy change, activation, live trading, or real money authorized",
     "V4 paper-runtime compatibility engineering merged to main 50cdb1a2fdf0a1e1f785528cd82a137449611529 with post-merge CI 37458163255 green: future zero-money V4 paper shadow uses an isolated atomically staged venv pinned to scikit-learn 1.9.1, XGBoost 3.4.1, and joblib 1.5.3, validates exact versions before frozen model loading, and requires an explicit main/model/runtime-bound approval before any gcloud or production contact; no production runtime validation, paper activation, live trading, or real money occurred",
-    "First explicitly authorized V4 zero-money paper-shadow attempt on main 8a472b752625477cf26969e776823a620a39c519 reached production runtime staging but failed closed before shadow start with frozen V4 scikit-learn runtime mismatch required=1.9.1 current=1.9.0; no live trading or real money occurred. Runner staging/version validation was corrected and merged as e8d03a4b852449038a55cd428ece52a1d294ae7f with post-merge CI 37460465090 green; fresh authorization is required before any retry"
+    "First explicitly authorized V4 zero-money paper-shadow attempt on main 8a472b752625477cf26969e776823a620a39c519 reached production runtime staging but failed closed before shadow start with frozen V4 scikit-learn runtime mismatch required=1.9.1 current=1.9.0; no live trading or real money occurred. Runner staging/version validation was corrected and merged as e8d03a4b852449038a55cd428ece52a1d294ae7f with post-merge CI 37460465090 green; fresh authorization is required before any retry",
+    "Second explicitly authorized V4 zero-money paper-shadow attempt on main c1d9c9a34f826f075b8fff292d31d576676707c8 reached production runtime staging and installed the correct scikit-learn 1.9.1, XGBoost 3.4.1, and joblib 1.5.3 packages, but failed before shadow start because Bash had loaded a stale pre-fix helper body before its internal git pull; that stale body moved a temporary venv and then could not execute the moved pip shebang. The authorization is consumed. Stale-launcher handling was fixed on main 5fe1d8782b2c9f95e71c3d5d297372a26dca4070 with post-merge CI 37466453668 green; the helper now requires local main to be pre-updated and fails before gcloud if stale"
   ],
   "current_phase": 15,
   "current_phase_name": "controlled live launch — continuous Telegram auto-approved fast-live v2 expired/inactive",
@@ -171,9 +172,9 @@
     "Keep Phase 15/V3 live trading closed. Do not restart or replace the expired/cleaned V3 live session while V4 paper validation is the active objective.",
     "Treat the V4 Gate B v2 final holdout as permanently consumed and fully reviewed. Do not rerun, replace, refit, recalibrate, change min_edge, or add side/regime filters from it.",
     "Preserve the exact frozen V4 policy: full_v4_xgboost at 240 seconds, identity calibration, global min_edge 0.05. Aggregate holdout evidence supports prospective zero-money paper observation, not automatic promotion; the evaluable bear regime remains a known weakness.",
-    "Treat the first V4 paper-shadow authorization bound to main 8a472b752625477cf26969e776823a620a39c519 as consumed. It reached production staging but failed closed before shadow start on required scikit-learn 1.9.1 versus observed 1.9.0. No live trading or real money occurred.",
-    "Use only the corrected runner on main e8d03a4b852449038a55cd428ece52a1d294ae7f (post-merge CI 37460465090 green). It constrains the project install to frozen ML pins, validates module and distribution-metadata versions as bp, uses PYTHONNOUSERSITE=1, and marks an in-place venv ready only after exact-version and frozen-model-load verification.",
-    "Stop at a fresh explicit zero-money paper-shadow authorization boundary. Do not reuse the failed token. Production runtime validation has not yet passed; paper activation remains unauthorized, live trading disabled, and real money zero."
+    "Treat both prior V4 paper-shadow authorizations as consumed. Attempt 1 on 8a472b... failed closed on sklearn 1.9.0 versus required 1.9.1. Attempt 2 on c1d9c9a... reached staging with the correct 1.9.1/3.4.1/1.5.3 packages but executed a stale pre-fix helper body and failed on a moved-venv pip shebang. Neither shadow started; live trading and real money remained zero.",
+    "Use only main 5fe1d8782b2c9f95e71c3d5d297372a26dca4070 or later after explicitly updating the local checkout before invoking the helper. The helper no longer pulls/switches main while running and fails before gcloud if local main is stale.",
+    "Stop at a third fresh explicit zero-money paper-shadow authorization boundary. Production runtime validation has not yet passed; paper activation remains unauthorized, live trading disabled, and real money zero."
   ],
   "not_completed": [
     "V3 Gate B successor v2 outcome-blind readiness and feature-only plan after the frozen epoch closes; model fitting and final-holdout access remain separate authorization boundaries",
@@ -3722,7 +3723,7 @@
     "live_trading_enabled": false,
     "max_daily_loss_usd": 0,
     "max_trade_size_usd": 0,
-    "next_action": "The first explicitly authorized zero-money V4 paper-shadow attempt on main 8a472b752625477cf26969e776823a620a39c519 reached remote runtime staging but failed closed before shadow start because the model loader observed scikit-learn 1.9.0 instead of required 1.9.1. Treat that authorization as consumed. The staging bug is fixed on main e8d03a4b852449038a55cd428ece52a1d294ae7f with CI 37460465090 green. Stop at a fresh explicit main/model/runtime-bound authorization boundary; do not reuse the old token, start paper, change the frozen policy, enable live trading, or use real money without fresh authorization.",
+    "next_action": "The second explicitly authorized zero-money V4 paper-shadow attempt bound to main c1d9c9a34f826f075b8fff292d31d576676707c8 is consumed. The local checkout was stale when Bash loaded the helper; the helper then pulled c1d9c9a... internally, but Bash continued executing the older pre-fix body. That stale body installed the correct 1.9.1/3.4.1/1.5.3 ML pins into a temporary venv, moved the venv, and failed at pip check because the pip shebang still referenced the old temporary path. The shadow never started. The launcher is fixed on main 5fe1d8782b2c9f95e71c3d5d297372a26dca4070 with post-merge CI 37466453668 green: it no longer switches or pulls main while running and fails locally before gcloud when local main is stale. Stop at a third fresh explicit main/model/runtime-bound authorization boundary; update local main before invoking the helper.",
     "offsets_seconds": [
       60,
       120,
@@ -3757,7 +3758,7 @@
       "unknown"
     ],
     "source_design": "docs/superpowers/specs/2026-09-20-phase-14-v4-regime-aware-challenger.md",
-    "status": "GATE_B_V2_FINAL_HOLDOUT_REVIEWED_PAPER_RUNTIME_FIXED_AWAITING_FRESH_AUTHORIZATION",
+    "status": "GATE_B_V2_FINAL_HOLDOUT_REVIEWED_PAPER_LAUNCHER_FIXED_AWAITING_THIRD_FRESH_AUTHORIZATION",
     "successor_scope": "COMPREHENSIVE_V3_WEAKNESS_REMEDIATION",
     "training_performed": true,
     "v3_final_holdout_tuning_allowed": false,
@@ -4137,7 +4138,7 @@
       "sklearn_version_mismatch_observed": true,
       "artifact_sklearn_version": "1.9.1",
       "evaluation_runtime_sklearn_version": "1.9.0",
-      "paper_runtime_version_guard_main": "e8d03a4b852449038a55cd428ece52a1d294ae7f",
+      "paper_runtime_version_guard_main": "5fe1d8782b2c9f95e71c3d5d297372a26dca4070",
       "model_refit_performed": false,
       "threshold_tuning_performed": false,
       "policy_reselection_performed": false,
@@ -4172,7 +4173,7 @@
       "required_paper_sklearn_version": "1.9.1",
       "observed_production_sklearn_version": "1.9.0",
       "paper_runtime_compatible": false,
-      "paper_runtime_blocker": "fresh_authorized_production_runtime_validation_required_after_staging_fix",
+      "paper_runtime_blocker": "third_fresh_authorized_production_runtime_validation_required_after_stale_launcher_fix",
       "paper_runtime_engineering_ready": true,
       "production_runtime_validation_performed": false
     },
@@ -4197,13 +4198,13 @@
       "live_trading_enabled": false,
       "real_money_usd": 0,
       "paper_runtime_engineering_ready": true,
-      "paper_runtime_repository_main": "e8d03a4b852449038a55cd428ece52a1d294ae7f",
+      "paper_runtime_repository_main": "5fe1d8782b2c9f95e71c3d5d297372a26dca4070",
       "production_runtime_validation_performed": false
     },
     "paper_runtime": {
-      "status": "FAILED_AUTHORIZED_STAGE_FIXED_AWAITING_FRESH_EXPLICIT_ZERO_MONEY_PAPER_AUTHORIZATION",
-      "repository_main": "e8d03a4b852449038a55cd428ece52a1d294ae7f",
-      "post_merge_ci_run": 37460465090,
+      "status": "SECOND_AUTHORIZED_STAGE_FAILED_STALE_LAUNCHER_FIXED_AWAITING_THIRD_FRESH_AUTHORIZATION",
+      "repository_main": "5fe1d8782b2c9f95e71c3d5d297372a26dca4070",
+      "post_merge_ci_run": 37466453668,
       "post_merge_ci_passed": true,
       "runner": "scripts/deploy/phase14_v4_fresh_book_shadow_run_cloudshell.sh",
       "runtime_requirements": "deploy/phase14-v4-paper-runtime-requirements.txt",
@@ -4239,7 +4240,52 @@
       "failed_attempt_reached_runtime_staging": true,
       "failed_attempt_shadow_started": false,
       "failed_attempt_reason": "frozen_v4_sklearn_runtime_mismatch_required_1.9.1_current_1.9.0",
-      "failed_attempt_runner_status": "FAIL:remote_stage_or_start_failed"
+      "failed_attempt_runner_status": "FAIL:remote_stage_or_start_failed",
+      "launcher_updates_checkout_during_execution": false,
+      "requires_preupdated_local_main": true,
+      "stale_local_main_fails_before_gcloud": true,
+      "second_failed_attempt_authorized_main": "c1d9c9a34f826f075b8fff292d31d576676707c8",
+      "second_failed_attempt_authorization_consumed": true,
+      "second_failed_attempt_reached_production": true,
+      "second_failed_attempt_reached_runtime_staging": true,
+      "second_failed_attempt_ml_pins_installed": true,
+      "second_failed_attempt_sklearn_version": "1.9.1",
+      "second_failed_attempt_xgboost_version": "3.4.1",
+      "second_failed_attempt_joblib_version": "1.5.3",
+      "second_failed_attempt_shadow_started": false,
+      "second_failed_attempt_inner_status": "FAIL:paper_runtime_pip_check_failed",
+      "second_failed_attempt_outer_status": "FAIL:remote_stage_or_start_failed",
+      "second_failed_attempt_reason": "stale_launcher_loaded_before_internal_git_pull_then_moved_temporary_venv_left_pip_shebang_pointing_to_old_temp_path",
+      "authorized_attempts": [
+        {
+          "sequence": 1,
+          "authorized_main": "8a472b752625477cf26969e776823a620a39c519",
+          "authorization_consumed": true,
+          "reached_production": true,
+          "reached_runtime_staging": true,
+          "shadow_started": false,
+          "result": "FAIL",
+          "reason": "frozen_v4_sklearn_runtime_mismatch_required_1.9.1_current_1.9.0",
+          "outer_status": "FAIL:remote_stage_or_start_failed"
+        },
+        {
+          "sequence": 2,
+          "authorized_main": "c1d9c9a34f826f075b8fff292d31d576676707c8",
+          "authorization_consumed": true,
+          "reached_production": true,
+          "reached_runtime_staging": true,
+          "shadow_started": false,
+          "result": "FAIL",
+          "reason": "stale_launcher_loaded_before_internal_git_pull_then_moved_temporary_venv_left_pip_shebang_pointing_to_old_temp_path",
+          "inner_status": "FAIL:paper_runtime_pip_check_failed",
+          "outer_status": "FAIL:remote_stage_or_start_failed",
+          "installed_runtime_versions": {
+            "scikit-learn": "1.9.1",
+            "xgboost": "3.4.1",
+            "joblib": "1.5.3"
+          }
+        }
+      ]
     }
   },
   "phase_15_v3_canary_readiness": {
