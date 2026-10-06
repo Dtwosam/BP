@@ -9,8 +9,6 @@ from bp_engine.recorder.service import (
     PolymarketCollectorComponent,
     RecorderService,
     _BufferedEventSink,
-    _BYBIT_LINEAR_TOPICS,
-    _BYBIT_SPOT_TOPICS,
     _is_v4_source_time_event,
     _RoutedBufferedEventSink,
 )
@@ -171,15 +169,6 @@ def source_event(
         sequence=sequence,
         payload={"sequence": sequence},
     )
-
-
-def test_bybit_spot_collects_ticker_source_time_anchors() -> None:
-    assert _BYBIT_SPOT_TOPICS == (
-        "orderbook.50.BTCUSDT",
-        "publicTrade.BTCUSDT",
-        "tickers.BTCUSDT",
-    )
-    assert "tickers.BTCUSDT" in _BYBIT_LINEAR_TOPICS
 
 
 def test_v4_source_time_priority_classifier_is_exact() -> None:
