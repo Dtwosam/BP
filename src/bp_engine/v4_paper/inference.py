@@ -6,6 +6,7 @@ import math
 import warnings
 from collections.abc import Mapping
 from decimal import Decimal
+from importlib.metadata import version as package_version
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,7 @@ FROZEN_V4_MIN_EDGE = Decimal("0.05")
 FROZEN_V4_FEE_RATE = Decimal("0.07")
 FROZEN_V4_SLIPPAGE_BUFFER = Decimal("0.01")
 FROZEN_V4_LEGACY_BOOK_AGE_SECONDS = 10
+FROZEN_V4_SKLEARN_VERSION = "1.9.1"
 
 
 class FrozenV4ModelError(RuntimeError):
@@ -110,7 +112,13 @@ def load_frozen_v4_bundle(
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", InconsistentVersionWarning)
-            loaded = joblib.load(io.BytesIO(payload))
+            current_sklearn = package_version("scikit-learn")
+    if current_sklearn != FROZEN_V4_SKLEARN_VERSION:
+        raise FrozenV4ModelError(
+            "frozen V4 scikit-learn runtime mismatch: "
+            f"required={FROZEN_V4_SKLEARN_VERSION} current={current_sklearn}"
+        )
+    loaded = joblib.load(io.BytesIO(payload))
     except InconsistentVersionWarning as exc:
         raise FrozenV4ModelError(
             "frozen V4 scikit-learn version mismatch: "
