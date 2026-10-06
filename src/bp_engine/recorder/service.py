@@ -297,10 +297,12 @@ class _RoutedBufferedEventSink:
         *,
         priority_sink: Callable[[object], object],
         bulk_sink: Callable[[object], object],
+        incident_sink: Callable[[object], object],
         state_reducer: object | None = None,
     ) -> None:
         self._priority_sink = priority_sink
         self._bulk_sink = bulk_sink
+        self._incident_sink = incident_sink
         self._state_reducer = state_reducer
 
     async def _send(self, sink: Callable[[object], object], event: object) -> None:
@@ -316,14 +318,20 @@ class _RoutedBufferedEventSink:
             return
         try:
             self._state_reducer.observe(event)
-        except Exception:
-            # The inner buffered sinks own incident persistence. Preserve the
-            # existing fail-soft reducer behavior by delegating reducer errors
-            # through the bulk sink's incident-capable path only when the
-            # standard _BufferedEventSink is used directly. Routed production
-            # construction uses a shared reducer that is already exercised by
-            # the existing reducer tests.
-            return
+        except Exception as exc:
+            await self._send(
+                self._incident_sink,
+                FeedIncident(
+                    source=event.source,
+                    stream=event.stream,
+                    incident_type="state_reducer_error",
+                    observed_at=event.received_at,
+                    details={
+                        "error_type": type(exc).__name__,
+                        "message": str(exc),
+                    },
+                ),
+            )
 
 
 def build_default_recorder_service(settings: object) -> RecorderService:
@@ -387,6 +395,7 @@ def build_default_recorder_service(settings: object) -> RecorderService:
         event_sink = _RoutedBufferedEventSink(
             priority_sink=priority_sink,
             bulk_sink=bulk_sink,
+            incident_sink=database_sink.record_incident,
             state_reducer=state_reducer,
         )
         priority_writer = BatchWriter(
