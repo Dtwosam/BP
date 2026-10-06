@@ -1,0 +1,5 @@
+# Frozen V4 paper/shadow ML runtime compatibility
+# Bound to the consumed Gate B v2 artifact and reviewed holdout provenance.
+scikit-learn==1.9.1
+xgboost-cpu==3.4.1
+joblib==1.5.3
