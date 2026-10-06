@@ -125,7 +125,7 @@ model_target="$release/frozen-v4-model.joblib"
 runtime_requirements="$release/deploy/phase14-v4-paper-runtime-requirements.txt"
 venv="$RUNTIME_ROOT/v4-paper-venv-$head"
 stage_tmp=""
-venv_tmp=""
+venv_created=false
 unit=""
 
 cleanup_remote() {
@@ -137,7 +137,9 @@ cleanup_remote() {
   fi
   rm -f "$archive"
   [[ -n "$stage_tmp" ]] && rm -rf "$stage_tmp"
-  [[ -n "$venv_tmp" ]] && rm -rf "$venv_tmp"
+  if (( rc != 0 )) && [[ "$venv_created" == "true" ]]; then
+    rm -rf "$venv"
+  fi
   exit "$rc"
 }
 trap cleanup_remote EXIT
@@ -275,44 +277,53 @@ grep -Fxq "joblib==$expected_joblib_version" "$runtime_requirements" ||
 if [[ -e "$venv" ]]; then
   [[ -d "$venv" && ! -L "$venv" && -x "$venv/bin/python" ]] ||
     fail "existing_paper_runtime_invalid"
+  [[ -f "$venv/.ready" ]] || fail "existing_paper_runtime_not_ready"
 else
-  venv_tmp="$(mktemp -d "$RUNTIME_ROOT/.v4-paper-venv-$head.XXXXXX")"
-  python3 -m venv "$venv_tmp" || fail "paper_runtime_venv_create_failed"
-  "$venv_tmp/bin/pip" install --disable-pip-version-check --no-input     -r "$runtime_requirements" || fail "paper_runtime_ml_install_failed"
-  "$venv_tmp/bin/pip" install --disable-pip-version-check --no-input     "$release" || fail "paper_runtime_project_install_failed"
-  "$venv_tmp/bin/pip" check >/dev/null || fail "paper_runtime_pip_check_failed"
-  mv "$venv_tmp" "$venv"
-  venv_tmp=""
+  python3 -m venv "$venv" || fail "paper_runtime_venv_create_failed"
+  venv_created=true
+  "$venv/bin/python" -m pip install --disable-pip-version-check --no-input \
+    -r "$runtime_requirements" || fail "paper_runtime_ml_install_failed"
+  "$venv/bin/python" -m pip install --disable-pip-version-check --no-input \
+    --constraint "$runtime_requirements" "$release" ||
+    fail "paper_runtime_project_install_failed"
 fi
-"$venv/bin/pip" check >/dev/null || fail "paper_runtime_pip_check_failed"
-"$venv/bin/python" - "$expected_sklearn_version" "$expected_xgboost_version" "$expected_joblib_version" <<'PY'
+
+"$venv/bin/python" -m pip check >/dev/null || fail "paper_runtime_pip_check_failed"
+
+runuser -u bp -- env \
+  PYTHONNOUSERSITE=1 \
+  "$venv/bin/python" - "$expected_sklearn_version" "$expected_xgboost_version" "$expected_joblib_version" <<'PY'
+from importlib.metadata import version
 import sys
 
 import joblib
 import sklearn
 import xgboost
 
-expected_sklearn, expected_xgboost, expected_joblib = sys.argv[1:4]
-actual = {
+expected = {
+    "scikit-learn": sys.argv[1],
+    "xgboost": sys.argv[2],
+    "joblib": sys.argv[3],
+}
+module_versions = {
     "scikit-learn": sklearn.__version__,
     "xgboost": xgboost.__version__,
     "joblib": joblib.__version__,
 }
-expected = {
-    "scikit-learn": expected_sklearn,
-    "xgboost": expected_xgboost,
-    "joblib": expected_joblib,
+metadata_versions = {
+    "scikit-learn": version("scikit-learn"),
+    "xgboost": version("xgboost"),
+    "joblib": version("joblib"),
 }
-if actual != expected:
-    raise SystemExit(f"paper runtime version mismatch: expected={expected} actual={actual}")
+if module_versions != expected:
+    raise SystemExit(
+        f"paper runtime module version mismatch: expected={expected} actual={module_versions}"
+    )
+if metadata_versions != expected:
+    raise SystemExit(
+        f"paper runtime metadata version mismatch: expected={expected} actual={metadata_versions}"
+    )
 PY
-
-runuser -u bp -- test -r "$release/scripts/run_v4_fresh_book_shadow.py"
-runuser -u bp -- test -r "$release/src/bp_engine/v4_paper/inference.py"
-runuser -u bp -- test -r "$release/src/bp_engine/v4_paper/source_time_features.py"
-runuser -u bp -- test -r "$release/src/bp_engine/v4_paper/fresh_book_shadow.py"
-runuser -u bp -- test -r "$release/src/bp_engine/execution/fast_live_book.py"
-runuser -u bp -- test -r "$model_target"
 
 runuser -u bp -- env \
   MODE=research \
@@ -320,6 +331,7 @@ runuser -u bp -- env \
   MAX_TRADE_SIZE_USD=0 \
   MAX_DAILY_LOSS_USD=0 \
   PYTHONDONTWRITEBYTECODE=1 \
+  PYTHONNOUSERSITE=1 \
   PYTHONPATH="$release/src" \
   "$venv/bin/python" - <<PY
 from bp_engine.v4_paper.inference import (
@@ -340,6 +352,23 @@ assert V4_SOURCE_TIME_FEATURE_VERSION == "v4-source-time-features-v2"
 assert len(V4_CORE_SOURCE_REQUIRED_FLAGS) == 12
 assert MAX_SOURCE_AGE_SECONDS == 2.0
 PY
+
+if [[ "$venv_created" == "true" ]]; then
+  printf '%s\n' "$head" > "$venv/.release-head"
+  printf '%s\n' "$expected_sklearn_version" > "$venv/.sklearn-version"
+  printf '%s\n' "$expected_xgboost_version" > "$venv/.xgboost-version"
+  printf '%s\n' "$expected_joblib_version" > "$venv/.joblib-version"
+  touch "$venv/.ready"
+  venv_created=false
+fi
+
+runuser -u bp -- test -r "$release/scripts/run_v4_fresh_book_shadow.py"
+runuser -u bp -- test -r "$release/src/bp_engine/v4_paper/inference.py"
+runuser -u bp -- test -r "$release/src/bp_engine/v4_paper/source_time_features.py"
+runuser -u bp -- test -r "$release/src/bp_engine/v4_paper/fresh_book_shadow.py"
+runuser -u bp -- test -r "$release/src/bp_engine/execution/fast_live_book.py"
+runuser -u bp -- test -r "$model_target"
+
 
 run_id="v4-fresh-book-shadow-$(date -u +%Y%m%dT%H%M%SZ)-${head:0:12}"
 unit="bp-$run_id.service"
@@ -365,6 +394,7 @@ systemd-run \
   --setenv=MAX_TRADE_SIZE_USD=0 \
   --setenv=MAX_DAILY_LOSS_USD=0 \
   --setenv=PYTHONDONTWRITEBYTECODE=1 \
+  --setenv=PYTHONNOUSERSITE=1 \
   --setenv="PYTHONPATH=$release/src" \
   "$venv/bin/python" \
   "$release/scripts/run_v4_fresh_book_shadow.py" \
