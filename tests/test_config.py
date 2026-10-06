@@ -25,6 +25,8 @@ def test_recorder_defaults_are_bounded_and_keep_trading_disabled() -> None:
     assert settings.recorder_batch_size > 0
     assert settings.recorder_flush_interval_seconds > 0
     assert settings.recorder_writer_workers == 1
+    assert settings.recorder_priority_queue_maxsize == 5_000
+    assert settings.recorder_priority_batch_size == 20
     assert settings.polymarket_refresh_interval_seconds > 0
     assert settings.database_url.startswith("postgresql+psycopg://")
     assert settings.live_trading_enabled is False
@@ -35,6 +37,27 @@ def test_recorder_writer_workers_default_to_one_and_accept_bounded_override(monk
 
     monkeypatch.setenv("RECORDER_WRITER_WORKERS", "4")
     assert Settings(_env_file=None).recorder_writer_workers == 4
+
+
+def test_recorder_priority_lane_settings_accept_positive_overrides(monkeypatch) -> None:
+    monkeypatch.setenv("RECORDER_PRIORITY_QUEUE_MAXSIZE", "7000")
+    monkeypatch.setenv("RECORDER_PRIORITY_BATCH_SIZE", "25")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.recorder_priority_queue_maxsize == 7000
+    assert settings.recorder_priority_batch_size == 25
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    ("recorder_priority_queue_maxsize", "recorder_priority_batch_size"),
+)
+def test_recorder_priority_lane_settings_reject_non_positive_values(
+    field_name: str,
+) -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **{field_name: 0})
 
 
 def test_recorder_writer_workers_reject_non_positive_values() -> None:
