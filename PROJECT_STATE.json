@@ -158,8 +158,8 @@
     "Second explicitly authorized V4 zero-money paper-shadow attempt on main c1d9c9a34f826f075b8fff292d31d576676707c8 reached production runtime staging and installed the correct scikit-learn 1.9.1, XGBoost 3.4.1, and joblib 1.5.3 packages, but failed before shadow start because Bash had loaded a stale pre-fix helper body before its internal git pull; that stale body moved a temporary venv and then could not execute the moved pip shebang. The authorization is consumed. Stale-launcher handling was fixed on main 5fe1d8782b2c9f95e71c3d5d297372a26dca4070 with post-merge CI 37466453668 green; the helper now requires local main to be pre-updated and fails before gcloud if stale",
     "Third explicitly authorized V4 zero-money paper-shadow attempt on main 62dbf0d653d7434b6d0bc610009228efff29cb29 reached production runtime staging and successfully installed scikit-learn 1.9.1, xgboost-cpu 3.4.1, joblib 1.5.3, and project dependencies, but failed before frozen-model validation or shadow start because the verifier queried importlib metadata for nonexistent distribution xgboost instead of installed distribution xgboost-cpu. The authorization is consumed. Metadata validation was corrected on main 14e07b3b17a37b80f0f13950418c21a2226ae20e with post-merge CI 37470959696 green; fresh authorization is required before another attempt"
   ],
-  "current_phase": 15,
-  "current_phase_name": "controlled live launch — continuous Telegram auto-approved fast-live v2 expired/inactive",
+  "current_phase": 14,
+  "current_phase_name": "V4 zero-money fresh-book paper shadow — started, bounded 24-hour observation pending completion",
   "desired_unverified_horizons": [
     "10m"
   ],
@@ -173,9 +173,9 @@
     "Keep Phase 15/V3 live trading closed. Do not restart or replace the expired/cleaned V3 live session while V4 paper validation is the active objective.",
     "Treat the V4 Gate B v2 final holdout as permanently consumed and fully reviewed. Do not rerun, replace, refit, recalibrate, change min_edge, or add side/regime filters from it.",
     "Preserve the exact frozen V4 policy: full_v4_xgboost at 240 seconds, identity calibration, global min_edge 0.05. Aggregate holdout evidence supports prospective zero-money paper observation, not automatic promotion; the evaluable bear regime remains a known weakness.",
-    "Treat all three prior V4 paper-shadow authorizations as consumed. Attempt 1 failed on sklearn 1.9.0 versus required 1.9.1. Attempt 2 failed because a stale helper moved a temporary venv. Attempt 3 installed the correct 1.9.1 / xgboost-cpu 3.4.1 / joblib 1.5.3 stack but failed before model validation because metadata lookup incorrectly requested distribution xgboost instead of xgboost-cpu. None of the shadows started; live trading and real money remained zero.",
-    "Use only main 14e07b3b17a37b80f0f13950418c21a2226ae20e or later after explicitly updating local main before invoking the helper. Runtime metadata validation now queries xgboost-cpu and has a named fail-closed runner error.",
-    "Stop at a fourth fresh explicit zero-money paper-shadow authorization boundary. Production runtime validation has not yet passed; paper activation remains unauthorized, live trading disabled, and real money zero."
+    "Treat the first three V4 paper-shadow authorizations as consumed historical failures. The fourth authorization bound to exact main f5c76576619c35e65fc8a317d47c8a31dd263950 passed runtime/model/start validation and is consumed by the started bounded shadow.",
+    "Preserve current shadow run v4-fresh-book-shadow-20261006T140323Z-f5c76576619c unchanged for its authorized 86400 seconds. Do not launch a fifth attempt, restart it, or alter model, timing, calibration, edge, sizing, or source policy while completion is pending.",
+    "After the bounded run ends, collect and review its existing immutable JSONL output read-only and record completion evidence before any further paper or live decision. Startup PASS is not a performance conclusion and does not authorize live trading or nonzero money."
   ],
   "not_completed": [
     "V3 Gate B successor v2 outcome-blind readiness and feature-only plan after the frozen epoch closes; model fitting and final-holdout access remain separate authorization boundaries",
