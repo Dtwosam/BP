@@ -9,6 +9,8 @@ from bp_engine.recorder.service import (
     PolymarketCollectorComponent,
     RecorderService,
     _BufferedEventSink,
+    _RoutedBufferedEventSink,
+    _is_v4_source_time_event,
 )
 from bp_engine.recorder.writer import EventBuffer
 
@@ -148,6 +150,154 @@ async def test_later_backpressure_creates_a_distinct_episode() -> None:
     assert incidents[3].details["blocked_event_count"] == 1
 
 
+def source_event(
+    *,
+    source: str,
+    stream: str,
+    instrument: str,
+    event_type: str,
+    sequence: int,
+) -> RawEvent:
+    observed_at = datetime(2026, 9, 3, 17, 1, sequence, tzinfo=UTC)
+    return RawEvent.build(
+        source=source,
+        stream=stream,
+        instrument=instrument,
+        event_type=event_type,
+        source_timestamp=observed_at,
+        received_at=observed_at,
+        sequence=sequence,
+        payload={"sequence": sequence},
+    )
+
+
+def test_v4_source_time_priority_classifier_is_exact() -> None:
+    assert _is_v4_source_time_event(
+        source_event(
+            source="coinbase",
+            stream="spot",
+            instrument="BTC-USD",
+            event_type="ticker_update",
+            sequence=1,
+        )
+    )
+    assert _is_v4_source_time_event(
+        source_event(
+            source="coinbase",
+            stream="spot",
+            instrument="BTC-USD",
+            event_type="market_trades_update",
+            sequence=2,
+        )
+    )
+    assert _is_v4_source_time_event(
+        source_event(
+            source="bybit",
+            stream="spot",
+            instrument="BTCUSDT",
+            event_type="trade",
+            sequence=3,
+        )
+    )
+    assert _is_v4_source_time_event(
+        source_event(
+            source="bybit",
+            stream="linear",
+            instrument="BTCUSDT",
+            event_type="ticker",
+            sequence=4,
+        )
+    )
+
+    for event in (
+        source_event(
+            source="bybit",
+            stream="spot",
+            instrument="BTCUSDT",
+            event_type="orderbook_delta",
+            sequence=5,
+        ),
+        source_event(
+            source="bybit",
+            stream="linear",
+            instrument="ETHUSDT",
+            event_type="ticker",
+            sequence=6,
+        ),
+        raw_event(7, 7),
+    ):
+        assert not _is_v4_source_time_event(event)
+
+
+@pytest.mark.asyncio
+async def test_routed_sink_separates_v4_source_events_without_dropping() -> None:
+    priority = EventBuffer(maxsize=10)
+    bulk = EventBuffer(maxsize=10)
+    incidents: list[FeedIncident] = []
+
+    priority_sink = _BufferedEventSink(priority, incidents.append)
+    bulk_sink = _BufferedEventSink(bulk, incidents.append)
+    routed = _RoutedBufferedEventSink(
+        priority_sink=priority_sink,
+        bulk_sink=bulk_sink,
+        incident_sink=incidents.append,
+    )
+
+    v4_event = source_event(
+        source="bybit",
+        stream="linear",
+        instrument="BTCUSDT",
+        event_type="ticker",
+        sequence=8,
+    )
+    bulk_event = source_event(
+        source="bybit",
+        stream="linear",
+        instrument="BTCUSDT",
+        event_type="orderbook_delta",
+        sequence=9,
+    )
+
+    await routed(v4_event)
+    await routed(bulk_event)
+
+    assert priority.get_nowait() == v4_event
+    assert bulk.get_nowait() == bulk_event
+    assert incidents == []
+
+
+@pytest.mark.asyncio
+async def test_routed_sink_preserves_state_reducer_error_incident() -> None:
+    class BrokenReducer:
+        def observe(self, event: RawEvent) -> None:
+            raise ValueError("bad routed state payload")
+
+    priority = EventBuffer(maxsize=10)
+    bulk = EventBuffer(maxsize=10)
+    incidents: list[FeedIncident] = []
+    routed = _RoutedBufferedEventSink(
+        priority_sink=_BufferedEventSink(priority, incidents.append),
+        bulk_sink=_BufferedEventSink(bulk, incidents.append),
+        incident_sink=incidents.append,
+        state_reducer=BrokenReducer(),
+    )
+    event = source_event(
+        source="coinbase",
+        stream="spot",
+        instrument="BTC-USD",
+        event_type="ticker_update",
+        sequence=10,
+    )
+
+    await routed(event)
+
+    assert priority.get_nowait() == event
+    assert len(incidents) == 1
+    assert incidents[0].incident_type == "state_reducer_error"
+    assert incidents[0].details["error_type"] == "ValueError"
+    assert incidents[0].details["message"] == "bad routed state payload"
+
+
 class FakeCoordinator:
     def __init__(self) -> None:
         self.calls = 0
@@ -247,7 +397,8 @@ def test_default_builder_assembles_primary_recorder_components_without_network(t
 
     assert service.component_names == frozenset(
         {
-            "writer",
+            "writer_priority",
+            "writer_bulk",
             "state_snapshotter",
             "polymarket",
             "bybit_spot",
@@ -255,6 +406,11 @@ def test_default_builder_assembles_primary_recorder_components_without_network(t
             "coinbase_spot",
         }
     )
-    writer_component = service._components["writer"]
-    assert writer_component._writer._worker_count == 3
+    priority_writer = service._components["writer_priority"]._writer
+    bulk_writer = service._components["writer_bulk"]._writer
+    assert priority_writer._worker_count == 1
+    assert priority_writer._batch_size == settings.recorder_priority_batch_size
+    assert bulk_writer._worker_count == 2
+    assert bulk_writer._batch_size == settings.recorder_batch_size
+    assert priority_writer._worker_count + bulk_writer._worker_count == 3
     assert settings.live_trading_enabled is False
