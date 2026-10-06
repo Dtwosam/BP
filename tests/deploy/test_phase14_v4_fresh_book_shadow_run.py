@@ -138,6 +138,21 @@ def test_v4_fresh_book_shadow_run_helper_is_hash_bound_and_money_disabled() -> N
         "paper_runtime_venv_create_failed",
         "paper_runtime_pip_check_failed",
         "existing_paper_runtime_invalid",
+        "existing_paper_runtime_not_ready",
+        "existing_paper_runtime_head_mismatch",
+        "existing_paper_runtime_sklearn_mismatch",
+        "existing_paper_runtime_xgboost_mismatch",
+        "existing_paper_runtime_joblib_mismatch",
+        "--constraint",
+        "PYTHONNOUSERSITE=1",
+        'version("scikit-learn")',
+        "paper runtime metadata version mismatch",
+        "paper runtime module version mismatch",
+        '.ready',
+        '.release-head',
+        '.sklearn-version',
+        '.xgboost-version',
+        '.joblib-version',
         "SCIKIT_LEARN_VERSION",
         "XGBOOST_VERSION",
         "JOBLIB_VERSION",
@@ -190,6 +205,12 @@ def test_v4_fresh_book_shadow_run_helper_is_hash_bound_and_money_disabled() -> N
         "gcloud auth list"
     )
     assert "/opt/bp/.venv/bin/python" not in text
+    assert 'mv "$venv_tmp" "$venv"' not in text
+    assert '"$venv/bin/python" -m pip install' in text
+    assert '--constraint "$runtime_requirements" "$release"' in text
+    assert text.index('paper runtime metadata version mismatch') < text.index(
+        'load_frozen_v4_bundle'
+    )
 
     for forbidden in (
         "systemctl enable",
