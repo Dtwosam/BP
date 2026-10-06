@@ -10,19 +10,6 @@ from bp_engine.recorder.models import FeedIncident
 from bp_engine.recorder.polymarket_coordinator import PolymarketSubscriptionCoordinator
 
 
-_BYBIT_SPOT_TOPICS = (
-    "orderbook.50.BTCUSDT",
-    "publicTrade.BTCUSDT",
-    "tickers.BTCUSDT",
-)
-_BYBIT_LINEAR_TOPICS = (
-    "orderbook.50.BTCUSDT",
-    "publicTrade.BTCUSDT",
-    "tickers.BTCUSDT",
-    "allLiquidation.BTCUSDT",
-)
-
-
 class Runnable(Protocol):
     async def run(self, stop: asyncio.Event) -> None: ...
 
@@ -487,8 +474,17 @@ def build_default_recorder_service(settings: object) -> RecorderService:
         refresh_interval_seconds=settings.polymarket_refresh_interval_seconds,
     )
 
-    spot_topics = _BYBIT_SPOT_TOPICS
-    linear_topics = _BYBIT_LINEAR_TOPICS
+    spot_topics = [
+        "orderbook.50.BTCUSDT",
+        "publicTrade.BTCUSDT",
+        "tickers.BTCUSDT",
+    ]
+    linear_topics = [
+        "orderbook.50.BTCUSDT",
+        "publicTrade.BTCUSDT",
+        "tickers.BTCUSDT",
+        "allLiquidation.BTCUSDT",
+    ]
     bybit_spot = WebSocketCollectorRunner(
         source="bybit",
         stream="spot",
