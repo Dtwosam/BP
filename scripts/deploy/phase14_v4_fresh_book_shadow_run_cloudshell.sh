@@ -42,6 +42,26 @@ if [[ "$LOCAL_HEAD" != "$REMOTE_MAIN" ]]; then
   fail "local_main_stale_update_before_run"
 fi
 
+RUNNER="$ROOT/scripts/run_v4_fresh_book_shadow.py"
+SOURCE_FEATURES="$ROOT/src/bp_engine/v4_paper/source_time_features.py"
+[[ -r "$RUNNER" ]] || fail "shadow_runner_missing"
+[[ -r "$SOURCE_FEATURES" ]] || fail "source_time_features_missing"
+for marker in \
+  'source_retry_count_by_condition' \
+  'source_retry_deferral_count' \
+  'source_retry_recovered_count' \
+  'source_retry_exhausted_count' \
+  'decision_lag < args.max_decision_lag_seconds' \
+  'core_source_ineligible_retry_window_exhausted'
+do
+  grep -Fq "$marker" "$RUNNER" ||
+    fail "shadow_runner_retry_contract_missing:$marker"
+done
+grep -Fq 'raw_market_events.c.received_at <= requested' "$SOURCE_FEATURES" ||
+  fail "source_time_strict_received_cutoff_missing"
+grep -Fq 'if received_at > requested:' "$SOURCE_FEATURES" ||
+  fail "source_time_received_guard_missing"
+
 EXPECTED_APPROVAL="I_APPROVE_PHASE14_V4_ZERO_MONEY_PAPER_SHADOW:${LOCAL_HEAD}:${EXPECTED_MODEL_SHA256}:${EXPECTED_SKLEARN_VERSION}:${EXPECTED_XGBOOST_VERSION}:${EXPECTED_JOBLIB_VERSION}"
 case "$PREFLIGHT_ONLY" in
   true)
@@ -51,6 +71,8 @@ case "$PREFLIGHT_ONLY" in
     printf 'SCIKIT_LEARN_VERSION=%s\n' "$EXPECTED_SKLEARN_VERSION"
     printf 'XGBOOST_VERSION=%s\n' "$EXPECTED_XGBOOST_VERSION"
     printf 'JOBLIB_VERSION=%s\n' "$EXPECTED_JOBLIB_VERSION"
+    printf 'SOURCE_RETRY_CONTRACT=bounded_within_max_decision_lag\n'
+    printf 'SOURCE_RECEIVED_CUTOFF=received_at_lte_decision_at\n'
     printf 'EXPECTED_APPROVAL=%s\n' "$EXPECTED_APPROVAL"
     printf 'PRODUCTION_HOST_CONTACTED=false\n'
     printf 'PRODUCTION_MUTATION_PERFORMED=false\n'
@@ -271,6 +293,26 @@ fi
   fail "staged_model_size_mismatch"
 [[ "$(sha256sum "$model_target" | awk '{print $1}')" == "$expected_model_sha" ]] ||
   fail "staged_model_sha_mismatch"
+
+runner="$release/scripts/run_v4_fresh_book_shadow.py"
+source_features="$release/src/bp_engine/v4_paper/source_time_features.py"
+[[ -r "$runner" ]] || fail "staged_shadow_runner_missing"
+[[ -r "$source_features" ]] || fail "staged_source_time_features_missing"
+for marker in \
+  'source_retry_count_by_condition' \
+  'source_retry_deferral_count' \
+  'source_retry_recovered_count' \
+  'source_retry_exhausted_count' \
+  'decision_lag < args.max_decision_lag_seconds' \
+  'core_source_ineligible_retry_window_exhausted'
+do
+  grep -Fq "$marker" "$runner" ||
+    fail "staged_shadow_runner_retry_contract_missing:$marker"
+done
+grep -Fq 'raw_market_events.c.received_at <= requested' "$source_features" ||
+  fail "staged_source_time_strict_received_cutoff_missing"
+grep -Fq 'if received_at > requested:' "$source_features" ||
+  fail "staged_source_time_received_guard_missing"
 
 [[ -r "$runtime_requirements" ]] || fail "paper_runtime_requirements_missing"
 grep -Fxq "scikit-learn==$expected_sklearn_version" "$runtime_requirements" ||

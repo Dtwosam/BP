@@ -71,6 +71,35 @@ exit 97
     )
     fake_git.chmod(0o755)
 
+    runner = tmp_path / "scripts" / "run_v4_fresh_book_shadow.py"
+    runner.parent.mkdir(parents=True, exist_ok=True)
+    runner.write_text(
+        "\n".join(
+            (
+                "source_retry_count_by_condition",
+                "source_retry_deferral_count",
+                "source_retry_recovered_count",
+                "source_retry_exhausted_count",
+                "decision_lag < args.max_decision_lag_seconds",
+                "core_source_ineligible_retry_window_exhausted",
+            )
+        ),
+        encoding="utf-8",
+    )
+    source_features = (
+        tmp_path / "src" / "bp_engine" / "v4_paper" / "source_time_features.py"
+    )
+    source_features.parent.mkdir(parents=True, exist_ok=True)
+    source_features.write_text(
+        "\n".join(
+            (
+                "raw_market_events.c.received_at <= requested",
+                "if received_at > requested:",
+            )
+        ),
+        encoding="utf-8",
+    )
+
     gcloud_sentinel = tmp_path / "gcloud-called"
     fake_gcloud = fake_bin / "gcloud"
     fake_gcloud.write_text(
@@ -105,6 +134,14 @@ exit 99
     assert "SCIKIT_LEARN_VERSION=1.9.1" in completed.stdout
     assert "XGBOOST_VERSION=3.4.1" in completed.stdout
     assert "JOBLIB_VERSION=1.5.3" in completed.stdout
+    assert (
+        "SOURCE_RETRY_CONTRACT=bounded_within_max_decision_lag"
+        in completed.stdout
+    )
+    assert (
+        "SOURCE_RECEIVED_CUTOFF=received_at_lte_decision_at"
+        in completed.stdout
+    )
     assert "PRODUCTION_HOST_CONTACTED=false" in completed.stdout
     assert "PRODUCTION_MUTATION_PERFORMED=false" in completed.stdout
     assert "PAPER_ACTIVATION_PERFORMED=false" in completed.stdout
@@ -204,6 +241,14 @@ def test_v4_fresh_book_shadow_run_helper_is_hash_bound_and_money_disabled() -> N
         "I_APPROVE_PHASE14_V4_ZERO_MONEY_PAPER_SHADOW:",
         "local_branch_not_main",
         "local_main_stale_update_before_run",
+        "shadow_runner_retry_contract_missing",
+        "source_time_strict_received_cutoff_missing",
+        "source_time_received_guard_missing",
+        "staged_shadow_runner_retry_contract_missing",
+        "staged_source_time_strict_received_cutoff_missing",
+        "staged_source_time_received_guard_missing",
+        "SOURCE_RETRY_CONTRACT=bounded_within_max_decision_lag",
+        "SOURCE_RECEIVED_CUTOFF=received_at_lte_decision_at",
         "PHASE14_V4_FRESH_BOOK_SHADOW_PREFLIGHT=PASS",
         "explicit_zero_money_paper_shadow_approval_missing_or_mismatched",
         "PRODUCTION_HOST_CONTACTED=false",

@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "verify_v4_fresh_book_shadow_closeout.py"
 RUN_ID = "v4-fresh-book-shadow-20261006T140323Z-f5c76576619c"
 MODEL_SHA = "6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf"
+RETRY_POLICY = "retry_core_source_ineligible_within_max_decision_lag"
+RECEIVED_CUTOFF = "received_at_lte_decision_at"
 
 
 def _load():
@@ -76,6 +78,32 @@ def _records(*, elapsed_seconds: int = 86400) -> list[dict[str, object]]:
     ]
 
 
+def _add_retry_contract(
+    records: list[dict[str, object]],
+    *,
+    deferrals: int,
+    recovered: int,
+    exhausted: int,
+    pending: int,
+) -> None:
+    records[0].update(
+        {
+            "source_retry_policy": RETRY_POLICY,
+            "source_received_cutoff": RECEIVED_CUTOFF,
+        }
+    )
+    records[-1].update(
+        {
+            "source_retry_deferral_count": deferrals,
+            "source_retry_recovered_count": recovered,
+            "source_retry_exhausted_count": exhausted,
+            "source_retry_pending_count": pending,
+            "source_retry_policy": RETRY_POLICY,
+            "source_received_cutoff": RECEIVED_CUTOFF,
+        }
+    )
+
+
 def _write(tmp_path: Path, records: list[dict[str, object]]) -> Path:
     path = tmp_path / f"{RUN_ID}.jsonl"
     path.write_text(
@@ -105,6 +133,98 @@ def test_closeout_verifier_accepts_exact_completed_safe_run(tmp_path: Path) -> N
     assert len(report["evidence_sha256"]) == 64
     assert report["database_writes_performed"] is False
     assert report["order_submission_performed"] is False
+    assert report["source_retry_accounting_present"] is False
+    assert report["source_retry_deferral_count"] is None
+
+
+def test_closeout_verifier_accepts_complete_retry_accounting(tmp_path: Path) -> None:
+    module = _load()
+    records = _records()
+    _add_retry_contract(
+        records,
+        deferrals=3,
+        recovered=1,
+        exhausted=1,
+        pending=0,
+    )
+    report = _verify(module, _write(tmp_path, records))
+
+    assert report["source_retry_accounting_present"] is True
+    assert report["source_retry_deferral_count"] == 3
+    assert report["source_retry_recovered_count"] == 1
+    assert report["source_retry_exhausted_count"] == 1
+    assert report["source_retry_pending_count"] == 0
+
+
+def test_closeout_verifier_rejects_partial_retry_accounting(tmp_path: Path) -> None:
+    module = _load()
+    records = _records()
+    records[-1]["source_retry_deferral_count"] = 1
+    path = _write(tmp_path, records)
+
+    with pytest.raises(
+        module.V4FreshBookShadowCloseoutError,
+        match="partial source-retry accounting",
+    ):
+        _verify(module, path)
+
+
+def test_closeout_verifier_rejects_pending_retry_at_completion(tmp_path: Path) -> None:
+    module = _load()
+    records = _records()
+    _add_retry_contract(
+        records,
+        deferrals=2,
+        recovered=1,
+        exhausted=0,
+        pending=1,
+    )
+    path = _write(tmp_path, records)
+
+    with pytest.raises(
+        module.V4FreshBookShadowCloseoutError,
+        match="pending count must be zero",
+    ):
+        _verify(module, path)
+
+
+def test_closeout_verifier_rejects_retry_terminal_overcount(tmp_path: Path) -> None:
+    module = _load()
+    records = _records()
+    _add_retry_contract(
+        records,
+        deferrals=1,
+        recovered=1,
+        exhausted=1,
+        pending=0,
+    )
+    path = _write(tmp_path, records)
+
+    with pytest.raises(
+        module.V4FreshBookShadowCloseoutError,
+        match="terminal accounting exceeds deferrals",
+    ):
+        _verify(module, path)
+
+
+def test_closeout_verifier_rejects_retry_policy_mismatch(tmp_path: Path) -> None:
+    module = _load()
+    records = _records()
+    _add_retry_contract(
+        records,
+        deferrals=1,
+        recovered=1,
+        exhausted=0,
+        pending=0,
+    )
+    records[0]["source_received_cutoff"] = "relaxed"
+    path = _write(tmp_path, records)
+
+    with pytest.raises(
+        module.V4FreshBookShadowCloseoutError,
+        match="source_received_cutoff mismatch",
+    ):
+        _verify(module, path)
 
 
 def test_closeout_verifier_rejects_missing_completion(tmp_path: Path) -> None:
