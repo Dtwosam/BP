@@ -309,7 +309,9 @@ for marker in \
   'source_retry_recovered_count' \
   'source_retry_exhausted_count' \
   'decision_lag < args.max_decision_lag_seconds' \
-  'core_source_ineligible_retry_window_exhausted'
+  'core_source_ineligible_retry_window_exhausted' \
+  'probe_core_source_time_v4_readiness' \
+  'core_six_anchor_only'
 do
   grep -Fq "$marker" "$runner" ||
     fail "staged_shadow_runner_retry_contract_missing:$marker"
