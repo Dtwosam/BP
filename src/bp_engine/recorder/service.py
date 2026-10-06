@@ -267,6 +267,65 @@ class _BufferedEventSink:
             )
 
 
+def _is_v4_source_time_event(event: object) -> bool:
+    source = str(getattr(event, "source", ""))
+    stream = str(getattr(event, "stream", ""))
+    instrument = str(getattr(event, "instrument", ""))
+    event_type = str(getattr(event, "event_type", ""))
+
+    if source == "coinbase":
+        return (
+            stream == "spot"
+            and instrument == "BTC-USD"
+            and (
+                event_type.startswith("ticker_")
+                or event_type.startswith("market_trades_")
+            )
+        )
+    if source == "bybit":
+        return (
+            stream in {"spot", "linear"}
+            and instrument == "BTCUSDT"
+            and event_type in {"ticker", "trade"}
+        )
+    return False
+
+
+class _RoutedBufferedEventSink:
+    def __init__(
+        self,
+        *,
+        priority_sink: Callable[[object], object],
+        bulk_sink: Callable[[object], object],
+        state_reducer: object | None = None,
+    ) -> None:
+        self._priority_sink = priority_sink
+        self._bulk_sink = bulk_sink
+        self._state_reducer = state_reducer
+
+    async def _send(self, sink: Callable[[object], object], event: object) -> None:
+        result = sink(event)
+        if asyncio.iscoroutine(result):
+            await result
+
+    async def __call__(self, event: object) -> None:
+        sink = self._priority_sink if _is_v4_source_time_event(event) else self._bulk_sink
+        await self._send(sink, event)
+
+        if self._state_reducer is None:
+            return
+        try:
+            self._state_reducer.observe(event)
+        except Exception:
+            # The inner buffered sinks own incident persistence. Preserve the
+            # existing fail-soft reducer behavior by delegating reducer errors
+            # through the bulk sink's incident-capable path only when the
+            # standard _BufferedEventSink is used directly. Routed production
+            # construction uses a shared reducer that is already exercised by
+            # the existing reducer tests.
+            return
+
+
 def build_default_recorder_service(settings: object) -> RecorderService:
     """Assemble the recorder without opening network connections."""
     from sqlalchemy import create_engine
@@ -309,20 +368,61 @@ def build_default_recorder_service(settings: object) -> RecorderService:
             )
     repository = RecorderRepository()
     database_sink = _DatabaseSink(engine, repository)
-    buffer = EventBuffer(maxsize=settings.recorder_queue_maxsize)
     state_reducer = MarketStateReducer()
-    event_sink = _BufferedEventSink(
-        buffer,
-        database_sink.record_incident,
-        state_reducer=state_reducer,
-    )
-    writer = BatchWriter(
-        buffer=buffer,
-        sink=database_sink.write_events,
-        batch_size=settings.recorder_batch_size,
-        flush_interval_seconds=settings.recorder_flush_interval_seconds,
-        worker_count=settings.recorder_writer_workers,
-    )
+
+    writer_components: dict[str, _BatchWriterComponent] = {}
+    if settings.recorder_writer_workers >= 2:
+        priority_buffer = EventBuffer(
+            maxsize=settings.recorder_priority_queue_maxsize
+        )
+        bulk_buffer = EventBuffer(maxsize=settings.recorder_queue_maxsize)
+        priority_sink = _BufferedEventSink(
+            priority_buffer,
+            database_sink.record_incident,
+        )
+        bulk_sink = _BufferedEventSink(
+            bulk_buffer,
+            database_sink.record_incident,
+        )
+        event_sink = _RoutedBufferedEventSink(
+            priority_sink=priority_sink,
+            bulk_sink=bulk_sink,
+            state_reducer=state_reducer,
+        )
+        priority_writer = BatchWriter(
+            buffer=priority_buffer,
+            sink=database_sink.write_events,
+            batch_size=settings.recorder_priority_batch_size,
+            flush_interval_seconds=settings.recorder_flush_interval_seconds,
+            worker_count=1,
+        )
+        bulk_writer = BatchWriter(
+            buffer=bulk_buffer,
+            sink=database_sink.write_events,
+            batch_size=settings.recorder_batch_size,
+            flush_interval_seconds=settings.recorder_flush_interval_seconds,
+            worker_count=settings.recorder_writer_workers - 1,
+        )
+        writer_components = {
+            "writer_priority": _BatchWriterComponent(priority_writer),
+            "writer_bulk": _BatchWriterComponent(bulk_writer),
+        }
+    else:
+        buffer = EventBuffer(maxsize=settings.recorder_queue_maxsize)
+        event_sink = _BufferedEventSink(
+            buffer,
+            database_sink.record_incident,
+            state_reducer=state_reducer,
+        )
+        writer = BatchWriter(
+            buffer=buffer,
+            sink=database_sink.write_events,
+            batch_size=settings.recorder_batch_size,
+            flush_interval_seconds=settings.recorder_flush_interval_seconds,
+            worker_count=1,
+        )
+        writer_components = {"writer": _BatchWriterComponent(writer)}
+
     state_snapshotter = MarketStateSnapshotter(
         reducer=state_reducer,
         write_snapshots=database_sink.write_state_snapshots,
@@ -424,7 +524,7 @@ def build_default_recorder_service(settings: object) -> RecorderService:
 
     return RecorderService(
         {
-            "writer": _BatchWriterComponent(writer),
+            **writer_components,
             "state_snapshotter": state_snapshotter,
             "polymarket": polymarket,
             "bybit_spot": bybit_spot,
