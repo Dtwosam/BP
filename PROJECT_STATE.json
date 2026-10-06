@@ -4313,7 +4313,7 @@
             "joblib": "1.5.3"
           },
           "model_validation_reached": false
-        ,
+        },
         {
           "sequence": 4,
           "authorized_main": "f5c76576619c35e65fc8a317d47c8a31dd263950",
