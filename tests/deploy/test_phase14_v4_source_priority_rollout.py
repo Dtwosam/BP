@@ -52,6 +52,26 @@ def test_v4_source_priority_rollout_is_exact_candidate_and_approval_bound() -> N
     )
 
 
+def test_v4_source_priority_rollout_has_local_only_preflight() -> None:
+    source = _source()
+    for marker in (
+        "PHASE14_V4_SOURCE_PRIORITY_ROLLOUT_PREFLIGHT_ONLY",
+        "PHASE14_V4_SOURCE_PRIORITY_ROLLOUT_PREFLIGHT=PASS",
+        "EXPECTED_APPROVAL=$EXPECTED_APPROVAL",
+        "PRODUCTION_MUTATION=false",
+        "GCLOUD_CONTACT=false",
+        "preflight_only_invalid",
+    ):
+        assert marker in source
+
+    preflight = source.index('if [[ "$PREFLIGHT_ONLY" == "true" ]]')
+    approval = source.index('[[ "$APPROVAL" == "$EXPECTED_APPROVAL" ]]')
+    gcloud = source.index("command -v gcloud")
+    assert preflight < approval < gcloud
+    assert source.index('echo "GCLOUD_CONTACT=false"') < gcloud
+    assert source.index("exit 0", preflight) < approval
+
+
 def test_v4_source_priority_rollout_scope_is_eight_validated_files() -> None:
     source = _source()
     for path in (
