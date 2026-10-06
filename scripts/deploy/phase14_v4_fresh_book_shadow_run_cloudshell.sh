@@ -329,7 +329,7 @@ module_versions = {
 }
 metadata_versions = {
     "scikit-learn": version("scikit-learn"),
-    "xgboost": version("xgboost"),
+    "xgboost": version("xgboost-cpu"),
     "joblib": version("joblib"),
 }
 if module_versions != expected:
