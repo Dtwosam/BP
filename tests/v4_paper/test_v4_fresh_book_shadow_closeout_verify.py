@@ -105,6 +105,81 @@ def test_closeout_verifier_accepts_exact_completed_safe_run(tmp_path: Path) -> N
     assert len(report["evidence_sha256"]) == 64
     assert report["database_writes_performed"] is False
     assert report["order_submission_performed"] is False
+    assert report["source_retry_accounting_present"] is False
+    assert report["source_retry_deferral_count"] is None
+
+
+def test_closeout_verifier_accepts_complete_retry_accounting(tmp_path: Path) -> None:
+    module = _load()
+    records = _records()
+    records[-1].update(
+        {
+            "source_retry_deferral_count": 3,
+            "source_retry_recovered_count": 1,
+            "source_retry_exhausted_count": 1,
+            "source_retry_pending_count": 0,
+        }
+    )
+    report = _verify(module, _write(tmp_path, records))
+
+    assert report["source_retry_accounting_present"] is True
+    assert report["source_retry_deferral_count"] == 3
+    assert report["source_retry_recovered_count"] == 1
+    assert report["source_retry_exhausted_count"] == 1
+    assert report["source_retry_pending_count"] == 0
+
+
+def test_closeout_verifier_rejects_partial_retry_accounting(tmp_path: Path) -> None:
+    module = _load()
+    records = _records()
+    records[-1]["source_retry_deferral_count"] = 1
+    path = _write(tmp_path, records)
+
+    with pytest.raises(
+        module.V4FreshBookShadowCloseoutError,
+        match="partial source-retry accounting",
+    ):
+        _verify(module, path)
+
+
+def test_closeout_verifier_rejects_pending_retry_at_completion(tmp_path: Path) -> None:
+    module = _load()
+    records = _records()
+    records[-1].update(
+        {
+            "source_retry_deferral_count": 2,
+            "source_retry_recovered_count": 1,
+            "source_retry_exhausted_count": 0,
+            "source_retry_pending_count": 1,
+        }
+    )
+    path = _write(tmp_path, records)
+
+    with pytest.raises(
+        module.V4FreshBookShadowCloseoutError,
+        match="pending count must be zero",
+    ):
+        _verify(module, path)
+
+
+def test_closeout_verifier_rejects_retry_terminal_overcount(tmp_path: Path) -> None:
+    module = _load()
+    records = _records()
+    records[-1].update(
+        {
+            "source_retry_deferral_count": 1,
+            "source_retry_recovered_count": 1,
+            "source_retry_exhausted_count": 1,
+            "source_retry_pending_count": 0,
+        }
+    )
+    path = _write(tmp_path, records)
+
+    with pytest.raises(
+        module.V4FreshBookShadowCloseoutError,
+        match="terminal accounting exceeds deferrals",
+    ):
+        _verify(module, path)
 
 
 def test_closeout_verifier_rejects_missing_completion(tmp_path: Path) -> None:
