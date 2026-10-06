@@ -147,6 +147,10 @@ def test_v4_supersede_stop_is_exact_scoped_and_preserves_evidence() -> None:
         "probe_core_source_time_v4_readiness",
         "core_six_anchor_only",
         "raw_market_events.c.received_at <= requested",
+        'if not stripped.startswith("{")',
+        "ignored_non_json_lines += 1",
+        "malformed JSON evidence at line",
+        "OLD_EVIDENCE_NON_JSON_LINE_COUNT",
     ):
         assert marker in text
 
