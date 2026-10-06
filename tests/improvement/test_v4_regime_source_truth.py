@@ -84,7 +84,7 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert v4["max_daily_loss_usd"] == 0
 
     evaluator = v4["final_holdout_evaluator"]
-    assert evaluator["status"] == "FINAL_HOLDOUT_EVALUATED_ONCE_AWAITING_RESULT_REVIEW"
+    assert evaluator["status"] == "FINAL_HOLDOUT_REVIEWED_PAPER_DECISION_READY_RUNTIME_BLOCKED"
     assert evaluator["guarded_runner"] == (
         "scripts/deploy/phase14_v4_gate_b_final_holdout_cloudshell.sh"
     )
@@ -116,7 +116,22 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert evaluator["one_shot_authorization_granted"] is True
     assert evaluator["one_shot_authorization_consumed"] is True
     assert evaluator["rerun_allowed"] is False
-    assert evaluator["result_metrics_reviewed"] is False
+    assert evaluator["result_metrics_reviewed"] is True
+    assert evaluator["holdout_evidence_sha256"] == (
+        "b34f2a2263eb5376687caff42a8249359a0b18abb020cd2a4bd8b5d6c92e849f"
+    )
+    assert evaluator["forecast_accuracy"] == 0.90625
+    assert evaluator["trade_count"] == 84
+    assert evaluator["realized_pnl_after_assumed_costs"] == 11.675645999999999
+    assert evaluator["profit_factor"] == 2.3143859832402827
+    assert evaluator["bear_after_cost_pnl"] == -0.5209760000000004
+    assert evaluator["uniform_regime_robustness_established"] is False
+    assert evaluator["aggregate_holdout_supports_paper_observation"] is True
+    assert evaluator["paper_activation_recommended_after_runtime_compatibility"] is True
+    assert evaluator["required_paper_sklearn_version"] == "1.9.1"
+    assert evaluator["observed_production_sklearn_version"] == "1.9.0"
+    assert evaluator["paper_runtime_compatible"] is False
+    assert evaluator["holdout_driven_threshold_change_allowed"] is False
     assert evaluator["database_writes_performed"] is False
     assert evaluator["sklearn_version_mismatch_observed"] is True
     assert evaluator["artifact_sklearn_version"] == "1.9.1"
@@ -387,7 +402,9 @@ def test_v4_gate_b_v2_ordinary_selection_is_frozen_and_holdout_untouched() -> No
     v4 = state["phase_14_v4_regime_aware"]
     selection = v4["gate_b_ordinary_selection"]
 
-    assert v4["status"] == "GATE_B_V2_FINAL_HOLDOUT_EVALUATED_AWAITING_REVIEW"
+    assert v4["status"] == (
+        "GATE_B_V2_FINAL_HOLDOUT_REVIEWED_PAPER_DECISION_READY_RUNTIME_BLOCKED"
+    )
     assert selection["plan_sha256"] == (
         "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557"
     )
