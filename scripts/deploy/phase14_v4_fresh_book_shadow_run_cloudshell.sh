@@ -286,14 +286,17 @@ else
 fi
 "$venv/bin/pip" check >/dev/null || fail "paper_runtime_pip_check_failed"
 "$venv/bin/python" - "$expected_sklearn_version" "$expected_xgboost_version" "$expected_joblib_version" <<'PY'
-from importlib.metadata import version
 import sys
+
+import joblib
+import sklearn
+import xgboost
 
 expected_sklearn, expected_xgboost, expected_joblib = sys.argv[1:4]
 actual = {
-    "scikit-learn": version("scikit-learn"),
-    "xgboost": version("xgboost"),
-    "joblib": version("joblib"),
+    "scikit-learn": sklearn.__version__,
+    "xgboost": xgboost.__version__,
+    "joblib": joblib.__version__,
 }
 expected = {
     "scikit-learn": expected_sklearn,
