@@ -247,6 +247,11 @@ def main() -> int:
     quote_unavailable_count = 0
     decision_missed_count = 0
     source_ineligible_count = 0
+    source_retry_deferral_count = 0
+    source_retry_recovered_count = 0
+    source_retry_exhausted_count = 0
+    source_retry_count_by_condition: dict[str, int] = {}
+    last_source_ineligible_payload_by_condition: dict[str, dict[str, Any]] = {}
     extreme_edge_evaluated_count = 0
     extreme_edge_trade_count = 0
     subscribed = 0
@@ -316,20 +321,43 @@ def main() -> int:
                         continue
                     initial_lag = (now - decision_at).total_seconds()
                     if initial_lag > args.max_decision_lag_seconds:
-                        seen.add(condition_id)
-                        decision_missed_count += 1
-                        _emit(
-                            {
-                                "event": "v4_fresh_book_shadow_decision_missed",
-                                "condition_id": condition_id,
-                                "decision_at": decision_at.isoformat(),
-                                "observed_at": now.isoformat(),
-                                "decision_lag_seconds": initial_lag,
-                                "trade": False,
-                                "reason": "decision_lag_exceeded",
-                                "order_submission_enabled": False,
-                            }
+                        retry_payload = (
+                            last_source_ineligible_payload_by_condition.pop(
+                                condition_id, None
+                            )
                         )
+                        retry_count = source_retry_count_by_condition.pop(
+                            condition_id, 0
+                        )
+                        seen.add(condition_id)
+                        if retry_payload is not None:
+                            source_ineligible_count += 1
+                            source_retry_exhausted_count += 1
+                            retry_payload.update(
+                                {
+                                    "observed_at": now.isoformat(),
+                                    "decision_lag_seconds": initial_lag,
+                                    "source_retry_count": retry_count,
+                                    "reason": (
+                                        "core_source_ineligible_retry_window_exhausted"
+                                    ),
+                                }
+                            )
+                            _emit(retry_payload)
+                        else:
+                            decision_missed_count += 1
+                            _emit(
+                                {
+                                    "event": "v4_fresh_book_shadow_decision_missed",
+                                    "condition_id": condition_id,
+                                    "decision_at": decision_at.isoformat(),
+                                    "observed_at": now.isoformat(),
+                                    "decision_lag_seconds": initial_lag,
+                                    "trade": False,
+                                    "reason": "decision_lag_exceeded",
+                                    "order_submission_enabled": False,
+                                }
+                            )
                         continue
 
                     features = build_source_time_v4_features(
@@ -344,33 +372,61 @@ def main() -> int:
                     )
                     if source_ineligible_reasons:
                         observed_at = datetime.now(UTC)
-                        seen.add(condition_id)
-                        source_ineligible_count += 1
-                        _emit(
-                            {
-                                "event": "v4_fresh_book_shadow_source_ineligible",
-                                "condition_id": condition_id,
-                                "decision_at": decision_at.isoformat(),
-                                "observed_at": observed_at.isoformat(),
-                                "decision_lag_seconds": (
-                                    observed_at - decision_at
-                                ).total_seconds(),
-                                "source_feature_version": (
-                                    V4_SOURCE_TIME_FEATURE_VERSION
-                                ),
-                                "source_evidence_sha256": evidence_sha256,
-                                "source_evidence": evidence_mapping,
-                                "missing_flags": features.missing_flags,
-                                "source_ineligible_reasons": list(
-                                    source_ineligible_reasons
-                                ),
-                                "trade": False,
-                                "reason": "core_source_ineligible",
-                                "holdout_labels_read": False,
-                                "order_submission_enabled": False,
-                            }
+                        decision_lag = (observed_at - decision_at).total_seconds()
+                        retry_count = source_retry_count_by_condition.get(
+                            condition_id, 0
                         )
+                        payload = {
+                            "event": "v4_fresh_book_shadow_source_ineligible",
+                            "condition_id": condition_id,
+                            "decision_at": decision_at.isoformat(),
+                            "observed_at": observed_at.isoformat(),
+                            "decision_lag_seconds": decision_lag,
+                            "source_feature_version": V4_SOURCE_TIME_FEATURE_VERSION,
+                            "source_evidence_sha256": evidence_sha256,
+                            "source_evidence": evidence_mapping,
+                            "missing_flags": features.missing_flags,
+                            "source_ineligible_reasons": list(
+                                source_ineligible_reasons
+                            ),
+                            "source_retry_count": retry_count,
+                            "trade": False,
+                            "reason": "core_source_ineligible",
+                            "holdout_labels_read": False,
+                            "order_submission_enabled": False,
+                        }
+                        if decision_lag < args.max_decision_lag_seconds:
+                            retry_count += 1
+                            source_retry_count_by_condition[condition_id] = retry_count
+                            payload["source_retry_count"] = retry_count
+                            last_source_ineligible_payload_by_condition[
+                                condition_id
+                            ] = payload
+                            source_retry_deferral_count += 1
+                            continue
+
+                        seen.add(condition_id)
+                        source_retry_count_by_condition.pop(condition_id, None)
+                        last_source_ineligible_payload_by_condition.pop(
+                            condition_id, None
+                        )
+                        source_ineligible_count += 1
+                        if retry_count:
+                            source_retry_exhausted_count += 1
+                            payload["reason"] = (
+                                "core_source_ineligible_retry_window_exhausted"
+                            )
+                        _emit(payload)
                         continue
+
+                    source_retry_count = source_retry_count_by_condition.pop(
+                        condition_id, 0
+                    )
+                    last_source_ineligible_payload_by_condition.pop(
+                        condition_id, None
+                    )
+                    if source_retry_count:
+                        source_retry_recovered_count += 1
 
                     probability_up = predict_frozen_v4_probability(
                         bundle,
@@ -440,6 +496,7 @@ def main() -> int:
                             "source_evidence_sha256": evidence_sha256,
                             "source_evidence": evidence_mapping,
                             "missing_flags": features.missing_flags,
+                            "source_retry_count": source_retry_count,
                             "predictors": features.predictors,
                             "holdout_labels_read": False,
                             "order_submission_enabled": False,
@@ -507,6 +564,10 @@ def main() -> int:
             "quote_unavailable_count": quote_unavailable_count,
             "decision_missed_count": decision_missed_count,
             "source_ineligible_count": source_ineligible_count,
+            "source_retry_deferral_count": source_retry_deferral_count,
+            "source_retry_recovered_count": source_retry_recovered_count,
+            "source_retry_exhausted_count": source_retry_exhausted_count,
+            "source_retry_pending_count": len(source_retry_count_by_condition),
             "core_source_required_flags": list(V4_CORE_SOURCE_REQUIRED_FLAGS),
             "core_source_policy": "require_market_start_and_current_all_venues",
             "extreme_edge_evaluated_count": extreme_edge_evaluated_count,
