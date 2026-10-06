@@ -22,7 +22,12 @@ OUTPUT = Path("tests/fixtures/recorder/live/recorder-smoke-capture.json")
 REPORT = Path("tests/fixtures/recorder/live/recorder-smoke-report.json")
 
 
-async def capture_one(runner: WebSocketCollectorRunner, *, timeout: float = 30.0) -> RawEvent:
+async def capture_one(
+    runner: WebSocketCollectorRunner,
+    *,
+    event_type: str | None = None,
+    timeout: float = 30.0,
+) -> RawEvent:
     captured: list[RawEvent] = []
     stop = asyncio.Event()
 
@@ -32,8 +37,9 @@ async def capture_one(runner: WebSocketCollectorRunner, *, timeout: float = 30.0
         result = original_sink(event)
         if asyncio.iscoroutine(result):
             await result
-        captured.append(event)
-        stop.set()
+        if event_type is None or event.event_type == event_type:
+            captured.append(event)
+            stop.set()
 
     runner.event_sink = sink
     await asyncio.wait_for(runner.run(stop), timeout=timeout)
@@ -79,7 +85,7 @@ async def main() -> None:
         url="wss://stream.bybit.com/v5/public/spot",
         connector=connect,
         subscription=build_bybit_subscription(
-            ["orderbook.50.BTCUSDT", "publicTrade.BTCUSDT"]
+            ["orderbook.50.BTCUSDT", "publicTrade.BTCUSDT", "tickers.BTCUSDT"]
         ),
         parser=lambda message, received_at: parse_bybit_message(
             message, venue="spot", received_at=received_at
@@ -128,7 +134,7 @@ async def main() -> None:
 
     pm_event, spot_event, linear_event, coinbase_event = await asyncio.gather(
         capture_one(polymarket),
-        capture_one(bybit_spot),
+        capture_one(bybit_spot, event_type="ticker"),
         capture_one(bybit_linear),
         capture_one(coinbase_spot),
     )
