@@ -3759,7 +3759,7 @@
       "unknown"
     ],
     "source_design": "docs/superpowers/specs/2026-09-20-phase-14-v4-regime-aware-challenger.md",
-    "status": "GATE_B_V2_FINAL_HOLDOUT_REVIEWED_XGBOOST_METADATA_FIX_READY_AWAITING_FOURTH_FRESH_AUTHORIZATION",
+    "status": "V4_ZERO_MONEY_FRESH_BOOK_SHADOW_STARTED_24H_OBSERVATION_PENDING_COMPLETION",
     "successor_scope": "COMPREHENSIVE_V3_WEAKNESS_REMEDIATION",
     "training_performed": true,
     "v3_final_holdout_tuning_allowed": false,
@@ -4096,7 +4096,7 @@
       "evidence": "docs/evidence/phase-14-v4-gate-b-v2-ordinary-selection-20260930.json"
     },
     "final_holdout_evaluator": {
-      "status": "FINAL_HOLDOUT_REVIEWED_PAPER_DECISION_READY_RUNTIME_BLOCKED",
+      "status": "FINAL_HOLDOUT_REVIEWED_PAPER_SHADOW_STARTED_RUNTIME_COMPATIBLE",
       "command": "python -m bp_engine.v4_research.cli --env-file <env> evaluate-holdout --plan <plan.json> --selection <selection.json> --model <model.joblib> --output <holdout.json>",
       "guarded_runner": "scripts/deploy/phase14_v4_gate_b_final_holdout_cloudshell.sh",
       "frozen_plan_sha256": "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557",
@@ -4193,19 +4193,19 @@
       "lowest_traded_edge_band_after_cost_pnl": -1.3742370000000008,
       "holdout_may_not_change_frozen_policy": true,
       "exact_paper_policy_required": true,
-      "runtime_compatibility_blocked": true,
+      "runtime_compatibility_blocked": false,
       "required_sklearn_version": "1.9.1",
       "paper_activation_authorized": false,
       "live_trading_enabled": false,
       "real_money_usd": 0,
       "paper_runtime_engineering_ready": true,
-      "paper_runtime_repository_main": "14e07b3b17a37b80f0f13950418c21a2226ae20e",
-      "production_runtime_validation_performed": false
+      "paper_runtime_repository_main": "f5c76576619c35e65fc8a317d47c8a31dd263950",
+      "production_runtime_validation_performed": true
     },
     "paper_runtime": {
-      "status": "THIRD_AUTHORIZED_STAGE_FAILED_XGBOOST_METADATA_FIX_READY_AWAITING_FOURTH_FRESH_AUTHORIZATION",
-      "repository_main": "14e07b3b17a37b80f0f13950418c21a2226ae20e",
-      "post_merge_ci_run": 37470959696,
+      "status": "FOURTH_AUTHORIZED_RUNTIME_VALIDATION_PASS_SHADOW_STARTED_24H_OBSERVATION_PENDING_COMPLETION",
+      "repository_main": "f5c76576619c35e65fc8a317d47c8a31dd263950",
+      "post_merge_ci_run": 37472314160,
       "post_merge_ci_passed": true,
       "runner": "scripts/deploy/phase14_v4_fresh_book_shadow_run_cloudshell.sh",
       "runtime_requirements": "deploy/phase14-v4-paper-runtime-requirements.txt",
@@ -4222,8 +4222,8 @@
       "approval_prefix": "I_APPROVE_PHASE14_V4_ZERO_MONEY_PAPER_SHADOW",
       "preflight_contacts_production": false,
       "preflight_mutates_production": false,
-      "production_runtime_validation_performed": false,
-      "paper_shadow_started": false,
+      "production_runtime_validation_performed": true,
+      "paper_shadow_started": true,
       "paper_activation_authorized": false,
       "paper_activation_performed": false,
       "live_trading_enabled": false,
@@ -4234,7 +4234,18 @@
       "python_no_user_site": true,
       "project_install_constrained_to_runtime_pins": true,
       "production_runtime_validation_attempted": true,
-      "production_runtime_validation_passed": false,
+      "production_runtime_validation_passed": true,
+      "paper_shadow_authorized": true,
+      "paper_shadow_authorization_sequence": 4,
+      "paper_shadow_authorization_consumed": true,
+      "paper_shadow_start_evidence": "docs/evidence/phase-14-v4-fresh-book-shadow-start-20261006.json",
+      "paper_shadow_authorized_main": "f5c76576619c35e65fc8a317d47c8a31dd263950",
+      "paper_shadow_run_id": "v4-fresh-book-shadow-20261006T140323Z-f5c76576619c",
+      "paper_shadow_unit": "bp-v4-fresh-book-shadow-20261006T140323Z-f5c76576619c.service",
+      "paper_shadow_output": "/var/lib/bp/evidence/v4-fresh-book-shadow-20261006T140323Z-f5c76576619c.jsonl",
+      "paper_shadow_run_seconds": 86400,
+      "paper_shadow_completion_pending": true,
+      "paper_shadow_full_run_completed": false,
       "failed_attempt_authorized_main": "8a472b752625477cf26969e776823a620a39c519",
       "failed_attempt_authorization_consumed": true,
       "failed_attempt_reached_production": true,
@@ -4302,6 +4313,26 @@
             "joblib": "1.5.3"
           },
           "model_validation_reached": false
+        ,
+        {
+          "sequence": 4,
+          "authorized_main": "f5c76576619c35e65fc8a317d47c8a31dd263950",
+          "authorization_consumed": true,
+          "reached_production": true,
+          "reached_runtime_staging": true,
+          "runtime_validation_passed": true,
+          "model_validation_reached": true,
+          "shadow_started": true,
+          "result": "START_PASS_COMPLETION_PENDING",
+          "runner_status": "PHASE14_V4_FRESH_BOOK_SHADOW_RUN=PASS",
+          "run_id": "v4-fresh-book-shadow-20261006T140323Z-f5c76576619c",
+          "run_seconds": 86400,
+          "evidence": "docs/evidence/phase-14-v4-fresh-book-shadow-start-20261006.json",
+          "installed_runtime_versions": {
+            "scikit-learn": "1.9.1",
+            "xgboost-cpu": "3.4.1",
+            "joblib": "1.5.3"
+          }
         }
       ],
       "xgboost_metadata_distribution_name": "xgboost-cpu",
@@ -4319,7 +4350,16 @@
       "third_failed_attempt_model_validation_reached": false,
       "third_failed_attempt_shadow_started": false,
       "third_failed_attempt_outer_status": "FAIL:remote_stage_or_start_failed",
-      "third_failed_attempt_reason": "runtime_metadata_validator_queried_nonexistent_xgboost_distribution_instead_of_xgboost_cpu"
+      "third_failed_attempt_reason": "runtime_metadata_validator_queried_nonexistent_xgboost_distribution_instead_of_xgboost_cpu",
+      "fourth_attempt_authorized_main": "f5c76576619c35e65fc8a317d47c8a31dd263950",
+      "fourth_attempt_authorization_consumed": true,
+      "fourth_attempt_runtime_validation_passed": true,
+      "fourth_attempt_model_validation_reached": true,
+      "fourth_attempt_shadow_started": true,
+      "fourth_attempt_run_id": "v4-fresh-book-shadow-20261006T140323Z-f5c76576619c",
+      "fourth_attempt_run_seconds": 86400,
+      "fourth_attempt_full_run_completed": false,
+      "fourth_attempt_evidence": "docs/evidence/phase-14-v4-fresh-book-shadow-start-20261006.json"
     }
   },
   "phase_15_v3_canary_readiness": {
@@ -6470,8 +6510,8 @@
     "recorder_has_docker_socket_access": false,
     "secrets_in_git": false
   },
-  "source_of_truth_version": "0.14.186",
-  "status": "PHASE_15_CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_EXPIRED_INACTIVE",
+  "source_of_truth_version": "0.14.187",
+  "status": "PHASE_14_V4_ZERO_MONEY_PAPER_SHADOW_STARTED_PENDING_COMPLETION",
   "trading_mode": "RESEARCH",
   "updated_at": "2026-10-06",
   "verified_polymarket_horizons": [
