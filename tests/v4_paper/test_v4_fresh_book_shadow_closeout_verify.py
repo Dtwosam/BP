@@ -13,6 +13,7 @@ SCRIPT = ROOT / "scripts" / "verify_v4_fresh_book_shadow_closeout.py"
 RUN_ID = "v4-fresh-book-shadow-20261006T140323Z-f5c76576619c"
 MODEL_SHA = "6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf"
 RETRY_POLICY = "retry_core_source_ineligible_within_max_decision_lag"
+RETRY_PROBE = "core_six_anchor_only"
 RECEIVED_CUTOFF = "received_at_lte_decision_at"
 
 
@@ -89,6 +90,7 @@ def _add_retry_contract(
     records[0].update(
         {
             "source_retry_policy": RETRY_POLICY,
+            "source_retry_probe": RETRY_PROBE,
             "source_received_cutoff": RECEIVED_CUTOFF,
         }
     )
@@ -99,6 +101,7 @@ def _add_retry_contract(
             "source_retry_exhausted_count": exhausted,
             "source_retry_pending_count": pending,
             "source_retry_policy": RETRY_POLICY,
+            "source_retry_probe": RETRY_PROBE,
             "source_received_cutoff": RECEIVED_CUTOFF,
         }
     )
@@ -154,6 +157,7 @@ def test_closeout_verifier_accepts_complete_retry_accounting(tmp_path: Path) -> 
     assert report["source_retry_recovered_count"] == 1
     assert report["source_retry_exhausted_count"] == 1
     assert report["source_retry_pending_count"] == 0
+    assert report["source_retry_probe"] == RETRY_PROBE
 
 
 def test_closeout_verifier_rejects_partial_retry_accounting(tmp_path: Path) -> None:
