@@ -6510,8 +6510,8 @@
     "recorder_has_docker_socket_access": false,
     "secrets_in_git": false
   },
-  "source_of_truth_version": "0.14.187",
-  "status": "PHASE_14_V4_ZERO_MONEY_PAPER_SHADOW_STARTED_PENDING_COMPLETION",
+  "source_of_truth_version": "0.14.186",
+  "status": "PHASE_15_CONTINUOUS_FAST_LIVE_AUTO_APPROVAL_EXPIRED_INACTIVE",
   "trading_mode": "RESEARCH",
   "updated_at": "2026-10-06",
   "verified_polymarket_horizons": [
