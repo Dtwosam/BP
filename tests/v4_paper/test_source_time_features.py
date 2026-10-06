@@ -130,6 +130,53 @@ def test_source_time_reader_rejects_stale_source_even_if_received_recent() -> No
         engine.dispose()
 
 
+def test_source_time_reader_recovers_predecision_row_visible_on_retry() -> None:
+    engine, connection = _connection()
+    requested = datetime(2026, 10, 2, 12, 0, tzinfo=UTC)
+    reader = V4SourceTimeReader()
+    try:
+        observation, evidence = reader.latest_price(
+            connection,
+            source="bybit",
+            stream="spot",
+            instrument="BTCUSDT",
+            requested_at=requested,
+        )
+        assert observation is None
+        assert evidence == ()
+
+        connection.execute(
+            insert(raw_market_events).values(
+                source="bybit",
+                stream="spot",
+                instrument="BTCUSDT",
+                event_type="ticker",
+                source_timestamp=requested - timedelta(seconds=0.2),
+                received_at=requested - timedelta(seconds=0.1),
+                sequence="retry-visible",
+                market_id=None,
+                asset_id=None,
+                payload=_bybit_payload(100.0),
+                dedupe_key="retry-visible",
+            )
+        )
+
+        observation, evidence = reader.latest_price(
+            connection,
+            source="bybit",
+            stream="spot",
+            instrument="BTCUSDT",
+            requested_at=requested,
+        )
+        assert observation is not None
+        assert float(observation.price) == 100.0
+        assert len(evidence) == 1
+        assert evidence[0].received_at <= requested
+    finally:
+        connection.close()
+        engine.dispose()
+
+
 def test_source_time_reader_rejects_event_received_after_decision() -> None:
     engine, connection = _connection()
     requested = datetime(2026, 10, 2, 12, 0, tzinfo=UTC)
