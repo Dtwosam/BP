@@ -59,7 +59,7 @@ for path in "$RUNTIME_PATH" "$PARTITIONED_PATH" "$SERVICE_PATH" "$CONFIG_PATH" "
     fail_local "candidate_blob_not_exact_main:$path"
 done
 
-SPOT_TOPICS="$(git show "$CANDIDATE_HEAD:$SERVICE_PATH" | sed -n '/^    spot_topics = \\[/,/^    \\]/p')"
+SPOT_TOPICS="$(git show "$CANDIDATE_HEAD:$SERVICE_PATH" | sed -n '/^    spot_topics = /,/^    ]/p')"
 grep -Fq '"orderbook.50.BTCUSDT"' <<<"$SPOT_TOPICS" || fail_local "candidate_spot_orderbook_topic_missing"
 grep -Fq '"publicTrade.BTCUSDT"' <<<"$SPOT_TOPICS" || fail_local "candidate_spot_trade_topic_missing"
 grep -Fq "\"$EXPECTED_SPOT_TICKER_TOPIC\"" <<<"$SPOT_TOPICS" || fail_local "candidate_spot_ticker_topic_missing"
@@ -704,7 +704,7 @@ EXPECTED_DIFF="$(printf '%s\n'   src/bp_engine/recorder/writer.py   src/bp_engin
 ACTUAL_DIFF="$(git -C "$REPO" diff --name-only "$FROM_HEAD" "$CANDIDATE_HEAD" | sort)"
 [[ "$ACTUAL_DIFF" == "$EXPECTED_DIFF" ]] || fail "candidate_scope_mismatch"
 
-SPOT_TOPICS="$(git -C "$REPO" show "$CANDIDATE_HEAD:src/bp_engine/recorder/service.py" | sed -n '/^    spot_topics = \\[/,/^    \\]/p')"
+SPOT_TOPICS="$(git -C "$REPO" show "$CANDIDATE_HEAD:src/bp_engine/recorder/service.py" | sed -n '/^    spot_topics = /,/^    ]/p')"
 grep -Fq '"orderbook.50.BTCUSDT"' <<<"$SPOT_TOPICS" || fail "candidate_spot_orderbook_topic_missing"
 grep -Fq '"publicTrade.BTCUSDT"' <<<"$SPOT_TOPICS" || fail "candidate_spot_trade_topic_missing"
 grep -Fq "\"$EXPECTED_SPOT_TICKER_TOPIC\"" <<<"$SPOT_TOPICS" || fail "candidate_spot_ticker_topic_missing"
