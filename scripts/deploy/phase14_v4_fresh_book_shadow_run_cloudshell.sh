@@ -278,6 +278,17 @@ if [[ -e "$venv" ]]; then
   [[ -d "$venv" && ! -L "$venv" && -x "$venv/bin/python" ]] ||
     fail "existing_paper_runtime_invalid"
   [[ -f "$venv/.ready" ]] || fail "existing_paper_runtime_not_ready"
+  [[ -f "$venv/.release-head" && "$(cat "$venv/.release-head")" == "$head" ]] ||
+    fail "existing_paper_runtime_head_mismatch"
+  [[ -f "$venv/.sklearn-version" &&
+      "$(cat "$venv/.sklearn-version")" == "$expected_sklearn_version" ]] ||
+    fail "existing_paper_runtime_sklearn_mismatch"
+  [[ -f "$venv/.xgboost-version" &&
+      "$(cat "$venv/.xgboost-version")" == "$expected_xgboost_version" ]] ||
+    fail "existing_paper_runtime_xgboost_mismatch"
+  [[ -f "$venv/.joblib-version" &&
+      "$(cat "$venv/.joblib-version")" == "$expected_joblib_version" ]] ||
+    fail "existing_paper_runtime_joblib_mismatch"
 else
   python3 -m venv "$venv" || fail "paper_runtime_venv_create_failed"
   venv_created=true
