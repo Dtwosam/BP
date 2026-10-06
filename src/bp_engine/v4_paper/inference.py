@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import math
+import warnings
 from collections.abc import Mapping
 from decimal import Decimal
 from pathlib import Path
@@ -10,6 +11,7 @@ from typing import Any
 
 import joblib
 import numpy as np
+from sklearn.exceptions import InconsistentVersionWarning
 
 FROZEN_V4_MODEL_SHA256 = (
     "6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf"
@@ -105,7 +107,16 @@ def load_frozen_v4_bundle(
     if digest != expected_sha256:
         raise FrozenV4ModelError("frozen V4 model SHA-256 mismatch")
 
-    loaded = joblib.load(io.BytesIO(payload))
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", InconsistentVersionWarning)
+            loaded = joblib.load(io.BytesIO(payload))
+    except InconsistentVersionWarning as exc:
+        raise FrozenV4ModelError(
+            "frozen V4 scikit-learn version mismatch: "
+            f"artifact={exc.original_sklearn_version} "
+            f"runtime={exc.current_sklearn_version}"
+        ) from exc
     if not isinstance(loaded, dict):
         raise FrozenV4ModelError("frozen V4 model bundle must be a mapping")
     validate_frozen_v4_bundle(loaded)
