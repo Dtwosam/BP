@@ -8,6 +8,7 @@ from enum import StrEnum
 from sqlalchemy import Connection, Engine, text
 
 _DEDUPE_PARTITIONS = 16
+_PARTITION_DDL_LOCK_TIMEOUT_MS = 2000
 _RAW_PARTITION_RE = re.compile(r"^raw_market_events_(\d{8})_(\d{2})$")
 _LEGACY_INDEX_RE = re.compile(r"^legacy_\d{2}_(.+)$")
 _SEQUENCE_NAME = "raw_market_events_id_seq_v2"
@@ -445,16 +446,24 @@ def ensure_hour_partitions(
     if raw_storage_mode(connection) is not RawStorageMode.PARTITIONED:
         raise RuntimeError("raw_market_events is not partitioned")
 
+    connection.execute(
+        text("SELECT set_config('lock_timeout', :timeout, true)"),
+        {"timeout": f"{_PARTITION_DDL_LOCK_TIMEOUT_MS}ms"},
+    )
+
     start = _floor_hour(start_at)
     created: list[RawPartition] = []
     for offset in range(hours_ahead + 1):
         lower = start + timedelta(hours=offset)
         upper = lower + timedelta(hours=1)
         name = _partition_name(lower)
+        if _relation_exists(connection, name):
+            created.append(RawPartition(name=name, start_at=lower, end_at=upper))
+            continue
         connection.execute(
             text(
                 f"""
-                CREATE TABLE IF NOT EXISTS {name}
+                CREATE TABLE {name}
                 PARTITION OF raw_market_events
                 FOR VALUES FROM ({_timestamp_literal(lower)})
                 TO ({_timestamp_literal(upper)})
