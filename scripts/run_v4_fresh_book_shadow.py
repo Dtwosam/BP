@@ -33,6 +33,7 @@ from bp_engine.v4_paper.source_time_features import (
     V4_CORE_SOURCE_REQUIRED_FLAGS,
     V4_SOURCE_TIME_FEATURE_VERSION,
     build_source_time_v4_features,
+    probe_core_source_time_v4_readiness,
 )
 
 FORBIDDEN_ENV = (
@@ -269,6 +270,7 @@ def main() -> int:
             "max_btc_future_skew_seconds": MAX_FUTURE_SKEW_SECONDS,
             "max_decision_lag_seconds": args.max_decision_lag_seconds,
             "source_retry_policy": SOURCE_RETRY_POLICY,
+            "source_retry_probe": "core_six_anchor_only",
             "source_received_cutoff": SOURCE_RECEIVED_CUTOFF,
             "core_source_required_flags": list(V4_CORE_SOURCE_REQUIRED_FLAGS),
             "core_source_policy": "require_market_start_and_current_all_venues",
@@ -362,6 +364,67 @@ def main() -> int:
                                     "order_submission_enabled": False,
                                 }
                             )
+                        continue
+
+                    readiness = probe_core_source_time_v4_readiness(
+                        connection,
+                        target,
+                        decision_at=decision_at,
+                    )
+                    readiness_reasons = (
+                        readiness.core_source_ineligible_reasons()
+                    )
+                    if readiness_reasons:
+                        observed_at = datetime.now(UTC)
+                        decision_lag = (observed_at - decision_at).total_seconds()
+                        retry_count = source_retry_count_by_condition.get(
+                            condition_id, 0
+                        )
+                        readiness_evidence = readiness.evidence_mapping()
+                        payload = {
+                            "event": "v4_fresh_book_shadow_source_ineligible",
+                            "condition_id": condition_id,
+                            "decision_at": decision_at.isoformat(),
+                            "observed_at": observed_at.isoformat(),
+                            "decision_lag_seconds": decision_lag,
+                            "source_feature_version": V4_SOURCE_TIME_FEATURE_VERSION,
+                            "source_evidence_sha256": canonical_hash(
+                                readiness_evidence
+                            ),
+                            "source_evidence": readiness_evidence,
+                            "missing_flags": readiness.missing_flags,
+                            "source_ineligible_reasons": list(
+                                readiness_reasons
+                            ),
+                            "source_retry_count": retry_count,
+                            "source_retry_probe": "core_six_anchor_only",
+                            "trade": False,
+                            "reason": "core_source_ineligible",
+                            "holdout_labels_read": False,
+                            "order_submission_enabled": False,
+                        }
+                        if decision_lag < args.max_decision_lag_seconds:
+                            retry_count += 1
+                            source_retry_count_by_condition[condition_id] = retry_count
+                            payload["source_retry_count"] = retry_count
+                            last_source_ineligible_payload_by_condition[
+                                condition_id
+                            ] = payload
+                            source_retry_deferral_count += 1
+                            continue
+
+                        seen.add(condition_id)
+                        source_retry_count_by_condition.pop(condition_id, None)
+                        last_source_ineligible_payload_by_condition.pop(
+                            condition_id, None
+                        )
+                        source_ineligible_count += 1
+                        if retry_count:
+                            source_retry_exhausted_count += 1
+                            payload["reason"] = (
+                                "core_source_ineligible_retry_window_exhausted"
+                            )
+                        _emit(payload)
                         continue
 
                     features = build_source_time_v4_features(
@@ -573,6 +636,7 @@ def main() -> int:
             "source_retry_exhausted_count": source_retry_exhausted_count,
             "source_retry_pending_count": len(source_retry_count_by_condition),
             "source_retry_policy": SOURCE_RETRY_POLICY,
+            "source_retry_probe": "core_six_anchor_only",
             "source_received_cutoff": SOURCE_RECEIVED_CUTOFF,
             "core_source_required_flags": list(V4_CORE_SOURCE_REQUIRED_FLAGS),
             "core_source_policy": "require_market_start_and_current_all_venues",

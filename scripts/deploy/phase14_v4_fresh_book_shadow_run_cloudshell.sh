@@ -52,11 +52,15 @@ for marker in \
   'source_retry_recovered_count' \
   'source_retry_exhausted_count' \
   'decision_lag < args.max_decision_lag_seconds' \
-  'core_source_ineligible_retry_window_exhausted'
+  'core_source_ineligible_retry_window_exhausted' \
+  'probe_core_source_time_v4_readiness' \
+  'core_six_anchor_only'
 do
   grep -Fq "$marker" "$RUNNER" ||
     fail "shadow_runner_retry_contract_missing:$marker"
 done
+grep -Fq 'def probe_core_source_time_v4_readiness(' "$SOURCE_FEATURES" ||
+  fail "source_time_core_readiness_probe_missing"
 grep -Fq 'raw_market_events.c.received_at <= requested' "$SOURCE_FEATURES" ||
   fail "source_time_strict_received_cutoff_missing"
 grep -Fq 'if received_at > requested:' "$SOURCE_FEATURES" ||
@@ -72,6 +76,7 @@ case "$PREFLIGHT_ONLY" in
     printf 'XGBOOST_VERSION=%s\n' "$EXPECTED_XGBOOST_VERSION"
     printf 'JOBLIB_VERSION=%s\n' "$EXPECTED_JOBLIB_VERSION"
     printf 'SOURCE_RETRY_CONTRACT=bounded_within_max_decision_lag\n'
+    printf 'SOURCE_RETRY_PROBE=core_six_anchor_only\n'
     printf 'SOURCE_RECEIVED_CUTOFF=received_at_lte_decision_at\n'
     printf 'EXPECTED_APPROVAL=%s\n' "$EXPECTED_APPROVAL"
     printf 'PRODUCTION_HOST_CONTACTED=false\n'
@@ -304,11 +309,15 @@ for marker in \
   'source_retry_recovered_count' \
   'source_retry_exhausted_count' \
   'decision_lag < args.max_decision_lag_seconds' \
-  'core_source_ineligible_retry_window_exhausted'
+  'core_source_ineligible_retry_window_exhausted' \
+  'probe_core_source_time_v4_readiness' \
+  'core_six_anchor_only'
 do
   grep -Fq "$marker" "$runner" ||
     fail "staged_shadow_runner_retry_contract_missing:$marker"
 done
+grep -Fq 'def probe_core_source_time_v4_readiness(' "$source_features" ||
+  fail "staged_source_time_core_readiness_probe_missing"
 grep -Fq 'raw_market_events.c.received_at <= requested' "$source_features" ||
   fail "staged_source_time_strict_received_cutoff_missing"
 grep -Fq 'if received_at > requested:' "$source_features" ||

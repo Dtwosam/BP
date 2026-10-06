@@ -72,6 +72,31 @@ class SourceTimeEventEvidence:
 
 
 @dataclass(frozen=True)
+class CoreSourceTimeReadiness:
+    condition_id: str
+    decision_at: datetime
+    missing_flags: dict[str, bool]
+    source_evidence: dict[str, SourceTimeEventEvidence]
+
+    def evidence_mapping(self) -> dict[str, object]:
+        return {
+            key: value.as_mapping()
+            for key, value in sorted(self.source_evidence.items())
+        }
+
+    def core_source_ineligible_reasons(self) -> tuple[str, ...]:
+        return tuple(
+            flag
+            for flag in V4_CORE_SOURCE_REQUIRED_FLAGS
+            if self.missing_flags.get(flag, True)
+        )
+
+    @property
+    def core_source_ready(self) -> bool:
+        return not self.core_source_ineligible_reasons()
+
+
+@dataclass(frozen=True)
 class SourceTimeV4Features:
     feature_version: str
     condition_id: str
@@ -408,6 +433,62 @@ def _regime_values(group: FeatureGroup, prefix: str) -> dict[str, float | None]:
         f"return_{horizon}": group.values[f"{prefix}_return_{horizon}"]
         for horizon in ("5m", "15m", "60m")
     }
+
+
+def probe_core_source_time_v4_readiness(
+    connection: Connection,
+    target: V4FeatureTarget,
+    *,
+    decision_at: datetime,
+    reader: V4SourceTimeReader | None = None,
+) -> CoreSourceTimeReadiness:
+    decision = _utc(decision_at, "decision_at")
+    start = _utc(target.market_start_at, "market_start_at")
+    end = _utc(target.market_end_at, "market_end_at")
+    if target.horizon_seconds != 300 or int((end - start).total_seconds()) != 300:
+        raise V4SourceTimeFeatureError("V4 target must be a 300-second market")
+    expected_decision = start + timedelta(seconds=240)
+    if decision != expected_decision:
+        raise V4SourceTimeFeatureError("V4 decision_at must equal market_start_at + 240s")
+
+    reader = reader or V4SourceTimeReader()
+    venue_specs = (
+        ("coinbase", "coinbase", "spot", "BTC-USD"),
+        ("bybit_spot", "bybit", "spot", "BTCUSDT"),
+        ("bybit_linear", "bybit", "linear", "BTCUSDT"),
+    )
+    missing_flags = {
+        flag: False
+        for flag in V4_CORE_SOURCE_REQUIRED_FLAGS
+    }
+    source_evidence: dict[str, SourceTimeEventEvidence] = {}
+
+    for prefix, source, stream, instrument in venue_specs:
+        for name, requested in (
+            ("market_start", start),
+            ("current", decision),
+        ):
+            observation, evidence_items = reader.latest_price(
+                connection,
+                source=source,
+                stream=stream,
+                instrument=instrument,
+                requested_at=requested,
+            )
+            missing_flags[f"{prefix}_{name}_missing"] = observation is None
+            missing_flags[f"{prefix}_{name}_stale"] = bool(
+                observation is not None and not observation.fresh
+            )
+            for index, evidence in enumerate(evidence_items):
+                suffix = "" if index == 0 else f"_{index}"
+                source_evidence[f"{prefix}_{name}{suffix}"] = evidence
+
+    return CoreSourceTimeReadiness(
+        condition_id=target.condition_id,
+        decision_at=decision,
+        missing_flags=missing_flags,
+        source_evidence=source_evidence,
+    )
 
 
 def build_source_time_v4_features(

@@ -20,6 +20,7 @@ EXPECTED_QUOTE_FRESH_SECONDS = Decimal("0.25")
 EXPECTED_TARGET_NOTIONAL_USD = Decimal("5.00")
 EXPECTED_MIN_EDGE = Decimal("0.05")
 EXPECTED_SOURCE_RETRY_POLICY = "retry_core_source_ineligible_within_max_decision_lag"
+EXPECTED_SOURCE_RETRY_PROBE = "core_six_anchor_only"
 EXPECTED_SOURCE_RECEIVED_CUTOFF = "received_at_lte_decision_at"
 
 
@@ -298,12 +299,14 @@ def verify_closeout(
             "source_retry_pending_count",
         )
         _require(started, "source_retry_policy", EXPECTED_SOURCE_RETRY_POLICY)
+        _require(started, "source_retry_probe", EXPECTED_SOURCE_RETRY_PROBE)
         _require(
             started,
             "source_received_cutoff",
             EXPECTED_SOURCE_RECEIVED_CUTOFF,
         )
         _require(completed, "source_retry_policy", EXPECTED_SOURCE_RETRY_POLICY)
+        _require(completed, "source_retry_probe", EXPECTED_SOURCE_RETRY_PROBE)
         _require(
             completed,
             "source_received_cutoff",
@@ -376,6 +379,9 @@ def verify_closeout(
         "source_retry_pending_count": retry_pending,
         "source_retry_policy": (
             EXPECTED_SOURCE_RETRY_POLICY if retry_accounting_present else None
+        ),
+        "source_retry_probe": (
+            EXPECTED_SOURCE_RETRY_PROBE if retry_accounting_present else None
         ),
         "source_received_cutoff": (
             EXPECTED_SOURCE_RECEIVED_CUTOFF if retry_accounting_present else None

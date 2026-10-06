@@ -33,6 +33,8 @@ def test_v4_shadow_runner_is_read_only_money_disabled_and_source_time_safe() -> 
         'SOURCE_RETRY_POLICY = "retry_core_source_ineligible_within_max_decision_lag"',
         'SOURCE_RECEIVED_CUTOFF = "received_at_lte_decision_at"',
         '"source_retry_policy": SOURCE_RETRY_POLICY',
+        '"source_retry_probe": "core_six_anchor_only"',
+        "probe_core_source_time_v4_readiness",
         '"source_received_cutoff": SOURCE_RECEIVED_CUTOFF',
         '"core_source_policy": "require_market_start_and_current_all_venues"',
         "MAX_DECISION_LAG_SECONDS = 2.0",
