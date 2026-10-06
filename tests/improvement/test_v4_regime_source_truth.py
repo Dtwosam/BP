@@ -148,12 +148,12 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
 
     paper_runtime = v4["paper_runtime"]
     assert paper_runtime["status"] == (
-        "FAILED_AUTHORIZED_STAGE_FIXED_AWAITING_FRESH_EXPLICIT_ZERO_MONEY_PAPER_AUTHORIZATION"
+        "SECOND_AUTHORIZED_STAGE_FAILED_STALE_LAUNCHER_FIXED_AWAITING_THIRD_FRESH_AUTHORIZATION"
     )
     assert paper_runtime["repository_main"] == (
-        "e8d03a4b852449038a55cd428ece52a1d294ae7f"
+        "5fe1d8782b2c9f95e71c3d5d297372a26dca4070"
     )
-    assert paper_runtime["post_merge_ci_run"] == 37460465090
+    assert paper_runtime["post_merge_ci_run"] == 37466453668
     assert paper_runtime["post_merge_ci_passed"] is True
     assert paper_runtime["runtime_requirements"] == (
         "deploy/phase14-v4-paper-runtime-requirements.txt"
@@ -181,6 +181,32 @@ def test_v4_source_truth_is_separate_and_prospective() -> None:
     assert paper_runtime["failed_attempt_runner_status"] == (
         "FAIL:remote_stage_or_start_failed"
     )
+    assert paper_runtime["launcher_updates_checkout_during_execution"] is False
+    assert paper_runtime["requires_preupdated_local_main"] is True
+    assert paper_runtime["stale_local_main_fails_before_gcloud"] is True
+    assert paper_runtime["second_failed_attempt_authorized_main"] == (
+        "c1d9c9a34f826f075b8fff292d31d576676707c8"
+    )
+    assert paper_runtime["second_failed_attempt_authorization_consumed"] is True
+    assert paper_runtime["second_failed_attempt_reached_production"] is True
+    assert paper_runtime["second_failed_attempt_reached_runtime_staging"] is True
+    assert paper_runtime["second_failed_attempt_ml_pins_installed"] is True
+    assert paper_runtime["second_failed_attempt_sklearn_version"] == "1.9.1"
+    assert paper_runtime["second_failed_attempt_xgboost_version"] == "3.4.1"
+    assert paper_runtime["second_failed_attempt_joblib_version"] == "1.5.3"
+    assert paper_runtime["second_failed_attempt_shadow_started"] is False
+    assert paper_runtime["second_failed_attempt_inner_status"] == (
+        "FAIL:paper_runtime_pip_check_failed"
+    )
+    assert paper_runtime["second_failed_attempt_outer_status"] == (
+        "FAIL:remote_stage_or_start_failed"
+    )
+    assert len(paper_runtime["authorized_attempts"]) == 2
+    assert paper_runtime["authorized_attempts"][1]["installed_runtime_versions"] == {
+        "scikit-learn": "1.9.1",
+        "xgboost": "3.4.1",
+        "joblib": "1.5.3",
+    }
     assert paper_runtime["preflight_only_supported"] is True
     assert paper_runtime["preflight_contacts_production"] is False
     assert paper_runtime["preflight_mutates_production"] is False
@@ -448,7 +474,7 @@ def test_v4_gate_b_v2_ordinary_selection_is_frozen_and_holdout_untouched() -> No
     selection = v4["gate_b_ordinary_selection"]
 
     assert v4["status"] == (
-        "GATE_B_V2_FINAL_HOLDOUT_REVIEWED_PAPER_RUNTIME_FIXED_AWAITING_FRESH_AUTHORIZATION"
+        "GATE_B_V2_FINAL_HOLDOUT_REVIEWED_PAPER_LAUNCHER_FIXED_AWAITING_THIRD_FRESH_AUTHORIZATION"
     )
     assert selection["plan_sha256"] == (
         "9c017b1d968925a8cddab18324628227ed8b8b381e43c653f72c0f26366ee557"
