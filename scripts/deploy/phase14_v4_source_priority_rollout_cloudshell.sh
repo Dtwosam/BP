@@ -9,8 +9,8 @@ APPROVAL="${PHASE14_V4_SOURCE_PRIORITY_ROLLOUT_APPROVAL:-}"
 PREFLIGHT_ONLY="${PHASE14_V4_SOURCE_PRIORITY_ROLLOUT_PREFLIGHT_ONLY:-false}"
 
 FROM_HEAD='a694c2299cd34f0b2ee92ded4a4da1643eff0604'
-CANDIDATE_BRANCH='ops/v4-ticker-priority-candidate-20261007'
-CANDIDATE_HEAD='94dc1adc77122e921f5e53bb27ae4ea0a9c5e52b'
+CANDIDATE_BRANCH='ops/v4-dedicated-ticker-sockets-candidate-20261007'
+CANDIDATE_HEAD='0aa87549e86626db9d3bf3651e2094536e63c91c'
 EXPECTED_BATCH_SIZE=500
 EXPECTED_QUEUE_MAXSIZE=50000
 EXPECTED_WRITER_WORKERS=4
@@ -20,6 +20,7 @@ EXPECTED_PRIORITY_WRITER_WORKERS=1
 EXPECTED_BULK_WRITER_WORKERS=3
 EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'
 EXPECTED_PRIORITY_EVENT_CONTRACT='ticker_only'
+EXPECTED_TICKER_SOCKET_CONTRACT='dedicated_bybit_spot_and_linear'
 EXPECTED_SHADOW_RUN_ID='v4-fresh-book-shadow-20261006T185619Z-271db613e003'
 EXPECTED_SHADOW_UNIT='bp-v4-fresh-book-shadow-20261006T185619Z-271db613e003.service'
 
@@ -62,10 +63,30 @@ for path in "$RUNTIME_PATH" "$PARTITIONED_PATH" "$SERVICE_PATH" "$CONFIG_PATH" "
     fail_local "candidate_blob_not_exact_main:$path"
 done
 
-SPOT_TOPICS="$(git show "$CANDIDATE_HEAD:$SERVICE_PATH" | sed -n '/^    spot_topics = /,/^    ]/p')"
-grep -Fq '"orderbook.50.BTCUSDT"' <<<"$SPOT_TOPICS" || fail_local "candidate_spot_orderbook_topic_missing"
-grep -Fq '"publicTrade.BTCUSDT"' <<<"$SPOT_TOPICS" || fail_local "candidate_spot_trade_topic_missing"
-grep -Fq "\"$EXPECTED_SPOT_TICKER_TOPIC\"" <<<"$SPOT_TOPICS" || fail_local "candidate_spot_ticker_topic_missing"
+SPOT_BULK_TOPICS="$(git show "$CANDIDATE_HEAD:$SERVICE_PATH" | sed -n '/^    spot_bulk_topics = /,/^    ]/p')"
+LINEAR_BULK_TOPICS="$(git show "$CANDIDATE_HEAD:$SERVICE_PATH" | sed -n '/^    linear_bulk_topics = /,/^    ]/p')"
+BYBIT_RUNNER_SOURCE="$(git show "$CANDIDATE_HEAD:$SERVICE_PATH" | sed -n '/^    ticker_topics = /,/^    coinbase_spot = /p')"
+grep -Fq '"orderbook.50.BTCUSDT"' <<<"$SPOT_BULK_TOPICS" || fail_local "candidate_spot_orderbook_topic_missing"
+grep -Fq '"publicTrade.BTCUSDT"' <<<"$SPOT_BULK_TOPICS" || fail_local "candidate_spot_trade_topic_missing"
+if grep -Fq "\"$EXPECTED_SPOT_TICKER_TOPIC\"" <<<"$SPOT_BULK_TOPICS"; then
+  fail_local "candidate_spot_bulk_contains_ticker"
+fi
+grep -Fq '"orderbook.50.BTCUSDT"' <<<"$LINEAR_BULK_TOPICS" || fail_local "candidate_linear_orderbook_topic_missing"
+grep -Fq '"publicTrade.BTCUSDT"' <<<"$LINEAR_BULK_TOPICS" || fail_local "candidate_linear_trade_topic_missing"
+grep -Fq '"allLiquidation.BTCUSDT"' <<<"$LINEAR_BULK_TOPICS" || fail_local "candidate_linear_liquidation_topic_missing"
+if grep -Fq "\"$EXPECTED_SPOT_TICKER_TOPIC\"" <<<"$LINEAR_BULK_TOPICS"; then
+  fail_local "candidate_linear_bulk_contains_ticker"
+fi
+grep -Fq "ticker_topics = [\"$EXPECTED_SPOT_TICKER_TOPIC\"]" <<<"$BYBIT_RUNNER_SOURCE" ||
+  fail_local "candidate_ticker_topics_missing"
+grep -Fq 'bybit_spot_ticker = bybit_runner(venue="spot", topics=ticker_topics)' <<<"$BYBIT_RUNNER_SOURCE" ||
+  fail_local "candidate_spot_ticker_socket_missing"
+grep -Fq 'bybit_linear_ticker = bybit_runner(venue="linear", topics=ticker_topics)' <<<"$BYBIT_RUNNER_SOURCE" ||
+  fail_local "candidate_linear_ticker_socket_missing"
+grep -Fq 'bybit_spot = bybit_runner(venue="spot", topics=spot_bulk_topics)' <<<"$BYBIT_RUNNER_SOURCE" ||
+  fail_local "candidate_spot_bulk_socket_missing"
+grep -Fq 'bybit_linear = bybit_runner(venue="linear", topics=linear_bulk_topics)' <<<"$BYBIT_RUNNER_SOURCE" ||
+  fail_local "candidate_linear_bulk_socket_missing"
 
 WRITER_SPLIT_SOURCE="$(git show "$CANDIDATE_HEAD:$SERVICE_PATH" | sed -n '/^def _recorder_writer_split/,/^$/p')"
 grep -Fq 'return 1, worker_count - 1' <<<"$WRITER_SPLIT_SOURCE" ||
@@ -82,7 +103,7 @@ if grep -Fq 'market_trades_' <<<"$PRIORITY_CLASSIFIER_SOURCE" ||
   fail_local "candidate_priority_contract_not_ticker_only"
 fi
 
-EXPECTED_APPROVAL="I_APPROVE_PHASE14_V4_SOURCE_PRIORITY_ROLLOUT:${HELPER_HEAD}:${FROM_HEAD}:${CANDIDATE_HEAD}:${EXPECTED_BATCH_SIZE}:${EXPECTED_PRIORITY_QUEUE_MAXSIZE}:${EXPECTED_PRIORITY_BATCH_SIZE}:${EXPECTED_PRIORITY_WRITER_WORKERS}:${EXPECTED_BULK_WRITER_WORKERS}:${EXPECTED_SPOT_TICKER_TOPIC}:${EXPECTED_PRIORITY_EVENT_CONTRACT}:${EXPECTED_SHADOW_RUN_ID}"
+EXPECTED_APPROVAL="I_APPROVE_PHASE14_V4_SOURCE_PRIORITY_ROLLOUT:${HELPER_HEAD}:${FROM_HEAD}:${CANDIDATE_HEAD}:${EXPECTED_BATCH_SIZE}:${EXPECTED_PRIORITY_QUEUE_MAXSIZE}:${EXPECTED_PRIORITY_BATCH_SIZE}:${EXPECTED_PRIORITY_WRITER_WORKERS}:${EXPECTED_BULK_WRITER_WORKERS}:${EXPECTED_SPOT_TICKER_TOPIC}:${EXPECTED_PRIORITY_EVENT_CONTRACT}:${EXPECTED_TICKER_SOCKET_CONTRACT}:${EXPECTED_SHADOW_RUN_ID}"
 case "$PREFLIGHT_ONLY" in
   true|false) ;;
   *) fail_local "preflight_only_invalid" ;;
@@ -97,6 +118,7 @@ if [[ "$PREFLIGHT_ONLY" == "true" ]]; then
   echo "EXPECTED_BULK_WRITER_WORKERS=$EXPECTED_BULK_WRITER_WORKERS"
   echo "EXPECTED_SPOT_TICKER_TOPIC=$EXPECTED_SPOT_TICKER_TOPIC"
   echo "EXPECTED_PRIORITY_EVENT_CONTRACT=$EXPECTED_PRIORITY_EVENT_CONTRACT"
+  echo "EXPECTED_TICKER_SOCKET_CONTRACT=$EXPECTED_TICKER_SOCKET_CONTRACT"
   echo "EXPECTED_APPROVAL=$EXPECTED_APPROVAL"
   echo "PRODUCTION_MUTATION=false"
   echo "GCLOUD_CONTACT=false"
@@ -116,8 +138,8 @@ read -r -d '' REMOTE_SCRIPT <<'REMOTE' || true
 set -Eeuo pipefail
 
 FROM_HEAD='a694c2299cd34f0b2ee92ded4a4da1643eff0604'
-CANDIDATE_BRANCH='ops/v4-ticker-priority-candidate-20261007'
-CANDIDATE_HEAD='94dc1adc77122e921f5e53bb27ae4ea0a9c5e52b'
+CANDIDATE_BRANCH='ops/v4-dedicated-ticker-sockets-candidate-20261007'
+CANDIDATE_HEAD='0aa87549e86626db9d3bf3651e2094536e63c91c'
 EXPECTED_BATCH_SIZE=500
 EXPECTED_QUEUE_MAXSIZE=50000
 EXPECTED_WRITER_WORKERS=4
@@ -127,6 +149,7 @@ EXPECTED_PRIORITY_WRITER_WORKERS=1
 EXPECTED_BULK_WRITER_WORKERS=3
 EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'
 EXPECTED_PRIORITY_EVENT_CONTRACT='ticker_only'
+EXPECTED_TICKER_SOCKET_CONTRACT='dedicated_bybit_spot_and_linear'
 EXPECTED_SHADOW_RUN_ID='v4-fresh-book-shadow-20261006T185619Z-271db613e003'
 EXPECTED_SHADOW_UNIT='bp-v4-fresh-book-shadow-20261006T185619Z-271db613e003.service'
 
@@ -744,11 +767,32 @@ EXPECTED_DIFF="$(printf '%s\n'   src/bp_engine/recorder/writer.py   src/bp_engin
 ACTUAL_DIFF="$(git -C "$REPO" diff --name-only "$FROM_HEAD" "$CANDIDATE_HEAD" | sort)"
 [[ "$ACTUAL_DIFF" == "$EXPECTED_DIFF" ]] || fail "candidate_scope_mismatch"
 
-SPOT_TOPICS="$(git -C "$REPO" show "$CANDIDATE_HEAD:src/bp_engine/recorder/service.py" | sed -n '/^    spot_topics = /,/^    ]/p')"
-grep -Fq '"orderbook.50.BTCUSDT"' <<<"$SPOT_TOPICS" || fail "candidate_spot_orderbook_topic_missing"
-grep -Fq '"publicTrade.BTCUSDT"' <<<"$SPOT_TOPICS" || fail "candidate_spot_trade_topic_missing"
-grep -Fq "\"$EXPECTED_SPOT_TICKER_TOPIC\"" <<<"$SPOT_TOPICS" || fail "candidate_spot_ticker_topic_missing"
+SPOT_BULK_TOPICS="$(git -C "$REPO" show "$CANDIDATE_HEAD:src/bp_engine/recorder/service.py" | sed -n '/^    spot_bulk_topics = /,/^    ]/p')"
+LINEAR_BULK_TOPICS="$(git -C "$REPO" show "$CANDIDATE_HEAD:src/bp_engine/recorder/service.py" | sed -n '/^    linear_bulk_topics = /,/^    ]/p')"
+BYBIT_RUNNER_SOURCE="$(git -C "$REPO" show "$CANDIDATE_HEAD:src/bp_engine/recorder/service.py" | sed -n '/^    ticker_topics = /,/^    coinbase_spot = /p')"
+grep -Fq '"orderbook.50.BTCUSDT"' <<<"$SPOT_BULK_TOPICS" || fail "candidate_spot_orderbook_topic_missing"
+grep -Fq '"publicTrade.BTCUSDT"' <<<"$SPOT_BULK_TOPICS" || fail "candidate_spot_trade_topic_missing"
+if grep -Fq "\"$EXPECTED_SPOT_TICKER_TOPIC\"" <<<"$SPOT_BULK_TOPICS"; then
+  fail "candidate_spot_bulk_contains_ticker"
+fi
+grep -Fq '"orderbook.50.BTCUSDT"' <<<"$LINEAR_BULK_TOPICS" || fail "candidate_linear_orderbook_topic_missing"
+grep -Fq '"publicTrade.BTCUSDT"' <<<"$LINEAR_BULK_TOPICS" || fail "candidate_linear_trade_topic_missing"
+grep -Fq '"allLiquidation.BTCUSDT"' <<<"$LINEAR_BULK_TOPICS" || fail "candidate_linear_liquidation_topic_missing"
+if grep -Fq "\"$EXPECTED_SPOT_TICKER_TOPIC\"" <<<"$LINEAR_BULK_TOPICS"; then
+  fail "candidate_linear_bulk_contains_ticker"
+fi
+grep -Fq "ticker_topics = [\"$EXPECTED_SPOT_TICKER_TOPIC\"]" <<<"$BYBIT_RUNNER_SOURCE" ||
+  fail "candidate_ticker_topics_missing"
+grep -Fq 'bybit_spot_ticker = bybit_runner(venue="spot", topics=ticker_topics)' <<<"$BYBIT_RUNNER_SOURCE" ||
+  fail "candidate_spot_ticker_socket_missing"
+grep -Fq 'bybit_linear_ticker = bybit_runner(venue="linear", topics=ticker_topics)' <<<"$BYBIT_RUNNER_SOURCE" ||
+  fail "candidate_linear_ticker_socket_missing"
+grep -Fq 'bybit_spot = bybit_runner(venue="spot", topics=spot_bulk_topics)' <<<"$BYBIT_RUNNER_SOURCE" ||
+  fail "candidate_spot_bulk_socket_missing"
+grep -Fq 'bybit_linear = bybit_runner(venue="linear", topics=linear_bulk_topics)' <<<"$BYBIT_RUNNER_SOURCE" ||
+  fail "candidate_linear_bulk_socket_missing"
 echo "BYBIT_SPOT_TICKER_SOURCE_CONTRACT=true"
+echo "BYBIT_TICKER_SOCKET_CONTRACT=$EXPECTED_TICKER_SOCKET_CONTRACT"
 
 WRITER_SPLIT_SOURCE="$(git -C "$REPO" show "$CANDIDATE_HEAD:src/bp_engine/recorder/service.py" | sed -n '/^def _recorder_writer_split/,/^$/p')"
 grep -Fq 'return 1, worker_count - 1' <<<"$WRITER_SPLIT_SOURCE" ||
@@ -914,6 +958,7 @@ payload = {
     "recorder_priority_event_contract": "ticker_only",
     "bybit_spot_ticker_topic": "tickers.BTCUSDT",
     "bybit_spot_ticker_source_contract": True,
+    "bybit_ticker_socket_contract": "dedicated_bybit_spot_and_linear",
     "compact_dedupe_complete": True,
     "legacy_dedupe_parent_pk_present": False,
     "shadow_run_id": shadow_run_id,
@@ -945,6 +990,7 @@ echo "RECORDER_BULK_WRITER_WORKERS=$EXPECTED_BULK_WRITER_WORKERS"
 echo "RECORDER_TOTAL_WRITER_WORKERS=$EXPECTED_WRITER_WORKERS"
 echo "BYBIT_SPOT_TICKER_TOPIC=$EXPECTED_SPOT_TICKER_TOPIC"
 echo "BYBIT_SPOT_TICKER_SOURCE_CONTRACT=true"
+echo "BYBIT_TICKER_SOCKET_CONTRACT=$EXPECTED_TICKER_SOCKET_CONTRACT"
 echo "RECORDER_PRIORITY_EVENT_CONTRACT=$EXPECTED_PRIORITY_EVENT_CONTRACT"
 echo "RECORDER_WRITER_SPLIT_CONTRACT=1_priority_3_bulk_at_total_4"
 echo "SHADOW_RUN_ID=$EXPECTED_SHADOW_RUN_ID"
@@ -974,6 +1020,7 @@ echo "EXPECTED_PRIORITY_WRITER_WORKERS=$EXPECTED_PRIORITY_WRITER_WORKERS"
 echo "EXPECTED_BULK_WRITER_WORKERS=$EXPECTED_BULK_WRITER_WORKERS"
 echo "EXPECTED_SPOT_TICKER_TOPIC=$EXPECTED_SPOT_TICKER_TOPIC"
 echo "EXPECTED_PRIORITY_EVENT_CONTRACT=$EXPECTED_PRIORITY_EVENT_CONTRACT"
+echo "EXPECTED_TICKER_SOCKET_CONTRACT=$EXPECTED_TICKER_SOCKET_CONTRACT"
 echo "EXPECTED_SHADOW_RUN_ID=$EXPECTED_SHADOW_RUN_ID"
 echo "This helper mutates only the production checkout and restarts the recorder/frozen-V3 paper chain."
 echo "It does not edit recorder batch-size env or trading settings; it fails closed to the previous checkout and restores automatic maintenance."
