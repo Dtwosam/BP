@@ -9,13 +9,13 @@ APPROVAL="${PHASE14_V4_SOURCE_PRIORITY_ROLLOUT_APPROVAL:-}"
 PREFLIGHT_ONLY="${PHASE14_V4_SOURCE_PRIORITY_ROLLOUT_PREFLIGHT_ONLY:-false}"
 
 FROM_HEAD='a694c2299cd34f0b2ee92ded4a4da1643eff0604'
-CANDIDATE_BRANCH='ops/v4-low-latency-priority-writers-candidate-20261007'
-CANDIDATE_HEAD='0c0a791225ae2d8704ee754ca7b75c37b87840d3'
+CANDIDATE_BRANCH='ops/v4-two-priority-batched-candidate-20261007'
+CANDIDATE_HEAD='5e442b5120ae8804a2b716269c3476455a78e577'
 EXPECTED_BATCH_SIZE=500
 EXPECTED_QUEUE_MAXSIZE=50000
 EXPECTED_WRITER_WORKERS=4
 EXPECTED_PRIORITY_QUEUE_MAXSIZE=5000
-EXPECTED_PRIORITY_BATCH_SIZE=1
+EXPECTED_PRIORITY_BATCH_SIZE=20
 EXPECTED_PRIORITY_WRITER_WORKERS=2
 EXPECTED_BULK_WRITER_WORKERS=2
 EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'
@@ -140,13 +140,13 @@ read -r -d '' REMOTE_SCRIPT <<'REMOTE' || true
 set -Eeuo pipefail
 
 FROM_HEAD='a694c2299cd34f0b2ee92ded4a4da1643eff0604'
-CANDIDATE_BRANCH='ops/v4-low-latency-priority-writers-candidate-20261007'
-CANDIDATE_HEAD='0c0a791225ae2d8704ee754ca7b75c37b87840d3'
+CANDIDATE_BRANCH='ops/v4-two-priority-batched-candidate-20261007'
+CANDIDATE_HEAD='5e442b5120ae8804a2b716269c3476455a78e577'
 EXPECTED_BATCH_SIZE=500
 EXPECTED_QUEUE_MAXSIZE=50000
 EXPECTED_WRITER_WORKERS=4
 EXPECTED_PRIORITY_QUEUE_MAXSIZE=5000
-EXPECTED_PRIORITY_BATCH_SIZE=1
+EXPECTED_PRIORITY_BATCH_SIZE=20
 EXPECTED_PRIORITY_WRITER_WORKERS=2
 EXPECTED_BULK_WRITER_WORKERS=2
 EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'
@@ -868,6 +868,12 @@ verify_dashboard_safety
 require_research_zero_money
 require_recorder_config "$EXPECTED_BATCH_SIZE"
 require_priority_config
+[[ "$(systemctl show -p NRestarts --value "$RECORDER_UNIT")" == "$RECORDER_RESTARTS" ]] ||
+  fail "recorder_restarted_before_visibility"
+[[ "$(systemctl show -p NRestarts --value "$V3_PREDICTOR")" == "$PREDICTOR_RESTARTS" ]] ||
+  fail "v3_predictor_restarted_before_visibility"
+[[ "$(systemctl show -p NRestarts --value "$V3_EXECUTION")" == "$EXECUTION_RESTARTS" ]] ||
+  fail "v3_execution_restarted_before_visibility"
 run_visibility_acceptance
 require_shadow_unchanged "post_visibility_acceptance"
 require_compact_dedupe_complete
@@ -955,7 +961,7 @@ payload = {
     "gate_b_artifacts_fingerprint": fingerprint,
     "recorder_batch_size": 500,
     "recorder_priority_queue_maxsize": 5000,
-    "recorder_priority_batch_size": 1,
+    "recorder_priority_batch_size": 20,
     "recorder_total_writer_workers": 4,
     "recorder_priority_writer_workers": 2,
     "recorder_bulk_writer_workers": 2,
