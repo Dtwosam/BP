@@ -9,15 +9,15 @@ APPROVAL="${PHASE14_V4_SOURCE_PRIORITY_ROLLOUT_APPROVAL:-}"
 PREFLIGHT_ONLY="${PHASE14_V4_SOURCE_PRIORITY_ROLLOUT_PREFLIGHT_ONLY:-false}"
 
 FROM_HEAD='a694c2299cd34f0b2ee92ded4a4da1643eff0604'
-CANDIDATE_BRANCH='ops/v4-dedicated-ticker-sockets-candidate-20261007'
-CANDIDATE_HEAD='0aa87549e86626db9d3bf3651e2094536e63c91c'
+CANDIDATE_BRANCH='ops/v4-low-latency-priority-writers-candidate-20261007'
+CANDIDATE_HEAD='0c0a791225ae2d8704ee754ca7b75c37b87840d3'
 EXPECTED_BATCH_SIZE=500
 EXPECTED_QUEUE_MAXSIZE=50000
 EXPECTED_WRITER_WORKERS=4
 EXPECTED_PRIORITY_QUEUE_MAXSIZE=5000
-EXPECTED_PRIORITY_BATCH_SIZE=20
-EXPECTED_PRIORITY_WRITER_WORKERS=1
-EXPECTED_BULK_WRITER_WORKERS=3
+EXPECTED_PRIORITY_BATCH_SIZE=1
+EXPECTED_PRIORITY_WRITER_WORKERS=2
+EXPECTED_BULK_WRITER_WORKERS=2
 EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'
 EXPECTED_PRIORITY_EVENT_CONTRACT='ticker_only'
 EXPECTED_TICKER_SOCKET_CONTRACT='dedicated_bybit_spot_and_linear'
@@ -89,8 +89,10 @@ grep -Fq 'bybit_linear = bybit_runner(venue="linear", topics=linear_bulk_topics)
   fail_local "candidate_linear_bulk_socket_missing"
 
 WRITER_SPLIT_SOURCE="$(git show "$CANDIDATE_HEAD:$SERVICE_PATH" | sed -n '/^def _recorder_writer_split/,/^$/p')"
-grep -Fq 'return 1, worker_count - 1' <<<"$WRITER_SPLIT_SOURCE" ||
-  fail_local "candidate_writer_split_missing"
+grep -Fq 'priority_workers = min(2, worker_count - 1)' <<<"$WRITER_SPLIT_SOURCE" ||
+  fail_local "candidate_priority_writer_split_missing"
+grep -Fq 'return priority_workers, worker_count - priority_workers' <<<"$WRITER_SPLIT_SOURCE" ||
+  fail_local "candidate_bulk_writer_split_missing"
 
 PRIORITY_CLASSIFIER_SOURCE="$(git show "$CANDIDATE_HEAD:$SERVICE_PATH" | sed -n '/^def _is_v4_priority_anchor_event/,/^class _RoutedBufferedEventSink/p')"
 grep -Fq 'event_type.startswith("ticker_")' <<<"$PRIORITY_CLASSIFIER_SOURCE" ||
@@ -138,15 +140,15 @@ read -r -d '' REMOTE_SCRIPT <<'REMOTE' || true
 set -Eeuo pipefail
 
 FROM_HEAD='a694c2299cd34f0b2ee92ded4a4da1643eff0604'
-CANDIDATE_BRANCH='ops/v4-dedicated-ticker-sockets-candidate-20261007'
-CANDIDATE_HEAD='0aa87549e86626db9d3bf3651e2094536e63c91c'
+CANDIDATE_BRANCH='ops/v4-low-latency-priority-writers-candidate-20261007'
+CANDIDATE_HEAD='0c0a791225ae2d8704ee754ca7b75c37b87840d3'
 EXPECTED_BATCH_SIZE=500
 EXPECTED_QUEUE_MAXSIZE=50000
 EXPECTED_WRITER_WORKERS=4
 EXPECTED_PRIORITY_QUEUE_MAXSIZE=5000
-EXPECTED_PRIORITY_BATCH_SIZE=20
-EXPECTED_PRIORITY_WRITER_WORKERS=1
-EXPECTED_BULK_WRITER_WORKERS=3
+EXPECTED_PRIORITY_BATCH_SIZE=1
+EXPECTED_PRIORITY_WRITER_WORKERS=2
+EXPECTED_BULK_WRITER_WORKERS=2
 EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'
 EXPECTED_PRIORITY_EVENT_CONTRACT='ticker_only'
 EXPECTED_TICKER_SOCKET_CONTRACT='dedicated_bybit_spot_and_linear'
@@ -795,8 +797,10 @@ echo "BYBIT_SPOT_TICKER_SOURCE_CONTRACT=true"
 echo "BYBIT_TICKER_SOCKET_CONTRACT=$EXPECTED_TICKER_SOCKET_CONTRACT"
 
 WRITER_SPLIT_SOURCE="$(git -C "$REPO" show "$CANDIDATE_HEAD:src/bp_engine/recorder/service.py" | sed -n '/^def _recorder_writer_split/,/^$/p')"
-grep -Fq 'return 1, worker_count - 1' <<<"$WRITER_SPLIT_SOURCE" ||
-  fail "candidate_writer_split_missing"
+grep -Fq 'priority_workers = min(2, worker_count - 1)' <<<"$WRITER_SPLIT_SOURCE" ||
+  fail "candidate_priority_writer_split_missing"
+grep -Fq 'return priority_workers, worker_count - priority_workers' <<<"$WRITER_SPLIT_SOURCE" ||
+  fail "candidate_bulk_writer_split_missing"
 
 PRIORITY_CLASSIFIER_SOURCE="$(git -C "$REPO" show "$CANDIDATE_HEAD:src/bp_engine/recorder/service.py" | sed -n '/^def _is_v4_priority_anchor_event/,/^class _RoutedBufferedEventSink/p')"
 grep -Fq 'event_type.startswith("ticker_")' <<<"$PRIORITY_CLASSIFIER_SOURCE" ||
@@ -808,7 +812,7 @@ if grep -Fq 'market_trades_' <<<"$PRIORITY_CLASSIFIER_SOURCE" ||
    grep -Fq '"trade"' <<<"$PRIORITY_CLASSIFIER_SOURCE"; then
   fail "candidate_priority_contract_not_ticker_only"
 fi
-echo "RECORDER_WRITER_SPLIT_CONTRACT=1_priority_3_bulk_at_total_4"
+echo "RECORDER_WRITER_SPLIT_CONTRACT=2_priority_2_bulk_at_total_4"
 echo "RECORDER_PRIORITY_EVENT_CONTRACT=$EXPECTED_PRIORITY_EVENT_CONTRACT"
 
 BACKUP_DIR="$(mktemp -d /var/tmp/bp-v4-source-priority-rollout-backup.XXXXXX)"
@@ -951,10 +955,10 @@ payload = {
     "gate_b_artifacts_fingerprint": fingerprint,
     "recorder_batch_size": 500,
     "recorder_priority_queue_maxsize": 5000,
-    "recorder_priority_batch_size": 20,
+    "recorder_priority_batch_size": 1,
     "recorder_total_writer_workers": 4,
-    "recorder_priority_writer_workers": 1,
-    "recorder_bulk_writer_workers": 3,
+    "recorder_priority_writer_workers": 2,
+    "recorder_bulk_writer_workers": 2,
     "recorder_priority_event_contract": "ticker_only",
     "bybit_spot_ticker_topic": "tickers.BTCUSDT",
     "bybit_spot_ticker_source_contract": True,
@@ -992,7 +996,7 @@ echo "BYBIT_SPOT_TICKER_TOPIC=$EXPECTED_SPOT_TICKER_TOPIC"
 echo "BYBIT_SPOT_TICKER_SOURCE_CONTRACT=true"
 echo "BYBIT_TICKER_SOCKET_CONTRACT=$EXPECTED_TICKER_SOCKET_CONTRACT"
 echo "RECORDER_PRIORITY_EVENT_CONTRACT=$EXPECTED_PRIORITY_EVENT_CONTRACT"
-echo "RECORDER_WRITER_SPLIT_CONTRACT=1_priority_3_bulk_at_total_4"
+echo "RECORDER_WRITER_SPLIT_CONTRACT=2_priority_2_bulk_at_total_4"
 echo "SHADOW_RUN_ID=$EXPECTED_SHADOW_RUN_ID"
 echo "SHADOW_PID=$SHADOW_PID"
 echo "SHADOW_ACTIVE=true"
