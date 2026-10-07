@@ -13,8 +13,8 @@ HELPER = (
 RECORDER_SERVICE = ROOT / "src" / "bp_engine" / "recorder" / "service.py"
 
 FROM_HEAD = "a694c2299cd34f0b2ee92ded4a4da1643eff0604"
-CANDIDATE_HEAD = "0aa87549e86626db9d3bf3651e2094536e63c91c"
-CANDIDATE_BRANCH = "ops/v4-dedicated-ticker-sockets-candidate-20261007"
+CANDIDATE_HEAD = "0c0a791225ae2d8704ee754ca7b75c37b87840d3"
+CANDIDATE_BRANCH = "ops/v4-low-latency-priority-writers-candidate-20261007"
 SHADOW_RUN_ID = "v4-fresh-book-shadow-20261006T185619Z-271db613e003"
 
 
@@ -46,8 +46,8 @@ def test_v4_source_priority_rollout_is_exact_candidate_and_approval_bound() -> N
         "candidate_scope_mismatch",
         "candidate_blob_not_exact_main",
         "production_approval_mismatch",
-        "EXPECTED_PRIORITY_WRITER_WORKERS=1",
-        "EXPECTED_BULK_WRITER_WORKERS=3",
+        "EXPECTED_PRIORITY_WRITER_WORKERS=2",
+        "EXPECTED_BULK_WRITER_WORKERS=2",
         "EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'",
         "EXPECTED_PRIORITY_EVENT_CONTRACT='ticker_only'",
         "EXPECTED_TICKER_SOCKET_CONTRACT='dedicated_bybit_spot_and_linear'",
@@ -123,15 +123,16 @@ def test_v4_source_priority_rollout_preserves_batch_and_writer_budget() -> None:
         "EXPECTED_QUEUE_MAXSIZE=50000",
         "EXPECTED_WRITER_WORKERS=4",
         "EXPECTED_PRIORITY_QUEUE_MAXSIZE=5000",
-        "EXPECTED_PRIORITY_BATCH_SIZE=20",
+        "EXPECTED_PRIORITY_BATCH_SIZE=1",
         "recorder writer workers must equal 4",
         "recorder flush interval must equal 0.25",
-        "EXPECTED_PRIORITY_WRITER_WORKERS=1",
-        "EXPECTED_BULK_WRITER_WORKERS=3",
+        "EXPECTED_PRIORITY_WRITER_WORKERS=2",
+        "EXPECTED_BULK_WRITER_WORKERS=2",
         'RECORDER_PRIORITY_WRITER_WORKERS=$EXPECTED_PRIORITY_WRITER_WORKERS',
         'RECORDER_BULK_WRITER_WORKERS=$EXPECTED_BULK_WRITER_WORKERS',
-        '"recorder_priority_writer_workers": 1',
-        '"recorder_bulk_writer_workers": 3',
+        '"recorder_priority_writer_workers": 2',
+        '"recorder_bulk_writer_workers": 2',
+        '"recorder_priority_batch_size": 1',
         '"recorder_priority_event_contract": "ticker_only"',
         '"bybit_ticker_socket_contract": "dedicated_bybit_spot_and_linear"',
         "recorder writer split mismatch",
@@ -224,9 +225,11 @@ def test_v4_source_priority_rollout_binds_dedicated_bybit_ticker_sockets_before_
 def test_v4_source_priority_rollout_binds_writer_split_before_mutation() -> None:
     source = _source()
     for marker in (
-        "candidate_writer_split_missing",
-        "RECORDER_WRITER_SPLIT_CONTRACT=1_priority_3_bulk_at_total_4",
-        "return 1, worker_count - 1",
+        "candidate_priority_writer_split_missing",
+        "candidate_bulk_writer_split_missing",
+        "RECORDER_WRITER_SPLIT_CONTRACT=2_priority_2_bulk_at_total_4",
+        "priority_workers = min(2, worker_count - 1)",
+        "return priority_workers, worker_count - priority_workers",
     ):
         assert marker in source
 
