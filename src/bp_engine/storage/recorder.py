@@ -83,7 +83,7 @@ class RecorderRepository:
             for dedupe_key, row in unique_rows.items()
             if dedupe_key in claimed_ids
         ]
-        connection.execute(insert(raw_market_events).values(raw_rows))
+        connection.execute(insert(raw_market_events), raw_rows)
         return len(raw_rows)
 
     def upsert_state_snapshots(
