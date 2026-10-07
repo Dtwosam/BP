@@ -515,9 +515,9 @@ def test_default_builder_assembles_primary_recorder_components_without_network(t
     )
     priority_writer = service._components["writer_priority"]._writer
     bulk_writer = service._components["writer_bulk"]._writer
-    assert priority_writer._worker_count == 1
+    assert priority_writer._worker_count == 2
     assert priority_writer._batch_size == settings.recorder_priority_batch_size
-    assert bulk_writer._worker_count == 2
+    assert bulk_writer._worker_count == 1
     assert bulk_writer._batch_size == settings.recorder_batch_size
     bybit_spot = service._components["bybit_spot"]
     bybit_spot_ticker = service._components["bybit_spot_ticker"]
