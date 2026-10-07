@@ -26,7 +26,7 @@ def test_recorder_defaults_are_bounded_and_keep_trading_disabled() -> None:
     assert settings.recorder_flush_interval_seconds > 0
     assert settings.recorder_writer_workers == 1
     assert settings.recorder_priority_queue_maxsize == 5_000
-    assert settings.recorder_priority_batch_size == 20
+    assert settings.recorder_priority_batch_size == 1
     assert settings.polymarket_refresh_interval_seconds > 0
     assert settings.database_url.startswith("postgresql+psycopg://")
     assert settings.live_trading_enabled is False
