@@ -58,3 +58,13 @@ def test_feature_latency_report_times_all_pipeline_stages() -> None:
         "ORDER_SUBMISSION_PERFORMED=false",
     ):
         assert marker in source
+
+
+def test_feature_latency_runtime_checks_use_bp_permissions() -> None:
+    source = HELPER.read_text(encoding="utf-8")
+    for marker in (
+        "sudo -u bp test -x",
+        "sudo -u bp test -r",
+        "sudo -u bp sha256sum",
+    ):
+        assert marker in source
