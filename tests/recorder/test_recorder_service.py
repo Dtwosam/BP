@@ -172,12 +172,12 @@ def source_event(
     )
 
 
-def test_recorder_writer_split_reserves_one_priority_worker_when_available() -> None:
+def test_recorder_writer_split_reserves_two_priority_workers_when_available() -> None:
     assert _recorder_writer_split(1) == (0, 1)
     assert _recorder_writer_split(2) == (1, 1)
-    assert _recorder_writer_split(3) == (1, 2)
-    assert _recorder_writer_split(4) == (1, 3)
-    assert _recorder_writer_split(8) == (1, 7)
+    assert _recorder_writer_split(3) == (2, 1)
+    assert _recorder_writer_split(4) == (2, 2)
+    assert _recorder_writer_split(8) == (2, 6)
 
 
 def test_v4_priority_anchor_classifier_is_ticker_only() -> None:
@@ -515,9 +515,10 @@ def test_default_builder_assembles_primary_recorder_components_without_network(t
     )
     priority_writer = service._components["writer_priority"]._writer
     bulk_writer = service._components["writer_bulk"]._writer
-    assert priority_writer._worker_count == 1
+    assert priority_writer._worker_count == 2
+    assert priority_writer._batch_size == 1
     assert priority_writer._batch_size == settings.recorder_priority_batch_size
-    assert bulk_writer._worker_count == 2
+    assert bulk_writer._worker_count == 1
     assert bulk_writer._batch_size == settings.recorder_batch_size
     bybit_spot = service._components["bybit_spot"]
     bybit_spot_ticker = service._components["bybit_spot_ticker"]
