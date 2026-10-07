@@ -181,6 +181,23 @@ def test_v4_source_priority_rollout_binds_bybit_spot_ticker_before_mutation() ->
     assert semantic_gate < backup < mutation
 
 
+def test_v4_source_priority_rollout_binds_writer_split_before_mutation() -> None:
+    source = _source()
+    for marker in (
+        "candidate_priority_writer_split_missing",
+        "candidate_bulk_writer_split_missing",
+        "RECORDER_WRITER_SPLIT_CONTRACT=2_priority_2_bulk_at_total_4",
+        "priority_workers = min(2, worker_count - 1)",
+        "return priority_workers, worker_count - priority_workers",
+    ):
+        assert marker in source
+
+    semantic_gate = source.index('WRITER_SPLIT_SOURCE="$(git -C "$REPO" show')
+    backup = source.index('BACKUP_DIR="$(mktemp -d', semantic_gate)
+    mutation = source.index("MUTATION_STARTED=1", semantic_gate)
+    assert semantic_gate < backup < mutation
+
+
 def test_v4_source_priority_rollout_requires_strict_visibility_acceptance() -> None:
     source = _source()
     for marker in (
