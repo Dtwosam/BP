@@ -10,6 +10,7 @@ from bp_engine.recorder.service import (
     RecorderService,
     _BufferedEventSink,
     _is_v4_source_time_event,
+    _recorder_writer_split,
     _RoutedBufferedEventSink,
 )
 from bp_engine.recorder.writer import BatchWriter, EventBuffer
@@ -169,6 +170,14 @@ def source_event(
         sequence=sequence,
         payload={"sequence": sequence},
     )
+
+
+def test_recorder_writer_split_reserves_two_priority_workers_when_available() -> None:
+    assert _recorder_writer_split(1) == (0, 1)
+    assert _recorder_writer_split(2) == (1, 1)
+    assert _recorder_writer_split(3) == (2, 1)
+    assert _recorder_writer_split(4) == (2, 2)
+    assert _recorder_writer_split(8) == (2, 6)
 
 
 def test_v4_source_time_priority_classifier_is_exact() -> None:
