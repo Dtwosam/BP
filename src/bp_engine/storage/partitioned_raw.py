@@ -9,6 +9,7 @@ from sqlalchemy import Connection, Engine, text
 
 _DEDUPE_PARTITIONS = 16
 _PARTITION_DDL_LOCK_TIMEOUT_MS = 2000
+_V4_SOURCE_LOOKUP_INDEX_SUFFIX = "_v4_source_lookup_idx"
 _RAW_PARTITION_RE = re.compile(r"^raw_market_events_(\d{8})_(\d{2})$")
 _LEGACY_INDEX_RE = re.compile(r"^legacy_\d{2}_(.+)$")
 _SEQUENCE_NAME = "raw_market_events_id_seq_v2"
@@ -113,6 +114,37 @@ def _quote(connection: Connection, identifier: str) -> str:
 def _timestamp_literal(value: datetime) -> str:
     normalized = _require_aware_utc(value, field="partition bound")
     return f"TIMESTAMPTZ '{normalized.isoformat()}'"
+
+
+def _v4_source_lookup_index_name(partition_name: str) -> str:
+    return f"{partition_name}{_V4_SOURCE_LOOKUP_INDEX_SUFFIX}"
+
+
+def _create_v4_source_lookup_index(
+    connection: Connection,
+    *,
+    partition_name: str,
+) -> None:
+    quoted_partition = _quote(connection, partition_name)
+    quoted_index = _quote(
+        connection,
+        _v4_source_lookup_index_name(partition_name),
+    )
+    connection.execute(
+        text(
+            f"""
+            CREATE INDEX {quoted_index}
+            ON {quoted_partition} (
+                source,
+                stream,
+                instrument,
+                received_at DESC,
+                id DESC
+            )
+            WHERE source_timestamp IS NOT NULL
+            """
+        )
+    )
 
 
 def raw_storage_mode(connection: Connection) -> RawStorageMode:
@@ -469,6 +501,10 @@ def ensure_hour_partitions(
                 TO ({_timestamp_literal(upper)})
                 """
             )
+        )
+        _create_v4_source_lookup_index(
+            connection,
+            partition_name=name,
         )
         created.append(RawPartition(name=name, start_at=lower, end_at=upper))
     return tuple(created)
