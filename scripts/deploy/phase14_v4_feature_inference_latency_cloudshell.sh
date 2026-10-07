@@ -67,15 +67,15 @@ if systemctl is-active --quiet bp-phase15-fast-live-source.service; then
   echo PHASE14_V4_FEATURE_INFERENCE_LATENCY_STATUS=FAIL:fast_live_source_active >&2
   exit 1
 fi
-test -x \"\$VENV/bin/python\" || {
+sudo -u bp test -x \"\$VENV/bin/python\" || {
   echo PHASE14_V4_FEATURE_INFERENCE_LATENCY_STATUS=FAIL:venv_missing >&2
   exit 1
 }
-test -r \"\$MODEL\" || {
+sudo -u bp test -r \"\$MODEL\" || {
   echo PHASE14_V4_FEATURE_INFERENCE_LATENCY_STATUS=FAIL:model_missing >&2
   exit 1
 }
-[[ \"\$(sha256sum \"\$MODEL\" | awk '{print \$1}')\" == '$EXPECTED_MODEL_SHA256' ]] || {
+[[ \"\$(sudo -u bp sha256sum \"\$MODEL\" | awk '{print \$1}')\" == '$EXPECTED_MODEL_SHA256' ]] || {
   echo PHASE14_V4_FEATURE_INFERENCE_LATENCY_STATUS=FAIL:model_sha_mismatch >&2
   exit 1
 }
