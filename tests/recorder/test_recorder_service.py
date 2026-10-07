@@ -9,7 +9,7 @@ from bp_engine.recorder.service import (
     PolymarketCollectorComponent,
     RecorderService,
     _BufferedEventSink,
-    _is_v4_source_time_event,
+    _is_v4_priority_anchor_event,
     _recorder_writer_split,
     _RoutedBufferedEventSink,
 )
@@ -172,16 +172,16 @@ def source_event(
     )
 
 
-def test_recorder_writer_split_reserves_two_priority_workers_when_available() -> None:
+def test_recorder_writer_split_reserves_one_priority_worker_when_available() -> None:
     assert _recorder_writer_split(1) == (0, 1)
     assert _recorder_writer_split(2) == (1, 1)
-    assert _recorder_writer_split(3) == (2, 1)
-    assert _recorder_writer_split(4) == (2, 2)
-    assert _recorder_writer_split(8) == (2, 6)
+    assert _recorder_writer_split(3) == (1, 2)
+    assert _recorder_writer_split(4) == (1, 3)
+    assert _recorder_writer_split(8) == (1, 7)
 
 
-def test_v4_source_time_priority_classifier_is_exact() -> None:
-    assert _is_v4_source_time_event(
+def test_v4_priority_anchor_classifier_is_ticker_only() -> None:
+    assert _is_v4_priority_anchor_event(
         source_event(
             source="coinbase",
             stream="spot",
@@ -190,52 +190,64 @@ def test_v4_source_time_priority_classifier_is_exact() -> None:
             sequence=1,
         )
     )
-    assert _is_v4_source_time_event(
-        source_event(
-            source="coinbase",
-            stream="spot",
-            instrument="BTC-USD",
-            event_type="market_trades_update",
-            sequence=2,
-        )
-    )
-    assert _is_v4_source_time_event(
+    assert _is_v4_priority_anchor_event(
         source_event(
             source="bybit",
             stream="spot",
             instrument="BTCUSDT",
-            event_type="trade",
-            sequence=3,
+            event_type="ticker",
+            sequence=2,
         )
     )
-    assert _is_v4_source_time_event(
+    assert _is_v4_priority_anchor_event(
         source_event(
             source="bybit",
             stream="linear",
             instrument="BTCUSDT",
             event_type="ticker",
-            sequence=4,
+            sequence=3,
         )
     )
 
     for event in (
         source_event(
+            source="coinbase",
+            stream="spot",
+            instrument="BTC-USD",
+            event_type="market_trades_update",
+            sequence=4,
+        ),
+        source_event(
+            source="bybit",
+            stream="spot",
+            instrument="BTCUSDT",
+            event_type="trade",
+            sequence=5,
+        ),
+        source_event(
+            source="bybit",
+            stream="linear",
+            instrument="BTCUSDT",
+            event_type="trade",
+            sequence=6,
+        ),
+        source_event(
             source="bybit",
             stream="spot",
             instrument="BTCUSDT",
             event_type="orderbook_delta",
-            sequence=5,
+            sequence=7,
         ),
         source_event(
             source="bybit",
             stream="linear",
             instrument="ETHUSDT",
             event_type="ticker",
-            sequence=6,
+            sequence=8,
         ),
-        raw_event(7, 7),
+        raw_event(9, 9),
     ):
-        assert not _is_v4_source_time_event(event)
+        assert not _is_v4_priority_anchor_event(event)
 
 
 @pytest.mark.asyncio
@@ -267,11 +279,21 @@ async def test_routed_sink_separates_v4_source_events_without_dropping() -> None
         sequence=9,
     )
 
+    trade_event = source_event(
+        source="bybit",
+        stream="spot",
+        instrument="BTCUSDT",
+        event_type="trade",
+        sequence=10,
+    )
+
     await routed(v4_event)
     await routed(bulk_event)
+    await routed(trade_event)
 
     assert priority.get_nowait() == v4_event
     assert bulk.get_nowait() == bulk_event
+    assert bulk.get_nowait() == trade_event
     assert incidents == []
 
 
@@ -491,9 +513,9 @@ def test_default_builder_assembles_primary_recorder_components_without_network(t
     )
     priority_writer = service._components["writer_priority"]._writer
     bulk_writer = service._components["writer_bulk"]._writer
-    assert priority_writer._worker_count == 2
+    assert priority_writer._worker_count == 1
     assert priority_writer._batch_size == settings.recorder_priority_batch_size
-    assert bulk_writer._worker_count == 1
+    assert bulk_writer._worker_count == 2
     assert bulk_writer._batch_size == settings.recorder_batch_size
     assert priority_writer._worker_count + bulk_writer._worker_count == 3
     assert settings.live_trading_enabled is False
