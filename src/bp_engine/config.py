@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     recorder_flush_interval_seconds: float = 0.25
     recorder_writer_workers: int = Field(default=1, ge=1)
     recorder_priority_queue_maxsize: int = Field(default=5_000, ge=1)
-    recorder_priority_batch_size: int = Field(default=1, ge=1)
+    recorder_priority_batch_size: int = Field(default=20, ge=1)
     polymarket_refresh_interval_seconds: float = 30.0
     polymarket_subscription_grace_seconds: float = 30.0
     recorder_stale_after_seconds: float = 10.0

@@ -38,6 +38,7 @@ def test_v4_visibility_report_is_read_only_and_bounded() -> None:
         '"event_contract": "ticker_only" if ticker_only else "ticker_or_trade"',
         "pg_stat_activity",
         "pg_blocking_pids",
+        "raw_event_dedupe",
         "DATABASE_WRITES_PERFORMED=false",
         "SERVICE_MUTATION_PERFORMED=false",
         "ORDER_SUBMISSION_PERFORMED=false",

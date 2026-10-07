@@ -129,7 +129,10 @@ def _activity_snapshot(connection: Connection) -> list[dict[str, Any]]:
             WHERE datname = current_database()
               AND pid <> pg_backend_pid()
               AND state <> 'idle'
-              AND query ILIKE '%raw_market_events%'
+              AND (
+                    query ILIKE '%raw_market_events%'
+                 OR query ILIKE '%raw_event_dedupe%'
+              )
             ORDER BY xact_start NULLS LAST, query_start NULLS LAST
             LIMIT 30
             """
