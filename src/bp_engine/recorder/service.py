@@ -334,6 +334,13 @@ class _RoutedBufferedEventSink:
             )
 
 
+def _recorder_writer_split(worker_count: int) -> tuple[int, int]:
+    if worker_count <= 1:
+        return 0, 1
+    priority_workers = min(2, worker_count - 1)
+    return priority_workers, worker_count - priority_workers
+
+
 def build_default_recorder_service(settings: object) -> RecorderService:
     """Assemble the recorder without opening network connections."""
     from sqlalchemy import create_engine
@@ -379,7 +386,10 @@ def build_default_recorder_service(settings: object) -> RecorderService:
     state_reducer = MarketStateReducer()
 
     writer_components: dict[str, _BatchWriterComponent] = {}
-    if settings.recorder_writer_workers >= 2:
+    priority_writer_workers, bulk_writer_workers = _recorder_writer_split(
+        settings.recorder_writer_workers
+    )
+    if priority_writer_workers:
         priority_buffer = EventBuffer(
             maxsize=settings.recorder_priority_queue_maxsize
         )
@@ -403,14 +413,14 @@ def build_default_recorder_service(settings: object) -> RecorderService:
             sink=database_sink.write_events,
             batch_size=settings.recorder_priority_batch_size,
             flush_interval_seconds=settings.recorder_flush_interval_seconds,
-            worker_count=1,
+            worker_count=priority_writer_workers,
         )
         bulk_writer = BatchWriter(
             buffer=bulk_buffer,
             sink=database_sink.write_events,
             batch_size=settings.recorder_batch_size,
             flush_interval_seconds=settings.recorder_flush_interval_seconds,
-            worker_count=settings.recorder_writer_workers - 1,
+            worker_count=bulk_writer_workers,
         )
         writer_components = {
             "writer_priority": _BatchWriterComponent(priority_writer),
