@@ -13,8 +13,8 @@ HELPER = (
 RECORDER_SERVICE = ROOT / "src" / "bp_engine" / "recorder" / "service.py"
 
 FROM_HEAD = "a694c2299cd34f0b2ee92ded4a4da1643eff0604"
-CANDIDATE_HEAD = "d70273dcb04222c8b502e22fe5d8422774648d7b"
-CANDIDATE_BRANCH = "ops/v4-source-priority-two-writer-candidate-20261007"
+CANDIDATE_HEAD = "94dc1adc77122e921f5e53bb27ae4ea0a9c5e52b"
+CANDIDATE_BRANCH = "ops/v4-ticker-priority-candidate-20261007"
 SHADOW_RUN_ID = "v4-fresh-book-shadow-20261006T185619Z-271db613e003"
 
 
@@ -46,9 +46,10 @@ def test_v4_source_priority_rollout_is_exact_candidate_and_approval_bound() -> N
         "candidate_scope_mismatch",
         "candidate_blob_not_exact_main",
         "production_approval_mismatch",
-        "EXPECTED_PRIORITY_WRITER_WORKERS=2",
-        "EXPECTED_BULK_WRITER_WORKERS=2",
+        "EXPECTED_PRIORITY_WRITER_WORKERS=1",
+        "EXPECTED_BULK_WRITER_WORKERS=3",
         "EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'",
+        "EXPECTED_PRIORITY_EVENT_CONTRACT='ticker_only'",
     ):
         assert marker in source
     assert source.index("production_approval_mismatch") < source.index(
@@ -64,6 +65,7 @@ def test_v4_source_priority_rollout_has_local_only_preflight() -> None:
         "EXPECTED_PRIORITY_WRITER_WORKERS=$EXPECTED_PRIORITY_WRITER_WORKERS",
         "EXPECTED_BULK_WRITER_WORKERS=$EXPECTED_BULK_WRITER_WORKERS",
         "EXPECTED_SPOT_TICKER_TOPIC=$EXPECTED_SPOT_TICKER_TOPIC",
+        "EXPECTED_PRIORITY_EVENT_CONTRACT=$EXPECTED_PRIORITY_EVENT_CONTRACT",
         "EXPECTED_APPROVAL=$EXPECTED_APPROVAL",
         "PRODUCTION_MUTATION=false",
         "GCLOUD_CONTACT=false",
@@ -122,12 +124,13 @@ def test_v4_source_priority_rollout_preserves_batch_and_writer_budget() -> None:
         "EXPECTED_PRIORITY_BATCH_SIZE=20",
         "recorder writer workers must equal 4",
         "recorder flush interval must equal 0.25",
-        "EXPECTED_PRIORITY_WRITER_WORKERS=2",
-        "EXPECTED_BULK_WRITER_WORKERS=2",
+        "EXPECTED_PRIORITY_WRITER_WORKERS=1",
+        "EXPECTED_BULK_WRITER_WORKERS=3",
         'RECORDER_PRIORITY_WRITER_WORKERS=$EXPECTED_PRIORITY_WRITER_WORKERS',
         'RECORDER_BULK_WRITER_WORKERS=$EXPECTED_BULK_WRITER_WORKERS',
-        '"recorder_priority_writer_workers": 2',
-        '"recorder_bulk_writer_workers": 2',
+        '"recorder_priority_writer_workers": 1',
+        '"recorder_bulk_writer_workers": 3',
+        '"recorder_priority_event_contract": "ticker_only"',
         "recorder writer split mismatch",
         "RECORDER_TOTAL_WRITER_WORKERS=4",
         "require_priority_config",
@@ -140,7 +143,7 @@ def test_v4_source_priority_rollout_preserves_batch_and_writer_budget() -> None:
 def test_v4_source_priority_rollout_binds_priority_source_contract() -> None:
     source = _source()
     for marker in (
-        "_is_v4_source_time_event",
+        "_is_v4_priority_anchor_event",
         "_RoutedBufferedEventSink",
         "_recorder_writer_split",
         '"writer_priority"',
@@ -186,15 +189,34 @@ def test_v4_source_priority_rollout_binds_bybit_spot_ticker_before_mutation() ->
 def test_v4_source_priority_rollout_binds_writer_split_before_mutation() -> None:
     source = _source()
     for marker in (
-        "candidate_priority_writer_split_missing",
-        "candidate_bulk_writer_split_missing",
-        "RECORDER_WRITER_SPLIT_CONTRACT=2_priority_2_bulk_at_total_4",
-        "priority_workers = min(2, worker_count - 1)",
-        "return priority_workers, worker_count - priority_workers",
+        "candidate_writer_split_missing",
+        "RECORDER_WRITER_SPLIT_CONTRACT=1_priority_3_bulk_at_total_4",
+        "return 1, worker_count - 1",
     ):
         assert marker in source
 
     semantic_gate = source.index('WRITER_SPLIT_SOURCE="$(git -C "$REPO" show')
+    backup = source.index('BACKUP_DIR="$(mktemp -d', semantic_gate)
+    mutation = source.index("MUTATION_STARTED=1", semantic_gate)
+    assert semantic_gate < backup < mutation
+
+
+def test_v4_source_priority_rollout_binds_ticker_only_priority_before_mutation() -> None:
+    source = _source()
+    for marker in (
+        "candidate_coinbase_ticker_priority_missing",
+        "candidate_bybit_ticker_priority_missing",
+        "candidate_priority_contract_not_ticker_only",
+        "RECORDER_PRIORITY_EVENT_CONTRACT=$EXPECTED_PRIORITY_EVENT_CONTRACT",
+        "EXPECTED_PRIORITY_EVENT_CONTRACT='ticker_only'",
+        "event_type.startswith(\"ticker_\")",
+        'event_type == "ticker"',
+    ):
+        assert marker in source
+
+    semantic_gate = source.index(
+        'PRIORITY_CLASSIFIER_SOURCE="$(git -C "$REPO" show'
+    )
     backup = source.index('BACKUP_DIR="$(mktemp -d', semantic_gate)
     mutation = source.index("MUTATION_STARTED=1", semantic_gate)
     assert semantic_gate < backup < mutation
@@ -208,6 +230,8 @@ def test_v4_source_priority_rollout_requires_strict_visibility_acceptance() -> N
         "timestamp-window readiness below 50%",
         'payload.get("query_timeout_count", -1)',
         'payload.get("query_failure_count", -1)',
+        "--ticker-only",
+        "visibility event contract mismatch",
         "run_visibility_acceptance",
         "run_soak",
     ):
