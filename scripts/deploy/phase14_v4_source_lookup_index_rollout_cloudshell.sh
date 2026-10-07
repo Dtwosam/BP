@@ -10,7 +10,7 @@ PREFLIGHT_ONLY="${PHASE14_V4_SOURCE_LOOKUP_INDEX_PREFLIGHT_ONLY:-false}"
 
 FROM_HEAD='3316f22d89689a4dfe8c7de2da6956b8eb846d1f'
 CANDIDATE_BRANCH='ops/phase14-v4-source-lookup-index-candidate-20261007'
-CANDIDATE_HEAD='9d9a8c3c34c25e7c547e64270d92b5e12480e381'
+CANDIDATE_HEAD='2bac3b4c20ae5d1fb6fb8caa80edaf1928674706'
 EXPECTED_SHADOW_RUN_ID='v4-fresh-book-shadow-20261007T200650Z-d58b2cbedc3f'
 EXPECTED_SHADOW_UNIT='bp-v4-fresh-book-shadow-20261007T200650Z-d58b2cbedc3f.service'
 EXPECTED_MODEL_SHA256='6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf'
@@ -118,7 +118,7 @@ set -Eeuo pipefail
 
 FROM_HEAD='3316f22d89689a4dfe8c7de2da6956b8eb846d1f'
 CANDIDATE_BRANCH='ops/phase14-v4-source-lookup-index-candidate-20261007'
-CANDIDATE_HEAD='9d9a8c3c34c25e7c547e64270d92b5e12480e381'
+CANDIDATE_HEAD='2bac3b4c20ae5d1fb6fb8caa80edaf1928674706'
 EXPECTED_SHADOW_RUN_ID='v4-fresh-book-shadow-20261007T200650Z-d58b2cbedc3f'
 EXPECTED_SHADOW_UNIT='bp-v4-fresh-book-shadow-20261007T200650Z-d58b2cbedc3f.service'
 EXPECTED_MODEL_SHA256='6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf'
@@ -554,10 +554,23 @@ then
   fail "index_migration_failed"
 fi
 
-grep -Fq \
-  'PHASE14_V4_SOURCE_LOOKUP_INDEX_MIGRATION=PASS' \
-  "$MIGRATION_TMP" ||
-  fail "index_migration_pass_marker_missing"
+"$REPO/.venv/bin/python" - "$MIGRATION_TMP" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(
+    Path(sys.argv[1]).read_text(encoding="utf-8")
+)
+if payload.get("report") != "v4_source_lookup_index_rollout_v1":
+    raise SystemExit("unexpected migration evidence report")
+benchmark = payload.get("benchmark") or {}
+if float(benchmark.get("elapsed_seconds", 999.0)) >= 2.0:
+    raise SystemExit("benchmark query exceeded 2s")
+created = payload.get("created_indexes")
+if not isinstance(created, list):
+    raise SystemExit("created_indexes missing from migration evidence")
+PY
 MIGRATION_COMPLETE=1
 
 require_research_zero_money
