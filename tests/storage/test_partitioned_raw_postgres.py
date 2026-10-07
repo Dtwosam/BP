@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from datetime import UTC, datetime, timedelta
@@ -12,6 +13,7 @@ from sqlalchemy.exc import DBAPIError
 
 from bp_engine.config import Settings
 from bp_engine.recorder.models import RawEvent
+from bp_engine.recorder.writer import BatchWriter, EventBuffer
 from bp_engine.recorder.state import MarketStateSnapshot
 from bp_engine.storage.maintenance import (
     ArchiveVerificationError,
@@ -542,6 +544,52 @@ def test_partitioned_writer_compact_digest_indexes_preserve_replay_dedupe(engine
     assert ledger_count == 1
     assert primary_count == 0
     assert digest_unique_count == 16
+
+
+@pytest.mark.asyncio
+async def test_compact_dedupe_two_batched_writers_persist_distinct_events(engine) -> None:
+    now = datetime(2026, 9, 4, 13, 20, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now)
+    _install_compact_dedupe_digest_indexes(engine)
+    repository = RecorderRepository()
+    buffer = EventBuffer(maxsize=200)
+
+    async def sink(items: list[RawEvent]) -> None:
+        def write() -> None:
+            with engine.begin() as connection:
+                repository.insert_events(connection, items)
+
+        await asyncio.to_thread(write)
+
+    writer = BatchWriter(
+        buffer=buffer,
+        sink=sink,
+        batch_size=20,
+        flush_interval_seconds=0.01,
+        worker_count=2,
+    )
+    for sequence in range(120):
+        await buffer.put(
+            _event(
+                now + timedelta(milliseconds=sequence),
+                sequence=1000 + sequence,
+            )
+        )
+
+    stop = asyncio.Event()
+    stop.set()
+    await asyncio.wait_for(writer.run(stop), timeout=10)
+
+    with engine.connect() as connection:
+        raw_count = connection.execute(
+            text("SELECT count(*) FROM raw_market_events")
+        ).scalar_one()
+        ledger_count = connection.execute(
+            text("SELECT count(*) FROM raw_event_dedupe")
+        ).scalar_one()
+
+    assert raw_count == 120
+    assert ledger_count == 120
 
 
 def test_partitioned_writer_compact_digest_indexes_preserve_duplicate_race(engine) -> None:
