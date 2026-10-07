@@ -13,8 +13,8 @@ HELPER = (
 RECORDER_SERVICE = ROOT / "src" / "bp_engine" / "recorder" / "service.py"
 
 FROM_HEAD = "a694c2299cd34f0b2ee92ded4a4da1643eff0604"
-CANDIDATE_HEAD = "0c0a791225ae2d8704ee754ca7b75c37b87840d3"
-CANDIDATE_BRANCH = "ops/v4-low-latency-priority-writers-candidate-20261007"
+CANDIDATE_HEAD = "5e442b5120ae8804a2b716269c3476455a78e577"
+CANDIDATE_BRANCH = "ops/v4-two-priority-batched-candidate-20261007"
 SHADOW_RUN_ID = "v4-fresh-book-shadow-20261006T185619Z-271db613e003"
 
 
@@ -123,7 +123,7 @@ def test_v4_source_priority_rollout_preserves_batch_and_writer_budget() -> None:
         "EXPECTED_QUEUE_MAXSIZE=50000",
         "EXPECTED_WRITER_WORKERS=4",
         "EXPECTED_PRIORITY_QUEUE_MAXSIZE=5000",
-        "EXPECTED_PRIORITY_BATCH_SIZE=1",
+        "EXPECTED_PRIORITY_BATCH_SIZE=20",
         "recorder writer workers must equal 4",
         "recorder flush interval must equal 0.25",
         "EXPECTED_PRIORITY_WRITER_WORKERS=2",
@@ -132,7 +132,7 @@ def test_v4_source_priority_rollout_preserves_batch_and_writer_budget() -> None:
         'RECORDER_BULK_WRITER_WORKERS=$EXPECTED_BULK_WRITER_WORKERS',
         '"recorder_priority_writer_workers": 2',
         '"recorder_bulk_writer_workers": 2',
-        '"recorder_priority_batch_size": 1',
+        '"recorder_priority_batch_size": 20',
         '"recorder_priority_event_contract": "ticker_only"',
         '"bybit_ticker_socket_contract": "dedicated_bybit_spot_and_linear"',
         "recorder writer split mismatch",
@@ -294,6 +294,9 @@ def test_v4_source_priority_rollout_requires_strict_visibility_acceptance() -> N
         "visibility event contract mismatch",
         "run_visibility_acceptance",
         "run_soak",
+        "recorder_restarted_before_visibility",
+        "v3_predictor_restarted_before_visibility",
+        "v3_execution_restarted_before_visibility",
     ):
         assert marker in source
 
