@@ -44,8 +44,10 @@ fi
 
 RUNNER="$ROOT/scripts/run_v4_fresh_book_shadow.py"
 SOURCE_FEATURES="$ROOT/src/bp_engine/v4_paper/source_time_features.py"
+INFERENCE="$ROOT/src/bp_engine/v4_paper/inference.py"
 [[ -r "$RUNNER" ]] || fail "shadow_runner_missing"
 [[ -r "$SOURCE_FEATURES" ]] || fail "source_time_features_missing"
+[[ -r "$INFERENCE" ]] || fail "frozen_v4_inference_missing"
 for marker in \
   'source_retry_count_by_condition' \
   'source_retry_deferral_count' \
@@ -59,6 +61,12 @@ do
   grep -Fq "$marker" "$RUNNER" ||
     fail "shadow_runner_retry_contract_missing:$marker"
 done
+grep -Fq 'missing_flags=features.missing_flags' "$RUNNER" ||
+  fail "shadow_runner_missing_flag_predictor_adapter_missing"
+grep -Fq 'predictor_name = f"missing__{name}"' "$INFERENCE" ||
+  fail "frozen_v4_missing_predictor_namespace_missing"
+grep -Fq 'model_predictors[predictor_name] = float(value)' "$INFERENCE" ||
+  fail "frozen_v4_missing_predictor_value_adapter_missing"
 grep -Fq 'def probe_core_source_time_v4_readiness(' "$SOURCE_FEATURES" ||
   fail "source_time_core_readiness_probe_missing"
 grep -Fq 'raw_market_events.c.received_at <= requested' "$SOURCE_FEATURES" ||
@@ -78,6 +86,7 @@ case "$PREFLIGHT_ONLY" in
     printf 'SOURCE_RETRY_CONTRACT=bounded_within_max_decision_lag\n'
     printf 'SOURCE_RETRY_PROBE=core_six_anchor_only\n'
     printf 'SOURCE_RECEIVED_CUTOFF=received_at_lte_decision_at\n'
+    printf 'PREDICTOR_SCHEMA_CONTRACT=training_missing_flags_reconstructed\n'
     printf 'EXPECTED_APPROVAL=%s\n' "$EXPECTED_APPROVAL"
     printf 'PRODUCTION_HOST_CONTACTED=false\n'
     printf 'PRODUCTION_MUTATION_PERFORMED=false\n'
@@ -301,8 +310,10 @@ fi
 
 runner="$release/scripts/run_v4_fresh_book_shadow.py"
 source_features="$release/src/bp_engine/v4_paper/source_time_features.py"
+inference="$release/src/bp_engine/v4_paper/inference.py"
 [[ -r "$runner" ]] || fail "staged_shadow_runner_missing"
 [[ -r "$source_features" ]] || fail "staged_source_time_features_missing"
+[[ -r "$inference" ]] || fail "staged_frozen_v4_inference_missing"
 for marker in \
   'source_retry_count_by_condition' \
   'source_retry_deferral_count' \
@@ -316,6 +327,12 @@ do
   grep -Fq "$marker" "$runner" ||
     fail "staged_shadow_runner_retry_contract_missing:$marker"
 done
+grep -Fq 'missing_flags=features.missing_flags' "$runner" ||
+  fail "staged_shadow_runner_missing_flag_predictor_adapter_missing"
+grep -Fq 'predictor_name = f"missing__{name}"' "$inference" ||
+  fail "staged_frozen_v4_missing_predictor_namespace_missing"
+grep -Fq 'model_predictors[predictor_name] = float(value)' "$inference" ||
+  fail "staged_frozen_v4_missing_predictor_value_adapter_missing"
 grep -Fq 'def probe_core_source_time_v4_readiness(' "$source_features" ||
   fail "staged_source_time_core_readiness_probe_missing"
 grep -Fq 'raw_market_events.c.received_at <= requested' "$source_features" ||
@@ -419,6 +436,7 @@ assert FROZEN_V4_MODEL_SHA256 == "$expected_model_sha"
 assert bundle["candidate"] == "full_v4_xgboost"
 assert bundle["offset_seconds"] == 240
 assert bundle["selected_min_edge"] == 0.05
+assert "missing__bybit_linear_current_missing" in bundle["predictor_names"]
 assert V4_SOURCE_TIME_FEATURE_VERSION == "v4-source-time-features-v2"
 assert len(V4_CORE_SOURCE_REQUIRED_FLAGS) == 12
 assert MAX_SOURCE_AGE_SECONDS == 2.0

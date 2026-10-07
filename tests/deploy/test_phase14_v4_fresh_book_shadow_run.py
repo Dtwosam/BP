@@ -84,6 +84,7 @@ exit 97
                 "core_source_ineligible_retry_window_exhausted",
                 "probe_core_source_time_v4_readiness",
                 "core_six_anchor_only",
+                "missing_flags=features.missing_flags",
             )
         ),
         encoding="utf-8",
@@ -98,6 +99,16 @@ exit 97
                 "def probe_core_source_time_v4_readiness(",
                 "raw_market_events.c.received_at <= requested",
                 "if received_at > requested:",
+            )
+        ),
+        encoding="utf-8",
+    )
+    inference = tmp_path / "src" / "bp_engine" / "v4_paper" / "inference.py"
+    inference.write_text(
+        "\n".join(
+            (
+                'predictor_name = f"missing__{name}"',
+                "model_predictors[predictor_name] = float(value)",
             )
         ),
         encoding="utf-8",
@@ -144,6 +155,10 @@ exit 99
     assert "SOURCE_RETRY_PROBE=core_six_anchor_only" in completed.stdout
     assert (
         "SOURCE_RECEIVED_CUTOFF=received_at_lte_decision_at"
+        in completed.stdout
+    )
+    assert (
+        "PREDICTOR_SCHEMA_CONTRACT=training_missing_flags_reconstructed"
         in completed.stdout
     )
     assert "PRODUCTION_HOST_CONTACTED=false" in completed.stdout
@@ -249,13 +264,22 @@ def test_v4_fresh_book_shadow_run_helper_is_hash_bound_and_money_disabled() -> N
         "source_time_strict_received_cutoff_missing",
         "source_time_received_guard_missing",
         "source_time_core_readiness_probe_missing",
+        "frozen_v4_inference_missing",
+        "shadow_runner_missing_flag_predictor_adapter_missing",
+        "frozen_v4_missing_predictor_namespace_missing",
+        "frozen_v4_missing_predictor_value_adapter_missing",
         "staged_shadow_runner_retry_contract_missing",
         "staged_source_time_strict_received_cutoff_missing",
         "staged_source_time_received_guard_missing",
         "staged_source_time_core_readiness_probe_missing",
+        "staged_frozen_v4_inference_missing",
+        "staged_shadow_runner_missing_flag_predictor_adapter_missing",
+        "staged_frozen_v4_missing_predictor_namespace_missing",
+        "staged_frozen_v4_missing_predictor_value_adapter_missing",
         "SOURCE_RETRY_CONTRACT=bounded_within_max_decision_lag",
         "SOURCE_RETRY_PROBE=core_six_anchor_only",
         "SOURCE_RECEIVED_CUTOFF=received_at_lte_decision_at",
+        "PREDICTOR_SCHEMA_CONTRACT=training_missing_flags_reconstructed",
         "PHASE14_V4_FRESH_BOOK_SHADOW_PREFLIGHT=PASS",
         "explicit_zero_money_paper_shadow_approval_missing_or_mismatched",
         "PRODUCTION_HOST_CONTACTED=false",
