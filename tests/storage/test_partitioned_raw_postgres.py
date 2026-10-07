@@ -13,8 +13,8 @@ from sqlalchemy.exc import DBAPIError
 
 from bp_engine.config import Settings
 from bp_engine.recorder.models import RawEvent
-from bp_engine.recorder.writer import BatchWriter, EventBuffer
 from bp_engine.recorder.state import MarketStateSnapshot
+from bp_engine.recorder.writer import BatchWriter, EventBuffer
 from bp_engine.storage.maintenance import (
     ArchiveVerificationError,
     archive_interval,
