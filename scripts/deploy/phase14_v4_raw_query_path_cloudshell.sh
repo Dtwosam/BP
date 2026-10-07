@@ -78,4 +78,6 @@ printf 'RUNTIME_SOURCE=%s\\n' \"\$release\"
 timeout --signal=TERM --kill-after=5s 120s sudo -u bp env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=\"\$release/src\" \
   /opt/bp/.venv/bin/python \"\$tmp/report_v4_raw_query_path.py\" \
   --env-file '$ENV_FILE' \
-  --evidence-file \"\$latest\""
+  --evidence-file \"\$latest\" \
+  --requested-at 2026-10-07T20:49:00Z \
+  --venue bybit_spot"
