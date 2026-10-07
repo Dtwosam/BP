@@ -35,6 +35,11 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=DEFAULT_INTERVAL_SECONDS,
     )
+    parser.add_argument(
+        "--ticker-only",
+        action="store_true",
+        help="measure only ticker rows used by the reserved V4 priority lane",
+    )
     return parser.parse_args()
 
 
@@ -62,6 +67,7 @@ def _latest_row(
     *,
     venue: str,
     observed_at: datetime,
+    ticker_only: bool = False,
 ) -> dict[str, Any] | None:
     source, stream, instrument = SOURCE_SPECS[venue]
     statement = select(
@@ -79,16 +85,22 @@ def _latest_row(
         raw_market_events.c.received_at <= observed_at,
     )
     if source == "coinbase":
-        statement = statement.where(
-            or_(
-                raw_market_events.c.event_type.like("ticker_%"),
-                raw_market_events.c.event_type.like("market_trades_%"),
+        if ticker_only:
+            statement = statement.where(raw_market_events.c.event_type.like("ticker_%"))
+        else:
+            statement = statement.where(
+                or_(
+                    raw_market_events.c.event_type.like("ticker_%"),
+                    raw_market_events.c.event_type.like("market_trades_%"),
+                )
             )
-        )
     else:
-        statement = statement.where(
-            raw_market_events.c.event_type.in_(("ticker", "trade"))
-        )
+        if ticker_only:
+            statement = statement.where(raw_market_events.c.event_type == "ticker")
+        else:
+            statement = statement.where(
+                raw_market_events.c.event_type.in_(("ticker", "trade"))
+            )
     row = connection.execute(
         statement.order_by(
             raw_market_events.c.received_at.desc(),
@@ -131,6 +143,7 @@ def build_report(
     *,
     samples: int,
     interval_seconds: float,
+    ticker_only: bool = False,
 ) -> dict[str, Any]:
     if samples <= 0:
         raise ValueError("samples must be positive")
@@ -169,6 +182,7 @@ def build_report(
                     connection,
                     venue=venue,
                     observed_at=observed_at,
+                    ticker_only=ticker_only,
                 )
             except OperationalError as exc:
                 if "statement timeout" in str(exc).lower():
@@ -244,6 +258,7 @@ def build_report(
         "samples": samples,
         "interval_seconds": interval_seconds,
         "lookback_seconds": LOOKBACK_SECONDS,
+        "event_contract": "ticker_only" if ticker_only else "ticker_or_trade",
         "venues": rendered,
         "database_activity": _activity_snapshot(connection),
         "safety": {
@@ -277,6 +292,7 @@ def main() -> int:
                 connection,
                 samples=args.samples,
                 interval_seconds=args.interval_seconds,
+                ticker_only=args.ticker_only,
             )
     finally:
         engine.dispose()
