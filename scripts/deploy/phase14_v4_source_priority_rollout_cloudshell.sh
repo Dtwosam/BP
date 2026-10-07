@@ -9,8 +9,8 @@ APPROVAL="${PHASE14_V4_SOURCE_PRIORITY_ROLLOUT_APPROVAL:-}"
 PREFLIGHT_ONLY="${PHASE14_V4_SOURCE_PRIORITY_ROLLOUT_PREFLIGHT_ONLY:-false}"
 
 FROM_HEAD='a694c2299cd34f0b2ee92ded4a4da1643eff0604'
-CANDIDATE_BRANCH='ops/v4-two-priority-batched-candidate-20261007'
-CANDIDATE_HEAD='300a9e47500f2e0d6fb653786fc22c12f116b772'
+CANDIDATE_BRANCH='ops/v4-priority-executemany-candidate-20261007'
+CANDIDATE_HEAD='3316f22d89689a4dfe8c7de2da6956b8eb846d1f'
 EXPECTED_BATCH_SIZE=500
 EXPECTED_QUEUE_MAXSIZE=50000
 EXPECTED_WRITER_WORKERS=4
@@ -21,11 +21,13 @@ EXPECTED_BULK_WRITER_WORKERS=2
 EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'
 EXPECTED_PRIORITY_EVENT_CONTRACT='ticker_only'
 EXPECTED_TICKER_SOCKET_CONTRACT='dedicated_bybit_spot_and_linear'
+EXPECTED_RAW_INSERT_CONTRACT='executemany_parameter_list'
 EXPECTED_SHADOW_RUN_ID='v4-fresh-book-shadow-20261006T185619Z-271db613e003'
 EXPECTED_SHADOW_UNIT='bp-v4-fresh-book-shadow-20261006T185619Z-271db613e003.service'
 
 RUNTIME_PATH='src/bp_engine/recorder/writer.py'
 PARTITIONED_PATH='src/bp_engine/storage/partitioned_raw.py'
+STORAGE_REPOSITORY_PATH='src/bp_engine/storage/recorder.py'
 SERVICE_PATH='src/bp_engine/recorder/service.py'
 CONFIG_PATH='src/bp_engine/config.py'
 WRITER_TEST_PATH='tests/recorder/test_writer.py'
@@ -54,11 +56,11 @@ REMOTE_CANDIDATE="$(git rev-parse "refs/remotes/origin/$CANDIDATE_BRANCH")"
 [[ "$REMOTE_CANDIDATE" == "$CANDIDATE_HEAD" ]] || fail_local "candidate_branch_changed"
 git merge-base --is-ancestor "$FROM_HEAD" "$CANDIDATE_HEAD" || fail_local "candidate_not_descendant_of_deployed_head"
 
-EXPECTED_DIFF="$(printf '%s\n' "$RUNTIME_PATH" "$PARTITIONED_PATH" "$SERVICE_PATH" "$CONFIG_PATH" "$WRITER_TEST_PATH" "$PARTITION_TEST_PATH" "$SERVICE_TEST_PATH" "$CONFIG_TEST_PATH" | sort)"
+EXPECTED_DIFF="$(printf '%s\n' "$RUNTIME_PATH" "$PARTITIONED_PATH" "$STORAGE_REPOSITORY_PATH" "$SERVICE_PATH" "$CONFIG_PATH" "$WRITER_TEST_PATH" "$PARTITION_TEST_PATH" "$SERVICE_TEST_PATH" "$CONFIG_TEST_PATH" | sort)"
 ACTUAL_DIFF="$(git diff --name-only "$FROM_HEAD" "$CANDIDATE_HEAD" | sort)"
 [[ "$ACTUAL_DIFF" == "$EXPECTED_DIFF" ]] || fail_local "candidate_scope_mismatch"
 
-for path in "$RUNTIME_PATH" "$PARTITIONED_PATH" "$SERVICE_PATH" "$CONFIG_PATH" "$WRITER_TEST_PATH" "$PARTITION_TEST_PATH" "$SERVICE_TEST_PATH" "$CONFIG_TEST_PATH"; do
+for path in "$RUNTIME_PATH" "$PARTITIONED_PATH" "$STORAGE_REPOSITORY_PATH" "$SERVICE_PATH" "$CONFIG_PATH" "$WRITER_TEST_PATH" "$PARTITION_TEST_PATH" "$SERVICE_TEST_PATH" "$CONFIG_TEST_PATH"; do
   [[ "$(git rev-parse "$CANDIDATE_HEAD:$path")" == "$(git rev-parse "$HELPER_HEAD:$path")" ]] ||
     fail_local "candidate_blob_not_exact_main:$path"
 done
@@ -105,7 +107,14 @@ if grep -Fq 'market_trades_' <<<"$PRIORITY_CLASSIFIER_SOURCE" ||
   fail_local "candidate_priority_contract_not_ticker_only"
 fi
 
-EXPECTED_APPROVAL="I_APPROVE_PHASE14_V4_SOURCE_PRIORITY_ROLLOUT:${HELPER_HEAD}:${FROM_HEAD}:${CANDIDATE_HEAD}:${EXPECTED_BATCH_SIZE}:${EXPECTED_PRIORITY_QUEUE_MAXSIZE}:${EXPECTED_PRIORITY_BATCH_SIZE}:${EXPECTED_PRIORITY_WRITER_WORKERS}:${EXPECTED_BULK_WRITER_WORKERS}:${EXPECTED_SPOT_TICKER_TOPIC}:${EXPECTED_PRIORITY_EVENT_CONTRACT}:${EXPECTED_TICKER_SOCKET_CONTRACT}:${EXPECTED_SHADOW_RUN_ID}"
+RAW_INSERT_SOURCE="$(git show "$CANDIDATE_HEAD:$STORAGE_REPOSITORY_PATH" | sed -n '/^    def _insert_partitioned_events/,/^    def upsert_state_snapshots/p')"
+grep -Fq 'connection.execute(insert(raw_market_events), raw_rows)' <<<"$RAW_INSERT_SOURCE" ||
+  fail_local "candidate_raw_insert_executemany_missing"
+if grep -Fq 'insert(raw_market_events).values(raw_rows)' <<<"$RAW_INSERT_SOURCE"; then
+  fail_local "candidate_raw_insert_inline_values_present"
+fi
+
+EXPECTED_APPROVAL="I_APPROVE_PHASE14_V4_SOURCE_PRIORITY_ROLLOUT:${HELPER_HEAD}:${FROM_HEAD}:${CANDIDATE_HEAD}:${EXPECTED_BATCH_SIZE}:${EXPECTED_PRIORITY_QUEUE_MAXSIZE}:${EXPECTED_PRIORITY_BATCH_SIZE}:${EXPECTED_PRIORITY_WRITER_WORKERS}:${EXPECTED_BULK_WRITER_WORKERS}:${EXPECTED_SPOT_TICKER_TOPIC}:${EXPECTED_PRIORITY_EVENT_CONTRACT}:${EXPECTED_TICKER_SOCKET_CONTRACT}:${EXPECTED_RAW_INSERT_CONTRACT}:${EXPECTED_SHADOW_RUN_ID}"
 case "$PREFLIGHT_ONLY" in
   true|false) ;;
   *) fail_local "preflight_only_invalid" ;;
@@ -121,6 +130,7 @@ if [[ "$PREFLIGHT_ONLY" == "true" ]]; then
   echo "EXPECTED_SPOT_TICKER_TOPIC=$EXPECTED_SPOT_TICKER_TOPIC"
   echo "EXPECTED_PRIORITY_EVENT_CONTRACT=$EXPECTED_PRIORITY_EVENT_CONTRACT"
   echo "EXPECTED_TICKER_SOCKET_CONTRACT=$EXPECTED_TICKER_SOCKET_CONTRACT"
+  echo "EXPECTED_RAW_INSERT_CONTRACT=$EXPECTED_RAW_INSERT_CONTRACT"
   echo "EXPECTED_APPROVAL=$EXPECTED_APPROVAL"
   echo "PRODUCTION_MUTATION=false"
   echo "GCLOUD_CONTACT=false"
@@ -140,8 +150,8 @@ read -r -d '' REMOTE_SCRIPT <<'REMOTE' || true
 set -Eeuo pipefail
 
 FROM_HEAD='a694c2299cd34f0b2ee92ded4a4da1643eff0604'
-CANDIDATE_BRANCH='ops/v4-two-priority-batched-candidate-20261007'
-CANDIDATE_HEAD='300a9e47500f2e0d6fb653786fc22c12f116b772'
+CANDIDATE_BRANCH='ops/v4-priority-executemany-candidate-20261007'
+CANDIDATE_HEAD='3316f22d89689a4dfe8c7de2da6956b8eb846d1f'
 EXPECTED_BATCH_SIZE=500
 EXPECTED_QUEUE_MAXSIZE=50000
 EXPECTED_WRITER_WORKERS=4
@@ -152,6 +162,7 @@ EXPECTED_BULK_WRITER_WORKERS=2
 EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'
 EXPECTED_PRIORITY_EVENT_CONTRACT='ticker_only'
 EXPECTED_TICKER_SOCKET_CONTRACT='dedicated_bybit_spot_and_linear'
+EXPECTED_RAW_INSERT_CONTRACT='executemany_parameter_list'
 EXPECTED_SHADOW_RUN_ID='v4-fresh-book-shadow-20261006T185619Z-271db613e003'
 EXPECTED_SHADOW_UNIT='bp-v4-fresh-book-shadow-20261006T185619Z-271db613e003.service'
 
@@ -765,7 +776,7 @@ git -C "$REPO" fetch --no-tags origin "refs/heads/$CANDIDATE_BRANCH:refs/remotes
 git -C "$REPO" merge-base --is-ancestor "$FROM_HEAD" "$CANDIDATE_HEAD" ||
   fail "candidate_not_descendant_of_deployed_head"
 
-EXPECTED_DIFF="$(printf '%s\n'   src/bp_engine/recorder/writer.py   src/bp_engine/storage/partitioned_raw.py   src/bp_engine/recorder/service.py   src/bp_engine/config.py   tests/recorder/test_writer.py   tests/storage/test_partitioned_raw_postgres.py   tests/recorder/test_recorder_service.py   tests/test_config.py | sort)"
+EXPECTED_DIFF="$(printf '%s\n'   src/bp_engine/recorder/writer.py   src/bp_engine/storage/partitioned_raw.py   src/bp_engine/storage/recorder.py   src/bp_engine/recorder/service.py   src/bp_engine/config.py   tests/recorder/test_writer.py   tests/storage/test_partitioned_raw_postgres.py   tests/recorder/test_recorder_service.py   tests/test_config.py | sort)"
 ACTUAL_DIFF="$(git -C "$REPO" diff --name-only "$FROM_HEAD" "$CANDIDATE_HEAD" | sort)"
 [[ "$ACTUAL_DIFF" == "$EXPECTED_DIFF" ]] || fail "candidate_scope_mismatch"
 
@@ -815,6 +826,14 @@ fi
 echo "RECORDER_WRITER_SPLIT_CONTRACT=2_priority_2_bulk_at_total_4"
 echo "RECORDER_PRIORITY_EVENT_CONTRACT=$EXPECTED_PRIORITY_EVENT_CONTRACT"
 
+RAW_INSERT_SOURCE="$(git -C "$REPO" show "$CANDIDATE_HEAD:src/bp_engine/storage/recorder.py" | sed -n '/^    def _insert_partitioned_events/,/^    def upsert_state_snapshots/p')"
+grep -Fq 'connection.execute(insert(raw_market_events), raw_rows)' <<<"$RAW_INSERT_SOURCE" ||
+  fail "candidate_raw_insert_executemany_missing"
+if grep -Fq 'insert(raw_market_events).values(raw_rows)' <<<"$RAW_INSERT_SOURCE"; then
+  fail "candidate_raw_insert_inline_values_present"
+fi
+echo "RECORDER_RAW_INSERT_CONTRACT=$EXPECTED_RAW_INSERT_CONTRACT"
+
 BACKUP_DIR="$(mktemp -d /var/tmp/bp-v4-source-priority-rollout-backup.XXXXXX)"
 cp -a "$ENV_FILE" "$BACKUP_DIR/bp.env"
 if ! git -C "$REPO" diff --quiet HEAD -- apps/dashboard/next-env.d.ts; then
@@ -848,6 +867,8 @@ validate_deployed_checkout
 for marker in "_is_v4_priority_anchor_event" "_RoutedBufferedEventSink" "_recorder_writer_split" '"writer_priority"' '"writer_bulk"'; do
   grep -Fq "$marker" "$REPO/src/bp_engine/recorder/service.py" || fail "priority_source_contract_missing:$marker"
 done
+grep -Fq 'connection.execute(insert(raw_market_events), raw_rows)' "$REPO/src/bp_engine/storage/recorder.py" ||
+  fail "deployed_raw_insert_executemany_missing"
 require_recorder_config "$EXPECTED_BATCH_SIZE"
 require_priority_config
 systemctl daemon-reload
@@ -969,6 +990,7 @@ payload = {
     "bybit_spot_ticker_topic": "tickers.BTCUSDT",
     "bybit_spot_ticker_source_contract": True,
     "bybit_ticker_socket_contract": "dedicated_bybit_spot_and_linear",
+    "raw_insert_contract": "executemany_parameter_list",
     "compact_dedupe_complete": True,
     "legacy_dedupe_parent_pk_present": False,
     "shadow_run_id": shadow_run_id,
@@ -1001,6 +1023,7 @@ echo "RECORDER_TOTAL_WRITER_WORKERS=$EXPECTED_WRITER_WORKERS"
 echo "BYBIT_SPOT_TICKER_TOPIC=$EXPECTED_SPOT_TICKER_TOPIC"
 echo "BYBIT_SPOT_TICKER_SOURCE_CONTRACT=true"
 echo "BYBIT_TICKER_SOCKET_CONTRACT=$EXPECTED_TICKER_SOCKET_CONTRACT"
+echo "RECORDER_RAW_INSERT_CONTRACT=$EXPECTED_RAW_INSERT_CONTRACT"
 echo "RECORDER_PRIORITY_EVENT_CONTRACT=$EXPECTED_PRIORITY_EVENT_CONTRACT"
 echo "RECORDER_WRITER_SPLIT_CONTRACT=2_priority_2_bulk_at_total_4"
 echo "SHADOW_RUN_ID=$EXPECTED_SHADOW_RUN_ID"
