@@ -172,12 +172,12 @@ def source_event(
     )
 
 
-def test_recorder_writer_split_reserves_one_priority_worker_when_available() -> None:
+def test_recorder_writer_split_reserves_two_priority_workers_when_available() -> None:
     assert _recorder_writer_split(1) == (0, 1)
     assert _recorder_writer_split(2) == (1, 1)
-    assert _recorder_writer_split(3) == (1, 2)
-    assert _recorder_writer_split(4) == (1, 3)
-    assert _recorder_writer_split(8) == (1, 7)
+    assert _recorder_writer_split(3) == (2, 1)
+    assert _recorder_writer_split(4) == (2, 2)
+    assert _recorder_writer_split(8) == (2, 6)
 
 
 def test_v4_priority_anchor_classifier_is_ticker_only() -> None:
