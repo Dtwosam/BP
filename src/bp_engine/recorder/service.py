@@ -267,7 +267,7 @@ class _BufferedEventSink:
             )
 
 
-def _is_v4_source_time_event(event: object) -> bool:
+def _is_v4_priority_anchor_event(event: object) -> bool:
     source = str(getattr(event, "source", ""))
     stream = str(getattr(event, "stream", ""))
     instrument = str(getattr(event, "instrument", ""))
@@ -277,16 +277,13 @@ def _is_v4_source_time_event(event: object) -> bool:
         return (
             stream == "spot"
             and instrument == "BTC-USD"
-            and (
-                event_type.startswith("ticker_")
-                or event_type.startswith("market_trades_")
-            )
+            and event_type.startswith("ticker_")
         )
     if source == "bybit":
         return (
             stream in {"spot", "linear"}
             and instrument == "BTCUSDT"
-            and event_type in {"ticker", "trade"}
+            and event_type == "ticker"
         )
     return False
 
@@ -311,7 +308,7 @@ class _RoutedBufferedEventSink:
             await result
 
     async def __call__(self, event: object) -> None:
-        sink = self._priority_sink if _is_v4_source_time_event(event) else self._bulk_sink
+        sink = self._priority_sink if _is_v4_priority_anchor_event(event) else self._bulk_sink
         await self._send(sink, event)
 
         if self._state_reducer is None:
@@ -337,8 +334,7 @@ class _RoutedBufferedEventSink:
 def _recorder_writer_split(worker_count: int) -> tuple[int, int]:
     if worker_count <= 1:
         return 0, 1
-    priority_workers = min(2, worker_count - 1)
-    return priority_workers, worker_count - priority_workers
+    return 1, worker_count - 1
 
 
 def build_default_recorder_service(settings: object) -> RecorderService:
