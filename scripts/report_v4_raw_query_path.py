@@ -161,41 +161,84 @@ def _attached_to_parent(connection, child_name: str) -> bool:
 
 def _explain(connection, *, venue: str, requested_at: datetime) -> dict[str, Any]:
     source, stream, instrument = _SOURCE_SPECS[venue]
-    lower = requested_at - timedelta(seconds=_RECEIVED_WINDOW_SECONDS)
+    received_lower = requested_at - timedelta(seconds=_RECEIVED_WINDOW_SECONDS)
+    source_lower = requested_at - timedelta(seconds=2)
+    source_upper = requested_at + timedelta(seconds=1)
+    if source == "coinbase":
+        event_clause = (
+            "(event_type LIKE 'ticker_%' OR "
+            "event_type LIKE 'market_trades_%')"
+        )
+    else:
+        event_clause = "event_type IN ('ticker', 'trade')"
+
+    sql = f"""
+        EXPLAIN (FORMAT JSON)
+        SELECT
+            id,
+            source,
+            stream,
+            instrument,
+            event_type,
+            source_timestamp,
+            received_at,
+            sequence,
+            market_id,
+            asset_id,
+            payload,
+            dedupe_key
+        FROM raw_market_events
+        WHERE source = :source
+          AND stream = :stream
+          AND instrument = :instrument
+          AND source_timestamp IS NOT NULL
+          AND received_at >= :received_lower
+          AND received_at <= :requested_at
+          AND source_timestamp >= :source_lower
+          AND source_timestamp <= :source_upper
+          AND {event_clause}
+        ORDER BY received_at DESC, id DESC
+    """
     try:
         plan = connection.execute(
-            text(
-                """
-                EXPLAIN (FORMAT JSON, COSTS OFF)
-                SELECT id, event_type, source_timestamp, received_at
-                FROM raw_market_events
-                WHERE source = :source
-                  AND stream = :stream
-                  AND instrument = :instrument
-                  AND received_at >= :lower
-                  AND received_at <= :upper
-                ORDER BY received_at DESC, id DESC
-                LIMIT 1
-                """
-            ),
+            text(sql),
             {
                 "source": source,
                 "stream": stream,
                 "instrument": instrument,
-                "lower": lower,
-                "upper": requested_at,
+                "received_lower": received_lower,
+                "requested_at": requested_at,
+                "source_lower": source_lower,
+                "source_upper": source_upper,
             },
         ).scalar_one()
-        return {"status": "ok", "plan": plan}
+        return {
+            "status": "ok",
+            "requested_at": requested_at.isoformat(),
+            "received_lower": received_lower.isoformat(),
+            "source_lower": source_lower.isoformat(),
+            "source_upper": source_upper.isoformat(),
+            "plan": plan,
+        }
     except OperationalError as exc:
         connection.rollback()
         return {
-            "status": "timeout" if "statement timeout" in str(exc).lower() else "failed",
+            "status": (
+                "timeout"
+                if "statement timeout" in str(exc).lower()
+                else "failed"
+            ),
             "error": str(exc).splitlines()[0],
         }
 
 
-def build_report(connection, evidence_file: Path) -> dict[str, Any]:
+def build_report(
+    connection,
+    evidence_file: Path,
+    *,
+    requested_at: datetime | None = None,
+    venue: str | None = None,
+) -> dict[str, Any]:
     decision_at = _representative_decision_at(evidence_file)
     market_start_at = decision_at - timedelta(seconds=FROZEN_V4_OFFSET_SECONDS)
     cutoffs = {
@@ -223,8 +266,32 @@ def build_report(connection, evidence_file: Path) -> dict[str, Any]:
             ),
         }
 
+    exact_query = None
+    if requested_at is not None:
+        if venue is None:
+            raise SystemExit("--venue is required with --requested-at")
+        partition = _partition_name(requested_at)
+        exact_query = {
+            "venue": venue,
+            "requested_at": requested_at.isoformat(),
+            "partition": partition,
+            "partition_relation": _safe_section(
+                connection,
+                lambda: _relation_info(connection, partition),
+            ),
+            "partition_indexes": _safe_section(
+                connection,
+                lambda: _indexes(connection, partition),
+            ),
+            "explain": _explain(
+                connection,
+                venue=venue,
+                requested_at=requested_at,
+            ),
+        }
+
     return {
-        "report": "v4_raw_query_path_v2",
+        "report": "v4_raw_query_path_v3",
         "evidence_file": evidence_file.name,
         "representative_decision_at": decision_at.isoformat(),
         "parent_relation": _safe_section(
@@ -240,9 +307,14 @@ def build_report(connection, evidence_file: Path) -> dict[str, Any]:
             lambda: _activity_snapshot(connection),
         ),
         "current_cutoff_explain": {
-            venue: _explain(connection, venue=venue, requested_at=decision_at)
-            for venue in _SOURCE_SPECS
+            venue_name: _explain(
+                connection,
+                venue=venue_name,
+                requested_at=decision_at,
+            )
+            for venue_name in _SOURCE_SPECS
         },
+        "exact_query": exact_query,
         "partitions": partitions,
         "safety": {
             "database_read_only_required": True,
@@ -259,6 +331,8 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--env-file", default="/etc/bp/bp.env")
     parser.add_argument("--evidence-file", required=True)
+    parser.add_argument("--requested-at")
+    parser.add_argument("--venue", choices=tuple(_SOURCE_SPECS))
     return parser.parse_args()
 
 
@@ -280,7 +354,16 @@ def main() -> int:
         with engine.connect() as connection:
             if connection.execute(text("SHOW default_transaction_read_only")).scalar_one() != "on":
                 raise SystemExit("database connection is not read-only")
-            report = build_report(connection, evidence_file)
+            report = build_report(
+                connection,
+                evidence_file,
+                requested_at=(
+                    None
+                    if args.requested_at is None
+                    else _parse_iso_utc(args.requested_at, "requested_at")
+                ),
+                venue=args.venue,
+            )
     finally:
         engine.dispose()
 
