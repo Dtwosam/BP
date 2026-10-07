@@ -553,6 +553,20 @@ async def test_compact_dedupe_two_batched_writers_persist_distinct_events(engine
     _install_compact_dedupe_digest_indexes(engine)
     repository = RecorderRepository()
     buffer = EventBuffer(maxsize=200)
+    raw_insert_executemany: list[bool] = []
+
+    def capture_raw_insert(
+        _connection,
+        _cursor,
+        statement: str,
+        _parameters,
+        _context,
+        executemany: bool,
+    ) -> None:
+        if statement.lstrip().startswith("INSERT INTO raw_market_events"):
+            raw_insert_executemany.append(executemany)
+
+    event.listen(engine, "before_cursor_execute", capture_raw_insert)
 
     async def sink(items: list[RawEvent]) -> None:
         def write() -> None:
@@ -578,7 +592,10 @@ async def test_compact_dedupe_two_batched_writers_persist_distinct_events(engine
 
     stop = asyncio.Event()
     stop.set()
-    await asyncio.wait_for(writer.run(stop), timeout=10)
+    try:
+        await asyncio.wait_for(writer.run(stop), timeout=10)
+    finally:
+        event.remove(engine, "before_cursor_execute", capture_raw_insert)
 
     with engine.connect() as connection:
         raw_count = connection.execute(
@@ -590,6 +607,8 @@ async def test_compact_dedupe_two_batched_writers_persist_distinct_events(engine
 
     assert raw_count == 120
     assert ledger_count == 120
+    assert raw_insert_executemany
+    assert all(raw_insert_executemany)
 
 
 def test_partitioned_writer_compact_digest_indexes_preserve_duplicate_race(engine) -> None:
