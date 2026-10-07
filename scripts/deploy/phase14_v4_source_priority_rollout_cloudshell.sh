@@ -71,7 +71,7 @@ WRITER_SPLIT_SOURCE="$(git show "$CANDIDATE_HEAD:$SERVICE_PATH" | sed -n '/^def 
 grep -Fq 'return 1, worker_count - 1' <<<"$WRITER_SPLIT_SOURCE" ||
   fail_local "candidate_writer_split_missing"
 
-PRIORITY_CLASSIFIER_SOURCE="$(git show "$CANDIDATE_HEAD:$SERVICE_PATH" | sed -n '/^def _is_v4_priority_anchor_event/,/^$/p')"
+PRIORITY_CLASSIFIER_SOURCE="$(git show "$CANDIDATE_HEAD:$SERVICE_PATH" | sed -n '/^def _is_v4_priority_anchor_event/,/^class _RoutedBufferedEventSink/p')"
 grep -Fq 'event_type.startswith("ticker_")' <<<"$PRIORITY_CLASSIFIER_SOURCE" ||
   fail_local "candidate_coinbase_ticker_priority_missing"
 grep -Fq 'event_type == "ticker"' <<<"$PRIORITY_CLASSIFIER_SOURCE" ||
@@ -754,7 +754,7 @@ WRITER_SPLIT_SOURCE="$(git -C "$REPO" show "$CANDIDATE_HEAD:src/bp_engine/record
 grep -Fq 'return 1, worker_count - 1' <<<"$WRITER_SPLIT_SOURCE" ||
   fail "candidate_writer_split_missing"
 
-PRIORITY_CLASSIFIER_SOURCE="$(git -C "$REPO" show "$CANDIDATE_HEAD:src/bp_engine/recorder/service.py" | sed -n '/^def _is_v4_priority_anchor_event/,/^$/p')"
+PRIORITY_CLASSIFIER_SOURCE="$(git -C "$REPO" show "$CANDIDATE_HEAD:src/bp_engine/recorder/service.py" | sed -n '/^def _is_v4_priority_anchor_event/,/^class _RoutedBufferedEventSink/p')"
 grep -Fq 'event_type.startswith("ticker_")' <<<"$PRIORITY_CLASSIFIER_SOURCE" ||
   fail "candidate_coinbase_ticker_priority_missing"
 grep -Fq 'event_type == "ticker"' <<<"$PRIORITY_CLASSIFIER_SOURCE" ||
