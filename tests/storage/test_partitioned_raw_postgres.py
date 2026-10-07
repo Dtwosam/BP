@@ -172,6 +172,71 @@ def test_empty_legacy_table_initializes_hourly_raw_and_hash_dedupe_partitions(en
     ]
 
 
+
+def test_new_hour_partition_gets_v4_source_lookup_index(engine) -> None:
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(
+        engine,
+        now=now,
+        migrate_existing=False,
+    )
+
+    with engine.connect() as connection:
+        indexdef = connection.execute(
+            text(
+                """
+                SELECT indexdef
+                FROM pg_indexes
+                WHERE schemaname = current_schema()
+                  AND tablename = 'raw_market_events_20260904_11'
+                  AND indexname =
+                      'raw_market_events_20260904_11_v4_source_lookup_idx'
+                """
+            )
+        ).scalar_one()
+
+    normalized = " ".join(indexdef.split())
+    assert (
+        "(source, stream, instrument, received_at DESC, id DESC)"
+        in normalized
+    )
+    assert "WHERE (source_timestamp IS NOT NULL)" in normalized
+
+
+def test_existing_hour_partition_does_not_repair_missing_v4_lookup_index(
+    engine,
+) -> None:
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(
+        engine,
+        now=now,
+        migrate_existing=False,
+    )
+
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "DROP INDEX "
+                "raw_market_events_20260904_11_v4_source_lookup_idx"
+            )
+        )
+        ensure_hour_partitions(
+            connection,
+            start_at=datetime(2026, 9, 4, 11, 0, tzinfo=UTC),
+            hours_ahead=0,
+        )
+        index_exists = connection.execute(
+            text(
+                """
+                SELECT to_regclass(
+                    'raw_market_events_20260904_11_v4_source_lookup_idx'
+                )
+                """
+            )
+        ).scalar_one()
+
+    assert index_exists is None
+
 def test_hour_partition_creation_fails_fast_behind_reader_lock(engine) -> None:
     now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
     ensure_partitioned_raw_storage(
