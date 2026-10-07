@@ -31,7 +31,7 @@ def test_v4_source_lookup_rollout_preflight_is_non_contacting() -> None:
         "PRODUCTION_MUTATION_PERFORMED=false",
         "DATABASE_DDL_PERFORMED=false",
         "I_APPROVE_PHASE14_V4_SOURCE_LOOKUP_INDEX_ROLLOUT",
-        "9d9a8c3c34c25e7c547e64270d92b5e12480e381",
+        "2bac3b4c20ae5d1fb6fb8caa80edaf1928674706",
     ):
         assert marker in source
     assert source.index("ROLLOUT_PREFLIGHT=PASS") < source.index(
