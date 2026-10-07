@@ -53,7 +53,7 @@ gcloud compute ssh "$VM" \
 UNIT='$EXPECTED_SHADOW_UNIT'
 RELEASE='$EXPECTED_RELEASE'
 VENV='$EXPECTED_VENV'
-MODEL='\$RELEASE/frozen-v4-model.joblib'
+MODEL="\$RELEASE/frozen-v4-model.joblib"
 
 systemctl is-active --quiet \"\$UNIT\" || {
   echo PHASE14_V4_FEATURE_INFERENCE_LATENCY_STATUS=FAIL:shadow_not_active >&2
