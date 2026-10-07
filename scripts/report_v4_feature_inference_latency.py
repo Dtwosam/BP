@@ -13,9 +13,9 @@ from typing import Any
 
 from sqlalchemy import create_engine, event, select, text
 
-from bp_engine.storage import schema
 from bp_engine.config import Settings, TradingMode
 from bp_engine.features.v4_models import V4FeatureTarget
+from bp_engine.storage import schema
 from bp_engine.v4_paper.inference import (
     FROZEN_V4_MODEL_SHA256,
     FROZEN_V4_OFFSET_SECONDS,
@@ -145,34 +145,34 @@ def build_report(
                 )
 
                 collector.set_stage(readiness_stage)
-                readiness, readiness_seconds = _timed(
-                    lambda: probe_core_source_time_v4_readiness(
-                        connection,
-                        target,
-                        decision_at=decision_at,
-                    )
+                started = time.perf_counter()
+                readiness = probe_core_source_time_v4_readiness(
+                    connection,
+                    target,
+                    decision_at=decision_at,
                 )
+                readiness_seconds = time.perf_counter() - started
 
                 collector.set_stage(feature_stage)
-                features, feature_seconds = _timed(
-                    lambda: build_source_time_v4_features(
-                        connection,
-                        target,
-                        decision_at=decision_at,
-                    )
+                started = time.perf_counter()
+                features = build_source_time_v4_features(
+                    connection,
+                    target,
+                    decision_at=decision_at,
                 )
+                feature_seconds = time.perf_counter() - started
 
                 inference_seconds: float | None = None
                 probability_up: float | None = None
                 inference_error: str | None = None
                 try:
-                    probability_up, inference_seconds = _timed(
-                        lambda: predict_frozen_v4_probability(
-                            bundle,
-                            features.predictors,
-                            missing_flags=features.missing_flags,
-                        )
+                    started = time.perf_counter()
+                    probability_up = predict_frozen_v4_probability(
+                        bundle,
+                        features.predictors,
+                        missing_flags=features.missing_flags,
                     )
+                    inference_seconds = time.perf_counter() - started
                 except Exception as exc:
                     inference_error = f"{type(exc).__name__}: {exc}"
 
