@@ -539,6 +539,8 @@ grep -Fq \
 MIGRATION_TMP="$(
   mktemp /var/tmp/bp-v4-source-lookup-migration.XXXXXX.json
 )"
+chown bp:bp "$MIGRATION_TMP"
+chmod 0600 "$MIGRATION_TMP"
 
 if ! sudo -u bp env \
   PYTHONDONTWRITEBYTECODE=1 \
