@@ -480,49 +480,46 @@ def build_default_recorder_service(settings: object) -> RecorderService:
         refresh_interval_seconds=settings.polymarket_refresh_interval_seconds,
     )
 
-    spot_topics = [
+    spot_bulk_topics = [
         "orderbook.50.BTCUSDT",
         "publicTrade.BTCUSDT",
-        "tickers.BTCUSDT",
     ]
-    linear_topics = [
+    linear_bulk_topics = [
         "orderbook.50.BTCUSDT",
         "publicTrade.BTCUSDT",
-        "tickers.BTCUSDT",
         "allLiquidation.BTCUSDT",
     ]
-    bybit_spot = WebSocketCollectorRunner(
-        source="bybit",
-        stream="spot",
-        url=settings.bybit_spot_ws_url,
-        connector=connect,
-        subscription=build_bybit_subscription(spot_topics),
-        parser=lambda message, received_at: parse_bybit_message(
-            message, venue="spot", received_at=received_at
-        ),
-        event_sink=event_sink,
-        incident_sink=database_sink.record_incident,
-        heartbeat_message={"op": "ping"},
-        heartbeat_interval_seconds=20.0,
-        watchdog=FeedWatchdog(settings.recorder_stale_after_seconds),
-        clock_skew_guard=ClockSkewGuard(settings.recorder_max_clock_skew_seconds),
-    )
-    bybit_linear = WebSocketCollectorRunner(
-        source="bybit",
-        stream="linear",
-        url=settings.bybit_linear_ws_url,
-        connector=connect,
-        subscription=build_bybit_subscription(linear_topics),
-        parser=lambda message, received_at: parse_bybit_message(
-            message, venue="linear", received_at=received_at
-        ),
-        event_sink=event_sink,
-        incident_sink=database_sink.record_incident,
-        heartbeat_message={"op": "ping"},
-        heartbeat_interval_seconds=20.0,
-        watchdog=FeedWatchdog(settings.recorder_stale_after_seconds),
-        clock_skew_guard=ClockSkewGuard(settings.recorder_max_clock_skew_seconds),
-    )
+    ticker_topics = ["tickers.BTCUSDT"]
+
+    def bybit_runner(*, venue: str, topics: list[str]) -> WebSocketCollectorRunner:
+        url = (
+            settings.bybit_spot_ws_url
+            if venue == "spot"
+            else settings.bybit_linear_ws_url
+        )
+        return WebSocketCollectorRunner(
+            source="bybit",
+            stream=venue,
+            url=url,
+            connector=connect,
+            subscription=build_bybit_subscription(topics),
+            parser=lambda message, received_at: parse_bybit_message(
+                message,
+                venue=venue,
+                received_at=received_at,
+            ),
+            event_sink=event_sink,
+            incident_sink=database_sink.record_incident,
+            heartbeat_message={"op": "ping"},
+            heartbeat_interval_seconds=20.0,
+            watchdog=FeedWatchdog(settings.recorder_stale_after_seconds),
+            clock_skew_guard=ClockSkewGuard(settings.recorder_max_clock_skew_seconds),
+        )
+
+    bybit_spot = bybit_runner(venue="spot", topics=spot_bulk_topics)
+    bybit_spot_ticker = bybit_runner(venue="spot", topics=ticker_topics)
+    bybit_linear = bybit_runner(venue="linear", topics=linear_bulk_topics)
+    bybit_linear_ticker = bybit_runner(venue="linear", topics=ticker_topics)
 
     coinbase_spot = WebSocketCollectorRunner(
         source="coinbase",
@@ -547,7 +544,9 @@ def build_default_recorder_service(settings: object) -> RecorderService:
             "state_snapshotter": state_snapshotter,
             "polymarket": polymarket,
             "bybit_spot": bybit_spot,
+            "bybit_spot_ticker": bybit_spot_ticker,
             "bybit_linear": bybit_linear,
+            "bybit_linear_ticker": bybit_linear_ticker,
             "coinbase_spot": coinbase_spot,
         }
     )

@@ -507,7 +507,9 @@ def test_default_builder_assembles_primary_recorder_components_without_network(t
             "state_snapshotter",
             "polymarket",
             "bybit_spot",
+            "bybit_spot_ticker",
             "bybit_linear",
+            "bybit_linear_ticker",
             "coinbase_spot",
         }
     )
@@ -517,5 +519,33 @@ def test_default_builder_assembles_primary_recorder_components_without_network(t
     assert priority_writer._batch_size == settings.recorder_priority_batch_size
     assert bulk_writer._worker_count == 2
     assert bulk_writer._batch_size == settings.recorder_batch_size
+    bybit_spot = service._components["bybit_spot"]
+    bybit_spot_ticker = service._components["bybit_spot_ticker"]
+    bybit_linear = service._components["bybit_linear"]
+    bybit_linear_ticker = service._components["bybit_linear_ticker"]
+
+    assert bybit_spot.subscription == {
+        "op": "subscribe",
+        "args": ["orderbook.50.BTCUSDT", "publicTrade.BTCUSDT"],
+    }
+    assert bybit_spot_ticker.subscription == {
+        "op": "subscribe",
+        "args": ["tickers.BTCUSDT"],
+    }
+    assert bybit_linear.subscription == {
+        "op": "subscribe",
+        "args": [
+            "allLiquidation.BTCUSDT",
+            "orderbook.50.BTCUSDT",
+            "publicTrade.BTCUSDT",
+        ],
+    }
+    assert bybit_linear_ticker.subscription == {
+        "op": "subscribe",
+        "args": ["tickers.BTCUSDT"],
+    }
+    assert bybit_spot.url == bybit_spot_ticker.url
+    assert bybit_linear.url == bybit_linear_ticker.url
+
     assert priority_writer._worker_count + bulk_writer._worker_count == 3
     assert settings.live_trading_enabled is False

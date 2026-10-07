@@ -13,8 +13,8 @@ HELPER = (
 RECORDER_SERVICE = ROOT / "src" / "bp_engine" / "recorder" / "service.py"
 
 FROM_HEAD = "a694c2299cd34f0b2ee92ded4a4da1643eff0604"
-CANDIDATE_HEAD = "94dc1adc77122e921f5e53bb27ae4ea0a9c5e52b"
-CANDIDATE_BRANCH = "ops/v4-ticker-priority-candidate-20261007"
+CANDIDATE_HEAD = "0aa87549e86626db9d3bf3651e2094536e63c91c"
+CANDIDATE_BRANCH = "ops/v4-dedicated-ticker-sockets-candidate-20261007"
 SHADOW_RUN_ID = "v4-fresh-book-shadow-20261006T185619Z-271db613e003"
 
 
@@ -50,6 +50,7 @@ def test_v4_source_priority_rollout_is_exact_candidate_and_approval_bound() -> N
         "EXPECTED_BULK_WRITER_WORKERS=3",
         "EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'",
         "EXPECTED_PRIORITY_EVENT_CONTRACT='ticker_only'",
+        "EXPECTED_TICKER_SOCKET_CONTRACT='dedicated_bybit_spot_and_linear'",
     ):
         assert marker in source
     assert source.index("production_approval_mismatch") < source.index(
@@ -66,6 +67,7 @@ def test_v4_source_priority_rollout_has_local_only_preflight() -> None:
         "EXPECTED_BULK_WRITER_WORKERS=$EXPECTED_BULK_WRITER_WORKERS",
         "EXPECTED_SPOT_TICKER_TOPIC=$EXPECTED_SPOT_TICKER_TOPIC",
         "EXPECTED_PRIORITY_EVENT_CONTRACT=$EXPECTED_PRIORITY_EVENT_CONTRACT",
+        "EXPECTED_TICKER_SOCKET_CONTRACT=$EXPECTED_TICKER_SOCKET_CONTRACT",
         "EXPECTED_APPROVAL=$EXPECTED_APPROVAL",
         "PRODUCTION_MUTATION=false",
         "GCLOUD_CONTACT=false",
@@ -131,6 +133,7 @@ def test_v4_source_priority_rollout_preserves_batch_and_writer_budget() -> None:
         '"recorder_priority_writer_workers": 1',
         '"recorder_bulk_writer_workers": 3',
         '"recorder_priority_event_contract": "ticker_only"',
+        '"bybit_ticker_socket_contract": "dedicated_bybit_spot_and_linear"',
         "recorder writer split mismatch",
         "RECORDER_TOTAL_WRITER_WORKERS=4",
         "require_priority_config",
@@ -153,34 +156,66 @@ def test_v4_source_priority_rollout_binds_priority_source_contract() -> None:
         assert marker in source
 
 
-def test_recorder_service_subscribes_bybit_spot_ticker() -> None:
+def test_recorder_service_isolates_bybit_tickers_on_dedicated_sockets() -> None:
     source = RECORDER_SERVICE.read_text(encoding="utf-8")
-    spot_start = source.index("    spot_topics = [")
-    linear_start = source.index("    linear_topics = [", spot_start)
-    spot_topics = source[spot_start:linear_start]
+    spot_start = source.index("    spot_bulk_topics = [")
+    linear_start = source.index("    linear_bulk_topics = [", spot_start)
+    ticker_start = source.index("    ticker_topics = ", linear_start)
+    runner_start = source.index("    def bybit_runner(", ticker_start)
+    spot_bulk = source[spot_start:linear_start]
+    linear_bulk = source[linear_start:ticker_start]
+    ticker_contract = source[ticker_start:runner_start]
+
+    for topic in ('"orderbook.50.BTCUSDT"', '"publicTrade.BTCUSDT"'):
+        assert topic in spot_bulk
+    assert '"tickers.BTCUSDT"' not in spot_bulk
+
     for topic in (
         '"orderbook.50.BTCUSDT"',
         '"publicTrade.BTCUSDT"',
-        '"tickers.BTCUSDT"',
+        '"allLiquidation.BTCUSDT"',
     ):
-        assert topic in spot_topics
-    assert spot_topics.count('"tickers.BTCUSDT"') == 1
+        assert topic in linear_bulk
+    assert '"tickers.BTCUSDT"' not in linear_bulk
 
-
-def test_v4_source_priority_rollout_binds_bybit_spot_ticker_before_mutation() -> None:
-    source = _source()
+    assert 'ticker_topics = ["tickers.BTCUSDT"]' in ticker_contract
     for marker in (
-        "EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'",
-        "candidate_spot_orderbook_topic_missing",
-        "candidate_spot_trade_topic_missing",
-        "candidate_spot_ticker_topic_missing",
-        "BYBIT_SPOT_TICKER_SOURCE_CONTRACT=true",
-        '"bybit_spot_ticker_topic": "tickers.BTCUSDT"',
-        '"bybit_spot_ticker_source_contract": True',
+        'bybit_spot = bybit_runner(venue="spot", topics=spot_bulk_topics)',
+        'bybit_spot_ticker = bybit_runner(venue="spot", topics=ticker_topics)',
+        'bybit_linear = bybit_runner(venue="linear", topics=linear_bulk_topics)',
+        'bybit_linear_ticker = bybit_runner(venue="linear", topics=ticker_topics)',
+        '"bybit_spot_ticker": bybit_spot_ticker',
+        '"bybit_linear_ticker": bybit_linear_ticker',
     ):
         assert marker in source
 
-    semantic_gate = source.index('SPOT_TOPICS="$(git -C "$REPO" show')
+
+def test_v4_source_priority_rollout_binds_dedicated_bybit_ticker_sockets_before_mutation() -> None:
+    source = _source()
+    for marker in (
+        "EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'",
+        "EXPECTED_TICKER_SOCKET_CONTRACT='dedicated_bybit_spot_and_linear'",
+        "candidate_spot_orderbook_topic_missing",
+        "candidate_spot_trade_topic_missing",
+        "candidate_linear_orderbook_topic_missing",
+        "candidate_linear_trade_topic_missing",
+        "candidate_linear_liquidation_topic_missing",
+        "candidate_spot_bulk_contains_ticker",
+        "candidate_linear_bulk_contains_ticker",
+        "candidate_ticker_topics_missing",
+        "candidate_spot_ticker_socket_missing",
+        "candidate_linear_ticker_socket_missing",
+        "candidate_spot_bulk_socket_missing",
+        "candidate_linear_bulk_socket_missing",
+        "BYBIT_SPOT_TICKER_SOURCE_CONTRACT=true",
+        "BYBIT_TICKER_SOCKET_CONTRACT=$EXPECTED_TICKER_SOCKET_CONTRACT",
+        '"bybit_spot_ticker_topic": "tickers.BTCUSDT"',
+        '"bybit_spot_ticker_source_contract": True',
+        '"bybit_ticker_socket_contract": "dedicated_bybit_spot_and_linear"',
+    ):
+        assert marker in source
+
+    semantic_gate = source.index('SPOT_BULK_TOPICS="$(git -C "$REPO" show')
     backup = source.index('BACKUP_DIR="$(mktemp -d', semantic_gate)
     mutation = source.index("MUTATION_STARTED=1", semantic_gate)
     assert semantic_gate < backup < mutation
