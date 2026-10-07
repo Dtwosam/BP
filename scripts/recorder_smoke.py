@@ -85,8 +85,22 @@ async def main() -> None:
         url="wss://stream.bybit.com/v5/public/spot",
         connector=connect,
         subscription=build_bybit_subscription(
-            ["orderbook.50.BTCUSDT", "publicTrade.BTCUSDT", "tickers.BTCUSDT"]
+            ["orderbook.50.BTCUSDT", "publicTrade.BTCUSDT"]
         ),
+        parser=lambda message, received_at: parse_bybit_message(
+            message, venue="spot", received_at=received_at
+        ),
+        event_sink=lambda event: None,
+        incident_sink=incidents.append,
+        heartbeat_message={"op": "ping"},
+        heartbeat_interval_seconds=20,
+    )
+    bybit_spot_ticker = WebSocketCollectorRunner(
+        source="bybit",
+        stream="spot",
+        url="wss://stream.bybit.com/v5/public/spot",
+        connector=connect,
+        subscription=build_bybit_subscription(["tickers.BTCUSDT"]),
         parser=lambda message, received_at: parse_bybit_message(
             message, venue="spot", received_at=received_at
         ),
@@ -104,10 +118,23 @@ async def main() -> None:
             [
                 "orderbook.50.BTCUSDT",
                 "publicTrade.BTCUSDT",
-                "tickers.BTCUSDT",
                 "allLiquidation.BTCUSDT",
             ]
         ),
+        parser=lambda message, received_at: parse_bybit_message(
+            message, venue="linear", received_at=received_at
+        ),
+        event_sink=lambda event: None,
+        incident_sink=incidents.append,
+        heartbeat_message={"op": "ping"},
+        heartbeat_interval_seconds=20,
+    )
+    bybit_linear_ticker = WebSocketCollectorRunner(
+        source="bybit",
+        stream="linear",
+        url="wss://stream.bybit.com/v5/public/linear",
+        connector=connect,
+        subscription=build_bybit_subscription(["tickers.BTCUSDT"]),
         parser=lambda message, received_at: parse_bybit_message(
             message, venue="linear", received_at=received_at
         ),
@@ -132,10 +159,19 @@ async def main() -> None:
         heartbeat_interval_seconds=None,
     )
 
-    pm_event, spot_event, linear_event, coinbase_event = await asyncio.gather(
+    (
+        pm_event,
+        spot_bulk_event,
+        spot_ticker_event,
+        linear_bulk_event,
+        linear_ticker_event,
+        coinbase_event,
+    ) = await asyncio.gather(
         capture_one(polymarket),
-        capture_one(bybit_spot, event_type="ticker"),
+        capture_one(bybit_spot),
+        capture_one(bybit_spot_ticker, event_type="ticker"),
         capture_one(bybit_linear),
+        capture_one(bybit_linear_ticker, event_type="ticker"),
         capture_one(coinbase_spot),
     )
     payload = {
@@ -143,8 +179,10 @@ async def main() -> None:
         "discovered_polymarket_slugs": [market.slug for market in active],
         "events": [
             pm_event.model_dump(mode="json"),
-            spot_event.model_dump(mode="json"),
-            linear_event.model_dump(mode="json"),
+            spot_bulk_event.model_dump(mode="json"),
+            spot_ticker_event.model_dump(mode="json"),
+            linear_bulk_event.model_dump(mode="json"),
+            linear_ticker_event.model_dump(mode="json"),
             coinbase_event.model_dump(mode="json"),
         ],
     }
@@ -154,7 +192,7 @@ async def main() -> None:
         json.dumps(
             {
                 "status": "ok",
-                "sources": ["polymarket", "bybit_spot", "bybit_linear", "coinbase_spot"],
+                "sources": ["polymarket", "bybit_spot_bulk", "bybit_spot_ticker", "bybit_linear_bulk", "bybit_linear_ticker", "coinbase_spot"],
             }
         )
     )
@@ -177,4 +215,4 @@ if __name__ == "__main__":
         write_report("error", error_type=type(exc).__name__, error=str(exc))
         raise
     else:
-        write_report("ok", sources=["polymarket", "bybit_spot", "bybit_linear", "coinbase_spot"])
+        write_report("ok", sources=["polymarket", "bybit_spot_bulk", "bybit_spot_ticker", "bybit_linear_bulk", "bybit_linear_ticker", "coinbase_spot"])
