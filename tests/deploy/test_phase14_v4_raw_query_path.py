@@ -28,10 +28,10 @@ def test_v4_raw_query_path_is_read_only_metadata_and_explain() -> None:
         "pg_blocking_pids",
         "pg_inherits",
         "pg_total_relation_size",
-        "EXPLAIN (FORMAT JSON, COSTS OFF)",
+        "EXPLAIN (FORMAT JSON)",
         "statement_timeout=3000",
         "_safe_section",
-        "v4_raw_query_path_v2",
+        "v4_raw_query_path_v3",
         "database_writes_performed",
         "order_submission_performed",
     ):
@@ -61,3 +61,22 @@ def test_v4_raw_query_path_helper_uses_latest_evidence_and_runtime_source() -> N
         "--evidence-file",
     ):
         assert marker in source
+
+
+def test_v4_raw_query_path_supports_exact_slow_anchor_plan() -> None:
+    report = REPORT.read_text(encoding="utf-8")
+    helper = HELPER.read_text(encoding="utf-8")
+    for marker in (
+        "--requested-at",
+        "--venue",
+        "source_timestamp >= :source_lower",
+        "source_timestamp <= :source_upper",
+        "event_type IN ('ticker', 'trade')",
+        '"exact_query": exact_query',
+    ):
+        assert marker in report
+    for marker in (
+        "--requested-at 2026-10-07T20:49:00Z",
+        "--venue bybit_spot",
+    ):
+        assert marker in helper
