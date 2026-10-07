@@ -192,7 +192,14 @@ async def main() -> None:
         json.dumps(
             {
                 "status": "ok",
-                "sources": ["polymarket", "bybit_spot_bulk", "bybit_spot_ticker", "bybit_linear_bulk", "bybit_linear_ticker", "coinbase_spot"],
+                "sources": [
+                    "polymarket",
+                    "bybit_spot_bulk",
+                    "bybit_spot_ticker",
+                    "bybit_linear_bulk",
+                    "bybit_linear_ticker",
+                    "coinbase_spot",
+                ],
             }
         )
     )
@@ -215,4 +222,14 @@ if __name__ == "__main__":
         write_report("error", error_type=type(exc).__name__, error=str(exc))
         raise
     else:
-        write_report("ok", sources=["polymarket", "bybit_spot_bulk", "bybit_spot_ticker", "bybit_linear_bulk", "bybit_linear_ticker", "coinbase_spot"])
+        write_report(
+            "ok",
+            sources=[
+                "polymarket",
+                "bybit_spot_bulk",
+                "bybit_spot_ticker",
+                "bybit_linear_bulk",
+                "bybit_linear_ticker",
+                "coinbase_spot",
+            ],
+        )
