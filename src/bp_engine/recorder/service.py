@@ -334,7 +334,8 @@ class _RoutedBufferedEventSink:
 def _recorder_writer_split(worker_count: int) -> tuple[int, int]:
     if worker_count <= 1:
         return 0, 1
-    return 1, worker_count - 1
+    priority_workers = min(2, worker_count - 1)
+    return priority_workers, worker_count - priority_workers
 
 
 def build_default_recorder_service(settings: object) -> RecorderService:
