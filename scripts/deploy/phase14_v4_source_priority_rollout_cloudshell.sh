@@ -9,13 +9,15 @@ APPROVAL="${PHASE14_V4_SOURCE_PRIORITY_ROLLOUT_APPROVAL:-}"
 PREFLIGHT_ONLY="${PHASE14_V4_SOURCE_PRIORITY_ROLLOUT_PREFLIGHT_ONLY:-false}"
 
 FROM_HEAD='a694c2299cd34f0b2ee92ded4a4da1643eff0604'
-CANDIDATE_BRANCH='ops/v4-source-priority-spot-ticker-candidate-20261006'
-CANDIDATE_HEAD='9080227863fbb408993008c9b7bb7714629a8266'
+CANDIDATE_BRANCH='ops/v4-source-priority-two-writer-candidate-20261007'
+CANDIDATE_HEAD='d70273dcb04222c8b502e22fe5d8422774648d7b'
 EXPECTED_BATCH_SIZE=500
 EXPECTED_QUEUE_MAXSIZE=50000
 EXPECTED_WRITER_WORKERS=4
 EXPECTED_PRIORITY_QUEUE_MAXSIZE=5000
 EXPECTED_PRIORITY_BATCH_SIZE=20
+EXPECTED_PRIORITY_WRITER_WORKERS=2
+EXPECTED_BULK_WRITER_WORKERS=2
 EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'
 EXPECTED_SHADOW_RUN_ID='v4-fresh-book-shadow-20261006T185619Z-271db613e003'
 EXPECTED_SHADOW_UNIT='bp-v4-fresh-book-shadow-20261006T185619Z-271db613e003.service'
@@ -64,7 +66,13 @@ grep -Fq '"orderbook.50.BTCUSDT"' <<<"$SPOT_TOPICS" || fail_local "candidate_spo
 grep -Fq '"publicTrade.BTCUSDT"' <<<"$SPOT_TOPICS" || fail_local "candidate_spot_trade_topic_missing"
 grep -Fq "\"$EXPECTED_SPOT_TICKER_TOPIC\"" <<<"$SPOT_TOPICS" || fail_local "candidate_spot_ticker_topic_missing"
 
-EXPECTED_APPROVAL="I_APPROVE_PHASE14_V4_SOURCE_PRIORITY_ROLLOUT:${HELPER_HEAD}:${FROM_HEAD}:${CANDIDATE_HEAD}:${EXPECTED_BATCH_SIZE}:${EXPECTED_PRIORITY_QUEUE_MAXSIZE}:${EXPECTED_PRIORITY_BATCH_SIZE}:${EXPECTED_SPOT_TICKER_TOPIC}:${EXPECTED_SHADOW_RUN_ID}"
+WRITER_SPLIT_SOURCE="$(git show "$CANDIDATE_HEAD:$SERVICE_PATH" | sed -n '/^def _recorder_writer_split/,/^$/p')"
+grep -Fq 'priority_workers = min(2, worker_count - 1)' <<<"$WRITER_SPLIT_SOURCE" ||
+  fail_local "candidate_priority_writer_split_missing"
+grep -Fq 'return priority_workers, worker_count - priority_workers' <<<"$WRITER_SPLIT_SOURCE" ||
+  fail_local "candidate_bulk_writer_split_missing"
+
+EXPECTED_APPROVAL="I_APPROVE_PHASE14_V4_SOURCE_PRIORITY_ROLLOUT:${HELPER_HEAD}:${FROM_HEAD}:${CANDIDATE_HEAD}:${EXPECTED_BATCH_SIZE}:${EXPECTED_PRIORITY_QUEUE_MAXSIZE}:${EXPECTED_PRIORITY_BATCH_SIZE}:${EXPECTED_PRIORITY_WRITER_WORKERS}:${EXPECTED_BULK_WRITER_WORKERS}:${EXPECTED_SPOT_TICKER_TOPIC}:${EXPECTED_SHADOW_RUN_ID}"
 case "$PREFLIGHT_ONLY" in
   true|false) ;;
   *) fail_local "preflight_only_invalid" ;;
@@ -75,6 +83,8 @@ if [[ "$PREFLIGHT_ONLY" == "true" ]]; then
   echo "FROM_HEAD=$FROM_HEAD"
   echo "CANDIDATE_HEAD=$CANDIDATE_HEAD"
   echo "CANDIDATE_BRANCH=$CANDIDATE_BRANCH"
+  echo "EXPECTED_PRIORITY_WRITER_WORKERS=$EXPECTED_PRIORITY_WRITER_WORKERS"
+  echo "EXPECTED_BULK_WRITER_WORKERS=$EXPECTED_BULK_WRITER_WORKERS"
   echo "EXPECTED_SPOT_TICKER_TOPIC=$EXPECTED_SPOT_TICKER_TOPIC"
   echo "EXPECTED_APPROVAL=$EXPECTED_APPROVAL"
   echo "PRODUCTION_MUTATION=false"
@@ -95,13 +105,15 @@ read -r -d '' REMOTE_SCRIPT <<'REMOTE' || true
 set -Eeuo pipefail
 
 FROM_HEAD='a694c2299cd34f0b2ee92ded4a4da1643eff0604'
-CANDIDATE_BRANCH='ops/v4-source-priority-spot-ticker-candidate-20261006'
-CANDIDATE_HEAD='9080227863fbb408993008c9b7bb7714629a8266'
+CANDIDATE_BRANCH='ops/v4-source-priority-two-writer-candidate-20261007'
+CANDIDATE_HEAD='d70273dcb04222c8b502e22fe5d8422774648d7b'
 EXPECTED_BATCH_SIZE=500
 EXPECTED_QUEUE_MAXSIZE=50000
 EXPECTED_WRITER_WORKERS=4
 EXPECTED_PRIORITY_QUEUE_MAXSIZE=5000
 EXPECTED_PRIORITY_BATCH_SIZE=20
+EXPECTED_PRIORITY_WRITER_WORKERS=2
+EXPECTED_BULK_WRITER_WORKERS=2
 EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'
 EXPECTED_SHADOW_RUN_ID='v4-fresh-book-shadow-20261006T185619Z-271db613e003'
 EXPECTED_SHADOW_UNIT='bp-v4-fresh-book-shadow-20261006T185619Z-271db613e003.service'
@@ -366,13 +378,16 @@ require_priority_config() {
   sudo -u bp env \
     -u RECORDER_PRIORITY_QUEUE_MAXSIZE \
     -u RECORDER_PRIORITY_BATCH_SIZE \
-    "$REPO/.venv/bin/python" - "$ENV_FILE" "$EXPECTED_PRIORITY_QUEUE_MAXSIZE" "$EXPECTED_PRIORITY_BATCH_SIZE" <<'PY'
+    "$REPO/.venv/bin/python" - "$ENV_FILE" "$EXPECTED_PRIORITY_QUEUE_MAXSIZE" "$EXPECTED_PRIORITY_BATCH_SIZE" "$EXPECTED_PRIORITY_WRITER_WORKERS" "$EXPECTED_BULK_WRITER_WORKERS" <<'PY'
 import sys
 from bp_engine.config import Settings
+from bp_engine.recorder.service import _recorder_writer_split
 
 settings = Settings(_env_file=sys.argv[1])
 expected_queue = int(sys.argv[2])
 expected_batch = int(sys.argv[3])
+expected_priority_workers = int(sys.argv[4])
+expected_bulk_workers = int(sys.argv[5])
 if settings.recorder_priority_queue_maxsize != expected_queue:
     raise SystemExit(
         "recorder priority queue maxsize must equal "
@@ -387,10 +402,17 @@ if settings.recorder_writer_workers != 4:
     raise SystemExit(
         f"recorder total writer workers must equal 4, got {settings.recorder_writer_workers}"
     )
+priority_workers, bulk_workers = _recorder_writer_split(settings.recorder_writer_workers)
+if priority_workers != expected_priority_workers or bulk_workers != expected_bulk_workers:
+    raise SystemExit(
+        "recorder writer split mismatch: "
+        f"expected={expected_priority_workers}/{expected_bulk_workers} "
+        f"got={priority_workers}/{bulk_workers}"
+    )
 print(f"RECORDER_PRIORITY_QUEUE_MAXSIZE={settings.recorder_priority_queue_maxsize}")
 print(f"RECORDER_PRIORITY_BATCH_SIZE={settings.recorder_priority_batch_size}")
-print("RECORDER_PRIORITY_WRITER_WORKERS=1")
-print("RECORDER_BULK_WRITER_WORKERS=3")
+print(f"RECORDER_PRIORITY_WRITER_WORKERS={priority_workers}")
+print(f"RECORDER_BULK_WRITER_WORKERS={bulk_workers}")
 print("RECORDER_TOTAL_WRITER_WORKERS=4")
 PY
 }
@@ -710,6 +732,13 @@ grep -Fq '"publicTrade.BTCUSDT"' <<<"$SPOT_TOPICS" || fail "candidate_spot_trade
 grep -Fq "\"$EXPECTED_SPOT_TICKER_TOPIC\"" <<<"$SPOT_TOPICS" || fail "candidate_spot_ticker_topic_missing"
 echo "BYBIT_SPOT_TICKER_SOURCE_CONTRACT=true"
 
+WRITER_SPLIT_SOURCE="$(git -C "$REPO" show "$CANDIDATE_HEAD:src/bp_engine/recorder/service.py" | sed -n '/^def _recorder_writer_split/,/^$/p')"
+grep -Fq 'priority_workers = min(2, worker_count - 1)' <<<"$WRITER_SPLIT_SOURCE" ||
+  fail "candidate_priority_writer_split_missing"
+grep -Fq 'return priority_workers, worker_count - priority_workers' <<<"$WRITER_SPLIT_SOURCE" ||
+  fail "candidate_bulk_writer_split_missing"
+echo "RECORDER_WRITER_SPLIT_CONTRACT=2_priority_2_bulk_at_total_4"
+
 BACKUP_DIR="$(mktemp -d /var/tmp/bp-v4-source-priority-rollout-backup.XXXXXX)"
 cp -a "$ENV_FILE" "$BACKUP_DIR/bp.env"
 if ! git -C "$REPO" diff --quiet HEAD -- apps/dashboard/next-env.d.ts; then
@@ -740,7 +769,7 @@ git -C "$REPO" checkout --detach --force "$CANDIDATE_HEAD"
 restore_generated_files
 [[ "$(git -C "$REPO" rev-parse HEAD)" == "$CANDIDATE_HEAD" ]] || fail "candidate_checkout_failed"
 validate_deployed_checkout
-for marker in "_is_v4_source_time_event" "_RoutedBufferedEventSink" '"writer_priority"' '"writer_bulk"'; do
+for marker in "_is_v4_source_time_event" "_RoutedBufferedEventSink" "_recorder_writer_split" '"writer_priority"' '"writer_bulk"'; do
   grep -Fq "$marker" "$REPO/src/bp_engine/recorder/service.py" || fail "priority_source_contract_missing:$marker"
 done
 require_recorder_config "$EXPECTED_BATCH_SIZE"
@@ -852,8 +881,8 @@ payload = {
     "recorder_priority_queue_maxsize": 5000,
     "recorder_priority_batch_size": 20,
     "recorder_total_writer_workers": 4,
-    "recorder_priority_writer_workers": 1,
-    "recorder_bulk_writer_workers": 3,
+    "recorder_priority_writer_workers": 2,
+    "recorder_bulk_writer_workers": 2,
     "bybit_spot_ticker_topic": "tickers.BTCUSDT",
     "bybit_spot_ticker_source_contract": True,
     "compact_dedupe_complete": True,
@@ -882,11 +911,12 @@ echo "EVIDENCE_PATH=$EVIDENCE_PATH"
 echo "RECORDER_BATCH_SIZE=$EXPECTED_BATCH_SIZE"
 echo "RECORDER_PRIORITY_QUEUE_MAXSIZE=$EXPECTED_PRIORITY_QUEUE_MAXSIZE"
 echo "RECORDER_PRIORITY_BATCH_SIZE=$EXPECTED_PRIORITY_BATCH_SIZE"
-echo "RECORDER_PRIORITY_WRITER_WORKERS=1"
-echo "RECORDER_BULK_WRITER_WORKERS=3"
+echo "RECORDER_PRIORITY_WRITER_WORKERS=$EXPECTED_PRIORITY_WRITER_WORKERS"
+echo "RECORDER_BULK_WRITER_WORKERS=$EXPECTED_BULK_WRITER_WORKERS"
 echo "RECORDER_TOTAL_WRITER_WORKERS=$EXPECTED_WRITER_WORKERS"
 echo "BYBIT_SPOT_TICKER_TOPIC=$EXPECTED_SPOT_TICKER_TOPIC"
 echo "BYBIT_SPOT_TICKER_SOURCE_CONTRACT=true"
+echo "RECORDER_WRITER_SPLIT_CONTRACT=2_priority_2_bulk_at_total_4"
 echo "SHADOW_RUN_ID=$EXPECTED_SHADOW_RUN_ID"
 echo "SHADOW_PID=$SHADOW_PID"
 echo "SHADOW_ACTIVE=true"
@@ -910,6 +940,8 @@ echo "FROM_HEAD=$FROM_HEAD"
 echo "CANDIDATE_BRANCH=$CANDIDATE_BRANCH"
 echo "CANDIDATE_HEAD=$CANDIDATE_HEAD"
 echo "EXPECTED_BATCH_SIZE=$EXPECTED_BATCH_SIZE"
+echo "EXPECTED_PRIORITY_WRITER_WORKERS=$EXPECTED_PRIORITY_WRITER_WORKERS"
+echo "EXPECTED_BULK_WRITER_WORKERS=$EXPECTED_BULK_WRITER_WORKERS"
 echo "EXPECTED_SPOT_TICKER_TOPIC=$EXPECTED_SPOT_TICKER_TOPIC"
 echo "EXPECTED_SHADOW_RUN_ID=$EXPECTED_SHADOW_RUN_ID"
 echo "This helper mutates only the production checkout and restarts the recorder/frozen-V3 paper chain."

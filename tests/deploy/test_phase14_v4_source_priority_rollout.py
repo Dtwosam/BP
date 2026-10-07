@@ -13,8 +13,8 @@ HELPER = (
 RECORDER_SERVICE = ROOT / "src" / "bp_engine" / "recorder" / "service.py"
 
 FROM_HEAD = "a694c2299cd34f0b2ee92ded4a4da1643eff0604"
-CANDIDATE_HEAD = "9080227863fbb408993008c9b7bb7714629a8266"
-CANDIDATE_BRANCH = "ops/v4-source-priority-spot-ticker-candidate-20261006"
+CANDIDATE_HEAD = "d70273dcb04222c8b502e22fe5d8422774648d7b"
+CANDIDATE_BRANCH = "ops/v4-source-priority-two-writer-candidate-20261007"
 SHADOW_RUN_ID = "v4-fresh-book-shadow-20261006T185619Z-271db613e003"
 
 
@@ -46,6 +46,8 @@ def test_v4_source_priority_rollout_is_exact_candidate_and_approval_bound() -> N
         "candidate_scope_mismatch",
         "candidate_blob_not_exact_main",
         "production_approval_mismatch",
+        "EXPECTED_PRIORITY_WRITER_WORKERS=2",
+        "EXPECTED_BULK_WRITER_WORKERS=2",
         "EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'",
     ):
         assert marker in source
@@ -59,6 +61,8 @@ def test_v4_source_priority_rollout_has_local_only_preflight() -> None:
     for marker in (
         "PHASE14_V4_SOURCE_PRIORITY_ROLLOUT_PREFLIGHT_ONLY",
         "PHASE14_V4_SOURCE_PRIORITY_ROLLOUT_PREFLIGHT=PASS",
+        "EXPECTED_PRIORITY_WRITER_WORKERS=$EXPECTED_PRIORITY_WRITER_WORKERS",
+        "EXPECTED_BULK_WRITER_WORKERS=$EXPECTED_BULK_WRITER_WORKERS",
         "EXPECTED_SPOT_TICKER_TOPIC=$EXPECTED_SPOT_TICKER_TOPIC",
         "EXPECTED_APPROVAL=$EXPECTED_APPROVAL",
         "PRODUCTION_MUTATION=false",
@@ -118,8 +122,13 @@ def test_v4_source_priority_rollout_preserves_batch_and_writer_budget() -> None:
         "EXPECTED_PRIORITY_BATCH_SIZE=20",
         "recorder writer workers must equal 4",
         "recorder flush interval must equal 0.25",
-        "RECORDER_PRIORITY_WRITER_WORKERS=1",
-        "RECORDER_BULK_WRITER_WORKERS=3",
+        "EXPECTED_PRIORITY_WRITER_WORKERS=2",
+        "EXPECTED_BULK_WRITER_WORKERS=2",
+        'RECORDER_PRIORITY_WRITER_WORKERS=$EXPECTED_PRIORITY_WRITER_WORKERS',
+        'RECORDER_BULK_WRITER_WORKERS=$EXPECTED_BULK_WRITER_WORKERS',
+        '"recorder_priority_writer_workers": 2',
+        '"recorder_bulk_writer_workers": 2',
+        "recorder writer split mismatch",
         "RECORDER_TOTAL_WRITER_WORKERS=4",
         "require_priority_config",
     ):
@@ -133,6 +142,7 @@ def test_v4_source_priority_rollout_binds_priority_source_contract() -> None:
     for marker in (
         "_is_v4_source_time_event",
         "_RoutedBufferedEventSink",
+        "_recorder_writer_split",
         '"writer_priority"',
         '"writer_bulk"',
         "priority_source_contract_missing",
@@ -168,6 +178,23 @@ def test_v4_source_priority_rollout_binds_bybit_spot_ticker_before_mutation() ->
         assert marker in source
 
     semantic_gate = source.index('SPOT_TOPICS="$(git -C "$REPO" show')
+    backup = source.index('BACKUP_DIR="$(mktemp -d', semantic_gate)
+    mutation = source.index("MUTATION_STARTED=1", semantic_gate)
+    assert semantic_gate < backup < mutation
+
+
+def test_v4_source_priority_rollout_binds_writer_split_before_mutation() -> None:
+    source = _source()
+    for marker in (
+        "candidate_priority_writer_split_missing",
+        "candidate_bulk_writer_split_missing",
+        "RECORDER_WRITER_SPLIT_CONTRACT=2_priority_2_bulk_at_total_4",
+        "priority_workers = min(2, worker_count - 1)",
+        "return priority_workers, worker_count - priority_workers",
+    ):
+        assert marker in source
+
+    semantic_gate = source.index('WRITER_SPLIT_SOURCE="$(git -C "$REPO" show')
     backup = source.index('BACKUP_DIR="$(mktemp -d', semantic_gate)
     mutation = source.index("MUTATION_STARTED=1", semantic_gate)
     assert semantic_gate < backup < mutation
