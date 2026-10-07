@@ -161,3 +161,34 @@ def test_frozen_v4_inference_uses_bundle_order_and_imputer() -> None:
 def test_frozen_v4_inference_fails_closed_on_schema_drift() -> None:
     with pytest.raises(FrozenV4ModelError, match="missing key: b"):
         predict_frozen_v4_probability(_bundle(), {"a": 1.5})
+
+def test_frozen_v4_inference_reconstructs_training_missing_flag_namespace() -> None:
+    bundle = _bundle()
+    bundle["predictor_names"] = ("a", "missing__bybit_linear_current_missing")
+
+    probability = predict_frozen_v4_probability(
+        bundle,
+        {"a": 1.5},
+        missing_flags={"bybit_linear_current_missing": False},
+    )
+
+    assert probability == pytest.approx(0.75)
+
+
+def test_frozen_v4_inference_rejects_invalid_missing_flag_schema() -> None:
+    bundle = _bundle()
+    bundle["predictor_names"] = ("a", "missing__bybit_linear_current_missing")
+
+    with pytest.raises(FrozenV4ModelError, match="missing flag must be boolean"):
+        predict_frozen_v4_probability(
+            bundle,
+            {"a": 1.5},
+            missing_flags={"bybit_linear_current_missing": 0},  # type: ignore[dict-item]
+        )
+
+    with pytest.raises(FrozenV4ModelError, match="predictor schema collision"):
+        predict_frozen_v4_probability(
+            bundle,
+            {"a": 1.5, "missing__bybit_linear_current_missing": 0.0},
+            missing_flags={"bybit_linear_current_missing": False},
+        )
