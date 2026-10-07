@@ -201,6 +201,28 @@ def test_v4_source_priority_rollout_binds_writer_split_before_mutation() -> None
     assert semantic_gate < backup < mutation
 
 
+def test_v4_priority_classifier_extraction_captures_full_function() -> None:
+    sed_range = "/^def _is_v4_priority_anchor_event/,/^class _RoutedBufferedEventSink/p"
+    completed = subprocess.run(
+        ["sed", "-n", sed_range, str(RECORDER_SERVICE)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    extracted = completed.stdout
+    assert 'event_type.startswith("ticker_")' in extracted
+    assert 'event_type == "ticker"' in extracted
+
+    source = _source()
+    expected = (
+        "sed -n '/^def _is_v4_priority_anchor_event/,"
+        "/^class _RoutedBufferedEventSink/p'"
+    )
+    truncated = "sed -n '/^def _is_v4_priority_anchor_event/,/^$/p'"
+    assert source.count(expected) == 2
+    assert truncated not in source
+
+
 def test_v4_source_priority_rollout_binds_ticker_only_priority_before_mutation() -> None:
     source = _source()
     for marker in (
