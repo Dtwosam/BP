@@ -6,13 +6,14 @@ import math
 import time
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import timedelta
 from pathlib import Path
 from statistics import median
 from typing import Any
 
 from sqlalchemy import create_engine, event, select, text
 
-from bp_engine import storage
+from bp_engine.storage import schema
 from bp_engine.config import Settings, TradingMode
 from bp_engine.features.v4_models import V4FeatureTarget
 from bp_engine.v4_paper.inference import (
@@ -81,12 +82,12 @@ def _target_from_row(row: dict[str, Any]) -> V4FeatureTarget:
 def _market_row(connection, condition_id: str) -> dict[str, Any]:
     row = connection.execute(
         select(
-            storage.schema.polymarket_markets.c.condition_id,
-            storage.schema.polymarket_markets.c.slug,
-            storage.schema.polymarket_markets.c.horizon_seconds,
-            storage.schema.polymarket_markets.c.start_at,
-            storage.schema.polymarket_markets.c.end_at,
-        ).where(storage.schema.polymarket_markets.c.condition_id == condition_id)
+            schema.polymarket_markets.c.condition_id,
+            schema.polymarket_markets.c.slug,
+            schema.polymarket_markets.c.horizon_seconds,
+            schema.polymarket_markets.c.start_at,
+            schema.polymarket_markets.c.end_at,
+        ).where(schema.polymarket_markets.c.condition_id == condition_id)
     ).mappings().one_or_none()
     if row is None:
         raise SystemExit(f"condition not found: {condition_id}")
@@ -139,9 +140,7 @@ def build_report(
 
                 collector.set_stage(target_stage)
                 target = _target_from_row(_market_row(connection, condition_id))
-                decision_at = target.market_start_at + (
-                    target.market_end_at - target.market_start_at
-                ) * 0 + __import__("datetime").timedelta(
+                decision_at = target.market_start_at + timedelta(
                     seconds=FROZEN_V4_OFFSET_SECONDS
                 )
 
@@ -214,8 +213,7 @@ def build_report(
                     }
                 )
     finally:
-        event.remove(engine, "before_cursor_execute", collector.before)
-        event.remove(engine, "after_cursor_execute", collector.after)
+        collector.set_stage("idle")
 
     return {
         "report": "v4_feature_inference_latency_v1",
