@@ -14,6 +14,7 @@ def test_v4_shadow_runner_is_read_only_money_disabled_and_source_time_safe() -> 
         "load_frozen_v4_bundle",
         "build_source_time_v4_features",
         "predict_frozen_v4_probability",
+        "missing_flags=features.missing_flags",
         "StreamingBookCache",
         "quote_fresh_seconds",
         "MAX_SOURCE_AGE_SECONDS",

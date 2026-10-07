@@ -135,12 +135,28 @@ def load_frozen_v4_bundle(
 def predict_frozen_v4_probability(
     bundle: Mapping[str, Any],
     predictors: Mapping[str, float | int | None],
+    *,
+    missing_flags: Mapping[str, bool] | None = None,
 ) -> float:
     """Reproduce frozen XGBoost inference using the artifact's exact column order."""
 
     validate_frozen_v4_bundle(bundle)
+    model_predictors = dict(predictors)
+    if missing_flags is not None:
+        for name, value in missing_flags.items():
+            if not isinstance(value, bool):
+                raise FrozenV4ModelError(
+                    f"frozen V4 missing flag must be boolean: {name}"
+                )
+            predictor_name = f"missing__{name}"
+            if predictor_name in model_predictors:
+                raise FrozenV4ModelError(
+                    f"frozen V4 predictor schema collision: {predictor_name}"
+                )
+            model_predictors[predictor_name] = float(value)
+
     names = tuple(str(name) for name in bundle["predictor_names"])
-    missing = [name for name in names if name not in predictors]
+    missing = [name for name in names if name not in model_predictors]
     if missing:
         raise FrozenV4ModelError(
             f"frozen V4 predictor schema missing key: {missing[0]}"
@@ -148,7 +164,7 @@ def predict_frozen_v4_probability(
 
     row: list[float] = []
     for name in names:
-        value = predictors[name]
+        value = model_predictors[name]
         if value is None:
             row.append(float("nan"))
             continue

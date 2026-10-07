@@ -498,6 +498,7 @@ def main() -> int:
                     probability_up = predict_frozen_v4_probability(
                         bundle,
                         features.predictors,
+                        missing_flags=features.missing_flags,
                     )
                     recorded_at = datetime.now(UTC)
                     decision_lag = (recorded_at - decision_at).total_seconds()
