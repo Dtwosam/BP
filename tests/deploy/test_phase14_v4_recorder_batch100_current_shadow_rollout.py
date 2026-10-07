@@ -171,9 +171,10 @@ def test_batch100_rollout_prints_visibility_report_before_failed_rollback() -> N
     ]
     assert 'echo "PHASE14_V4_BATCH100_CURRENT_SHADOW_VISIBILITY_ACCEPTANCE=FAIL" >&2' in acceptance
     assert 'cat "$VISIBILITY_FILE" >&2 || true' in acceptance
-    assert acceptance.index("PHASE14_V4_BATCH100_CURRENT_SHADOW_VISIBILITY_ACCEPTANCE=FAIL") < acceptance.index(
-        "return 1"
+    failure_at = acceptance.index(
+        "PHASE14_V4_BATCH100_CURRENT_SHADOW_VISIBILITY_ACCEPTANCE=FAIL"
     )
+    assert failure_at < acceptance.index("return 1")
 
 
 def test_batch100_current_shadow_preflight_is_non_mutating_and_before_gcloud() -> None:
