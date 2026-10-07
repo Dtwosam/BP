@@ -66,6 +66,12 @@ grep -Fq '"orderbook.50.BTCUSDT"' <<<"$SPOT_TOPICS" || fail_local "candidate_spo
 grep -Fq '"publicTrade.BTCUSDT"' <<<"$SPOT_TOPICS" || fail_local "candidate_spot_trade_topic_missing"
 grep -Fq "\"$EXPECTED_SPOT_TICKER_TOPIC\"" <<<"$SPOT_TOPICS" || fail_local "candidate_spot_ticker_topic_missing"
 
+WRITER_SPLIT_SOURCE="$(git show "$CANDIDATE_HEAD:$SERVICE_PATH" | sed -n '/^def _recorder_writer_split/,/^$/p')"
+grep -Fq 'priority_workers = min(2, worker_count - 1)' <<<"$WRITER_SPLIT_SOURCE" ||
+  fail_local "candidate_priority_writer_split_missing"
+grep -Fq 'return priority_workers, worker_count - priority_workers' <<<"$WRITER_SPLIT_SOURCE" ||
+  fail_local "candidate_bulk_writer_split_missing"
+
 EXPECTED_APPROVAL="I_APPROVE_PHASE14_V4_SOURCE_PRIORITY_ROLLOUT:${HELPER_HEAD}:${FROM_HEAD}:${CANDIDATE_HEAD}:${EXPECTED_BATCH_SIZE}:${EXPECTED_PRIORITY_QUEUE_MAXSIZE}:${EXPECTED_PRIORITY_BATCH_SIZE}:${EXPECTED_PRIORITY_WRITER_WORKERS}:${EXPECTED_BULK_WRITER_WORKERS}:${EXPECTED_SPOT_TICKER_TOPIC}:${EXPECTED_SHADOW_RUN_ID}"
 case "$PREFLIGHT_ONLY" in
   true|false) ;;
@@ -726,6 +732,13 @@ grep -Fq '"publicTrade.BTCUSDT"' <<<"$SPOT_TOPICS" || fail "candidate_spot_trade
 grep -Fq "\"$EXPECTED_SPOT_TICKER_TOPIC\"" <<<"$SPOT_TOPICS" || fail "candidate_spot_ticker_topic_missing"
 echo "BYBIT_SPOT_TICKER_SOURCE_CONTRACT=true"
 
+WRITER_SPLIT_SOURCE="$(git -C "$REPO" show "$CANDIDATE_HEAD:src/bp_engine/recorder/service.py" | sed -n '/^def _recorder_writer_split/,/^$/p')"
+grep -Fq 'priority_workers = min(2, worker_count - 1)' <<<"$WRITER_SPLIT_SOURCE" ||
+  fail "candidate_priority_writer_split_missing"
+grep -Fq 'return priority_workers, worker_count - priority_workers' <<<"$WRITER_SPLIT_SOURCE" ||
+  fail "candidate_bulk_writer_split_missing"
+echo "RECORDER_WRITER_SPLIT_CONTRACT=2_priority_2_bulk_at_total_4"
+
 BACKUP_DIR="$(mktemp -d /var/tmp/bp-v4-source-priority-rollout-backup.XXXXXX)"
 cp -a "$ENV_FILE" "$BACKUP_DIR/bp.env"
 if ! git -C "$REPO" diff --quiet HEAD -- apps/dashboard/next-env.d.ts; then
@@ -903,6 +916,7 @@ echo "RECORDER_BULK_WRITER_WORKERS=$EXPECTED_BULK_WRITER_WORKERS"
 echo "RECORDER_TOTAL_WRITER_WORKERS=$EXPECTED_WRITER_WORKERS"
 echo "BYBIT_SPOT_TICKER_TOPIC=$EXPECTED_SPOT_TICKER_TOPIC"
 echo "BYBIT_SPOT_TICKER_SOURCE_CONTRACT=true"
+echo "RECORDER_WRITER_SPLIT_CONTRACT=2_priority_2_bulk_at_total_4"
 echo "SHADOW_RUN_ID=$EXPECTED_SHADOW_RUN_ID"
 echo "SHADOW_PID=$SHADOW_PID"
 echo "SHADOW_ACTIVE=true"
