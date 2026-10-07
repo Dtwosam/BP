@@ -11,10 +11,11 @@ HELPER = (
     / "phase14_v4_source_priority_rollout_cloudshell.sh"
 )
 RECORDER_SERVICE = ROOT / "src" / "bp_engine" / "recorder" / "service.py"
+RECORDER_STORAGE = ROOT / "src" / "bp_engine" / "storage" / "recorder.py"
 
 FROM_HEAD = "a694c2299cd34f0b2ee92ded4a4da1643eff0604"
-CANDIDATE_HEAD = "300a9e47500f2e0d6fb653786fc22c12f116b772"
-CANDIDATE_BRANCH = "ops/v4-two-priority-batched-candidate-20261007"
+CANDIDATE_HEAD = "3316f22d89689a4dfe8c7de2da6956b8eb846d1f"
+CANDIDATE_BRANCH = "ops/v4-priority-executemany-candidate-20261007"
 SHADOW_RUN_ID = "v4-fresh-book-shadow-20261006T185619Z-271db613e003"
 
 
@@ -51,6 +52,7 @@ def test_v4_source_priority_rollout_is_exact_candidate_and_approval_bound() -> N
         "EXPECTED_SPOT_TICKER_TOPIC='tickers.BTCUSDT'",
         "EXPECTED_PRIORITY_EVENT_CONTRACT='ticker_only'",
         "EXPECTED_TICKER_SOCKET_CONTRACT='dedicated_bybit_spot_and_linear'",
+        "EXPECTED_RAW_INSERT_CONTRACT='executemany_parameter_list'",
     ):
         assert marker in source
     assert source.index("production_approval_mismatch") < source.index(
@@ -68,6 +70,7 @@ def test_v4_source_priority_rollout_has_local_only_preflight() -> None:
         "EXPECTED_SPOT_TICKER_TOPIC=$EXPECTED_SPOT_TICKER_TOPIC",
         "EXPECTED_PRIORITY_EVENT_CONTRACT=$EXPECTED_PRIORITY_EVENT_CONTRACT",
         "EXPECTED_TICKER_SOCKET_CONTRACT=$EXPECTED_TICKER_SOCKET_CONTRACT",
+        "EXPECTED_RAW_INSERT_CONTRACT=$EXPECTED_RAW_INSERT_CONTRACT",
         "EXPECTED_APPROVAL=$EXPECTED_APPROVAL",
         "PRODUCTION_MUTATION=false",
         "GCLOUD_CONTACT=false",
@@ -83,11 +86,12 @@ def test_v4_source_priority_rollout_has_local_only_preflight() -> None:
     assert source.index("exit 0", preflight) < approval
 
 
-def test_v4_source_priority_rollout_scope_is_eight_validated_files() -> None:
+def test_v4_source_priority_rollout_scope_is_nine_validated_files() -> None:
     source = _source()
     for path in (
         "src/bp_engine/recorder/writer.py",
         "src/bp_engine/storage/partitioned_raw.py",
+        "src/bp_engine/storage/recorder.py",
         "src/bp_engine/recorder/service.py",
         "src/bp_engine/config.py",
         "tests/recorder/test_writer.py",
@@ -97,6 +101,28 @@ def test_v4_source_priority_rollout_scope_is_eight_validated_files() -> None:
     ):
         assert path in source
     assert 'git diff --name-only "$FROM_HEAD" "$CANDIDATE_HEAD"' in source
+
+
+def test_v4_source_priority_rollout_binds_raw_insert_executemany_before_mutation() -> None:
+    source = _source()
+    storage_source = RECORDER_STORAGE.read_text(encoding="utf-8")
+    for marker in (
+        "EXPECTED_RAW_INSERT_CONTRACT='executemany_parameter_list'",
+        "candidate_raw_insert_executemany_missing",
+        "candidate_raw_insert_inline_values_present",
+        "RECORDER_RAW_INSERT_CONTRACT=$EXPECTED_RAW_INSERT_CONTRACT",
+        '"raw_insert_contract": "executemany_parameter_list"',
+        "deployed_raw_insert_executemany_missing",
+    ):
+        assert marker in source
+
+    assert "connection.execute(insert(raw_market_events), raw_rows)" in storage_source
+    assert "insert(raw_market_events).values(raw_rows)" not in storage_source
+
+    semantic_gate = source.index('RAW_INSERT_SOURCE="$(git -C "$REPO" show')
+    backup = source.index('BACKUP_DIR="$(mktemp -d', semantic_gate)
+    mutation = source.index("MUTATION_STARTED=1", semantic_gate)
+    assert semantic_gate < backup < mutation
 
 
 def test_v4_source_priority_rollout_preserves_compact_dedupe_contract() -> None:
@@ -135,6 +161,7 @@ def test_v4_source_priority_rollout_preserves_batch_and_writer_budget() -> None:
         '"recorder_priority_batch_size": 20',
         '"recorder_priority_event_contract": "ticker_only"',
         '"bybit_ticker_socket_contract": "dedicated_bybit_spot_and_linear"',
+        '"raw_insert_contract": "executemany_parameter_list"',
         "recorder writer split mismatch",
         "RECORDER_TOTAL_WRITER_WORKERS=4",
         "require_priority_config",
