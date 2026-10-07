@@ -321,27 +321,27 @@ def _run_migration(settings: Settings) -> dict[str, Any]:
                         partition_name=partition_name,
                         index_name=index_name,
                     )
+
+                benchmark = _benchmark_query(connection)
+                states = []
+                for partition_name in targets:
+                    index_name = _index_name(partition_name)
+                    state = _index_state(connection, index_name)
+                    assert state is not None
+                    states.append(
+                        {
+                            "partition": partition_name,
+                            "index_name": index_name,
+                            "index_bytes": int(state["index_bytes"]),
+                            "created_by_rollout": (
+                                index_name in created_indexes
+                            ),
+                        }
+                    )
             except BaseException:
                 connection.execute(text("SET statement_timeout = '15min'"))
                 _rollback_created_indexes(connection, created_indexes)
                 raise
-
-            benchmark = _benchmark_query(connection)
-            states = []
-            for partition_name in targets:
-                index_name = _index_name(partition_name)
-                state = _index_state(connection, index_name)
-                assert state is not None
-                states.append(
-                    {
-                        "partition": partition_name,
-                        "index_name": index_name,
-                        "index_bytes": int(state["index_bytes"]),
-                        "created_by_rollout": (
-                            index_name in created_indexes
-                        ),
-                    }
-                )
     finally:
         engine.dispose()
 
@@ -417,12 +417,10 @@ def main() -> int:
             Path(args.rollback_evidence),
         )
         print(json.dumps(payload, indent=2, sort_keys=True))
-        print("PHASE14_V4_SOURCE_LOOKUP_INDEX_ROLLBACK=PASS")
         return 0
 
     payload = _run_migration(settings)
     print(json.dumps(payload, indent=2, sort_keys=True))
-    print("PHASE14_V4_SOURCE_LOOKUP_INDEX_MIGRATION=PASS")
     return 0
 
 
