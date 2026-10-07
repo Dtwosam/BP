@@ -13,7 +13,7 @@ HELPER = (
 RECORDER_SERVICE = ROOT / "src" / "bp_engine" / "recorder" / "service.py"
 
 FROM_HEAD = "a694c2299cd34f0b2ee92ded4a4da1643eff0604"
-CANDIDATE_HEAD = "5e442b5120ae8804a2b716269c3476455a78e577"
+CANDIDATE_HEAD = "300a9e47500f2e0d6fb653786fc22c12f116b772"
 CANDIDATE_BRANCH = "ops/v4-two-priority-batched-candidate-20261007"
 SHADOW_RUN_ID = "v4-fresh-book-shadow-20261006T185619Z-271db613e003"
 
