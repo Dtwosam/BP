@@ -465,14 +465,151 @@ def test_v4_reader_batches_prefetched_partition_candidates(engine) -> None:
     assert float(current_observation.price) == 50004.0
     assert len(statements) == statement_count_after_prefetch
 
+    prior_key = reader._candidate_cache_key(
+        source="bybit",
+        stream="spot",
+        instrument="BTCUSDT",
+        requested_at=prior,
+        ticker_only=False,
+    )
+    current_key = reader._candidate_cache_key(
+        source="bybit",
+        stream="spot",
+        instrument="BTCUSDT",
+        requested_at=requested,
+        ticker_only=False,
+    )
+    assert [
+        int(row["id"])
+        for row in reader._prefetched_candidate_rows[prior_key]
+    ] == [910004]
+    assert [
+        int(row["id"])
+        for row in reader._prefetched_candidate_rows[current_key]
+    ] == [910005]
+
     candidate_statements = [
         statement
         for statement in statements
-        if " AS request_index" in statement
+        if "CROSS JOIN LATERAL" in statement
         and "raw_market_events_20260904_11" in statement
     ]
     assert len(candidate_statements) == 1
-    assert "UNION ALL" in candidate_statements[0]
+    assert "WITH requests(" in candidate_statements[0]
+    assert "VALUES" in candidate_statements[0]
+    assert "UNION ALL" not in candidate_statements[0]
+
+
+def test_v4_reader_lateral_prefetch_merges_cross_hour_candidates(engine) -> None:
+    requested = datetime(2026, 9, 4, 12, 0, tzinfo=UTC)
+    ensure_partitioned_raw_storage(
+        engine,
+        now=requested - timedelta(minutes=45),
+        migrate_existing=False,
+    )
+    with engine.begin() as connection:
+        connection.execute(
+            insert(raw_market_events),
+            [
+                {
+                    "id": 910006,
+                    "source": "bybit",
+                    "stream": "spot",
+                    "instrument": "BTCUSDT",
+                    "event_type": "ticker",
+                    "source_timestamp": requested - timedelta(seconds=0.4),
+                    "received_at": requested - timedelta(seconds=0.2),
+                    "sequence": "v4-lateral-hour-left",
+                    "market_id": None,
+                    "asset_id": None,
+                    "payload": {"data": {"lastPrice": "50005"}},
+                    "dedupe_key": "v4-lateral-hour-left",
+                },
+                {
+                    "id": 910007,
+                    "source": "bybit",
+                    "stream": "spot",
+                    "instrument": "BTCUSDT",
+                    "event_type": "ticker",
+                    "source_timestamp": requested,
+                    "received_at": requested,
+                    "sequence": "v4-lateral-hour-right",
+                    "market_id": None,
+                    "asset_id": None,
+                    "payload": {"data": {"lastPrice": "50006"}},
+                    "dedupe_key": "v4-lateral-hour-right",
+                },
+            ],
+        )
+
+    statements: list[str] = []
+
+    def capture(
+        _connection,
+        _cursor,
+        statement,
+        _parameters,
+        _context,
+        _executemany,
+    ) -> None:
+        statements.append(statement)
+
+    reader = V4SourceTimeReader()
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        with engine.connect() as connection:
+            reader.prefetch_candidate_rows(
+                connection,
+                (
+                    (
+                        "bybit",
+                        "spot",
+                        "BTCUSDT",
+                        requested,
+                        False,
+                    ),
+                ),
+            )
+            statement_count_after_prefetch = len(statements)
+            observation, _ = reader.latest_price(
+                connection,
+                source="bybit",
+                stream="spot",
+                instrument="BTCUSDT",
+                requested_at=requested,
+            )
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+
+    key = reader._candidate_cache_key(
+        source="bybit",
+        stream="spot",
+        instrument="BTCUSDT",
+        requested_at=requested,
+        ticker_only=False,
+    )
+    assert [
+        int(row["id"])
+        for row in reader._prefetched_candidate_rows[key]
+    ] == [910007, 910006]
+    assert observation is not None
+    assert float(observation.price) == 50006.0
+    assert len(statements) == statement_count_after_prefetch
+
+    candidate_statements = [
+        statement
+        for statement in statements
+        if "CROSS JOIN LATERAL" in statement
+    ]
+    assert len(candidate_statements) == 2
+    assert any(
+        "raw_market_events_20260904_11" in statement
+        for statement in candidate_statements
+    )
+    assert any(
+        "raw_market_events_20260904_12" in statement
+        for statement in candidate_statements
+    )
 
 
 def test_existing_hour_partition_does_not_repair_missing_v4_lookup_index(
