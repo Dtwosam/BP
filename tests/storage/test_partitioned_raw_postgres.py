@@ -38,6 +38,7 @@ from bp_engine.storage.schema import (
     raw_market_events,
     storage_maintenance_runs,
 )
+from bp_engine.v4_paper.source_time_features import V4SourceTimeReader
 from scripts.deploy.migrate_partitioned_raw_storage import _exact_raw_parity
 
 DATABASE_URL = os.getenv("BP_TEST_DATABASE_URL")
@@ -201,6 +202,162 @@ def test_new_hour_partition_gets_v4_source_lookup_index(engine) -> None:
         in normalized
     )
     assert "WHERE (source_timestamp IS NOT NULL)" in normalized
+
+
+def test_v4_reader_queries_attached_hour_child_directly(engine) -> None:
+    requested = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(
+        engine,
+        now=requested,
+        migrate_existing=False,
+    )
+    with engine.begin() as connection:
+        connection.execute(
+            insert(raw_market_events).values(
+                source="bybit",
+                stream="spot",
+                instrument="BTCUSDT",
+                event_type="ticker",
+                source_timestamp=requested - timedelta(seconds=0.2),
+                received_at=requested - timedelta(seconds=0.1),
+                sequence="v4-direct-child",
+                market_id=None,
+                asset_id=None,
+                payload={"data": {"lastPrice": "50000"}},
+                dedupe_key="v4-direct-child",
+            )
+        )
+
+    statements: list[str] = []
+
+    def capture(
+        _connection,
+        _cursor,
+        statement,
+        _parameters,
+        _context,
+        _executemany,
+    ) -> None:
+        statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        with engine.connect() as connection:
+            observation, evidence = V4SourceTimeReader().latest_price(
+                connection,
+                source="bybit",
+                stream="spot",
+                instrument="BTCUSDT",
+                requested_at=requested,
+            )
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+
+    assert observation is not None
+    assert float(observation.price) == 50000.0
+    assert len(evidence) == 1
+    assert any(
+        "FROM raw_market_events_20260904_11" in statement
+        for statement in statements
+    )
+
+
+def test_v4_reader_queries_both_children_across_hour_boundary(engine) -> None:
+    requested = datetime(2026, 9, 4, 12, 0, tzinfo=UTC)
+    ensure_partitioned_raw_storage(
+        engine,
+        now=requested - timedelta(minutes=45),
+        migrate_existing=False,
+    )
+    with engine.begin() as connection:
+        connection.execute(
+            insert(raw_market_events),
+            [
+                {
+                    "source": "bybit",
+                    "stream": "spot",
+                    "instrument": "BTCUSDT",
+                    "event_type": "ticker",
+                    "source_timestamp": requested - timedelta(seconds=0.4),
+                    "received_at": requested - timedelta(seconds=0.2),
+                    "sequence": "v4-hour-left",
+                    "market_id": None,
+                    "asset_id": None,
+                    "payload": {"data": {"lastPrice": "50001"}},
+                    "dedupe_key": "v4-hour-left",
+                },
+                {
+                    "source": "bybit",
+                    "stream": "spot",
+                    "instrument": "BTCUSDT",
+                    "event_type": "ticker",
+                    "source_timestamp": requested,
+                    "received_at": requested,
+                    "sequence": "v4-hour-right",
+                    "market_id": None,
+                    "asset_id": None,
+                    "payload": {"data": {"lastPrice": "50002"}},
+                    "dedupe_key": "v4-hour-right",
+                },
+            ],
+        )
+
+    statements: list[str] = []
+
+    def capture(
+        _connection,
+        _cursor,
+        statement,
+        _parameters,
+        _context,
+        _executemany,
+    ) -> None:
+        statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        with engine.connect() as connection:
+            observation, _ = V4SourceTimeReader().latest_price(
+                connection,
+                source="bybit",
+                stream="spot",
+                instrument="BTCUSDT",
+                requested_at=requested,
+            )
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+
+    assert observation is not None
+    assert float(observation.price) == 50002.0
+    assert any(
+        "FROM raw_market_events_20260904_11" in statement
+        for statement in statements
+    )
+    assert any(
+        "FROM raw_market_events_20260904_12" in statement
+        for statement in statements
+    )
+
+
+def test_v4_reader_treats_missing_hour_child_as_no_rows(engine) -> None:
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(
+        engine,
+        now=now,
+        migrate_existing=False,
+    )
+
+    with engine.connect() as connection:
+        observation, evidence = V4SourceTimeReader().latest_price(
+            connection,
+            source="coinbase",
+            stream="spot",
+            instrument="BTC-USD",
+            requested_at=now - timedelta(hours=2),
+        )
+
+    assert observation is None
+    assert evidence == ()
 
 
 def test_existing_hour_partition_does_not_repair_missing_v4_lookup_index(
