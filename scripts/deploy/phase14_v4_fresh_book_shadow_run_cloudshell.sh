@@ -86,6 +86,8 @@ if [[ -n "$ALLOWED_EXISTING_RUN_ID" ]]; then
     fail "direct_partition_attachment_guard_missing"
   grep -Fq 'def prefetch_candidate_rows(' "$SOURCE_FEATURES" ||
     fail "batched_source_prefetch_missing"
+  grep -Fq 'CROSS JOIN LATERAL (' "$SOURCE_FEATURES" ||
+    fail "lateral_source_prefetch_missing"
   grep -Fq 'reader=source_reader' "$RUNNER" ||
     fail "shadow_runner_shared_source_reader_missing"
 fi
@@ -108,7 +110,7 @@ case "$PREFLIGHT_ONLY" in
     printf 'SOURCE_RECEIVED_CUTOFF=received_at_lte_decision_at\n'
     printf 'PREDICTOR_SCHEMA_CONTRACT=training_missing_flags_reconstructed\n'
     if [[ -n "$ALLOWED_EXISTING_RUN_ID" ]]; then
-      printf 'SOURCE_LOOKUP_EXECUTION=batched_direct_hourly_children\n'
+      printf 'SOURCE_LOOKUP_EXECUTION=batched_lateral_direct_hourly_children\n'
     fi
     printf 'ALLOWED_EXISTING_RUN_ID=%s\n' "$ALLOWED_EXISTING_RUN_ID"
     if [[ -n "$ALLOWED_EXISTING_RUN_ID" ]]; then
@@ -429,6 +431,8 @@ if [[ -n "$allowed_existing_run_id" ]]; then
     fail "staged_direct_partition_attachment_guard_missing"
   grep -Fq 'def prefetch_candidate_rows(' "$source_features" ||
     fail "staged_batched_source_prefetch_missing"
+  grep -Fq 'CROSS JOIN LATERAL (' "$source_features" ||
+    fail "staged_lateral_source_prefetch_missing"
   grep -Fq 'reader=source_reader' "$runner" ||
     fail "staged_shadow_runner_shared_source_reader_missing"
 fi
@@ -659,7 +663,7 @@ printf 'SOURCE_FEATURE_VERSION=v4-source-time-features-v2\n'
 printf 'CORE_SOURCE_POLICY=require_market_start_and_current_all_venues\n'
 if [[ -n "$allowed_existing_run_id" ]]; then
   printf 'PARALLEL_VALIDATION=true\n'
-  printf 'SOURCE_LOOKUP_EXECUTION=batched_direct_hourly_children\n'
+  printf 'SOURCE_LOOKUP_EXECUTION=batched_lateral_direct_hourly_children\n'
   printf 'PRESERVED_EXISTING_RUN_ID=%s\n' "$allowed_existing_run_id"
 else
   printf 'PARALLEL_VALIDATION=false\n'
