@@ -103,6 +103,7 @@ exit 97
                 "def _postgres_candidate_rows(",
                 "def _postgres_partition_is_attached(",
                 "def prefetch_candidate_rows(",
+                "CROSS JOIN LATERAL (",
             )
         ),
         encoding="utf-8",
@@ -271,12 +272,14 @@ def test_v4_fresh_book_shadow_run_helper_is_hash_bound_and_money_disabled() -> N
         "direct_partition_candidate_rows_missing",
         "direct_partition_attachment_guard_missing",
         "batched_source_prefetch_missing",
+        "lateral_source_prefetch_missing",
         "shadow_runner_shared_source_reader_missing",
         "staged_direct_partition_candidate_rows_missing",
         "staged_direct_partition_attachment_guard_missing",
         "staged_batched_source_prefetch_missing",
+        "staged_lateral_source_prefetch_missing",
         "staged_shadow_runner_shared_source_reader_missing",
-        "SOURCE_LOOKUP_EXECUTION=batched_direct_hourly_children",
+        "SOURCE_LOOKUP_EXECUTION=batched_lateral_direct_hourly_children",
         "local_branch_not_main",
         "local_main_stale_update_before_run",
         "shadow_runner_retry_contract_missing",
@@ -467,6 +470,7 @@ exit 97
                 "def _postgres_candidate_rows(",
                 "def _postgres_partition_is_attached(",
                 "def prefetch_candidate_rows(",
+                "CROSS JOIN LATERAL (",
             )
         ),
         encoding="utf-8",
@@ -517,7 +521,7 @@ exit 99
     assert f"ALLOWED_EXISTING_RUN_ID={old_run}" in completed.stdout
     assert "PARALLEL_VALIDATION=true" in completed.stdout
     assert (
-        "SOURCE_LOOKUP_EXECUTION=batched_direct_hourly_children"
+        "SOURCE_LOOKUP_EXECUTION=batched_lateral_direct_hourly_children"
         in completed.stdout
     )
     assert (
