@@ -20,6 +20,8 @@ def test_v4_shadow_runner_is_read_only_money_disabled_and_source_time_safe() -> 
         "MAX_SOURCE_AGE_SECONDS",
         "MAX_FUTURE_SKEW_SECONDS",
         "V4_CORE_SOURCE_REQUIRED_FLAGS",
+        "V4SourceTimeReader",
+        "reader=source_reader",
         "core_source_ineligible_reasons",
         '"event": "v4_fresh_book_shadow_source_ineligible"',
         '"reason": "core_source_ineligible"',

@@ -32,6 +32,7 @@ from bp_engine.v4_paper.source_time_features import (
     MAX_SOURCE_AGE_SECONDS,
     V4_CORE_SOURCE_REQUIRED_FLAGS,
     V4_SOURCE_TIME_FEATURE_VERSION,
+    V4SourceTimeReader,
     build_source_time_v4_features,
     probe_core_source_time_v4_readiness,
 )
@@ -366,10 +367,12 @@ def main() -> int:
                             )
                         continue
 
+                    source_reader = V4SourceTimeReader()
                     readiness = probe_core_source_time_v4_readiness(
                         connection,
                         target,
                         decision_at=decision_at,
+                        reader=source_reader,
                     )
                     readiness_reasons = (
                         readiness.core_source_ineligible_reasons()
@@ -431,6 +434,7 @@ def main() -> int:
                         connection,
                         target,
                         decision_at=decision_at,
+                        reader=source_reader,
                     )
                     evidence_mapping = features.evidence_mapping()
                     evidence_sha256 = canonical_hash(evidence_mapping)

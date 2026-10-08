@@ -217,6 +217,10 @@ class V4SourceTimeReader:
         self.max_future_skew_seconds = float(max_future_skew_seconds)
         self._postgres_partitioned_raw: dict[int, bool] = {}
         self._postgres_attached_partitions: dict[tuple[int, str], bool] = {}
+        self._prefetched_candidate_rows: dict[
+            tuple[str, str, str, datetime, bool],
+            list[dict[str, Any]],
+        ] = {}
 
     @staticmethod
     def _partition_name(value: datetime) -> str:
@@ -271,42 +275,259 @@ class V4SourceTimeReader:
         self._postgres_partitioned_raw[engine_key] = partitioned
         return partitioned
 
+    def _postgres_refresh_attached_partitions(
+        self,
+        connection: Connection,
+        partition_names: tuple[str, ...],
+    ) -> None:
+        engine_key = id(connection.engine)
+        missing = tuple(
+            name
+            for name in dict.fromkeys(partition_names)
+            if (engine_key, name) not in self._postgres_attached_partitions
+        )
+        if not missing:
+            return
+
+        predicates = " OR ".join(
+            f"child.relname = :partition_name_{index}"
+            for index in range(len(missing))
+        )
+        params = {
+            f"partition_name_{index}": name
+            for index, name in enumerate(missing)
+        }
+        attached = set(
+            connection.execute(
+                text(
+                    f"""
+                    SELECT child.relname
+                    FROM pg_inherits AS inheritance
+                    JOIN pg_class AS parent
+                      ON parent.oid = inheritance.inhparent
+                    JOIN pg_namespace AS parent_namespace
+                      ON parent_namespace.oid = parent.relnamespace
+                    JOIN pg_class AS child
+                      ON child.oid = inheritance.inhrelid
+                    JOIN pg_namespace AS child_namespace
+                      ON child_namespace.oid = child.relnamespace
+                    WHERE parent_namespace.nspname = current_schema()
+                      AND child_namespace.nspname = current_schema()
+                      AND parent.relname = 'raw_market_events'
+                      AND ({predicates})
+                    """
+                ),
+                params,
+            ).scalars()
+        )
+        for name in missing:
+            self._postgres_attached_partitions[(engine_key, name)] = (
+                name in attached
+            )
+
     def _postgres_partition_is_attached(
         self,
         connection: Connection,
         partition_name: str,
     ) -> bool:
-        cache_key = (id(connection.engine), partition_name)
-        cached = self._postgres_attached_partitions.get(cache_key)
-        if cached is not None:
-            return cached
-        attached = bool(
-            connection.execute(
-                text(
-                    """
-                    SELECT EXISTS (
-                        SELECT 1
-                        FROM pg_inherits AS inheritance
-                        JOIN pg_class AS parent
-                          ON parent.oid = inheritance.inhparent
-                        JOIN pg_namespace AS parent_namespace
-                          ON parent_namespace.oid = parent.relnamespace
-                        JOIN pg_class AS child
-                          ON child.oid = inheritance.inhrelid
-                        JOIN pg_namespace AS child_namespace
-                          ON child_namespace.oid = child.relnamespace
-                        WHERE parent_namespace.nspname = current_schema()
-                          AND child_namespace.nspname = current_schema()
-                          AND parent.relname = 'raw_market_events'
-                          AND child.relname = :partition_name
-                    )
-                    """
-                ),
-                {"partition_name": partition_name},
-            ).scalar_one()
+        self._postgres_refresh_attached_partitions(
+            connection,
+            (partition_name,),
         )
-        self._postgres_attached_partitions[cache_key] = attached
-        return attached
+        return self._postgres_attached_partitions[
+            (id(connection.engine), partition_name)
+        ]
+
+    @staticmethod
+    def _candidate_cache_key(
+        *,
+        source: str,
+        stream: str,
+        instrument: str,
+        requested_at: datetime,
+        ticker_only: bool,
+    ) -> tuple[str, str, str, datetime, bool]:
+        return (
+            source,
+            stream,
+            instrument,
+            _utc(requested_at, "requested_at"),
+            bool(ticker_only),
+        )
+
+    @staticmethod
+    def _postgres_event_clause(
+        *,
+        source: str,
+        ticker_only: bool,
+    ) -> str:
+        if source == "coinbase":
+            return (
+                "event_type LIKE 'ticker_%'"
+                if ticker_only
+                else (
+                    "(event_type LIKE 'ticker_%' "
+                    "OR event_type LIKE 'market_trades_%')"
+                )
+            )
+        if source == "bybit":
+            return (
+                "event_type = 'ticker'"
+                if ticker_only
+                else "event_type IN ('ticker', 'trade')"
+            )
+        raise V4SourceTimeFeatureError(
+            f"unsupported V4 BTC source: {source}"
+        )
+
+    def prefetch_candidate_rows(
+        self,
+        connection: Connection,
+        requests: tuple[
+            tuple[str, str, str, datetime, bool],
+            ...,
+        ],
+    ) -> None:
+        self._prefetched_candidate_rows.clear()
+        if not requests:
+            return
+        if connection.dialect.name != "postgresql":
+            return
+        if not self._postgres_raw_is_partitioned(connection):
+            return
+
+        normalized = tuple(
+            dict.fromkeys(
+                self._candidate_cache_key(
+                    source=source,
+                    stream=stream,
+                    instrument=instrument,
+                    requested_at=requested_at,
+                    ticker_only=ticker_only,
+                )
+                for source, stream, instrument, requested_at, ticker_only
+                in requests
+            )
+        )
+        window = (
+            self.max_source_age_seconds
+            + self.max_future_skew_seconds
+            + _QUERY_PADDING_SECONDS
+        )
+        partition_names = tuple(
+            dict.fromkeys(
+                partition_name
+                for _, _, _, requested, _ in normalized
+                for partition_name in self._candidate_partition_names(
+                    requested - timedelta(seconds=window),
+                    requested,
+                )
+            )
+        )
+        self._postgres_refresh_attached_partitions(
+            connection,
+            partition_names,
+        )
+
+        rows_by_key = {
+            key: []
+            for key in normalized
+        }
+        request_by_index = {
+            index: key
+            for index, key in enumerate(normalized)
+        }
+        pieces: list[str] = []
+        params: dict[str, object] = {}
+
+        for request_index, key in request_by_index.items():
+            source, stream, instrument, requested, ticker_only = key
+            params.update(
+                {
+                    f"source_{request_index}": source,
+                    f"stream_{request_index}": stream,
+                    f"instrument_{request_index}": instrument,
+                    f"received_lower_{request_index}": (
+                        requested - timedelta(seconds=window)
+                    ),
+                    f"requested_{request_index}": requested,
+                    f"source_lower_{request_index}": (
+                        requested - timedelta(
+                            seconds=self.max_source_age_seconds
+                        )
+                    ),
+                    f"source_upper_{request_index}": (
+                        requested + timedelta(
+                            seconds=self.max_future_skew_seconds
+                        )
+                    ),
+                }
+            )
+            event_clause = self._postgres_event_clause(
+                source=source,
+                ticker_only=ticker_only,
+            )
+            for partition_name in self._candidate_partition_names(
+                requested - timedelta(seconds=window),
+                requested,
+            ):
+                if not self._postgres_attached_partitions[
+                    (id(connection.engine), partition_name)
+                ]:
+                    continue
+                quoted_partition = (
+                    connection.dialect.identifier_preparer.quote(
+                        partition_name
+                    )
+                )
+                pieces.append(
+                    f"""
+                    SELECT
+                        {request_index} AS request_index,
+                        id,
+                        source,
+                        stream,
+                        instrument,
+                        event_type,
+                        source_timestamp,
+                        received_at,
+                        sequence,
+                        market_id,
+                        asset_id,
+                        payload,
+                        dedupe_key
+                    FROM {quoted_partition}
+                    WHERE source = :source_{request_index}
+                      AND stream = :stream_{request_index}
+                      AND instrument = :instrument_{request_index}
+                      AND source_timestamp IS NOT NULL
+                      AND received_at >= :received_lower_{request_index}
+                      AND received_at <= :requested_{request_index}
+                      AND source_timestamp >= :source_lower_{request_index}
+                      AND source_timestamp <= :source_upper_{request_index}
+                      AND {event_clause}
+                    """
+                )
+
+        if pieces:
+            for row in connection.execute(
+                text(" UNION ALL ".join(pieces)),
+                params,
+            ).mappings():
+                request_index = int(row["request_index"])
+                item = dict(row)
+                item.pop("request_index", None)
+                rows_by_key[request_by_index[request_index]].append(item)
+
+        for key, rows in rows_by_key.items():
+            rows.sort(
+                key=lambda row: (
+                    _db_utc(row["received_at"]),
+                    int(row["id"]),
+                ),
+                reverse=True,
+            )
+            self._prefetched_candidate_rows[key] = rows
 
     def _postgres_candidate_rows(
         self,
@@ -330,25 +551,10 @@ class V4SourceTimeReader:
             "source_lower": requested - timedelta(seconds=self.max_source_age_seconds),
             "source_upper": requested + timedelta(seconds=self.max_future_skew_seconds),
         }
-        if source == "coinbase":
-            event_clause = (
-                "event_type LIKE 'ticker_%'"
-                if ticker_only
-                else (
-                    "(event_type LIKE 'ticker_%' "
-                    "OR event_type LIKE 'market_trades_%')"
-                )
-            )
-        elif source == "bybit":
-            event_clause = (
-                "event_type = 'ticker'"
-                if ticker_only
-                else "event_type IN ('ticker', 'trade')"
-            )
-        else:
-            raise V4SourceTimeFeatureError(
-                f"unsupported V4 BTC source: {source}"
-            )
+        event_clause = self._postgres_event_clause(
+            source=source,
+            ticker_only=ticker_only,
+        )
 
         rows: list[dict[str, Any]] = []
         for partition_name in self._candidate_partition_names(
@@ -423,6 +629,16 @@ class V4SourceTimeReader:
             + self.max_future_skew_seconds
             + _QUERY_PADDING_SECONDS
         )
+        cache_key = self._candidate_cache_key(
+            source=source,
+            stream=stream,
+            instrument=instrument,
+            requested_at=requested,
+            ticker_only=ticker_only,
+        )
+        if cache_key in self._prefetched_candidate_rows:
+            return list(self._prefetched_candidate_rows[cache_key])
+
         if (
             connection.dialect.name == "postgresql"
             and self._postgres_raw_is_partitioned(connection)
@@ -668,6 +884,21 @@ def probe_core_source_time_v4_readiness(
     }
     source_evidence: dict[str, SourceTimeEventEvidence] = {}
 
+    reader.prefetch_candidate_rows(
+        connection,
+        tuple(
+            (
+                source,
+                stream,
+                instrument,
+                requested,
+                False,
+            )
+            for _, source, stream, instrument in venue_specs
+            for requested in (start, decision)
+        ),
+    )
+
     for prefix, source, stream, instrument in venue_specs:
         for name, requested in (
             ("market_start", start),
@@ -722,16 +953,52 @@ def build_source_time_v4_features(
     short_sets: dict[str, BTCShortAnchorSet] = {}
     regime_groups: dict[str, FeatureGroup] = {}
     groups: list[FeatureGroup] = [time_geometry(target, decision)]
+    short_times = {
+        "market_start": start,
+        "trailing_120s": decision - timedelta(seconds=120),
+        "trailing_60s": decision - timedelta(seconds=60),
+        "trailing_30s": decision - timedelta(seconds=30),
+        "current": decision,
+    }
+    regime_times = {
+        "trailing_60m": decision - timedelta(seconds=3600),
+        "trailing_15m": decision - timedelta(seconds=900),
+        "trailing_5m": decision - timedelta(seconds=300),
+    }
+    prefetch_requests: list[
+        tuple[str, str, str, datetime, bool]
+    ] = []
+    for prefix, source, stream, instrument in venue_specs:
+        prefetch_requests.extend(
+            (
+                source,
+                stream,
+                instrument,
+                requested,
+                False,
+            )
+            for requested in (
+                *short_times.values(),
+                *regime_times.values(),
+            )
+        )
+        if prefix == "bybit_linear":
+            prefetch_requests.append(
+                (
+                    source,
+                    stream,
+                    instrument,
+                    decision,
+                    True,
+                )
+            )
+    reader.prefetch_candidate_rows(
+        connection,
+        tuple(prefetch_requests),
+    )
 
     for prefix, source, stream, instrument in venue_specs:
         anchors: dict[str, BTCStateObservation | None] = {}
-        short_times = {
-            "market_start": start,
-            "trailing_120s": decision - timedelta(seconds=120),
-            "trailing_60s": decision - timedelta(seconds=60),
-            "trailing_30s": decision - timedelta(seconds=30),
-            "current": decision,
-        }
         for name, requested in short_times.items():
             observation, evidence_items = reader.latest_price(
                 connection,
@@ -759,17 +1026,13 @@ def build_source_time_v4_features(
         short_group = short_return_group(prefix, short)
 
         regime_anchors: dict[str, BTCStateObservation | None] = {}
-        for name, seconds in (
-            ("trailing_60m", 3600),
-            ("trailing_15m", 900),
-            ("trailing_5m", 300),
-        ):
+        for name, requested in regime_times.items():
             observation, evidence_items = reader.latest_price(
                 connection,
                 source=source,
                 stream=stream,
                 instrument=instrument,
-                requested_at=decision - timedelta(seconds=seconds),
+                requested_at=requested,
             )
             regime_anchors[name] = observation
             for index, evidence in enumerate(evidence_items):
