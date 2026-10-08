@@ -12,6 +12,7 @@ EXPECTED_SKLEARN_VERSION="1.9.1"
 EXPECTED_XGBOOST_VERSION="3.4.1"
 EXPECTED_JOBLIB_VERSION="1.5.3"
 PREFLIGHT_ONLY="${PHASE14_V4_FRESH_BOOK_SHADOW_PREFLIGHT_ONLY:-false}"
+ALLOWED_EXISTING_RUN_ID="${PHASE14_V4_FRESH_BOOK_SHADOW_ALLOWED_EXISTING_RUN_ID:-}"
 
 fail() {
   printf 'PHASE14_V4_FRESH_BOOK_SHADOW_RUN=FAIL:%s\n' "$1" >&2
@@ -28,6 +29,11 @@ cd "$ROOT"
 
 [[ -z "$(git status --porcelain --untracked-files=all)" ]] ||
   fail "local_working_tree_dirty"
+
+if [[ -n "$ALLOWED_EXISTING_RUN_ID" ]]; then
+  [[ "$ALLOWED_EXISTING_RUN_ID" =~ ^v4-fresh-book-shadow-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{12}$ ]] ||
+    fail "allowed_existing_run_id_invalid"
+fi
 
 CURRENT_BRANCH="$(git branch --show-current)"
 [[ "$CURRENT_BRANCH" == "main" ]] || fail "local_branch_not_main"
@@ -73,8 +79,18 @@ grep -Fq 'raw_market_events.c.received_at <= requested' "$SOURCE_FEATURES" ||
   fail "source_time_strict_received_cutoff_missing"
 grep -Fq 'if received_at > requested:' "$SOURCE_FEATURES" ||
   fail "source_time_received_guard_missing"
+if [[ -n "$ALLOWED_EXISTING_RUN_ID" ]]; then
+  grep -Fq 'def _postgres_candidate_rows(' "$SOURCE_FEATURES" ||
+    fail "direct_partition_candidate_rows_missing"
+  grep -Fq 'def _postgres_partition_is_attached(' "$SOURCE_FEATURES" ||
+    fail "direct_partition_attachment_guard_missing"
+fi
 
-EXPECTED_APPROVAL="I_APPROVE_PHASE14_V4_ZERO_MONEY_PAPER_SHADOW:${LOCAL_HEAD}:${EXPECTED_MODEL_SHA256}:${EXPECTED_SKLEARN_VERSION}:${EXPECTED_XGBOOST_VERSION}:${EXPECTED_JOBLIB_VERSION}"
+if [[ -n "$ALLOWED_EXISTING_RUN_ID" ]]; then
+  EXPECTED_APPROVAL="I_APPROVE_PHASE14_V4_ZERO_MONEY_PAPER_SHADOW_PARALLEL:${LOCAL_HEAD}:${EXPECTED_MODEL_SHA256}:${ALLOWED_EXISTING_RUN_ID}:${RUN_SECONDS}:${EXPECTED_SKLEARN_VERSION}:${EXPECTED_XGBOOST_VERSION}:${EXPECTED_JOBLIB_VERSION}"
+else
+  EXPECTED_APPROVAL="I_APPROVE_PHASE14_V4_ZERO_MONEY_PAPER_SHADOW:${LOCAL_HEAD}:${EXPECTED_MODEL_SHA256}:${EXPECTED_SKLEARN_VERSION}:${EXPECTED_XGBOOST_VERSION}:${EXPECTED_JOBLIB_VERSION}"
+fi
 case "$PREFLIGHT_ONLY" in
   true)
     printf 'PHASE14_V4_FRESH_BOOK_SHADOW_PREFLIGHT=PASS\n'
@@ -87,6 +103,12 @@ case "$PREFLIGHT_ONLY" in
     printf 'SOURCE_RETRY_PROBE=core_six_anchor_only\n'
     printf 'SOURCE_RECEIVED_CUTOFF=received_at_lte_decision_at\n'
     printf 'PREDICTOR_SCHEMA_CONTRACT=training_missing_flags_reconstructed\n'
+    printf 'ALLOWED_EXISTING_RUN_ID=%s\n' "$ALLOWED_EXISTING_RUN_ID"
+    if [[ -n "$ALLOWED_EXISTING_RUN_ID" ]]; then
+      printf 'PARALLEL_VALIDATION=true\n'
+    else
+      printf 'PARALLEL_VALIDATION=false\n'
+    fi
     printf 'EXPECTED_APPROVAL=%s\n' "$EXPECTED_APPROVAL"
     printf 'PRODUCTION_HOST_CONTACTED=false\n'
     printf 'PRODUCTION_MUTATION_PERFORMED=false\n'
@@ -135,7 +157,7 @@ gcloud compute ssh "$VM" \
   --project="$PROJECT" \
   --zone="$ZONE" \
   --quiet \
-  --command="sudo bash -s -- '$REMOTE_ARCHIVE' '$LOCAL_HEAD' '$ARCHIVE_SHA' '$ENV_FILE' '$RUN_SECONDS' '$EXPECTED_MODEL_SHA256' '$EXPECTED_MODEL_SIZE_BYTES' '$EXPECTED_SKLEARN_VERSION' '$EXPECTED_XGBOOST_VERSION' '$EXPECTED_JOBLIB_VERSION'" <<'REMOTE'
+  --command="sudo bash -s -- '$REMOTE_ARCHIVE' '$LOCAL_HEAD' '$ARCHIVE_SHA' '$ENV_FILE' '$RUN_SECONDS' '$EXPECTED_MODEL_SHA256' '$EXPECTED_MODEL_SIZE_BYTES' '$EXPECTED_SKLEARN_VERSION' '$EXPECTED_XGBOOST_VERSION' '$EXPECTED_JOBLIB_VERSION' '$ALLOWED_EXISTING_RUN_ID'" <<'REMOTE'
 set -Eeuo pipefail
 
 archive="$1"
@@ -148,6 +170,7 @@ expected_model_size="$7"
 expected_sklearn_version="$8"
 expected_xgboost_version="$9"
 expected_joblib_version="${10}"
+allowed_existing_run_id="${11}"
 runtime_max_seconds=$((run_seconds + 60))
 
 fail() {
@@ -265,9 +288,62 @@ if systemctl list-units --type=service --state=running --no-legend \
     'bp-v3-fresh-book-shadow-*' | grep -q .; then
   fail "v3_fresh_book_shadow_already_running"
 fi
-if systemctl list-units --type=service --state=running --no-legend \
-    'bp-v4-fresh-book-shadow-*' | grep -q .; then
-  fail "v4_fresh_book_shadow_already_running"
+if [[ -n "$allowed_existing_run_id" ]]; then
+  [[ "$allowed_existing_run_id" =~ ^v4-fresh-book-shadow-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{12}$ ]] ||
+    fail "allowed_existing_run_id_invalid"
+  allowed_existing_unit="bp-$allowed_existing_run_id.service"
+  allowed_existing_evidence="$EVIDENCE_ROOT/$allowed_existing_run_id.jsonl"
+  systemctl is-active --quiet "$allowed_existing_unit" ||
+    fail "allowed_existing_v4_shadow_not_active"
+  [[ -f "$allowed_existing_evidence" && ! -L "$allowed_existing_evidence" ]] ||
+    fail "allowed_existing_v4_shadow_evidence_missing"
+  mapfile -t running_v4_units < <(
+    systemctl list-units --type=service --state=running --no-legend \
+      'bp-v4-fresh-book-shadow-*' |
+      awk '{print $1}'
+  )
+  [[ "${#running_v4_units[@]}" -eq 1 ]] ||
+    fail "unexpected_running_v4_shadow_count"
+  [[ "${running_v4_units[0]}" == "$allowed_existing_unit" ]] ||
+    fail "unexpected_running_v4_shadow_unit"
+  runuser -u bp -- python3 -     "$allowed_existing_evidence" "$expected_model_sha" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+expected_model_sha = sys.argv[2]
+starts = []
+for raw in path.read_text(encoding="utf-8").splitlines():
+    if not raw.startswith("{"):
+        continue
+    try:
+        row = json.loads(raw)
+    except json.JSONDecodeError:
+        continue
+    if row.get("event") == "v4_fresh_book_shadow_started":
+        starts.append(row)
+if len(starts) != 1:
+    raise SystemExit(f"expected one existing start record, got {len(starts)}")
+start = starts[0]
+if start.get("model_sha256") != expected_model_sha:
+    raise SystemExit("existing shadow model sha mismatch")
+for key, expected in (
+    ("database_read_only", True),
+    ("order_submission_enabled", False),
+    ("wallet_material_loaded", False),
+    ("holdout_labels_read", False),
+    ("model_refit_performed", False),
+    ("threshold_tuning_performed", False),
+):
+    if start.get(key) != expected:
+        raise SystemExit(f"existing shadow safety mismatch: {key}")
+PY
+else
+  if systemctl list-units --type=service --state=running --no-legend \
+      'bp-v4-fresh-book-shadow-*' | grep -q .; then
+    fail "v4_fresh_book_shadow_already_running"
+  fi
 fi
 
 source_model="$(find_frozen_model)" || fail "frozen_v4_model_artifact_not_found"
@@ -339,6 +415,12 @@ grep -Fq 'raw_market_events.c.received_at <= requested' "$source_features" ||
   fail "staged_source_time_strict_received_cutoff_missing"
 grep -Fq 'if received_at > requested:' "$source_features" ||
   fail "staged_source_time_received_guard_missing"
+if [[ -n "$allowed_existing_run_id" ]]; then
+  grep -Fq 'def _postgres_candidate_rows(' "$source_features" ||
+    fail "staged_direct_partition_candidate_rows_missing"
+  grep -Fq 'def _postgres_partition_is_attached(' "$source_features" ||
+    fail "staged_direct_partition_attachment_guard_missing"
+fi
 
 [[ -r "$runtime_requirements" ]] || fail "paper_runtime_requirements_missing"
 grep -Fxq "scikit-learn==$expected_sklearn_version" "$runtime_requirements" ||
@@ -516,6 +598,10 @@ while ! grep -q '"event":"v4_fresh_book_shadow_started"' "$output"; do
 done
 
 systemctl is-active --quiet "$SOURCE_UNIT" && fail "fast_live_source_reactivated"
+if [[ -n "$allowed_existing_run_id" ]]; then
+  systemctl is-active --quiet "bp-$allowed_existing_run_id.service" ||
+    fail "allowed_existing_v4_shadow_stopped"
+fi
 grep -q '"database_read_only":true' "$output" || {
   cat "$output" >&2 || true
   fail "v4_shadow_read_only_record_missing"
@@ -560,6 +646,12 @@ printf 'XGBOOST_VERSION=%s\n' "$expected_xgboost_version"
 printf 'JOBLIB_VERSION=%s\n' "$expected_joblib_version"
 printf 'SOURCE_FEATURE_VERSION=v4-source-time-features-v2\n'
 printf 'CORE_SOURCE_POLICY=require_market_start_and_current_all_venues\n'
+if [[ -n "$allowed_existing_run_id" ]]; then
+  printf 'PARALLEL_VALIDATION=true\n'
+  printf 'PRESERVED_EXISTING_RUN_ID=%s\n' "$allowed_existing_run_id"
+else
+  printf 'PARALLEL_VALIDATION=false\n'
+fi
 printf 'MAX_BTC_SOURCE_AGE_SECONDS=2.0\n'
 printf 'MAX_BTC_FUTURE_SKEW_SECONDS=1.0\n'
 printf 'MAX_DECISION_LAG_SECONDS=2.0\n'
