@@ -539,7 +539,6 @@ grep -Fq \
 MIGRATION_TMP="$(
   mktemp /var/tmp/bp-v4-source-lookup-migration.XXXXXX.json
 )"
-chown bp:bp "$MIGRATION_TMP"
 chmod 0600 "$MIGRATION_TMP"
 
 if ! sudo -u bp env \
@@ -553,6 +552,8 @@ then
   cat "$MIGRATION_TMP" >&2 || true
   fail "index_migration_failed"
 fi
+
+chown bp:bp "$MIGRATION_TMP"
 
 "$REPO/.venv/bin/python" - "$MIGRATION_TMP" <<'PY'
 import json
