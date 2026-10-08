@@ -437,36 +437,13 @@ class V4SourceTimeReader:
             index: key
             for index, key in enumerate(normalized)
         }
-        pieces: list[str] = []
-        params: dict[str, object] = {}
+        request_groups: dict[
+            tuple[str, str, str, bool, str],
+            list[tuple[int, datetime]],
+        ] = {}
 
         for request_index, key in request_by_index.items():
             source, stream, instrument, requested, ticker_only = key
-            params.update(
-                {
-                    f"source_{request_index}": source,
-                    f"stream_{request_index}": stream,
-                    f"instrument_{request_index}": instrument,
-                    f"received_lower_{request_index}": (
-                        requested - timedelta(seconds=window)
-                    ),
-                    f"requested_{request_index}": requested,
-                    f"source_lower_{request_index}": (
-                        requested - timedelta(
-                            seconds=self.max_source_age_seconds
-                        )
-                    ),
-                    f"source_upper_{request_index}": (
-                        requested + timedelta(
-                            seconds=self.max_future_skew_seconds
-                        )
-                    ),
-                }
-            )
-            event_clause = self._postgres_event_clause(
-                source=source,
-                ticker_only=ticker_only,
-            )
             for partition_name in self._candidate_partition_names(
                 requested - timedelta(seconds=window),
                 requested,
@@ -475,15 +452,97 @@ class V4SourceTimeReader:
                     (id(connection.engine), partition_name)
                 ]:
                     continue
-                quoted_partition = (
-                    connection.dialect.identifier_preparer.quote(
-                        partition_name
-                    )
+                group_key = (
+                    source,
+                    stream,
+                    instrument,
+                    ticker_only,
+                    partition_name,
                 )
-                pieces.append(
-                    f"""
+                request_groups.setdefault(group_key, []).append(
+                    (request_index, requested)
+                )
+
+        for group_key, grouped_requests in request_groups.items():
+            source, stream, instrument, ticker_only, partition_name = (
+                group_key
+            )
+            quoted_partition = (
+                connection.dialect.identifier_preparer.quote(
+                    partition_name
+                )
+            )
+            event_clause = self._postgres_event_clause(
+                source=source,
+                ticker_only=ticker_only,
+            )
+            values: list[str] = []
+            params: dict[str, object] = {
+                "source": source,
+                "stream": stream,
+                "instrument": instrument,
+            }
+            for value_index, (
+                request_index,
+                requested,
+            ) in enumerate(grouped_requests):
+                values.append(
+                    "("
+                    f":request_index_{value_index}, "
+                    f":received_lower_{value_index}, "
+                    f":requested_{value_index}, "
+                    f":source_lower_{value_index}, "
+                    f":source_upper_{value_index}"
+                    ")"
+                )
+                params.update(
+                    {
+                        f"request_index_{value_index}": request_index,
+                        f"received_lower_{value_index}": (
+                            requested - timedelta(seconds=window)
+                        ),
+                        f"requested_{value_index}": requested,
+                        f"source_lower_{value_index}": (
+                            requested - timedelta(
+                                seconds=self.max_source_age_seconds
+                            )
+                        ),
+                        f"source_upper_{value_index}": (
+                            requested + timedelta(
+                                seconds=self.max_future_skew_seconds
+                            )
+                        ),
+                    }
+                )
+
+            statement = text(
+                f"""
+                WITH requests(
+                    request_index,
+                    received_lower,
+                    requested,
+                    source_lower,
+                    source_upper
+                ) AS (
+                    VALUES {", ".join(values)}
+                )
+                SELECT
+                    requests.request_index,
+                    candidate.id,
+                    candidate.source,
+                    candidate.stream,
+                    candidate.instrument,
+                    candidate.event_type,
+                    candidate.source_timestamp,
+                    candidate.received_at,
+                    candidate.sequence,
+                    candidate.market_id,
+                    candidate.asset_id,
+                    candidate.payload,
+                    candidate.dedupe_key
+                FROM requests
+                CROSS JOIN LATERAL (
                     SELECT
-                        {request_index} AS request_index,
                         id,
                         source,
                         stream,
@@ -497,21 +556,25 @@ class V4SourceTimeReader:
                         payload,
                         dedupe_key
                     FROM {quoted_partition}
-                    WHERE source = :source_{request_index}
-                      AND stream = :stream_{request_index}
-                      AND instrument = :instrument_{request_index}
+                    WHERE source = :source
+                      AND stream = :stream
+                      AND instrument = :instrument
                       AND source_timestamp IS NOT NULL
-                      AND received_at >= :received_lower_{request_index}
-                      AND received_at <= :requested_{request_index}
-                      AND source_timestamp >= :source_lower_{request_index}
-                      AND source_timestamp <= :source_upper_{request_index}
+                      AND received_at >= requests.received_lower
+                      AND received_at <= requests.requested
+                      AND source_timestamp >= requests.source_lower
+                      AND source_timestamp <= requests.source_upper
                       AND {event_clause}
-                    """
-                )
-
-        if pieces:
+                    ORDER BY received_at DESC, id DESC
+                ) AS candidate
+                ORDER BY
+                    requests.request_index,
+                    candidate.received_at DESC,
+                    candidate.id DESC
+                """
+            )
             for row in connection.execute(
-                text(" UNION ALL ".join(pieces)),
+                statement,
                 params,
             ).mappings():
                 request_index = int(row["request_index"])
