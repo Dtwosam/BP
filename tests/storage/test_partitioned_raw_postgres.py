@@ -363,6 +363,118 @@ def test_v4_reader_treats_missing_hour_child_as_no_rows(engine) -> None:
     assert evidence == ()
 
 
+def test_v4_reader_batches_prefetched_partition_candidates(engine) -> None:
+    requested = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    prior = requested - timedelta(minutes=5)
+    ensure_partitioned_raw_storage(
+        engine,
+        now=requested,
+        migrate_existing=False,
+    )
+    with engine.begin() as connection:
+        connection.execute(
+            insert(raw_market_events),
+            [
+                {
+                    "id": 910004,
+                    "source": "bybit",
+                    "stream": "spot",
+                    "instrument": "BTCUSDT",
+                    "event_type": "ticker",
+                    "source_timestamp": prior - timedelta(seconds=0.2),
+                    "received_at": prior - timedelta(seconds=0.1),
+                    "sequence": "v4-batch-prior",
+                    "market_id": None,
+                    "asset_id": None,
+                    "payload": {"data": {"lastPrice": "50003"}},
+                    "dedupe_key": "v4-batch-prior",
+                },
+                {
+                    "id": 910005,
+                    "source": "bybit",
+                    "stream": "spot",
+                    "instrument": "BTCUSDT",
+                    "event_type": "ticker",
+                    "source_timestamp": requested - timedelta(seconds=0.2),
+                    "received_at": requested - timedelta(seconds=0.1),
+                    "sequence": "v4-batch-current",
+                    "market_id": None,
+                    "asset_id": None,
+                    "payload": {"data": {"lastPrice": "50004"}},
+                    "dedupe_key": "v4-batch-current",
+                },
+            ],
+        )
+
+    statements: list[str] = []
+
+    def capture(
+        _connection,
+        _cursor,
+        statement,
+        _parameters,
+        _context,
+        _executemany,
+    ) -> None:
+        statements.append(statement)
+
+    reader = V4SourceTimeReader()
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        with engine.connect() as connection:
+            reader.prefetch_candidate_rows(
+                connection,
+                (
+                    (
+                        "bybit",
+                        "spot",
+                        "BTCUSDT",
+                        prior,
+                        False,
+                    ),
+                    (
+                        "bybit",
+                        "spot",
+                        "BTCUSDT",
+                        requested,
+                        False,
+                    ),
+                ),
+            )
+            statement_count_after_prefetch = len(statements)
+            prior_observation, _ = reader.latest_price(
+                connection,
+                source="bybit",
+                stream="spot",
+                instrument="BTCUSDT",
+                requested_at=prior,
+            )
+            current_observation, _ = reader.latest_price(
+                connection,
+                source="bybit",
+                stream="spot",
+                instrument="BTCUSDT",
+                requested_at=requested,
+            )
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+
+    assert prior_observation is not None
+    assert float(prior_observation.price) == 50003.0
+    assert current_observation is not None
+    assert float(current_observation.price) == 50004.0
+    assert len(statements) == statement_count_after_prefetch
+
+    candidate_statements = [
+        statement
+        for statement in statements
+        if " AS request_index" in statement
+        and "raw_market_events_20260904_11" in statement
+    ]
+    assert len(candidate_statements) == 1
+    assert "UNION ALL" in candidate_statements[0]
+
+
 def test_existing_hour_partition_does_not_repair_missing_v4_lookup_index(
     engine,
 ) -> None:
