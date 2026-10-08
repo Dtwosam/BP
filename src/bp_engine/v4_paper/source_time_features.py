@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from sqlalchemy import Connection, or_, select
+from sqlalchemy import Connection, or_, select, text
 
 from bp_engine.features.calculators import FeatureGroup, time_geometry
 from bp_engine.features.v4_calculators import (
@@ -215,6 +215,197 @@ class V4SourceTimeReader:
             raise ValueError("max_future_skew_seconds must be non-negative")
         self.max_source_age_seconds = float(max_source_age_seconds)
         self.max_future_skew_seconds = float(max_future_skew_seconds)
+        self._postgres_partitioned_raw: dict[int, bool] = {}
+        self._postgres_attached_partitions: dict[tuple[int, str], bool] = {}
+
+    @staticmethod
+    def _partition_name(value: datetime) -> str:
+        hour = _utc(value, "partition timestamp").replace(
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+        return f"raw_market_events_{hour:%Y%m%d}_{hour:%H}"
+
+    @classmethod
+    def _candidate_partition_names(
+        cls,
+        received_lower: datetime,
+        received_upper: datetime,
+    ) -> tuple[str, ...]:
+        lower = _utc(received_lower, "received_lower").replace(
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+        upper = _utc(received_upper, "received_upper").replace(
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+        names: list[str] = []
+        current = lower
+        while current <= upper:
+            names.append(cls._partition_name(current))
+            current += timedelta(hours=1)
+        return tuple(names)
+
+    def _postgres_raw_is_partitioned(self, connection: Connection) -> bool:
+        engine_key = id(connection.engine)
+        cached = self._postgres_partitioned_raw.get(engine_key)
+        if cached is not None:
+            return cached
+        relkind = connection.execute(
+            text(
+                """
+                SELECT relation.relkind
+                FROM pg_class AS relation
+                JOIN pg_namespace AS namespace
+                  ON namespace.oid = relation.relnamespace
+                WHERE namespace.nspname = current_schema()
+                  AND relation.relname = 'raw_market_events'
+                """
+            )
+        ).scalar_one_or_none()
+        partitioned = relkind == "p"
+        self._postgres_partitioned_raw[engine_key] = partitioned
+        return partitioned
+
+    def _postgres_partition_is_attached(
+        self,
+        connection: Connection,
+        partition_name: str,
+    ) -> bool:
+        cache_key = (id(connection.engine), partition_name)
+        cached = self._postgres_attached_partitions.get(cache_key)
+        if cached is not None:
+            return cached
+        attached = bool(
+            connection.execute(
+                text(
+                    """
+                    SELECT EXISTS (
+                        SELECT 1
+                        FROM pg_inherits AS inheritance
+                        JOIN pg_class AS parent
+                          ON parent.oid = inheritance.inhparent
+                        JOIN pg_namespace AS parent_namespace
+                          ON parent_namespace.oid = parent.relnamespace
+                        JOIN pg_class AS child
+                          ON child.oid = inheritance.inhrelid
+                        JOIN pg_namespace AS child_namespace
+                          ON child_namespace.oid = child.relnamespace
+                        WHERE parent_namespace.nspname = current_schema()
+                          AND child_namespace.nspname = current_schema()
+                          AND parent.relname = 'raw_market_events'
+                          AND child.relname = :partition_name
+                    )
+                    """
+                ),
+                {"partition_name": partition_name},
+            ).scalar_one()
+        )
+        self._postgres_attached_partitions[cache_key] = attached
+        return attached
+
+    def _postgres_candidate_rows(
+        self,
+        connection: Connection,
+        *,
+        source: str,
+        stream: str,
+        instrument: str,
+        requested_at: datetime,
+        ticker_only: bool,
+        window_seconds: float,
+    ) -> list[dict[str, Any]]:
+        requested = _utc(requested_at, "requested_at")
+        received_lower = requested - timedelta(seconds=window_seconds)
+        params = {
+            "source": source,
+            "stream": stream,
+            "instrument": instrument,
+            "received_lower": received_lower,
+            "requested": requested,
+            "source_lower": requested - timedelta(seconds=self.max_source_age_seconds),
+            "source_upper": requested + timedelta(seconds=self.max_future_skew_seconds),
+        }
+        if source == "coinbase":
+            event_clause = (
+                "event_type LIKE 'ticker_%'"
+                if ticker_only
+                else (
+                    "(event_type LIKE 'ticker_%' "
+                    "OR event_type LIKE 'market_trades_%')"
+                )
+            )
+        elif source == "bybit":
+            event_clause = (
+                "event_type = 'ticker'"
+                if ticker_only
+                else "event_type IN ('ticker', 'trade')"
+            )
+        else:
+            raise V4SourceTimeFeatureError(
+                f"unsupported V4 BTC source: {source}"
+            )
+
+        rows: list[dict[str, Any]] = []
+        for partition_name in self._candidate_partition_names(
+            received_lower,
+            requested,
+        ):
+            if not self._postgres_partition_is_attached(
+                connection,
+                partition_name,
+            ):
+                continue
+            quoted_partition = connection.dialect.identifier_preparer.quote(
+                partition_name
+            )
+            statement = text(
+                f"""
+                SELECT
+                    id,
+                    source,
+                    stream,
+                    instrument,
+                    event_type,
+                    source_timestamp,
+                    received_at,
+                    sequence,
+                    market_id,
+                    asset_id,
+                    payload,
+                    dedupe_key
+                FROM {quoted_partition}
+                WHERE source = :source
+                  AND stream = :stream
+                  AND instrument = :instrument
+                  AND source_timestamp IS NOT NULL
+                  AND received_at >= :received_lower
+                  AND received_at <= :requested
+                  AND source_timestamp >= :source_lower
+                  AND source_timestamp <= :source_upper
+                  AND {event_clause}
+                ORDER BY received_at DESC, id DESC
+                """
+            )
+            rows.extend(
+                dict(row)
+                for row in connection.execute(
+                    statement,
+                    params,
+                ).mappings()
+            )
+        rows.sort(
+            key=lambda row: (
+                _db_utc(row["received_at"]),
+                int(row["id"]),
+            ),
+            reverse=True,
+        )
+        return rows
 
     def _candidate_rows(
         self,
@@ -232,6 +423,20 @@ class V4SourceTimeReader:
             + self.max_future_skew_seconds
             + _QUERY_PADDING_SECONDS
         )
+        if (
+            connection.dialect.name == "postgresql"
+            and self._postgres_raw_is_partitioned(connection)
+        ):
+            return self._postgres_candidate_rows(
+                connection,
+                source=source,
+                stream=stream,
+                instrument=instrument,
+                requested_at=requested,
+                ticker_only=ticker_only,
+                window_seconds=window,
+            )
+
         statement = select(raw_market_events).where(
             raw_market_events.c.source == source,
             raw_market_events.c.stream == stream,
