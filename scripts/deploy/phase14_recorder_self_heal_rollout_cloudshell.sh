@@ -268,7 +268,7 @@ probe_v4_sources() {
 import json
 import sys
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from sqlalchemy import create_engine, text
 from bp_engine.config import Settings
 
@@ -294,6 +294,7 @@ specs = (
 
 def snapshot():
     now = datetime.now(UTC)
+    cutoff = now - timedelta(hours=6)
     rows = []
     with engine.connect() as connection:
         readonly = connection.execute(
@@ -315,6 +316,7 @@ def snapshot():
                       AND stream = :stream
                       AND instrument = :instrument
                       AND source_timestamp IS NOT NULL
+                      AND received_at >= :cutoff
                       AND (
                             (:source = 'coinbase'
                              AND (
@@ -332,6 +334,7 @@ def snapshot():
                     "source": source,
                     "stream": stream,
                     "instrument": instrument,
+                    "cutoff": cutoff,
                 },
             ).mappings().first()
             payload = {
@@ -614,7 +617,8 @@ echo "RECORDER_ACTIVE=true"
 echo "SHADOW_RUN_ID=$EXPECTED_SHADOW_RUN_ID"
 echo "SHADOW_UNIT_ACTIVE=true"
 echo "SHADOW_RESTARTED=false"
-echo "DATABASE_WRITES_PERFORMED_BY_HELPER=false"
+echo "DATABASE_DDL_PERFORMED=false"
+echo "RECORDER_DATABASE_WRITES_EXPECTED=true"
 echo "LIVE_TRADING_ENABLED=false"
 echo "MAX_TRADE_SIZE_USD=0"
 echo "MAX_DAILY_LOSS_USD=0"
