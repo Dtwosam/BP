@@ -99,6 +99,8 @@ exit 97
                 "def probe_core_source_time_v4_readiness(",
                 "raw_market_events.c.received_at <= requested",
                 "if received_at > requested:",
+                "def _postgres_candidate_rows(",
+                "def _postgres_partition_is_attached(",
             )
         ),
         encoding="utf-8",
@@ -258,6 +260,16 @@ def test_v4_fresh_book_shadow_run_helper_is_hash_bound_and_money_disabled() -> N
         'EXPECTED_XGBOOST_VERSION="3.4.1"',
         'EXPECTED_JOBLIB_VERSION="1.5.3"',
         "I_APPROVE_PHASE14_V4_ZERO_MONEY_PAPER_SHADOW:",
+        "I_APPROVE_PHASE14_V4_ZERO_MONEY_PAPER_SHADOW_PARALLEL:",
+        "PHASE14_V4_FRESH_BOOK_SHADOW_ALLOWED_EXISTING_RUN_ID",
+        "allowed_existing_v4_shadow_not_active",
+        "unexpected_running_v4_shadow_count",
+        "unexpected_running_v4_shadow_unit",
+        "allowed_existing_v4_shadow_stopped",
+        "direct_partition_candidate_rows_missing",
+        "direct_partition_attachment_guard_missing",
+        "staged_direct_partition_candidate_rows_missing",
+        "staged_direct_partition_attachment_guard_missing",
         "local_branch_not_main",
         "local_main_stale_update_before_run",
         "shadow_runner_retry_contract_missing",
@@ -381,3 +393,127 @@ def test_v4_fresh_book_shadow_run_helper_is_hash_bound_and_money_disabled() -> N
         "POLYMARKET_WALLET_ADDRESS=",
     ):
         assert forbidden not in text
+
+def test_v4_fresh_book_shadow_parallel_preflight_binds_existing_run_and_duration(
+    tmp_path: Path,
+) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+
+    fake_git = fake_bin / "git"
+    fake_git.write_text(
+        """#!/usr/bin/env bash
+set -eu
+if [[ "$1" == "rev-parse" && "$2" == "--show-toplevel" ]]; then
+  printf '%s\\n' "$FAKE_REPO_ROOT"
+  exit 0
+fi
+if [[ "$1" == "status" && "$2" == "--porcelain" ]]; then
+  exit 0
+fi
+if [[ "$1" == "branch" && "$2" == "--show-current" ]]; then
+  printf 'main\\n'
+  exit 0
+fi
+if [[ "$1" == "rev-parse" && ( "$2" == "HEAD" || "$2" == "origin/main" ) ]]; then
+  printf '%s\\n' "$FAKE_MAIN_SHA"
+  exit 0
+fi
+case "$1" in
+  fetch) exit 0 ;;
+esac
+exit 97
+""",
+        encoding="utf-8",
+    )
+    fake_git.chmod(0o755)
+
+    runner = tmp_path / "scripts" / "run_v4_fresh_book_shadow.py"
+    runner.parent.mkdir(parents=True, exist_ok=True)
+    runner.write_text(
+        "\n".join(
+            (
+                "source_retry_count_by_condition",
+                "source_retry_deferral_count",
+                "source_retry_recovered_count",
+                "source_retry_exhausted_count",
+                "decision_lag < args.max_decision_lag_seconds",
+                "core_source_ineligible_retry_window_exhausted",
+                "probe_core_source_time_v4_readiness",
+                "core_six_anchor_only",
+                "missing_flags=features.missing_flags",
+            )
+        ),
+        encoding="utf-8",
+    )
+    source_features = (
+        tmp_path / "src" / "bp_engine" / "v4_paper" / "source_time_features.py"
+    )
+    source_features.parent.mkdir(parents=True, exist_ok=True)
+    source_features.write_text(
+        "\n".join(
+            (
+                "def probe_core_source_time_v4_readiness(",
+                "raw_market_events.c.received_at <= requested",
+                "if received_at > requested:",
+                "def _postgres_candidate_rows(",
+                "def _postgres_partition_is_attached(",
+            )
+        ),
+        encoding="utf-8",
+    )
+    inference = tmp_path / "src" / "bp_engine" / "v4_paper" / "inference.py"
+    inference.write_text(
+        "\n".join(
+            (
+                'predictor_name = f"missing__{name}"',
+                "model_predictors[predictor_name] = float(value)",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    gcloud_sentinel = tmp_path / "gcloud-called"
+    fake_gcloud = fake_bin / "gcloud"
+    fake_gcloud.write_text(
+        """#!/usr/bin/env bash
+printf 'called\\n' > "$FAKE_GCLOUD_SENTINEL"
+exit 99
+""",
+        encoding="utf-8",
+    )
+    fake_gcloud.chmod(0o755)
+
+    main_sha = "d" * 40
+    old_run = "v4-fresh-book-shadow-20261007T200650Z-d58b2cbedc3f"
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}:{env['PATH']}"
+    env["FAKE_REPO_ROOT"] = str(tmp_path)
+    env["FAKE_MAIN_SHA"] = main_sha
+    env["FAKE_GCLOUD_SENTINEL"] = str(gcloud_sentinel)
+    env["PHASE14_V4_FRESH_BOOK_SHADOW_PREFLIGHT_ONLY"] = "true"
+    env["PHASE14_V4_FRESH_BOOK_SHADOW_RUN_SECONDS"] = "3600"
+    env["PHASE14_V4_FRESH_BOOK_SHADOW_ALLOWED_EXISTING_RUN_ID"] = old_run
+
+    completed = subprocess.run(
+        ["bash", str(HELPER)],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert not gcloud_sentinel.exists()
+    assert f"ALLOWED_EXISTING_RUN_ID={old_run}" in completed.stdout
+    assert "PARALLEL_VALIDATION=true" in completed.stdout
+    assert (
+        "EXPECTED_APPROVAL="
+        f"I_APPROVE_PHASE14_V4_ZERO_MONEY_PAPER_SHADOW_PARALLEL:{main_sha}:"
+        "6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf:"
+        f"{old_run}:3600:1.9.1:3.4.1:1.5.3"
+        in completed.stdout
+    )
+    assert "PRODUCTION_HOST_CONTACTED=false" in completed.stdout
+    assert "PRODUCTION_MUTATION_PERFORMED=false" in completed.stdout
+
