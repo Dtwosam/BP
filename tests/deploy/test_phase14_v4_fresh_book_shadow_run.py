@@ -449,6 +449,7 @@ exit 97
                 "probe_core_source_time_v4_readiness",
                 "core_six_anchor_only",
                 "missing_flags=features.missing_flags",
+                "reader=source_reader",
             )
         ),
         encoding="utf-8",
@@ -465,6 +466,7 @@ exit 97
                 "if received_at > requested:",
                 "def _postgres_candidate_rows(",
                 "def _postgres_partition_is_attached(",
+                "def prefetch_candidate_rows(",
             )
         ),
         encoding="utf-8",
