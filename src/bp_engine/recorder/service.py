@@ -43,10 +43,13 @@ class RecorderService:
 
             completed_components = [task for task in done if task is not stop_task]
             stop.set()
+            for task in tasks:
+                if task not in completed_components and not task.done():
+                    task.cancel()
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            for result in results:
-                if isinstance(result, BaseException):
+            for task, result in zip(tasks, results, strict=True):
+                if task in completed_components and isinstance(result, BaseException):
                     raise result
             names = ", ".join(tasks[task] for task in completed_components)
             raise RuntimeError(f"recorder component exited unexpectedly: {names}")

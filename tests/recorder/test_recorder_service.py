@@ -55,6 +55,20 @@ class FakeComponent:
         self.stopped.set()
 
 
+class StopIgnoringComponent:
+    def __init__(self) -> None:
+        self.started = asyncio.Event()
+        self.cancelled = asyncio.Event()
+
+    async def run(self, stop: asyncio.Event) -> None:
+        self.started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            self.cancelled.set()
+            raise
+
+
 @pytest.mark.asyncio
 async def test_service_starts_all_components_and_stops_them_together() -> None:
     first = FakeComponent()
@@ -83,6 +97,20 @@ async def test_service_propagates_component_failure_and_stops_siblings() -> None
         await asyncio.wait_for(service.run(stop), timeout=1)
 
     assert stop.is_set()
+
+
+@pytest.mark.asyncio
+async def test_component_failure_cancels_sibling_that_ignores_stop() -> None:
+    blocked = StopIgnoringComponent()
+    broken = FakeComponent(error=RuntimeError("writer failed"))
+    service = RecorderService({"blocked": blocked, "broken": broken})
+    stop = asyncio.Event()
+
+    with pytest.raises(RuntimeError, match="writer failed"):
+        await asyncio.wait_for(service.run(stop), timeout=1)
+
+    assert stop.is_set()
+    assert blocked.cancelled.is_set()
 
 
 @pytest.mark.asyncio
