@@ -104,3 +104,15 @@ def test_v4_source_lookup_migration_targets_live_window() -> None:
         "benchmark query did not finish inside 2s",
     ):
         assert marker in source
+
+
+def test_v4_source_lookup_rollout_keeps_temp_root_owned_until_write() -> None:
+    source = HELPER.read_text(encoding="utf-8")
+    mktemp_pos = source.index(
+        "mktemp /var/tmp/bp-v4-source-lookup-migration.XXXXXX.json"
+    )
+    redirect_pos = source.index('> "$MIGRATION_TMP"')
+    chown_pos = source.index('chown bp:bp "$MIGRATION_TMP"')
+    assert mktemp_pos >= 0
+    assert redirect_pos > mktemp_pos
+    assert chown_pos > redirect_pos
