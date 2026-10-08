@@ -214,6 +214,7 @@ def test_v4_reader_queries_attached_hour_child_directly(engine) -> None:
     with engine.begin() as connection:
         connection.execute(
             insert(raw_market_events).values(
+                id=910001,
                 source="bybit",
                 stream="spot",
                 instrument="BTCUSDT",
@@ -274,6 +275,7 @@ def test_v4_reader_queries_both_children_across_hour_boundary(engine) -> None:
             insert(raw_market_events),
             [
                 {
+                    "id": 910002,
                     "source": "bybit",
                     "stream": "spot",
                     "instrument": "BTCUSDT",
@@ -287,6 +289,7 @@ def test_v4_reader_queries_both_children_across_hour_boundary(engine) -> None:
                     "dedupe_key": "v4-hour-left",
                 },
                 {
+                    "id": 910003,
                     "source": "bybit",
                     "stream": "spot",
                     "instrument": "BTCUSDT",
