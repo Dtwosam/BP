@@ -54,6 +54,7 @@ def test_recorder_self_heal_rollout_requires_stale_then_fresh_sources() -> None:
         'probe_v4_sources stale "$STALE_TMP"',
         'probe_v4_sources fresh "$ACCEPT_TMP"',
         "age_seconds",
+        "received_at >= :cutoff",
         "default_transaction_read_only=on",
     ):
         assert marker in source
