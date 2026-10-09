@@ -179,6 +179,38 @@ def test_manual_runner_scopes_checkout_trust_without_global_git_change() -> None
     assert "chown " not in source
 
 
+def test_failed_oneshot_blocks_production_mutation() -> None:
+    source = RUNNER.read_text(encoding="utf-8")
+    body = source.split("def run_experiment(", 1)[1]
+    assert "for unit in CYCLE_ONESHOTS:" in body
+    assert "_wait_oneshot_idle_success(unit, 3600)" in body
+    assert body.index("_wait_oneshot_idle_success(unit, 3600)") < body.index(
+        "mutation_started = False"
+    )
+    assert body.index("mutation_started = True") < body.index(
+        "_quiesce_cycle_timers()"
+    )
+
+
+def test_emergency_restore_never_recreates_untouched_postgres() -> None:
+    source = RUNNER.read_text(encoding="utf-8")
+    body = source.split("def run_experiment(", 1)[1]
+    assert "postgres_recreate_started = False" in body
+    assert "core_stop_started = False" in body
+    assert body.index("postgres_recreate_started = True") < body.index(
+        "candidate_postgres_identity = _recreate_postgres("
+    )
+    assert body.index("core_stop_started = True") < body.index(
+        "_stop_core_chain()"
+    )
+    emergency = body.split('print("PHASE=emergency_restore"', 1)[1]
+    assert "if postgres_recreate_started:" in emergency
+    assert "if core_stop_started:" in emergency
+    assert "if not cleanup_errors:" in emergency
+    assert "for timer in REQUIRED_TIMERS:" in emergency
+    assert "_require_active(POSTGRES_UNIT)" in emergency
+
+
 def test_shell_wrapper_is_preflight_first_and_requires_approval() -> None:
     subprocess.run(["bash", "-n", str(HELPER)], check=True)
     source = HELPER.read_text(encoding="utf-8")
