@@ -247,7 +247,8 @@ def build_report(connection, evidence_path: Path) -> dict[str, Any]:
         "results": results,
         "limitations": [
             "Historical received_at does not prove database commit visibility at decision time.",
-            "Nearest price-bearing rows are sampled with a declared limit; truncated samples are not exhaustive.",
+            "Nearest price-bearing rows are sampled with a declared limit; "
+            "truncated samples are not exhaustive.",
             "This is not a live timing or trading replay.",
         ],
         "safety": {
@@ -261,7 +262,9 @@ def build_report(connection, evidence_path: Path) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Read-only V4 historical core-source freshness audit.")
+    parser = argparse.ArgumentParser(
+        description="Read-only V4 historical core-source freshness audit."
+    )
     parser.add_argument("--env-file", default="/etc/bp/bp.env")
     parser.add_argument("--evidence-file", required=True)
     args = parser.parse_args()
