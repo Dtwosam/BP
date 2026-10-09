@@ -137,8 +137,11 @@ def build_report(
             ).scalar_one() != "on":
                 raise SystemExit("database connection is not read-only")
 
-            shared_reader = V4SourceTimeReader() if source_reader_mode == "shared" else None
             for condition_id in condition_ids:
+                # The live shadow shares a reader within each decision only.
+                shared_reader = (
+                    V4SourceTimeReader() if source_reader_mode == "shared" else None
+                )
                 readiness_reader = shared_reader or V4SourceTimeReader()
                 feature_reader = (
                     readiness_reader if shared_reader is not None
