@@ -127,6 +127,19 @@ def test_bounded_cycle_must_commit_and_preserve_frozen_system() -> None:
     assert "PRODUCTION_MUTATION=true" in source
 
 
+def test_controller_without_exact_head_exits_before_any_host_contact() -> None:
+    result = subprocess.run(
+        ["bash", str(CONTROLLER)],
+        cwd=ROOT,
+        env={"PATH": "/usr/bin:/bin"},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "exact_head_required" in result.stderr
+
+
 def test_host_without_explicit_args_does_not_run_rollout() -> None:
     result = subprocess.run(
         ["bash", str(HOST)], cwd=ROOT, capture_output=True, text=True, check=False
@@ -139,3 +152,6 @@ def test_ci_postgres_uses_public_official_mirror() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
     assert "image: public.ecr.aws/docker/library/postgres:16" in workflow
     assert "image: postgres:16" not in workflow
+    soak = (ROOT / ".github" / "workflows" / "recorder-short-soak.yml").read_text()
+    assert "image: public.ecr.aws/docker/library/postgres:16-alpine" in soak
+    assert "image: postgres:16-alpine" not in soak
