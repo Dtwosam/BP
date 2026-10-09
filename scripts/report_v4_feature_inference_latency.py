@@ -23,6 +23,7 @@ from bp_engine.v4_paper.inference import (
     predict_frozen_v4_probability,
 )
 from bp_engine.v4_paper.source_time_features import (
+    V4SourceTimeReader,
     build_source_time_v4_features,
     probe_core_source_time_v4_readiness,
 )
@@ -106,7 +107,10 @@ def build_report(
     engine,
     model_path: Path,
     condition_ids: list[str],
+    source_reader_mode: str = "shared",
 ) -> dict[str, Any]:
+    if source_reader_mode not in ("shared", "independent"):
+        raise ValueError("unsupported source reader mode")
     if settings.mode is not TradingMode.RESEARCH:
         raise SystemExit("MODE must be research")
     if settings.live_trading_enabled:
@@ -133,7 +137,13 @@ def build_report(
             ).scalar_one() != "on":
                 raise SystemExit("database connection is not read-only")
 
+            shared_reader = V4SourceTimeReader() if source_reader_mode == "shared" else None
             for condition_id in condition_ids:
+                readiness_reader = shared_reader or V4SourceTimeReader()
+                feature_reader = (
+                    readiness_reader if shared_reader is not None
+                    else V4SourceTimeReader()
+                )
                 target_stage = f"{condition_id}:target"
                 readiness_stage = f"{condition_id}:readiness"
                 feature_stage = f"{condition_id}:features"
@@ -150,6 +160,7 @@ def build_report(
                     connection,
                     target,
                     decision_at=decision_at,
+                    reader=readiness_reader,
                 )
                 readiness_seconds = time.perf_counter() - started
 
@@ -159,6 +170,7 @@ def build_report(
                     connection,
                     target,
                     decision_at=decision_at,
+                    reader=feature_reader,
                 )
                 feature_seconds = time.perf_counter() - started
 
@@ -216,7 +228,9 @@ def build_report(
         collector.set_stage("idle")
 
     return {
-        "report": "v4_feature_inference_latency_v1",
+        "report": "v4_feature_inference_latency_v2",
+        "source_reader_mode": source_reader_mode,
+        "shared_reader_matches_shadow_lifecycle": source_reader_mode == "shared",
         "model_sha256": FROZEN_V4_MODEL_SHA256,
         "model_load_seconds": round(model_load_seconds, 6),
         "conditions": condition_reports,
@@ -244,6 +258,12 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--env-file", default="/etc/bp/bp.env")
     parser.add_argument("--model-path", required=True)
     parser.add_argument("--condition-id", action="append", required=True)
+    parser.add_argument(
+        "--source-reader-mode",
+        choices=("shared", "independent"),
+        default="shared",
+        help="shared matches the shadow reader lifecycle; independent reproduces legacy diagnostic",
+    )
     return parser.parse_args()
 
 
@@ -267,6 +287,7 @@ def main() -> int:
             engine=engine,
             model_path=Path(args.model_path),
             condition_ids=list(args.condition_id),
+            source_reader_mode=args.source_reader_mode,
         )
     finally:
         engine.dispose()
