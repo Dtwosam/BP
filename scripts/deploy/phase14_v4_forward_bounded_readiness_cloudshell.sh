@@ -118,8 +118,11 @@ print("AUTOMATIC_PROMOTION=DISABLED")
 PY
 
 echo 'POSTGRES_AND_RECORDER_CONFIG'
+# The V4 runtime is frozen at an older feature-collector SHA. Its Settings
+# class predates the recorder priority-lane fields. Check the deployed
+# recorder's actual configuration against the pinned /opt/bp checkout.
 sudo -n -u bp env PYTHONDONTWRITEBYTECODE=1 \
-  PYTHONPATH="$TARGET/src" /opt/bp/.venv/bin/python - <<'PY'
+  PYTHONPATH=/opt/bp/src /opt/bp/.venv/bin/python - <<'PY'
 from sqlalchemy import create_engine, text
 from bp_engine.config import Settings, TradingMode
 
