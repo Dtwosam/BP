@@ -51,6 +51,7 @@ ORIGINAL_TIMER_HASH=''
 RECORDER_PID=''
 PREDICTOR_PID=''
 PAPER_PID=''
+POSTGRES_CONTAINER_ID=''
 
 atomic_switch() {
   local target=$1
@@ -120,6 +121,11 @@ RECORDER_PID="$(systemctl show -P MainPID bp-recorder.service)"
 PREDICTOR_PID="$(systemctl show -P MainPID bp-v3-frozen-predictor.service)"
 PAPER_PID="$(systemctl show -P MainPID bp-v3-paper-execution.service)"
 [[ "$RECORDER_PID" =~ ^[1-9][0-9]*$ ]] || fail "recorder_pid_invalid"
+[[ "$PREDICTOR_PID" =~ ^[1-9][0-9]*$ ]] || fail "predictor_pid_invalid"
+[[ "$PAPER_PID" =~ ^[1-9][0-9]*$ ]] || fail "paper_pid_invalid"
+mapfile -t postgres_ids < <(docker ps --filter label=com.docker.compose.service=postgres --format '{{.ID}}')
+[[ "${#postgres_ids[@]}" == 1 ]] || fail "postgres_container_identity_ambiguous"
+POSTGRES_CONTAINER_ID="${postgres_ids[0]}"
 
 for file in "$ENV_FILE" "$SAFETY_FILE"; do
   [[ -r "$file" ]] || fail "safety_file_missing"
@@ -154,6 +160,9 @@ finally:
 print("ROLL_OUT_SAFETY_AND_DB_BASELINE=PASS", flush=True)
 PY
 
+# Serialize separate operators before touching the V4 runtime or timer.
+exec 9>/run/lock/bp-v4-bounded-forward-rollout.lock
+flock -n 9 || fail "concurrent_rollout"
 [[ ! -e "$VERSION_DIR" ]] || fail "candidate_version_already_present"
 # Reject unsafe archive members even if local Git source was compromised.
 if tar -tzf "$ARCHIVE" | grep -E '(^/|(^|/)\.\.(/|$))' >/dev/null; then
@@ -280,6 +289,8 @@ for entry in \
 done
 [[ "$(systemctl is-active bp-postgres.service || true)" == active ]] ||
   fail "postgres_service_not_active"
+[[ "$(docker ps --filter label=com.docker.compose.service=postgres --format '{{.ID}}')" ==
+   "$POSTGRES_CONTAINER_ID" ]] || fail "postgres_container_changed"
 [[ "$(git -c safe.directory=/opt/bp -C "$REPO" rev-parse HEAD)" ==
    "$EXPECTED_DEPLOYED" ]] || fail "recorder_checkout_changed"
 systemctl start "$TIMER" || fail "timer_restore_failed"
