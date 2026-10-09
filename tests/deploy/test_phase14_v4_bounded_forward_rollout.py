@@ -64,6 +64,9 @@ def test_root_half_stops_only_v4_timer_and_waits_for_idle_service() -> None:
         "atomic_switch",
         "ROLLBACK_ARMED=1",
         "PHASE14_V4_BOUNDED_ROLLBACK=PASS",
+        "ROLLBACK_BLOCKED_ACTIVE_V4_ONESHOT_TIMER_LEFT_STOPPED",
+        "ROLLBACK_LINK_RESTORE_FAILED_TIMER_LEFT_STOPPED",
+        "ROLLBACK_TIMER_STOP_FAILED",
         "PHASE14_V4_BOUNDED_ROLLOUT=PASS",
         "ROLL_OUT_SAFETY_AND_DB_BASELINE=PASS",
     ):
