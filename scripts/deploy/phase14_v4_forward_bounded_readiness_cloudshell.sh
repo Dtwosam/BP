@@ -46,15 +46,17 @@ printf 'BOUNDED_CANDIDATE_MAIN=%s\n' "$CANDIDATE_HEAD"
 
 echo 'V4_FORWARD_RUNTIME'
 LINK=/var/lib/bp/runtime/v4-forward-current
-[[ -L "$LINK" ]] || { echo 'FORWARD_CURRENT_NOT_SYMLINK' >&2; exit 1; }
-TARGET="$(readlink -f "$LINK")"
-[[ -d "$TARGET" ]] || { echo 'FORWARD_RUNTIME_MISSING' >&2; exit 1; }
-[[ -f "$TARGET/src/bp_engine/features/v4_forward.py" ]] || {
+# /var/lib/bp is bp:bp 0750; the gcloud SSH user cannot traverse it.
+# Use non-interactive sudo for these four read-only path/metadata operations.
+sudo -n test -L "$LINK" || { echo 'FORWARD_CURRENT_NOT_SYMLINK' >&2; exit 1; }
+TARGET="$(sudo -n readlink -f "$LINK")"
+sudo -n test -d "$TARGET" || { echo 'FORWARD_RUNTIME_MISSING' >&2; exit 1; }
+sudo -n test -f "$TARGET/src/bp_engine/features/v4_forward.py" || {
   echo 'FORWARD_RUNTIME_CODE_MISSING' >&2; exit 1;
 }
 printf 'V4_FORWARD_CURRENT_TARGET=%s\n' "$TARGET"
 printf 'V4_FORWARD_RUNTIME_CODE_SHA256='
-sha256sum "$TARGET/src/bp_engine/features/v4_forward.py" | awk '{print $1}'
+sudo -n sha256sum "$TARGET/src/bp_engine/features/v4_forward.py" | awk '{print $1}'
 
 echo 'V4_FORWARD_SERVICE'
 systemctl show bp-v4-forward-coverage.service --no-pager \
