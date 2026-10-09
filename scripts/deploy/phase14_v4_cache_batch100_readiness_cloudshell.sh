@@ -26,8 +26,15 @@ read -r -d '' REMOTE <<'REMOTE_SCRIPT' || true
 set -Eeuo pipefail
 
 printf 'PRODUCTION_VM_CHECK=read_only\n'
-printf 'DEPLOYED_CHECKOUT_HEAD='
-git -C /opt/bp rev-parse HEAD
+# Git may see /opt/bp as owned by a different account from the SSH user.
+# Scope this trust exception to the single read-only invocation: no global
+# config, ownership, or repository mutation.
+deployed_head="$(git -c safe.directory=/opt/bp -C /opt/bp rev-parse HEAD)"
+[[ "$deployed_head" =~ ^[0-9a-f]{40}$ ]] || {
+  echo 'DEPLOYED_HEAD_INVALID' >&2
+  exit 1
+}
+printf 'DEPLOYED_CHECKOUT_HEAD=%s\n' "$deployed_head"
 
 echo 'CRITICAL_SERVICE_STATES'
 for unit in bp-postgres.service bp-recorder.service \

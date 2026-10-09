@@ -20,7 +20,9 @@ def test_readiness_checks_exact_runtime_without_mutation() -> None:
         '"$(git branch --show-current)" == "main"',
         "local_main_not_current",
         "DEPLOYED_CHECKOUT_HEAD=",
-        "git -C /opt/bp rev-parse HEAD",
+        "git -c safe.directory=/opt/bp -C /opt/bp rev-parse HEAD",
+        '[[ "$deployed_head" =~ ^[0-9a-f]{40}$ ]]',
+        "DEPLOYED_HEAD_INVALID",
         "bp-recorder.service",
         "bp-postgres.service",
         "bp-v3-frozen-predictor.service",
@@ -45,6 +47,16 @@ def test_readiness_checks_exact_runtime_without_mutation() -> None:
         "EXPERIMENT_EXECUTED=false",
     ):
         assert marker in source
+
+
+def test_git_safe_directory_is_scoped_to_single_read_only_command() -> None:
+    source = HELPER.read_text(encoding="utf-8")
+    assert "deployed_head=\"$(git -c safe.directory=/opt/bp -C /opt/bp rev-parse HEAD)\"" in source
+    assert "git config --global" not in source
+    assert "git config --system" not in source
+    assert "chown " not in source
+    assert "chgrp " not in source
+    assert "git -C /opt/bp rev-parse HEAD" not in source
 
 
 def test_readiness_never_runs_or_authorizes_experiment() -> None:

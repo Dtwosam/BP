@@ -604,6 +604,10 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
         raise RuntimeError("--execute is required")
 
     repo = Path(args.repo)
+    # The deployed checkout may not be root-owned. Trust only the exact
+    # expected path for the single read-only rev-parse invocation.
+    if repo != Path("/opt/bp"):
+        raise RuntimeError("experiment repository must be /opt/bp")
     env_file = Path(args.env_file)
     safety_file = Path(args.safety_file)
     project_state = repo / "PROJECT_STATE.json"
@@ -611,7 +615,8 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
     _candidate_compose_valid(candidate_compose)
 
     deployed_head = _run(
-        "git", "-C", str(repo), "rev-parse", "HEAD"
+        "git", "-c", "safe.directory=/opt/bp",
+        "-C", str(repo), "rev-parse", "HEAD"
     ).stdout.strip()
     if deployed_head != args.expected_deployed_head:
         raise RuntimeError(
