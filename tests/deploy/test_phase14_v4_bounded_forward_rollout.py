@@ -28,7 +28,10 @@ def test_rollout_defaults_to_non_mutating_local_preflight() -> None:
     assert '[[ "$APPROVAL" == "$EXPECTED_APPROVAL" ]] || fail "approval_mismatch"' in source
     assert "EXPECTED_APPROVAL=" in source
     assert "EXPECTED_DEPLOYED=a352c66ec0110925727bc40de767ee4ba981f965" in source
-    assert "EXPECTED_OLD_CODE_SHA256=e8882286a4fb92969d0e51ab75b81908deae1000fe26806a9491e75c18e4f846" in source
+    assert (
+        "EXPECTED_OLD_CODE_SHA256="
+        "e8882286a4fb92969d0e51ab75b81908deae1000fe26806a9491e75c18e4f846"
+    ) in source
     assert "git archive --format=tar" in source
     assert "git checkout" not in source
     assert "git reset" not in source
