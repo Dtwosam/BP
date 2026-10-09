@@ -15,6 +15,7 @@ APPROVAL="$8"
 
 fail() { echo "PHASE14_V4_BOUNDED_ROLLOUT=FAIL:$1" >&2; exit 1; }
 [[ "$(id -u)" == 0 ]] || fail "requires_root"
+command -v pgrep >/dev/null 2>&1 || fail "pgrep_required_for_writer_safety"
 [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]] || fail "candidate_sha_invalid"
 [[ "$EXPECTED_DEPLOYED" =~ ^[0-9a-f]{40}$ ]] || fail "deployed_sha_invalid"
 [[ "$EXPECTED_OLD_CODE_SHA256" =~ ^[0-9a-f]{64}$ ]] || fail "old_hash_invalid"
