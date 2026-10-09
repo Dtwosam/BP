@@ -53,6 +53,10 @@ PREDICTOR_PID=''
 PAPER_PID=''
 POSTGRES_CONTAINER_ID=''
 
+v4_writer_running() {
+  pgrep -f '[/]run_v4_forward_coverage.py' >/dev/null 2>&1
+}
+
 atomic_switch() {
   local target=$1
   SWAP="$RUNTIME_ROOT/.v4-forward-link-swap-$$"
