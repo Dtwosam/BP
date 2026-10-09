@@ -32,8 +32,7 @@ CATEGORIES = {
     ),
     "trade_price": (
         "event_type = 'trade' "
-        "AND jsonb_typeof(payload->'data') = 'array' "
-        "AND jsonb_array_length(payload->'data') > 0"
+        "AND jsonb_typeof(payload->'data') = 'array'"
     ),
 }
 
@@ -113,8 +112,9 @@ def _sample_category(rows, *, category: str, observed_at: datetime) -> dict[str,
             ),
         })
     # V4 selection is by source-time freshness, not just received timestamp.
+    preferred = [item for item in usable if item["eligible"]] or usable
     nearest = min(
-        usable,
+        preferred,
         key=lambda item: (
             abs(item["source_age_seconds"]),
             -item["row_id"],
