@@ -160,6 +160,27 @@ finally:
 print("ROLL_OUT_SAFETY_AND_DB_BASELINE=PASS", flush=True)
 PY
 
+# The safety state file must still disable automatic model promotion.
+# This check reads only the pinned production checkout's source-of-truth.
+/opt/bp/.venv/bin/python - <<'PY'
+import json
+from pathlib import Path
+state=json.loads(Path("/opt/bp/PROJECT_STATE.json").read_text())
+flags=[]
+def walk(value):
+    if isinstance(value, dict):
+        for key, entry in value.items():
+            if key == "automatic_promotion":
+                flags.append(entry)
+            walk(entry)
+    elif isinstance(value, list):
+        for entry in value:
+            walk(entry)
+walk(state)
+assert flags and all(value is False for value in flags)
+print("AUTOMATIC_PROMOTION=DISABLED", flush=True)
+PY
+
 # Serialize separate operators before touching the V4 runtime or timer.
 exec 9>/run/lock/bp-v4-bounded-forward-rollout.lock
 flock -n 9 || fail "concurrent_rollout"
