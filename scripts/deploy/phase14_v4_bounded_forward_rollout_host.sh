@@ -64,7 +64,12 @@ atomic_switch() {
 rollback() {
   set +e
   echo 'PHASE14_V4_BOUNDED_ROLLBACK=START' >&2
-  systemctl stop "$TIMER" >/dev/null 2>&1 || true
+  if ! systemctl stop "$TIMER" >/dev/null 2>&1 ||
+     [[ "$(systemctl is-active "$TIMER" || true)" == active ]]; then
+    echo 'ROLLBACK_TIMER_STOP_FAILED' >&2
+    echo 'PHASE14_V4_BOUNDED_ROLLBACK=INCOMPLETE_OPERATOR_ACTION_REQUIRED' >&2
+    return 1
+  fi
   # Starting the timer after validation may trigger another V4 oneshot.
   # Never repoint a runtime symlink while that DB writer is active.
   local rollback_idle=0
@@ -83,11 +88,17 @@ rollback() {
     return 1
   fi
   if (( SWITCHED == 1 )); then
-    atomic_switch "$EXPECTED_OLD_TARGET" ||
-      echo 'ROLLBACK_LINK_RESTORE_FAILED' >&2
+    if ! atomic_switch "$EXPECTED_OLD_TARGET"; then
+      echo 'ROLLBACK_LINK_RESTORE_FAILED_TIMER_LEFT_STOPPED' >&2
+      echo 'PHASE14_V4_BOUNDED_ROLLBACK=INCOMPLETE_OPERATOR_ACTION_REQUIRED' >&2
+      return 1
+    fi
   fi
-  systemctl start "$TIMER" >/dev/null 2>&1 ||
+  if ! systemctl start "$TIMER" >/dev/null 2>&1; then
     echo 'ROLLBACK_TIMER_RESTORE_FAILED' >&2
+    echo 'PHASE14_V4_BOUNDED_ROLLBACK=INCOMPLETE_OPERATOR_ACTION_REQUIRED' >&2
+    return 1
+  fi
   if [[ -L "$LINK" && "$(readlink -f "$LINK")" == "$EXPECTED_OLD_TARGET" ]] &&
      [[ "$(systemctl is-active "$TIMER" || true)" == active ]]; then
     echo 'PHASE14_V4_BOUNDED_ROLLBACK=PASS' >&2
