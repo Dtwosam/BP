@@ -254,6 +254,7 @@ for _ in $(seq 1 150); do
   sleep 1
 done
 (( idle == 1 )) || fail "old_oneshot_did_not_quiesce"
+if v4_writer_running; then fail "orphan_v4_writer_before_switch"; fi
 echo 'V4_OLD_ONESHOT_QUIESCED=true'
 
 feature_count() {
