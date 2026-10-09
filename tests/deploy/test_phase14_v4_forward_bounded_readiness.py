@@ -85,6 +85,23 @@ def test_runtime_safety_and_read_only_db_snapshot() -> None:
         assert item in source
 
 
+def test_recorder_config_comes_from_pinned_deployed_checkout() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
+    section = source.split("echo 'POSTGRES_AND_RECORDER_CONFIG'", 1)[1].split(
+        "echo 'PHASE14_V4_FORWARD_BOUNDED_READINESS=PASS'", 1
+    )[0]
+
+    # Frozen V4 collector predates recorder_priority_batch_size; only the
+    # deployed /opt/bp checkout defines the live recorder configuration.
+    assert "PYTHONPATH=/opt/bp/src /opt/bp/.venv/bin/python" in section
+    assert 'PYTHONPATH="$TARGET/src"' not in section
+    assert "assert s.recorder_batch_size == 100" in section
+    assert "assert s.recorder_writer_workers == 4" in section
+    assert "assert s.recorder_priority_batch_size == 20" in section
+    assert "default_transaction_read_only=on" in section
+    assert "assert shared == \"128MB\"" in section
+
+
 def test_readiness_never_changes_services_database_or_checkout() -> None:
     source = SCRIPT.read_text(encoding="utf-8").lower()
     for item in (
