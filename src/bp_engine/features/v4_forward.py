@@ -13,6 +13,8 @@ from bp_engine.storage.schema import market_features, polymarket_markets
 V4_FORWARD_EPOCH = datetime(2026, 9, 20, 12, 40, 53, tzinfo=UTC)
 V4_FORWARD_END_GRACE_SECONDS = 15
 _EXPECTED_OFFSETS = frozenset({60, 120, 180, 240})
+# One market per scheduled cycle: a timeout cannot roll back a multi-hour backlog.
+V4_FORWARD_MARKETS_PER_CYCLE = 1
 
 
 @dataclass(frozen=True)
@@ -20,6 +22,7 @@ class V4ForwardCycleStats:
     cycle_at: datetime
     epoch: datetime
     eligible_targets: int
+    remaining_pending_targets: int
     inserted: int
     existing: int
     planned_rows: int
@@ -130,12 +133,16 @@ def run_v4_forward_cycle(
 ) -> V4ForwardCycleStats:
     cycle = _utc(cycle_at, "cycle_at")
     forward_epoch = _utc(epoch, "epoch")
-    targets = discover_pending_v4_targets(
+    pending_targets = discover_pending_v4_targets(
         connection,
         cycle_at=cycle,
         epoch=forward_epoch,
         end_grace_seconds=end_grace_seconds,
     )
+    # Every scheduled invocation holds at most one market's four offsets in
+    # its transaction. Completed batches remain committed if a later cycle
+    # is interrupted; the next invocation re-discovers only missing targets.
+    targets = pending_targets[:V4_FORWARD_MARKETS_PER_CYCLE]
     generation = generate_v4_features(
         connection,
         targets,
@@ -165,6 +172,7 @@ def run_v4_forward_cycle(
         cycle_at=cycle,
         epoch=forward_epoch,
         eligible_targets=len(targets),
+        remaining_pending_targets=len(pending_targets) - len(targets),
         inserted=generation.inserted,
         existing=generation.existing,
         planned_rows=generation.planned_rows,
