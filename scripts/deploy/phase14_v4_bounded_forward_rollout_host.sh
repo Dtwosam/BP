@@ -240,8 +240,8 @@ fi
 AFTER="$(feature_count)"
 [[ "$AFTER" =~ ^[0-9]+$ ]] || fail "after_count_invalid"
 printf 'FEATURE_ROWS_AFTER=%s\n' "$AFTER"
-sudo -n -u bp env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/opt/bp/src \
-  /opt/bp/.venv/bin/python - "$BEFORE" "$AFTER" "$EVIDENCE/cycle.json" <<'PY'
+# Evidence directory is root-private until the validation is complete.
+/opt/bp/.venv/bin/python - "$BEFORE" "$AFTER" "$EVIDENCE/cycle.json" <<'PY'
 import json, sys
 from pathlib import Path
 before, after = map(int, sys.argv[1:3])
@@ -288,8 +288,7 @@ systemctl start "$TIMER" || fail "timer_restore_failed"
 [[ "$(systemctl is-enabled "$TIMER" || true)" == enabled ]] ||
   fail "timer_not_enabled_after"
 
-sudo -n -u bp env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/opt/bp/src \
-  /opt/bp/.venv/bin/python - \
+/opt/bp/.venv/bin/python - \
   "$EVIDENCE/cycle.json" "$EVIDENCE/evidence.json" \
   "$CANDIDATE_SHA" "$EXPECTED_DEPLOYED" "$EXPECTED_OLD_TARGET" \
   "$VERSION_DIR" "$BEFORE" "$AFTER" <<'PY'
