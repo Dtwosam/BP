@@ -591,13 +591,14 @@ def _validate_steady_state(
 
 
 def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
-    # SIGTERM/SIGINT should enter the rollback path instead of silently
-    # terminating during candidate or baseline recreation.
+    # SIGTERM/SIGINT/SIGHUP should enter the rollback path instead of
+    # silently terminating during candidate or baseline recreation.
     def _abort(signum, _frame):
         raise RuntimeError(f"interrupted during cache experiment: signal={signum}")
 
     signal.signal(signal.SIGTERM, _abort)
     signal.signal(signal.SIGINT, _abort)
+    signal.signal(signal.SIGHUP, _abort)
     if os.geteuid() != 0:
         raise RuntimeError("experiment orchestrator requires root")
     if not args.execute:
