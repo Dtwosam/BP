@@ -125,8 +125,7 @@ trap on_exit EXIT
 [[ -L "$LINK" ]] || fail "old_runtime_not_symlink"
 [[ "$(readlink -f "$LINK")" == "$EXPECTED_OLD_TARGET" ]] ||
   fail "old_runtime_target_changed"
-[[ "$(sha256sum "$LINK/src/bp_engine/features/v4_forward.py" | awk '{print $1}')" ==
-   "$EXPECTED_OLD_CODE_SHA256" ]] || fail "old_runtime_code_changed"
+[[ "$(sha256sum "$LINK/src/bp_engine/features/v4_forward.py" | awk '{print $1}')" == "$EXPECTED_OLD_CODE_SHA256" ]] || fail "old_runtime_code_changed"
 [[ -f "$SERVICE_PATH" && -f "$TIMER_PATH" ]] || fail "v4_unit_missing"
 [[ "$(systemctl show -P LoadState "$SERVICE")" == loaded ]] || fail "service_not_loaded"
 [[ "$(systemctl show -P TimeoutStartUSec "$SERVICE")" == 2min ]] ||
@@ -338,10 +337,8 @@ for entry in \
 done
 [[ "$(systemctl is-active bp-postgres.service || true)" == active ]] ||
   fail "postgres_service_not_active"
-[[ "$(docker ps --filter label=com.docker.compose.service=postgres --format '{{.ID}}')" ==
-   "$POSTGRES_CONTAINER_ID" ]] || fail "postgres_container_changed"
-[[ "$(git -c safe.directory=/opt/bp -C "$REPO" rev-parse HEAD)" ==
-   "$EXPECTED_DEPLOYED" ]] || fail "recorder_checkout_changed"
+[[ "$(docker ps --filter label=com.docker.compose.service=postgres --format '{{.ID}}')" == "$POSTGRES_CONTAINER_ID" ]] || fail "postgres_container_changed"
+[[ "$(git -c safe.directory=/opt/bp -C "$REPO" rev-parse HEAD)" == "$EXPECTED_DEPLOYED" ]] || fail "recorder_checkout_changed"
 systemctl start "$TIMER" || fail "timer_restore_failed"
 [[ "$(systemctl is-active "$TIMER" || true)" == active ]] ||
   fail "timer_not_active_after"
