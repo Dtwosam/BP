@@ -10,8 +10,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import report_v4_recorder_commit_lag as commit_lag
 import report_v4_cache_bulk_lane_evidence as bulk_lane
+import report_v4_recorder_commit_lag as commit_lag
 from sqlalchemy import create_engine, text
 
 from bp_engine.config import Settings
