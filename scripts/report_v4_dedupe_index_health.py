@@ -94,6 +94,53 @@ def _cache_hit_ratio(hits: int, reads: int) -> float | None:
     return hits / total if total else None
 
 
+
+def _active_uniqueness_indexes(
+    expected_tables: list[str],
+    indexes: list[dict[str, Any]],
+) -> tuple[str, list[dict[str, Any]]]:
+    """Identify the active, validated dedupe contract, not just legacy PKs."""
+    by_key = {
+        (str(row["table_name"]), str(row["index_name"])): row
+        for row in indexes
+    }
+    primary = [
+        by_key.get((name, f"{name}_pkey"))
+        for name in expected_tables
+    ]
+    all_primary = [row for row in indexes if bool(row["is_primary"])]
+    if (
+        len(all_primary) == len(expected_tables)
+        and all(
+            row is not None
+            and bool(row["is_primary"])
+            and bool(row["is_unique"])
+            and bool(row["is_valid"])
+            and bool(row["is_ready"])
+            for row in primary
+        )
+    ):
+        return "legacy_primary_key", [row for row in primary if row is not None]
+
+    compact = [
+        by_key.get((name, f"{name}_digest_uidx"))
+        for name in expected_tables
+    ]
+    if (
+        not all_primary
+        and all(
+            row is not None
+            and not bool(row["is_primary"])
+            and bool(row["is_unique"])
+            and bool(row["is_valid"])
+            and bool(row["is_ready"])
+            for row in compact
+        )
+    ):
+        return "compact_digest_unique", [row for row in compact if row is not None]
+    return "unrecognized_or_invalid", []
+
+
 def build_report(connection) -> dict[str, Any]:
     readonly = str(
         connection.execute(text("SHOW default_transaction_read_only")).scalar_one()
@@ -189,6 +236,19 @@ def build_report(connection) -> dict[str, Any]:
     )
     total_pkey_bytes = sum(int(index["bytes"] or 0) for index in primary_indexes)
     total_all_index_bytes = sum(int(row["all_index_bytes"] or 0) for row in tables)
+    contract, active_indexes = _active_uniqueness_indexes(expected_tables, indexes)
+    active_by_table = {
+        str(row["table_name"]): row for row in active_indexes
+    }
+    active_unique_bytes = sum(int(row["bytes"] or 0) for row in active_indexes)
+    all_indexes_valid_ready = all(
+        bool(row["is_valid"]) and bool(row["is_ready"]) for row in indexes
+    )
+    active_unique_bytes_per_live_tuple = (
+        active_unique_bytes / total_live if total_live else None
+    )
+    active_index_reads = sum(int(row["idx_blks_read"] or 0) for row in active_indexes)
+    active_index_hits = sum(int(row["idx_blks_hit"] or 0) for row in active_indexes)
 
     actual_primary_names = [
         str(primary_by_table[name]["index_name"])
@@ -206,6 +266,7 @@ def build_report(connection) -> dict[str, Any]:
         )
     )
     bytes_per_live_tuple = total_pkey_bytes / total_live if total_live else None
+    legacy_reindex_applicable = contract == "legacy_primary_key"
     reindex_signal = (
         len(tables) == EXPECTED_CHILD_COUNT
         and all_primary_healthy
@@ -215,13 +276,39 @@ def build_report(connection) -> dict[str, Any]:
     )
 
     return {
-        "report": "v4_dedupe_index_health_v1",
+        "report": "v4_dedupe_index_health_v2",
+        "contract": {
+            "active_uniqueness_mode": contract,
+            "active_uniqueness_healthy": bool(active_indexes)
+            and len(tables) == EXPECTED_CHILD_COUNT,
+            "all_dedupe_indexes_valid_ready": all_indexes_valid_ready,
+            "expected_compact_index_count": EXPECTED_CHILD_COUNT,
+            "observed_compact_index_count": sum(
+                str(row["index_name"]) ==
+                f'{row["table_name"]}_digest_uidx'
+                for row in indexes
+            ),
+        },
         "expected_child_count": EXPECTED_CHILD_COUNT,
         "expected_tables": expected_tables,
         "expected_primary_indexes": expected_primary_indexes,
         "child_count": len(tables),
-        "children": children,
+        "children": [
+            {
+                **child,
+                "active_uniqueness_index": active_by_table.get(child["table_name"]),
+            }
+            for child in children
+        ],
         "totals": {
+            "active_uniqueness_index_bytes": active_unique_bytes,
+            "active_uniqueness_index_bytes_per_live_tuple": (
+                active_unique_bytes_per_live_tuple
+            ),
+            "active_uniqueness_fraction_of_all_index_bytes": (
+                active_unique_bytes / total_all_index_bytes
+                if total_all_index_bytes else None
+            ),
             "estimated_live_tuples": total_live,
             "estimated_dead_tuples": total_dead,
             "dead_to_live_ratio": total_dead / total_live if total_live else None,
@@ -235,6 +322,9 @@ def build_report(connection) -> dict[str, Any]:
             "primary_key_bytes_per_live_tuple": bytes_per_live_tuple,
         },
         "postgresql_cache": {
+            "active_uniqueness_index_cache_hit_ratio": _cache_hit_ratio(
+                active_index_hits, active_index_reads
+            ),
             "shared_buffers_bytes": int(cache_sizes["shared_buffers_bytes"] or 0),
             "effective_cache_size_bytes": int(
                 cache_sizes["effective_cache_size_bytes"] or 0
@@ -252,11 +342,17 @@ def build_report(connection) -> dict[str, Any]:
         },
         "signals": {
             "all_primary_indexes_healthy": all_primary_healthy,
+            "reindex_evidence_threshold_applicable": legacy_reindex_applicable,
+            "active_uniqueness_index_bytes_per_live_tuple": (
+                active_unique_bytes_per_live_tuple
+            ),
             "minimum_total_primary_key_bytes": MIN_REINDEX_SIGNAL_TOTAL_PKEY_BYTES,
             "minimum_primary_key_bytes_per_live_tuple": (
                 MIN_REINDEX_SIGNAL_BYTES_PER_LIVE_TUPLE
             ),
-            "reindex_evidence_threshold_met": reindex_signal,
+            "reindex_evidence_threshold_met": (
+                reindex_signal if legacy_reindex_applicable else None
+            ),
         },
         "safety": {
             "database_read_only_required": True,
