@@ -36,6 +36,28 @@ def test_preflight_bash_syntax_and_main_binding() -> None:
         assert item in source
 
 
+def test_protected_runtime_path_uses_read_only_root_access() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
+    runtime = source.split("echo 'V4_FORWARD_RUNTIME'", 1)[1].split(
+        "echo 'V4_FORWARD_SERVICE'", 1
+    )[0]
+    for required in (
+        'sudo -n test -L "$LINK"',
+        'TARGET="$(sudo -n readlink -f "$LINK")"',
+        'sudo -n test -d "$TARGET"',
+        'sudo -n test -f "$TARGET/src/bp_engine/features/v4_forward.py"',
+        'sudo -n sha256sum "$TARGET/src/bp_engine/features/v4_forward.py"',
+    ):
+        assert required in runtime
+    for unprivileged in (
+        '[[ -L "$LINK" ]]',
+        'TARGET="$(readlink -f "$LINK")"',
+        '[[ -d "$TARGET" ]]',
+        '[[ -f "$TARGET/src/bp_engine/features/v4_forward.py" ]]',
+    ):
+        assert unprivileged not in runtime
+
+
 def test_runtime_safety_and_read_only_db_snapshot() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
     for item in (
