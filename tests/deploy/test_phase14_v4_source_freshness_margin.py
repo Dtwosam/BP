@@ -136,7 +136,7 @@ def test_audit_is_fail_closed_and_read_only() -> None:
 def test_latency_has_explicit_shared_and_independent_reader_modes() -> None:
     source = LATENCY.read_text(encoding="utf-8")
     for required in (
-        "shared_reader = V4SourceTimeReader()",
+        'V4SourceTimeReader() if source_reader_mode == "shared" else None',
         "reader=readiness_reader",
         "reader=feature_reader",
         'choices=("shared", "independent")',
