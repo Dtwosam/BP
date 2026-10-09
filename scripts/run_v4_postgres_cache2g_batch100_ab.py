@@ -234,6 +234,17 @@ def _require_postgres_shared_buffers(settings: Settings, expected: str) -> None:
         )
 
 
+def _guarded_candidate_warmup(seconds: int) -> None:
+    """Fail back to rollback if candidate memory or critical services deteriorate."""
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        time.sleep(min(5.0, max(0.0, deadline - time.monotonic())))
+        _require_memory(MIN_CANDIDATE_AVAILABLE_BYTES)
+        for unit in (POSTGRES_UNIT, *CORE_UNITS):
+            if not _is_active(unit):
+                raise RuntimeError(f"service failed during cache warmup: {unit}")
+
+
 def _wait_oneshot_idle_success(unit: str, timeout_seconds: int) -> None:
     deadline = time.monotonic() + timeout_seconds
     while True:
@@ -708,7 +719,7 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
         _restore_cycle_timers()
 
         print(f"PHASE=candidate_warmup seconds={WARMUP_SECONDS}", flush=True)
-        time.sleep(WARMUP_SECONDS)
+        _guarded_candidate_warmup(WARMUP_SECONDS)
 
         candidate_state = _validate_steady_state(
             settings=candidate_settings,
