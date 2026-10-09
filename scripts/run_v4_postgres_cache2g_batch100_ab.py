@@ -635,6 +635,10 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
     for timer in REQUIRED_TIMERS:
         _require_timer_active_enabled(timer)
     _wait_oneshot_idle_success(DISK_HEALTH_SERVICE, 60)
+    # Reject failed/running maintenance and coverage services *before* the
+    # first production mutation, not after timers have already been stopped.
+    for unit in CYCLE_ONESHOTS:
+        _wait_oneshot_idle_success(unit, 3600)
     _require_postgres_shared_buffers(settings, BASELINE_SHARED_BUFFERS)
     baseline_memory = _require_memory(MIN_BASELINE_AVAILABLE_BYTES)
     baseline_postgres_identity = _discover_postgres_identity(repo, env_file)
@@ -690,6 +694,8 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
     )
 
     mutation_started = False
+    core_stop_started = False
+    postgres_recreate_started = False
     restored = False
     try:
         print("PHASE=candidate_quiesce", flush=True)
@@ -697,10 +703,12 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
         _quiesce_cycle_timers()
 
         print("PHASE=candidate_stop_core", flush=True)
+        core_stop_started = True
         _stop_core_chain()
 
         print("PHASE=candidate_recreate_postgres_2GB", flush=True)
         candidate_settings = Settings(_env_file=str(env_file))
+        postgres_recreate_started = True
         candidate_postgres_identity = _recreate_postgres(
             repo=repo,
             env_file=env_file,
@@ -816,42 +824,48 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
                 cleanup_errors.append(
                     f"timer_stop:{type(cleanup_exc).__name__}:{cleanup_exc}"
                 )
-            try:
-                for unit in (
-                    V3_EXECUTION_UNIT,
-                    V3_PREDICTOR_UNIT,
-                    RECORDER_UNIT,
-                ):
-                    _systemctl("stop", unit, check=False)
-            except Exception as cleanup_exc:
-                cleanup_errors.append(
-                    f"core_stop:{type(cleanup_exc).__name__}:{cleanup_exc}"
-                )
-            try:
-                cleanup_settings = Settings(_env_file=str(env_file))
-                _recreate_postgres(
-                    repo=repo,
-                    env_file=env_file,
-                    compose_path=_deployed_compose(repo),
-                    compose_project=baseline_postgres_identity[
-                        "compose_project"
-                    ],
-                    shared_buffers=BASELINE_SHARED_BUFFERS,
-                    expected_data_mount_source=baseline_postgres_identity[
-                        "data_mount_source"
-                    ],
-                    settings=cleanup_settings,
-                )
-            except Exception as cleanup_exc:
-                cleanup_errors.append(
-                    f"postgres_restore:{type(cleanup_exc).__name__}:{cleanup_exc}"
-                )
-            try:
-                _start_core_chain()
-            except Exception as cleanup_exc:
-                cleanup_errors.append(
-                    f"core_restore:{type(cleanup_exc).__name__}:{cleanup_exc}"
-                )
+            # A failure while quiescing timers must not restart the recorder
+            # chain or recreate an untouched PostgreSQL container. These
+            # booleans are set *before* each mutation can partially start.
+            if core_stop_started:
+                try:
+                    for unit in (
+                        V3_EXECUTION_UNIT,
+                        V3_PREDICTOR_UNIT,
+                        RECORDER_UNIT,
+                    ):
+                        _systemctl("stop", unit, check=False)
+                except Exception as cleanup_exc:
+                    cleanup_errors.append(
+                        f"core_stop:{type(cleanup_exc).__name__}:{cleanup_exc}"
+                    )
+            if postgres_recreate_started:
+                try:
+                    cleanup_settings = Settings(_env_file=str(env_file))
+                    _recreate_postgres(
+                        repo=repo,
+                        env_file=env_file,
+                        compose_path=_deployed_compose(repo),
+                        compose_project=baseline_postgres_identity[
+                            "compose_project"
+                        ],
+                        shared_buffers=BASELINE_SHARED_BUFFERS,
+                        expected_data_mount_source=baseline_postgres_identity[
+                            "data_mount_source"
+                        ],
+                        settings=cleanup_settings,
+                    )
+                except Exception as cleanup_exc:
+                    cleanup_errors.append(
+                        f"postgres_restore:{type(cleanup_exc).__name__}:{cleanup_exc}"
+                    )
+            if core_stop_started:
+                try:
+                    _start_core_chain()
+                except Exception as cleanup_exc:
+                    cleanup_errors.append(
+                        f"core_restore:{type(cleanup_exc).__name__}:{cleanup_exc}"
+                    )
             try:
                 _restore_cycle_timers()
             except Exception as cleanup_exc:
@@ -872,7 +886,13 @@ def run_experiment(args: argparse.Namespace) -> dict[str, Any]:
                     != baseline_postgres_identity["data_mount_source"]
                 ):
                     raise RuntimeError("restored postgres data mount mismatch")
-                restored = True
+                _require_active(POSTGRES_UNIT)
+                for unit in CORE_UNITS:
+                    _require_active(unit)
+                for timer in REQUIRED_TIMERS:
+                    _require_timer_active_enabled(timer)
+                if not cleanup_errors:
+                    restored = True
             except Exception as cleanup_exc:
                 cleanup_errors.append(
                     f"baseline_verify:{type(cleanup_exc).__name__}:{cleanup_exc}"
