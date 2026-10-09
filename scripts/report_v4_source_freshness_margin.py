@@ -188,9 +188,10 @@ def build_report(connection, evidence_path: Path) -> dict[str, Any]:
     ).scalar_one() != "on":
         raise SystemExit("database connection is not read-only")
     decisions, seen_market_count = load_decisions(evidence_path)
-    reader = V4SourceTimeReader()
     results: list[dict[str, Any]] = []
     for record in decisions:
+        # Mirror the live runner: a new reader for each market decision.
+        reader = V4SourceTimeReader()
         cutoff = _utc(record["decision_at"])
         start = cutoff - timedelta(seconds=FROZEN_V4_OFFSET_SECONDS)
         target = V4FeatureTarget(
