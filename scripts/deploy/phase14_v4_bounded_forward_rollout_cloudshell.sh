@@ -27,8 +27,7 @@ cd "$ROOT"
 [[ -z "$(git status --porcelain --untracked-files=all)" ]] ||
   fail "working_tree_dirty"
 [[ "$(git rev-parse HEAD)" == "$HEAD_SHA" ]] || fail "local_head_changed"
-[[ "$(git ls-remote origin refs/heads/main | awk 'NR==1 {print $1}')" ==
-   "$HEAD_SHA" ]] || fail "remote_main_changed"
+[[ "$(git ls-remote origin refs/heads/main | awk 'NR==1 {print $1}')" == "$HEAD_SHA" ]] || fail "remote_main_changed"
 grep -Fxq 'V4_FORWARD_MARKETS_PER_CYCLE = 1' \
   src/bp_engine/features/v4_forward.py || fail "candidate_is_not_bounded"
 grep -Fq 'V4_FORWARD_STAGE=' \
