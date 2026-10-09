@@ -133,3 +133,9 @@ def test_host_without_explicit_args_does_not_run_rollout() -> None:
     )
     assert result.returncode == 2
     assert "HOST_GATE=FAIL:arguments" in result.stderr
+
+
+def test_ci_postgres_uses_public_official_mirror() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    assert "image: public.ecr.aws/docker/library/postgres:16" in workflow
+    assert "image: postgres:16" not in workflow
