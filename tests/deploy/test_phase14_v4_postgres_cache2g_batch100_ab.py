@@ -168,6 +168,16 @@ def test_batch100_cache_runner_is_restoring_manual_review_only() -> None:
     assert "TARGET_BATCH_SIZE" not in source
 
 
+def test_manual_runner_scopes_checkout_trust_without_global_git_change() -> None:
+    source = RUNNER.read_text(encoding="utf-8")
+    assert 'if repo != Path("/opt/bp"):' in source
+    assert '"git", "-c", "safe.directory=/opt/bp",' in source
+    assert '"-C", str(repo), "rev-parse", "HEAD"' in source
+    assert "git config --global" not in source
+    assert "git config --system" not in source
+    assert "chown " not in source
+
+
 def test_shell_wrapper_is_preflight_first_and_requires_approval() -> None:
     subprocess.run(["bash", "-n", str(HELPER)], check=True)
     source = HELPER.read_text(encoding="utf-8")
