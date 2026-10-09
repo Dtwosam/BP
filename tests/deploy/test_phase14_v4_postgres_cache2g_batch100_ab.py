@@ -158,6 +158,7 @@ def test_batch100_cache_runner_is_restoring_manual_review_only() -> None:
         '"automatic_candidate_promotion": False',
         '"manual_review_required": True',
         "signal.signal(signal.SIGTERM, _abort)",
+        "signal.signal(signal.SIGHUP, _abort)",
         "except BaseException as exc:",
         'print("PHASE=emergency_restore"',
         'PHASE=candidate_recreate_postgres_2GB',
