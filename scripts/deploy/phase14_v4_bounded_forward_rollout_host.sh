@@ -91,6 +91,18 @@ rollback() {
     echo 'PHASE14_V4_BOUNDED_ROLLBACK=INCOMPLETE_OPERATOR_ACTION_REQUIRED' >&2
     return 1
   fi
+  # Direct validation may outlive timeout without a systemd unit.
+  # If it does, keep the timer stopped instead of switching its runtime.
+  local direct_idle=0
+  for _ in $(seq 1 30); do
+    if ! v4_writer_running; then direct_idle=1; break; fi
+    sleep 1
+  done
+  if (( direct_idle != 1 )); then
+    echo 'ROLLBACK_BLOCKED_DIRECT_V4_WRITER_TIMER_LEFT_STOPPED' >&2
+    echo 'PHASE14_V4_BOUNDED_ROLLBACK=INCOMPLETE_OPERATOR_ACTION_REQUIRED' >&2
+    return 1
+  fi
   if (( SWITCHED == 1 )); then
     if ! atomic_switch "$EXPECTED_OLD_TARGET"; then
       echo 'ROLLBACK_LINK_RESTORE_FAILED_TIMER_LEFT_STOPPED' >&2
