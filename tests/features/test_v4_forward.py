@@ -2,7 +2,7 @@ import inspect
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import create_engine, insert
+from sqlalchemy import create_engine, insert, select
 
 from bp_engine.features import v4_forward
 from bp_engine.features.v4_models import V4_FEATURE_VERSION
@@ -193,6 +193,94 @@ def test_forward_cycle_fails_closed_on_coverage_invariant(monkeypatch) -> None:
     with engine.begin() as connection:
         with pytest.raises(RuntimeError, match="V4 forward coverage invariant violation"):
             v4_forward.run_v4_forward_cycle(connection, cycle_at=CYCLE_AT)
+
+
+def test_bounded_forward_catchup_commits_and_resumes_after_interruption(
+    monkeypatch,
+) -> None:
+    engine = _engine()
+    starts = (
+        datetime(2026, 9, 20, 12, 45, tzinfo=UTC),
+        datetime(2026, 9, 20, 12, 50, tzinfo=UTC),
+        datetime(2026, 9, 20, 12, 55, tzinfo=UTC),
+    )
+    with engine.begin() as connection:
+        for i, start in enumerate(starts):
+            _insert_market(connection, condition_id=f"batch-{i}", start_at=start)
+
+    with engine.begin() as connection:
+        first = v4_forward.run_v4_forward_cycle(connection, cycle_at=CYCLE_AT)
+
+    assert v4_forward.V4_FORWARD_MARKETS_PER_CYCLE == 1
+    assert first.eligible_targets == 1
+    assert first.remaining_pending_targets == 2
+    assert first.inserted == 4
+    assert first.policy_selected is False
+    assert first.training_run is False
+    assert first.automatic_promotion is False
+
+    with engine.connect() as connection:
+        saved = connection.execute(
+            select(
+                schema.market_features.c.condition_id,
+                schema.market_features.c.feature_offset_seconds,
+                schema.market_features.c.feature_hash,
+                schema.market_features.c.input_fingerprint,
+            ).order_by(schema.market_features.c.feature_offset_seconds)
+        ).all()
+    assert [row.condition_id for row in saved] == ["batch-0"] * 4
+    assert [row.feature_offset_seconds for row in saved] == [60, 120, 180, 240]
+
+    original_generate = v4_forward.generate_v4_features
+
+    def interrupted_generate(connection, targets, **kwargs):
+        original_generate(connection, targets, **kwargs)
+        raise RuntimeError("interrupted after uncommitted second batch")
+
+    monkeypatch.setattr(v4_forward, "generate_v4_features", interrupted_generate)
+    with pytest.raises(RuntimeError, match="interrupted after uncommitted"):
+        with engine.begin() as connection:
+            v4_forward.run_v4_forward_cycle(connection, cycle_at=CYCLE_AT)
+
+    with engine.connect() as connection:
+        after_failure = connection.execute(
+            select(
+                schema.market_features.c.condition_id,
+                schema.market_features.c.feature_offset_seconds,
+                schema.market_features.c.feature_hash,
+                schema.market_features.c.input_fingerprint,
+            ).order_by(schema.market_features.c.feature_offset_seconds)
+        ).all()
+    assert after_failure == saved
+
+    monkeypatch.setattr(v4_forward, "generate_v4_features", original_generate)
+    with engine.begin() as connection:
+        second = v4_forward.run_v4_forward_cycle(connection, cycle_at=CYCLE_AT)
+    with engine.begin() as connection:
+        third = v4_forward.run_v4_forward_cycle(connection, cycle_at=CYCLE_AT)
+    with engine.begin() as connection:
+        finished = v4_forward.run_v4_forward_cycle(connection, cycle_at=CYCLE_AT)
+
+    assert second.inserted == third.inserted == 4
+    assert second.remaining_pending_targets == 1
+    assert third.remaining_pending_targets == 0
+    assert finished.eligible_targets == finished.inserted == 0
+    with engine.connect() as connection:
+        rows = connection.execute(
+            select(schema.market_features.c.condition_id)
+        ).all()
+        original = connection.execute(
+            select(
+                schema.market_features.c.condition_id,
+                schema.market_features.c.feature_offset_seconds,
+                schema.market_features.c.feature_hash,
+                schema.market_features.c.input_fingerprint,
+            ).where(schema.market_features.c.condition_id == "batch-0")
+            .order_by(schema.market_features.c.feature_offset_seconds)
+        ).all()
+    assert len(rows) == 12
+    assert original == saved
+    engine.dispose()
 
 
 def test_forward_module_is_outcome_blind_and_has_no_trading_path() -> None:

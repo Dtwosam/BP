@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -13,6 +14,8 @@ from bp_engine.storage.schema import market_features, polymarket_markets
 V4_FORWARD_EPOCH = datetime(2026, 9, 20, 12, 40, 53, tzinfo=UTC)
 V4_FORWARD_END_GRACE_SECONDS = 15
 _EXPECTED_OFFSETS = frozenset({60, 120, 180, 240})
+# One market per scheduled cycle: a timeout cannot roll back a multi-hour backlog.
+V4_FORWARD_MARKETS_PER_CYCLE = 1
 
 
 @dataclass(frozen=True)
@@ -20,6 +23,7 @@ class V4ForwardCycleStats:
     cycle_at: datetime
     epoch: datetime
     eligible_targets: int
+    remaining_pending_targets: int
     inserted: int
     existing: int
     planned_rows: int
@@ -127,22 +131,39 @@ def run_v4_forward_cycle(
     cycle_at: datetime,
     epoch: datetime = V4_FORWARD_EPOCH,
     end_grace_seconds: int = V4_FORWARD_END_GRACE_SECONDS,
+    progress: Callable[[str], None] | None = None,
 ) -> V4ForwardCycleStats:
     cycle = _utc(cycle_at, "cycle_at")
     forward_epoch = _utc(epoch, "epoch")
-    targets = discover_pending_v4_targets(
+    if progress is not None:
+        progress("discovery_start")
+    pending_targets = discover_pending_v4_targets(
         connection,
         cycle_at=cycle,
         epoch=forward_epoch,
         end_grace_seconds=end_grace_seconds,
     )
+    # Every scheduled invocation holds at most one market's four offsets in
+    # its transaction. Completed batches remain committed if a later cycle
+    # is interrupted; the next invocation re-discovers only missing targets.
+    targets = pending_targets[:V4_FORWARD_MARKETS_PER_CYCLE]
+    if progress is not None:
+        progress(
+            f"generation_start selected={len(targets)} "
+            f"remaining={len(pending_targets) - len(targets)}"
+        )
     generation = generate_v4_features(
         connection,
         targets,
         generated_at=cycle,
         preserve_existing=True,
     )
+    if progress is not None:
+        progress(f"generation_complete inserted={generation.inserted}")
+        progress("coverage_start")
     coverage = build_v4_coverage_report(connection, epoch_start=forward_epoch)
+    if progress is not None:
+        progress("coverage_complete")
 
     future_cutoffs = int(coverage["future_cutoff_violation_count"])
     polymarket_predictors = int(coverage["polymarket_predictor_key_count"])
@@ -165,6 +186,7 @@ def run_v4_forward_cycle(
         cycle_at=cycle,
         epoch=forward_epoch,
         eligible_targets=len(targets),
+        remaining_pending_targets=len(pending_targets) - len(targets),
         inserted=generation.inserted,
         existing=generation.existing,
         planned_rows=generation.planned_rows,

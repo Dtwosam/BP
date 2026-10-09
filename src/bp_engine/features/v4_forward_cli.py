@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
+import time
 from dataclasses import asdict
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
@@ -68,10 +70,24 @@ def _run(args: argparse.Namespace) -> V4ForwardCycleStats:
     settings = _settings(args)
     require_research_zero_money(settings)
     cycle_at = args.cycle_at or datetime.now(UTC)
+    started = time.monotonic()
+
+    def progress(stage: str) -> None:
+        print(
+            f"V4_FORWARD_STAGE={stage} elapsed_seconds="
+            f"{time.monotonic() - started:.2f}",
+            file=sys.stderr,
+            flush=True,
+        )
+
     engine = create_engine(settings.database_url)
     try:
         with engine.begin() as connection:
-            return run_v4_forward_cycle(connection, cycle_at=cycle_at)
+            result = run_v4_forward_cycle(
+                connection, cycle_at=cycle_at, progress=progress
+            )
+        progress("committed")
+        return result
     finally:
         engine.dispose()
 

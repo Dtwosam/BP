@@ -80,11 +80,17 @@ def test_empty_once_cycle_emits_deterministic_safe_json(tmp_path, capsys) -> Non
             "2026-09-20T13:30:00Z",
         ]
     ) == 0
-    payload = json.loads(capsys.readouterr().out)
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert "V4_FORWARD_STAGE=discovery_start" in captured.err
+    assert "V4_FORWARD_STAGE=generation_start selected=0 remaining=0" in captured.err
+    assert "V4_FORWARD_STAGE=coverage_complete" in captured.err
+    assert "V4_FORWARD_STAGE=committed" in captured.err
 
     assert payload["cycle_at"] == "2026-09-20T13:30:00+00:00"
     assert payload["epoch"] == "2026-09-20T12:40:53+00:00"
     assert payload["eligible_targets"] == 0
+    assert payload["remaining_pending_targets"] == 0
     assert payload["inserted"] == 0
     assert payload["coverage_market_count"] == 0
     assert payload["future_cutoff_violation_count"] == 0
