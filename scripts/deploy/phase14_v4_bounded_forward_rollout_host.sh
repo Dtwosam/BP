@@ -65,6 +65,23 @@ rollback() {
   set +e
   echo 'PHASE14_V4_BOUNDED_ROLLBACK=START' >&2
   systemctl stop "$TIMER" >/dev/null 2>&1 || true
+  # Starting the timer after validation may trigger another V4 oneshot.
+  # Never repoint a runtime symlink while that DB writer is active.
+  local rollback_idle=0
+  local rollback_state=''
+  for _ in $(seq 1 150); do
+    rollback_state="$(systemctl show -P ActiveState "$SERVICE" 2>/dev/null)"
+    if [[ "$rollback_state" == inactive || "$rollback_state" == failed ]]; then
+      rollback_idle=1
+      break
+    fi
+    sleep 1
+  done
+  if (( rollback_idle != 1 )); then
+    echo 'ROLLBACK_BLOCKED_ACTIVE_V4_ONESHOT_TIMER_LEFT_STOPPED' >&2
+    echo 'PHASE14_V4_BOUNDED_ROLLBACK=INCOMPLETE_OPERATOR_ACTION_REQUIRED' >&2
+    return 1
+  fi
   if (( SWITCHED == 1 )); then
     atomic_switch "$EXPECTED_OLD_TARGET" ||
       echo 'ROLLBACK_LINK_RESTORE_FAILED' >&2
