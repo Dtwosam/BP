@@ -132,6 +132,7 @@ def test_v4_coverage_detects_future_cutoff_and_polymarket_predictor() -> None:
     assert report["future_cutoff_violation_count"] == 3
     assert report["polymarket_predictor_key_count"] == 1
 
+
 def test_forward_summary_matches_full_history_counts_and_invariants() -> None:
     engine = _engine()
     with engine.begin() as connection:
