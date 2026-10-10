@@ -283,6 +283,7 @@ def build_v4_coverage_report(
         "automatic_promotion": False,
     }
 
+
 def build_v4_forward_coverage_summary(
     connection: Connection,
     *,
