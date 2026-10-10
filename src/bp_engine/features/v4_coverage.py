@@ -282,3 +282,79 @@ def build_v4_coverage_report(
         "training_run": False,
         "automatic_promotion": False,
     }
+
+def build_v4_forward_coverage_summary(
+    connection: Connection,
+    *,
+    epoch_start: datetime | None = None,
+    epoch_end: datetime | None = None,
+) -> dict[str, Any]:
+    """Check all forward V4 rows without building unused full-history diagnostics.
+
+    The recurring collector needs global cutoff, predictor-key, and regime
+    invariant checks plus market/regime counts, not source histograms or a
+    canonical full-history hash. The full coverage report remains unchanged
+    for standalone audits. This intentionally scans *all* in-epoch V4 rows,
+    including historic rows, so existing violations still fail the cycle.
+    """
+    if epoch_start is not None and epoch_end is not None:
+        if _utc(epoch_end) <= _utc(epoch_start):
+            raise ValueError("epoch_end must be after epoch_start")
+
+    query = select(
+        market_features.c.condition_id,
+        market_features.c.feature_at,
+        market_features.c.features,
+        market_features.c.source_cutoffs,
+    ).where(market_features.c.feature_version == V4_FEATURE_VERSION)
+    if epoch_start is not None:
+        query = query.where(market_features.c.market_start_at >= _utc(epoch_start))
+    if epoch_end is not None:
+        query = query.where(market_features.c.market_start_at < _utc(epoch_end))
+
+    row_count = 0
+    markets: set[str] = set()
+    regime_rows = {name: 0 for name in REGIME_NAMES}
+    regime_markets: dict[str, set[str]] = {name: set() for name in REGIME_NAMES}
+    future_cutoffs = 0
+    predictor_keys: set[str] = set()
+    regime_violations = 0
+
+    for row in connection.execute(query).mappings():
+        row_count += 1
+        condition_id = str(row["condition_id"])
+        markets.add(condition_id)
+        features = dict(row["features"] or {})
+        label, invalid = _regime_label(features)
+        regime_rows[label] += 1
+        regime_markets[label].add(condition_id)
+        regime_violations += int(invalid)
+
+        feature_at = _utc(row["feature_at"])
+        for raw in dict(row["source_cutoffs"] or {}).values():
+            cutoff = _parse_timestamp(raw)
+            if cutoff is not None and cutoff > feature_at:
+                future_cutoffs += 1
+
+        for key in features:
+            lowered = str(key).lower()
+            if lowered.startswith("pm_") or "polymarket" in lowered:
+                predictor_keys.add(str(key))
+
+    return {
+        "row_count": row_count,
+        "market_count": len(markets),
+        "regime": {
+            name: {
+                "row_count": regime_rows[name],
+                "market_count": len(regime_markets[name]),
+            }
+            for name in REGIME_NAMES
+        },
+        "future_cutoff_violation_count": future_cutoffs,
+        "polymarket_predictor_key_count": len(predictor_keys),
+        "regime_invariant_violation_count": regime_violations,
+        "policy_selected": False,
+        "training_run": False,
+        "automatic_promotion": False,
+    }
