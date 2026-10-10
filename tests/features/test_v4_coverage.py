@@ -2,7 +2,11 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import create_engine, insert
 
-from bp_engine.features.v4_coverage import build_v4_coverage_report
+from bp_engine.features import v4_coverage
+from bp_engine.features.v4_coverage import (
+    build_v4_coverage_report,
+    build_v4_forward_coverage_summary,
+)
 from bp_engine.features.v4_models import V4_FEATURE_VERSION
 from bp_engine.storage import schema
 
@@ -127,3 +131,70 @@ def test_v4_coverage_detects_future_cutoff_and_polymarket_predictor() -> None:
 
     assert report["future_cutoff_violation_count"] == 3
     assert report["polymarket_predictor_key_count"] == 1
+
+def test_forward_summary_matches_full_history_counts_and_invariants() -> None:
+    engine = _engine()
+    with engine.begin() as connection:
+        _insert_feature(
+            connection, condition_id="bull-market", offset=60, regime="bull"
+        )
+        _insert_feature(
+            connection, condition_id="bull-market", offset=120, regime="bear"
+        )
+        _insert_feature(
+            connection, condition_id="other-market", offset=180,
+            regime="sideways_mixed", future_cutoff=True, polymarket_key=True,
+        )
+        _insert_feature(
+            connection, condition_id="unknown-market", offset=240,
+            regime="unknown",
+        )
+        full = build_v4_coverage_report(connection, epoch_start=START)
+        summary = build_v4_forward_coverage_summary(connection, epoch_start=START)
+
+        # Empty windows have the same counts as a full audit.
+        empty_full = build_v4_coverage_report(
+            connection, epoch_start=START + timedelta(days=1)
+        )
+        empty_summary = build_v4_forward_coverage_summary(
+            connection, epoch_start=START + timedelta(days=1)
+        )
+
+    fields = (
+        "row_count", "market_count", "regime",
+        "future_cutoff_violation_count",
+        "polymarket_predictor_key_count",
+        "regime_invariant_violation_count",
+        "policy_selected", "training_run", "automatic_promotion",
+    )
+    for field in fields:
+        assert summary[field] == full[field]
+        assert empty_summary[field] == empty_full[field]
+    assert summary["future_cutoff_violation_count"] == 3
+    assert summary["polymarket_predictor_key_count"] == 1
+    assert summary["regime_invariant_violation_count"] == 1
+    assert "coverage_input_sha256" not in summary
+    assert "coverage_input_sha256" in full
+    engine.dispose()
+
+
+def test_forward_summary_skips_expensive_audit_only_reports(monkeypatch) -> None:
+    engine = _engine()
+    with engine.begin() as connection:
+        _insert_feature(
+            connection, condition_id="market", offset=60, regime="bull"
+        )
+
+        def forbidden(*args, **kwargs):
+            raise AssertionError("full-history audit function called in forward summary")
+
+        monkeypatch.setattr(v4_coverage, "_coverage_hash", forbidden)
+        monkeypatch.setattr(v4_coverage, "_source_report", forbidden)
+        monkeypatch.setattr(v4_coverage, "_return_report", forbidden)
+
+        summary = build_v4_forward_coverage_summary(connection, epoch_start=START)
+
+    assert summary["row_count"] == 1
+    assert summary["regime"]["bull"]["market_count"] == 1
+    assert summary["future_cutoff_violation_count"] == 0
+    engine.dispose()
