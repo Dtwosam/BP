@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import Connection, select
 
-from bp_engine.features.v4_coverage import build_v4_coverage_report
+from bp_engine.features.v4_coverage import build_v4_forward_coverage_summary
 from bp_engine.features.v4_models import V4_FEATURE_VERSION, V4FeatureTarget
 from bp_engine.features.v4_service import generate_v4_features
 from bp_engine.storage.schema import market_features, polymarket_markets
@@ -161,7 +161,8 @@ def run_v4_forward_cycle(
     if progress is not None:
         progress(f"generation_complete inserted={generation.inserted}")
         progress("coverage_start")
-    coverage = build_v4_coverage_report(connection, epoch_start=forward_epoch)
+    # Same global invariant checks/counts, without the unused full-report hash and diagnostics.
+    coverage = build_v4_forward_coverage_summary(connection, epoch_start=forward_epoch)
     if progress is not None:
         progress("coverage_complete")
 
