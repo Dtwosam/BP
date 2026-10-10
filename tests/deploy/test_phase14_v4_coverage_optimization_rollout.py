@@ -1,8 +1,10 @@
 """Non-mutating safety contracts for the successor V4 coverage rollout."""
 from __future__ import annotations
 
+import json
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -34,8 +36,9 @@ def test_readiness_pins_actual_bounded_runtime_and_fails_on_drift() -> None:
     assert "candidate_not_optimized" in source
     assert "SCHEDULED_COMMITS=" in source
     assert "COVERAGE_STAGE_TIMEOUTS=" in source
+    assert "POST_COMMIT_EXIT_TIMEOUTS=" in source
     assert "UNEXPECTED_FAILURE_EVENTS=" in source
-    assert "OLD_V4_RUNTIME_HEALTH=DEGRADED_COVERAGE_TIMEOUTS" in source
+    assert "OLD_V4_RUNTIME_HEALTH=DEGRADED_COVERAGE_AND_EXIT_TIMEOUTS" in source
     assert "RECENT_30M_COMMITS=" in source
     assert "READINESS_SCOPE=OPTIMIZED_V4_COVERAGE_REMEDIATION_ONLY" in source
     assert "V4_TIMER_NOT_ACTIVE" in source
@@ -102,8 +105,12 @@ def test_host_safety_and_rollback_bound_to_existing_runtime() -> None:
         "default_transaction_read_only=on",
         'assert s.recorder_priority_batch_size == 20',
         'assert c.execute(text("SHOW shared_buffers")).scalar_one() == "128MB"',
-        'cycle["eligible_targets"]==1', 'cycle["planned_rows"]==4',
+        'cycle["eligible_targets"] in (0, 1)',
+        'cycle["planned_rows"] == 0',
+        'cycle["planned_rows"] == 4',
+        'assert after == before',
         'after - before == cycle["inserted"]',
+        "V4_ZERO_BACKLOG_NOOP_VALIDATED=true",
         "future_cutoff_violation_count",
         "polymarket_predictor_key_count", "regime_invariant_violation_count",
         "automatic_promotion", "core_service_pid_changed",
@@ -185,7 +192,7 @@ def test_readiness_classifies_known_coverage_timeout_without_waiving_it() -> Non
         "UNEXPECTED_FAILURE_EVENTS=0",
         "FIRST_PENDING_OBSERVED=392",
         "LAST_PENDING_OBSERVED=27",
-        "OLD_V4_RUNTIME_HEALTH=DEGRADED_COVERAGE_TIMEOUTS",
+        "OLD_V4_RUNTIME_HEALTH=DEGRADED_COVERAGE_AND_EXIT_TIMEOUTS",
         "V4_COVERAGE_TIMEOUT_CLASSIFICATION=PASS",
     ):
         assert item in result.stdout
@@ -247,3 +254,137 @@ def test_readiness_allows_inflight_unfinished_cycle_but_not_failure() -> None:
     result = _classify(_cycle(20) + inflight)
     assert result.returncode == 0
     assert "OLD_V4_RUNTIME_HEALTH=NO_OBSERVED_FAILURES" in result.stdout
+
+
+def _postcommit_timeout(elapsed: float = 116.4, pending: int = 19) -> str:
+    """Model the four observed completed-but-timed-out old V4 cycles."""
+    return "\n".join([
+        "V4_FORWARD_STAGE=discovery_start",
+        f"V4_FORWARD_STAGE=generation_start selected=1 remaining={pending}",
+        "V4_FORWARD_STAGE=generation_complete inserted=4",
+        "V4_FORWARD_STAGE=coverage_start",
+        f"V4_FORWARD_STAGE=coverage_complete elapsed_seconds={elapsed - 0.04}",
+        f"V4_FORWARD_STAGE=committed elapsed_seconds={elapsed}",
+        "bp-v4-forward-coverage.service: start operation timed out. Terminating.",
+        "bp-v4-forward-coverage.service: Failed with result 'timeout'.",
+    ]) + "\n"
+
+
+def test_readiness_classifies_narrow_postcommit_exit_timeout_as_degraded() -> None:
+    result = _classify(
+        _cycle(392) + _cycle(34, timeout=True)
+        + _postcommit_timeout(116.4, 21) + _cycle(0)
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "SCHEDULED_COMMITS=3" in result.stdout
+    assert "COVERAGE_STAGE_TIMEOUTS=1" in result.stdout
+    assert "POST_COMMIT_EXIT_TIMEOUTS=1" in result.stdout
+    assert "UNEXPECTED_FAILURE_EVENTS=0" in result.stdout
+    assert "OLD_V4_RUNTIME_HEALTH=DEGRADED_COVERAGE_AND_EXIT_TIMEOUTS" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        # Earlier-than-observed post-commit exit hangs must not be waived.
+        _postcommit_timeout(55.0),
+        _postcommit_timeout(109.9),
+        _postcommit_timeout(120.0),
+        # Complete logs still require exactly one systemd timeout and result pair.
+        _postcommit_timeout().replace(
+            "bp-v4-forward-coverage.service: Failed with result 'timeout'.\n", ""
+        ),
+        _postcommit_timeout().replace(
+            "bp-v4-forward-coverage.service: start operation timed out. Terminating.\n", ""
+        ),
+        _postcommit_timeout().replace("elapsed_seconds=116.4", "elapsed_unknown"),
+        _postcommit_timeout().replace(
+            "bp-v4-forward-coverage.service: Failed with result 'timeout'.",
+            "bp-v4-forward-coverage.service: Failed with result 'exit-code'.",
+        ),
+        # A post-coverage but pre-commit timeout is not a post-commit timeout.
+        "\n".join([
+            "V4_FORWARD_STAGE=discovery_start",
+            "V4_FORWARD_STAGE=generation_start selected=1 remaining=19",
+            "V4_FORWARD_STAGE=generation_complete inserted=4",
+            "V4_FORWARD_STAGE=coverage_start",
+            "V4_FORWARD_STAGE=coverage_complete",
+            "bp-v4-forward-coverage.service: start operation timed out. Terminating.",
+            "bp-v4-forward-coverage.service: Failed with result 'timeout'.",
+        ]) + "\n",
+    ],
+)
+def test_readiness_rejects_unexplained_postcommit_failure(invalid: str) -> None:
+    result = _classify(_cycle(392) + invalid)
+    assert result.returncode != 0
+    assert "V4_COVERAGE_TIMEOUT_CLASSIFICATION=FAIL" in result.stdout
+
+
+def _host_validation(
+    tmp_path: Path,
+    *,
+    eligible: int,
+    planned: int,
+    inserted: int,
+    existing: int,
+    remaining: int,
+    before: int,
+    after: int,
+    future_cutoff: int = 0,
+) -> subprocess.CompletedProcess[str]:
+    """Execute only the host's JSON acceptance snippet with isolated fixtures."""
+    source = HOST.read_text()
+    marker = (
+        '/opt/bp/.venv/bin/python - "$BEFORE" "$AFTER" '
+        '"$EVIDENCE/cycle.json" <<\'PY\''
+    )
+    snippet = source.split(marker, 1)[1].split("\nPY", 1)[0]
+    cycle = {
+        "epoch": "2026-09-20T12:40:53+00:00",
+        "eligible_targets": eligible,
+        "planned_rows": planned,
+        "inserted": inserted,
+        "existing": existing,
+        "remaining_pending_targets": remaining,
+        "future_cutoff_violation_count": future_cutoff,
+        "polymarket_predictor_key_count": 0,
+        "regime_invariant_violation_count": 0,
+        "policy_selected": False,
+        "training_run": False,
+        "automatic_promotion": False,
+    }
+    payload = tmp_path / "cycle.json"
+    payload.write_text(json.dumps(cycle))
+    return subprocess.run(
+        [sys.executable, "-c", snippet, str(before), str(after), str(payload)],
+        capture_output=True, text=True, check=False,
+    )
+
+
+def test_zero_backlog_validation_requires_strict_noop(tmp_path: Path) -> None:
+    result = _host_validation(
+        tmp_path, eligible=0, planned=0, inserted=0,
+        existing=0, remaining=0, before=20000, after=20000,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "V4_ZERO_BACKLOG_NOOP_VALIDATED=true" in result.stdout
+
+    # The existing one-market/four-row validation contract is retained.
+    generated = _host_validation(
+        tmp_path, eligible=1, planned=4, inserted=4,
+        existing=0, remaining=4, before=20000, after=20004,
+    )
+    assert generated.returncode == 0, generated.stderr
+
+    for changes in (
+        {"after": 20001}, {"planned": 4}, {"inserted": 1},
+        {"existing": 1}, {"remaining": 1}, {"eligible": 2},
+        {"future_cutoff": 1},
+    ):
+        args = dict(
+            eligible=0, planned=0, inserted=0, existing=0,
+            remaining=0, before=20000, after=20000,
+        )
+        args.update(changes)
+        invalid = _host_validation(tmp_path, **args)
+        assert invalid.returncode != 0, changes

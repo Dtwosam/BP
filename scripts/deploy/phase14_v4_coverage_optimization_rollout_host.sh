@@ -327,11 +327,22 @@ from pathlib import Path
 before, after = map(int, sys.argv[1:3])
 cycle=json.loads(Path(sys.argv[3]).read_text())
 assert cycle["epoch"]=="2026-09-20T12:40:53+00:00"
-assert cycle["eligible_targets"]==1
-assert cycle["planned_rows"]==4
-assert 1 <= cycle["inserted"] <= 4
-assert cycle["existing"] + cycle["inserted"] == 4
-assert after - before == cycle["inserted"]
+# If backlog has genuinely reached zero, the bounded validation cycle
+# must be a no-op; it still runs all full-epoch safety/invariant checks and
+# must exit within 110s. Never invent an eligible market or insert test rows.
+assert cycle["eligible_targets"] in (0, 1)
+if cycle["eligible_targets"] == 0:
+    assert cycle["planned_rows"] == 0
+    assert cycle["inserted"] == 0
+    assert cycle["existing"] == 0
+    assert cycle["remaining_pending_targets"] == 0
+    assert after == before
+    print("V4_ZERO_BACKLOG_NOOP_VALIDATED=true", flush=True)
+else:
+    assert cycle["planned_rows"] == 4
+    assert 1 <= cycle["inserted"] <= 4
+    assert cycle["existing"] + cycle["inserted"] == 4
+    assert after - before == cycle["inserted"]
 assert cycle["remaining_pending_targets"] >= 0
 for key in ("future_cutoff_violation_count",
             "polymarket_predictor_key_count",

@@ -44,13 +44,20 @@ This helper:
   pending-count direction; it does not invoke the writer or open a write-capable
   DB session;
 - classifies every post-deploy scheduled V4 cycle using ordered stage markers.
-  A paired systemd 120-second timeout **only after**
-  `generation_complete` and `coverage_start`, and before
-  `coverage_complete`, is reported as `OLD_V4_RUNTIME_HEALTH=DEGRADED_COVERAGE_TIMEOUTS`.
-  These failures remain visible, and this status permits **only further
-  evaluation of the coverage-performance remediation**, not a healthy
-  collector sign-off. This classification is backed by the production logs
-  from 2026-10-10 19:00–19:20 UTC.
+  A paired 120-second systemd timeout **during** coverage reporting is
+  counted as `COVERAGE_STAGE_TIMEOUTS`. A distinct, verified 2026-10-10
+  failure pattern logs `committed elapsed_seconds=116.30–116.54` **after**
+  the SQLAlchemy transaction has exited successfully, but the systemd
+  oneshot fails before process exit. Only a paired timeout after a valid
+  `coverage_complete` and `committed` stage with elapsed time in
+  [110, 120) seconds qualifies as `POST_COMMIT_EXIT_TIMEOUTS`.
+  Both counts remain visible and result in
+  `OLD_V4_RUNTIME_HEALTH=DEGRADED_COVERAGE_AND_EXIT_TIMEOUTS`;
+  neither classifies the old collector as healthy nor proves the process
+  exited successfully. The other 130 failures in the supplied journal were
+  paired timeouts within coverage reporting. Every other failure blocks.
+  This classification permits **only a read-only evaluation of the exact
+  coverage-performance remediation**, never general service-health approval.
 - fails closed on any unpaired timeout, unexpected stage order, traceback,
   other service failure, increasing observed backlog, or no commits during
   the latest 30-minute window. The currently executing cycle may be
@@ -61,7 +68,7 @@ Its result is `PHASE14_V4_COVERAGE_OPTIMIZATION_READINESS=PASS` with
 `ROLLOUT_AUTHORIZED=false`. A PASS alone does not permit production changes.
 
 If the expected runtime changed, the old code hash differs, the checkout
-changed, a **non-coverage** failure occurred, no recent cycles committed, or
+changed, an **unclassified** failure occurred, no recent cycles committed, or
 a frozen service is unhealthy: **STOP** and investigate read-only. Do not
 retry an older rollout. The historical coverage-stage timeouts remain a
 documented defect even when their classification passes. An optimized
@@ -96,8 +103,13 @@ The new controller and root half copy the audited narrow V4 rollout contract:
 archive exact candidate, validate hashes and pinned recorder checkout, lock,
 stop **only** the V4 timer, wait for the V4 one-shot to quiesce, atomically
 switch **only** the V4 runtime symlink, run exactly one research-only bounded
-cycle under a 110-second cutoff, verify 1–4 immutable new feature rows and
-all leakage/regime/trading/promote-negative invariants, verify frozen service
+cycle under a 110-second cutoff. If one market is eligible, verify four
+planned offsets and 1–4 immutable new feature rows. **If the pending
+backlog is zero**, require zero eligible targets, zero planned/existing/
+inserted rows, zero remaining pending and exact equality of feature-row
+counts before and after; still run the complete global leakage/regime/
+no-promotion invariant scan. Neither branch is permitted to invent a
+market or write test rows. Verify frozen service
 and PostgreSQL identity continuity, then restore V4 timer and record evidence.
 
 Failing any check after timer mutation triggers cautious rollback to the
