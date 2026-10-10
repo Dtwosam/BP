@@ -81,6 +81,18 @@ systemctl show bp-v4-forward-coverage.service --no-pager \
 echo 'V4_FORWARD_TIMER'
 systemctl show bp-v4-forward-coverage.timer --no-pager \
   -p ActiveState -p UnitFileState -p NextElapseUSecRealtime
+[[ "$(systemctl is-active bp-v4-forward-coverage.timer)" == active ]] || {
+  echo 'V4_TIMER_NOT_ACTIVE' >&2; exit 1;
+}
+[[ "$(systemctl is-enabled bp-v4-forward-coverage.timer)" == enabled ]] || {
+  echo 'V4_TIMER_NOT_ENABLED' >&2; exit 1;
+}
+[[ "$(systemctl show -P TimeoutStartUSec bp-v4-forward-coverage.service)" == 2min ]] || {
+  echo 'V4_TIMEOUT_CHANGED' >&2; exit 1;
+}
+[[ "$(systemctl show -P LoadState bp-v4-forward-coverage.service)" == loaded ]] || {
+  echo 'V4_SERVICE_NOT_LOADED' >&2; exit 1;
+}
 
 echo 'FROZEN_CORE_SERVICES'
 for unit in bp-postgres.service bp-recorder.service \
