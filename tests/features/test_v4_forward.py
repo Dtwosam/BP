@@ -2,7 +2,7 @@ import inspect
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import create_engine, insert, select
+from sqlalchemy import create_engine, insert, select, update
 
 from bp_engine.features import v4_forward
 from bp_engine.features.v4_models import V4_FEATURE_VERSION
@@ -171,7 +171,7 @@ def test_forward_cycle_fails_closed_on_coverage_invariant(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         v4_forward,
-        "build_v4_coverage_report",
+        "build_v4_forward_coverage_summary",
         lambda *args, **kwargs: {
             "row_count": 0,
             "market_count": 0,
@@ -280,6 +280,30 @@ def test_bounded_forward_catchup_commits_and_resumes_after_interruption(
         ).all()
     assert len(rows) == 12
     assert original == saved
+    engine.dispose()
+
+
+
+def test_forward_cycle_fails_closed_on_historical_predictor_violation() -> None:
+    engine = _engine()
+    with engine.begin() as connection:
+        _insert_v4_feature(
+            connection,
+            condition_id="historical-violation",
+            start_at=datetime(2026, 9, 20, 12, 45, tzinfo=UTC),
+            offset=60,
+        )
+        connection.execute(
+            update(schema.market_features)
+            .where(schema.market_features.c.condition_id == "historical-violation")
+            .values(features={"polymarket_price": 0.5})
+        )
+
+    # Even with zero pending markets, a pre-existing invalid V4 feature
+    # must still block the next commit: the summary scans all epoch rows.
+    with pytest.raises(RuntimeError, match="V4 forward coverage invariant violation"):
+        with engine.begin() as connection:
+            v4_forward.run_v4_forward_cycle(connection, cycle_at=CYCLE_AT)
     engine.dispose()
 
 
