@@ -43,16 +43,29 @@ This helper:
 - summarizes already-existing V4 journals for committed cycles, failures and
   pending-count direction; it does not invoke the writer or open a write-capable
   DB session;
-- fails closed on unexpected runtime/config drift or any observed post-deploy
-  timeout/failure event.
+- classifies every post-deploy scheduled V4 cycle using ordered stage markers.
+  A paired systemd 120-second timeout **only after**
+  `generation_complete` and `coverage_start`, and before
+  `coverage_complete`, is reported as `OLD_V4_RUNTIME_HEALTH=DEGRADED_COVERAGE_TIMEOUTS`.
+  These failures remain visible, and this status permits **only further
+  evaluation of the coverage-performance remediation**, not a healthy
+  collector sign-off. This classification is backed by the production logs
+  from 2026-10-10 19:00–19:20 UTC.
+- fails closed on any unpaired timeout, unexpected stage order, traceback,
+  other service failure, increasing observed backlog, or no commits during
+  the latest 30-minute window. The currently executing cycle may be
+  incomplete; its recorded failure, if any, is not silently waived.
 
 Its result is `PHASE14_V4_COVERAGE_OPTIMIZATION_READINESS=PASS` with
 `PRODUCTION_MUTATION=false`, `DEPLOYMENT_EXECUTED=false`,
 `ROLLOUT_AUTHORIZED=false`. A PASS alone does not permit production changes.
 
 If the expected runtime changed, the old code hash differs, the checkout
-changed, cycles started failing, or a frozen service is unhealthy: **STOP**
-and investigate read-only. Do not retry an older rollout.
+changed, a **non-coverage** failure occurred, no recent cycles committed, or
+a frozen service is unhealthy: **STOP** and investigate read-only. Do not
+retry an older rollout. The historical coverage-stage timeouts remain a
+documented defect even when their classification passes. An optimized
+deployment cannot be treated as a cure until independently measured.
 
 ## Step 2 — Local-only successor rollout preflight (no VM contact)
 
@@ -104,7 +117,7 @@ and persistent zero-money settings before reassessing Phase 14 HOLD.
 - [x] Optimized source merged and post-merge CI green on d9f62ec7.
 - [x] Isolated benchmark with equivalence assertion: 3.66x on synthetic rows.
 - [ ] New readiness and rollout helpers reviewed, merged, and post-merge CI green.
-- [ ] Fresh read-only host readiness PASS on expected current runtime.
+- [ ] Fresh read-only host readiness PASS on expected current runtime; if coverage-only timeouts are present, they are explicitly classified as degraded, not ignored.
 - [ ] New explicit operator authorization, bound to successor exact SHA.
 - [ ] Authorized bounded deployment acceptance, if subsequently approved.
 - [ ] Sustained production recovery and integrity evidence; HOLD remains.
