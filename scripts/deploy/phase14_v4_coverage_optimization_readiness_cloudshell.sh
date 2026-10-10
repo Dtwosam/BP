@@ -182,28 +182,107 @@ print("RECORDER_AND_DB_SAFETY=PASS")
 PY
 
 echo '=== V4 SCHEDULED CYCLE HEALTH (SINCE BOUNDED ROLLOUT) ==='
+# Only a paired systemd timeout that occurs after generation_complete and
+# coverage_start, but before coverage_complete, is an understood reason to
+# deploy the coverage-only performance remediation. Any other failure blocks.
+# V4 runs as a single oneshot writer, so journal stage ordering is serial.
 sudo -n journalctl -u bp-v4-forward-coverage.service \
   --since '2026-10-09 23:46:00 UTC' --no-pager -o cat |
 awk '
-/V4_FORWARD_STAGE=committed/ { commits++ }
+/V4_FORWARD_STAGE=discovery_start/ {
+  if (active) unexpected++
+  started=1
+  active=1
+  stage="discovery"
+  next
+}
 /V4_FORWARD_STAGE=generation_start/ {
+  if (!started || !active || stage!="discovery") unexpected++
+  stage="generation"
   if (match($0, /remaining=[0-9]+/)) {
     pending=substr($0,RSTART+10,RLENGTH-10)+0
     if (!observations++) first=pending
     last=pending
+  } else {
+    unexpected++
   }
+  next
 }
-/start operation timed out|Failed with result|Traceback/ { failures++ }
+/V4_FORWARD_STAGE=generation_complete/ {
+  if (!started || !active || stage!="generation") unexpected++
+  stage="generated"
+  next
+}
+/V4_FORWARD_STAGE=coverage_start/ {
+  if (!started || !active || stage!="generated") unexpected++
+  stage="coverage"
+  next
+}
+/V4_FORWARD_STAGE=coverage_complete/ {
+  if (!started || !active || stage!="coverage") unexpected++
+  stage="covered"
+  next
+}
+/V4_FORWARD_STAGE=committed/ {
+  if (!started || !active || stage!="covered") unexpected++
+  commits++
+  active=0
+  stage=""
+  next
+}
+/V4_FORWARD_STAGE=/ { unexpected++; next }
+/start operation timed out/ {
+  timeouts++
+  if (!started || !active || stage!="coverage") unexpected++
+  stage="timedout"
+  next
+}
+/Failed with result/ {
+  if ($0 ~ /Failed with result.*timeout/ && active && stage=="timedout") {
+    paired_coverage_timeouts++
+    active=0
+    stage=""
+  } else {
+    unexpected++
+  }
+  next
+}
+/Traceback/ { unexpected++; next }
 END {
   print "SCHEDULED_COMMITS=" commits+0
-  print "SCHEDULED_FAILURE_EVENTS=" failures+0
+  print "COVERAGE_STAGE_TIMEOUTS=" paired_coverage_timeouts+0
+  print "UNEXPECTED_FAILURE_EVENTS=" unexpected+0
   if (observations) {
     print "FIRST_PENDING_OBSERVED=" first
     print "LAST_PENDING_OBSERVED=" last
   }
-  if (!commits || failures || !observations) exit 1
+  if (!started || !commits || !observations ||
+      unexpected || timeouts!=paired_coverage_timeouts || last>first ||
+      (active && stage=="timedout")) {
+    print "V4_COVERAGE_TIMEOUT_CLASSIFICATION=FAIL"
+    exit 1
+  }
+  if (paired_coverage_timeouts) {
+    print "OLD_V4_RUNTIME_HEALTH=DEGRADED_COVERAGE_TIMEOUTS"
+  } else {
+    print "OLD_V4_RUNTIME_HEALTH=NO_OBSERVED_FAILURES"
+  }
+  print "V4_COVERAGE_TIMEOUT_CLASSIFICATION=PASS"
 }
 '
+echo '=== RECENT SUCCESSFUL COMMITS (30 MINUTES) ==='
+# A merely historical success cannot qualify a stuck present-day collector.
+sudo -n journalctl -u bp-v4-forward-coverage.service \
+  --since '30 minutes ago' --no-pager -o cat |
+awk '
+/V4_FORWARD_STAGE=committed/ { recent_commits++ }
+END {
+  print "RECENT_30M_COMMITS=" recent_commits+0
+  if (!recent_commits) exit 1
+}
+'
+echo 'READINESS_SCOPE=OPTIMIZED_V4_COVERAGE_REMEDIATION_ONLY'
+echo 'HISTORICAL_TIMEOUTS_NOT_WAIVED_FOR_GENERAL_HEALTH=true'
 echo 'PHASE14_V4_COVERAGE_OPTIMIZATION_READINESS=PASS'
 echo 'PRODUCTION_MUTATION=false'
 echo 'DEPLOYMENT_EXECUTED=false'
