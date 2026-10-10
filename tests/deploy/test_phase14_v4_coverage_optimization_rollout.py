@@ -1,8 +1,11 @@
 """Non-mutating safety contracts for the successor V4 coverage rollout."""
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 READINESS = ROOT / "scripts/deploy/phase14_v4_coverage_optimization_readiness_cloudshell.sh"
@@ -30,7 +33,11 @@ def test_readiness_pins_actual_bounded_runtime_and_fails_on_drift() -> None:
     assert "OLD_V4_RUNTIME_HASH_MISMATCH" in source
     assert "candidate_not_optimized" in source
     assert "SCHEDULED_COMMITS=" in source
-    assert "SCHEDULED_FAILURE_EVENTS=" in source
+    assert "COVERAGE_STAGE_TIMEOUTS=" in source
+    assert "UNEXPECTED_FAILURE_EVENTS=" in source
+    assert "OLD_V4_RUNTIME_HEALTH=DEGRADED_COVERAGE_TIMEOUTS" in source
+    assert "RECENT_30M_COMMITS=" in source
+    assert "READINESS_SCOPE=OPTIMIZED_V4_COVERAGE_REMEDIATION_ONLY" in source
     assert "V4_TIMER_NOT_ACTIVE" in source
     assert "V4_TIMER_NOT_ENABLED" in source
     assert "PHASE14_V4_COVERAGE_OPTIMIZATION_READINESS=PASS" in source
@@ -133,3 +140,110 @@ def test_scripts_fail_closed_before_host_contact_without_approval() -> None:
     )
     assert no_args.returncode == 2
     assert "HOST_GATE=FAIL:arguments" in no_args.stderr
+
+
+def _classify(journal: str) -> subprocess.CompletedProcess[str]:
+    """Exercise exactly the embedded AWK classifier, with no remote contact."""
+    source = READINESS.read_text()
+    section = source.split(
+        "echo '=== V4 SCHEDULED CYCLE HEALTH (SINCE BOUNDED ROLLOUT) ==='", 1
+    )[1].split("echo '=== RECENT SUCCESSFUL COMMITS (30 MINUTES) ==='", 1)[0]
+    match = re.search(r"\nawk '\n(.*?)\n'\s*$", section, re.DOTALL)
+    assert match is not None
+    return subprocess.run(
+        ["awk", match.group(1)], input=journal,
+        capture_output=True, text=True, check=False,
+    )
+
+
+def _cycle(pending: int = 20, timeout: bool = False) -> str:
+    stages = [
+        "V4_FORWARD_STAGE=discovery_start",
+        f"V4_FORWARD_STAGE=generation_start selected=1 remaining={pending}",
+        "V4_FORWARD_STAGE=generation_complete inserted=4",
+        "V4_FORWARD_STAGE=coverage_start",
+    ]
+    if timeout:
+        stages += [
+            "bp-v4-forward-coverage.service: start operation timed out. Terminating.",
+            "bp-v4-forward-coverage.service: Failed with result 'timeout'.",
+        ]
+    else:
+        stages += [
+            "V4_FORWARD_STAGE=coverage_complete",
+            "V4_FORWARD_STAGE=committed",
+        ]
+    return "\n".join(stages) + "\n"
+
+
+def test_readiness_classifies_known_coverage_timeout_without_waiving_it() -> None:
+    result = _classify(_cycle(392) + _cycle(34, timeout=True) + _cycle(27))
+    assert result.returncode == 0, result.stdout + result.stderr
+    for item in (
+        "SCHEDULED_COMMITS=2",
+        "COVERAGE_STAGE_TIMEOUTS=1",
+        "UNEXPECTED_FAILURE_EVENTS=0",
+        "FIRST_PENDING_OBSERVED=392",
+        "LAST_PENDING_OBSERVED=27",
+        "OLD_V4_RUNTIME_HEALTH=DEGRADED_COVERAGE_TIMEOUTS",
+        "V4_COVERAGE_TIMEOUT_CLASSIFICATION=PASS",
+    ):
+        assert item in result.stdout
+
+
+@pytest.mark.parametrize(
+    "unexpected",
+    [
+        # A timeout during generation is not the confirmed coverage failure.
+        "\n".join([
+            "V4_FORWARD_STAGE=discovery_start",
+            "V4_FORWARD_STAGE=generation_start selected=1 remaining=19",
+            "bp-v4-forward-coverage.service: start operation timed out. Terminating.",
+            "bp-v4-forward-coverage.service: Failed with result 'timeout'.",
+        ]) + "\n",
+        # A timeout after coverage_complete cannot be classified as expected.
+        "\n".join([
+            "V4_FORWARD_STAGE=discovery_start",
+            "V4_FORWARD_STAGE=generation_start selected=1 remaining=19",
+            "V4_FORWARD_STAGE=generation_complete inserted=4",
+            "V4_FORWARD_STAGE=coverage_start",
+            "V4_FORWARD_STAGE=coverage_complete",
+            "bp-v4-forward-coverage.service: start operation timed out. Terminating.",
+            "bp-v4-forward-coverage.service: Failed with result 'timeout'.",
+        ]) + "\n",
+        # Orphan/incorrectly paired failure results block readiness.
+        "bp-v4-forward-coverage.service: Failed with result 'timeout'.\n",
+        "bp-v4-forward-coverage.service: Failed with result 'exit-code'.\n",
+        "Traceback (most recent call last):\n",
+        "V4_FORWARD_STAGE=coverage_complete\n",
+        # A systemd timeout without the matching failed-result line also blocks.
+        "\n".join([
+            "V4_FORWARD_STAGE=discovery_start",
+            "V4_FORWARD_STAGE=generation_start selected=1 remaining=19",
+            "V4_FORWARD_STAGE=generation_complete inserted=4",
+            "V4_FORWARD_STAGE=coverage_start",
+            "bp-v4-forward-coverage.service: start operation timed out. Terminating.",
+        ]) + "\n",
+    ],
+)
+def test_readiness_blocks_unexpected_failures(unexpected: str) -> None:
+    result = _classify(_cycle(392) + unexpected)
+    assert result.returncode != 0
+    assert "V4_COVERAGE_TIMEOUT_CLASSIFICATION=FAIL" in result.stdout
+
+
+def test_readiness_blocks_backlog_regression_and_all_timeout_history() -> None:
+    assert _classify(_cycle(20) + _cycle(21)).returncode != 0
+    assert _classify(_cycle(19, timeout=True)).returncode != 0
+
+
+def test_readiness_allows_inflight_unfinished_cycle_but_not_failure() -> None:
+    inflight = "\n".join([
+        "V4_FORWARD_STAGE=discovery_start",
+        "V4_FORWARD_STAGE=generation_start selected=1 remaining=19",
+        "V4_FORWARD_STAGE=generation_complete inserted=4",
+        "V4_FORWARD_STAGE=coverage_start",
+    ]) + "\n"
+    result = _classify(_cycle(20) + inflight)
+    assert result.returncode == 0
+    assert "OLD_V4_RUNTIME_HEALTH=NO_OBSERVED_FAILURES" in result.stdout
