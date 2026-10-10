@@ -28,7 +28,7 @@ def test_readiness_pins_actual_bounded_runtime_and_fails_on_drift() -> None:
     assert 'TARGET="$(sudo -n readlink -f "$LINK")"' in source
     assert '"$TARGET" == "$EXPECTED_OLD_TARGET"' in source
     assert "OLD_V4_RUNTIME_HASH_MISMATCH" in source
-    assert "optimized_summary_not_used" in source.replace("candidate_not_optimized", "optimized_summary_not_used")
+    assert "candidate_not_optimized" in source
     assert "SCHEDULED_COMMITS=" in source
     assert "SCHEDULED_FAILURE_EVENTS=" in source
     assert "V4_TIMER_NOT_ACTIVE" in source
