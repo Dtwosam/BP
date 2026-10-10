@@ -182,15 +182,19 @@ print("RECORDER_AND_DB_SAFETY=PASS")
 PY
 
 echo '=== V4 SCHEDULED CYCLE HEALTH (SINCE BOUNDED ROLLOUT) ==='
-# Only a paired systemd timeout that occurs after generation_complete and
-# coverage_start, but before coverage_complete, is an understood reason to
-# deploy the coverage-only performance remediation. Any other failure blocks.
+# Accept only two diagnosed failure forms for this *remediation readiness*:
+# paired coverage-stage timeouts, or paired post-commit exit timeouts after
+# a successfully committed cycle at 110–120s elapsed. The latter still means
+# the systemd unit failed; never call either class healthy or ignore them.
+# All other failures and invalid stage orders still block readiness.
 # V4 runs as a single oneshot writer, so journal stage ordering is serial.
 sudo -n journalctl -u bp-v4-forward-coverage.service \
   --since '2026-10-09 23:46:00 UTC' --no-pager -o cat |
 awk '
 /V4_FORWARD_STAGE=discovery_start/ {
   if (active) unexpected++
+  # A prior committed cycle exited successfully if no intervening timeout.
+  commit_elapsed=0
   started=1
   active=1
   stage="discovery"
@@ -225,22 +229,39 @@ awk '
 }
 /V4_FORWARD_STAGE=committed/ {
   if (!started || !active || stage!="covered") unexpected++
+  # Post-commit timeouts are only understood if the log shows the service
+  # was already near its 120s timeout at the time of the successful commit.
+  commit_elapsed=0
+  if (match($0, /elapsed_seconds=[0-9.]+/)) {
+    commit_elapsed=substr($0,RSTART+16,RLENGTH-16)+0
+  }
   commits++
   active=0
-  stage=""
+  stage="committed"
   next
 }
 /V4_FORWARD_STAGE=/ { unexpected++; next }
 /start operation timed out/ {
   timeouts++
-  if (!started || !active || stage!="coverage") unexpected++
-  stage="timedout"
+  if (started && active && stage=="coverage") {
+    stage="coverage_timedout"
+  } else if (started && !active && stage=="committed" &&
+             commit_elapsed>=110 && commit_elapsed<120) {
+    stage="postcommit_timedout"
+  } else {
+    unexpected++
+    stage="unexpected_timedout"
+  }
   next
 }
 /Failed with result/ {
-  if ($0 ~ /Failed with result.*timeout/ && active && stage=="timedout") {
+  if ($0 ~ /Failed with result.*timeout/ && active && stage=="coverage_timedout") {
     paired_coverage_timeouts++
     active=0
+    stage=""
+  } else if ($0 ~ /Failed with result.*timeout/ && !active &&
+             stage=="postcommit_timedout") {
+    paired_postcommit_timeouts++
     stage=""
   } else {
     unexpected++
@@ -251,19 +272,21 @@ awk '
 END {
   print "SCHEDULED_COMMITS=" commits+0
   print "COVERAGE_STAGE_TIMEOUTS=" paired_coverage_timeouts+0
+  print "POST_COMMIT_EXIT_TIMEOUTS=" paired_postcommit_timeouts+0
   print "UNEXPECTED_FAILURE_EVENTS=" unexpected+0
   if (observations) {
     print "FIRST_PENDING_OBSERVED=" first
     print "LAST_PENDING_OBSERVED=" last
   }
   if (!started || !commits || !observations ||
-      unexpected || timeouts!=paired_coverage_timeouts || last>first ||
-      (active && stage=="timedout")) {
+      unexpected || timeouts!=paired_coverage_timeouts+paired_postcommit_timeouts ||
+      last>first || stage=="coverage_timedout" ||
+      stage=="postcommit_timedout" || stage=="unexpected_timedout") {
     print "V4_COVERAGE_TIMEOUT_CLASSIFICATION=FAIL"
     exit 1
   }
-  if (paired_coverage_timeouts) {
-    print "OLD_V4_RUNTIME_HEALTH=DEGRADED_COVERAGE_TIMEOUTS"
+  if (paired_coverage_timeouts || paired_postcommit_timeouts) {
+    print "OLD_V4_RUNTIME_HEALTH=DEGRADED_COVERAGE_AND_EXIT_TIMEOUTS"
   } else {
     print "OLD_V4_RUNTIME_HEALTH=NO_OBSERVED_FAILURES"
   }
