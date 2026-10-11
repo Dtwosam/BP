@@ -1,6 +1,6 @@
 # Phase 14 — V4 source-observation fingerprint replay preflight
 
-**Status (2026-10-11): Repository-only candidate. No production replay has been run or authorized by this file.** Research-only/zero money and Phase 14 HOLD continue; no trading, promotion, additional holdout access, service restart, model training, schema change, or deployment.
+**Status (2026-10-11): Reviewed and merged; first single-feature production replay PASS for feature ID `361963`.** No wider population-level source provenance is proven. Research-only/zero money and Phase 14 HOLD continue; no trading, promotion, additional holdout access, service restart, model training, schema change, or deployment.
 
 ## Verified implementation identity and remaining boundary
 
@@ -23,7 +23,11 @@ Script: `scripts/audit_phase14_v4_single_source_replay_readonly.py`.
 - Verdict `PASS_EXACT_SOURCE_REPLAY` is narrowly scoped to one stored feature and its **current** historical source view. `INCONCLUSIVE_SOURCE_VIEW_CHANGED` or `INCONCLUSIVE_SOURCE_DESCRIPTOR_CHANGED` blocks a source-provenance claim. `FAIL_STORED_FEATURE_HASH` or `FAIL_REPLAY_INCONSISTENCY` requires independent diagnosis. A query/lookup exception or absent target is inconclusive.
 - This is not a complete 22,604-feature provenance audit, not a historical snapshot proof, and not source-state immutability proof. No V4 training/paper model is activated.
 
-## Candidate operator invocation — *not yet executable until review, merge, post-merge CI*
+## Completed supervised one-feature invocation (2026-10-11)
+
+The reviewed tool was executed once by the operator from exact clean `main` `16aac5e9fe76bbc89698ef68a1cbf923c32acaa9`, after all relevant CI checks passed. Its read-only output reported `FEATURE_ID=361963`, `FEATURE_AT=2026-10-11T12:54:00+00:00`, `CHANGED_FIELDS=`, `V4_SOURCE_REPLAY=PASS_EXACT_SOURCE_REPLAY`, `REPLAY_ELAPSED_SECONDS=2.68`, and `PRODUCTION_MUTATION=false`. See the [V4 production evidence record](PHASE-14-V4-COVERAGE-OPTIMIZATION-PRODUCTION-EVIDENCE.md) for the preserved exact acceptance markers and caveats.
+
+## Previously used operator invocation (historical, not blanket rerun authorization)
 
 From a clean, reviewed main checkout, after independently confirming the exact protected V4 runtime and zero-money settings, stream the script via stdin to Python with the **immutable optimized V4** source on `PYTHONPATH`. Do not install the script, start the collector, edit the pinned recorder, or execute a writer.
 
@@ -41,4 +45,8 @@ Do **not** rerun on mismatch, raise SQL timeouts, or expand the sample automatic
 
 See the completed [V4 production evidence](PHASE-14-V4-COVERAGE-OPTIMIZATION-PRODUCTION-EVIDENCE.md) and [high-water audit runbook](PHASE-14-V4-FULL-HISTORY-AUDIT-RUNBOOK.md).
 
-**No production contact or command execution is part of preparing this repository candidate.**
+**Repository notes do not themselves access production.** The earlier one-feature replay was read-only, operator-executed, and has completed.
+
+## Follow-up design boundary
+
+Before expanding beyond one replay, select a **small, preregistered** set of feature IDs representing early, middle, and recent forward-epoch periods. Use a read-only, indexed ID-range selection with explicit limits and no full-table JSON scan; record selected IDs before comparing fingerprints. Cap total replay calls, SQL statement timeouts, and elapsed wall time, with one stop-on-first-discrepancy rule. Treat expired/changed historical compact sources as inconclusive, not corruption. Any broader replay is separately reviewed research work, not a Phase 14 HOLD release or live-trading authorization.
