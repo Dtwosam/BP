@@ -217,6 +217,42 @@ def test_wrong_policy_or_wrong_run_fails(tmp_path: Path) -> None:
                         expected_model_sha256=MODEL)
 
 
+def test_quote_outcome_must_match_exact_prediction_id(tmp_path: Path) -> None:
+    records = _fixture_records()
+    records[7]["prediction_id"] = "other-prediction"
+    with pytest.raises(_module().CoverageEvidenceError, match="prediction_id mismatch"):
+        _audit(tmp_path, records)
+
+
+def test_evaluated_outcome_must_match_exact_prediction_id(tmp_path: Path) -> None:
+    records = _fixture_records()
+    records[5]["prediction_id"] = "other-prediction"
+    with pytest.raises(_module().CoverageEvidenceError, match="prediction_id mismatch"):
+        _audit(tmp_path, records)
+
+
+def test_missing_prediction_id_rejected_on_prediction(tmp_path: Path) -> None:
+    records = _fixture_records()
+    records[4].pop("prediction_id")
+    with pytest.raises(_module().CoverageEvidenceError, match="prediction missing"):
+        _audit(tmp_path, records)
+
+
+def test_missing_prediction_id_rejected_on_quote_or_evaluation(tmp_path: Path) -> None:
+    records = _fixture_records()
+    records[7].pop("prediction_id")
+    with pytest.raises(_module().CoverageEvidenceError, match="outcome missing"):
+        _audit(tmp_path, records)
+
+
+def test_duplicate_prediction_id_across_markets_rejected(tmp_path: Path) -> None:
+    records = _fixture_records()
+    records[6]["prediction_id"] = "p1"
+    records[7]["prediction_id"] = "p1"
+    with pytest.raises(_module().CoverageEvidenceError, match="duplicate prediction_id"):
+        _audit(tmp_path, records)
+
+
 def test_report_module_has_no_production_connection_or_order_path() -> None:
     source = SCRIPT.read_text(encoding="utf-8")
     for forbidden in ("sqlalchemy", "psycopg", "create_engine(", "requests.",

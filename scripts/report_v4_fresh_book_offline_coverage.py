@@ -104,7 +104,8 @@ def audit(
     starts: list[dict[str, Any]] = []
     completions: list[dict[str, Any]] = []
     decisions: dict[str, dict[str, Any]] = {}
-    followups: dict[str, str] = {}
+    followups: dict[str, tuple[str, str]] = {}
+    prediction_ids: dict[str, str] = {}
     missed_lags: dict[str, list[float]] = defaultdict(list)
     missing_reason_occurrences: Counter[str] = Counter()
     affected_markets_by_venue: Counter[str] = Counter()
@@ -136,10 +137,20 @@ def audit(
             if event in FOLLOWUPS:
                 _require(condition not in followups,
                          f"duplicate quote/evaluation for {condition}")
-                followups[condition] = event
+                prediction_id = record.get("prediction_id")
+                _require(isinstance(prediction_id, str) and bool(prediction_id),
+                         f"quote/evaluation outcome missing prediction_id for {condition}")
+                followups[condition] = (event, prediction_id)
                 continue
             _require(condition not in decisions, f"duplicate decision for {condition}")
             _utc(record, "decision_at")
+            if event == PREDICTION:
+                prediction_id = record.get("prediction_id")
+                _require(isinstance(prediction_id, str) and bool(prediction_id),
+                         f"prediction missing prediction_id for {condition}")
+                _require(prediction_id not in prediction_ids,
+                         f"duplicate prediction_id across markets: {prediction_id}")
+                prediction_ids[prediction_id] = condition
             decisions[condition] = record
             if event == MISSED:
                 reason = record.get("reason")
@@ -198,6 +209,8 @@ def audit(
         if event == PREDICTION:
             _require(condition in followups,
                      f"prediction lacks quote/evaluation outcome: {condition}")
+            _require(followups[condition][1] == record["prediction_id"],
+                     f"quote/evaluation prediction_id mismatch for {condition}")
         else:
             _require(condition not in followups,
                      "quote/evaluation outcome without prediction")
@@ -211,8 +224,8 @@ def audit(
     predictions = sum(item["event"] == PREDICTION for item in decisions.values())
     missed = sum(item["event"] == MISSED for item in decisions.values())
     ineligible = sum(item["event"] == INELIGIBLE for item in decisions.values())
-    evaluated = sum(item == EVALUATED for item in followups.values())
-    quote_missing = sum(item == QUOTE_MISSING for item in followups.values())
+    evaluated = sum(event == EVALUATED for event, _ in followups.values())
+    quote_missing = sum(event == QUOTE_MISSING for event, _ in followups.values())
     expected_counts = {
         "seen_market_count": seen,
         "prediction_count": predictions,

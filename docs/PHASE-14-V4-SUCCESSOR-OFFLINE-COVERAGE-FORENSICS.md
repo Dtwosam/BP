@@ -14,8 +14,9 @@ and global min-edge 0.05 are frozen, and live trading and promotion stay off.
 
 The new script reads one existing local JSONL, verifies its SHA-256 **before**
 parsing, refuses the wrong filename/run/model/decision contract, enforces
-one terminal outcome per condition and a quote-or-evaluation outcome per
-prediction, and checks counts against the completed record. It reports:
+one terminal outcome per condition, a matching prediction ID for each
+quote-or-evaluation outcome (with no reused prediction IDs across markets),
+and checks counts against the completed record. It reports:
 
 - Missed decisions split between decision_lag_exceeded (late at first
   poll) and feature_inference_lag_exceeded (late after source feature
