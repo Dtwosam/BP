@@ -207,6 +207,7 @@ def audit(
     }, "orphaned quote/evaluation outcome")
 
     seen = len(decisions)
+    _require(seen > 0, "completed evidence has no market decisions")
     predictions = sum(item["event"] == PREDICTION for item in decisions.values())
     missed = sum(item["event"] == MISSED for item in decisions.values())
     ineligible = sum(item["event"] == INELIGIBLE for item in decisions.values())
@@ -264,8 +265,8 @@ def audit(
         "retry": retry,
         "ignored_non_json_lines": ignored_non_json,
         "limitations": [
-            "Evidence metadata identifies outcome categories, not the root cause of late decisions.",
-            "Missing-source reasons do not establish feed outage, arrival latency, or DB visibility.",
+            "Recorded outcomes do not identify the root cause of late decisions.",
+            "Missing-source flags do not prove feed outage or database visibility.",
             "This does not replay live decisions, query raw source events, or access labels.",
             "Report PASS does not establish profitable paper economics or allow model promotion.",
         ],
