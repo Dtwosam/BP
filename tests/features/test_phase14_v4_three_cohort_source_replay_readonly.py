@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 from sqlalchemy import create_engine, insert
