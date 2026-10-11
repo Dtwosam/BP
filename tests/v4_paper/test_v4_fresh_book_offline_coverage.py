@@ -171,6 +171,49 @@ def test_sha_mismatch_fails_closed(tmp_path: Path) -> None:
                      expected_model_sha256=MODEL)
 
 
+def test_parses_same_snapshot_that_was_hash_verified(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _module()
+    path, expected_sha = _write(tmp_path, _fixture_records())
+    original_read_bytes = Path.read_bytes
+    original_payload = original_read_bytes(path)
+    reads = 0
+
+    def replace_copy_after_read(self: Path) -> bytes:
+        nonlocal reads
+        result = original_read_bytes(self)
+        if self == path:
+            reads += 1
+            # Simulate offline-file replacement between verification and
+            # parsing: the reporter must use the verified byte snapshot.
+            path.write_bytes(b'{"event":"corrupted_after_hash"}\n')
+        return result
+
+    monkeypatch.setattr(Path, "read_bytes", replace_copy_after_read)
+    report = module.audit(
+        path, expected_run_id=RUN, expected_sha256=expected_sha,
+        expected_model_sha256=MODEL,
+    )
+    assert reads == 1
+    assert original_read_bytes(path) != original_payload
+    assert report["counts"]["seen_markets"] == 5
+    assert report["evidence_sha256"] == expected_sha
+
+
+def test_rejects_non_utf8_evidence_after_exact_hash_check(tmp_path: Path) -> None:
+    module = _module()
+    path, _ = _write(tmp_path, _fixture_records())
+    payload = path.read_bytes() + b"\xff\n"
+    path.write_bytes(payload)
+    verified_sha = hashlib.sha256(payload).hexdigest()
+    with pytest.raises(module.CoverageEvidenceError, match="not valid UTF-8"):
+        module.audit(
+            path, expected_run_id=RUN, expected_sha256=verified_sha,
+            expected_model_sha256=MODEL,
+        )
+
+
 def test_missed_breakdown_rejects_unrecognized_reason(tmp_path: Path) -> None:
     records = _fixture_records()
     records[1]["reason"] = "model_was_wrong"

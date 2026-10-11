@@ -98,8 +98,16 @@ def audit(
              "evidence filename must match the exact run ID")
     _require(len(expected_sha256) == 64 and len(expected_model_sha256) == 64,
              "expected hashes must be SHA-256 hex")
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    # Parse exactly the byte snapshot that was hash-verified. Reopening the
+    # path after hashing could silently parse different bytes if an offline
+    # evidence copy were replaced between the two operations.
+    payload = path.read_bytes()
+    digest = hashlib.sha256(payload).hexdigest()
     _require(digest == expected_sha256.lower(), "evidence SHA-256 mismatch")
+    try:
+        lines = payload.decode("utf-8").splitlines()
+    except UnicodeDecodeError as exc:
+        raise CoverageEvidenceError("evidence is not valid UTF-8") from exc
 
     starts: list[dict[str, Any]] = []
     completions: list[dict[str, Any]] = []
@@ -113,65 +121,64 @@ def audit(
     missed_reasons: Counter[str] = Counter()
     ignored_non_json = 0
 
-    with path.open("r", encoding="utf-8") as handle:
-        for line_number, line in enumerate(handle, start=1):
-            try:
-                record = json.loads(line)
-            except json.JSONDecodeError:
-                ignored_non_json += 1
-                continue
-            if not isinstance(record, dict):
-                continue
-            event = record.get("event")
-            if event == START:
-                starts.append(record)
-                continue
-            if event == COMPLETED:
-                completions.append(record)
-                continue
-            if event not in OUTCOMES | FOLLOWUPS:
-                continue
-            condition = record.get("condition_id")
-            _require(isinstance(condition, str) and bool(condition),
-                     f"invalid condition_id at line {line_number}")
-            if event in FOLLOWUPS:
-                _require(condition not in followups,
-                         f"duplicate quote/evaluation for {condition}")
-                prediction_id = record.get("prediction_id")
-                _require(isinstance(prediction_id, str) and bool(prediction_id),
-                         f"quote/evaluation outcome missing prediction_id for {condition}")
-                followups[condition] = (event, prediction_id)
-                continue
-            _require(condition not in decisions, f"duplicate decision for {condition}")
-            _utc(record, "decision_at")
-            if event == PREDICTION:
-                prediction_id = record.get("prediction_id")
-                _require(isinstance(prediction_id, str) and bool(prediction_id),
-                         f"prediction missing prediction_id for {condition}")
-                _require(prediction_id not in prediction_ids,
-                         f"duplicate prediction_id across markets: {prediction_id}")
-                prediction_ids[prediction_id] = condition
-            decisions[condition] = record
-            if event == MISSED:
-                reason = record.get("reason")
-                _require(reason in MISSED_REASONS, "unknown missed-decision reason")
-                missed_reasons[reason] += 1
-                missed_lags[reason].append(_lag(record))
-            elif event == INELIGIBLE:
-                reasons = record.get("source_ineligible_reasons")
-                _require(isinstance(reasons, list) and bool(reasons),
-                         "source-ineligible decision lacks reason flags")
-                _require(all(isinstance(item, str) and item in VALID_FLAGS
-                             for item in reasons), "unknown source reason")
-                _require(len(set(reasons)) == len(reasons),
-                         "duplicate source reason on one market")
-                missing_reason_occurrences.update(reasons)
-                affected = {
-                    next(venue for venue in VENUES if reason.startswith(venue + "_"))
-                    for reason in reasons
-                }
-                affected_markets_by_venue.update(affected)
-                overlap_counts[str(len(affected))] += 1
+    for line_number, line in enumerate(lines, start=1):
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            ignored_non_json += 1
+            continue
+        if not isinstance(record, dict):
+            continue
+        event = record.get("event")
+        if event == START:
+            starts.append(record)
+            continue
+        if event == COMPLETED:
+            completions.append(record)
+            continue
+        if event not in OUTCOMES | FOLLOWUPS:
+            continue
+        condition = record.get("condition_id")
+        _require(isinstance(condition, str) and bool(condition),
+                 f"invalid condition_id at line {line_number}")
+        if event in FOLLOWUPS:
+            _require(condition not in followups,
+                     f"duplicate quote/evaluation for {condition}")
+            prediction_id = record.get("prediction_id")
+            _require(isinstance(prediction_id, str) and bool(prediction_id),
+                     f"quote/evaluation outcome missing prediction_id for {condition}")
+            followups[condition] = (event, prediction_id)
+            continue
+        _require(condition not in decisions, f"duplicate decision for {condition}")
+        _utc(record, "decision_at")
+        if event == PREDICTION:
+            prediction_id = record.get("prediction_id")
+            _require(isinstance(prediction_id, str) and bool(prediction_id),
+                     f"prediction missing prediction_id for {condition}")
+            _require(prediction_id not in prediction_ids,
+                     f"duplicate prediction_id across markets: {prediction_id}")
+            prediction_ids[prediction_id] = condition
+        decisions[condition] = record
+        if event == MISSED:
+            reason = record.get("reason")
+            _require(reason in MISSED_REASONS, "unknown missed-decision reason")
+            missed_reasons[reason] += 1
+            missed_lags[reason].append(_lag(record))
+        elif event == INELIGIBLE:
+            reasons = record.get("source_ineligible_reasons")
+            _require(isinstance(reasons, list) and bool(reasons),
+                     "source-ineligible decision lacks reason flags")
+            _require(all(isinstance(item, str) and item in VALID_FLAGS
+                         for item in reasons), "unknown source reason")
+            _require(len(set(reasons)) == len(reasons),
+                     "duplicate source reason on one market")
+            missing_reason_occurrences.update(reasons)
+            affected = {
+                next(venue for venue in VENUES if reason.startswith(venue + "_"))
+                for reason in reasons
+            }
+            affected_markets_by_venue.update(affected)
+            overlap_counts[str(len(affected))] += 1
 
     _require(len(starts) == 1 and len(completions) == 1,
              "exactly one start and terminal completion required")

@@ -12,8 +12,9 @@ observed one settled paper loss (USD -4.288530911232). Those results remain
 unaltered. Phase 14 remains **HOLD**; the holdout is consumed, the model
 and global min-edge 0.05 are frozen, and live trading and promotion stay off.
 
-The new script reads one existing local JSONL, verifies its SHA-256 **before**
-parsing, refuses the wrong filename/run/model/decision contract, enforces
+The script reads one existing local JSONL into a byte snapshot, verifies the
+snapshot's SHA-256 **before** parsing those exact same bytes, refuses the
+wrong filename/run/model/decision contract, enforces
 one terminal outcome per condition, a matching prediction ID for each
 quote-or-evaluation outcome (with no reused prediction IDs across markets),
 and checks counts against the completed record. It reports:
