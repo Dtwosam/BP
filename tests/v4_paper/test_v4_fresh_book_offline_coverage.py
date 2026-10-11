@@ -17,6 +17,9 @@ T0 = datetime(2026, 10, 7, 20, 7, tzinfo=UTC)
 
 
 def _module():
+    existing = sys.modules.get("v4_offline_coverage")
+    if existing is not None:
+        return existing
     spec = importlib.util.spec_from_file_location("v4_offline_coverage", SCRIPT)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
