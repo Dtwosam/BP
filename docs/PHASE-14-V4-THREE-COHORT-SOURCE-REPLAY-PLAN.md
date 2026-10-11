@@ -1,6 +1,6 @@
 # Phase 14 — three-cohort V4 source-fingerprint replay design
 
-**Status:** Repository-only research candidate; **not run against production**. This is a follow-up to the one exact, read-only source replay of forward V4 feature `361963` at `2026-10-11T12:54:00Z`. It does not undo or replace the completed 22,604-row high-water hash/coverage audit.
+**Status as of 2026-10-11:** Reviewed candidate merged in PR #576; **one operator-executed production run PASS for all three preregistered cohorts**. This extends the previous one-feature replay (`361963`, 2026-10-11T12:54:00Z) without replacing the 22,604-row high-water hash/coverage audit. Phase 14 **HOLD** continues; no trading, policy/model promotion, or new production action is authorized.
 
 ## Preregistered selection — fixed before examining new replay outcomes
 
@@ -28,7 +28,21 @@ Each selected row is replayed through the unchanged optimized V4 generator at it
 
 **Success verdict:** `V4_THREE_COHORT_SOURCE_REPLAY=PASS_THREE_PREREGISTERED_EXACT_REPLAYS`, `DATABASE_READ_ONLY=PASS`, `PRODUCTION_MUTATION=false` and exit 0. If anything differs or is unavailable, treat as incomplete/inconclusive until read-only investigation. A three-cohort PASS establishes exact reproducibility for **three chosen rows under currently retained source views**, not full-history provenance, a population confidence interval, or source immutability.
 
-## Operator invocation — only after reviewed merge and green exact-main CI
+## Completed operator-executed replay (2026-10-11)
+
+At exact `main` `ad252923d5495fb4a8b8c040e26d781204028fb4` after post-merge CI 2/2 green, the operator ran the already reviewed read-only script once against the protected optimized V4 runtime. The script selected these rows **before** replaying them:
+
+| Cohort | ID | UTC feature timestamp | Result |
+| --- | ---: | --- | --- |
+| Early | 24692 | 2026-09-22 12:01:00 | PASS_EXACT_SOURCE_REPLAY |
+| Middle | 44855 | 2026-10-01 12:01:00 | PASS_EXACT_SOURCE_REPLAY |
+| Recent | 359728 | 2026-10-10 12:01:00 | PASS_EXACT_SOURCE_REPLAY |
+
+All three reported no changed fields, `DATABASE_READ_ONLY=PASS`, `V4_THREE_COHORT_SOURCE_REPLAY=PASS_THREE_PREREGISTERED_EXACT_REPLAYS`, `PRODUCTION_MUTATION=false`, and command exit 0. For full operator-provided markers and limits, see the [V4 production evidence](PHASE-14-V4-COVERAGE-OPTIMIZATION-PRODUCTION-EVIDENCE.md).
+
+**Decision:** Three-cohort sampling checkpoint PASS **only for these selected source views**. Four distinct exact row replays including prior ID 361963 provide qualitative reproducibility evidence, not a population-level fingerprint audit or proof of source immutability.
+
+## Historical operator invocation (completed; not blanket permission to rerun)
 
 From the clean local BP `main` at the reviewed exact SHA, run this script via stdin, not by installing it on the production checkout:
 
@@ -52,6 +66,6 @@ sudo -n -u bp env PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$RUNTIME/src" \
   2>&1 | tee "$HOME/bp-v4-three-cohort-replay.log"
 ```
 
-Do not run the above before exact-main post-merge green checks. It is read-only verification, **not** permission to change the V4 runtime, frozen V3, database indexes or service units. User/operator output should be recorded in a separate evidence PR with the exact snapshot/retention limitations.
+The historical one-time invocation above was performed after reviewed merge and green post-merge checks. This transcript is **not** blanket permission to repeat it; no new production query, V4 runtime change, frozen V3 change, database index change or service unit mutation is authorized. The recorded output and snapshot/retention limitations are preserved in the production evidence PR.
 
 **Phase 14 HOLD continues.** Live trading and automatic model promotion stay disabled; no final-holdout access or policy tuning is permitted.
