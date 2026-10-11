@@ -321,8 +321,10 @@ def audit(
         "limitations": [
             "Recorded outcomes do not identify the root cause of late decisions.",
             "Missing-source flags do not prove feed outage or database visibility.",
-            "Retry status reports only terminal ineligible markets; deferrals have no independent JSONL event.",
-            "Recovered retry counts cannot always be reconstructed from terminal events after late inference.",
+            "Retry status covers terminal ineligible markets; individual "
+            "deferrals were not emitted as JSONL events.",
+            "Recovery counts cannot always be reconstructed from terminal "
+            "events after late inference.",
             "This does not replay live decisions, query raw source events, or access labels.",
             "Report PASS does not establish profitable paper economics or allow model promotion.",
         ],
