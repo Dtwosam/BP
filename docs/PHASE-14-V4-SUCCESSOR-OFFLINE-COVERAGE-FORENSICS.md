@@ -75,3 +75,20 @@ Successful diagnostic reconciliation is **not** an economic promotion gate.
 
 Runbook status: repository implementation only. No operational execution
 or observed reason counts are claimed.
+
+## Historical timing diagnostic retention caveat
+
+The 7–8 October 24-hour successor was assessed on 11 October. Under the
+repository's normal 24-hour **hot PostgreSQL raw event** retention, those
+market cutoffs were already outside the expected queryable raw window. The
+additional 24-hour archive is separate and the P&L timing diagnostic did
+not read archives. Its 18 sampled 'no_usable_event_near_cutoff' results
+**must not be used as evidence that live feed events did not exist**:
+retirement, lag, parser coverage and historical commit visibility remain
+unresolved. Actual deletion or archive state is not independently proven.
+
+A follow-up repository-only timing guard explicitly marks out-of-hot-window
+samples and avoids querying expired hot raw history. This does not reinterpret
+or rewrite the archived source-ineligible flags or single settled paper loss.
+The offline decision-funnel tool in this runbook uses **only preserved JSONL**
+and therefore does not depend on historical raw PostgreSQL retention.
