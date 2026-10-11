@@ -137,6 +137,7 @@ and persistent zero-money settings before reassessing Phase 14 HOLD.
 - [x] Authorized guarded V4-only deployment acceptance PASS, four new feature rows, timer restored.
 - [x] Sustained scheduled operation: 707 commits and zero matched failure log messages during 788.5 minutes after acceptance; sampled pending remains zero.
 - [x] Read-only 48-row feature-hash/geometry sample and 22-recent-market backlog sample PASS.
-- [ ] Full-history independent feature-integrity, source-fingerprint and backlog-age verification using a DB-safe methodology. Phase 14 HOLD remains.
+- [x] Independent DB-safe, bounded full-history audit PASS: 22,604 forward V4 feature rows through feature ID 361875 with zero integrity violations; 5,651 eligible markets through market ID 16702 with zero pending. Read-only, high-water scoped; not one DB snapshot.
+- [ ] Original input-observation fingerprint **reconstruction/provenance** (format checked only) and any further Phase 14 research/holdout gates. Phase 14 HOLD remains.
 
 This records past, specifically authorized deployment, not approval for another production mutation or live trading.
