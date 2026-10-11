@@ -78,11 +78,44 @@ V4_SOURCE_REPLAY_COMMAND=PASS
 
 **Limits:** The replay was not a transaction-level historical snapshot; the retained compact data may have changed since first generation, and some older sources may have expired. No historic `input_fingerprint` population-wide claim, percent match rate, source-row immutability attestation, new holdout access, V4 model activation, or trading authorization follows. This repository note is based on operator-supplied output; host logs were not independently copied.
 
+## Preregistered three-period compact-source replay — completed 2026-10-11
+
+After [PR #576](https://github.com/Dtwosam/BP/pull/576) merged as exact `main` `ad252923d5495fb4a8b8c040e26d781204028fb4` with 2/2 green post-merge checks, the operator fast-forwarded a clean Mac checkout to that commit and streamed the reviewed `scripts/audit_phase14_v4_three_cohort_source_replay_readonly.py` script to the production VM. The wrapper verified the optimized V4 runtime symlink, active/enabled V4 timer, and four protected services before running PostgreSQL in read-only mode. This records operator-supplied output, not an independently retrieved host log.
+
+**Reported acceptance markers (selected excerpts; no substitutions):**
+
+```text
+DATABASE_READ_ONLY=PASS
+PREREGISTERED_REPLAY_COUNT=3
+COHORT_WINDOW_EARLY=2026-09-22T12:00:00+00:00/2026-09-22T13:00:00+00:00
+COHORT_WINDOW_MIDDLE=2026-10-01T12:00:00+00:00/2026-10-01T13:00:00+00:00
+COHORT_WINDOW_RECENT=2026-10-10T12:00:00+00:00/2026-10-10T13:00:00+00:00
+COHORT_EARLY_FEATURE_ID=24692
+COHORT_EARLY_FEATURE_AT=2026-09-22T12:01:00+00:00
+COHORT_MIDDLE_FEATURE_ID=44855
+COHORT_MIDDLE_FEATURE_AT=2026-10-01T12:01:00+00:00
+COHORT_RECENT_FEATURE_ID=359728
+COHORT_RECENT_FEATURE_AT=2026-10-10T12:01:00+00:00
+COHORT_EARLY_REPLAY=PASS_EXACT_SOURCE_REPLAY
+COHORT_EARLY_CHANGED_FIELDS=
+COHORT_MIDDLE_REPLAY=PASS_EXACT_SOURCE_REPLAY
+COHORT_MIDDLE_CHANGED_FIELDS=
+COHORT_RECENT_REPLAY=PASS_EXACT_SOURCE_REPLAY
+COHORT_RECENT_CHANGED_FIELDS=
+V4_THREE_COHORT_SOURCE_REPLAY=PASS_THREE_PREREGISTERED_EXACT_REPLAYS
+PRODUCTION_MUTATION=false
+THREE_COHORT_COMMAND_EXIT=0
+```
+
+The three selected feature IDs `24692`, `44855` and `359728` all lie **within** the prior forward V4 feature high-water `361875`, giving historical source-level replay evidence for a tiny, fixed subset of that audit's 22,604 feature rows. Together with the separately observed post-high-water single-feature exact replay `361963`, there are now **four distinct exact source replays spanning 2026-09-22 through 2026-10-11**. All tested `input_fingerprint`, `features`, `missing_flags`, `source_cutoffs` and `feature_hash` fields matched the current retained compact source view, with no changed fields reported.
+
+**Limits:** Exactly one first-selected row per predeclared one-hour cohort, not a random or population-representative sample. These four matching rows do not imply an estimated population match percentage, a full-history input-fingerprint replay, an immutable source observation history, a single atomic database snapshot, or sustained replay accuracy for rows written later. No production write, training, promotion, model activation, or trading authorization follows.
+
 ## Decision and remaining gates
 
 1. Record **guarded V4-only rollout PASS**, **sustained observed scheduled stability PASS**, **bounded feature-integrity high-water survey PASS**, and **zero pending eligible markets within the market high-water boundary**. The smaller 48-feature/22-market sample also passed, but was superseded in breadth by the full-high-water survey.
 2. **Do not infer original input-observation fingerprint provenance, a globally consistent transaction snapshot, future backlog clearance, or a measured controlled production speedup.** The earlier 3.66x synthetic benchmark is not a production speedup claim.
-3. **One** original input-observation fingerprint has now been independently replayed exactly (feature ID `361963`, 2026-10-11 12:54 UTC). Any expanded provenance sample would be **new, separately scoped, bounded research verification**; do not turn the one-row PASS into whole-history provenance acceptance. No additional production queries, schema changes, service restarts, runtime deployment, or trading changes are authorized by this document.
+3. **Four distinct** original input-observation fingerprints have now been replayed exactly: three preregistered historical rows (`24692`, `44855`, `359728`) plus one newer row (`361963`). These are fixed, very small samples; do not treat them as population-wide provenance acceptance. Any expanded replay must be separately scoped, bounded and reviewed; this document authorizes no additional production queries, schema changes, service restarts, runtime deployment, or trading changes.
 4. Preserve the pinned recorder/V3 services and existing V4 timer. Phase 14 **HOLD**, `LIVE_TRADING_ENABLED=false`, research-only zero-money limits, and disabled automatic promotion remain mandatory.
 
 See `docs/PHASE-14-V4-COVERAGE-OPTIMIZATION-READINESS.md` for the historical authorization and guarded rollout contracts.
