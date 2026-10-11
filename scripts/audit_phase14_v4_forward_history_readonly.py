@@ -92,7 +92,10 @@ def inspect_feature(row: dict[str, Any]) -> list[str]:
         else:
             if any(not isinstance(value, bool) for value in missing.values()):
                 problems.append("missing_flag_type")
-            if canonical_hash({"features": features, "missing_flags": missing}) != row["feature_hash"]:
+            expected_hash = canonical_hash({
+                "features": features, "missing_flags": missing,
+            })
+            if expected_hash != row["feature_hash"]:
                 problems.append("feature_hash")
             if any(str(key).lower().startswith("pm_") or
                    "polymarket" in str(key).lower() for key in features):
