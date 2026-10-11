@@ -1,6 +1,6 @@
 # Phase 14 — bounded read-only V4 full-history audit runbook
 
-**Status:** Candidate engineering for review, not yet executed against production. Phase 14 **HOLD**; research-only, zero money, live trading disabled, no automatic promotion.
+**Status as of 2026-10-11:** Reviewed audit merged in PR #572 and executed once by the operator against production in read-only mode. **PASS_BOUNDED_FULL_HISTORY** within captured ID high-water marks; see [production evidence](PHASE-14-V4-COVERAGE-OPTIMIZATION-PRODUCTION-EVIDENCE.md). Phase 14 **HOLD**; research-only, zero money, live trading disabled, no automatic promotion.
 
 This follow-up addresses the independent integrity audit that previously hit an 8-second PostgreSQL statement timeout during a single broad full-history scan. It **does not** raise PostgreSQL limits, change indexes, restart services, or run a V4 feature writer.
 
@@ -17,7 +17,11 @@ Script: `scripts/audit_phase14_v4_forward_history_readonly.py`.
 - These high-water surveys are **not a single point-in-time database snapshot**. If the collector writes concurrently, a recently completed market may appear pending transiently; review failures using only read-only evidence rather than forcing a re-run. No source-observation fingerprint reconstruction is claimed.
 - The scripted `PASS_BOUNDED_FULL_HISTORY` verdict means all rows and markets within the captured primary-key high-water boundaries were examined under the stated checks. It is not a backtest, a source-level data provenance proof, an authorization for another rollout, or a lift of Phase 14 HOLD.
 
-## Operator path (only after PR review, merge, and green exact-main CI)
+## Recorded completed execution (2026-10-11)
+
+After merge at `36fc5c4df02de793fe95d1ef47dd32b7b43f060d` and 2/2 green post-merge checks, the operator verified the optimized runtime symlink and ran the reviewed read-only script from a fast-forwarded local clean `main`. The reported results were: `FEATURE_ID_HIGH_WATER=361875`, `MARKET_ID_HIGH_WATER=16702`, `FORWARD_V4_FEATURE_ROWS_AUDITED=22604`, `FEATURE_INTEGRITY_VIOLATIONS=0`, `ELIGIBLE_MARKETS_AUDITED=5651`, `PENDING_MARKETS=0`, `V4_HISTORY_AUDIT=PASS_BOUNDED_FULL_HISTORY`, `PRODUCTION_MUTATION=false`. The source-level `input_fingerprint` was **not recomputed** and the survey was **not a single transaction snapshot**. Host output is operator-reported; see the linked evidence document.
+
+## Historical operator invocation (do not rerun automatically)
 
 From a clean local `main` checkout at the **reviewed audit commit**, with the production V4 runtime still pinned to `2d82c38a526b8f1b579766100e3e832715977ac2` and protected core controls still active, stream the script over SSH **without copying it to or changing the host filesystem**:
 
@@ -38,6 +42,6 @@ Interpretation:
 - `V4_HISTORY_AUDIT=FAIL_INTEGRITY` or `REVIEW_PENDING_BACKLOG` with exit 1: fail or backlog; investigate read-only, do not rerun blindly.
 - `V4_HISTORY_AUDIT=INCOMPLETE` or `INCONCLUSIVE_NO_ROWS` with nonzero exit: partial/inconclusive evidence only. Do not raise timeout, disable throttling, or treat earlier pages as a PASS.
 
-The existing independently observed operator evidence remains in [the production evidence record](PHASE-14-V4-COVERAGE-OPTIMIZATION-PRODUCTION-EVIDENCE.md). Prior 48-feature/22-market bounded sample PASS remains valid but is **not** replaced by a PASS until a whole-high-water audit actually completes.
+The existing independently observed operator evidence remains in [the production evidence record](PHASE-14-V4-COVERAGE-OPTIMIZATION-PRODUCTION-EVIDENCE.md). Prior 48-feature/22-market bounded sample PASS remains valid, and was followed by a successful bounded high-water audit. Neither audit reconstructs original source-observation fingerprints or lifts the Phase 14 HOLD.
 
-**No production command has been executed by creating this script or this runbook.**
+**Creating or updating this repository runbook does not execute production commands. The one operator-run audit described above was read-only and reported no database mutation.**
