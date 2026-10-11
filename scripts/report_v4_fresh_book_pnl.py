@@ -27,6 +27,7 @@ EXTREME_EDGE_THRESHOLD = Decimal("0.50")
 SOURCE_TIMING_RECEIVED_WINDOW_SECONDS = 4.0
 SOURCE_TIMING_ROW_LIMIT_PER_SIDE = 200
 SOURCE_TIMING_SAMPLE_LIMIT_PER_REASON = 3
+DEFAULT_HOT_RAW_RETENTION_HOURS = 24
 _SOURCE_SPECS = {
     "coinbase": ("coinbase", "spot", "BTC-USD"),
     "bybit_spot": ("bybit", "spot", "BTCUSDT"),
@@ -325,7 +326,14 @@ def _evenly_spaced_sample[T](items: list[T], limit: int) -> list[T]:
 def _source_timing_diagnostic(
     connection: Connection,
     records: list[dict[str, Any]],
+    *,
+    hot_raw_retention_hours: int = DEFAULT_HOT_RAW_RETENTION_HOURS,
+    as_of: datetime | None = None,
 ) -> dict[str, Any]:
+    if hot_raw_retention_hours < 0:
+        raise ValueError("hot raw retention hours must be nonnegative")
+    audit_at = datetime.now(UTC) if as_of is None else _db_utc(as_of)
+    hot_raw_retention_seconds = hot_raw_retention_hours * 3600
     occurrences: dict[str, list[tuple[str, datetime]]] = {}
 
     for record in records:
@@ -350,6 +358,7 @@ def _source_timing_diagnostic(
     for reason, reason_occurrences in sorted(occurrences.items()):
         classification_counts: Counter[str] = Counter()
         source_deltas: list[float] = []
+        sampled_outside_hot_raw_count = 0
         received_deltas: list[float] = []
         transport_lags: list[float] = []
         sampled = _evenly_spaced_sample(
@@ -360,26 +369,37 @@ def _source_timing_diagnostic(
             key = (venue, requested_at)
             diagnostic = cache.get(key)
             if diagnostic is None:
-                try:
-                    rows = _cutoff_timing_rows(
-                        connection,
-                        venue=venue,
-                        requested_at=requested_at,
-                    )
-                    diagnostic = _classify_timing_rows(rows, requested_at)
-                except OperationalError as exc:
-                    connection.rollback()
-                    classification = (
-                        "query_timeout"
-                        if "statement timeout" in str(exc).lower()
-                        else "query_failed"
-                    )
+                # A PostgreSQL hot-retention window is not an immutable raw
+                # history. Out-of-window empty results are not evidence that
+                # the live recorder lacked events at the original cutoff.
+                if (audit_at - requested_at).total_seconds() > hot_raw_retention_seconds:
                     diagnostic = {
-                        "classification": classification,
+                        "classification": "outside_configured_hot_raw_retention_window",
                         "nearest": None,
                     }
+                else:
+                    try:
+                        rows = _cutoff_timing_rows(
+                            connection,
+                            venue=venue,
+                            requested_at=requested_at,
+                        )
+                        diagnostic = _classify_timing_rows(rows, requested_at)
+                    except OperationalError as exc:
+                        connection.rollback()
+                        classification = (
+                            "query_timeout"
+                            if "statement timeout" in str(exc).lower()
+                            else "query_failed"
+                        )
+                        diagnostic = {
+                            "classification": classification,
+                            "nearest": None,
+                        }
                 cache[key] = diagnostic
             classification_counts[diagnostic["classification"]] += 1
+            if diagnostic["classification"] == "outside_configured_hot_raw_retention_window":
+                sampled_outside_hot_raw_count += 1
             nearest = diagnostic["nearest"]
             if nearest is not None:
                 source_deltas.append(float(nearest["source_delta_seconds"]))
@@ -389,6 +409,7 @@ def _source_timing_diagnostic(
         rendered[reason] = {
             "missing_count": len(reason_occurrences),
             "diagnosed_count": len(sampled),
+            "sampled_outside_hot_raw_retention_window_count": sampled_outside_hot_raw_count,
             "classification_counts": dict(sorted(classification_counts.items())),
             "nearest_source_delta_seconds": _distribution(source_deltas),
             "nearest_received_delta_seconds": _distribution(received_deltas),
@@ -399,6 +420,13 @@ def _source_timing_diagnostic(
         "row_limit_per_side": SOURCE_TIMING_ROW_LIMIT_PER_SIDE,
         "sample_limit_per_reason": SOURCE_TIMING_SAMPLE_LIMIT_PER_REASON,
         "frozen_offset_seconds": FROZEN_V4_OFFSET_SECONDS,
+        "configured_hot_raw_retention_hours": hot_raw_retention_hours,
+        "diagnostic_at": audit_at.isoformat(),
+        "retention_limitation": (
+            "Out-of-window samples were not queried: raw PostgreSQL events "
+            "may have been archived or retired. Retention eligibility does "
+            "not prove actual deletion or live-time source availability."
+        ),
         "by_reason": rendered,
     }
 
@@ -622,6 +650,9 @@ def _metrics(
 def build_report(
     connection: Connection,
     evidence_files: tuple[Path, ...],
+    *,
+    hot_raw_retention_hours: int = DEFAULT_HOT_RAW_RETENTION_HOURS,
+    diagnostic_as_of: datetime | None = None,
 ) -> dict[str, Any]:
     epochs = [load_epoch(path) for path in evidence_files]
     condition_ids = tuple(sorted({
@@ -691,6 +722,8 @@ def build_report(
             "source_timing_diagnostic": _source_timing_diagnostic(
                 connection,
                 all_source_ineligible_records,
+                hot_raw_retention_hours=hot_raw_retention_hours,
+                as_of=diagnostic_as_of,
             ),
             "duplicate_prediction_count_across_epochs": duplicate_across_epochs,
             **_metrics(all_trades, outcomes),
@@ -736,7 +769,11 @@ def main() -> int:
         with engine.connect() as connection:
             if connection.execute(text("SHOW default_transaction_read_only")).scalar_one() != "on":
                 raise SystemExit("database connection is not read-only")
-            report = build_report(connection, evidence_files)
+            report = build_report(
+                connection,
+                evidence_files,
+                hot_raw_retention_hours=settings.storage_hot_raw_hours,
+            )
     finally:
         engine.dispose()
 
