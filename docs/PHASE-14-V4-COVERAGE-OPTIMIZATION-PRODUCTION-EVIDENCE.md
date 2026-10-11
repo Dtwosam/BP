@@ -59,11 +59,30 @@ V4_HISTORY_AUDIT_COMMAND=PASS
 
 **Gate decision:** bounded forward-V4 feature integrity and eligible-market backlog verification **PASS**. Source-observation fingerprint recomputation and any higher-level Phase 14 holdout/trading gates remain separate and unproven.
 
+## First independent compact-source fingerprint replay — 2026-10-11
+
+After [PR #574](https://github.com/Dtwosam/BP/pull/574) merged at exact `main` `16aac5e9fe76bbc89698ef68a1cbf923c32acaa9` with green post-merge CI, the operator fast-forwarded a clean Mac checkout to that commit and streamed `scripts/audit_phase14_v4_single_source_replay_readonly.py` to the production VM. The command checked the unchanged optimized V4 runtime symlink and active/enabled timer before running one research-only, zero-money-gated, PostgreSQL read-only replay through the original V4 feature generator.
+
+```text
+DATABASE_READ_ONLY=PASS
+FEATURE_ID=361963
+FEATURE_AT=2026-10-11T12:54:00+00:00
+CHANGED_FIELDS=
+REPLAY_ELAPSED_SECONDS=2.68
+V4_SOURCE_REPLAY=PASS_EXACT_SOURCE_REPLAY
+PRODUCTION_MUTATION=false
+V4_SOURCE_REPLAY_COMMAND=PASS
+```
+
+**Interpretation:** The currently retained BTC compact-state source view exactly reproduced **one** stored V4 feature's `input_fingerprint`, numeric features, missing flags, cutoff map, and derived `feature_hash` at its original feature timestamp. No database write was reported. This is the **first operator-observed exact source replay**, not evidence that all `22,604` rows in the previously completed high-water integrity audit would replay identically. The audited feature ID `361963` is greater than that survey's feature high-water `361875`; the two checks cover different captured extents.
+
+**Limits:** The replay was not a transaction-level historical snapshot; the retained compact data may have changed since first generation, and some older sources may have expired. No historic `input_fingerprint` population-wide claim, percent match rate, source-row immutability attestation, new holdout access, V4 model activation, or trading authorization follows. This repository note is based on operator-supplied output; host logs were not independently copied.
+
 ## Decision and remaining gates
 
 1. Record **guarded V4-only rollout PASS**, **sustained observed scheduled stability PASS**, **bounded feature-integrity high-water survey PASS**, and **zero pending eligible markets within the market high-water boundary**. The smaller 48-feature/22-market sample also passed, but was superseded in breadth by the full-high-water survey.
 2. **Do not infer original input-observation fingerprint provenance, a globally consistent transaction snapshot, future backlog clearance, or a measured controlled production speedup.** The earlier 3.66x synthetic benchmark is not a production speedup claim.
-3. A source-observation fingerprint reconstruction or other expanded provenance assessment would be **new, separately scoped research engineering**. No new production queries, schema changes, service restarts, runtime deployment, or trading changes are authorized by this document.
+3. **One** original input-observation fingerprint has now been independently replayed exactly (feature ID `361963`, 2026-10-11 12:54 UTC). Any expanded provenance sample would be **new, separately scoped, bounded research verification**; do not turn the one-row PASS into whole-history provenance acceptance. No additional production queries, schema changes, service restarts, runtime deployment, or trading changes are authorized by this document.
 4. Preserve the pinned recorder/V3 services and existing V4 timer. Phase 14 **HOLD**, `LIVE_TRADING_ENABLED=false`, research-only zero-money limits, and disabled automatic promotion remain mandatory.
 
 See `docs/PHASE-14-V4-COVERAGE-OPTIMIZATION-READINESS.md` for the historical authorization and guarded rollout contracts.
