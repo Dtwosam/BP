@@ -1,0 +1,67 @@
+{
+  "status": "V4_ORIGINAL_FRESH_BOOK_SHADOW_EARLY_STOP_CONFIRMED",
+  "recorded_at_date": "2026-10-11",
+  "source_main_at_review": "074adfcaea7298b08bdf7552efa932db80b1e1eb",
+  "evidence_origin": "Operator-provided output from previously reviewed read-only forensic command; not independently fetched from the VM by this GitHub change",
+  "original_run_id": "v4-fresh-book-shadow-20261006T140323Z-f5c76576619c",
+  "original_authorized_main": "f5c76576619c35e65fc8a317d47c8a31dd263950",
+  "original_start_evidence": "docs/evidence/phase-14-v4-fresh-book-shadow-start-20261006.json",
+  "intended_run_seconds": 86400,
+  "service": {
+    "name": "bp-v4-fresh-book-shadow-20261006T140323Z-f5c76576619c.service",
+    "journal_started_utc": "2026-10-06T14:03:23Z",
+    "journal_stopping_utc": "2026-10-06T18:53:57Z",
+    "journal_stopped_utc": "2026-10-06T18:53:58Z",
+    "approximate_elapsed_seconds_from_journal": 17435,
+    "final_active_state": "inactive",
+    "final_sub_state": "dead",
+    "final_systemd_result": "success",
+    "final_exec_main_status": 0,
+    "explicit_systemd_stop_observed": true,
+    "stopping_request_origin": "not proven by journal excerpt; existing supersede-stop helper is compatible but not identified as the caller",
+    "does_systemd_success_prove_application_completion": false
+  },
+  "original_jsonl": {
+    "path": "/var/lib/bp/evidence/v4-fresh-book-shadow-20261006T140323Z-f5c76576619c.jsonl",
+    "bytes": 462267,
+    "modified_at_utc": "2026-10-06T18:49:01.961477Z",
+    "application_started_at_utc": "2026-10-06T14:03:40.485487Z",
+    "last_recorded_event_at_utc": "2026-10-06T18:49:01.962465Z",
+    "start_record_count": 1,
+    "completion_record_count": 0,
+    "source_ineligible_record_count": 58,
+    "prediction_record_count": 0,
+    "paper_evaluation_record_count": 0,
+    "paper_trade_record_count": 0,
+    "non_json_line_count": 66,
+    "invalid_json_record_count": 0,
+    "last_event_type": "v4_fresh_book_shadow_source_ineligible",
+    "evidence_sha256": "not measured in this forensic output",
+    "original_file_preserved": true
+  },
+  "strict_verifier": {
+    "marker": "PHASE14_V4_FRESH_BOOK_SHADOW_CLOSEOUT_VERIFY=FAIL:expected exactly one completion record, found 0",
+    "full_24_hour_completion": "NOT_VERIFIED",
+    "after_cost_paper_performance": "UNAVAILABLE",
+    "prospective_forecast_quality": "UNAVAILABLE"
+  },
+  "research_safety": {
+    "forensic_command_production_mutation": false,
+    "mode": "research",
+    "zero_money_safety": "PASS",
+    "no_new_live_trading_authorization": true,
+    "automatic_promotion_authorized": false,
+    "frozen_model_or_policy_changed": false,
+    "final_holdout_rerun_allowed": false
+  },
+  "decision": {
+    "classification": "EARLY_STOPPED_PRESERVED_INCOMPLETE_SHADOW",
+    "original_24_hour_shadow_gate": "FAIL_INCOMPLETE",
+    "original_run_must_not_be_restarted_as_continuation": true,
+    "do_not_synthesize_completion_record": true,
+    "avoid_performance_claims_from_no_prediction_sample": true,
+    "next_safe_step": "Determine independently whether a separately authorized successor shadow exists and has immutable completed evidence. Review only read-only; do not start, stop, restart, tune or promote anything without separate authorization.",
+    "phase14_status": "HOLD",
+    "real_money_usd": 0
+  }
+}
