@@ -1,9 +1,12 @@
 # Phase 14 — optimized V4 forward coverage: read-only readiness and guarded successor rollout
 
-**Status:** Engineering prepared, not deployed or newly authorized. Phase 14 **HOLD**
-continues. Research-only, zero money, live trading disabled, no automatic model
-promotion, no additional final-holdout access. Do not interpret GitHub merge or
-this runbook as operator authorization.
+**Status as of 2026-10-11:** Exact-SHA, separately authorized V4-only
+optimization deployed; guarded acceptance and sustained observed operation PASS.
+Bounded integrity sample PASS; independent exhaustive history audit is still
+incomplete. Phase 14 **HOLD** continues. Research-only, zero money, live
+trading disabled, no automatic promotion, no additional final-holdout access.
+See [production evidence](PHASE-14-V4-COVERAGE-OPTIMIZATION-PRODUCTION-EVIDENCE.md)
+for observed scope, timelines, and caveats. This runbook alone grants no authorization.
 
 ## Evidence and fixed identities
 
@@ -97,7 +100,7 @@ operator later explicitly authorizes this precise successor, with fresh host
 readiness and fully green exact-main CI.** The 2026-10-09 approval covered only
 the earlier one-market bounded rollout; it cannot authorize this optimization.
 
-## Future separately authorized path (NOT executed)
+## Guarded successor path (executed once under separate exact-SHA operator approval)
 
 The new controller and root half copy the audited narrow V4 rollout contract:
 archive exact candidate, validate hashes and pinned recorder checkout, lock,
@@ -124,14 +127,16 @@ If ever authorized, separately observe repeated scheduled commits, database
 feature-hash integrity, pending market **age** and count, V3/recorder PIDs,
 and persistent zero-money settings before reassessing Phase 14 HOLD.
 
-## Current gate
+## Current gate (updated after 2026-10-11 host observations)
 
-- [x] Optimized source merged and post-merge CI green on d9f62ec7.
-- [x] Isolated benchmark with equivalence assertion: 3.66x on synthetic rows.
-- [ ] New readiness and rollout helpers reviewed, merged, and post-merge CI green.
-- [ ] Fresh read-only host readiness PASS on expected current runtime; if coverage-only timeouts are present, they are explicitly classified as degraded, not ignored.
-- [ ] New explicit operator authorization, bound to successor exact SHA.
-- [ ] Authorized bounded deployment acceptance, if subsequently approved.
-- [ ] Sustained production recovery and integrity evidence; HOLD remains.
+- [x] Optimized source merged with green post-merge CI; final candidate `2d82c38a526b8f1b579766100e3e832715977ac2`.
+- [x] Isolated benchmark with equivalence assertion: 3.66x on synthetic rows, not a production speedup guarantee.
+- [x] New readiness and rollout helpers reviewed, merged, and post-merge CI green.
+- [x] Pre-deployment read-only host readiness PASS, retaining historical coverage and post-commit timeout classifications as degraded.
+- [x] New explicit operator authorization, bound to the exact optimized successor SHA.
+- [x] Authorized guarded V4-only deployment acceptance PASS, four new feature rows, timer restored.
+- [x] Sustained scheduled operation: 707 commits and zero matched failure log messages during 788.5 minutes after acceptance; sampled pending remains zero.
+- [x] Read-only 48-row feature-hash/geometry sample and 22-recent-market backlog sample PASS.
+- [ ] Full-history independent feature-integrity, source-fingerprint and backlog-age verification using a DB-safe methodology. Phase 14 HOLD remains.
 
-No new production mutation is authorized by preparing these helpers.
+This records past, specifically authorized deployment, not approval for another production mutation or live trading.
