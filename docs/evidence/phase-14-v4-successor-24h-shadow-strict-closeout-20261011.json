@@ -1,0 +1,63 @@
+{
+  "status": "PASS_STRICT_24H_SHADOW_COMPLETION_ONLY",
+  "evidence_recorded_date": "2026-10-11",
+  "repository_main_at_verification": "9d896916ef9c1d5f60523c4c4fd884e7d924a045",
+  "evidence_origin": "Operator-supplied output of the reviewed strict closeout verifier against the preserved on-host JSONL; GitHub actions did not independently fetch the host file",
+  "run_id": "v4-fresh-book-shadow-20261007T200650Z-d58b2cbedc3f",
+  "evidence_path": "/var/lib/bp/evidence/v4-fresh-book-shadow-20261007T200650Z-d58b2cbedc3f.jsonl",
+  "evidence_sha256": "d0478b4e8b16a0fa07a850ada583095d09f1c1e81dcfb407abeff07877fd3324",
+  "frozen_model_sha256": "6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf",
+  "source_feature_version": "v4-source-time-features-v2",
+  "strict_verifier": "scripts/verify_v4_fresh_book_shadow_closeout.py",
+  "strict_verifier_marker": "PHASE14_V4_FRESH_BOOK_SHADOW_CLOSEOUT_VERIFY=PASS",
+  "command_final_marker": "SUCCESSOR_STRICT_CLOSEOUT=PASS",
+  "start_utc": "2026-10-07T20:07:00.355377+00:00",
+  "completion_utc": "2026-10-08T20:07:02.032079+00:00",
+  "expected_run_seconds": 86400,
+  "duration_tolerance_seconds": 120,
+  "observed_elapsed_seconds": 86401.676702,
+  "market_accounting": {
+    "seen": 245,
+    "predictions": 23,
+    "decision_missed": 116,
+    "source_ineligible": 106,
+    "prediction_evaluated": 14,
+    "quote_unavailable": 9,
+    "invariant_seen": "245 = 23 + 116 + 106",
+    "invariant_predictions": "23 = 14 + 9",
+    "source_retry_deferrals": 208,
+    "source_retry_recovered": 0,
+    "source_retry_exhausted": 101,
+    "source_retry_pending": 0
+  },
+  "safety_checks": {
+    "database_read_only": true,
+    "database_writes_performed": false,
+    "order_submission_performed": false,
+    "wallet_material_loaded": false,
+    "holdout_labels_read": false,
+    "model_refit_performed": false,
+    "threshold_tuning_performed": false,
+    "production_mutation": false
+  },
+  "evidence_integrity": {
+    "sha256_verified_before_strict_verifier": true,
+    "ignored_non_json_lines": 143,
+    "one_terminal_completion_record": true,
+    "strict_contract_accounting_pass": true
+  },
+  "acceptance_scope": {
+    "full_duration_and_runtime_safety": "PASS",
+    "prospective_paper_pnl": "NOT_YET_EVALUATED",
+    "number_of_paper_trades": "NOT_ESTABLISHED_BY_COMPLETION_COUNTS",
+    "market_coverage_quality": "NOT_ACCEPTED",
+    "source_freshness_and_retry_quality": "NOT_ACCEPTED",
+    "regime_performance": "NOT_EVALUATED",
+    "final_holdout": "PERMANENTLY_CONSUMED_DO_NOT_RERUN",
+    "original_20261006_shadow": "EARLY_STOPPED_INCOMPLETE_SEPARATE_RUN",
+    "phase14_status": "HOLD",
+    "live_trading_enabled": false,
+    "automatic_model_promotion": false
+  },
+  "next_step": "Evaluate just this exact run's prospective paper-trade record and official settlements with narrow read-only access; avoid combining other epochs and do not automatically run heavy raw-event source timing diagnostics."
+}
