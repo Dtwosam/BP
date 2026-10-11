@@ -1,0 +1,100 @@
+{
+  "status": "PASS_READONLY_REPORT_NEGATIVE_PAPER_ECONOMICS",
+  "recorded_date": "2026-10-11",
+  "origin": "Operator-supplied output of scripts/report_v4_fresh_book_pnl.py with an exact single-file evidence glob; not independently rerun or retrieved from the VM by GitHub CI",
+  "repo_main_at_execution": "3b2a47db8cc9e0eaf3a209f523b7229046e16e70",
+  "run_id": "v4-fresh-book-shadow-20261007T200650Z-d58b2cbedc3f",
+  "evidence_file": "/var/lib/bp/evidence/v4-fresh-book-shadow-20261007T200650Z-d58b2cbedc3f.jsonl",
+  "verified_evidence_sha256": "d0478b4e8b16a0fa07a850ada583095d09f1c1e81dcfb407abeff07877fd3324",
+  "reporter": "scripts/report_v4_fresh_book_pnl.py",
+  "report_version": "v4_fresh_book_canonical_pnl_v1",
+  "label_version": "official-outcome-v1",
+  "settlement_source": "market_labels",
+  "report_execution": {
+    "success_marker": "SUCCESSOR_PAPER_ECONOMICS_REPORT=PASS",
+    "analysis_marker": "PHASE14_V4_FRESH_BOOK_PNL_STATUS=PASS",
+    "evidence_hash_marker": "SUCCESSOR_EVIDENCE_HASH=PASS",
+    "zero_money_safety_marker": "ZERO_MONEY_SAFETY=PASS",
+    "evidence_file_count": 1,
+    "completed_epoch_count": 1,
+    "duplicate_prediction_count_across_epochs": 0,
+    "database_access": "read_only",
+    "database_writes_performed": false,
+    "service_mutation_performed": false,
+    "order_submission_performed": false,
+    "production_mutation": false
+  },
+  "prospective_funnel": {
+    "seen_markets": 245,
+    "predictions": 23,
+    "decision_missed": 116,
+    "source_ineligible": 106,
+    "evaluated_predictions": 14,
+    "quote_unavailable": 9,
+    "derived_prediction_share_of_seen_percent": 9.39,
+    "derived_evaluated_share_of_seen_percent": 5.71
+  },
+  "paper_economics": {
+    "paper_trades": 1,
+    "settled": 1,
+    "pending": 0,
+    "wins": 0,
+    "losses": 1,
+    "win_rate": "0",
+    "settled_fill_cost_usd": "4.288530911232",
+    "realized_pnl_usd": "-4.288530911232",
+    "return_on_cost": "-1",
+    "profit_factor": "0E+12",
+    "edge_gt_0_50": {
+      "paper_trades": 1,
+      "settled": 1,
+      "wins": 0,
+      "losses": 1,
+      "realized_pnl_usd": "-4.288530911232",
+      "return_on_cost": "-1"
+    },
+    "edge_le_0_50": {
+      "paper_trades": 0,
+      "settled": 0,
+      "realized_pnl_usd": "0"
+    },
+    "interpretation": "One modeled filled paper trade lost its full modeled fill cost; this is a negative observed outcome from one settlement, not a statistically reliable estimate of the frozen policy's long-run profitability."
+  },
+  "source_ineligibility": {
+    "source_ineligible_market_count": 106,
+    "total_reason_occurrences": 153,
+    "note": "Reason occurrences and per-venue counts overlap across source-ineligible markets; they must not be treated as distinct market counts.",
+    "by_reason": {
+      "bybit_linear_current_missing": 72,
+      "bybit_linear_market_start_missing": 54,
+      "bybit_spot_current_missing": 3,
+      "bybit_spot_market_start_missing": 10,
+      "coinbase_current_missing": 6,
+      "coinbase_market_start_missing": 8
+    },
+    "by_venue_reason_occurrence": {
+      "bybit_linear": 126,
+      "bybit_spot": 13,
+      "coinbase": 14
+    },
+    "source_timing_diagnostic": {
+      "sampled_count_per_reason": 3,
+      "categories_with_no_usable_event_near_cutoff": 6,
+      "classification_for_all_18_reason_samples": "no_usable_event_near_cutoff",
+      "limitation": "Small sampled raw-event timing diagnostic does not prove root cause or universal historical source availability."
+    }
+  },
+  "acceptance": {
+    "prior_24h_duration_and_safety": "PASS_UNCHANGED",
+    "accounting_and_report_execution": "PASS",
+    "observed_single_run_realized_paper_pnl": "NEGATIVE",
+    "economic_promotion_or_profitability_gate": "NOT_MET",
+    "population_level_model_quality": "NOT_ESTABLISHED",
+    "source_coverage_and_quote_availability": "INSUFFICIENT_FOR_BROAD_PERFORMANCE_CLAIMS",
+    "frozen_policy_changed": false,
+    "original_20261006_run": "SEPARATE_EARLY_STOPPED_INCOMPLETE",
+    "future_trading_authorization": false,
+    "phase14": "HOLD"
+  },
+  "next_safe_work": "Read-only diagnosis using already-preserved evidence and predefined source coverage/funnel metrics. Any new production query must be separately bounded and reviewed; no refit, threshold change, holdout rerun, paper-shadow restart, automatic promotion or trading activation."
+}
