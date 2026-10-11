@@ -152,6 +152,16 @@ def test_exact_hash_bound_offline_funnel_and_missing_reason_overlap(tmp_path: Pa
         "coinbase": 1,
     }
     assert report["source_ineligible"]["affected_venue_count_per_market"] == {"2": 1}
+    assert report["source_ineligible"]["retry_terminal_status_counts"] == {
+        "retry_exhausted": 1,
+    }
+    assert report["source_ineligible"]["retry_exhausted_count_distribution"] == {
+        "min": 2.0, "median": 2.0, "p95": 2.0, "max": 2.0,
+    }
+    assert report["source_ineligible"]["retry_terminal_by_venue"] == {
+        "bybit_linear": {"retry_exhausted": 1},
+        "coinbase": {"retry_exhausted": 1},
+    }
     assert report["by_two_hour_decision_window"]["00-02h"] == {
         "decision_missed": 2,
         "prediction": 2,
@@ -226,6 +236,70 @@ def test_ineligible_reason_overlap_rejects_duplicate_flags(tmp_path: Path) -> No
     records[3]["source_ineligible_reasons"] *= 2
     with pytest.raises(_module().CoverageEvidenceError, match="duplicate source"):
         _audit(tmp_path, records)
+
+
+def test_immediate_vs_exhausted_source_ineligibility_is_reconciled(tmp_path: Path) -> None:
+    records = _fixture_records()
+    records.insert(4, {
+        "event": "v4_fresh_book_shadow_source_ineligible",
+        "condition_id": "immediate-source",
+        "decision_at": _at(1000),
+        "reason": "core_source_ineligible",
+        "source_ineligible_reasons": ["bybit_spot_current_stale"],
+        "source_retry_count": 0,
+    })
+    records[-1]["seen_market_count"] += 1
+    records[-1]["source_ineligible_count"] += 1
+    report = _audit(tmp_path, records)
+    assert report["source_ineligible"]["retry_terminal_status_counts"] == {
+        "immediate_ineligible": 1,
+        "retry_exhausted": 1,
+    }
+    assert report["source_ineligible"]["retry_terminal_by_venue"] == {
+        "bybit_linear": {"retry_exhausted": 1},
+        "bybit_spot": {"immediate_ineligible": 1},
+        "coinbase": {"retry_exhausted": 1},
+    }
+
+
+def test_rejects_exhausted_terminal_without_prior_retry(tmp_path: Path) -> None:
+    records = _fixture_records()
+    records[3]["source_retry_count"] = 0
+    with pytest.raises(_module().CoverageEvidenceError,
+                       match="terminal reason/count mismatch"):
+        _audit(tmp_path, records)
+
+
+def test_rejects_immediate_terminal_with_prior_retries(tmp_path: Path) -> None:
+    records = _fixture_records()
+    records[3]["reason"] = "core_source_ineligible"
+    with pytest.raises(_module().CoverageEvidenceError,
+                       match="terminal reason/count mismatch"):
+        _audit(tmp_path, records)
+
+
+def test_rejects_unmatched_exhausted_retry_terminal_count(tmp_path: Path) -> None:
+    records = _fixture_records()
+    records[-1]["source_retry_exhausted_count"] = 0
+    with pytest.raises(_module().CoverageEvidenceError,
+                       match="exhausted terminal accounting mismatch"):
+        _audit(tmp_path, records)
+
+
+def test_rejects_unmatched_deferrals_when_recovered_is_zero(tmp_path: Path) -> None:
+    records = _fixture_records()
+    records[-1]["source_retry_deferral_count"] += 1
+    with pytest.raises(_module().CoverageEvidenceError,
+                       match="deferral/exhaustion accounting mismatch"):
+        _audit(tmp_path, records)
+
+
+def test_recovered_retry_total_not_inferable_from_terminal_only(tmp_path: Path) -> None:
+    records = _fixture_records()
+    records[-1]["source_retry_recovered_count"] = 1
+    records[-1]["source_retry_deferral_count"] += 1
+    report = _audit(tmp_path, records)
+    assert report["retry"]["source_retry_recovered_count"] == 1
 
 
 def test_terminal_accounting_fails_on_unmatched_market_count(tmp_path: Path) -> None:
