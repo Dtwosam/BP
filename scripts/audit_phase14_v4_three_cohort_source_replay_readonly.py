@@ -35,7 +35,7 @@ BETWEEN_REPLAYS_SECONDS = 0.25
 
 def _utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
-        raise ValueError("stored timestamp must have a timezone")
+        return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
 
 
