@@ -187,7 +187,7 @@ def test_parses_same_snapshot_that_was_hash_verified(
             reads += 1
             # Simulate offline-file replacement between verification and
             # parsing: the reporter must use the verified byte snapshot.
-            path.write_bytes(b'{"event":"corrupted_after_hash"}\\n')
+            path.write_bytes(b'{"event":"corrupted_after_hash"}\n')
         return result
 
     monkeypatch.setattr(Path, "read_bytes", replace_copy_after_read)
@@ -204,7 +204,7 @@ def test_parses_same_snapshot_that_was_hash_verified(
 def test_rejects_non_utf8_evidence_after_exact_hash_check(tmp_path: Path) -> None:
     module = _module()
     path, _ = _write(tmp_path, _fixture_records())
-    payload = path.read_bytes() + b"\\xff\\n"
+    payload = path.read_bytes() + b"\xff\n"
     path.write_bytes(payload)
     verified_sha = hashlib.sha256(payload).hexdigest()
     with pytest.raises(module.CoverageEvidenceError, match="not valid UTF-8"):
