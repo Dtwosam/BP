@@ -105,8 +105,8 @@ def audit(connection, deadline: float) -> str:
         raise RuntimeError("preregistered cohort count has drifted")
     print("PREREGISTERED_REPLAY_COUNT=3", flush=True)
     for name, beginning in COHORTS:
-        print(f"COHORT_WINDOW_{name.upper()}={beginning.isoformat()}/{(beginning+WINDOW).isoformat()}",
-              flush=True)
+        window_value = f"{beginning.isoformat()}/{(beginning + WINDOW).isoformat()}"
+        print(f"COHORT_WINDOW_{name.upper()}={window_value}", flush=True)
     if time.monotonic() >= deadline:
         return "INCOMPLETE_WALL_BUDGET"
 
