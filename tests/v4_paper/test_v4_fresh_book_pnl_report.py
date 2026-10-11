@@ -258,7 +258,9 @@ def test_source_timing_diagnostic_samples_large_reason_sets() -> None:
     ]
     connection = _Connection()
 
-    diagnostic = module._source_timing_diagnostic(connection, records)
+    diagnostic = module._source_timing_diagnostic(
+        connection, records, as_of=requested + timedelta(hours=1),
+    )
 
     reason = diagnostic["by_reason"]["coinbase_current_missing"]
     assert diagnostic["sample_limit_per_reason"] == 3
@@ -296,6 +298,7 @@ def test_source_timing_diagnostic_recovers_from_query_timeout() -> None:
                 "source_ineligible_reasons": ["bybit_linear_current_missing"],
             }
         ],
+        as_of=requested + timedelta(hours=1),
     )
 
     reason = diagnostic["by_reason"]["bybit_linear_current_missing"]
@@ -321,3 +324,72 @@ def test_classify_timing_rows_detects_no_event_in_source_window() -> None:
 
     assert diagnostic["classification"] == "no_usable_event_in_source_window"
     assert diagnostic["nearest"]["source_delta_seconds"] == -5.0
+
+
+def test_source_timing_diagnostic_skips_out_of_hot_retention_samples() -> None:
+    module = _load()
+    requested = datetime(2026, 10, 7, 20, 7, tzinfo=UTC)
+
+    class _NoHistoricalRawQuery:
+        def execute(self, statement):
+            raise AssertionError("expired hot raw sample must not query database")
+
+    diagnostic = module._source_timing_diagnostic(
+        _NoHistoricalRawQuery(),
+        [
+            {
+                "decision_at": requested.isoformat(),
+                "source_ineligible_reasons": [
+                    "bybit_linear_current_missing",
+                    "bybit_linear_market_start_missing",
+                ],
+            }
+        ],
+        hot_raw_retention_hours=24,
+        as_of=requested + timedelta(hours=72),
+    )
+
+    assert diagnostic["configured_hot_raw_retention_hours"] == 24
+    assert diagnostic["by_reason"]["bybit_linear_current_missing"][
+        "classification_counts"
+    ] == {"outside_configured_hot_raw_retention_window": 1}
+    assert diagnostic["by_reason"]["bybit_linear_market_start_missing"][
+        "sampled_outside_hot_raw_retention_window_count"
+    ] == 1
+    assert "does not prove actual deletion" in diagnostic["retention_limitation"]
+
+
+def test_source_timing_diagnostic_never_treats_retention_as_proof_of_feed_outage() -> None:
+    module = _load()
+    requested = datetime(2026, 10, 7, 20, 7, tzinfo=UTC)
+
+    class _Rows:
+        def mappings(self):
+            return self
+
+        def __iter__(self):
+            return iter(())
+
+    class _Connection:
+        execute_count = 0
+
+        def execute(self, statement):
+            self.execute_count += 1
+            return _Rows()
+
+    connection = _Connection()
+    diagnostic = module._source_timing_diagnostic(
+        connection,
+        [
+            {
+                "decision_at": requested.isoformat(),
+                "source_ineligible_reasons": ["bybit_linear_current_missing"],
+            }
+        ],
+        hot_raw_retention_hours=24,
+        as_of=requested + timedelta(hours=1),
+    )
+    assert diagnostic["by_reason"]["bybit_linear_current_missing"][
+        "classification_counts"
+    ] == {"no_usable_event_near_cutoff": 1}
+    assert connection.execute_count == 2
