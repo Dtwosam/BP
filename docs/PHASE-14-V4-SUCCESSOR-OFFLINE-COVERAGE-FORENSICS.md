@@ -73,6 +73,38 @@ prove feed outages, source timestamps, DB commit visibility, retention gaps,
 or parser correctness. The earlier timing diagnostic tested only three
 samples per missing-reason category and cannot establish a population result.
 
+## Source-only market bounds from existing aggregates
+
+The 11 October immutable economics summary reports 106 source-ineligible
+markets and six **missing** source-flag counts: Bybit linear
+`current_missing=72` and `market_start_missing=54`; Bybit spot
+`current_missing=3` and `market_start_missing=10`; Coinbase
+`current_missing=6` and `market_start_missing=8`. The individual
+reason occurrences are not distinct market counts, and the original
+runner emits each required missing flag at most once per market.
+
+Let `N_non_linear` be the number of distinct source-ineligible markets
+with **any** Coinbase or Bybit spot reason. The four non-linear flags
+have 3 + 10 + 6 + 8 = 27 total occurrences, so
+`N_non_linear <= 27`. The single Bybit spot market-start flag occurred
+on 10 distinct markets, so `N_non_linear >= 10`. Every one of the 106
+source-ineligible markets has one or more required-source reasons; a
+market with **no** non-linear reason therefore has only Bybit linear
+reason(s).
+
+Consequently, the number of source-ineligible markets flagged
+**exclusively** by Bybit linear is `106 - N_non_linear`, bounded
+**79–96 inclusive** (about **74.5%–90.6%** of the 106).
+This is a *deduction from previously verified aggregates*, not an
+observed market-by-market count, and it does not prove a Bybit feed
+outage or establish that remedying one venue would yield predictions.
+
+The separate 116 missed decisions (47.35% of all 245 seen markets)
+remain substantial, independent of the 106 source-ineligible cases
+(43.27%). A full market-level breakdown, missed-decision reasons,
+two-hour timing and source overlap still require the exact SHA-verified
+preserved JSONL; they cannot be inferred from the aggregate totals.
+
 The tool must not be used to increase the two-second decision tolerance,
 relax the two-second source freshness requirement, change the frozen model
 or threshold, justify a new paper run, or reopen the consumed holdout.
