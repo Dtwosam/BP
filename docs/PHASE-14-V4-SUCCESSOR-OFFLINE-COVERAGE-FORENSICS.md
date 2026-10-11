@@ -25,7 +25,15 @@ and checks counts against the completed record. It reports:
 - Source-ineligible reason occurrences and **distinct markets affected
   per venue** (venues can overlap for a market).
 - Two-hour decision-outcome buckets relative to the original run start.
-- Source retry counts copied from the final completion record.
+- Terminal source retry outcomes reconstructed from each source-ineligible
+  event: **retry-exhausted versus immediate ineligible**, retry-count
+  distributions, and terminal retry status by affected venue. Exhausted
+  terminal count must reconcile with completion. When the completion reports
+  zero recovered and zero pending retries (as in this successor), the sum
+  of terminal retry counts must equal its recorded deferral total.
+  Venue buckets can overlap; event-level deferrals were not individually
+  emitted and nonzero recovery may not be reconstructible after late
+  inference.
 
 It never imports database libraries, opens a database, accesses labels or
 the holdout, invokes network/execution code, or changes the strategy.

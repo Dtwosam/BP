@@ -117,6 +117,9 @@ def audit(
     missed_lags: dict[str, list[float]] = defaultdict(list)
     missing_reason_occurrences: Counter[str] = Counter()
     affected_markets_by_venue: Counter[str] = Counter()
+    retry_terminal_status_counts: Counter[str] = Counter()
+    retry_terminal_by_venue: dict[str, Counter[str]] = defaultdict(Counter)
+    exhausted_retry_counts: list[float] = []
     overlap_counts: Counter[str] = Counter()
     missed_reasons: Counter[str] = Counter()
     ignored_non_json = 0
@@ -165,6 +168,19 @@ def audit(
             missed_reasons[reason] += 1
             missed_lags[reason].append(_lag(record))
         elif event == INELIGIBLE:
+            reason = record.get("reason")
+            retry_count = _count(record, "source_retry_count")
+            _require(reason in {
+                "core_source_ineligible",
+                "core_source_ineligible_retry_window_exhausted",
+            }, "unknown source-ineligible terminal reason")
+            exhausted = reason == "core_source_ineligible_retry_window_exhausted"
+            _require(exhausted == (retry_count > 0),
+                     "source retry terminal reason/count mismatch")
+            retry_status = "retry_exhausted" if exhausted else "immediate_ineligible"
+            retry_terminal_status_counts[retry_status] += 1
+            if exhausted:
+                exhausted_retry_counts.append(float(retry_count))
             reasons = record.get("source_ineligible_reasons")
             _require(isinstance(reasons, list) and bool(reasons),
                      "source-ineligible decision lacks reason flags")
@@ -178,6 +194,8 @@ def audit(
                 for reason in reasons
             }
             affected_markets_by_venue.update(affected)
+            for venue in affected:
+                retry_terminal_by_venue[venue][retry_status] += 1
             overlap_counts[str(len(affected))] += 1
 
     _require(len(starts) == 1 and len(completions) == 1,
@@ -250,6 +268,16 @@ def audit(
     )}
     _require(retry["source_retry_pending_count"] == 0,
              "completed run has pending source retries")
+    _require(retry["source_retry_exhausted_count"] ==
+             retry_terminal_status_counts["retry_exhausted"],
+             "source retry exhausted terminal accounting mismatch")
+    # All deferrals either remain terminally exhausted or were recovered
+    # before inference. The current frozen successor reports zero recovered;
+    # other runs may have recovered events not identifiable by terminal type.
+    if retry["source_retry_recovered_count"] == 0:
+        _require(retry["source_retry_deferral_count"] ==
+                 int(sum(exhausted_retry_counts)),
+                 "source retry deferral/exhaustion accounting mismatch")
     total_reason_occurrences = sum(missing_reason_occurrences.values())
     return {
         "report": "v4_fresh_book_offline_coverage_forensics_v1",
@@ -276,6 +304,12 @@ def audit(
             "by_reason_occurrence": dict(sorted(missing_reason_occurrences.items())),
             "affected_markets_by_venue": dict(sorted(affected_markets_by_venue.items())),
             "affected_venue_count_per_market": dict(sorted(overlap_counts.items())),
+            "retry_terminal_status_counts": dict(sorted(retry_terminal_status_counts.items())),
+            "retry_exhausted_count_distribution": _distribution(exhausted_retry_counts),
+            "retry_terminal_by_venue": {
+                venue: dict(sorted(counts.items()))
+                for venue, counts in sorted(retry_terminal_by_venue.items())
+            },
             "counts_can_overlap_across_venues": True,
         },
         "by_two_hour_decision_window": {
@@ -287,6 +321,10 @@ def audit(
         "limitations": [
             "Recorded outcomes do not identify the root cause of late decisions.",
             "Missing-source flags do not prove feed outage or database visibility.",
+            "Retry status covers terminal ineligible markets; individual "
+            "deferrals were not emitted as JSONL events.",
+            "Recovery counts cannot always be reconstructed from terminal "
+            "events after late inference.",
             "This does not replay live decisions, query raw source events, or access labels.",
             "Report PASS does not establish profitable paper economics or allow model promotion.",
         ],
