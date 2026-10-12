@@ -368,6 +368,34 @@ source/model changes, holdout access or any orders would require
 **new explicit scope and authorization**. Economic acceptance
 **NOT MET**; **Phase 14 HOLD**.
 
+## 13 October 2026 — distinguish linear bulk socket incidents from linear ticker
+
+A further targeted review of the **current and previously reported deployed**
+`src/bp_engine/recorder/service.py` and `websocket_runner.py`
+identified a **diagnostic provenance problem**, not a demonstrated
+production exchange outage: the bulk and ticker WebSocket collectors
+have independent watchdogs but both record incidents as
+`source='bybit', stream='linear'` with the same endpoint URL and
+without a component/socket identity. Therefore the persisted generic
+`connected`, `stale` or `reconnect` record for Bybit linear
+cannot establish which socket emitted it.
+
+A tiny **repository-only, not-deployed** fix adds optional
+`details.recorder_component` to WebSocket runner incidents for
+`bybit_linear`, `bybit_linear_ticker` and the two spot
+counterparts. Synthetic tests cover normal lifecycle, clock-skew
+and watchdog recovery; non-Bybit runners preserve existing
+behavior. This does **not** change message parsing, source timestamps,
+DB schema, writer or frozen V4 model/rules, and cannot restore
+identity to historical incident records. A full Stage B1 would
+require separately authorized topic ACK, ingress, parser, enqueue
+and post-commit metadata counters **on the same bulk recorder
+socket**, under explicit finite production rollout and rollback.
+See `docs/PHASE-14-V4-LINEAR-BULK-STAGE-B1-PLAN-20261013.md`.
+
+**No production patch/host access, repeat Stage A/B0 or B1 activation
+is authorized by this review**. Phase 14 HOLD.
+
 ## Decision boundary and safe next action
 
 **Completed and repeatable without additional access:** source/reader

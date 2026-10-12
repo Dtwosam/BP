@@ -101,6 +101,7 @@ class WebSocketCollectorRunner:
         watchdog: FeedWatchdog | None = None,
         clock_skew_guard: ClockSkewGuard | None = None,
         monotonic: MonotonicFactory | None = None,
+        component_name: str | None = None,
     ) -> None:
         if (heartbeat_message is None) != (heartbeat_interval_seconds is None):
             raise ValueError("heartbeat message and interval must be configured together")
@@ -122,17 +123,33 @@ class WebSocketCollectorRunner:
         self.watchdog = watchdog
         self.clock_skew_guard = clock_skew_guard
         self.monotonic = monotonic or time.monotonic
+        if component_name is not None and not component_name.strip():
+            raise ValueError("component_name must be non-empty when provided")
+        self.component_name = component_name
+
+    async def _emit_incident(self, incident: FeedIncident) -> None:
+        # Preserve legacy behavior for other runners. Recorder-assigned labels
+        # distinguish separate sockets with the same source and stream.
+        if self.component_name is not None:
+            incident = incident.model_copy(
+                update={
+                    "details": {
+                        **incident.details,
+                        "recorder_component": self.component_name,
+                    }
+                }
+            )
+        await _call_sink(self.incident_sink, incident)
 
     async def _incident(self, incident_type: str, details: dict[str, object]) -> None:
-        await _call_sink(
-            self.incident_sink,
+        await self._emit_incident(
             FeedIncident(
                 source=self.source,
                 stream=self.stream,
                 incident_type=incident_type,
                 observed_at=self.now(),
                 details=details,
-            ),
+            )
         )
 
     async def _run_connection(
@@ -207,7 +224,7 @@ class WebSocketCollectorRunner:
                                 received_at=event.received_at,
                             )
                             if incident is not None:
-                                await _call_sink(self.incident_sink, incident)
+                                await self._emit_incident(incident)
                         await _call_sink(self.event_sink, event)
                     if events and self.watchdog is not None:
                         recovery = self.watchdog.observe(
@@ -217,7 +234,7 @@ class WebSocketCollectorRunner:
                             observed_at=received_at,
                         )
                         if recovery is not None:
-                            await _call_sink(self.incident_sink, recovery)
+                            await self._emit_incident(recovery)
                     if on_receive is not None:
                         on_receive()
                     if stop.is_set():
@@ -255,7 +272,7 @@ class WebSocketCollectorRunner:
                         observed_at=self.now(),
                     )
                     if incident is not None:
-                        await _call_sink(self.incident_sink, incident)
+                        await self._emit_incident(incident)
                     interval = max(
                         min(self.watchdog.stale_after_seconds / 2, 1.0),
                         0.001,
