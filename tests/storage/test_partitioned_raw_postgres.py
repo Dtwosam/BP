@@ -39,6 +39,7 @@ from bp_engine.storage.schema import (
     storage_maintenance_runs,
 )
 from bp_engine.v4_paper.source_time_features import V4SourceTimeReader
+from scripts.report_v4_linear_trade_storage_b0 import build_report as build_linear_b0_report
 from scripts.deploy.migrate_partitioned_raw_storage import _exact_raw_parity
 
 DATABASE_URL = os.getenv("BP_TEST_DATABASE_URL")
@@ -2202,3 +2203,73 @@ def test_streaming_exact_raw_parity_detects_payload_mismatch(engine) -> None:
 
     with pytest.raises(RuntimeError, match="exact row parity failed"):
         _exact_raw_parity(engine)
+
+
+def test_v4_linear_b0_classifies_null_timestamp_trade_on_partitioned_postgres(
+    engine,
+) -> None:
+    """CI-only PostgreSQL test: include rows that Stage A's null gate excludes."""
+    observed = datetime(2026, 10, 12, 21, 8, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=observed, migrate_existing=False)
+
+    def row(id_number, event_type, source_timestamp, payload):
+        return {
+            "id": id_number,
+            "source": "bybit",
+            "stream": "linear",
+            "instrument": "BTCUSDT",
+            "event_type": event_type,
+            "source_timestamp": source_timestamp,
+            "received_at": observed - timedelta(milliseconds=id_number % 100 + 100),
+            "sequence": str(id_number),
+            "market_id": None,
+            "asset_id": None,
+            "payload": payload,
+            "dedupe_key": f"b0-synthetic-{id_number}",
+        }
+
+    with engine.begin() as writer:
+        writer.execute(
+            insert(raw_market_events),
+            [
+                row(
+                    921101, "trade", observed - timedelta(milliseconds=300),
+                    {"data": [{"p": "65000.1"}]},
+                ),
+                row(921102, "trade", None, {"data": [{"p": "65000.2"}]}),
+                row(
+                    921103, "orderbook_delta",
+                    observed - timedelta(milliseconds=300),
+                    {"data": {"s": "BTCUSDT", "b": [], "a": []}},
+                ),
+                row(
+                    921104, "ticker", observed - timedelta(milliseconds=300),
+                    {"data": {"lastPrice": "65000.0"}},
+                ),
+            ],
+        )
+
+    # Use a separate connection with read-only default, as in production.
+    readonly = create_engine(
+        DATABASE_URL,
+        connect_args={"options": "-c default_transaction_read_only=on"},
+    )
+    try:
+        with readonly.connect() as connection:
+            result = build_linear_b0_report(connection, observed_at=observed)
+    finally:
+        readonly.dispose()
+
+    trade = result["classes"]["trade"]
+    book = result["classes"]["orderbook"]
+    assert trade["rows_sampled"] == 2
+    assert trade["nonnull_source_timestamp_rows"] == 1
+    assert trade["null_source_timestamp_rows"] == 1
+    assert trade["json_array_payload_rows"] == 2
+    assert trade["last_trade_price_field_present_rows"] == 2
+    assert trade["source_time_eligible_at_observed_rows"] == 1
+    assert trade["capped_inconclusive"] is False
+    assert book["rows_sampled"] == 1
+    assert book["source_time_eligible_at_observed_rows"] == 1
+    assert result["max_data_select_queries"] == 2
+    assert result["safety"]["database_writes_performed"] is False
