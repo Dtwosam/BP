@@ -1,0 +1,153 @@
+{
+  "status": "PASS_OPERATOR_SUPPLIED_SHA_BOUND_OFFLINE_RECONCILIATION_ONLY",
+  "recorded_date": "2026-10-12",
+  "provenance": {
+    "kind": "Second operator-provided Mac terminal output, using the already local one-time read-only authorized copy of the 7–8 October shadow JSONL",
+    "reporter": "scripts/report_v4_fresh_book_offline_coverage.py",
+    "reporter_version": "v4_fresh_book_offline_coverage_forensics_v1",
+    "git_main_at_execution": "b3c2b72f6ac924c5cfeae2053a3d78da7344e8a6",
+    "reported_status_marker": "PHASE14_V4_OFFLINE_COVERAGE=PASS_EVIDENCE_ONLY",
+    "reported_result": "PASS_EVIDENCE_RECONCILIATION_ONLY",
+    "raw_jsonl_committed": false,
+    "github_ci_replayed_original_jsonl": false,
+    "chatgpt_replayed_original_jsonl": false,
+    "independent_check": "Aggregate arithmetic and per-window combination totals reconciled to the supplied values only; original private JSONL was not independently accessed"
+  },
+  "identity": {
+    "run_id": "v4-fresh-book-shadow-20261007T200650Z-d58b2cbedc3f",
+    "original_evidence_sha256": "d0478b4e8b16a0fa07a850ada583095d09f1c1e81dcfb407abeff07877fd3324",
+    "frozen_model_sha256": "6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf"
+  },
+  "outcomes": {
+    "seen": 245,
+    "predictions": 23,
+    "missed": 116,
+    "source_ineligible": 106,
+    "evaluated": 14,
+    "quote_unavailable": 9,
+    "ignored_non_json_lines": 169
+  },
+  "source_ineligible": {
+    "distinct_markets": 106,
+    "bybit_linear_affected": 105,
+    "bybit_linear_only": 90,
+    "bybit_linear_only_percent_of_ineligible": 84.91,
+    "affected_venue_combinations": {
+      "bybit_linear": 90,
+      "bybit_linear+bybit_spot": 5,
+      "bybit_linear+bybit_spot+coinbase": 7,
+      "bybit_linear+coinbase": 3,
+      "coinbase": 1
+    },
+    "required_anchor_patterns_for_bybit_linear": {
+      "current_only": 51,
+      "market_start_only": 33,
+      "market_start+current": 21
+    },
+    "by_reason_occurrence": {
+      "bybit_linear_current_missing": 72,
+      "bybit_linear_market_start_missing": 54,
+      "bybit_spot_current_missing": 3,
+      "bybit_spot_market_start_missing": 10,
+      "coinbase_current_missing": 6,
+      "coinbase_market_start_missing": 8
+    }
+  },
+  "by_two_hour_source_venue_combinations": {
+    "00-02h": {
+      "bybit_linear": 12,
+      "bybit_linear+bybit_spot": 1,
+      "bybit_linear+bybit_spot+coinbase": 1,
+      "bybit_linear+coinbase": 3,
+      "coinbase": 1
+    },
+    "02-04h": {
+      "bybit_linear": 16,
+      "bybit_linear+bybit_spot": 1
+    },
+    "04-06h": {
+      "bybit_linear": 17
+    },
+    "06-08h": {
+      "bybit_linear": 12,
+      "bybit_linear+bybit_spot": 1,
+      "bybit_linear+bybit_spot+coinbase": 1
+    },
+    "08-10h": {
+      "bybit_linear": 8
+    },
+    "10-12h": {
+      "bybit_linear": 10,
+      "bybit_linear+bybit_spot+coinbase": 2
+    },
+    "14-16h": {
+      "bybit_linear+bybit_spot+coinbase": 1
+    },
+    "16-18h": {
+      "bybit_linear": 4
+    },
+    "18-20h": {
+      "bybit_linear": 3,
+      "bybit_linear+bybit_spot": 1
+    },
+    "20-22h": {
+      "bybit_linear": 1,
+      "bybit_linear+bybit_spot": 1,
+      "bybit_linear+bybit_spot+coinbase": 1
+    },
+    "22-24h": {
+      "bybit_linear": 7,
+      "bybit_linear+bybit_spot+coinbase": 1
+    }
+  },
+  "time_periods": {
+    "00-12h": {
+      "seen": 144,
+      "source_ineligible": 86,
+      "source_ineligible_share_percent": 59.72,
+      "bybit_linear_only": 75
+    },
+    "12-14h": {
+      "seen": 0,
+      "source_ineligible": 0,
+      "note": "No terminal decision outcomes recorded in this two-hour bucket; no outage claim"
+    },
+    "14-24h": {
+      "seen": 101,
+      "source_ineligible": 20,
+      "source_ineligible_share_percent": 19.8,
+      "bybit_linear_only": 15
+    }
+  },
+  "reconciliation": {
+    "distinct_venue_combination_sum": 106,
+    "bybit_linear_affected_combination_sum": 105,
+    "bybit_linear_anchor_pattern_sum": 105,
+    "bybit_linear_current_anchor_pattern_sum": 72,
+    "bybit_linear_start_anchor_pattern_sum": 54,
+    "first_12h_plus_remaining_ineligible_sum": 106,
+    "total_seen_early_plus_remaining": 245,
+    "sum_by_two_hour_source_venue_combinations": 106,
+    "all_reported_terminal_outcomes": 245
+  },
+  "safety": {
+    "evidence_only": true,
+    "production_access_this_followup": false,
+    "database_queried": false,
+    "services_mutated": false,
+    "model_policy_changed": false,
+    "holdout_accessed": false,
+    "trading_action": false,
+    "live_trading_enabled": false,
+    "phase14": "HOLD",
+    "economic_acceptance": "NOT_MET"
+  },
+  "limitations": [
+    "Operator supplied reporter output; GitHub and ChatGPT did not independently access, rehash or replay the private original JSONL.",
+    "Only terminal flags are classified, not underlying packet arrival, event commit visibility, freshness root cause, or query plans.",
+    "An apparent early-vs-late eligibility change does not establish a Bybit outage, recovery, service interruption, or causal mechanism.",
+    "The two-hour 12–14h bucket has zero recorded decision outcomes and cannot establish uptime or downtime.",
+    "All 116 feature_inference_lag_exceeded event labels are end-to-end lag classifications; frozen runner reuses an outer-loop batch timestamp, so attribution to model/SQL alone is unsupported.",
+    "Report PASS does not establish profitability or authorize new paper shadow, trading or promotion."
+  ]
+}

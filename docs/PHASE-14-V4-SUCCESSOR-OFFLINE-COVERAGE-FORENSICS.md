@@ -114,21 +114,42 @@ and split Bybit-linear affected markets by `market_start_only`,
 counts distinguish persistent missing-source flags from temporal clustering
 without claiming that a pattern alone establishes a feed outage.
 
-**Important:** no original-run outputs of these new fields have been
-collected yet. The preceding operator-reported aggregate showed 105
-Bybit-linear-affected markets and no Bybit-linear stale flags, so its
-existing marginal counts `current_missing=72` and
-`market_start_missing=54` mathematically imply **51 current-only,
-33 market-start-only and 21 both** among the 105. The exact
-Bybit-linear-only *venue* count is still pending re-running the updated
-report on the operator's private offline copy. The original raw JSONL must
-never be uploaded to a public PR.
+**Operator-reported result received (12 October 2026):** After
+fast-forwarding local `main` to `b3c2b72f`, the operator re-ran the
+exact-SHA/model-bound reporter against the already downloaded private
+JSONL and supplied the additive aggregate JSON plus
+`PHASE14_V4_OFFLINE_COVERAGE=PASS_EVIDENCE_ONLY`.
+Provenance, verified arithmetic, exact venue combinations and time
+buckets are recorded in
+`docs/evidence/phase-14-v4-successor-exact-venue-overlap-20261012.json`.
+This is **operator-supplied** output, not an independent GitHub/ChatGPT
+replay or second production retrieval.
 
-Run the same script invocation shown above on the Mac **after updating local
-`main`**; no server/SSH/DB access or new shadow is necessary. Only
-share the additive aggregate sections, not the raw JSONL. The success
-marker proves reconciliation, **not** profitability, late-decision
-root cause, or data-source outage. Phase 14 remains **HOLD**.
+The previous **90–91** solely-Bybit-linear estimate is now resolved to
+**exactly 90** of 106 source-ineligible markets (84.91%). Another
+15 ineligible markets had Bybit-linear plus at least one other venue
+flag (five linear+spot, three linear+Coinbase, seven all three);
+the remaining one market was **Coinbase only**. Bybit-linear
+eligibility-anchor patterns across the 105 affected markets are
+**51 current-only, 33 market-start-only, 21 both**, matching
+`current_missing=72` and `market_start_missing=54`.
+
+In the **first 12 hours**, 86/144 seen markets (59.72%) were
+source-ineligible (75 solely Bybit linear), compared with
+20/101 (19.80%) in the remaining **14–24h observed** buckets
+(15 solely Bybit linear). The 12–14h bucket contains **no recorded
+decision outcomes**; this cannot establish an interruption,
+venue outage or later feed recovery. These are descriptive associations,
+not independently measured root cause.
+
+The operator need not rerun this unchanged evidence report.
+**Next safe work:** investigate source-time parsing/arrival and
+per-market delay using existing synthetic tests and checked-in
+artifacts only; any new service, database, shadow or monitoring access
+requires separate approval. Do not upload the original JSONL or
+loosen the frozen decision/age policy.
+The report PASS establishes reconciliation only; economic acceptance
+remains **NOT MET**, Phase 14 **HOLD** and trading disabled.
 
 ## Interpretation boundary
 
