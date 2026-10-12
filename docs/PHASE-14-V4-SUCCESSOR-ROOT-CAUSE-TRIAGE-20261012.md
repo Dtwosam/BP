@@ -80,6 +80,85 @@ T2 is a repeatable implementation cost worth profiling only after
 attribution is separable. No evidence assigns a fraction of the 116 to
 T1, T2 or T3.
 
+## 12 October 2026: approved one-time Stage A visibility observation completed
+
+**Provenance and safety:** The operator supplied terminal output from the
+separately authorized, strictly bounded **stdin-only, no-install** probe
+`scripts/report_v4_linear_price_visibility.py`
+(Git blob `89444ba6834a5264dca23c7b14a458c5d237854d`),
+executed using the existing versioned V4 runtime. Reported UTC
+start `2026-10-12T21:07:58.233281+00:00`, completion
+`2026-10-12T21:08:35.217565+00:00`.
+`DIAGNOSTIC_PREFLIGHT=PASS`,
+`PHASE14_V4_LINEAR_PRICE_VISIBILITY_STATUS=PASS` and
+`DIAGNOSTIC_EXECUTION=COMPLETE` were returned; the same output attested
+database read-only, no writes, service mutations or order submissions.
+Original raw rows were **not** shared, and GitHub/ChatGPT did **not**
+independently perform or verify the host execution. Immutable supplied
+aggregate and explicit caveats:
+`docs/evidence/phase-14-v4-linear-price-visibility-prospective-20261012.json`.
+
+The report covered **60 wall-clock samples**, spaced nominally 0.5s
+apart, with **three SELECT categories per sample**, 12s lookback,
+maximum eight returned candidates per query, 1500ms statement timeout,
+and a 300s external execution bound: **180 attempts, 179 successful
+category queries, one `ticker_any` timeout**, zero reported
+non-timeout query errors. The price-eligibility summary's zero
+`inconclusive_due_to_query_error` counts only the two price-bearing
+categories, both of which completed all 60 attempts. It does **not**
+mean all 180 queries completed.
+
+| Observed category | Eligible samples | No usable row | Query successes | Row limit hit |
+| --- | ---: | ---: | ---: | ---: |
+| Any Bybit-linear ticker event | 53/59 successful (not necessarily usable price) | 0/59 | 59/60 | 59/59 |
+| Bybit-linear ticker with parseable `lastPrice` | 33/60 (55%) | 0/60 | 60/60 | 27/60 |
+| Bybit-linear `publicTrade` usable price | 0/60 | 60/60 | 60/60 | 0/60 |
+
+Consequently **33/60** samples had an eligible ticker-price candidate
+in the bounded query; **27/60** found neither ticker nor trade eligible.
+No trade candidates were visible within the 12s query window in any
+of the 60 successful trade lookups. For the price-bearing ticker
+category, the `source_age_seconds` median was **1.668792 s**, p95
+**6.840410 s** across selected present candidates, which **includes
+stale** observations rather than just eligible observations.
+`ticker_any` age counts cannot be substituted for price eligibility.
+
+**Measurement limitations that constrain inference:**
+
+1. `ticker_any` saturated its eight-row limit on **all 59 successful**
+   queries. `ticker_last_price` saturated on **27/60** queries.
+   Because each query loads most-recent-by-receipt candidates before
+   Python's source-age eligibility choice, an older-but-fresh-by-source
+   candidate may be truncated. The aggregate does not include the
+   per-sample overlap between these 27 saturated price queries and
+   the 27 `neither` classifications, so **no corrected true
+   eligibility percentage** is justified.
+2. `ticker_any` eligibility is **timestamp** eligibility of an event
+   that might be price-less. The 53/59 value is not proof of an
+   eligible `lastPrice`.
+3. `trade_price` returned no usable candidate within a bounded
+   **12s lookback** for this observed period. This is a source
+   availability clue, **not proof of a permanent trade-feed outage**
+   or the absence of earlier trades or uncommitted original-run events.
+4. These were 12 October **unsynchronized wall-clock observation
+   points**, not the 7–8 October frozen market start/current anchors.
+   No original-run stage timing, packet history, queue dwell, transaction
+   commit-time provenance or per-anchor source availability was
+   reconstructed. The 90 linear-only historical ineligibilities and
+   116 misses remain **unattributed**.
+
+**Updated investigation ordering:** The Stage A sample demonstrates
+nonuniform *currently visible* eligible ticker-price coverage and no
+visible qualifying trade candidates in its sampled lookbacks.
+Accordingly future questions should distinguish ticker payload price
+presence, timing/cutoff eligibility, trade-lane receipt/commit
+visibility and row-limit saturation **before** claiming an outage or
+retuning the frozen source-age gate. S1/S2 remain unresolved historical
+causal mechanisms; a second probe, instrumentation, production
+modification or shadow run is **not** approved by completion of Stage A.
+Further access needs a fresh separate user authorization and exact
+bounded plan.
+
 ## Decision boundary and safe next action
 
 **Completed and repeatable without additional access:** source/reader
