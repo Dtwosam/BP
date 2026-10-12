@@ -8,7 +8,6 @@ from sqlalchemy import create_engine, insert
 
 from bp_engine.storage.schema import metadata, raw_market_events
 from bp_engine.v4_paper.source_time_features import V4SourceTimeReader
-
 from scripts.report_v4_linear_price_visibility import (
     CATEGORIES,
     _distribution,
