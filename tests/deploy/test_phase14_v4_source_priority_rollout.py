@@ -215,8 +215,8 @@ def test_recorder_service_isolates_bybit_tickers_on_dedicated_sockets() -> None:
         ("bybit_linear_ticker", "linear", "ticker_topics"),
     ):
         expected = (
-            f"{component} = bybit_runner(\\n"
-            f'        venue="{venue}", topics={topics}, component_name="{component}"\\n'
+            f"{component} = bybit_runner(\n"
+            f'        venue="{venue}", topics={topics}, component_name="{component}"\n'
             "    )"
         )
         assert expected in source
