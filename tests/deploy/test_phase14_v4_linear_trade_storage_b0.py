@@ -76,7 +76,9 @@ def test_reviewed_b0_selects_two_bounded_event_classes_and_no_raw_output() -> No
     assert "SHOW default_transaction_read_only" in connection.sql[0]
     assert "event_type = 'trade'" in connection.sql[1]
     assert "event_type IN ('orderbook_snapshot', 'orderbook_delta')" in connection.sql[2]
-    for query, parameters in zip(connection.sql[1:], connection.parameters[1:]):
+    for query, parameters in zip(
+        connection.sql[1:], connection.parameters[1:], strict=True
+    ):
         assert "LIMIT :row_cap" in query
         assert "received_at >= :lower" in query
         assert "received_at <= :observed_at" in query
