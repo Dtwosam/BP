@@ -60,7 +60,7 @@ trade prices, row IDs, event signatures, credentials or account IDs.
   `LIVE_TRADING_ENABLED=false`,
   `MAX_TRADE_SIZE_USD=0`, `MAX_DAILY_LOSS_USD=0`,
   `RECORDER_BATCH_SIZE=100`, and active critical services.
-  The script itself checks the settings before its database connection.
+  The script itself checks the settings before its database connection and requires an explicit `--approval-ack AUTHORIZED_ONE_TIME_STAGE_B0` CLI acknowledgement; this is an operator reminder, **not** proof that approval was actually granted.
 - If separately approved, the proposed **external process cap is
   30 seconds**, with no automatic retries, no schema changes, no
   snapshot writes, no live orders, no service restart, and no
