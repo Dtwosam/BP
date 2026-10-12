@@ -1,0 +1,186 @@
+{
+  "status": "PASS_OPERATOR_SUPPLIED_OFFLINE_COVERAGE_RECONCILIATION_ONLY",
+  "recorded_date": "2026-10-12",
+  "provenance": {
+    "type": "Operator-supplied terminal transcript in current chat",
+    "retrieval": "One-time operator-authorized read-only sudo cat of exact preserved on-host JSONL to private Mac file, with local SHA-256 verification",
+    "original_host_path": "/var/lib/bp/evidence/v4-fresh-book-shadow-20261007T200650Z-d58b2cbedc3f.jsonl",
+    "raw_jsonl_not_committed": true,
+    "independently_rerun_by_github_ci": false,
+    "independently_rerun_by_chatgpt": false,
+    "reporter_path": "scripts/report_v4_fresh_book_offline_coverage.py",
+    "repository_main_at_operator_execution": "b069a36b6e3b05e59148be502a707096477e4cc1",
+    "reporter_version": "v4_fresh_book_offline_coverage_forensics_v1",
+    "execution_result": "PASS_EVIDENCE_RECONCILIATION_ONLY",
+    "success_marker": "PHASE14_V4_OFFLINE_COVERAGE=PASS_EVIDENCE_ONLY",
+    "local_evidence_sha256_marker": "EVIDENCE_SHA256=PASS"
+  },
+  "identity": {
+    "run_id": "v4-fresh-book-shadow-20261007T200650Z-d58b2cbedc3f",
+    "evidence_sha256": "d0478b4e8b16a0fa07a850ada583095d09f1c1e81dcfb407abeff07877fd3324",
+    "model_sha256": "6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf"
+  },
+  "counts": {
+    "seen_markets": 245,
+    "predictions": 23,
+    "decision_missed": 116,
+    "source_ineligible": 106,
+    "evaluated": 14,
+    "quote_unavailable": 9,
+    "prediction_share_of_seen_percent": 9.39,
+    "evaluated_share_of_seen_percent": 5.71
+  },
+  "missed": {
+    "by_reason": {
+      "feature_inference_lag_exceeded": 116,
+      "decision_lag_exceeded": 0
+    },
+    "lag_seconds_by_reason": {
+      "feature_inference_lag_exceeded": {
+        "min": 2.007759,
+        "median": 2.911243,
+        "p95": 4.920635,
+        "max": 11.73573
+      }
+    },
+    "classification_note": "All 116 terminal missed events were recorded after source feature processing/inference; raw event does not attribute lag to an individual substage."
+  },
+  "source_ineligible": {
+    "markets": 106,
+    "reason_occurrences": 153,
+    "by_reason_occurrence": {
+      "bybit_linear_current_missing": 72,
+      "bybit_linear_market_start_missing": 54,
+      "bybit_spot_current_missing": 3,
+      "bybit_spot_market_start_missing": 10,
+      "coinbase_current_missing": 6,
+      "coinbase_market_start_missing": 8
+    },
+    "affected_markets_by_venue": {
+      "bybit_linear": 105,
+      "bybit_spot": 12,
+      "coinbase": 11
+    },
+    "affected_venue_count_per_market": {
+      "1": 91,
+      "2": 8,
+      "3": 7
+    },
+    "retry_terminal_status_counts": {
+      "immediate_ineligible": 5,
+      "retry_exhausted": 101
+    },
+    "retry_terminal_by_venue": {
+      "bybit_linear": {
+        "immediate_ineligible": 5,
+        "retry_exhausted": 100
+      },
+      "bybit_spot": {
+        "immediate_ineligible": 1,
+        "retry_exhausted": 11
+      },
+      "coinbase": {
+        "immediate_ineligible": 2,
+        "retry_exhausted": 9
+      }
+    },
+    "retry_exhausted_count_distribution": {
+      "min": 1,
+      "median": 2,
+      "p95": 4,
+      "max": 5
+    },
+    "venue_counts_overlap": true,
+    "exclusively_bybit_linear_markets_derived_bounds": [
+      90,
+      91
+    ],
+    "notes": "105/106 source-ineligible markets had a Bybit linear reason. Only one did not. The aggregate cannot uniquely separate 90 vs 91 exclusively Bybit-linear markets because the other market might involve two non-linear venues."
+  },
+  "by_two_hour_decision_window": {
+    "00-02h": {
+      "decision_missed": 6,
+      "source_ineligible": 18
+    },
+    "02-04h": {
+      "decision_missed": 7,
+      "source_ineligible": 17
+    },
+    "04-06h": {
+      "decision_missed": 6,
+      "prediction": 1,
+      "source_ineligible": 17
+    },
+    "06-08h": {
+      "decision_missed": 7,
+      "prediction": 3,
+      "source_ineligible": 14
+    },
+    "08-10h": {
+      "decision_missed": 13,
+      "prediction": 3,
+      "source_ineligible": 8
+    },
+    "10-12h": {
+      "decision_missed": 9,
+      "prediction": 3,
+      "source_ineligible": 12
+    },
+    "14-16h": {
+      "decision_missed": 3,
+      "prediction": 1,
+      "source_ineligible": 1
+    },
+    "16-18h": {
+      "decision_missed": 13,
+      "prediction": 7,
+      "source_ineligible": 4
+    },
+    "18-20h": {
+      "decision_missed": 18,
+      "prediction": 2,
+      "source_ineligible": 4
+    },
+    "20-22h": {
+      "decision_missed": 18,
+      "prediction": 3,
+      "source_ineligible": 3
+    },
+    "22-24h": {
+      "decision_missed": 16,
+      "source_ineligible": 8
+    }
+  },
+  "retry": {
+    "source_retry_deferral_count": 208,
+    "source_retry_recovered_count": 0,
+    "source_retry_exhausted_count": 101,
+    "source_retry_pending_count": 0
+  },
+  "ignored_non_json_lines": 169,
+  "safety": {
+    "evidence_only": true,
+    "database_connected": false,
+    "production_queries": false,
+    "orders_submitted": false,
+    "holdout_accessed": false,
+    "trading_policy_changed": false,
+    "raw_evidence_private": true
+  },
+  "limitations": [
+    "Operator supplied the exact-hash-bound report; the underlying JSONL was not independently obtained or reprocessed in GitHub or this chat.",
+    "The 169 ignored non-JSON lines were not independently characterized; the reconciled structured events matched all required terminal counts.",
+    "Feature/inference-lag label does not isolate database reads, feature construction, model inference or scheduling as root cause.",
+    "Missing-source reason flags do not establish a live Bybit outage, parser defect or database visibility issue.",
+    "No new shadow or raw-event retrospective analysis was conducted; hot retention caveat for historical timing still applies.",
+    "One modeled settled paper loss remains; diagnostic PASS is not economic acceptance or trading permission."
+  ],
+  "acceptance": {
+    "coverage_reconciliation": "PASS_OPERATOR_REPORTED",
+    "economics": "NOT_MET",
+    "phase14": "HOLD",
+    "live_trading_enabled": false,
+    "holdout_reopened": false,
+    "model_refit_or_threshold_change": false
+  }
+}
