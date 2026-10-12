@@ -187,7 +187,7 @@ def test_exact_single_venue_and_anchor_overlaps_across_time_windows(tmp_path: Pa
     additional = (
         ("linear-current", 7500, ["bybit_linear_current_missing"]),
         ("linear-start", 14500, ["bybit_linear_market_start_missing"]),
-        ("linear-both", 21500, [
+        ("linear-both", 22000, [
             "bybit_linear_current_stale", "bybit_linear_market_start_missing",
         ]),
         ("spot-only", 29000, ["bybit_spot_current_missing"]),
