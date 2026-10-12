@@ -92,10 +92,11 @@ python scripts/report_v4_fresh_book_offline_coverage.py \
   --expected-model-sha256 6ae26dcbd189462cc4e594dede8cd3398c7a92960d275bdf43bbada5df2e8ddf
 ~~~
 
-Expected aggregate counts are 245/23/116/106/14/9, but the reason-level
-late-decision split **has not yet been established** from public merged
-aggregate evidence. Do not claim the tool executed on the preserved run
-until a separately reviewed operator report actually exists.
+Expected aggregate counts are 245/23/116/106/14/9. When this
+runbook was first written, the reason-level split was not available.
+The 12 October operator-reported exact-hash result **now establishes**
+the terminal missed-decision split and affected-venue counts as recorded
+above. This is not an independent replay of the private raw JSONL.
 
 ## Interpretation boundary
 
