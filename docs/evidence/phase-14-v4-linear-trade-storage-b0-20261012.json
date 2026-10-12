@@ -1,0 +1,100 @@
+{
+  "status": "PASS_OPERATOR_REPORTED_SINGLE_READONLY_B0_OBSERVATION_NOT_CAUSAL_ACCEPTANCE",
+  "provenance": {
+    "evidence_type": "User-provided terminal JSON and preflight/completion markers in current project chat; neither independently executed nor retrieved from production by ChatGPT/GitHub.",
+    "execution_approval": "Explicit user approval for one-time Stage B0 read-only diagnostic under reviewed limits in this conversation.",
+    "reviewed_main_head": "d97bb8ac51310d361da1338484120a003f660bd5",
+    "reviewed_script_path": "scripts/report_v4_linear_trade_storage_b0.py",
+    "reviewed_script_git_blob": "f4e7e7f38365c465c472c6d1a74ad3d42cc7e65c",
+    "frozen_release_id": "d58b2cbedc3f00617b8d4611e538981b2865e369",
+    "transport": "Operator streamed exact Git-blob reporter over SSH via stdin into frozen Python; no host script install.",
+    "preflight": [
+      "DIAGNOSTIC_PREFLIGHT=PASS",
+      "EXECUTION_MODE=VERIFIED_STDIN_NO_INSTALL",
+      "MAX_DATA_SELECT_QUERIES=2",
+      "MAX_ROWS_PER_CLASS=1024",
+      "OBSERVATION_WINDOW_SECONDS=60",
+      "STATEMENT_TIMEOUT_MS=1500",
+      "WALL_TIMEOUT_SECONDS=30"
+    ],
+    "completion": [
+      "PHASE14_V4_LINEAR_TRADE_B0_STATUS=PASS_DATA_ONLY",
+      "DATABASE_ACCESS=read_only",
+      "DATABASE_WRITES_PERFORMED=false",
+      "SERVICE_MUTATION_PERFORMED=false",
+      "ORDER_SUBMISSION_PERFORMED=false",
+      "DIAGNOSTIC_EXECUTION=COMPLETE"
+    ],
+    "host_execution_independently_verified": false,
+    "script_execution_count_reported": 1,
+    "further_production_query_authorized": false
+  },
+  "operator_report": {
+    "report": "v4_bybit_linear_trade_storage_b0_candidate_v1",
+    "execution_class": "reviewed_only_requires_separate_production_authorization",
+    "observed_at": "2026-10-12T22:27:43.681001+00:00",
+    "lookback_seconds": 60,
+    "row_cap_per_class": 1024,
+    "max_data_select_queries": 2,
+    "classes": {
+      "orderbook": {
+        "capped_inconclusive": false,
+        "json_array_payload_rows": 0,
+        "last_trade_price_field_present_rows": 0,
+        "nonnull_source_timestamp_rows": 0,
+        "null_source_timestamp_rows": 0,
+        "rows_sampled": 0,
+        "source_time_eligible_at_observed_rows": 0
+      },
+      "trade": {
+        "capped_inconclusive": false,
+        "json_array_payload_rows": 0,
+        "last_trade_price_field_present_rows": 0,
+        "nonnull_source_timestamp_rows": 0,
+        "null_source_timestamp_rows": 0,
+        "rows_sampled": 0,
+        "source_time_eligible_at_observed_rows": 0
+      }
+    },
+    "limitations": [
+      "Committed and currently query-visible rows only, not WebSocket packets.",
+      "One fixed wall-clock cutoff; not the earlier Stage A cutoffs or 7-8 October.",
+      "LIMIT may truncate each event class; capped results are not full counts.",
+      "Field-present is not proof of valid positive decimal trade price.",
+      "Source-time eligibility is only at the single observed_at cutoff.",
+      "No historical queue residence, ingestion latency or commit time is measured.",
+      "No production access or extra probe is authorized by this code."
+    ],
+    "safety": {
+      "database_read_only_required": true,
+      "database_writes_performed": false,
+      "model_refit_performed": false,
+      "order_submission_performed": false,
+      "service_mutation_performed": false,
+      "threshold_tuning_performed": false
+    }
+  },
+  "interpretation": {
+    "window_utc_start": "2026-10-12T22:26:43.681001+00:00",
+    "window_utc_end": "2026-10-12T22:27:43.681001+00:00",
+    "trade_matching_committed_rows": 0,
+    "orderbook_matching_committed_rows": 0,
+    "capped_classes": 0,
+    "applicable_filters": "Bybit linear BTCUSDT, received_at bounded by single cutoff, trade event_type or orderbook_snapshot/orderbook_delta separately.",
+    "statement": "No matching rows were committed and query-visible in either bounded class during this precise 60-second receipt window as of B0's read snapshot, according to the operator-supplied report.",
+    "cautions": [
+      "Neither row cap was reached; this is not Stage A's LIMIT 8 censoring of price-bearing ticker candidates.",
+      "This does not prove a total Bybit feed outage, no WebSocket packet arrival, an ACK failure, or missing/uncommitted raw events.",
+      "Both classes belong to the same Bybit-linear bulk connection, so common collection or persistence hypotheses increase in investigation priority, not causal certainty.",
+      "No simultaneously sampled Bybit-linear ticker, spot, Coinbase or other control lane was measured in Stage B0.",
+      "Stage A sampled 2026-10-12T21:07:58Z to 21:08:35Z, not synchronously with B0 at 22:27:43Z.",
+      "The query cannot establish historical October 7-8 cause, retention state, row backlog duration, recorder topic subscriptions at the instant, or transaction commit times.",
+      "No repeat B0, new SQL, new recorder instrumentation, service restart or trading was authorized by completion."
+    ]
+  },
+  "gates": {
+    "phase14": "HOLD",
+    "economic_acceptance": "NOT_MET",
+    "live_trading_enabled": false
+  }
+}
