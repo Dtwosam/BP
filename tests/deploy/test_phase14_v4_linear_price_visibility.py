@@ -4,7 +4,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from sqlalchemy import create_engine, insert
 
+from bp_engine.storage.schema import metadata, raw_market_events
+from bp_engine.v4_paper.source_time_features import V4SourceTimeReader
 from scripts.report_v4_linear_price_visibility import (
     CATEGORIES,
     _distribution,
@@ -81,6 +84,129 @@ def test_nearest_eligible_candidate_is_preferred() -> None:
     result = _sample_category(rows, category="trade_price", observed_at=cutoff)
     assert result["eligible"] is True
     assert result["nearest_row_id"] == 5
+
+
+def _synthetic_linear_price_rows(*, observed_at: datetime, include_fresh: bool):
+    """Nine price-bearing ticker events ordered by receipt, not source freshness."""
+    stale = []
+    for index in range(9 if not include_fresh else 8):
+        row = _ticker(
+            row_id=200 + index,
+            observed_at=observed_at,
+            age=3.0 + index * 0.1,
+            fields={"lastPrice": str(90000 + index)},
+        )
+        # The source timestamp is older than 2 seconds; nevertheless
+        # this stale observation was received recently and sorts first.
+        row["received_at"] = observed_at - timedelta(
+            milliseconds=30 + index * 10
+        )
+        stale.append(row)
+
+    if include_fresh:
+        eligible = _ticker(
+            row_id=299,
+            observed_at=observed_at,
+            age=0.7,
+            fields={"lastPrice": "90123"},
+        )
+        # Older receipt than all eight stale rows, but fresher source time.
+        eligible["received_at"] = observed_at - timedelta(milliseconds=300)
+        stale.append(eligible)
+    return sorted(
+        stale,
+        key=lambda row: (row["received_at"], row["id"]),
+        reverse=True,
+    )
+
+
+def _frozen_linear_price_for_synthetic_rows(rows, *, observed_at: datetime):
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    metadata.create_all(engine)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                insert(raw_market_events),
+                [
+                    {
+                        "id": row["id"],
+                        "source": "bybit",
+                        "stream": "linear",
+                        "instrument": "BTCUSDT",
+                        "event_type": row["event_type"],
+                        "source_timestamp": row["source_timestamp"],
+                        "received_at": row["received_at"],
+                        "payload": row["payload"],
+                        "sequence": str(row["id"]),
+                        "market_id": None,
+                        "asset_id": None,
+                        "dedupe_key": f"synthetic-{row['id']}",
+                    }
+                    for row in rows
+                ],
+            )
+            return V4SourceTimeReader().latest_price(
+                connection,
+                source="bybit",
+                stream="linear",
+                instrument="BTCUSDT",
+                requested_at=observed_at,
+            )
+    finally:
+        engine.dispose()
+
+
+def test_visibility_limit8_can_hide_a_v4_eligible_ticker_price() -> None:
+    observed_at = datetime(2026, 10, 12, 21, 8, tzinfo=UTC)
+    rows = _synthetic_linear_price_rows(
+        observed_at=observed_at, include_fresh=True
+    )
+    assert len(rows) == 9
+    assert rows[-1]["id"] == 299
+
+    # Replicate Stage A's ORDER BY received_at DESC, id DESC LIMIT 8.
+    sample = _sample_category(
+        rows[:8],
+        category="ticker_last_price",
+        observed_at=observed_at,
+    )
+    assert sample["row_limit_reached"] is True
+    assert sample["present"] is True
+    assert sample["eligible"] is False
+
+    # The frozen V4 reader uses source-time bounds, not LIMIT 8, and
+    # correctly selects the ninth, lower-receipt-time row.
+    observation, evidence = _frozen_linear_price_for_synthetic_rows(
+        rows, observed_at=observed_at
+    )
+    assert observation is not None
+    assert float(observation.price) == 90123.0
+    assert len(evidence) == 1
+    assert evidence[0].row_id == 299
+
+
+def test_visibility_limit8_saturation_alone_does_not_prove_false_negative() -> None:
+    observed_at = datetime(2026, 10, 12, 21, 8, tzinfo=UTC)
+    rows = _synthetic_linear_price_rows(
+        observed_at=observed_at, include_fresh=False
+    )
+    assert len(rows) == 9
+
+    sample = _sample_category(
+        rows[:8],
+        category="ticker_last_price",
+        observed_at=observed_at,
+    )
+    assert sample["row_limit_reached"] is True
+    assert sample["eligible"] is False
+
+    # Nine stale prices, unlike the prior fixture: the full V4 selection
+    # also rejects all events. Historical saturation is ambiguous.
+    observation, evidence = _frozen_linear_price_for_synthetic_rows(
+        rows, observed_at=observed_at
+    )
+    assert observation is None
+    assert evidence == ()
 
 
 class _FakeRows:

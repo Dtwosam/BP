@@ -159,6 +159,42 @@ modification or shadow run is **not** approved by completion of Stage A.
 Further access needs a fresh separate user authorization and exact
 bounded plan.
 
+## Follow-up synthetic LIMIT 8 selection check (12 October 2026)
+
+The approved Stage A run is **complete; no second query was performed**.
+Two new SQLite-only tests in
+`tests/deploy/test_phase14_v4_linear_price_visibility.py` compare the
+existing reporter's receipt-time-sorted **LIMIT 8** candidate slice
+with the *unchanged* `V4SourceTimeReader.latest_price` on nine
+synthetic price-bearing linear ticker events. In one fixture eight
+newer-received but stale-by-source-price observations occupy the
+probe's eight slots, while a ninth older-received but source-fresh
+price is eligible under frozen V4: the probe says no eligible
+price, whereas the real V4 reader selects the ninth row. In another
+fixture all nine ticker prices are stale and both readers find no
+eligible price. **Therefore saturation permits false negatives but
+does not establish them for any actual sample.**
+
+Stage A directly establishes **33 successful detected price-eligible
+ticker samples out of 60**. The 27 unsuccessful price-class lookups
+remain only *candidate-limited negatives*; because 27 of 60
+`ticker_last_price` queries hit LIMIT 8 but their sample-by-sample
+overlap with those 27 negative outcomes was not reported, **the number
+of missed otherwise eligible ticker samples can range from zero to
+27**. The resulting **33–60/60** possible count is only a
+conservative logical bound on candidate-limit-corrected eligibility
+at those observation points, *not* a measured revised source
+availability statistic. The 0/60 `trade_price` result was
+unsaturated (no usable row, no LIMIT 8 hits); it remains a bounded
+12-second query observation, not evidence of historical or universal
+trade-feed outage.
+
+The synthetic tests do **not** estimate how often this pathological
+arrival-vs-source ordering occurs, explain the October 7–8 paper shadow,
+relax the original 2-second freshness cutoff, modify any executable
+recorder/reporter/reader code, or authorize production queries.
+The exact historical cause remains unresolved and Phase 14 stays HOLD.
+
 ## Decision boundary and safe next action
 
 **Completed and repeatable without additional access:** source/reader
