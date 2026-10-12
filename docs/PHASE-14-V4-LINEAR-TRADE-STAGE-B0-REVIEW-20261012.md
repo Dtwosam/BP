@@ -5,6 +5,32 @@
 Source of truth at proposal start: `main`
 `5924bb9ed8bbc3d3331dae6caab94a4e83174a53`.
 
+## Execution closeout — 12 October 2026
+
+**Status: ONE-TIME Stage B0 APPROVED AND REPORTED COMPLETE.**
+The user separately approved the exact bounded read-only diagnostic.
+The operator reported `DIAGNOSTIC_PREFLIGHT=PASS`,
+`EXECUTION_MODE=VERIFIED_STDIN_NO_INSTALL`, one fixed 60-second
+cutoff (`2026-10-12T22:27:43.681001+00:00`), 2 capped data
+SELECT queries (`LIMIT 1024` each), 1500ms statement timeout
+and 30-second external wall cap. The result returned
+`PHASE14_V4_LINEAR_TRADE_B0_STATUS=PASS_DATA_ONLY` and
+`DIAGNOSTIC_EXECUTION=COMPLETE` with read-only/no-write/no-order/
+no-service-mutation markers. **Both trade and orderbook classes had
+0 query-visible matching rows** in the minute ending at the
+captured cutoff, neither capped. The result was supplied by the
+operator and was **not independently executed by ChatGPT or CI**.
+See `docs/evidence/phase-14-v4-linear-trade-storage-b0-20261012.json`
+for full aggregate counts and explicit limitations.
+
+This does not prove packet absence, a subscription failure, lost
+DB writes or historic October 7–8 causality. The earlier Stage A
+observation at 21:07–21:08 UTC is not synchronous with Stage B0.
+No same-window ticker/control-lane measurements were taken.
+The **separate Stage B0 authorization has been consumed**.
+The design below is preserved as an archival review of what was
+approved, **not as permission to rerun**.
+
 ## Why Stage B0, and the limited question it can answer
 
 The **single, already consumed** Stage A authorization yielded
