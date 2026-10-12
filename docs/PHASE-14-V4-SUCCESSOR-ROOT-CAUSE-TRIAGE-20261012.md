@@ -195,6 +195,57 @@ relax the original 2-second freshness cutoff, modify any executable
 recorder/reporter/reader code, or authorize production queries.
 The exact historical cause remains unresolved and Phase 14 stays HOLD.
 
+## Offline trade-visibility contract (12 October 2026)
+
+The Stage A report found **0/60** query-visible Bybit-linear trade-price
+candidates in its short observations; this is **not a count of all
+received or persisted trade messages**. Its SQL explicitly requires
+`source='bybit'`, `stream='linear'`, `instrument='BTCUSDT'`,
+`event_type='trade'`, **non-null `source_timestamp`**, `payload.data`
+of JSON-array type and a bounded 12-second receipt window.
+Those filters run *before* the Python price parser. A zero result does
+not distinguish no WebSocket trade messages from messages outside the
+time window, messages with null source timestamps, malformed/filtered
+row payloads or rows that had not committed at query time.
+
+Two repository-only tests in
+`tests/v4_paper/test_v4_bybit_linear_collector_price_contract.py`
+exercise the **actual parser → routed bulk sink → buffered batch
+writer → SQLite recorder repository → frozen V4 source-time reader**
+path, without any network connection or production query:
+
+- A synthetic linear `publicTrade.BTCUSDT` with top-level `ts` and
+  price-bearing `data[].p` is inserted by the actual bulk writer into
+  raw-event storage and selected as a price by the unchanged frozen
+  V4 reader; the source-filtered synthetic Stage A candidate query
+  also sees it. This checks the end-to-end code contract in a
+  controlled case; it is **not** evidence that the live trade feed
+  was subscribed, delivered, committed quickly, or healthy on
+  7–8 or 12 October.
+- A deliberately hypothetical trade envelope **without top-level
+  `ts`** but with per-trade `data[].T` and valid `data[].p` is
+  successfully routed, buffered and persisted with
+  `source_timestamp=NULL`. Neither the existing Stage A SQL's
+  non-null timestamp gate nor the unchanged frozen V4 reader
+  considers it a price candidate. The parser currently uses
+  envelope `ts` for trade source timestamp and does not
+  substitute `data[].T`. **No evidence establishes that real
+  Bybit trade messages lacked top-level `ts` during the sampled
+  observations.** This fixture is a negative control, not a
+  recommendation to change timestamp precedence or the frozen
+  source-time rules.
+
+**Discriminating implication:** The observed Stage A trade zeros
+must be described as **zero matching eligible-query candidates**,
+not zero network trade packets or zero stored trade events. A
+historically or prospectively contemporaneous breakdown across
+subscription/receipt, event-type/schema, timestamp nullability,
+enqueue/commit visibility and query cutoff would be needed to
+assign live cause. Such a new production query or instrumented
+recorder is **not** authorized by this offline investigation.
+The 27/60 capped-ticker lookup uncertainty is unaffected.
+Phase 14 **HOLD**, negative paper economics unchanged.
+
 ## Decision boundary and safe next action
 
 **Completed and repeatable without additional access:** source/reader
