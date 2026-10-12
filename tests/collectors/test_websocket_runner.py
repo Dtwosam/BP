@@ -1,9 +1,11 @@
 import asyncio
-from datetime import datetime
+import json
+from datetime import UTC, datetime
 
 import pytest
 
-from bp_engine.collectors.reliability import ReconnectPolicy
+from bp_engine.collectors.bybit_ws import build_bybit_subscription, parse_bybit_message
+from bp_engine.collectors.reliability import FeedWatchdog, ReconnectPolicy
 from bp_engine.collectors.websocket_runner import WebSocketCollectorRunner
 from bp_engine.recorder.models import FeedIncident, RawEvent
 
@@ -266,3 +268,124 @@ async def test_runner_sends_multiple_initial_subscriptions_without_client_heartb
         '{"type":"subscribe","product_ids":["BTC-USD"],"channel":"market_trades"}',
         '{"type":"subscribe","channel":"heartbeats"}',
     ]
+
+
+@pytest.mark.asyncio
+async def test_bybit_linear_bulk_watchdog_is_not_public_trade_topic_specific() -> None:
+    """Order-book-only traffic refreshes a stream-wide watchdog despite no trades."""
+    when = datetime(2026, 10, 12, 21, 0, tzinfo=UTC)
+    book = json.dumps(
+        {
+            "topic": "orderbook.50.BTCUSDT",
+            "type": "delta",
+            "cts": int(when.timestamp() * 1000),
+            "data": {"s": "BTCUSDT", "b": [], "a": []},
+        }
+    )
+    ws = FakeWebSocket([book, book, book])
+    connector = FakeConnector([ws])
+    stop = asyncio.Event()
+    events: list[RawEvent] = []
+    incidents: list[FeedIncident] = []
+    clock = iter((0.0, 4.0, 8.0, 12.0))
+    watchdog = FeedWatchdog(stale_after_seconds=5)
+
+    def parser(message: object, received_at: datetime) -> list[RawEvent]:
+        parsed = parse_bybit_message(message, venue="linear", received_at=received_at)
+        if len(events) + len(parsed) == 3:
+            stop.set()
+        return parsed
+
+    runner = WebSocketCollectorRunner(
+        source="bybit",
+        stream="linear",
+        url="wss://example.test/linear",
+        connector=connector,
+        subscription=build_bybit_subscription(
+            ["orderbook.50.BTCUSDT", "publicTrade.BTCUSDT", "allLiquidation.BTCUSDT"]
+        ),
+        parser=parser,
+        event_sink=events.append,
+        incident_sink=incidents.append,
+        heartbeat_message=None,
+        heartbeat_interval_seconds=None,
+        watchdog=watchdog,
+        monotonic=lambda: next(clock),
+        now=lambda: when,
+    )
+    await asyncio.wait_for(runner.run(stop), timeout=2)
+
+    subscribed = json.loads(ws.sent[0])
+    assert "publicTrade.BTCUSDT" in subscribed["args"]
+    assert len(events) == 3
+    assert all(event.event_type == "orderbook_delta" for event in events)
+    assert not any(event.event_type == "trade" for event in events)
+    # Twelve synthetic seconds since the first arm, yet the stream-wide
+    # watchdog is fresh because order-book messages repeatedly arrived.
+    assert (
+        watchdog.check(
+            "bybit", "linear", monotonic_time=13, observed_at=when
+        )
+        is None
+    )
+    stale = watchdog.check(
+        "bybit", "linear", monotonic_time=18, observed_at=when
+    )
+    assert stale is not None and stale.incident_type == "stale"
+    assert not any(i.incident_type == "stale" for i in incidents)
+
+
+@pytest.mark.asyncio
+async def test_bybit_subscription_failure_ack_has_no_topic_incident() -> None:
+    """A fake rejected subscription ACK is ignored by the current parser/runner."""
+    when = datetime(2026, 10, 12, 21, 0, tzinfo=UTC)
+    failed_ack = json.dumps(
+        {"op": "subscribe", "success": False, "ret_msg": "synthetic topic rejection"}
+    )
+    book = json.dumps(
+        {
+            "topic": "orderbook.50.BTCUSDT",
+            "type": "snapshot",
+            "cts": int(when.timestamp() * 1000),
+            "data": {"s": "BTCUSDT", "b": [], "a": []},
+        }
+    )
+    ws = FakeWebSocket([failed_ack, book])
+    events: list[RawEvent] = []
+    incidents: list[FeedIncident] = []
+    stop = asyncio.Event()
+    received_messages = []
+
+    def parser(message: object, received_at: datetime) -> list[RawEvent]:
+        received_messages.append(message)
+        parsed = parse_bybit_message(message, venue="linear", received_at=received_at)
+        if parsed:
+            stop.set()
+        return parsed
+
+    runner = WebSocketCollectorRunner(
+        source="bybit",
+        stream="linear",
+        url="wss://example.test/linear",
+        connector=FakeConnector([ws]),
+        subscription=build_bybit_subscription(
+            ["orderbook.50.BTCUSDT", "publicTrade.BTCUSDT"]
+        ),
+        parser=parser,
+        event_sink=events.append,
+        incident_sink=incidents.append,
+        heartbeat_message=None,
+        heartbeat_interval_seconds=None,
+        now=lambda: when,
+    )
+    await asyncio.wait_for(runner.run(stop), timeout=2)
+
+    assert received_messages[0]["success"] is False
+    assert [event.event_type for event in events] == ["orderbook_snapshot"]
+    # No explicit subscription-topic rejection incident; this says
+    # nothing about actual acknowledgements in the historical feed.
+    assert not any(
+        i.incident_type in {"error", "subscription_rejected", "stale"}
+        for i in incidents
+    )
+    assert [i.incident_type for i in incidents] == ["connected", "disconnected"]
