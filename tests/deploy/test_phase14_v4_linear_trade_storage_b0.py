@@ -132,6 +132,8 @@ def test_b0_source_has_research_zero_money_and_readonly_execution_gates() -> Non
         "default_transaction_read_only=on",
         "statement_timeout=1500",
         'isolation_level="AUTOCOMMIT"',
+        '--approval-ack',
+        'AUTHORIZED_ONE_TIME_STAGE_B0',
     ):
         assert required in source
     assert "CREATE TABLE" not in source
