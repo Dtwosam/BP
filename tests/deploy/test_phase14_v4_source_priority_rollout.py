@@ -207,11 +207,21 @@ def test_recorder_service_isolates_bybit_tickers_on_dedicated_sockets() -> None:
     assert '"tickers.BTCUSDT"' not in linear_bulk
 
     assert 'ticker_topics = ["tickers.BTCUSDT"]' in ticker_contract
+    assert "component_name=component_name" in source
+    for component, venue, topics in (
+        ("bybit_spot", "spot", "spot_bulk_topics"),
+        ("bybit_spot_ticker", "spot", "ticker_topics"),
+        ("bybit_linear", "linear", "linear_bulk_topics"),
+        ("bybit_linear_ticker", "linear", "ticker_topics"),
+    ):
+        expected = (
+            f"{component} = bybit_runner(\\n"
+            f'        venue="{venue}", topics={topics}, component_name="{component}"\\n'
+            "    )"
+        )
+        assert expected in source
+
     for marker in (
-        'bybit_spot = bybit_runner(venue="spot", topics=spot_bulk_topics)',
-        'bybit_spot_ticker = bybit_runner(venue="spot", topics=ticker_topics)',
-        'bybit_linear = bybit_runner(venue="linear", topics=linear_bulk_topics)',
-        'bybit_linear_ticker = bybit_runner(venue="linear", topics=ticker_topics)',
         '"bybit_spot_ticker": bybit_spot_ticker',
         '"bybit_linear_ticker": bybit_linear_ticker',
     ):
