@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 import pytest
 
 from bp_engine.collectors.bybit_ws import build_bybit_subscription, parse_bybit_message
-from bp_engine.collectors.reliability import FeedWatchdog, ReconnectPolicy
+from bp_engine.collectors.reliability import ClockSkewGuard, FeedWatchdog, ReconnectPolicy
 from bp_engine.collectors.websocket_runner import WebSocketCollectorRunner
 from bp_engine.recorder.models import FeedIncident, RawEvent
 
@@ -389,3 +389,149 @@ async def test_bybit_subscription_failure_ack_has_no_topic_incident() -> None:
         for i in incidents
     )
     assert [i.incident_type for i in incidents] == ["connected", "disconnected"]
+
+
+@pytest.mark.asyncio
+async def test_bybit_linear_socket_incidents_identify_bulk_and_ticker_separately() -> None:
+    """Both sockets share venue/URL, but their incident provenance differs."""
+    when = datetime(2026, 10, 13, 0, 0, tzinfo=UTC)
+    events: list[RawEvent] = []
+    collected: dict[str, list[FeedIncident]] = {}
+
+    for component, topics, message in (
+        (
+            "bybit_linear",
+            ["orderbook.50.BTCUSDT", "publicTrade.BTCUSDT"],
+            {
+                "topic": "orderbook.50.BTCUSDT",
+                "type": "snapshot",
+                "cts": int(when.timestamp() * 1000),
+                "data": {"s": "BTCUSDT", "b": [], "a": []},
+            },
+        ),
+        (
+            "bybit_linear_ticker",
+            ["tickers.BTCUSDT"],
+            {
+                "topic": "tickers.BTCUSDT",
+                "ts": int(when.timestamp() * 1000),
+                "data": {"symbol": "BTCUSDT", "lastPrice": "60001"},
+            },
+        ),
+    ):
+        stop = asyncio.Event()
+        ws = FakeWebSocket([json.dumps(message)])
+        incidents: list[FeedIncident] = []
+
+        def parser(value: object, at: datetime) -> list[RawEvent]:
+            result = parse_bybit_message(value, venue="linear", received_at=at)
+            stop.set()
+            return result
+
+        runner = WebSocketCollectorRunner(
+            source="bybit",
+            stream="linear",
+            url="wss://example.test/linear",
+            connector=FakeConnector([ws]),
+            subscription=build_bybit_subscription(topics),
+            parser=parser,
+            event_sink=events.append,
+            incident_sink=incidents.append,
+            heartbeat_message=None,
+            heartbeat_interval_seconds=None,
+            now=lambda: when,
+            component_name=component,
+        )
+        await asyncio.wait_for(runner.run(stop), timeout=2)
+        assert json.loads(ws.sent[0])["args"] == sorted(topics)
+        assert [incident.incident_type for incident in incidents] == [
+            "connected",
+            "disconnected",
+        ]
+        assert all(incident.source == "bybit" for incident in incidents)
+        assert all(incident.stream == "linear" for incident in incidents)
+        assert all(
+            incident.details["recorder_component"] == component
+            for incident in incidents
+        )
+        collected[component] = incidents
+
+    assert [event.event_type for event in events] == [
+        "orderbook_snapshot",
+        "ticker",
+    ]
+    assert {
+        incidents[0].details["recorder_component"]
+        for incidents in collected.values()
+    } == {"bybit_linear", "bybit_linear_ticker"}
+    assert (
+        collected["bybit_linear"][0].details["url"]
+        == collected["bybit_linear_ticker"][0].details["url"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_named_runner_tags_clock_skew_and_watchdog_recovery_incidents() -> None:
+    when = datetime(2026, 10, 13, 0, 0, tzinfo=UTC)
+    clock = iter((3.0, 3.1))
+    watchdog = FeedWatchdog(stale_after_seconds=1)
+    watchdog.observe("bybit", "linear", monotonic_time=0, observed_at=when)
+    assert watchdog.check(
+        "bybit", "linear", monotonic_time=2, observed_at=when
+    ) is not None
+
+    ws = FakeWebSocket(
+        [json.dumps({
+            "topic": "tickers.BTCUSDT",
+            "ts": int(when.timestamp() * 1000) + 4000,
+            "data": {"symbol": "BTCUSDT", "lastPrice": "60001"},
+        })]
+    )
+    stop = asyncio.Event()
+    incidents: list[FeedIncident] = []
+
+    def parser(value: object, at: datetime) -> list[RawEvent]:
+        stop.set()
+        return parse_bybit_message(value, venue="linear", received_at=at)
+
+    runner = WebSocketCollectorRunner(
+        source="bybit",
+        stream="linear",
+        url="wss://example.test/linear",
+        connector=FakeConnector([ws]),
+        subscription=build_bybit_subscription(["tickers.BTCUSDT"]),
+        parser=parser,
+        event_sink=lambda event: None,
+        incident_sink=incidents.append,
+        heartbeat_message=None,
+        heartbeat_interval_seconds=None,
+        now=lambda: when,
+        watchdog=watchdog,
+        clock_skew_guard=ClockSkewGuard(max_abs_skew_seconds=1),
+        monotonic=lambda: next(clock),
+        component_name="bybit_linear_ticker",
+    )
+    await asyncio.wait_for(runner.run(stop), timeout=2)
+    assert "clock_skew" in [incident.incident_type for incident in incidents]
+    assert "recovered" in [incident.incident_type for incident in incidents]
+    assert all(
+        incident.details["recorder_component"] == "bybit_linear_ticker"
+        for incident in incidents
+    )
+
+
+def test_component_identity_must_not_be_blank() -> None:
+    with pytest.raises(ValueError, match="component_name must be non-empty"):
+        WebSocketCollectorRunner(
+            source="bybit",
+            stream="linear",
+            url="wss://example.test/linear",
+            connector=lambda url: None,
+            subscription={"op": "subscribe", "args": ["tickers.BTCUSDT"]},
+            parser=lambda message, at: [],
+            event_sink=lambda event: None,
+            incident_sink=lambda incident: None,
+            heartbeat_message=None,
+            heartbeat_interval_seconds=None,
+            component_name=" ",
+        )
