@@ -152,6 +152,16 @@ def test_exact_hash_bound_offline_funnel_and_missing_reason_overlap(tmp_path: Pa
         "coinbase": 1,
     }
     assert report["source_ineligible"]["affected_venue_count_per_market"] == {"2": 1}
+    assert report["source_ineligible"]["affected_venue_combinations"] == {
+        "bybit_linear+coinbase": 1,
+    }
+    assert report["source_ineligible"]["bybit_linear_only_markets"] == 0
+    assert report["source_ineligible"]["bybit_linear_required_anchor_patterns"] == {
+        "market_start+current": 1,
+    }
+    assert report["by_two_hour_source_venue_combinations"] == {
+        "00-02h": {"bybit_linear+coinbase": 1},
+    }
     assert report["source_ineligible"]["retry_terminal_status_counts"] == {
         "retry_exhausted": 1,
     }
@@ -170,6 +180,67 @@ def test_exact_hash_bound_offline_funnel_and_missing_reason_overlap(tmp_path: Pa
     assert report["ignored_non_json_lines"] == 1
     assert report["safety"]["database_connected"] is False
     assert "profit" in report["limitations"][-1]
+
+
+def test_exact_single_venue_and_anchor_overlaps_across_time_windows(tmp_path: Path) -> None:
+    records = _fixture_records()
+    additional = (
+        ("linear-current", 7500, ["bybit_linear_current_missing"]),
+        ("linear-start", 14500, ["bybit_linear_market_start_missing"]),
+        ("linear-both", 21500, [
+            "bybit_linear_current_stale", "bybit_linear_market_start_missing",
+        ]),
+        ("spot-only", 29000, ["bybit_spot_current_missing"]),
+    )
+    for condition, offset, reasons in additional:
+        records.insert(-1, {
+            "event": "v4_fresh_book_shadow_source_ineligible",
+            "condition_id": condition,
+            "decision_at": _at(offset),
+            "reason": "core_source_ineligible",
+            "source_ineligible_reasons": reasons,
+            "source_retry_count": 0,
+        })
+    records[-1]["seen_market_count"] += len(additional)
+    records[-1]["source_ineligible_count"] += len(additional)
+
+    report = _audit(tmp_path, records)
+    source = report["source_ineligible"]
+    assert source["markets"] == 5
+    assert source["affected_venue_combinations"] == {
+        "bybit_linear": 3,
+        "bybit_linear+coinbase": 1,
+        "bybit_spot": 1,
+    }
+    assert source["bybit_linear_only_markets"] == 3
+    assert source["bybit_linear_required_anchor_patterns"] == {
+        "current_only": 1,
+        "market_start+current": 2,
+        "market_start_only": 1,
+    }
+    assert source["affected_venue_count_per_market"] == {"1": 4, "2": 1}
+    windows = report["by_two_hour_source_venue_combinations"]
+    assert windows == {
+        "00-02h": {"bybit_linear+coinbase": 1},
+        "02-04h": {"bybit_linear": 1},
+        "04-06h": {"bybit_linear": 1},
+        "06-08h": {"bybit_linear": 1},
+        "08-10h": {"bybit_spot": 1},
+    }
+    assert sum(sum(counts.values()) for counts in windows.values()) == source["markets"]
+    assert sum(source["affected_venue_combinations"].values()) == source["markets"]
+
+
+def test_only_bybit_linear_anchor_profile_can_include_stale_flags(tmp_path: Path) -> None:
+    records = _fixture_records()
+    records[3]["source_ineligible_reasons"] = ["bybit_linear_current_stale"]
+    report = _audit(tmp_path, records)
+    assert report["source_ineligible"]["affected_venue_combinations"] == {
+        "bybit_linear": 1,
+    }
+    assert report["source_ineligible"]["bybit_linear_required_anchor_patterns"] == {
+        "current_only": 1,
+    }
 
 
 def test_sha_mismatch_fails_closed(tmp_path: Path) -> None:
