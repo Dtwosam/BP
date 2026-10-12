@@ -423,9 +423,11 @@ async def test_bybit_linear_socket_incidents_identify_bulk_and_ticker_separately
         ws = FakeWebSocket([json.dumps(message)])
         incidents: list[FeedIncident] = []
 
-        def parser(value: object, at: datetime) -> list[RawEvent]:
+        def parser(
+            value: object, at: datetime, *, stop_signal: asyncio.Event = stop
+        ) -> list[RawEvent]:
             result = parse_bybit_message(value, venue="linear", received_at=at)
-            stop.set()
+            stop_signal.set()
             return result
 
         runner = WebSocketCollectorRunner(
