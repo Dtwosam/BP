@@ -495,7 +495,9 @@ def build_default_recorder_service(settings: object) -> RecorderService:
     ]
     ticker_topics = ["tickers.BTCUSDT"]
 
-    def bybit_runner(*, venue: str, topics: list[str]) -> WebSocketCollectorRunner:
+    def bybit_runner(
+        *, venue: str, topics: list[str], component_name: str
+    ) -> WebSocketCollectorRunner:
         url = (
             settings.bybit_spot_ws_url
             if venue == "spot"
@@ -518,12 +520,21 @@ def build_default_recorder_service(settings: object) -> RecorderService:
             heartbeat_interval_seconds=20.0,
             watchdog=FeedWatchdog(settings.recorder_stale_after_seconds),
             clock_skew_guard=ClockSkewGuard(settings.recorder_max_clock_skew_seconds),
+            component_name=component_name,
         )
 
-    bybit_spot = bybit_runner(venue="spot", topics=spot_bulk_topics)
-    bybit_spot_ticker = bybit_runner(venue="spot", topics=ticker_topics)
-    bybit_linear = bybit_runner(venue="linear", topics=linear_bulk_topics)
-    bybit_linear_ticker = bybit_runner(venue="linear", topics=ticker_topics)
+    bybit_spot = bybit_runner(
+        venue="spot", topics=spot_bulk_topics, component_name="bybit_spot"
+    )
+    bybit_spot_ticker = bybit_runner(
+        venue="spot", topics=ticker_topics, component_name="bybit_spot_ticker"
+    )
+    bybit_linear = bybit_runner(
+        venue="linear", topics=linear_bulk_topics, component_name="bybit_linear"
+    )
+    bybit_linear_ticker = bybit_runner(
+        venue="linear", topics=ticker_topics, component_name="bybit_linear_ticker"
+    )
 
     coinbase_spot = WebSocketCollectorRunner(
         source="coinbase",
