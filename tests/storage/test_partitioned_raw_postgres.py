@@ -263,6 +263,132 @@ def test_v4_reader_queries_attached_hour_child_directly(engine) -> None:
     )
 
 
+
+def test_v4_reader_cannot_see_eligible_uncommitted_bybit_linear_trade(engine) -> None:
+    """Synthetic PostgreSQL MVCC: eligible received_at is not commit visibility."""
+    requested = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=requested, migrate_existing=False)
+
+    # The writer owns a transaction separate from the decision reader.
+    with engine.connect() as writer, engine.connect() as decision_reader:
+        assert decision_reader.execute(text("SHOW transaction_isolation")).scalar_one() == (
+            "read committed"
+        )
+        transaction = writer.begin()
+        try:
+            writer.execute(
+                insert(raw_market_events).values(
+                    id=910101,
+                    source="bybit",
+                    stream="linear",
+                    instrument="BTCUSDT",
+                    event_type="trade",
+                    source_timestamp=requested - timedelta(seconds=0.2),
+                    received_at=requested - timedelta(seconds=0.1),
+                    sequence="linear-mvcc-uncommitted",
+                    market_id=None,
+                    asset_id=None,
+                    payload={"data": [{"p": "50101"}]},
+                    dedupe_key="linear-mvcc-uncommitted",
+                )
+            )
+            # Its source/receipt times are already within the frozen cutoff,
+            # but the row is invisible until the separate writer commits.
+            before, before_evidence = V4SourceTimeReader().latest_price(
+                decision_reader,
+                source="bybit",
+                stream="linear",
+                instrument="BTCUSDT",
+                requested_at=requested,
+            )
+            assert before is None
+            assert before_evidence == ()
+
+            transaction.commit()
+            # READ COMMITTED takes a new statement snapshot in the same
+            # decision_reader connection, so the same event is now visible.
+            after, after_evidence = V4SourceTimeReader().latest_price(
+                decision_reader,
+                source="bybit",
+                stream="linear",
+                instrument="BTCUSDT",
+                requested_at=requested,
+            )
+            assert after is not None
+            assert float(after.price) == 50101.0
+            assert len(after_evidence) == 1
+            assert after_evidence[0].received_at < requested
+            assert after_evidence[0].source_at < requested
+        finally:
+            if transaction.is_active:
+                transaction.rollback()
+
+
+def test_v4_reader_prefetch_keeps_precommit_snapshot_until_refreshed(engine) -> None:
+    """The per-stage candidate cache is a statement-time view, not a live feed."""
+    requested = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=requested, migrate_existing=False)
+    request = (("bybit", "linear", "BTCUSDT", requested, False),)
+
+    with engine.connect() as writer, engine.connect() as decision_reader:
+        transaction = writer.begin()
+        try:
+            writer.execute(
+                insert(raw_market_events).values(
+                    id=910102,
+                    source="bybit",
+                    stream="linear",
+                    instrument="BTCUSDT",
+                    event_type="ticker",
+                    source_timestamp=requested - timedelta(seconds=0.2),
+                    received_at=requested - timedelta(seconds=0.1),
+                    sequence="linear-mvcc-cached",
+                    market_id=None,
+                    asset_id=None,
+                    payload={"data": {"lastPrice": "50102"}},
+                    dedupe_key="linear-mvcc-cached",
+                )
+            )
+            reader = V4SourceTimeReader()
+            reader.prefetch_candidate_rows(decision_reader, request)
+            before, _ = reader.latest_price(
+                decision_reader,
+                source="bybit",
+                stream="linear",
+                instrument="BTCUSDT",
+                requested_at=requested,
+            )
+            assert before is None
+            transaction.commit()
+
+            # An already prefetched (empty) candidate set remains empty
+            # even when the PostgreSQL row has since committed.
+            cached, cached_evidence = reader.latest_price(
+                decision_reader,
+                source="bybit",
+                stream="linear",
+                instrument="BTCUSDT",
+                requested_at=requested,
+            )
+            assert cached is None
+            assert cached_evidence == ()
+
+            reader.prefetch_candidate_rows(decision_reader, request)
+            refreshed, evidence = reader.latest_price(
+                decision_reader,
+                source="bybit",
+                stream="linear",
+                instrument="BTCUSDT",
+                requested_at=requested,
+            )
+            assert refreshed is not None
+            assert float(refreshed.price) == 50102.0
+            assert len(evidence) == 1
+        finally:
+            if transaction.is_active:
+                transaction.rollback()
+
+
 def test_v4_reader_queries_both_children_across_hour_boundary(engine) -> None:
     requested = datetime(2026, 9, 4, 12, 0, tzinfo=UTC)
     ensure_partitioned_raw_storage(
