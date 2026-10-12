@@ -246,6 +246,56 @@ recorder is **not** authorized by this offline investigation.
 The 27/60 capped-ticker lookup uncertainty is unaffected.
 Phase 14 **HOLD**, negative paper economics unchanged.
 
+## Offline topic-health observability check (12 October 2026)
+
+A further narrow static read and two **synthetic WebSocket runner tests**
+(`tests/collectors/test_websocket_runner.py`) identify limits in
+the existing recorder's topic-health evidence, without opening a real
+WebSocket, reading production or changing the runtime:
+
+1. `build_default_recorder_service` subscribes a single **linear bulk
+   connection** to `orderbook.50.BTCUSDT`,
+   `publicTrade.BTCUSDT`, and `allLiquidation.BTCUSDT`.
+   `WebSocketCollectorRunner` updates `FeedWatchdog` whenever
+   **any parsed event** arrives, using the **source/stream pair**, not
+   an individual subscribed topic. A deterministic test delivers only
+   three order-book events across a synthetic 12-second span and
+   zero trade events; the stream-level watchdog is still fresh at
+   13 seconds, and goes stale only after the last **order-book** event
+   ages beyond the configured threshold. This proves the **bulk
+   connection's non-stale status is not positive evidence of a
+   healthy public-trade topic**. The separately subscribed
+   Bybit-linear ticker socket has its own watchdog instance; this
+   finding is *within the multi-topic bulk connection*, not a
+   claim that ticker traffic masks a different socket's health.
+2. `parse_bybit_message` returns no raw events for control
+   acknowledgements with an `op` field. The runner does not
+   independently validate the acknowledgement's `success` or
+   enumerate accepted/rejected topics. A synthetic
+   `success=false` subscription acknowledgement followed by one
+   valid order-book snapshot yields normal book processing with
+   `connected`/`disconnected` incidents, **without a dedicated
+   topic-subscription rejection incident**. This is only a
+   demonstration of absent acknowledgement diagnostics; it does
+   not imply that any live Bybit acknowledgement failed.
+
+**Consequence:** Stage A's 0/60 matching linear trade-price rows cannot
+be ruled out merely because the recorder's **bulk connection** was
+non-stale or because order-book data were present. Conversely these
+tests cannot establish any actual Bybit trade topic failure, selective
+subscription rejection, transport loss, time-window miss or
+writer/commit issue. The code still subscribes to `publicTrade`;
+message-level health alone never proves per-topic coverage.
+
+**Priority for any future *separately authorized* observation:**
+a bounded, aggregate-only breakdown by **topic** of subscribe-ACK
+outcome, parsed event counts, non-null source timestamps, enqueued
+rows, committed query-visible rows, and eligibility at the requested
+cutoff, distinguishing per-topic silence from storage/reader exclusion.
+This is a diagnostic design input **only**, not permission to
+instrument/deploy or query production. Original October 7–8 causes
+remain unknown, source time gates unchanged, and **Phase 14 HOLD**.
+
 ## Decision boundary and safe next action
 
 **Completed and repeatable without additional access:** source/reader
