@@ -1,0 +1,167 @@
+{
+  "status": "PASS_OPERATOR_REPORTED_BOUNDED_READONLY_OBSERVATION_NOT_CAUSAL_ACCEPTANCE",
+  "recorded_date": "2026-10-12",
+  "provenance": {
+    "type": "Operator-provided terminal output in current project chat; not independently executed or fetched by ChatGPT or GitHub CI",
+    "approved_scope": "Single one-time, no-install, memory-streamed Bybit-linear prospective Stage A read-only observation",
+    "report": "v4_linear_price_visibility_v1",
+    "script_path": "scripts/report_v4_linear_price_visibility.py",
+    "reviewed_main": "9b4a2e84695e5bb181cc6bc0c5fdc6b52ea2734d",
+    "reviewed_git_blob": "89444ba6834a5264dca23c7b14a458c5d237854d",
+    "deployed_checkout_head": "a352c66ec0110925727bc40de767ee4ba981f965",
+    "frozen_release_commit": "d58b2cbedc3f00617b8d4611e538981b2865e369",
+    "execution": "Exact reviewed script was streamed to frozen Python interpreter via verified stdin; no script installed",
+    "markers": [
+      "DIAGNOSTIC_PREFLIGHT=PASS",
+      "EXECUTION_MODE=VERIFIED_STDIN_NO_INSTALL",
+      "MAX_SELECT_QUERIES=180",
+      "DATABASE_ACCESS=READ_ONLY",
+      "PHASE14_V4_LINEAR_PRICE_VISIBILITY_STATUS=PASS",
+      "DATABASE_ACCESS=read_only",
+      "DATABASE_WRITES_PERFORMED=false",
+      "SERVICE_MUTATION_PERFORMED=false",
+      "ORDER_SUBMISSION_PERFORMED=false",
+      "DIAGNOSTIC_EXECUTION=COMPLETE"
+    ],
+    "observed_start_utc": "2026-10-12T21:07:58.233281+00:00",
+    "observed_completion_utc": "2026-10-12T21:08:35.217565+00:00",
+    "runtime_executed_by": "operator on authorized Mac connected to bp-recorder via SSH",
+    "historical_shadow_evidence_replayed": false,
+    "additional_execution_authorized": false
+  },
+  "sampling": {
+    "samples": 60,
+    "interval_seconds": 0.5,
+    "lookback_seconds": 12,
+    "row_limit_per_query": 8,
+    "max_source_age_seconds": 2,
+    "max_future_skew_seconds": 1,
+    "statement_timeout_ms": 1500,
+    "external_wall_limit_seconds": 300,
+    "maximum_select_attempts": 180,
+    "actual_successful_category_queries": 179,
+    "query_timeout_attempts": 1,
+    "query_error_attempts": 0
+  },
+  "event_categories": {
+    "ticker_any": {
+      "eligible_sample_count": 53,
+      "latest_row_change_count": 53,
+      "no_usable_row_count": 0,
+      "query_error_count": 0,
+      "query_timeout_count": 1,
+      "row_limit_reached_count": 59,
+      "sample_success_count": 59,
+      "query_seconds": {
+        "min": 0.002866,
+        "median": 0.016589,
+        "p95": 0.083563,
+        "max": 0.292132
+      },
+      "received_age_seconds": {
+        "min": 0.013265,
+        "median": 0.328678,
+        "p95": 3.155881,
+        "max": 3.806386
+      },
+      "source_age_seconds": {
+        "min": 0.150289,
+        "median": 0.447756,
+        "p95": 3.279064,
+        "max": 3.935203
+      }
+    },
+    "ticker_last_price": {
+      "eligible_sample_count": 33,
+      "latest_row_change_count": 16,
+      "no_usable_row_count": 0,
+      "query_error_count": 0,
+      "query_timeout_count": 0,
+      "row_limit_reached_count": 27,
+      "sample_success_count": 60,
+      "query_seconds": {
+        "min": 0.003759,
+        "median": 0.027112,
+        "p95": 0.065355,
+        "max": 0.688909
+      },
+      "received_age_seconds": {
+        "min": 0.095297,
+        "median": 1.546887,
+        "p95": 6.715719,
+        "max": 8.447958
+      },
+      "source_age_seconds": {
+        "min": 0.214805,
+        "median": 1.668792,
+        "p95": 6.84041,
+        "max": 8.572649
+      }
+    },
+    "trade_price": {
+      "eligible_sample_count": 0,
+      "latest_row_change_count": 0,
+      "no_usable_row_count": 60,
+      "query_error_count": 0,
+      "query_timeout_count": 0,
+      "row_limit_reached_count": 0,
+      "sample_success_count": 60,
+      "query_seconds": {
+        "min": 0.005264,
+        "median": 0.019869,
+        "p95": 0.047051,
+        "max": 0.142296
+      },
+      "received_age_seconds": null,
+      "source_age_seconds": null
+    }
+  },
+  "price_eligibility_by_sample": {
+    "both_price_classes_eligible": 0,
+    "ticker_price_only_eligible": 33,
+    "trade_price_only_eligible": 0,
+    "neither_price_class_eligible": 27,
+    "inconclusive_due_to_query_error": 0
+  },
+  "accounting": {
+    "total_observations": 60,
+    "ticker_any_eligible_successes": 53,
+    "ticker_any_success_count": 59,
+    "ticker_any_timeout_count": 1,
+    "ticker_last_price_eligible_samples": 33,
+    "ticker_last_price_ineligible_or_unresolved_samples": 27,
+    "trade_price_eligible_samples": 0,
+    "trade_price_no_usable_rows": 60,
+    "price_classification_counts_sum": 60,
+    "row_limit_reached_ticker_any_of_successful": "59/59",
+    "row_limit_reached_ticker_last_price": "27/60",
+    "query_attempts_derived": 180,
+    "attempted_query_successes_derived": 179,
+    "attempted_query_timeouts_derived": 1
+  },
+  "interpretation": [
+    "All percentages and counts apply only to the new 12 October observational samples, not 7–8 October original successor decisions.",
+    "ticker_any eligibility means source-time and receipt-time conditions for a recorded ticker, not necessarily a parseable lastPrice. Price-bearing ticker category separately requires lastPrice and a valid positive parsed price.",
+    "The 33/60 price-bearing ticker eligible count and 27/60 neither-price-class count are outcomes of LIMIT 8 per SQL query, not necessarily exhaustive raw-event price availability.",
+    "The ticker_any query reached its per-query LIMIT 8 in all 59 successful samples; price-bearing ticker category did so in 27/60, which may truncate otherwise eligible candidates. No per-sample joint cross-tab is available to bound exact truncated false negatives.",
+    "Zero observed usable trade rows in each 12-second lookback does not establish a universal trade-feed outage, nor event absence in other intervals or non-visible historical transactions.",
+    "The one ticker_any statement timeout is recorded separately. The aggregate price_eligibility_by_sample inconclusive_due_to_query_error=0 only uses price-bearing ticker and trade category results; it does not mean all 180 SQL attempts succeeded.",
+    "No direct measurements of queue/flush/commit time or original 7–8 October decision-time DB visibility were collected. No cause or attribution for 105 Bybit-linear flagged or 116 missed original markets is established.",
+    "The observed 12 October window is not a replay of historical market-start and decision anchors. Sampling at arbitrary wall-clock timestamps may not match original shadow anchor semantics.",
+    "PASS marks bounded safe execution, not economic model acceptance or permission for another probe."
+  ],
+  "safety": {
+    "database_read_only_required": true,
+    "database_writes_performed": false,
+    "model_refit_performed": false,
+    "order_submission_performed": false,
+    "service_mutation_performed": false,
+    "threshold_tuning_performed": false,
+    "wallet_material_loaded": false,
+    "phase14": "HOLD",
+    "economic_acceptance": "NOT_MET",
+    "live_trading_enabled": false,
+    "report_is_operator_supplied": true,
+    "no_further_query_authorization_implied": true
+  }
+}
