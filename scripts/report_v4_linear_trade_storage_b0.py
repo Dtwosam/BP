@@ -148,6 +148,12 @@ def main() -> int:
         description="UNAUTHORIZED candidate B0: read-only Bybit linear storage classification."
     )
     parser.add_argument("--env-file", default="/etc/bp/bp.env")
+    parser.add_argument(
+        "--approval-ack",
+        required=True,
+        choices=["AUTHORIZED_ONE_TIME_STAGE_B0"],
+        help="Only pass after a separately documented explicit user approval.",
+    )
     args = parser.parse_args()
     settings = Settings(_env_file=args.env_file)
     if settings.mode is not TradingMode.RESEARCH:
