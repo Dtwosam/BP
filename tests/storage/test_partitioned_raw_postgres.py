@@ -39,8 +39,8 @@ from bp_engine.storage.schema import (
     storage_maintenance_runs,
 )
 from bp_engine.v4_paper.source_time_features import V4SourceTimeReader
-from scripts.report_v4_linear_trade_storage_b0 import build_report as build_linear_b0_report
 from scripts.deploy.migrate_partitioned_raw_storage import _exact_raw_parity
+from scripts.report_v4_linear_trade_storage_b0 import build_report as build_linear_b0_report
 
 DATABASE_URL = os.getenv("BP_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
