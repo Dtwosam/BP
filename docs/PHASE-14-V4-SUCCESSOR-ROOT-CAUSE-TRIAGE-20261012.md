@@ -313,6 +313,61 @@ would be required even to make one read-only production SELECT.
 The Stage A authorization is exhausted; do **not** run Stage B0 now.
 No Stage B1 production instrumentation has been authorized or built.
 
+## Stage B0 completed: no visible Bybit-linear bulk rows in its sampled minute (12 October 2026)
+
+**Operator-reported approved one-time result.** Stage B0 ran via hash-verified,
+no-install stdin on the frozen runtime using
+`scripts/report_v4_linear_trade_storage_b0.py`
+(Git blob `f4e7e7f38365c465c472c6d1a74ad3d42cc7e65c`).
+Preflight and final `PASS_DATA_ONLY`, `DATABASE_ACCESS=read_only`,
+no-write/no-order/no-service-mutation and `DIAGNOSTIC_EXECUTION=COMPLETE`
+markers were provided by the operator. ChatGPT/GitHub did **not**
+independently connect to the production host or execute the query.
+Full aggregate and provenance:
+`docs/evidence/phase-14-v4-linear-trade-storage-b0-20261012.json`.
+
+At the single fixed cutoff **2026-10-12T22:27:43.681001Z**, the query
+observed committed raw-event rows received in
+**[22:26:43.681001Z, 22:27:43.681001Z]** for Bybit `linear`,
+`BTCUSDT`. Among separately filtered, independently capped categories,
+**trade rows = 0** and **orderbook_snapshot/orderbook_delta rows = 0**.
+Both classes were **uncapped** (less than 1,024), all source-timestamp
+and payload-shape counts were zero because no matching rows were
+returned. The completed query performed **at most two data SELECTs**
+plus a read-only SHOW, with statement timeout 1.5s and externally
+specified 30-second wall cap. The printed safety markers report no
+DB writes, service mutations, refits, threshold changes or orders.
+
+**Updated inference ranking, not causal attribution:**
+
+1. B0's two **zero-row classes share the multi-topic Bybit-linear bulk
+   connection**. The first questions now concern shared ingestion,
+   per-topic subscriptions, bulk-lane queue/flush/commit visibility,
+   and whether persisted row event types/timestamps match the B0
+   predicates. This is more discriminating than only investigating
+   a malformed `publicTrade` price field.
+2. The result does **not** show raw WebSocket ingress, subscription
+   ACK outcomes, queue backlog, dropped writes, failure type, the
+   producer/consumer clock relationship or commit timestamps. A
+   healthy `bp-recorder.service` and a bulk watchdog refreshed by
+   any topic are insufficient to infer a healthy trade lane.
+3. **No same-time ticker, spot, Coinbase or independent network
+   control** was sampled. Stage A's eligible ticker observations
+   were more than an hour earlier, during
+   `2026-10-12T21:07:58Z–21:08:35Z`. They cannot be paired with
+   this B0 minute to infer when a bulk issue started or ended.
+4. The 7–8 October shadow remains a **different historical period**.
+   Neither one-minute B0 nor earlier Stage A results prove that any
+   of the **105 linear-affected source-ineligible markets** or
+   **116 missed decision labels** had this particular cause.
+
+Stage B0's separately authorized **single run is now complete and
+its authorization exhausted**. Further SQL, live feed monitoring,
+recorder instrumentation/restart, a Stage B1, new paper shadow,
+source/model changes, holdout access or any orders would require
+**new explicit scope and authorization**. Economic acceptance
+**NOT MET**; **Phase 14 HOLD**.
+
 ## Decision boundary and safe next action
 
 **Completed and repeatable without additional access:** source/reader
