@@ -98,6 +98,38 @@ The 12 October operator-reported exact-hash result **now establishes**
 the terminal missed-decision split and affected-venue counts as recorded
 above. This is not an independent replay of the private raw JSONL.
 
+## 12 October 2026: exact venue and anchor overlap addendum (offline only)
+
+The reporter can additionally output **observed distinct-market combinations**
+from the already SHA-verified JSONL: `source_ineligible.affected_venue_combinations`,
+`source_ineligible.bybit_linear_only_markets`,
+`source_ineligible.bybit_linear_required_anchor_patterns`, and
+`by_two_hour_source_venue_combinations`. These are additive fields;
+the existing report marker and exact SHA/model validation remain unchanged.
+
+These fields resolve the earlier **90–91** aggregate bound into a unique
+Bybit-linear-only count by using each terminal market's observed flag set,
+and split Bybit-linear affected markets by `market_start_only`,
+`current_only`, or `market_start+current`. The two-hour combination
+counts distinguish persistent missing-source flags from temporal clustering
+without claiming that a pattern alone establishes a feed outage.
+
+**Important:** no original-run outputs of these new fields have been
+collected yet. The preceding operator-reported aggregate showed 105
+Bybit-linear-affected markets and no Bybit-linear stale flags, so its
+existing marginal counts `current_missing=72` and
+`market_start_missing=54` mathematically imply **51 current-only,
+33 market-start-only and 21 both** among the 105. The exact
+Bybit-linear-only *venue* count is still pending re-running the updated
+report on the operator's private offline copy. The original raw JSONL must
+never be uploaded to a public PR.
+
+Run the same script invocation shown above on the Mac **after updating local
+`main`**; no server/SSH/DB access or new shadow is necessary. Only
+share the additive aggregate sections, not the raw JSONL. The success
+marker proves reconciliation, **not** profitability, late-decision
+root cause, or data-source outage. Phase 14 remains **HOLD**.
+
 ## Interpretation boundary
 
 A high decision_lag_exceeded count would focus investigation on due-market

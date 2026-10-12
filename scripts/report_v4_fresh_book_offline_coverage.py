@@ -121,6 +121,9 @@ def audit(
     retry_terminal_by_venue: dict[str, Counter[str]] = defaultdict(Counter)
     exhausted_retry_counts: list[float] = []
     overlap_counts: Counter[str] = Counter()
+    venue_combinations: Counter[str] = Counter()
+    bybit_linear_anchor_patterns: Counter[str] = Counter()
+    venue_combination_by_condition: dict[str, str] = {}
     missed_reasons: Counter[str] = Counter()
     ignored_non_json = 0
 
@@ -197,6 +200,24 @@ def audit(
             for venue in affected:
                 retry_terminal_by_venue[venue][retry_status] += 1
             overlap_counts[str(len(affected))] += 1
+            combination = "+".join(sorted(affected))
+            venue_combinations[combination] += 1
+            venue_combination_by_condition[condition] = combination
+            if "bybit_linear" in affected:
+                start_missing = any(
+                    reason.startswith("bybit_linear_market_start_") for reason in reasons
+                )
+                current_missing = any(
+                    reason.startswith("bybit_linear_current_") for reason in reasons
+                )
+                _require(start_missing or current_missing, "invalid Bybit linear anchor flags")
+                if start_missing and current_missing:
+                    anchor_pattern = "market_start+current"
+                elif start_missing:
+                    anchor_pattern = "market_start_only"
+                else:
+                    anchor_pattern = "current_only"
+                bybit_linear_anchor_patterns[anchor_pattern] += 1
 
     _require(len(starts) == 1 and len(completions) == 1,
              "exactly one start and terminal completion required")
@@ -222,6 +243,7 @@ def audit(
     start_at, end_at = _utc(start, "started_at"), _utc(complete, "completed_at")
     _require(end_at > start_at, "completion precedes start")
     by_two_hour: dict[str, Counter[str]] = defaultdict(Counter)
+    by_two_hour_source_venues: dict[str, Counter[str]] = defaultdict(Counter)
     for condition, record in decisions.items():
         at = _utc(record, "decision_at")
         _require(start_at <= at <= end_at, "decision outside shadow time window")
@@ -231,6 +253,8 @@ def audit(
         label = {MISSED: "decision_missed", INELIGIBLE: "source_ineligible",
                  PREDICTION: "prediction"}[event]
         by_two_hour[bucket][label] += 1
+        if event == INELIGIBLE:
+            by_two_hour_source_venues[bucket][venue_combination_by_condition[condition]] += 1
         if event == PREDICTION:
             _require(condition in followups,
                      f"prediction lacks quote/evaluation outcome: {condition}")
@@ -279,6 +303,11 @@ def audit(
                  int(sum(exhausted_retry_counts)),
                  "source retry deferral/exhaustion accounting mismatch")
     total_reason_occurrences = sum(missing_reason_occurrences.values())
+    _require(sum(venue_combinations.values()) == ineligible,
+             "source venue combination accounting mismatch")
+    _require(sum(bybit_linear_anchor_patterns.values()) ==
+             affected_markets_by_venue["bybit_linear"],
+             "Bybit linear anchor pattern accounting mismatch")
     return {
         "report": "v4_fresh_book_offline_coverage_forensics_v1",
         "result": "PASS_EVIDENCE_RECONCILIATION_ONLY",
@@ -304,6 +333,11 @@ def audit(
             "by_reason_occurrence": dict(sorted(missing_reason_occurrences.items())),
             "affected_markets_by_venue": dict(sorted(affected_markets_by_venue.items())),
             "affected_venue_count_per_market": dict(sorted(overlap_counts.items())),
+            "affected_venue_combinations": dict(sorted(venue_combinations.items())),
+            "bybit_linear_only_markets": venue_combinations["bybit_linear"],
+            "bybit_linear_required_anchor_patterns": dict(
+                sorted(bybit_linear_anchor_patterns.items())
+            ),
             "retry_terminal_status_counts": dict(sorted(retry_terminal_status_counts.items())),
             "retry_exhausted_count_distribution": _distribution(exhausted_retry_counts),
             "retry_terminal_by_venue": {
@@ -315,6 +349,10 @@ def audit(
         "by_two_hour_decision_window": {
             key: dict(sorted(counts.items()))
             for key, counts in sorted(by_two_hour.items())
+        },
+        "by_two_hour_source_venue_combinations": {
+            key: dict(sorted(counts.items()))
+            for key, counts in sorted(by_two_hour_source_venues.items())
         },
         "retry": retry,
         "ignored_non_json_lines": ignored_non_json,
