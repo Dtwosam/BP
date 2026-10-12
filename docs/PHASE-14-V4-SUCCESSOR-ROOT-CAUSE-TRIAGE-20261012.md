@@ -296,6 +296,23 @@ This is a diagnostic design input **only**, not permission to
 instrument/deploy or query production. Original October 7–8 causes
 remain unknown, source time gates unchanged, and **Phase 14 HOLD**.
 
+## Review-only Stage B0 storage discriminator (12 October 2026)
+
+The next prospective question is **whether committed Bybit-linear trade
+rows exist at all in a recent bounded window**, including trades that
+Stage A excluded through its `source_timestamp IS NOT NULL` condition.
+A separate, **unapproved-for-execution**, aggregate-only candidate,
+`scripts/report_v4_linear_trade_storage_b0.py`, and its complete
+bounded review are at
+`docs/PHASE-14-V4-LINEAR-TRADE-STAGE-B0-REVIEW-20261012.md`.
+Two separate capped classes avoid orderbook rows crowding trade
+candidates out of a shared limit. The candidate does **not** test
+actual Bybit WebSocket receipt, acknowledgement success, queue dwell,
+commit timing or the October 7–8 historic shadow. Separate approval
+would be required even to make one read-only production SELECT.
+The Stage A authorization is exhausted; do **not** run Stage B0 now.
+No Stage B1 production instrumentation has been authorized or built.
+
 ## Decision boundary and safe next action
 
 **Completed and repeatable without additional access:** source/reader
