@@ -38,6 +38,45 @@ and checks counts against the completed record. It reports:
 It never imports database libraries, opens a database, accesses labels or
 the holdout, invokes network/execution code, or changes the strategy.
 
+## 12 October 2026: operator-reported exact-hash offline execution
+
+The authorized operator retrieved the preserved JSONL **read-only**, checked
+the exact SHA-256 on the Mac, and ran this reporter there. The user provided
+the aggregate JSON and terminal `PHASE14_V4_OFFLINE_COVERAGE=PASS_EVIDENCE_ONLY`
+marker. Review and attribution (not an independently rerun host/CI analysis)
+are preserved in
+`docs/evidence/phase-14-v4-successor-offline-coverage-forensics-20261012.json`.
+The operator-reported local `EVIDENCE_SHA256=PASS` and matched
+`d0478b4e8b16a0fa07a850ada583095d09f1c1e81dcfb407abeff07877fd3324`.
+
+The 116 missed decisions were **all**
+`feature_inference_lag_exceeded` (zero `decision_lag_exceeded`);
+lag min **2.007759 s**, median **2.911243 s**, p95 **4.920635 s**,
+maximum **11.73573 s**, against the frozen 2 s tolerance.
+This means the first poll was not the classified failure for those 116
+markets; it does **not** isolate database query, feature construction,
+inference execution or sequential scheduling delay.
+
+Bybit linear affected **105 of 106 distinct source-ineligible markets**
+(not 126, which is the Bybit linear **reason occurrence** count).
+Bybit spot affected 12 and Coinbase 11; venue counts overlap:
+91 markets had one affected venue, eight had two, seven had three.
+From these aggregates, **90–91** markets are constrained to have
+**only** Bybit linear reasons; the report does not distinguish those
+two possibilities. The prior 79–96 bound below was legitimate but
+has been superseded by the tighter observed overlap counts.
+Of 101 exhausted retries, 100 involved Bybit linear. All 208 deferrals
+reconciled, with zero recoveries and zero pending.
+
+The 169 non-JSON lines were counted as ignored, not assessed for their
+contents; accounting of parsed terminal decision events reconciled.
+No root-cause determination or venue/feed outage proof is warranted
+from this outcome alone. The two-hour series has no 12–14h bucket
+and only five terminal decisions in 14–16h, but gaps in counted
+decisions alone do not prove a service or feed interruption.
+**Phase 14 remains HOLD**, economic acceptance NOT MET, no new
+run, no model change, no holdout access, no live trading.
+
 ## Running after separate review of the preserved evidence
 
 The script is prepared for a local/offline copy of the **already-preserved**
