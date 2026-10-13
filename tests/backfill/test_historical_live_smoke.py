@@ -160,3 +160,151 @@ async def test_live_source_smoke_marks_bybit_403_as_environment_limited() -> Non
         "linear_candles": None,
     }
     assert report["coinbase"]["status"] == "ok"
+
+
+class MultiClosedGammaClient:
+    def __init__(self, slugs: set[str]) -> None:
+        self.slugs = slugs
+        self.calls: list[str] = []
+
+    async def get_market_by_slug(self, slug: str):
+        self.calls.append(slug)
+        return gamma_payload(slug) if slug in self.slugs else None
+
+
+class SelectivePriceClient:
+    def __init__(
+        self, available: set[tuple[int, str]], *, error: bool = False
+    ) -> None:
+        self.available = available
+        self.calls: list[tuple[int, str]] = []
+        self.error = error
+
+    async def get_history(self, asset_id, *, start, end, fidelity_minutes):
+        assert fidelity_minutes == 1
+        assert end > start
+        key = (int(start.timestamp()), asset_id)
+        self.calls.append(key)
+        if self.error:
+            raise RuntimeError("real CLOB price API failure")
+        points = (
+            (PriceHistoryPoint(start + timedelta(minutes=1), Decimal("0.5")),)
+            if key in self.available else ()
+        )
+        return PriceHistoryResponse(
+            points=points,
+            request_params={"market": asset_id, "fidelity": "1"},
+            raw_payload={"history": []},
+        )
+
+
+def _recent_slugs(now: datetime, minutes: int, count: int) -> list[str]:
+    span = minutes * 60
+    aligned = int(now.timestamp()) // span * span
+    return [
+        f"btc-updown-{minutes}m-{aligned - (offset + 2) * span}"
+        for offset in range(count)
+    ]
+
+
+def _start(slug: str) -> int:
+    return int(slug.rsplit("-", 1)[1])
+
+
+@pytest.mark.asyncio
+async def test_historical_smoke_rejects_empty_first_market_then_checks_second() -> None:
+    now = datetime(2026, 8, 24, 22, 47, tzinfo=UTC)
+    first, second = _recent_slugs(now, 5, 2)
+    gamma = MultiClosedGammaClient({first, second})
+    prices = SelectivePriceClient({
+        (_start(first), "asset-up"),
+        (_start(second), "asset-up"),
+        (_start(second), "asset-down"),
+    })
+    report = await run_live_source_smoke(
+        now=now,
+        gamma_client=gamma,
+        price_client=prices,
+        bybit_client=FakeBybitClient(),
+        coinbase_client=FakeCoinbaseClient(),
+    )
+    assert report["status"] == "ok"
+    assert report["polymarket"]["slug"] == second
+    assert report["polymarket"]["up_price_points"] == 1
+    assert report["polymarket"]["down_price_points"] == 1
+    assert report["polymarket"]["historical_price_probe"] == {
+        "candidate_markets_checked": 2,
+        "empty_up_candidates": 0,
+        "empty_down_candidates": 1,
+        "closed_5m_markets_checked": 2,
+        "closed_15m_markets_checked": 0,
+    }
+    assert len(prices.calls) == 4
+    assert "asset-up" not in str(report)
+    assert "asset-down" not in str(report)
+
+
+@pytest.mark.asyncio
+async def test_historical_smoke_can_verify_a_real_15m_market_after_empty_5m() -> None:
+    now = datetime(2026, 8, 24, 22, 47, tzinfo=UTC)
+    five = _recent_slugs(now, 5, 3)
+    fifteen = _recent_slugs(now, 15, 1)[0]
+    prices = SelectivePriceClient({
+        (_start(fifteen), "asset-up"),
+        (_start(fifteen), "asset-down"),
+    })
+    report = await run_live_source_smoke(
+        now=now,
+        gamma_client=MultiClosedGammaClient(set(five) | {fifteen}),
+        price_client=prices,
+        bybit_client=FakeBybitClient(),
+        coinbase_client=FakeCoinbaseClient(),
+    )
+    assert report["polymarket"]["slug"] == fifteen
+    assert report["polymarket"]["horizon_seconds"] == 900
+    probe = report["polymarket"]["historical_price_probe"]
+    assert probe["candidate_markets_checked"] == 4
+    assert probe["closed_5m_markets_checked"] == 3
+    assert probe["closed_15m_markets_checked"] == 1
+    assert probe["empty_up_candidates"] == 3
+    assert probe["empty_down_candidates"] == 3
+
+
+@pytest.mark.asyncio
+async def test_historical_smoke_fails_closed_when_both_series_unavailable() -> None:
+    now = datetime(2026, 8, 24, 22, 47, tzinfo=UTC)
+    five = _recent_slugs(now, 5, 4)
+    fifteen = _recent_slugs(now, 15, 4)
+    prices = SelectivePriceClient(set())
+    gamma = MultiClosedGammaClient(set(five) | set(fifteen))
+    with pytest.raises(
+        RuntimeError,
+        match=r"candidates_checked=6, empty_up=6, empty_down=6, "
+              r"checked_5m=3, checked_15m=3",
+    ):
+        await run_live_source_smoke(
+            now=now,
+            gamma_client=gamma,
+            price_client=prices,
+            bybit_client=FakeBybitClient(),
+            coinbase_client=FakeCoinbaseClient(),
+        )
+    assert len(prices.calls) == 12
+    assert five[3] not in gamma.calls
+    assert fifteen[3] not in gamma.calls
+
+
+@pytest.mark.asyncio
+async def test_historical_smoke_does_not_mask_real_price_API_errors() -> None:
+    now = datetime(2026, 8, 24, 22, 47, tzinfo=UTC)
+    gamma = MultiClosedGammaClient(set(_recent_slugs(now, 5, 2)))
+    prices = SelectivePriceClient(set(), error=True)
+    with pytest.raises(RuntimeError, match="real CLOB price API failure"):
+        await run_live_source_smoke(
+            now=now,
+            gamma_client=gamma,
+            price_client=prices,
+            bybit_client=FakeBybitClient(),
+            coinbase_client=FakeCoinbaseClient(),
+        )
+    assert len(prices.calls) == 1
