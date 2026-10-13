@@ -21,6 +21,18 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**13 October 2026 — Stage B1 offline process-group descendant safety (#589):**
+The fake-only POSIX watchdog now tests a leader that exits 0 while
+a forked descendant stays alive, with both TERM-cooperative and
+TERM-ignoring fixtures. An inherited pipe must reach EOF before a
+synthetic clean exit is accepted; otherwise the known test group
+receives TERM/KILL escalation and is reported non-successfully.
+This improves on leader-reaping-only tests but does **not** prove a
+real recorder's OS process tree, escaped session, DB thread,
+systemd state or rollback. No on-host launch, query, service restart,
+paper shadow, model/source or trading action. Phase 14 HOLD,
+economics NOT MET, live disabled; Issue #589 stays OPEN.
+
 **13 October 2026 — Stage B1 diagnostics CI closeout, no production approval:**
 PR [#617](https://github.com/Dtwosam/BP/pull/617) repaired the historical
 public-smoke selection while preserving authentic nonempty Up and Down

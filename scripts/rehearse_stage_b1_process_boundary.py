@@ -25,7 +25,10 @@ from bp_engine.recorder.stage_b1_one_shot import (
     serialize_final_report,
 )
 
-SCENARIOS = ("cooperative", "hang", "ignore_term", "crash", "poisoned", "oversized")
+SCENARIOS = (
+    "cooperative", "hang", "ignore_term", "crash", "poisoned", "oversized",
+    "leader_exits_descendant", "leader_exits_descendant_ignores_term",
+)
 _SCRIPT = Path(__file__).resolve()
 
 
@@ -58,8 +61,35 @@ def _report_matches_synthetic_fixture(file: object) -> bool:
         return False
 
 
-def _child(scenario: str, output_fd: int) -> None:
+def _child(scenario: str, output_fd: int, group_liveness_fd: int) -> None:
     # Only called by the self-exec fixed-scenario fork, not the recorder.
+    if scenario in {
+        "leader_exits_descendant",
+        "leader_exits_descendant_ignores_term",
+    }:
+        # One fixed fake fork. The grandchild retains group_liveness_fd.
+        # Handshake ensures SIGTERM-ignore is installed before leader exits.
+        read_ready, write_ready = os.pipe()
+        pid = os.fork()
+        if pid == 0:
+            os.close(read_ready)
+            if scenario == "leader_exits_descendant_ignores_term":
+                signal.signal(signal.SIGTERM, signal.SIG_IGN)
+            os.write(write_ready, b"1")
+            os.close(write_ready)
+            while True:
+                time.sleep(0.05)
+        os.close(write_ready)
+        try:
+            ready = os.read(read_ready, 1)
+        finally:
+            os.close(read_ready)
+        if ready != b"1":
+            raise RuntimeError("synthetic descendant did not start")
+        os.write(output_fd, _synthetic_report())
+        # Direct leader exits with an actual synthetic descendant alive.
+        return
+
     if scenario == "crash":
         raise RuntimeError("SECRET_ERROR_DETAILS_MUST_NOT_ESCAPE")
     if scenario == "hang":
@@ -95,6 +125,22 @@ async def _wait_exit(process: asyncio.subprocess.Process, timeout: float) -> boo
     return True
 
 
+async def _wait_pipe_eof(read_fd: int, timeout: float) -> bool:
+    """Bounded EOF check for known synthetic inherited-FD descendants."""
+    end = time.monotonic() + timeout
+    while True:
+        try:
+            data = os.read(read_fd, 1)
+        except BlockingIOError:
+            pass
+        else:
+            return data == b""
+        remaining = end - time.monotonic()
+        if remaining <= 0:
+            return False
+        await asyncio.sleep(min(0.015, remaining))
+
+
 async def supervise_synthetic(
     scenario: str,
     *,
@@ -104,9 +150,9 @@ async def supervise_synthetic(
 ) -> dict[str, object]:
     """Reap an isolated FAKE child, without executing any operator command.
 
-    Only the direct process leader's exit/reaping is asserted. Killing a
-    process group is best-effort; the result cannot prove every descendant,
-    surviving DB thread, or separately managed systemd service stopped.
+    The inherited-pipe EOF is an extra assertion for fixed fake forks,
+    NOT proof unrelated descendants, surviving DB threads or separately
+    managed systemd services have stopped.
     """
     if os.name != "posix":
         raise RuntimeError("synthetic process boundary rehearsal requires POSIX")
@@ -116,68 +162,101 @@ async def supervise_synthetic(
     term = _bounded_seconds(term_grace_seconds, maximum=1)
     kill = _bounded_seconds(kill_grace_seconds, maximum=2)
     with tempfile.TemporaryFile(mode="w+b") as output:
-        process = await asyncio.create_subprocess_exec(
-            sys.executable,
-            "-I",
-            "-B",
-            str(_SCRIPT),
-            "--synthetic-child",
-            scenario,
-            str(output.fileno()),
-            stdin=asyncio.subprocess.DEVNULL,
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
-            pass_fds=(output.fileno(),),
-            start_new_session=True,
-        )
-        outcome = "unresolved"
+        read_fd, write_fd = os.pipe()
+        os.set_blocking(read_fd, False)
         try:
-            if await _wait_exit(process, wall):
-                outcome = "exited"
-            else:
-                _signal_group(process.pid, signal.SIGTERM)
-                if await _wait_exit(process, term):
-                    outcome = "sigterm"
-                else:
-                    _signal_group(process.pid, signal.SIGKILL)
-                    if await _wait_exit(process, kill):
-                        outcome = "sigkill"
-        finally:
-            if process.returncode is None:
-                _signal_group(process.pid, signal.SIGKILL)
-                # Cancellation/interruption MUST NOT be treated as safe
-                # completion if the direct child is not verifiably reaped.
-                try:
-                    await asyncio.shield(
-                        asyncio.wait_for(process.wait(), timeout=kill)
-                    )
-                except TimeoutError:
-                    outcome = "unresolved"
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    sys.executable,
+                    "-I",
+                    "-B",
+                    str(_SCRIPT),
+                    "--synthetic-child",
+                    scenario,
+                    str(output.fileno()),
+                    str(write_fd),
+                    stdin=asyncio.subprocess.DEVNULL,
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL,
+                    pass_fds=(output.fileno(), write_fd),
+                    start_new_session=True,
+                )
+            finally:
+                # Parent write end must close; only live fake group
+                # members can keep the liveness pipe open.
+                os.close(write_fd)
 
-        reaped = process.returncode is not None
-        accepted = (
-            reaped
-            and outcome == "exited"
-            and process.returncode == 0
-            and _report_matches_synthetic_fixture(output)
-        )
-        return {
-            "report": "phase14_b1_synthetic_process_watchdog_v1",
-            "scope": "offline_fixed_fake_child_only",
-            "scenario": scenario,
-            "termination": outcome,
-            "process_leader_reaped": reaped,
-            "fixed_synthetic_aggregate_valid": bool(accepted),
-            "all_descendants_terminated_proven": False,
-            "production_execution_authorized": False,
-            "production_host_access": False,
-            "operator_launcher_available": False,
-            "limitations": [
-                "No production recorder or database subprocess is launched.",
-                "A reaped process leader does not prove all descendants stopped.",
-                "No actual process-level observer collection or safe service restoration.",
-            ],
-        }
+            outcome = "unresolved"
+            pipe_closed = False
+            try:
+                leader_exited = await _wait_exit(process, wall)
+                pipe_closed = await _wait_pipe_eof(read_fd, 0.03)
+                if leader_exited and pipe_closed:
+                    outcome = "exited"
+                else:
+                    # A successful leader can have a live grandchild:
+                    # still send a TERM signal to the isolated group.
+                    _signal_group(process.pid, signal.SIGTERM)
+                    leader_reaped_on_term = (
+                        leader_exited or await _wait_exit(process, term)
+                    )
+                    pipe_closed = await _wait_pipe_eof(read_fd, term)
+                    if leader_reaped_on_term and pipe_closed:
+                        outcome = (
+                            "descendant_sigterm" if leader_exited else "sigterm"
+                        )
+                    else:
+                        _signal_group(process.pid, signal.SIGKILL)
+                        leader_reaped_on_kill = (
+                            leader_reaped_on_term
+                            or await _wait_exit(process, kill)
+                        )
+                        pipe_closed = await _wait_pipe_eof(read_fd, kill)
+                        if leader_reaped_on_kill and pipe_closed:
+                            outcome = (
+                                "descendant_sigkill" if leader_exited
+                                else "sigkill"
+                            )
+            finally:
+                if process.returncode is None or not pipe_closed:
+                    _signal_group(process.pid, signal.SIGKILL)
+                    try:
+                        await asyncio.shield(
+                            asyncio.wait_for(process.wait(), timeout=kill)
+                        )
+                        pipe_closed = await _wait_pipe_eof(read_fd, kill)
+                    except TimeoutError:
+                        outcome = "unresolved"
+
+            reaped = process.returncode is not None
+            accepted = (
+                reaped
+                and pipe_closed
+                and outcome == "exited"
+                and process.returncode == 0
+                and _report_matches_synthetic_fixture(output)
+            )
+            return {
+                "report": "phase14_b1_synthetic_process_watchdog_v2",
+                "scope": "offline_fixed_fake_child_only",
+                "scenario": scenario,
+                "termination": outcome,
+                "process_leader_reaped": reaped,
+                "known_fixture_group_pipe_eof": pipe_closed,
+                "fixed_synthetic_aggregate_valid": bool(accepted),
+                "all_descendants_terminated_proven": False,
+                "production_execution_authorized": False,
+                "production_host_access": False,
+                "operator_launcher_available": False,
+                "limitations": [
+                    "No production recorder or database subprocess is launched.",
+                    "Inherited pipe EOF covers only known fake descendants.",
+                    "An unrelated or escaped process could close its pipe early.",
+                    "No DB thread, actual process tree, or systemd restore is proven.",
+                ],
+            }
+        finally:
+            os.close(read_fd)
 
 
 def main() -> None:
@@ -190,15 +269,16 @@ def main() -> None:
 
     if args.synthetic_child is not None:
         # Private child entry: fixed arguments supplied by this same module.
-        if len(extras) != 1 or args.output_fd is not None:
+        if len(extras) != 2 or args.output_fd is not None:
             parser.error("invalid fixed synthetic child invocation")
         try:
             fd = int(extras[0])
+            group_fd = int(extras[1])
         except ValueError:
             parser.error("invalid synthetic output fd")
-        if fd < 3:
+        if fd < 3 or group_fd < 3 or fd == group_fd:
             parser.error("invalid synthetic output fd")
-        _child(args.synthetic_child, fd)
+        _child(args.synthetic_child, fd, group_fd)
         return
     if extras or args.output_fd is not None:
         parser.error("unexpected arguments")
