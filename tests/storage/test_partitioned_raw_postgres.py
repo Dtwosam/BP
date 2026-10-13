@@ -13,7 +13,10 @@ from sqlalchemy.exc import DBAPIError
 
 from bp_engine.config import Settings
 from bp_engine.recorder.models import RawEvent
-from bp_engine.recorder.stage_b1_insert_attribution import insert_attributed_offline
+from bp_engine.recorder.stage_b1_insert_attribution import (
+    insert_attributed_offline,
+    insert_same_batch_attributed_offline,
+)
 from bp_engine.recorder.state import MarketStateSnapshot
 from bp_engine.recorder.writer import BatchWriter, EventBuffer
 from bp_engine.storage.maintenance import (
@@ -2363,6 +2366,186 @@ def test_stage_b1_offline_partitioned_transaction_failure_rolls_back(engine) -> 
         insert_attributed_offline(
             engine, [raw("trade"), raw("orderbook_delta")],
             repository=FailingRepo(),
+        )
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT count(*) FROM raw_market_events")
+        ).scalar_one() == 0
+        assert connection.execute(
+            text("SELECT count(*) FROM raw_event_dedupe")
+        ).scalar_one() == 0
+
+
+def test_b1_same_batch_insert_claims_match_normal_partitioned_SQL(engine) -> None:
+    """Opt-in attribution changes no SQL statements or input batch ordering."""
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now, migrate_existing=False)
+    repo = RecorderRepository()
+
+    def batch(prefix: str) -> list[RawEvent]:
+        def raw(event_type: str, ident: str, source: str = "bybit") -> RawEvent:
+            return RawEvent.build(
+                source=source, stream="linear", instrument="BTCUSDT",
+                event_type=event_type, source_timestamp=now, received_at=now,
+                sequence=prefix + ident,
+                payload={"id": prefix + ident, "kind": event_type},
+            )
+
+        trade = raw("trade", "t")
+        return [
+            trade, trade,
+            raw("orderbook_delta", "book"),
+            raw("liquidation", "liquid"),
+            raw("ticker", "ticker"),
+            raw("trade", "coinbase", source="coinbase"),
+        ]
+
+    sql_seen: list[str] = []
+
+    def capture(
+        _connection, _cursor, statement, _parameters, _context, _executemany
+    ) -> None:
+        sql_seen.append(statement)
+
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        with engine.begin() as connection:
+            assert repo.insert_events(connection, batch("baseline")) == 5
+        normal_sql = tuple(sql_seen)
+        sql_seen.clear()
+        attributed = insert_same_batch_attributed_offline(engine, batch("optin"))
+        attributed_sql = tuple(sql_seen)
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+
+    assert len(normal_sql) == 3  # relkind, dedupe RETURNING, raw INSERT
+    assert attributed_sql == normal_sql
+    assert sum("RETURNING dedupe_key, id" in sql for sql in normal_sql) == 1
+    assert attributed["additional_db_statements_vs_normal_insert"] == 0
+    assert attributed["status"] == "LOCAL_TEST_TRANSACTION_COMMITTED_NO_GO"
+    assert attributed["attempted_by_class"] == {
+        "trade": 2, "orderbook": 1, "liquidation": 1,
+        "other": 0, "excluded_non_bulk": 2,
+    }
+    assert attributed["inserted_by_class"] == {
+        "trade": 1, "orderbook": 1, "liquidation": 1,
+        "other": 0, "excluded_non_bulk": 2,
+    }
+    assert attributed["deduplicated_by_class"]["trade"] == 1
+    assert attributed["real_local_db_commit_observed"]
+    assert not attributed["production_execution_authorized"]
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT count(*) FROM raw_market_events")
+        ).scalar_one() == 10
+
+    repeat = insert_same_batch_attributed_offline(engine, batch("optin"))
+    assert all(count == 0 for count in repeat["inserted_by_class"].values())
+    assert repeat["deduplicated_by_class"]["trade"] == 2
+
+
+def test_b1_same_batch_claim_extraction_rolls_back_both_tables(engine) -> None:
+    """A failure AFTER the raw INSERT cannot produce a committed report."""
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now, migrate_existing=False)
+
+    class FailsAfterRawInsert(RecorderRepository):
+        @staticmethod
+        def _insert_partitioned_events(
+            connection, rows, *, claimed_dedupe_keys=None
+        ):
+            result = RecorderRepository._insert_partitioned_events(
+                connection, rows, claimed_dedupe_keys=claimed_dedupe_keys
+            )
+            assert result == 1
+            raise RuntimeError("offline forced post-insert failure")
+
+    raw = RawEvent.build(
+        source="bybit", stream="linear", instrument="BTCUSDT",
+        event_type="trade", source_timestamp=now, received_at=now,
+        payload={"kind": "trade"},
+    )
+    with pytest.raises(RuntimeError, match="post-insert failure"):
+        insert_same_batch_attributed_offline(
+            engine, [raw], repository=FailsAfterRawInsert()
+        )
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT count(*) FROM raw_market_events")
+        ).scalar_one() == 0
+        assert connection.execute(
+            text("SELECT count(*) FROM raw_event_dedupe")
+        ).scalar_one() == 0
+
+
+def test_b1_claim_receipt_rejects_legacy_PostgreSQL_before_write(engine) -> None:
+    """The new repository opt-in must not fall back to a changed SQL path."""
+    raw = RawEvent.build(
+        source="bybit", stream="linear", instrument="BTCUSDT",
+        event_type="trade",
+        source_timestamp=datetime(2026, 9, 4, 11, tzinfo=UTC),
+        received_at=datetime(2026, 9, 4, 11, tzinfo=UTC),
+        payload={"kind": "trade"},
+    )
+    with engine.begin() as connection:
+        with pytest.raises(ValueError, match="partitioned PostgreSQL"):
+            RecorderRepository().insert_partitioned_events_with_claim_keys(
+                connection, [raw]
+            )
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT count(*) FROM raw_market_events")
+        ).scalar_one() == 0
+
+
+def test_b1_same_batch_rejects_cross_category_duplicate_key_before_sql(engine) -> None:
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now, migrate_existing=False)
+    trade = RawEvent.build(
+        source="bybit", stream="linear", instrument="BTCUSDT",
+        event_type="trade", source_timestamp=now, received_at=now,
+        payload={"kind": "trade"},
+    )
+    book = RawEvent.build(
+        source="bybit", stream="linear", instrument="BTCUSDT",
+        event_type="orderbook_delta", source_timestamp=now, received_at=now,
+        payload={"kind": "orderbook"},
+    ).model_copy(update={"dedupe_key": trade.dedupe_key})
+    statements: list[str] = []
+
+    def capture(
+        _connection, _cursor, statement, _parameters, _context, _executemany
+    ) -> None:
+        statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        with pytest.raises(ValueError, match="cross-category"):
+            insert_same_batch_attributed_offline(engine, [trade, book])
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+    assert statements == []
+
+
+def test_b1_same_batch_rejects_unexpected_claim_key_and_rolls_back(engine) -> None:
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now, migrate_existing=False)
+
+    class WrongClaim(RecorderRepository):
+        def insert_partitioned_events_with_claim_keys(self, connection, events):
+            inserted, _keys = super().insert_partitioned_events_with_claim_keys(
+                connection, events
+            )
+            return inserted, frozenset({"unexpected-private-key"})
+
+    raw = RawEvent.build(
+        source="bybit", stream="linear", instrument="BTCUSDT",
+        event_type="trade", source_timestamp=now, received_at=now,
+        payload={"kind": "trade"},
+    )
+    with pytest.raises(RuntimeError, match="unexpected dedupe key"):
+        insert_same_batch_attributed_offline(
+            engine, [raw], repository=WrongClaim()
         )
     with engine.connect() as connection:
         assert connection.execute(

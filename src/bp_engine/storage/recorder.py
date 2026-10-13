@@ -38,10 +38,40 @@ class RecorderRepository:
         result = connection.execute(statement)
         return int(result.rowcount or 0)
 
+    def insert_partitioned_events_with_claim_keys(
+        self, connection: Connection, events: Sequence[RawEvent]
+    ) -> tuple[int, frozenset[str]]:
+        """Offline-only opt-in: return existing dedupe RETURNING claims.
+
+        The normal insert_events() call path is unchanged. This method
+        executes the SAME partitioned INSERT statements and no extra SELECT.
+        Its keys are transient internal data, NOT a report or commit receipt.
+        The caller must wait for its transaction to COMMIT before treating
+        any returned claims as inserted rows.
+        """
+        if (
+            connection.dialect.name != "postgresql"
+            or raw_storage_mode(connection) is not RawStorageMode.PARTITIONED
+        ):
+            raise ValueError("B1 claim extraction requires partitioned PostgreSQL")
+        if not events:
+            return 0, frozenset()
+        claimed: set[str] = set()
+        inserted = self._insert_partitioned_events(
+            connection,
+            [self._event_values(event) for event in events],
+            claimed_dedupe_keys=claimed,
+        )
+        if len(claimed) != inserted:
+            raise RuntimeError("B1 inconsistent partitioned insert claims")
+        return inserted, frozenset(claimed)
+
     @staticmethod
     def _insert_partitioned_events(
         connection: Connection,
         rows: Sequence[dict[str, object]],
+        *,
+        claimed_dedupe_keys: set[str] | None = None,
     ) -> int:
         unique_rows: dict[str, dict[str, object]] = {}
         for row in rows:
@@ -84,6 +114,10 @@ class RecorderRepository:
             if dedupe_key in claimed_ids
         ]
         connection.execute(insert(raw_market_events), raw_rows)
+        if claimed_dedupe_keys is not None:
+            # Transfer IDs only AFTER the same raw INSERT succeeds; there is
+            # deliberately no extra query or altered SQL statement.
+            claimed_dedupe_keys.update(claimed_ids)
         return len(raw_rows)
 
     def upsert_state_snapshots(

@@ -438,6 +438,51 @@ low-overhead** postcommit class attribution and a safely restored
 one-shot supervisor, with fresh explicit authorization before running
 any host/database probe.
 
+## Same-batch PostgreSQL dedupe receipts: opt-in LOCAL test, no additional SQL
+
+The existing partitioned PostgreSQL `RecorderRepository.insert_events()`
+already executes (1) the `raw_storage_mode` relation-kind query,
+(2) one batched `raw_event_dedupe INSERT ... ON CONFLICT DO NOTHING
+RETURNING dedupe_key, id`, and (3) one batched
+`raw_market_events INSERT`. Its returned count is batch-wide.
+
+A new **separately named, opt-in** repository method
+`insert_partitioned_events_with_claim_keys()` shares the original
+`_insert_partitioned_events()` implementation and captures only the
+**same dedupe keys it already fetched from RETURNING**, after the
+existing raw INSERT returns. There is no second lookup, no new SQL
+statement, no SQL shape change, and no classification-based split.
+The old `insert_events()` signature and normal recorder usage are
+unchanged. Keys stay entirely inside the local Python call; they are
+**not logged, serialized, stored separately or returned in a report**.
+The opt-in raises on legacy/non-PostgreSQL schema.
+
+`insert_same_batch_attributed_offline()` in the existing B1 local
+test adapter maps the returned first-winning dedupe keys to a fixed
+class set, validating cross-class key collisions and unexpected keys.
+It uses the **same original input ordering and two INSERT statements**
+and emits only integer attempted/inserted/deduplicated counts **after
+`engine.begin()` successfully commits**. It refuses file SQLite and
+non-local PostgreSQL URLs, accepts at most 64 test events, and never
+connects to a production endpoint intentionally. Test-only
+PostgreSQL coverage compares the full captured SQL statement strings
+of the normal and attributed paths, validates duplicate handling and
+reruns, and forces errors after raw insertion and on invalid claims to
+prove transaction rollback of **both** raw and dedupe tables.
+The existing grouped-insert helper remains for contrast, but is not
+the recommended performance profile.
+
+**Limitations:** unchanged SQL statement count does not imply zero CPU
+cost, unchanged locks/serialization time, safe runtime activation,
+or source/commit-time eligibility. The opt-in computes an in-memory
+dedupe-key-to-class mapping, and true end-to-end production overhead
+(including large batches, async thread lifetime, queue pressure and
+DB latency) remains unmeasured. An actual after-commit observer hook
+and safe operator lifetime/rollback still require separate engineering
+review and fresh explicit authorization. The ordinary recorder never
+calls the new opt-in; no production database, service or source is
+accessed by this change.
+
 ## Separate authorization and one-shot control design
 
 A fresh specific user authorization would have to identify the *exact*

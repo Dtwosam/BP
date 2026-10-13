@@ -5,8 +5,10 @@ normal repository insert path. It splits the same production repository
 insert operation by disjoint classes inside one transaction, and only
 returns counts AFTER its transaction context successfully exits.
 
-Splitting batches increases SQL/partition-metadata calls and can change
-ID/allocation order. Therefore it is NOT an approved production diagnostic.
+The original grouping helper changes SQL statements and ID allocation.
+The later same-batch path reuses partitioned PostgreSQL's existing dedupe
+RETURNING claims without any extra SQL; it is still test-only. Neither
+helper is an approved production diagnostic.
 """
 
 from __future__ import annotations
@@ -104,5 +106,75 @@ def insert_attributed_offline(
             "Grouping changes SQL statement count and insertion/ID ordering.",
             "Local dedupe and commit do not prove production socket/storage behavior.",
             "The ordinary production recorder does not call this function.",
+        ],
+    }
+
+
+def insert_same_batch_attributed_offline(
+    engine: Engine,
+    events: Sequence[RawEvent],
+    *,
+    repository: RecorderRepository | None = None,
+) -> dict[str, object]:
+    """Local partitioned-PG only; original batch order and SQL are preserved.
+
+    This uses the identical dedupe INSERT ... RETURNING + raw INSERT
+    statements as normal insert_events(), and classifies returned dedupe
+    keys entirely in memory. Counts are exposed ONLY after COMMIT.
+    No event, dedupe key, row ID, query result or payload escapes the report.
+    """
+    _local_test_engine_only(engine)
+    if engine.url.get_backend_name() != "postgresql":
+        raise ValueError("B1 same-batch receipt needs local partitioned PostgreSQL")
+    if not isinstance(events, (tuple, list)):
+        raise ValueError("B1 offline events must be a bounded tuple or list")
+    if not 1 <= len(events) <= _MAX_EVENTS:
+        raise ValueError("B1 offline batch must have 1-64 events")
+    if any(not isinstance(event, RawEvent) for event in events):
+        raise ValueError("B1 offline batch contains a non-RawEvent")
+
+    attempted = dict.fromkeys((*_CATEGORIES, _NON_BULK), 0)
+    category_for_key: dict[str, str] = {}
+    for event in events:
+        category = _raw_category(event) or _NON_BULK
+        attempted[category] += 1
+        previous = category_for_key.setdefault(event.dedupe_key, category)
+        if previous != category:
+            raise ValueError("B1 cross-category dedupe key collision")
+
+    repo = repository or RecorderRepository()
+    with engine.begin() as connection:
+        inserted_total, claimed_keys = repo.insert_partitioned_events_with_claim_keys(
+            connection, events
+        )
+        if inserted_total != len(claimed_keys):
+            raise RuntimeError("B1 claim count and inserted rows disagree")
+        if not claimed_keys.issubset(category_for_key):
+            raise RuntimeError("B1 unexpected dedupe key returned by storage")
+        inserted = dict.fromkeys((*_CATEGORIES, _NON_BULK), 0)
+        for dedupe_key in claimed_keys:
+            inserted[category_for_key[dedupe_key]] += 1
+
+    # PostgreSQL transaction context exited successfully. DO NOT call this
+    # from the normal recorder or mistake test counts for a host attestation.
+    return {
+        "report": "stage_b1_local_same_batch_postcommit_claims_v1",
+        "status": "LOCAL_TEST_TRANSACTION_COMMITTED_NO_GO",
+        "attempted_by_class": attempted,
+        "inserted_by_class": inserted,
+        "deduplicated_by_class": {
+            category: attempted[category] - inserted[category]
+            for category in attempted
+        },
+        "storage_insert_method": "existing_partitioned_SQL_claims_same_batch_order",
+        "real_local_db_commit_observed": True,
+        "additional_db_statements_vs_normal_insert": 0,
+        "production_insert_attribution_proven": False,
+        "production_execution_authorized": False,
+        "queries_or_mutations_on_production": False,
+        "limitations": [
+            "Only local PostgreSQL partitioned test writes are measured.",
+            "No live recorder, external socket, VM, or DB thread is accessed.",
+            "Normal recorder does not activate this code; host overhead unmeasured.",
         ],
     }
