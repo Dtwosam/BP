@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import subprocess
+import sys
+from pathlib import Path
 from datetime import UTC, datetime
 
 import pytest
@@ -381,3 +384,19 @@ def test_b1_injection_fails_closed_outside_zero_money_research(tmp_path, overrid
     with pytest.raises(ValueError, match="RESEARCH, live disabled, zero-money"):
         build_default_recorder_service(settings, stage_b1_observer=observer)
     assert not (tmp_path / "blocked.db").exists()
+
+
+def test_b1_offline_overhead_benchmark_emits_bounded_numeric_result() -> None:
+    program = Path(__file__).resolve().parents[2] / "scripts" / "benchmark_stage_b1_observer.py"
+    result = subprocess.run(
+        [sys.executable, str(program), "--iterations", "100", "--repeats", "3"],
+        check=True, capture_output=True, text=True, timeout=20,
+    )
+    report = json.loads(result.stdout)
+    assert report["scope"] == "synthetic_offline_parser_and_noop_queue_writer_only"
+    assert report["iterations_per_repeat"] == 100
+    assert report["repeats"] == 3
+    assert report["baseline_median_ns_per_cycle"] > 0
+    assert report["observer_median_ns_per_cycle"] > 0
+    assert isinstance(report["relative_difference_percent"], (int, float))
+    assert "No production VM" in report["limitations"][0]
