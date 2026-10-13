@@ -39,7 +39,7 @@ FILES: tuple[tuple[str, str | None, str], ...] = (
 
 
 def git_blob_sha(content: bytes) -> str:
-    header = f"blob {len(content)}\\0".encode("ascii")
+    header = f"blob {len(content)}\0".encode("ascii")
     return hashlib.sha1(header + content, usedforsecurity=False).hexdigest()
 
 
@@ -70,9 +70,9 @@ def _git_exists(commit: str, path: str) -> bool:
 def _unified_diff(path: str, before: bytes | None, after: bytes) -> bytes:
     before_lines = (before or b"").decode("utf-8").splitlines(keepends=True)
     after_lines = after.decode("utf-8").splitlines(keepends=True)
-    if not after_lines or not after.endswith(b"\\n"):
+    if not after_lines or not after.endswith(b"\n"):
         raise ValueError("target source must be nonempty, newline-terminated UTF-8")
-    if before is not None and not before.endswith(b"\\n"):
+    if before is not None and not before.endswith(b"\n"):
         raise ValueError("baseline source must be newline-terminated UTF-8")
     return "".join(
         difflib.unified_diff(
