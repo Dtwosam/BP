@@ -221,8 +221,11 @@ async def test_b1_failure_and_cancellation_are_not_misreported_as_commits() -> N
 
     with pytest.raises(asyncio.CancelledError):
         await observer.wrap_writer_sink(cancelled)([event])
-    assert observer.snapshot()["writer_batches_failed"] == 2
-    assert observer.snapshot()["writer_batches_in_flight"] == 0
+    # Cancelled asyncio.to_thread DB work could still commit after cancellation.
+    # Conservatively preserve it as unresolved rather than claiming rollback.
+    assert observer.snapshot()["writer_batches_failed"] == 1
+    assert observer.snapshot()["writer_batches_cancelled_unresolved"] == 1
+    assert observer.snapshot()["writer_batches_in_flight"] == 1
 
 
 class _FakeSocket:
