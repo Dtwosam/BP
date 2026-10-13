@@ -21,6 +21,25 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**13 October 2026 — Stage B1 diagnostics CI closeout, no production approval:**
+PR [#617](https://github.com/Dtwosam/BP/pull/617) repaired the historical
+public-smoke selection while preserving authentic nonempty Up and Down
+CLOB prices for the same recent closed BTC market. It passed all four
+workflows: 2,620 tests, four warnings, and live CLOB evidence from
+3×5m and 1×15m checked closed markets, with a real 15m selection
+containing 15 points per outcome. PR
+[#616](https://github.com/Dtwosam/BP/pull/616) then merged the strictly
+offline real-recorder queue/writer benchmark on top of the fix, with all
+four workflows green, **2,627 tests and four warnings**.
+Latest non-gating synthetic wall medians changed by +7.50% with one
+writer and +3.99% with three, illustrating scheduling noise,
+**not** production CPU/RSS/DB or throughput acceptance.
+Next: review real one-shot activation, exact VM identity, full
+process/service/DB-thread shutdown and restoration, per-topic ACK and
+representative overhead **before any separate explicit authorization**.
+Bybit-linear production root cause remains UNKNOWN. Issue #589 OPEN;
+Phase 14 HOLD, economics NOT MET; live trading disabled.
+
 **13 October 2026 — Stage B1 full Python recorder-component overhead
 rehearsal (#589):** `scripts/benchmark_stage_b1_recorder_queue_offline.py`
 compares baseline and B1-instrumented **real supervised recorder
@@ -45,8 +64,8 @@ verified recently closed **5m** markets, then three **15m** markets,
 requiring both real one-minute outcome histories for the *same*
 market. All-empty probes or network/schema errors still fail closed;
 failure output includes aggregate counts but no outcome token IDs.
-The collector / writer benchmark in draft PR #616 passed 2,623 tests,
-but that PR stays unmerged until all four workflows pass.
+The original blocker was cleared by PR #617 and the benchmark
+merged through PR #616 after four exact-head green workflows.
 No production/VM/DB/shadow/trading action. Phase 14 HOLD; economics
 NOT MET; live trading disabled. See Issue #589.
 
