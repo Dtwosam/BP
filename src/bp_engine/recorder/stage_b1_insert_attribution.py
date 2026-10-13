@@ -13,6 +13,7 @@ helper is an approved production diagnostic.
 
 from __future__ import annotations
 
+import inspect
 from collections.abc import Callable, Mapping, Sequence
 from types import MappingProxyType
 
@@ -128,8 +129,11 @@ def insert_same_batch_attributed_offline(
     _local_test_engine_only(engine)
     if engine.url.get_backend_name() != "postgresql":
         raise ValueError("B1 same-batch receipt needs local partitioned PostgreSQL")
-    if on_committed_counts is not None and not callable(on_committed_counts):
-        raise ValueError("B1 after-commit observer must be callable")
+    if on_committed_counts is not None and (
+        not callable(on_committed_counts)
+        or inspect.iscoroutinefunction(on_committed_counts)
+    ):
+        raise ValueError("B1 after-commit observer must be synchronous")
     if not isinstance(events, (tuple, list)):
         raise ValueError("B1 offline events must be a bounded tuple or list")
     if not 1 <= len(events) <= _MAX_EVENTS:
@@ -171,9 +175,16 @@ def insert_same_batch_attributed_offline(
         except Exception:
             callback_status = "FAILED_AFTER_COMMIT"
         else:
-            callback_status = (
-                "DELIVERED" if outcome is None else "INVALID_CALLBACK_RETURN"
-            )
+            if inspect.isawaitable(outcome):
+                # Disallow accidental async callbacks and close a coroutine
+                # to avoid an unawaited-coroutine warning in offline tests.
+                if inspect.iscoroutine(outcome):
+                    outcome.close()
+                callback_status = "INVALID_CALLBACK_RETURN"
+            else:
+                callback_status = (
+                    "DELIVERED" if outcome is None else "INVALID_CALLBACK_RETURN"
+                )
 
     # PostgreSQL transaction context exited successfully. DO NOT call this
     # from the normal recorder or mistake test counts for a host attestation.
