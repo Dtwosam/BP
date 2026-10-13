@@ -125,7 +125,7 @@ def rehearse(
         if not patch or b"Binary files" in patch:
             raise ValueError("empty or binary B1 patch")
         _run_apply(root, patch)
-        for path, before, after, _, target_sha in entries:
+        for path, _before, after, _, target_sha in entries:
             assert (root / path).read_bytes() == after
             assert git_blob_sha((root / path).read_bytes()) == target_sha
 
