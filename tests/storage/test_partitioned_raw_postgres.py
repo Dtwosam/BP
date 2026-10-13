@@ -2496,3 +2496,61 @@ def test_b1_claim_receipt_rejects_legacy_PostgreSQL_before_write(engine) -> None
         assert connection.execute(
             text("SELECT count(*) FROM raw_market_events")
         ).scalar_one() == 0
+
+
+def test_b1_same_batch_rejects_cross_category_duplicate_key_before_sql(engine) -> None:
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now, migrate_existing=False)
+    trade = RawEvent.build(
+        source="bybit", stream="linear", instrument="BTCUSDT",
+        event_type="trade", source_timestamp=now, received_at=now,
+        payload={"kind": "trade"},
+    )
+    book = RawEvent.build(
+        source="bybit", stream="linear", instrument="BTCUSDT",
+        event_type="orderbook_delta", source_timestamp=now, received_at=now,
+        payload={"kind": "orderbook"},
+    ).model_copy(update={"dedupe_key": trade.dedupe_key})
+    statements: list[str] = []
+
+    def capture(
+        _connection, _cursor, statement, _parameters, _context, _executemany
+    ) -> None:
+        statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        with pytest.raises(ValueError, match="cross-category"):
+            insert_same_batch_attributed_offline(engine, [trade, book])
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+    assert statements == []
+
+
+def test_b1_same_batch_rejects_unexpected_claim_key_and_rolls_back(engine) -> None:
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now, migrate_existing=False)
+
+    class WrongClaim(RecorderRepository):
+        def insert_partitioned_events_with_claim_keys(self, connection, events):
+            inserted, _keys = super().insert_partitioned_events_with_claim_keys(
+                connection, events
+            )
+            return inserted, frozenset({"unexpected-private-key"})
+
+    raw = RawEvent.build(
+        source="bybit", stream="linear", instrument="BTCUSDT",
+        event_type="trade", source_timestamp=now, received_at=now,
+        payload={"kind": "trade"},
+    )
+    with pytest.raises(RuntimeError, match="unexpected dedupe key"):
+        insert_same_batch_attributed_offline(
+            engine, [raw], repository=WrongClaim()
+        )
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT count(*) FROM raw_market_events")
+        ).scalar_one() == 0
+        assert connection.execute(
+            text("SELECT count(*) FROM raw_event_dedupe")
+        ).scalar_one() == 0
