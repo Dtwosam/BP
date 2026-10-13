@@ -391,6 +391,53 @@ python scripts/rehearse_stage_b1_real_pipeline_offline.py --scenario writer_fail
 python scripts/rehearse_stage_b1_real_pipeline_offline.py --scenario writer_cancelled
 ```
 
+## Per-class post-commit insertion attribution: LOCAL TEST DATABASE ONLY
+
+`src/bp_engine/recorder/stage_b1_insert_attribution.py` exercises the
+**existing, unchanged** `RecorderRepository.insert_events()` against
+strictly local *test* engines, with a hard cap of **64 supplied events**
+per call. It creates no new storage schema or external query interface,
+and the normal recorder/writer/observer never imports or calls it.
+
+For one input batch, it separates events into the established bulk
+categories (`trade`, `orderbook`, `liquidation`, `other`) and a
+fifth **excluded non-bulk** class. In particular, ticker-socket rows
+and non-Bybit-linear events are inserted by the same repository but
+**cannot masquerade as bulk ingestion**. It rejects deliberately
+conflicting cross-class dedupe keys before starting SQL. Each
+homogeneous group calls the already deployed repository insert path
+**inside a single transaction**, so `on_conflict_do_nothing` /
+PostgreSQL partitioned `raw_event_dedupe ... RETURNING` and raw-table
+insertion calculate true inserted counts rather than attempts.
+The result exposes only aggregate attempted/inserted/deduplicated
+counts and is returned **after successful transaction commit**; any
+exception in a later group rolls back *all* earlier groups and returns
+no apparent success.
+
+The test adapter rejects SQLite files and non-local PostgreSQL URLs
+(the latter requires localhost/127.0.0.1/::1 and the `bp` test database).
+These are safeguards, **not** attestation of network topology or
+permission to connect to any actual production database. Tests verify
+SQLite per-class returns including intra-batch duplicates and
+preexisting dedupe rows, excluded ticker/mixed-source handling, and
+all-or-nothing rollback. PostgreSQL CI uses an **ephemeral local
+PostgreSQL container**, the existing partitioned raw storage/dedupe
+setup, and separately checks committed rows in `raw_market_events`
+plus rollback of both raw and dedupe tables after a forced error.
+
+**Not a deployable production diagnostic:** per-category grouping
+changes SQL statement count (and can change row-ID allocation/order);
+partitioned mode may repeat metadata statements. This means the
+method is *not representative of existing production writer latency*
+and is intentionally not injected into `_DatabaseSink`, `BatchWriter`
+or `build_default_recorder_service`. It does NOT show whether the
+historic production recorder received bytes, inserted trade/orderbook
+events, failed a write, or was impacted by source-age cutoffs.
+A separate design is still needed for accurate **production-compatible,
+low-overhead** postcommit class attribution and a safely restored
+one-shot supervisor, with fresh explicit authorization before running
+any host/database probe.
+
 ## Separate authorization and one-shot control design
 
 A fresh specific user authorization would have to identify the *exact*
