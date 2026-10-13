@@ -6,15 +6,15 @@ import asyncio
 import json
 import subprocess
 import sys
-from pathlib import Path
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine, select
 
 from bp_engine.collectors.bybit_ws import parse_bybit_message
-from bp_engine.config import Settings, TradingMode
 from bp_engine.collectors.websocket_runner import WebSocketCollectorRunner
+from bp_engine.config import Settings, TradingMode
 from bp_engine.recorder.models import RawEvent
 from bp_engine.recorder.service import (
     _BufferedEventSink,
