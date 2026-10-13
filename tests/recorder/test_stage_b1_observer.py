@@ -10,9 +10,14 @@ import pytest
 from sqlalchemy import create_engine, select
 
 from bp_engine.collectors.bybit_ws import parse_bybit_message
+from bp_engine.config import Settings, TradingMode
 from bp_engine.collectors.websocket_runner import WebSocketCollectorRunner
 from bp_engine.recorder.models import RawEvent
-from bp_engine.recorder.service import _BufferedEventSink, _RoutedBufferedEventSink
+from bp_engine.recorder.service import (
+    _BufferedEventSink,
+    _RoutedBufferedEventSink,
+    build_default_recorder_service,
+)
 from bp_engine.recorder.stage_b1_observer import (
     MAX_DURATION_SECONDS,
     StageB1BulkObserver,
@@ -292,3 +297,87 @@ async def test_b1_observer_sees_same_socket_bulk_messages_not_ticker() -> None:
     assert report["successfully_enqueued_events_by_class"]["trade"] == 1
     assert report["successfully_enqueued_events_by_class"]["orderbook"] == 1
     assert all("tickers.BTCUSDT" not in data for data in socket.sent)
+
+
+@pytest.mark.parametrize("workers", [1, 3])
+@pytest.mark.asyncio
+async def test_b1_explicit_offline_assembly_is_bulk_only(tmp_path, workers: int) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'b1.db'}",
+        recorder_writer_workers=workers,
+    )
+    # The ordinary production entry point supplies no B1 argument.
+    default = build_default_recorder_service(settings)
+    assert (
+        default._components["bybit_linear"].event_sink
+        is default._components["bybit_linear_ticker"].event_sink
+    )
+    if workers > 1:
+        assert (
+            default._components["writer_bulk"]._writer._sink
+            == default._components["writer_priority"]._writer._sink
+        )
+
+    observer = StageB1BulkObserver(duration_seconds=30)
+    service = build_default_recorder_service(settings, stage_b1_observer=observer)
+    linear = service._components["bybit_linear"]
+    ticker = service._components["bybit_linear_ticker"]
+    spot = service._components["bybit_spot"]
+    assert linear.event_sink is not ticker.event_sink
+    assert ticker.event_sink is spot.event_sink
+
+    when = datetime(2026, 10, 13, 11, tzinfo=UTC)
+    assert linear.parser({"op": "subscribe", "success": True}, when) == []
+    event = linear.parser(_trade(when), when)[0]
+    await linear.event_sink(event)
+    ticker_event = RawEvent.build(
+        source="bybit", stream="linear", instrument="BTCUSDT",
+        event_type="ticker", source_timestamp=when, received_at=when,
+        payload={"data": {"lastPrice": "60001"}},
+    )
+    await ticker.event_sink(ticker_event)
+    if workers > 1:
+        writer = service._components["writer_bulk"]._writer
+        priority_writer = service._components["writer_priority"]._writer
+        assert writer._sink != priority_writer._sink
+        assert writer._buffer.qsize() == 1
+        assert priority_writer._buffer.qsize() == 1
+        await writer._sink([writer._buffer.get_nowait()])
+        await priority_writer._sink([priority_writer._buffer.get_nowait()])
+    else:
+        writer = service._components["writer"]._writer
+        assert writer._buffer.qsize() == 2
+        await writer._sink([writer._buffer.get_nowait(), writer._buffer.get_nowait()])
+
+    report = observer.snapshot()
+    assert report["wire_messages_by_topic_class"]["trade"] == 1
+    assert report["subscribe_ack_messages_by_outcome"]["success"] == 1
+    assert report["parsed_events_by_class"]["trade"] == 1
+    assert report["successfully_enqueued_events_by_class"]["trade"] == 1
+    assert report["writer_attempted_events_by_class"] == {
+        "trade": 1, "orderbook": 0, "liquidation": 0, "other": 0,
+    }
+    assert report["events_in_successfully_returned_transactions_by_class"]["trade"] == 1
+    assert report["writer_batches_returned"] == 1
+    assert report["writer_batches_in_flight"] == 0
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"mode": TradingMode.PAPER},
+        {"mode": TradingMode.LIVE},
+        {"live_trading_enabled": True},
+        {"max_trade_size_usd": 1},
+        {"max_daily_loss_usd": 1},
+        {"max_total_exposure_usd": 1},
+    ],
+)
+def test_b1_injection_fails_closed_outside_zero_money_research(tmp_path, overrides) -> None:
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'blocked.db'}", **overrides
+    )
+    observer = StageB1BulkObserver(duration_seconds=30)
+    with pytest.raises(ValueError, match="RESEARCH, live disabled, zero-money"):
+        build_default_recorder_service(settings, stage_b1_observer=observer)
+    assert not (tmp_path / "blocked.db").exists()
