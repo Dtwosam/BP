@@ -98,6 +98,7 @@ jobs:
             pytest-results.xml
             pytest-output.log
             stage-b1-overhead.json
+            stage-b1-attribution-benchmark.json
             stage-b1-backport.json
             stage-b1-review-bundle.json
             stage-b1-fake-pipeline-healthy.json
