@@ -291,6 +291,64 @@ production activation, any usable one-shot package needs a separately
 reviewed new candidate+rollback SHA/patch, independent host evidence and
 fresh specific permission, not merely this source-only manifest.
 
+## Reproducible four-source inert review bundle (offline only)
+
+The next optional review artifact is built by
+`scripts/rehearse_stage_b1_review_bundle.py`. It reads **only local**
+Git objects at `a352c66ec0110925727bc40de767ee4ba981f965` (the
+previously **operator-reported**, currently **not on-host reverified**
+source baseline) and reviewed `347db08ee47d113f35fd6a9bc0e4bd85610aea0d`
+(pre-this-work, immutable checkout). It fixes old and new `git blob`
+hashes for **four** Python paths: `websocket_runner.py`,
+`service.py`, `stage_b1_observer.py` and
+`stage_b1_one_shot.py`. It deliberately excludes the synthetic-only
+POSIX fake-process watchdog and host preflight scripts from the runtime
+source set.
+
+The script verifies blob identities, builds a deterministic unified
+**source-only** patch, validates forward apply and byte-identical
+reverse apply against an **isolated temporary source directory**,
+then constructs a deterministic ZIP with the four reviewed files, patch,
+fixed-schema source manifest and mandatory `B1-NO-GO-READ-ME.txt`.
+The ZIP is <=256KiB, uses fixed entries and timestamps, and can be
+verified offline **without extraction or execution**. By default only
+a summary JSON of patch/bundle hashes and checks is printed. Writing
+actual source ZIP bytes requires the explicit
+`--write-review-only-zip <new-local-file>` argument (exclusive-create);
+CI does **not** write or upload the ZIP.
+
+```sh
+# Only a non-production/offline checkout, after the pinned Git objects exist.
+python scripts/rehearse_stage_b1_review_bundle.py
+# Optional separate offline reviewer artifact; not an installation package.
+python scripts/rehearse_stage_b1_review_bundle.py --write-review-only-zip ./B1-REVIEW-ONLY.zip
+python scripts/rehearse_stage_b1_review_bundle.py --verify-review-only-zip ./B1-REVIEW-ONLY.zip
+```
+
+The first completed offline CI rehearsal produced a **27,184-byte four-file
+source patch**, SHA-256
+`226b05ee5e9e077c5791eabd2422c65603ca137ba09b3571e507ef9e61bec496`,
+and **84,416-byte seven-entry ZIP**, SHA-256
+`d30b3141091f46a80a5c2099160065e91e40f30addc8b94998e9b3a52598b36a`.
+These immutable digests are pinned directly in the local verifier, not just
+copied from a ZIP's self-declared manifest. This binds archive and patch
+contents to reviewed source history. It does NOT establish host provenance
+or permission. The final digest-pinned CI pass is still required before
+the new PR can merge.
+
+**This ZIP is inert.** The `one_shot.py` library has no operator entry
+point or approved aggregate output sink; `run_recorder()` does not
+inject it. The archive cannot run a real Bybit diagnostic, terminate
+a live recorder process tree, establish host runtime or resource
+overhead, or restore the service. Source reversibility does NOT mean
+systemd/venv/PostgreSQL rollback, and no current on-host identity is
+asserted. The original #607 source-only patch SHA remains a separate
+immutable record; this newer four-path review packet is not a retroactive
+approval or updated installation instruction. A genuine operational
+package would need more engineering, independent host verification,
+rehearsed service restoration, representative load/latency measurements,
+and specific renewed authorization. **Phase 14 HOLD.**
+
 ## Separate authorization and one-shot control design
 
 A fresh specific user authorization would have to identify the *exact*
