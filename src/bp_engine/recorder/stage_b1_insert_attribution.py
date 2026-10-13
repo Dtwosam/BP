@@ -13,7 +13,8 @@ helper is an approved production diagnostic.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
+from types import MappingProxyType
 
 from sqlalchemy import Engine
 
@@ -115,6 +116,7 @@ def insert_same_batch_attributed_offline(
     events: Sequence[RawEvent],
     *,
     repository: RecorderRepository | None = None,
+    on_committed_counts: Callable[[Mapping[str, int]], None] | None = None,
 ) -> dict[str, object]:
     """Local partitioned-PG only; original batch order and SQL are preserved.
 
@@ -126,6 +128,8 @@ def insert_same_batch_attributed_offline(
     _local_test_engine_only(engine)
     if engine.url.get_backend_name() != "postgresql":
         raise ValueError("B1 same-batch receipt needs local partitioned PostgreSQL")
+    if on_committed_counts is not None and not callable(on_committed_counts):
+        raise ValueError("B1 after-commit observer must be callable")
     if not isinstance(events, (tuple, list)):
         raise ValueError("B1 offline events must be a bounded tuple or list")
     if not 1 <= len(events) <= _MAX_EVENTS:
@@ -155,6 +159,22 @@ def insert_same_batch_attributed_offline(
         for dedupe_key in claimed_keys:
             inserted[category_for_key[dedupe_key]] += 1
 
+    # The callback is intentionally SYNCHRONOUS and receives only an
+    # immutable map of numeric class counts. It is NEVER called before
+    # the engine.begin transaction has successfully committed.
+    # Callback exceptions cannot undo a committed transaction and must
+    # not leak arbitrary exception strings into the report.
+    callback_status = "NOT_REQUESTED"
+    if on_committed_counts is not None:
+        try:
+            outcome = on_committed_counts(MappingProxyType(dict(inserted)))
+        except Exception:
+            callback_status = "FAILED_AFTER_COMMIT"
+        else:
+            callback_status = (
+                "DELIVERED" if outcome is None else "INVALID_CALLBACK_RETURN"
+            )
+
     # PostgreSQL transaction context exited successfully. DO NOT call this
     # from the normal recorder or mistake test counts for a host attestation.
     return {
@@ -169,6 +189,7 @@ def insert_same_batch_attributed_offline(
         "storage_insert_method": "existing_partitioned_SQL_claims_same_batch_order",
         "real_local_db_commit_observed": True,
         "additional_db_statements_vs_normal_insert": 0,
+        "postcommit_notification_status": callback_status,
         "production_insert_attribution_proven": False,
         "production_execution_authorized": False,
         "queries_or_mutations_on_production": False,
