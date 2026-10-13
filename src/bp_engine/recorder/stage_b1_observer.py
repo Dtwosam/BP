@@ -43,6 +43,10 @@ def _raw_category(event: RawEvent) -> str | None:
         return "orderbook"
     if event.event_type == "liquidation":
         return "liquidation"
+    # The same writer may also handle the dedicated linear TICKER socket.
+    # Its rows are not bulk-socket evidence and must not enter B1 counters.
+    if event.event_type == "ticker":
+        return None
     return "other"
 
 
