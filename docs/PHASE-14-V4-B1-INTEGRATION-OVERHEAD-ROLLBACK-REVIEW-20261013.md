@@ -97,6 +97,43 @@ instrumentation or available host counters cannot measure those conditions
 reliably, **NO GO** rather than waiving checks. Instrumentation should not
 be activated merely to establish the initial baseline without permission.
 
+## Exact offline source patch rehearsal (new, not a deployment)
+
+`scripts/rehearse_stage_b1_backport.py` now pins **immutable Git source blobs** for
+the previously operator-reported `a352c66ec0110925727bc40de767ee4ba981f965`
+source tree and reviewed `75281f2b97f19d903f576b973bb7c2236179839e`
+source tree. Its path allowlist is exactly:
+
+- `src/bp_engine/collectors/websocket_runner.py` — component-specific incident metadata
+- `src/bp_engine/recorder/service.py` — explicit dormant B1 bulk-only injection
+- `src/bp_engine/recorder/stage_b1_observer.py` — new bounded aggregate-only observer
+
+Only local Git blobs are read; the script does not fetch. A targeted CI-only
+`git fetch` retrieves these two exact Git commits before the source check.
+The script verifies both old/new `git blob` IDs, generates a unified patch
+and SHA-256, applies it in a **disposable temporary directory**, verifies the
+three target byte identities, reverse-applies it, and verifies the old byte
+identities (including absence of the observer). The stdout manifest explicitly
+marks production host revision **unverified** and access/activation **false**.
+An optional `--write-patch <unused-offline-file>` saves the exact patch
+exclusively (refuses overwrite); do not run it on the production host.
+CI saves only the JSON manifest, not an installable artifact.
+
+```sh
+# Offline operator/reviewer checkout only; never on the VM without approval.
+git fetch --no-tags --depth=1 origin a352c66ec0110925727bc40de767ee4ba981f965 75281f2b97f19d903f576b973bb7c2236179839e
+python scripts/rehearse_stage_b1_backport.py
+```
+
+This is **source patch reversibility**, not systemd rollback, database rollback,
+an on-target state check, or a working one-shot observation. It does NOT
+independently prove the original `a352c66e` revision remains deployed.
+It also does not import extra main changes or test the patch against the
+complete frozen service environment. The production plan stays **NO GO**
+until exact service/PID/venv verification, restoration rehearsal, one-shot
+aggregate-only readout, representative resource/latency overhead and fresh
+authorization are complete.
+
 ## Minimum backport and exact deployment identity: not ready
 
 The *previously operator-reported* deployed checkout was
