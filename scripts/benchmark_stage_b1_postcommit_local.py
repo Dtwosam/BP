@@ -83,8 +83,11 @@ def compare_local_postcommit_overhead(engine: Engine) -> dict[str, object]:
                     unique_rows = len({event.dedupe_key for event in rows})
                     callbacks: list[dict[str, int]] = []
 
-                    def on_committed(counts: dict[str, int]) -> None:
-                        callbacks.append(dict(counts))
+                    def on_committed(
+                        counts: dict[str, int],
+                        _callbacks: list[dict[str, int]] = callbacks,
+                    ) -> None:
+                        _callbacks.append(dict(counts))
 
                     tracemalloc.reset_peak()
                     started_cpu = time.process_time_ns()
