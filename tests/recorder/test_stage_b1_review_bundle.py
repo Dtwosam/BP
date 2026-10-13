@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import zipfile
@@ -30,6 +31,17 @@ def _fake_sources(monkeypatch):
     return entries
 
 
+def _pin_fake_bundle(
+    monkeypatch: pytest.MonkeyPatch, raw: bytes, report: dict[str, object]
+) -> None:
+    monkeypatch.setattr(
+        bundle, "EXPECTED_REVIEW_ZIP_SHA256", hashlib.sha256(raw).hexdigest()
+    )
+    monkeypatch.setattr(
+        bundle, "EXPECTED_REVIEW_PATCH_SHA256", report["source_only_patch_sha256"]
+    )
+
+
 def _members(raw: bytes) -> dict[str, bytes]:
     with zipfile.ZipFile(io.BytesIO(raw)) as archive:
         return {name: archive.read(name) for name in archive.namelist()}
@@ -53,6 +65,7 @@ def test_inert_bundle_deterministic_exact_patch_forward_reverse(monkeypatch) -> 
         *(item[0] for item in entries),
     }
     assert set(_members(raw1)) == expected
+    _pin_fake_bundle(monkeypatch, raw1, report1)
     checked = bundle.verify_review_bundle(raw1)
     assert checked["status"] == "SOURCE_INTEGRITY_ONLY_NO_GO"
     assert checked["verified_file_count"] == len(expected)
@@ -98,7 +111,8 @@ def test_source_tampering_and_unexpected_paths_block(monkeypatch, bad: str) -> N
 )
 def test_zip_verifier_rejects_bad_contents(monkeypatch, tamper: str) -> None:
     entries = _fake_sources(monkeypatch)
-    raw, _ = bundle.build_review_bundle(entries)
+    raw, report = bundle.build_review_bundle(entries)
+    _pin_fake_bundle(monkeypatch, raw, report)
     members = _members(raw)
     if tamper == "extra_file":
         members["evil/activate.py"] = b"do not execute"
@@ -116,8 +130,22 @@ def test_zip_verifier_rejects_bad_contents(monkeypatch, tamper: str) -> None:
             payload["production_execution_authorized"] = True
         members[bundle.MANIFEST_PATH] = bundle._json_bytes(payload)
 
+    corrupted = bundle._zip_pack(members)
+    # Bypass only the outer full-ZIP digest check to reach the inner fixed
+    # membership, source identity, manifest and pinned patch validations.
+    monkeypatch.setattr(
+        bundle, "EXPECTED_REVIEW_ZIP_SHA256", hashlib.sha256(corrupted).hexdigest()
+    )
     with pytest.raises(ValueError):
-        bundle.verify_review_bundle(bundle._zip_pack(members))
+        bundle.verify_review_bundle(corrupted)
+
+
+def test_verifier_rejects_even_valid_synthetic_zip_without_pinned_digest(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw, _report = bundle.build_review_bundle(_fake_sources(monkeypatch))
+    with pytest.raises(ValueError, match="immutable review hash"):
+        bundle.verify_review_bundle(raw)
 
 
 def test_zip_verifier_rejects_malformed_or_oversized_bytes() -> None:
