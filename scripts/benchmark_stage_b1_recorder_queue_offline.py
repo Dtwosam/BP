@@ -100,7 +100,7 @@ def _percentile_ns(numbers: list[int], percent: float) -> int:
 
 async def _trial(*, observed: bool, workers: int) -> dict[str, int | float]:
     """A bounded full recorder lifecycle, with real queue and writer workers."""
-    if type(observed) is not bool or workers not in _WORKERS:
+    if type(observed) is not bool or type(workers) is not int or workers not in _WORKERS:
         raise ValueError("unknown synthetic B1 recorder benchmark arm")
     buffer = EventBuffer(_QUEUE_CAPACITY)
     socket = _LocalSocket(_frames())
@@ -219,6 +219,9 @@ async def _trial(*, observed: bool, workers: int) -> dict[str, int | float]:
             enqueue_to_commit_ns, 0.95
         ),
         "wall_ns": finished - started_wall,
+        "throughput_events_per_second": int(
+            1_000_000_000 * accepted / max(1, finished - started_wall)
+        ),
         "drain_ns": finished - produced_at,
         "cpu_ns": cpu,
         "python_tracemalloc_peak_bytes": allocation_peak,
@@ -229,7 +232,8 @@ def _medians(samples: list[dict[str, int | float]]) -> dict[str, int]:
     keys = (
         "queue_peak_events", "producer_enqueue_block_p95_ns",
         "fake_writer_batch_p95_ns", "enqueue_to_fake_writer_return_p95_ns",
-        "wall_ns", "drain_ns", "cpu_ns", "python_tracemalloc_peak_bytes",
+        "wall_ns", "drain_ns", "throughput_events_per_second",
+        "cpu_ns", "python_tracemalloc_peak_bytes",
     )
     return {
         key: int(statistics.median(sample[key] for sample in samples))
