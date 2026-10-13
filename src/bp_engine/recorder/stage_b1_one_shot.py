@@ -13,7 +13,10 @@ import json
 from collections.abc import Mapping
 from typing import Protocol
 
-from bp_engine.recorder.stage_b1_observer import MAX_DURATION_SECONDS, StageB1BulkObserver
+from bp_engine.recorder.stage_b1_observer import (
+    MAX_DURATION_SECONDS,
+    StageB1BulkObserver,
+)
 
 _CLASSES = ("trade", "orderbook", "liquidation", "other")
 _ACKS = ("success", "rejected", "unclassified")
