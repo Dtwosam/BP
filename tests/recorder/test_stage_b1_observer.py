@@ -307,7 +307,9 @@ async def test_b1_observer_sees_same_socket_bulk_messages_not_ticker() -> None:
 
 @pytest.mark.parametrize("workers", [1, 3])
 @pytest.mark.asyncio
-async def test_b1_explicit_offline_assembly_is_bulk_only(tmp_path, workers: int) -> None:
+async def test_b1_explicit_offline_assembly_is_bulk_only(
+    tmp_path, workers: int
+) -> None:
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'b1.db'}",
         recorder_writer_workers=workers,
@@ -379,7 +381,9 @@ async def test_b1_explicit_offline_assembly_is_bulk_only(tmp_path, workers: int)
         {"max_total_exposure_usd": 1},
     ],
 )
-def test_b1_injection_fails_closed_outside_zero_money_research(tmp_path, overrides) -> None:
+def test_b1_injection_fails_closed_outside_zero_money_research(
+    tmp_path, overrides
+) -> None:
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'blocked.db'}", **overrides
     )
@@ -390,7 +394,11 @@ def test_b1_injection_fails_closed_outside_zero_money_research(tmp_path, overrid
 
 
 def test_b1_offline_overhead_benchmark_emits_bounded_numeric_result() -> None:
-    program = Path(__file__).resolve().parents[2] / "scripts" / "benchmark_stage_b1_observer.py"
+    program = (
+        Path(__file__).resolve().parents[2]
+        / "scripts"
+        / "benchmark_stage_b1_observer.py"
+    )
     result = subprocess.run(
         [sys.executable, str(program), "--iterations", "100", "--repeats", "3"],
         check=True, capture_output=True, text=True, timeout=20,
