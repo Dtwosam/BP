@@ -46,7 +46,10 @@ def db_engine():
 
 def _count(engine) -> int:
     with engine.connect() as connection:
-        return int(connection.execute(select(func.count()).select_from(raw_market_events)).scalar_one())
+        result = connection.execute(
+            select(func.count()).select_from(raw_market_events)
+        ).scalar_one()
+        return int(result)
 
 
 def test_real_local_insert_count_by_class_with_in_batch_and_existing_duplicates(
