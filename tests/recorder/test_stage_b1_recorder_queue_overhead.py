@@ -37,6 +37,7 @@ async def test_real_recorder_fake_socket_drains_all_writer_batches(
         "enqueue_to_fake_writer_return_p95_ns",
         "wall_ns",
         "drain_ns",
+        "throughput_events_per_second",
         "cpu_ns",
         "python_tracemalloc_peak_bytes",
     ):
@@ -56,6 +57,8 @@ async def test_alternated_real_recorder_benchmark_is_non_gating() -> None:
             assert row[mode]["wall_ns"] > 0
             assert row[mode]["queue_peak_events"] > 0
             assert row[mode]["enqueue_to_fake_writer_return_p95_ns"] > 0
+        assert row["baseline_medians"]["throughput_events_per_second"] > 0
+        assert row["instrumented_medians"]["throughput_events_per_second"] > 0
         assert row["difference_medians"]["wall_ns"] == (
             row["instrumented_medians"]["wall_ns"]
             - row["baseline_medians"]["wall_ns"]
