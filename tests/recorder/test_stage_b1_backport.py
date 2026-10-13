@@ -11,12 +11,12 @@ from scripts import rehearse_stage_b1_backport as backport
 
 def test_rehearsal_forward_reverse_is_byte_exact_and_no_host_access(monkeypatch) -> None:
     path = "src/bp_engine/recorder/service.py"
-    old, new = b"old\\n", b"new\\n"
+    old, new = b"old\n", b"new\n"
     old_sha, new_sha = backport.git_blob_sha(old), backport.git_blob_sha(new)
     monkeypatch.setattr(backport, "FILES", ((path, old_sha, new_sha),))
 
     patch, report = backport.rehearse(((path, old, new, old_sha, new_sha),))
-    assert patch.startswith(b"--- a/src/bp_engine/recorder/service.py\\n")
+    assert patch.startswith(b"--- a/src/bp_engine/recorder/service.py\n")
     assert b"+++ b/src/bp_engine/recorder/service.py" in patch
     assert hashlib.sha256(patch).hexdigest() == report["patch_sha256"]
     assert report["status"] == "PASS_REPOSITORY_ONLY"
@@ -29,7 +29,7 @@ def test_rehearsal_forward_reverse_is_byte_exact_and_no_host_access(monkeypatch)
 
 def test_rehearsal_can_add_new_source_and_roll_it_back(monkeypatch) -> None:
     path = "src/bp_engine/recorder/stage_b1_observer.py"
-    new = b"irreversible = False\\n"
+    new = b"irreversible = False\n"
     new_sha = backport.git_blob_sha(new)
     monkeypatch.setattr(backport, "FILES", ((path, None, new_sha),))
     patch, report = backport.rehearse(((path, None, new, None, new_sha),))
@@ -42,7 +42,7 @@ def test_rehearsal_can_add_new_source_and_roll_it_back(monkeypatch) -> None:
     "entries",
     [
         # No unlisted files, even if hashes are otherwise legitimate.
-        (("other.py", b"old\\n", b"new\\n", "no", "no"),),
+        (("other.py", b"old\n", b"new\n", "no", "no"),),
         # No missing listed paths.
         (),
     ],
@@ -59,7 +59,7 @@ def test_rehearsal_rejects_wrong_commit_blob_and_nonterminated_source(
     monkeypatch,
 ) -> None:
     path = "src/bp_engine/recorder/service.py"
-    old, new = b"old\\n", b"new\\n"
+    old, new = b"old\n", b"new\n"
     expected_new = backport.git_blob_sha(new)
     monkeypatch.setattr(backport, "FILES", ((path, "a" * 40, expected_new),))
     with pytest.raises(ValueError, match="baseline Git blob hash mismatch"):
