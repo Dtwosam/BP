@@ -13,6 +13,7 @@ from sqlalchemy.exc import DBAPIError
 
 from bp_engine.config import Settings
 from bp_engine.recorder.models import RawEvent
+from bp_engine.recorder.stage_b1_insert_attribution import insert_attributed_offline
 from bp_engine.recorder.state import MarketStateSnapshot
 from bp_engine.recorder.writer import BatchWriter, EventBuffer
 from bp_engine.storage.maintenance import (
@@ -2273,3 +2274,100 @@ def test_v4_linear_b0_classifies_null_timestamp_trade_on_partitioned_postgres(
     assert book["source_time_eligible_at_observed_rows"] == 1
     assert result["max_data_select_queries"] == 2
     assert result["safety"]["database_writes_performed"] is False
+
+
+
+def test_stage_b1_offline_partitioned_postgres_actual_insert_classes_and_dedupe(
+    engine,
+) -> None:
+    """Local CI PostgreSQL: count actual committed raw rows, not batch attempts."""
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now, migrate_existing=False)
+    assert engine.url.host in ("localhost", "127.0.0.1", "::1")
+
+    def build(kind: str, key: str, *, source: str = "bybit") -> RawEvent:
+        return RawEvent.build(
+            source=source,
+            stream="linear",
+            instrument="BTCUSDT",
+            event_type=kind,
+            source_timestamp=now,
+            received_at=now,
+            sequence=key,
+            payload={"i": key, "kind": kind},
+        )
+
+    trade = build("trade", "t1")
+    book = build("orderbook_delta", "b1")
+    liquid = build("liquidation", "l1")
+    ticker = build("ticker", "ticker")
+    other_feed = build("trade", "coinbase", source="coinbase")
+    batch = [trade, trade, book, liquid, ticker, other_feed]
+
+    first = insert_attributed_offline(engine, batch)
+    assert first["status"] == "LOCAL_TEST_TRANSACTION_COMMITTED_NO_GO"
+    assert first["attempted_by_class"]["trade"] == 2
+    assert first["inserted_by_class"] == {
+        "trade": 1,
+        "orderbook": 1,
+        "liquidation": 1,
+        "other": 0,
+        "excluded_non_bulk": 2,
+    }
+    assert first["deduplicated_by_class"]["trade"] == 1
+    assert first["real_local_db_commit_observed"] is True
+    assert first["production_insert_attribution_proven"] is False
+    with engine.connect() as connection:
+        actual = connection.execute(
+            text("SELECT event_type, count(*) FROM raw_market_events "
+                 "GROUP BY event_type ORDER BY event_type")
+        ).all()
+    assert dict(actual) == {
+        "liquidation": 1,
+        "orderbook_delta": 1,
+        "ticker": 1,
+        "trade": 2,
+    }
+
+    second = insert_attributed_offline(engine, batch)
+    assert all(value == 0 for value in second["inserted_by_class"].values())
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT count(*) FROM raw_market_events")
+        ).scalar_one() == 5
+
+
+def test_stage_b1_offline_partitioned_transaction_failure_rolls_back(engine) -> None:
+    """A failed group must NOT emit a committed-attribution result."""
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now, migrate_existing=False)
+
+    def raw(kind: str) -> RawEvent:
+        return RawEvent.build(
+            source="bybit",
+            stream="linear",
+            instrument="BTCUSDT",
+            event_type=kind,
+            source_timestamp=now,
+            received_at=now,
+            payload={"kind": kind},
+        )
+
+    class FailingRepo(RecorderRepository):
+        def insert_events(self, connection, events):
+            if events and events[0].event_type == "orderbook_delta":
+                raise RuntimeError("forced local rollback")
+            return super().insert_events(connection, events)
+
+    with pytest.raises(RuntimeError, match="forced local rollback"):
+        insert_attributed_offline(
+            engine, [raw("trade"), raw("orderbook_delta")],
+            repository=FailingRepo(),
+        )
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT count(*) FROM raw_market_events")
+        ).scalar_one() == 0
+        assert connection.execute(
+            text("SELECT count(*) FROM raw_event_dedupe")
+        ).scalar_one() == 0
