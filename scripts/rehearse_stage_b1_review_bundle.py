@@ -12,7 +12,6 @@ import argparse
 import hashlib
 import io
 import json
-import subprocess
 import tempfile
 import zipfile
 from pathlib import Path
