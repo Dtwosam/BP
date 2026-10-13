@@ -325,6 +325,17 @@ python scripts/rehearse_stage_b1_review_bundle.py --write-review-only-zip ./B1-R
 python scripts/rehearse_stage_b1_review_bundle.py --verify-review-only-zip ./B1-REVIEW-ONLY.zip
 ```
 
+The first completed offline CI rehearsal produced a **27,184-byte four-file
+source patch**, SHA-256
+`226b05ee5e9e077c5791eabd2422c65603ca137ba09b3571e507ef9e61bec496`,
+and **84,416-byte seven-entry ZIP**, SHA-256
+`d30b3141091f46a80a5c2099160065e91e40f30addc8b94998e9b3a52598b36a`.
+These immutable digests are pinned directly in the local verifier, not just
+copied from a ZIP's self-declared manifest. This binds archive and patch
+contents to reviewed source history. It does NOT establish host provenance
+or permission. The final digest-pinned CI pass is still required before
+the new PR can merge.
+
 **This ZIP is inert.** The `one_shot.py` library has no operator entry
 point or approved aggregate output sink; `run_recorder()` does not
 inject it. The archive cannot run a real Bybit diagnostic, terminate
