@@ -21,6 +21,21 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**13 October 2026 — Stage B1 isolated synthetic process-termination rehearsal (#589):**
+A new **fixed-fake-child-only** POSIX script
+`scripts/rehearse_stage_b1_process_boundary.py` rehearses bounded
+SIGTERM/SIGKILL escalation and direct process-leader reaping without
+ever invoking the recorder, database, real network or arbitrary command.
+Its entire output is sanitized, strictly synthetic metadata; child stderr
+and malformed/oversize report data never surface. This does **not**
+prove full descendant/systemd lifetime, give a production operator
+command or output sink, verify VM state, satisfy representative overhead,
+establish actual inserted rows, or authorize any rollout.
+The previous source patch from #607 is unchanged and does not include
+#608/this script. CI validation is necessary before marking rehearsal
+successful. Issue #589 OPEN; Phase 14 HOLD, economic acceptance NOT MET,
+live trading disabled.
+
 **13 October 2026 — Stage B1 one-shot lifecycle/readout library candidate (#589):**
 A **repository-only, never auto-invoked** `stage_b1_one_shot.py`
 library now sketches finite collection against an explicitly passed
