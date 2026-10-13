@@ -21,6 +21,19 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**13 October 2026 — PR #616 external Historical Backfill Smoke blocker:**
+The original historical smoke selected the *first* recently closed BTC
+Up/Down market and failed twice when one or both authentic CLOB outcome
+histories were empty. A bounded diagnostic fix now tries up to three
+verified recently closed **5m** markets, then three **15m** markets,
+requiring both real one-minute outcome histories for the *same*
+market. All-empty probes or network/schema errors still fail closed;
+failure output includes aggregate counts but no outcome token IDs.
+The collector / writer benchmark in draft PR #616 passed 2,623 tests,
+but that PR stays unmerged until all four workflows pass.
+No production/VM/DB/shadow/trading action. Phase 14 HOLD; economics
+NOT MET; live trading disabled. See Issue #589.
+
 **13 October 2026 — Stage B1 local after-commit hook and non-gating
 PostgreSQL overhead review (#589):** The dormant
 `insert_same_batch_attributed_offline()` path now supports a synchronous
