@@ -17,7 +17,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from scripts.rehearse_stage_b1_backport import BASE_COMMIT, FILES, TARGET_COMMIT
+# Works both as `python scripts/...` and when imported by pytest.
+if __package__:
+    from scripts.rehearse_stage_b1_backport import BASE_COMMIT, FILES, TARGET_COMMIT
+else:
+    from rehearse_stage_b1_backport import BASE_COMMIT, FILES, TARGET_COMMIT
 
 EXPECTED_PATCH_SHA256 = (
     "e0a15b1f890233fa6b1228695170f64967b3e9c2899580951242b78ef7ea9b10"
