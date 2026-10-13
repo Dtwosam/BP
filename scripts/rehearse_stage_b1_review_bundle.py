@@ -309,6 +309,10 @@ def main() -> None:
             after = _git_show(REVIEW_COMMIT, path)
             entries.append((path, before, after, old, new))
         bundle, report = build_review_bundle(tuple(entries))
+        verified = verify_review_bundle(bundle)
+        if verified["bundle_sha256"] != report["bundle_sha256"]:
+            raise ValueError("B1 candidate bundle self-check mismatch")
+        report["bundle_integrity_rechecked"] = True
         if args.write_review_only_zip is not None:
             with args.write_review_only_zip.open("xb") as output:
                 output.write(bundle)
