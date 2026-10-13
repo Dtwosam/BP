@@ -71,7 +71,11 @@ async def measure(*, iterations: int = 2000, repeats: int = 5) -> dict[str, obje
     baseline: list[float] = []
     observed: list[float] = []
     for repeat in range(repeats):
-        modes = ("baseline", "observed") if repeat % 2 == 0 else ("observed", "baseline")
+        modes = (
+            ("baseline", "observed")
+            if repeat % 2 == 0
+            else ("observed", "baseline")
+        )
         for mode in modes:
             ns = await _time_cycles(
                 parser if mode == "observed" else _parse,
@@ -103,7 +107,8 @@ async def measure(*, iterations: int = 2000, repeats: int = 5) -> dict[str, obje
             "No production VM, DB transaction, socket, backpressure or disk I/O.",
             "This is a microbenchmark, not an approved latency/CPU acceptance gate.",
             "Actual per-class inserted rows are not measured.",
-            "Performance review must verify representative live recorder baseline separately.",
+            "Performance review must verify representative live recorder "
+            "baseline separately.",
         ],
     }
 
@@ -113,7 +118,12 @@ def main() -> None:
     parser.add_argument("--iterations", type=int, default=2000)
     parser.add_argument("--repeats", type=int, default=5)
     args = parser.parse_args()
-    print(json.dumps(asyncio.run(measure(iterations=args.iterations, repeats=args.repeats)), sort_keys=True))
+    print(
+        json.dumps(
+            asyncio.run(measure(iterations=args.iterations, repeats=args.repeats)),
+            sort_keys=True,
+        )
+    )
 
 
 if __name__ == "__main__":
