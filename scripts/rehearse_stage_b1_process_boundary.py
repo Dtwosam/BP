@@ -150,9 +150,9 @@ async def supervise_synthetic(
 ) -> dict[str, object]:
     """Reap an isolated FAKE child, without executing any operator command.
 
-    Only the direct process leader's exit/reaping is asserted. Killing a
-    process group is best-effort; the result cannot prove every descendant,
-    surviving DB thread, or separately managed systemd service stopped.
+    The inherited-pipe EOF is an extra assertion for fixed fake forks,
+    NOT proof unrelated descendants, surviving DB threads or separately
+    managed systemd services have stopped.
     """
     if os.name != "posix":
         raise RuntimeError("synthetic process boundary rehearsal requires POSIX")
@@ -162,68 +162,101 @@ async def supervise_synthetic(
     term = _bounded_seconds(term_grace_seconds, maximum=1)
     kill = _bounded_seconds(kill_grace_seconds, maximum=2)
     with tempfile.TemporaryFile(mode="w+b") as output:
-        process = await asyncio.create_subprocess_exec(
-            sys.executable,
-            "-I",
-            "-B",
-            str(_SCRIPT),
-            "--synthetic-child",
-            scenario,
-            str(output.fileno()),
-            stdin=asyncio.subprocess.DEVNULL,
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
-            pass_fds=(output.fileno(),),
-            start_new_session=True,
-        )
-        outcome = "unresolved"
+        read_fd, write_fd = os.pipe()
+        os.set_blocking(read_fd, False)
         try:
-            if await _wait_exit(process, wall):
-                outcome = "exited"
-            else:
-                _signal_group(process.pid, signal.SIGTERM)
-                if await _wait_exit(process, term):
-                    outcome = "sigterm"
-                else:
-                    _signal_group(process.pid, signal.SIGKILL)
-                    if await _wait_exit(process, kill):
-                        outcome = "sigkill"
-        finally:
-            if process.returncode is None:
-                _signal_group(process.pid, signal.SIGKILL)
-                # Cancellation/interruption MUST NOT be treated as safe
-                # completion if the direct child is not verifiably reaped.
-                try:
-                    await asyncio.shield(
-                        asyncio.wait_for(process.wait(), timeout=kill)
-                    )
-                except TimeoutError:
-                    outcome = "unresolved"
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    sys.executable,
+                    "-I",
+                    "-B",
+                    str(_SCRIPT),
+                    "--synthetic-child",
+                    scenario,
+                    str(output.fileno()),
+                    str(write_fd),
+                    stdin=asyncio.subprocess.DEVNULL,
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL,
+                    pass_fds=(output.fileno(), write_fd),
+                    start_new_session=True,
+                )
+            finally:
+                # Parent write end must close; only live fake group
+                # members can keep the liveness pipe open.
+                os.close(write_fd)
 
-        reaped = process.returncode is not None
-        accepted = (
-            reaped
-            and outcome == "exited"
-            and process.returncode == 0
-            and _report_matches_synthetic_fixture(output)
-        )
-        return {
-            "report": "phase14_b1_synthetic_process_watchdog_v1",
-            "scope": "offline_fixed_fake_child_only",
-            "scenario": scenario,
-            "termination": outcome,
-            "process_leader_reaped": reaped,
-            "fixed_synthetic_aggregate_valid": bool(accepted),
-            "all_descendants_terminated_proven": False,
-            "production_execution_authorized": False,
-            "production_host_access": False,
-            "operator_launcher_available": False,
-            "limitations": [
-                "No production recorder or database subprocess is launched.",
-                "A reaped process leader does not prove all descendants stopped.",
-                "No actual process-level observer collection or safe service restoration.",
-            ],
-        }
+            outcome = "unresolved"
+            pipe_closed = False
+            try:
+                leader_exited = await _wait_exit(process, wall)
+                pipe_closed = await _wait_pipe_eof(read_fd, 0.03)
+                if leader_exited and pipe_closed:
+                    outcome = "exited"
+                else:
+                    # A successful leader can have a live grandchild:
+                    # still send a TERM signal to the isolated group.
+                    _signal_group(process.pid, signal.SIGTERM)
+                    leader_reaped_on_term = (
+                        leader_exited or await _wait_exit(process, term)
+                    )
+                    pipe_closed = await _wait_pipe_eof(read_fd, term)
+                    if leader_reaped_on_term and pipe_closed:
+                        outcome = (
+                            "descendant_sigterm" if leader_exited else "sigterm"
+                        )
+                    else:
+                        _signal_group(process.pid, signal.SIGKILL)
+                        leader_reaped_on_kill = (
+                            leader_reaped_on_term
+                            or await _wait_exit(process, kill)
+                        )
+                        pipe_closed = await _wait_pipe_eof(read_fd, kill)
+                        if leader_reaped_on_kill and pipe_closed:
+                            outcome = (
+                                "descendant_sigkill" if leader_exited
+                                else "sigkill"
+                            )
+            finally:
+                if process.returncode is None or not pipe_closed:
+                    _signal_group(process.pid, signal.SIGKILL)
+                    try:
+                        await asyncio.shield(
+                            asyncio.wait_for(process.wait(), timeout=kill)
+                        )
+                        pipe_closed = await _wait_pipe_eof(read_fd, kill)
+                    except TimeoutError:
+                        outcome = "unresolved"
+
+            reaped = process.returncode is not None
+            accepted = (
+                reaped
+                and pipe_closed
+                and outcome == "exited"
+                and process.returncode == 0
+                and _report_matches_synthetic_fixture(output)
+            )
+            return {
+                "report": "phase14_b1_synthetic_process_watchdog_v2",
+                "scope": "offline_fixed_fake_child_only",
+                "scenario": scenario,
+                "termination": outcome,
+                "process_leader_reaped": reaped,
+                "known_fixture_group_pipe_eof": pipe_closed,
+                "fixed_synthetic_aggregate_valid": bool(accepted),
+                "all_descendants_terminated_proven": False,
+                "production_execution_authorized": False,
+                "production_host_access": False,
+                "operator_launcher_available": False,
+                "limitations": [
+                    "No production recorder or database subprocess is launched.",
+                    "Inherited pipe EOF covers only known fake descendants.",
+                    "An unrelated or escaped process could close its pipe early.",
+                    "No DB thread, actual process tree, or systemd restore is proven.",
+                ],
+            }
+        finally:
+            os.close(read_fd)
 
 
 def main() -> None:
