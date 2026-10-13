@@ -93,20 +93,32 @@ def test_even_synthetically_complete_manifest_is_unverified_and_not_authorized(
         ("operator_evidence", "mode", "paper", "research_zero_money_attestation"),
         ("operator_evidence", "live_trading_enabled", True, "research_zero_money_attestation"),
         ("operator_evidence", "max_trade_size_usd", 1, "research_zero_money_attestation"),
-        ("operator_evidence", "max_daily_loss_usd", float("nan"), "research_zero_money_attestation"),
-        ("operator_evidence", "wallet_credentials_accessible", True, "research_zero_money_attestation"),
+        (
+            "operator_evidence", "max_daily_loss_usd", float("nan"),
+            "research_zero_money_attestation",
+        ),
+        (
+            "operator_evidence", "wallet_credentials_accessible", True,
+            "research_zero_money_attestation",
+        ),
         ("operator_evidence", "recorder_health_verified", 1, "runtime_identity_attestation"),
         ("operator_evidence", "recorder_service_pid", True, "runtime_identity_attestation"),
         ("operator_evidence", "recorder_restart_count", -1, "runtime_identity_attestation"),
         ("operator_evidence", "recorder_start_utc", "2026-10-13", "runtime_identity_attestation"),
-        ("operator_evidence", "recorder_start_utc", "2026-10-13T14:00:00+01:00", "runtime_identity_attestation"),
+        (
+            "operator_evidence", "recorder_start_utc",
+            "2026-10-13T14:00:00+01:00", "runtime_identity_attestation",
+        ),
         ("rollback_evidence", "previous_commit", "f" * 40, "rollback_material_attestation"),
         ("rollback_evidence", "restore_rehearsed", False, "restore_rehearsal_attestation"),
         ("observation_controls", "proposed_duration_seconds", 121, "one_shot_limits_attestation"),
         ("observation_controls", "proposed_duration_seconds", True, "one_shot_limits_attestation"),
         ("observation_controls", "queries_allowed", 1, "one_shot_limits_attestation"),
         ("observation_controls", "stop_owner_acknowledged", "yes", "one_shot_limits_attestation"),
-        ("observation_controls", "independent_process_tree_timeout_tested", False, "independent_isolation_and_overhead_attestation"),
+        (
+            "observation_controls", "independent_process_tree_timeout_tested",
+            False, "independent_isolation_and_overhead_attestation",
+        ),
     ],
 )
 def test_each_unsafe_or_mismatched_field_blocks_review(
