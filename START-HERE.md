@@ -21,6 +21,23 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**13 October 2026 — Stage B1 true per-class insertion attribution, local test DB only (#589):**
+The new opt-in, never-production-wired
+`stage_b1_insert_attribution.py` uses the unmodified
+`RecorderRepository.insert_events()` inside one bounded transaction
+to count **actual inserted rows after commit** by bulk class, distinct
+from successful batch *attempts*. It excludes ticker and other feed
+rows from B1 bulk counts, detects cross-class duplicate-key conflicts,
+and fail-closes transaction failures. Local SQLite tests and local
+partitioned-PostgreSQL CI coverage verify dedupe/rollback behavior.
+Grouping into separate INSERT statements changes SQL/ID ordering,
+so it **must not be treated as a representative production-speed
+instrument**; no host is queried and the real production fault
+remains unknown. No recorder wiring, deployment, DB mutation on VM,
+model/source gate, shadow or trading change. Phase 14 HOLD,
+economic acceptance NOT MET, live trading disabled. See the B1
+integration/overhead/rollback review and Issue #589.
+
 **13 October 2026 — Stage B1 real Python pipeline / fake external I/O rehearsal (#589):**
 The new repository-only `scripts/rehearse_stage_b1_real_pipeline_offline.py`
 integrates the actual `RecorderService`, Bybit parser via
