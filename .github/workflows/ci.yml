@@ -49,8 +49,14 @@ jobs:
 
       - name: Stage B1 source-only pinned backport/reversal rehearsal
         run: |
-          git fetch --no-tags --depth=1 origin a352c66ec0110925727bc40de767ee4ba981f965 75281f2b97f19d903f576b973bb7c2236179839e
+          git fetch --no-tags --depth=1 origin a352c66ec0110925727bc40de767ee4ba981f965 75281f2b97f19d903f576b973bb7c2236179839e 347db08ee47d113f35fd6a9bc0e4bd85610aea0d
           python scripts/rehearse_stage_b1_backport.py | tee stage-b1-backport.json
+
+      - name: Stage B1 deterministic inert review bundle (offline)
+        run: |
+          set -o pipefail
+          python scripts/rehearse_stage_b1_review_bundle.py | tee stage-b1-review-bundle.json
+          python -c 'import json; d=json.load(open("stage-b1-review-bundle.json")); assert d["status"] == "PASS_OFFLINE_REVIEW_ONLY_NO_GO" and d["bundle_integrity_rechecked"] and d["source_byte_exact_reverse_verified"] and not d["production_execution_authorized"]'
 
       - name: Stage B1 offline preflight template must fail closed
         run: |
@@ -80,6 +86,7 @@ jobs:
             pytest-output.log
             stage-b1-overhead.json
             stage-b1-backport.json
+            stage-b1-review-bundle.json
             stage-b1-preflight-NO-GO.json
             stage-b1-process-cooperative.json
             stage-b1-process-ignore-term.json
