@@ -565,6 +565,35 @@ stopped and restored safely. These are explicit blockers for the
 separately authorized, hash-pinned one-shot deployment proposal.
 **Stage B1 remains inactive; Phase 14 HOLD.**
 
+## Synthetic orphan-descendant process-group termination rehearsal
+
+The Stage B1 **fake-only** POSIX `rehearse_stage_b1_process_boundary.py`
+now covers two additional fixed cases: a synthetic process leader exits
+successfully while a forked descendant stays alive; and the descendant
+explicitly ignores `SIGTERM`. The parent uses a **separate inherited
+liveness pipe** (no child-to-parent data content) and only accepts
+`exited` if the leader was reaped, the pipe reached EOF, the exit
+code was zero and the fixed aggregate was verified. A reaped leader
+with a live pipe holder is NEVER accepted; the parent signals the
+entire isolated POSIX process group, waits within fixed grace bounds,
+then escalates to `SIGKILL` when necessary. The known synthetic
+descendant that ignores TERM is expected to be classified
+`descendant_sigkill`, **not** a successful aggregate. CI exercises
+this case, and unit tests cover TERM-compliant and TERM-ignoring
+descendants plus existing crash/hang/malformed-report paths.
+
+**Do not overinterpret:** inherited pipe EOF proves only that the
+known fixture processes no longer hold that descriptor. A child
+can intentionally close it, enter a different process group/session,
+or start an untracked thread. This is NOT authoritative proof all
+descendants terminated, a stuck `asyncio.to_thread` transaction
+stopped, or a production systemd/cgroup restored safely. The report
+keeps `all_descendants_terminated_proven=false`,
+`operator_launcher_available=false`, and
+`production_execution_authorized=false`. There is still no
+production recorder command, external URL, database connection, host
+operation or permission to deploy/activate.
+
 ## Separate authorization and one-shot control design
 
 A fresh specific user authorization would have to identify the *exact*
