@@ -21,6 +21,20 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**13 October 2026 — Stage B1 same-SQL, per-class after-commit insertion receipt
+rehearsal (#589):** An **opt-in, not-production-wired** repository method
+now exposes only the dedupe keys already returned by partitioned
+PostgreSQL's `ON CONFLICT DO NOTHING RETURNING` after its original
+two INSERT statements. An offline test adapter maps these keys
+to trade/orderbook/liquidation and excluded non-bulk categories,
+and returns only aggregate counts after transaction commit, without
+splitting batches or increasing SQL statement count. Local isolated
+partitioned PostgreSQL tests compare exact SQL against normal insert,
+validate dedupe and in-transaction rollback. This does NOT establish
+real VM CPU/queue/DB latency, an operational one-shot exporter or
+safe service restoration. Production remains untouched, Issue #589
+OPEN; Phase 14 HOLD, economics NOT MET, live trading disabled.
+
 **13 October 2026 — Stage B1 true per-class insertion attribution, local test DB only (#589):**
 The new opt-in, never-production-wired
 `stage_b1_insert_attribution.py` uses the unmodified
