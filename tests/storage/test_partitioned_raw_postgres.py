@@ -43,6 +43,9 @@ from bp_engine.storage.schema import (
     storage_maintenance_runs,
 )
 from bp_engine.v4_paper.source_time_features import V4SourceTimeReader
+from scripts.benchmark_stage_b1_postcommit_local import (
+    compare_local_postcommit_overhead,
+)
 from scripts.deploy.migrate_partitioned_raw_storage import _exact_raw_parity
 from scripts.report_v4_linear_trade_storage_b0 import build_report as build_linear_b0_report
 
@@ -2554,3 +2557,167 @@ def test_b1_same_batch_rejects_unexpected_claim_key_and_rolls_back(engine) -> No
         assert connection.execute(
             text("SELECT count(*) FROM raw_event_dedupe")
         ).scalar_one() == 0
+
+
+
+def test_b1_postcommit_hook_cannot_run_before_commit_and_returns_only_counts(
+    engine,
+) -> None:
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now, migrate_existing=False)
+    calls: list[dict[str, int]] = []
+
+    def callback(counts) -> None:
+        # A separate connection must see committed rows before notification.
+        with engine.connect() as reader:
+            assert reader.execute(
+                text("SELECT count(*) FROM raw_market_events")
+            ).scalar_one() == 1
+        with pytest.raises(TypeError):
+            counts["trade"] = 999
+        calls.append(dict(counts))
+
+    event_row = RawEvent.build(
+        source="bybit", stream="linear", instrument="BTCUSDT",
+        event_type="trade", source_timestamp=now, received_at=now,
+        payload={"secret": "PRIVATE_PAYLOAD_MUST_NOT_ESCAPE"},
+    )
+    result = insert_same_batch_attributed_offline(
+        engine, [event_row, event_row], on_committed_counts=callback
+    )
+    assert result["postcommit_notification_status"] == "DELIVERED"
+    assert len(calls) == 1
+    assert calls[0]["trade"] == 1
+    assert result["deduplicated_by_class"]["trade"] == 1
+    assert result["production_execution_authorized"] is False
+    assert "PRIVATE_PAYLOAD" not in str(result)
+    assert event_row.dedupe_key not in str(result)
+
+    repeat = insert_same_batch_attributed_offline(
+        engine, [event_row], on_committed_counts=callback_noop
+    )
+    assert repeat["inserted_by_class"]["trade"] == 0
+    assert repeat["postcommit_notification_status"] == "DELIVERED"
+
+
+def callback_noop(_counts) -> None:
+    return None
+
+
+def test_b1_postcommit_callback_failure_cannot_roll_back_committed_rows(engine) -> None:
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now, migrate_existing=False)
+    row = RawEvent.build(
+        source="bybit", stream="linear", instrument="BTCUSDT",
+        event_type="trade", source_timestamp=now, received_at=now,
+        payload={"secret": "SENSITIVE_CALLBACK_ERROR"},
+    )
+
+    def broken(_counts) -> None:
+        raise ValueError("SENSITIVE_CALLBACK_ERROR")
+
+    result = insert_same_batch_attributed_offline(
+        engine, [row], on_committed_counts=broken
+    )
+    assert result["postcommit_notification_status"] == "FAILED_AFTER_COMMIT"
+    assert result["inserted_by_class"]["trade"] == 1
+    assert "SENSITIVE_CALLBACK_ERROR" not in str(result)
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT count(*) FROM raw_market_events")
+        ).scalar_one() == 1
+
+
+def test_b1_postcommit_callback_never_runs_after_failed_transaction(engine) -> None:
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now, migrate_existing=False)
+    calls: list[dict[str, int]] = []
+
+    class FailsAfterInsert(RecorderRepository):
+        def insert_partitioned_events_with_claim_keys(self, connection, events):
+            super().insert_partitioned_events_with_claim_keys(connection, events)
+            raise RuntimeError("forced rollback after raw insert")
+
+    row = RawEvent.build(
+        source="bybit", stream="linear", instrument="BTCUSDT",
+        event_type="orderbook_delta", source_timestamp=now, received_at=now,
+        payload={"kind": "orderbook"},
+    )
+    with pytest.raises(RuntimeError, match="forced rollback"):
+        insert_same_batch_attributed_offline(
+            engine, [row], repository=FailsAfterInsert(),
+            on_committed_counts=lambda counts: calls.append(dict(counts))
+        )
+    assert calls == []
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT count(*) FROM raw_market_events")
+        ).scalar_one() == 0
+        assert connection.execute(
+            text("SELECT count(*) FROM raw_event_dedupe")
+        ).scalar_one() == 0
+
+
+def test_b1_postcommit_rejects_async_or_invalid_observer_without_SQL(engine) -> None:
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now, migrate_existing=False)
+    row = RawEvent.build(
+        source="bybit", stream="linear", instrument="BTCUSDT",
+        event_type="trade", source_timestamp=now, received_at=now,
+        payload={"kind": "trade"},
+    )
+
+    async def asynchronous(_counts):
+        return None
+
+    statements: list[str] = []
+
+    def capture(_conn, _cursor, statement, _params, _ctx, _many) -> None:
+        statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        for invalid in (asynchronous, 5):
+            with pytest.raises(ValueError, match="synchronous"):
+                insert_same_batch_attributed_offline(
+                    engine, [row], on_committed_counts=invalid
+                )
+        assert statements == []
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+
+
+def test_b1_postcommit_hook_return_value_is_not_claimed_delivered(engine) -> None:
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now, migrate_existing=False)
+    row = RawEvent.build(
+        source="bybit", stream="linear", instrument="BTCUSDT",
+        event_type="trade", source_timestamp=now, received_at=now,
+        payload={"kind": "trade"},
+    )
+    result = insert_same_batch_attributed_offline(
+        engine, [row], on_committed_counts=lambda _counts: "unexpected data"
+    )
+    assert result["postcommit_notification_status"] == "INVALID_CALLBACK_RETURN"
+    assert result["real_local_db_commit_observed"]
+
+
+def test_b1_attribution_benchmark_local_pg_non_gating(engine) -> None:
+    """No performance threshold; this is CI-local comparative evidence only."""
+    import json
+
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now, migrate_existing=False)
+    result = compare_local_postcommit_overhead(engine)
+    assert result["status"] == "LOCAL_ONLY_NOT_PRODUCTION_ACCEPTANCE"
+    assert result["transaction_count"] == 18
+    assert [v["batch_size"] for v in result["metrics"]] == [8, 32, 64]
+    for batch in result["metrics"]:
+        assert batch["repetitions_per_arm"] == 3
+        for arm in ("baseline_medians", "postcommit_medians"):
+            assert batch[arm]["wall_ns"] > 0
+            assert batch[arm]["cpu_ns"] > 0
+            assert batch[arm]["python_peak_bytes"] > 0
+    assert result["production_overhead_accepted"] is False
+    assert result["production_execution_authorized"] is False
+    print("B1_ATTRIBUTION_BENCHMARK_JSON=" + json.dumps(result, sort_keys=True))

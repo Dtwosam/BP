@@ -78,6 +78,12 @@ jobs:
           python scripts/rehearse_stage_b1_real_pipeline_offline.py --scenario writer_failure | tee stage-b1-fake-pipeline-failed.json
           python -c 'import json; ok=json.load(open("stage-b1-fake-pipeline-healthy.json")); fail=json.load(open("stage-b1-fake-pipeline-failed.json")); assert ok["status"] == "COMPLETE_AGGREGATES_ONLY" and ok["counts"]["writer_batches_returned"] == 3 and not ok["inserted_rows_by_class_proven"]; assert fail["status"] == "INCONCLUSIVE" and not fail["production_execution_authorized"]'
 
+      - name: Stage B1 real local PostgreSQL postcommit cost (non-gating)
+        run: |
+          set -o pipefail
+          python -m pytest -q -s tests/storage/test_partitioned_raw_postgres.py::test_b1_attribution_benchmark_local_pg_non_gating | tee stage-b1-attribution-benchmark-output.log
+          python -c 'import json; lines=open("stage-b1-attribution-benchmark-output.log").read().splitlines(); matching=[s.split("B1_ATTRIBUTION_BENCHMARK_JSON=",1)[1] for s in lines if "B1_ATTRIBUTION_BENCHMARK_JSON=" in s]; assert len(matching)==1; d=json.loads(matching[0]); assert d["status"]=="LOCAL_ONLY_NOT_PRODUCTION_ACCEPTANCE" and not d["production_overhead_accepted"] and d["transaction_count"]==18; open("stage-b1-attribution-benchmark.json","w").write(json.dumps(d,sort_keys=True))'
+
       - name: Stage B1 synthetic overhead (non-gating)
         run: |
           set -o pipefail
@@ -92,6 +98,7 @@ jobs:
             pytest-results.xml
             pytest-output.log
             stage-b1-overhead.json
+            stage-b1-attribution-benchmark.json
             stage-b1-backport.json
             stage-b1-review-bundle.json
             stage-b1-fake-pipeline-healthy.json

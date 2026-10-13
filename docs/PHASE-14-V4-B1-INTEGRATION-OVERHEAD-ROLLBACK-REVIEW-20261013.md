@@ -483,6 +483,47 @@ review and fresh explicit authorization. The ordinary recorder never
 calls the new opt-in; no production database, service or source is
 accessed by this change.
 
+## Local PostgreSQL postcommit notification and paired CPU/wall/allocation costs
+
+The existing **offline-only** `insert_same_batch_attributed_offline()`
+can optionally accept `on_committed_counts`, a synchronous callback
+receiving **only an immutable, fixed-category numeric counts map**.
+The callback executes strictly **after** the surrounding
+`engine.begin()` transaction commits, with no dedupe keys, payloads,
+prices, row IDs or raw database result passed to it. No callback is
+invoked after an INSERT/commit failure. A callback exception, invalid
+return type, or rejected coroutine is marked separately as
+`FAILED_AFTER_COMMIT` or `INVALID_CALLBACK_RETURN`, with arbitrary
+callback exceptions deliberately excluded from the aggregate report.
+These statuses do **not** imply committed rows were rolled back; a
+callback can fail after irrevocable commit. Callback lifetime is NOT
+independently bounded and therefore the design remains unfit for
+production. The normal `RecorderService`, `_DatabaseSink` and
+`BatchWriter` still **never call this helper**.
+
+`scripts/benchmark_stage_b1_postcommit_local.py` runs a deliberately
+small **non-gating** alternating comparison, using the existing isolated
+GitHub Actions PostgreSQL test fixture and real repository INSERT
+statements. Sizes **8, 32, 64** with **three samples per arm**;
+each batch has every fourth attempt repeat its preceding event, and
+has a fixed mix of trade/orderbook/liquidation/ticker/other-source
+events. Each arm uses unique dedupe keys so both perform real inserts
+with equivalent duplicate ratios. Recorded per-arm medians are
+transaction **wall time**, process **CPU time**, and `tracemalloc`
+**Python allocation peak**, plus deltas. The latter is explicitly
+NOT VM RSS or DB-server memory. CI re-runs only the benchmark fixture
+after the full test suite, publishes a sanitized JSON summary, and
+does **not set a performance pass/fail threshold** beyond structural
+validity and correctness of counts.
+
+A three-sample, locally loaded, non-recorder comparison is highly
+variable; it cannot confirm p95 event age, queue pressure, process
+RSS, async DB thread lifetimes, or deployment overhead under the
+real Bybit socket. Any measured delta is **informational only**.
+Acceptance requires a reviewed representative baseline and independent
+host/service safety approval, with fresh explicit authorization
+before host access or running a diagnostic.
+
 ## Separate authorization and one-shot control design
 
 A fresh specific user authorization would have to identify the *exact*
