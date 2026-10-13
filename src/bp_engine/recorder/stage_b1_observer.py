@@ -13,6 +13,7 @@ transaction, NOT individually inserted rows (dedupe may skip attempts).
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import time
 from collections.abc import Awaitable, Callable, Mapping
@@ -43,6 +44,10 @@ def _raw_category(event: RawEvent) -> str | None:
         return "orderbook"
     if event.event_type == "liquidation":
         return "liquidation"
+    # The same writer may also handle the dedicated linear TICKER socket.
+    # Its rows are not bulk-socket evidence and must not enter B1 counters.
+    if event.event_type == "ticker":
+        return None
     return "other"
 
 
@@ -85,6 +90,7 @@ class StageB1BulkObserver:
             "writer_batches_started": 0,
             "writer_batches_returned": 0,
             "writer_batches_failed": 0,
+            "writer_batches_cancelled_unresolved": 0,
             "writer_batches_in_flight": 0,
         }
 
@@ -190,11 +196,16 @@ class StageB1BulkObserver:
                         self._writer_attempts[category] += count
             try:
                 await sink(events)
-            except BaseException:
+            except BaseException as exc:
                 if counted:
                     with self._lock:
-                        self._counters["writer_batches_failed"] += 1
-                        self._counters["writer_batches_in_flight"] -= 1
+                        if isinstance(exc, asyncio.CancelledError):
+                            # The DB work may continue in asyncio.to_thread after
+                            # caller cancellation. It is NOT a verified rollback.
+                            self._counters["writer_batches_cancelled_unresolved"] += 1
+                        else:
+                            self._counters["writer_batches_failed"] += 1
+                            self._counters["writer_batches_in_flight"] -= 1
                 raise
             else:
                 if counted:
@@ -232,7 +243,8 @@ class StageB1BulkObserver:
                     "ACK counts are socket-level only, not per-topic acceptance proof.",
                     "Writer returned means the injected sink's contract was followed.",
                     "Events in a successful batch may have been deduplicated, not inserted.",
-                    "In-flight writes must be reconciled before interpreting missing rows.",
+                    "In-flight includes cancelled/unresolved writes; "
+                    "cancellation may not stop DB threads.",
                     "No database query, raw payload, frame storage or logging is performed.",
                     "This offline candidate is not wired into the deployed recorder.",
                 ],
