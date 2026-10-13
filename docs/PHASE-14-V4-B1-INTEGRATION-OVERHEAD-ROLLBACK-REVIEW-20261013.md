@@ -524,6 +524,46 @@ Acceptance requires a reviewed representative baseline and independent
 host/service safety approval, with fresh explicit authorization
 before host access or running a diagnostic.
 
+## Real recorder-component synthetic queue/writer cost — NOT production overhead
+
+`scripts/benchmark_stage_b1_recorder_queue_offline.py` compares
+**baseline versus dormant B1 parser/enqueue/writer wrappers** while
+executing the **real** `WebSocketCollectorRunner`, Bybit parser,
+`RecorderService`, bounded `EventBuffer` and `BatchWriter`.
+The socket is entirely an in-memory fixed fixture with an ACK plus
+**128** synthetic trade/orderbook/liquidation messages. A deliberately
+delayed `asyncio.sleep(0.002)` writer sink substitutes for all
+PostgreSQL commits. There is NO network, Settings, filesystem event
+log, SQL, VM access, process shutdown, trading or real-money code path.
+The benchmark is importable for tests and has a fixed synthetic CLI
+(`--repeats 2..5`); it accepts **no endpoint or arbitrary command**.
+
+A **32-slot event queue**, batch size **16**, and **1 versus 3** real
+writer workers are tested. The comparison alternates the same
+128-message workload between baseline and observed modes; CI runs
+three repeats per arm, per worker setting. All frames must be accepted,
+all fake writes must return, the queue must drain, and observer counts
+must exactly reconcile before a sample is accepted. The output copies
+**only numeric medians/differences** for queue peak, p95 enqueue
+blocking, p95 fake writer batch delay, p95 enqueue-to-fake-writer
+return, wall time, post-producer drain, process CPU and Python
+`tracemalloc` peak allocation. Measured p95 values are **within
+each short artificial trial**, not production service p95. The fake
+writer does NOT prove durable insert or deduplication.
+
+These figures are **non-gating** and strongly sensitive to runner
+scheduling, tracing overhead and the arbitrary 2ms fake writer delay.
+The process CPU measurement includes the full Python event loop;
+`tracemalloc` is **not RSS** and omits PostgreSQL-server memory.
+There is no actual recorder VM queue age, wire burst distribution,
+worker-count configuration verification, real DB commit-time
+distribution, socket health or source-time impact. In particular,
+even a clean drain does not prove that a real `asyncio.to_thread`
+transaction can be cancelled or that a production recorder can be
+stopped and restored safely. These are explicit blockers for the
+separately authorized, hash-pinned one-shot deployment proposal.
+**Stage B1 remains inactive; Phase 14 HOLD.**
+
 ## Separate authorization and one-shot control design
 
 A fresh specific user authorization would have to identify the *exact*
