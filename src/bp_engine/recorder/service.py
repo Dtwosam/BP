@@ -362,7 +362,9 @@ def build_default_recorder_service(
             or settings.max_daily_loss_usd != 0
             or settings.max_total_exposure_usd != 0
         ):
-            raise ValueError("Stage B1 requires RESEARCH, live disabled, zero-money settings")
+            raise ValueError(
+                "Stage B1 requires RESEARCH, live disabled, zero-money settings"
+            )
     from sqlalchemy import create_engine
     from websockets.asyncio.client import connect
 
