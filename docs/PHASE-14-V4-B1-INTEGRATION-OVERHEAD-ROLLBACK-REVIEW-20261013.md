@@ -349,6 +349,48 @@ package would need more engineering, independent host verification,
 rehearsed service restoration, representative load/latency measurements,
 and specific renewed authorization. **Phase 14 HOLD.**
 
+## Integration rehearsal: actual Python recorder pipeline, fake external I/O
+
+`scripts/rehearse_stage_b1_real_pipeline_offline.py` now exercises the real
+`RecorderService` task supervisor, `WebSocketCollectorRunner` parser,
+`EventBuffer`, and `BatchWriter`, including the existing Stage B1
+observer wrappers and finite `run_offline_rehearsal()` lifecycle.
+**All socket frames are hardcoded and in-memory.** The runner's connector
+returns a fake in-process socket, not a network connection. The writer
+sink is synthetic, with **no PostgreSQL transaction, SQL or storage**
+(and does not import the ordinary service factory or Settings).
+The CLI allows only the fixed `healthy`, `writer_failure`, and
+`writer_cancelled` scenarios and a **1–3 second** local duration;
+it cannot accept an endpoint or database string.
+
+The `healthy` fixture contains a socket-level ACK and one each of
+trade, order-book delta and liquidation frames. It verifies wire,
+parse, enqueue and *fake successful writer-return* counters across
+a real bounded queue, then the shared stop and normal batch drain.
+The two failure fixtures ensure a writer exception or stalled writer
+is reflected as `INCONCLUSIVE` (including outstanding/cancelled write
+uncertainty), with no arbitrary error/payload values disclosed in
+the fixed-schema report. CI runs the healthy and error fixtures;
+offline tests also exercise cancellation and invalid scenario inputs.
+
+**Critical interpretation:** a fake writer return is not a database
+commit; a drained synthetic queue is not proof of production queue
+health or actual inserted rows. A shared stop can race in-flight
+collector events against writer shutdown, and the current Stage B1
+counters do not independently establish queue emptiness or SQL
+insertion. No real collector/service is run, and this is not an
+operator entry point or tested OS-level process-tree termination.
+Production activation, safe service restoration, representative
+resource overhead and definitive per-class insertion/ACK attribution
+remain review and fresh-authorization boundaries.
+
+```sh
+# Local/CI fake fixtures only; never an on-host diagnostic.
+python scripts/rehearse_stage_b1_real_pipeline_offline.py --scenario healthy
+python scripts/rehearse_stage_b1_real_pipeline_offline.py --scenario writer_failure
+python scripts/rehearse_stage_b1_real_pipeline_offline.py --scenario writer_cancelled
+```
+
 ## Separate authorization and one-shot control design
 
 A fresh specific user authorization would have to identify the *exact*
