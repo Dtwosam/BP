@@ -70,6 +70,8 @@ jobs:
         run: |
           python scripts/rehearse_stage_b1_process_boundary.py --scenario cooperative | tee stage-b1-process-cooperative.json
           python scripts/rehearse_stage_b1_process_boundary.py --scenario ignore_term | tee stage-b1-process-ignore-term.json
+          python scripts/rehearse_stage_b1_process_boundary.py --scenario leader_exits_descendant_ignores_term | tee stage-b1-process-orphan-kill.json
+          python -c 'import json; x=json.load(open("stage-b1-process-orphan-kill.json")); assert x["termination"] == "descendant_sigkill" and x["known_fixture_group_pipe_eof"] and x["process_leader_reaped"] and not x["fixed_synthetic_aggregate_valid"] and not x["production_execution_authorized"]'
 
       - name: Stage B1 real recorder pipeline with fake in-memory socket only
         run: |
@@ -113,6 +115,7 @@ jobs:
             stage-b1-preflight-NO-GO.json
             stage-b1-process-cooperative.json
             stage-b1-process-ignore-term.json
+            stage-b1-process-orphan-kill.json
           if-no-files-found: warn
           retention-days: 7
 
