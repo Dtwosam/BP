@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -24,6 +25,43 @@ def _floor_epoch(value: datetime, seconds: int) -> int:
     return epoch - (epoch % seconds)
 
 
+async def _recent_closed_btc_market_candidates(
+    client: GammaClient,
+    *,
+    now: datetime,
+    horizon_minutes: tuple[int, ...] = (5, 15),
+    probes_per_horizon: int = 24,
+    max_candidates_per_horizon: int = 3,
+) -> AsyncIterator[PolymarketMarket]:
+    """Yield bounded recent REAL closed markets, never fabricate price points.
+
+    Keep 5m/15m independently represented: an empty first 5m price series
+    must not silently count as successful CLOB historical coverage.
+    """
+    now = _require_aware(now, "now")
+    if probes_per_horizon <= 0 or max_candidates_per_horizon <= 0:
+        raise ValueError("historical smoke probe and candidate counts must be positive")
+    for minutes in horizon_minutes:
+        if minutes <= 0:
+            raise ValueError("horizon_minutes must contain only positive values")
+        seconds = minutes * 60
+        aligned_epoch = _floor_epoch(now, seconds)
+        found = 0
+        # Only completed windows, never a current/just-closed market.
+        for offset in range(2, probes_per_horizon + 2):
+            slug = f"btc-updown-{minutes}m-{aligned_epoch - offset * seconds}"
+            payload = await client.get_market_by_slug(slug)
+            if payload is None:
+                continue
+            market = parse_gamma_market(payload)
+            if not market.closed or market.window_end_at > now:
+                continue
+            yield market
+            found += 1
+            if found == max_candidates_per_horizon:
+                break
+
+
 async def find_recent_closed_btc_market(
     client: GammaClient,
     *,
@@ -31,28 +69,72 @@ async def find_recent_closed_btc_market(
     horizon_minutes: tuple[int, ...] = (5, 15),
     probes_per_horizon: int = 24,
 ) -> PolymarketMarket:
-    now = _require_aware(now, "now")
-    if probes_per_horizon <= 0:
-        raise ValueError("probes_per_horizon must be positive")
-
-    for minutes in horizon_minutes:
-        if minutes <= 0:
-            raise ValueError("horizon_minutes must contain only positive values")
-        seconds = minutes * 60
-        aligned_epoch = _floor_epoch(now, seconds)
-        # Start two windows behind the current aligned boundary. This avoids probing an
-        # in-flight or just-ended market while keeping the smoke check recent.
-        for offset in range(2, probes_per_horizon + 2):
-            start_epoch = aligned_epoch - offset * seconds
-            slug = f"btc-updown-{minutes}m-{start_epoch}"
-            payload = await client.get_market_by_slug(slug)
-            if payload is None:
-                continue
-            market = parse_gamma_market(payload)
-            if market.closed and market.window_end_at <= now:
-                return market
-
+    """Preserve the existing first-closed-market lookup for other callers."""
+    async for market in _recent_closed_btc_market_candidates(
+        client,
+        now=now,
+        horizon_minutes=horizon_minutes,
+        probes_per_horizon=probes_per_horizon,
+        max_candidates_per_horizon=1,
+    ):
+        return market
     raise RuntimeError("no recent closed BTC Up/Down market found for live historical smoke")
+
+
+async def _find_recent_closed_market_with_both_histories(
+    gamma_client: GammaClient,
+    price_client: PolymarketPriceHistoryClient,
+    *,
+    now: datetime,
+) -> tuple[PolymarketMarket, int, int, dict[str, int]]:
+    """Fail closed unless one RECENT real market has both outcome series.
+
+    Tries at most three closed markets from EACH of the 5m/15m horizons.
+    Missing either history is a rejection, not an accepted empty series.
+    API/transport/parse errors still propagate; no alternate data provider
+    or relaxed fidelity/age requirements are used.
+    """
+    checked = 0
+    empty_up = 0
+    empty_down = 0
+    checked_horizons = {"5m": 0, "15m": 0}
+    async for market in _recent_closed_btc_market_candidates(
+        gamma_client, now=now, max_candidates_per_horizon=3
+    ):
+        checked += 1
+        checked_horizons[f"{market.horizon_seconds // 60}m"] += 1
+        up_history = await price_client.get_history(
+            market.up_token_id,
+            start=market.window_start_at,
+            end=market.window_end_at,
+            fidelity_minutes=1,
+        )
+        down_history = await price_client.get_history(
+            market.down_token_id,
+            start=market.window_start_at,
+            end=market.window_end_at,
+            fidelity_minutes=1,
+        )
+        if not up_history.points:
+            empty_up += 1
+        if not down_history.points:
+            empty_down += 1
+        if up_history.points and down_history.points:
+            return market, len(up_history.points), len(down_history.points), {
+                "candidate_markets_checked": checked,
+                "empty_up_candidates": empty_up,
+                "empty_down_candidates": empty_down,
+                "closed_5m_markets_checked": checked_horizons["5m"],
+                "closed_15m_markets_checked": checked_horizons["15m"],
+            }
+    raise RuntimeError(
+        "Polymarket historical price smoke could not verify both authentic "
+        "outcome histories from a recent closed BTC market "
+        f"(candidates_checked={checked}, empty_up={empty_up}, "
+        f"empty_down={empty_down}, "
+        f"checked_5m={checked_horizons['5m']}, "
+        f"checked_15m={checked_horizons['15m']})"
+    )
 
 
 def _count_in_window(candles: tuple[Any, ...], start: datetime, end: datetime) -> int:
@@ -124,21 +206,11 @@ async def run_live_source_smoke(
     bybit_client = bybit_client or BybitHistoryClient()
     coinbase_client = coinbase_client or CoinbaseHistoryClient()
 
-    market = await find_recent_closed_btc_market(gamma_client, now=checked_at)
-    up_history = await price_client.get_history(
-        market.up_token_id,
-        start=market.window_start_at,
-        end=market.window_end_at,
-        fidelity_minutes=1,
+    market, up_points, down_points, market_probes = (
+        await _find_recent_closed_market_with_both_histories(
+            gamma_client, price_client, now=checked_at
+        )
     )
-    down_history = await price_client.get_history(
-        market.down_token_id,
-        start=market.window_start_at,
-        end=market.window_end_at,
-        fidelity_minutes=1,
-    )
-    if not up_history.points or not down_history.points:
-        raise RuntimeError("Polymarket historical price smoke returned an empty outcome series")
 
     btc_end = checked_at.replace(second=0, microsecond=0) - timedelta(minutes=2)
     btc_start = btc_end - timedelta(minutes=3)
@@ -162,8 +234,9 @@ async def run_live_source_smoke(
             "slug": market.slug,
             "horizon_seconds": market.horizon_seconds,
             "resolved_outcome": market.resolved_outcome,
-            "up_price_points": len(up_history.points),
-            "down_price_points": len(down_history.points),
+            "up_price_points": up_points,
+            "down_price_points": down_points,
+            "historical_price_probe": market_probes,
         },
         "btc_window": {
             "start": btc_start.isoformat().replace("+00:00", "Z"),
