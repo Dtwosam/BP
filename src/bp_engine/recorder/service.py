@@ -3,11 +3,14 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from bp_engine.collectors.polymarket_ws import build_subscription_update
-from bp_engine.recorder.models import FeedIncident
+from bp_engine.recorder.models import FeedIncident, RawEvent
 from bp_engine.recorder.polymarket_coordinator import PolymarketSubscriptionCoordinator
+
+if TYPE_CHECKING:
+    from bp_engine.recorder.stage_b1_observer import StageB1BulkObserver
 
 
 class Runnable(Protocol):
@@ -341,8 +344,25 @@ def _recorder_writer_split(worker_count: int) -> tuple[int, int]:
     return priority_workers, worker_count - priority_workers
 
 
-def build_default_recorder_service(settings: object) -> RecorderService:
-    """Assemble the recorder without opening network connections."""
+def build_default_recorder_service(
+    settings: object, *, stage_b1_observer: StageB1BulkObserver | None = None
+) -> RecorderService:
+    """Assemble the recorder; B1 is inactive unless explicitly injected by a caller.
+
+    The regular recorder entry point never constructs or passes an observer.
+    This opt-in is only for offline integration tests pending separate approval.
+    """
+    if stage_b1_observer is not None:
+        from bp_engine.config import TradingMode
+
+        if (
+            settings.mode != TradingMode.RESEARCH
+            or settings.live_trading_enabled
+            or settings.max_trade_size_usd != 0
+            or settings.max_daily_loss_usd != 0
+            or settings.max_total_exposure_usd != 0
+        ):
+            raise ValueError("Stage B1 requires RESEARCH, live disabled, zero-money settings")
     from sqlalchemy import create_engine
     from websockets.asyncio.client import connect
 
@@ -383,6 +403,11 @@ def build_default_recorder_service(settings: object) -> RecorderService:
             )
     repository = RecorderRepository()
     database_sink = _DatabaseSink(engine, repository)
+    bulk_writer_sink = (
+        stage_b1_observer.wrap_writer_sink(database_sink.write_events)
+        if stage_b1_observer is not None
+        else database_sink.write_events
+    )
     state_reducer = MarketStateReducer()
 
     writer_components: dict[str, _BatchWriterComponent] = {}
@@ -417,7 +442,7 @@ def build_default_recorder_service(settings: object) -> RecorderService:
         )
         bulk_writer = BatchWriter(
             buffer=bulk_buffer,
-            sink=database_sink.write_events,
+            sink=bulk_writer_sink,
             batch_size=settings.recorder_batch_size,
             flush_interval_seconds=settings.recorder_flush_interval_seconds,
             worker_count=bulk_writer_workers,
@@ -435,7 +460,7 @@ def build_default_recorder_service(settings: object) -> RecorderService:
         )
         writer = BatchWriter(
             buffer=buffer,
-            sink=database_sink.write_events,
+            sink=bulk_writer_sink,
             batch_size=settings.recorder_batch_size,
             flush_interval_seconds=settings.recorder_flush_interval_seconds,
             worker_count=1,
@@ -503,18 +528,23 @@ def build_default_recorder_service(settings: object) -> RecorderService:
             if venue == "spot"
             else settings.bybit_linear_ws_url
         )
+        def parse_message(message: object, received_at: datetime) -> list[RawEvent]:
+            return parse_bybit_message(message, venue=venue, received_at=received_at)
+
+        parser = parse_message
+        runner_sink = event_sink
+        if component_name == "bybit_linear" and stage_b1_observer is not None:
+            parser = stage_b1_observer.wrap_parser(parser)
+            runner_sink = stage_b1_observer.wrap_event_sink(event_sink)
+
         return WebSocketCollectorRunner(
             source="bybit",
             stream=venue,
             url=url,
             connector=connect,
             subscription=build_bybit_subscription(topics),
-            parser=lambda message, received_at: parse_bybit_message(
-                message,
-                venue=venue,
-                received_at=received_at,
-            ),
-            event_sink=event_sink,
+            parser=parser,
+            event_sink=runner_sink,
             incident_sink=database_sink.record_incident,
             heartbeat_message={"op": "ping"},
             heartbeat_interval_seconds=20.0,
