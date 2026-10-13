@@ -25,7 +25,10 @@ from bp_engine.recorder.stage_b1_one_shot import (
     serialize_final_report,
 )
 
-SCENARIOS = ("cooperative", "hang", "ignore_term", "crash", "poisoned", "oversized")
+SCENARIOS = (
+    "cooperative", "hang", "ignore_term", "crash", "poisoned", "oversized",
+    "leader_exits_descendant", "leader_exits_descendant_ignores_term",
+)
 _SCRIPT = Path(__file__).resolve()
 
 
@@ -58,8 +61,35 @@ def _report_matches_synthetic_fixture(file: object) -> bool:
         return False
 
 
-def _child(scenario: str, output_fd: int) -> None:
+def _child(scenario: str, output_fd: int, group_liveness_fd: int) -> None:
     # Only called by the self-exec fixed-scenario fork, not the recorder.
+    if scenario in {
+        "leader_exits_descendant",
+        "leader_exits_descendant_ignores_term",
+    }:
+        # One fixed fake fork. The grandchild retains group_liveness_fd.
+        # Handshake ensures SIGTERM-ignore is installed before leader exits.
+        read_ready, write_ready = os.pipe()
+        pid = os.fork()
+        if pid == 0:
+            os.close(read_ready)
+            if scenario == "leader_exits_descendant_ignores_term":
+                signal.signal(signal.SIGTERM, signal.SIG_IGN)
+            os.write(write_ready, b"1")
+            os.close(write_ready)
+            while True:
+                time.sleep(0.05)
+        os.close(write_ready)
+        try:
+            ready = os.read(read_ready, 1)
+        finally:
+            os.close(read_ready)
+        if ready != b"1":
+            raise RuntimeError("synthetic descendant did not start")
+        os.write(output_fd, _synthetic_report())
+        # Direct leader exits with an actual synthetic descendant alive.
+        return
+
     if scenario == "crash":
         raise RuntimeError("SECRET_ERROR_DETAILS_MUST_NOT_ESCAPE")
     if scenario == "hang":
@@ -93,6 +123,22 @@ async def _wait_exit(process: asyncio.subprocess.Process, timeout: float) -> boo
     except TimeoutError:
         return False
     return True
+
+
+async def _wait_pipe_eof(read_fd: int, timeout: float) -> bool:
+    """Bounded EOF check for known synthetic inherited-FD descendants."""
+    end = time.monotonic() + timeout
+    while True:
+        try:
+            data = os.read(read_fd, 1)
+        except BlockingIOError:
+            pass
+        else:
+            return data == b""
+        remaining = end - time.monotonic()
+        if remaining <= 0:
+            return False
+        await asyncio.sleep(min(0.015, remaining))
 
 
 async def supervise_synthetic(
@@ -190,15 +236,16 @@ def main() -> None:
 
     if args.synthetic_child is not None:
         # Private child entry: fixed arguments supplied by this same module.
-        if len(extras) != 1 or args.output_fd is not None:
+        if len(extras) != 2 or args.output_fd is not None:
             parser.error("invalid fixed synthetic child invocation")
         try:
             fd = int(extras[0])
+            group_fd = int(extras[1])
         except ValueError:
             parser.error("invalid synthetic output fd")
-        if fd < 3:
+        if fd < 3 or group_fd < 3 or fd == group_fd:
             parser.error("invalid synthetic output fd")
-        _child(args.synthetic_child, fd)
+        _child(args.synthetic_child, fd, group_fd)
         return
     if extras or args.output_fd is not None:
         parser.error("unexpected arguments")
