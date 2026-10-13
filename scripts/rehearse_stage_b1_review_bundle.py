@@ -61,6 +61,12 @@ MANIFEST_PATH = "B1-REVIEW-MANIFEST.json"
 PATCH_PATH = "B1-REVIEW-SOURCE-ONLY.patch"
 README_PATH = "B1-NO-GO-READ-ME.txt"
 MAX_ZIP_BYTES = 256 * 1024
+EXPECTED_REVIEW_PATCH_SHA256 = (
+    "226b05ee5e9e077c5791eabd2422c65603ca137ba09b3571e507ef9e61bec496"
+)
+EXPECTED_REVIEW_ZIP_SHA256 = (
+    "d30b3141091f46a80a5c2099160065e91e40f30addc8b94998e9b3a52598b36a"
+)
 README = (
     "B1 SOURCE-ONLY REVIEW PACKET - NOT DEPLOYABLE OR AUTHORIZED\n"
     "The regular recorder never injects StageB1BulkObserver.\n"
@@ -213,6 +219,8 @@ def verify_review_bundle(contents: bytes) -> dict[str, object]:
     expected = set(_expected_paths()) | {
         MANIFEST_PATH, PATCH_PATH, README_PATH,
     }
+    if _sha256(contents) != EXPECTED_REVIEW_ZIP_SHA256:
+        raise ValueError("B1 ZIP immutable review hash mismatch")
     if len(contents) > MAX_ZIP_BYTES or not contents:
         raise ValueError("B1 archive exceeds bound or is empty")
     try:
@@ -247,6 +255,7 @@ def verify_review_bundle(contents: bytes) -> dict[str, object]:
         or manifest.get("source_byte_exact_reverse_verified") is not True
         or members[README_PATH] != README
         or manifest.get("source_only_patch_sha256") != _sha256(members[PATCH_PATH])
+        or _sha256(members[PATCH_PATH]) != EXPECTED_REVIEW_PATCH_SHA256
         or manifest.get("source_only_patch_bytes") != len(members[PATCH_PATH])
         or not isinstance(manifest.get("reviewed_files"), list)
         or len(manifest["reviewed_files"]) != len(FILES)
@@ -308,6 +317,11 @@ def main() -> None:
             after = _git_show(REVIEW_COMMIT, path)
             entries.append((path, before, after, old, new))
         bundle, report = build_review_bundle(tuple(entries))
+        if (
+            report["source_only_patch_sha256"] != EXPECTED_REVIEW_PATCH_SHA256
+            or report["bundle_sha256"] != EXPECTED_REVIEW_ZIP_SHA256
+        ):
+            raise ValueError("B1 reviewed source package digest mismatch")
         verified = verify_review_bundle(bundle)
         if verified["bundle_sha256"] != report["bundle_sha256"]:
             raise ValueError("B1 candidate bundle self-check mismatch")
