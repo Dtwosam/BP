@@ -59,6 +59,10 @@ preflight checks before separate authorization.
   mechanism. **There is not yet an approved one-shot production output
   path**; do not deploy hoping to recover results later from logs.
 
+## CI synthetic result (not an approval gate)
+
+PR #605 head `335a2d7d753eb14f9380a1f2dfbc15b9a0d57b07`, CI run [38400492344](https://github.com/Dtwosam/BP/actions/runs/38400492344): 2,000 iterations per repeat, five repeats, baseline median **25,965 ns/cycle**, wrapped median **34,797 ns/cycle**, +8,832 ns (**+34.02%**) with a real parser and no-op queue/writer sinks. All four workflow groups passed, 2,527 tests with four warnings. This measurement does not cover actual producer rates, PostgreSQL or production resource and latency impact. Provisional overhead and rollback gates below remain unaccepted.
+
 ## Offline overhead method (not a production benchmark)
 
 Run only on a non-production checkout with synthetic data:
