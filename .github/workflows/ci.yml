@@ -71,6 +71,13 @@ jobs:
           python scripts/rehearse_stage_b1_process_boundary.py --scenario cooperative | tee stage-b1-process-cooperative.json
           python scripts/rehearse_stage_b1_process_boundary.py --scenario ignore_term | tee stage-b1-process-ignore-term.json
 
+      - name: Stage B1 real recorder pipeline with fake in-memory socket only
+        run: |
+          set -o pipefail
+          python scripts/rehearse_stage_b1_real_pipeline_offline.py --scenario healthy | tee stage-b1-fake-pipeline-healthy.json
+          python scripts/rehearse_stage_b1_real_pipeline_offline.py --scenario writer_failure | tee stage-b1-fake-pipeline-failed.json
+          python -c 'import json; ok=json.load(open("stage-b1-fake-pipeline-healthy.json")); fail=json.load(open("stage-b1-fake-pipeline-failed.json")); assert ok["status"] == "COMPLETE_AGGREGATES_ONLY" and ok["counts"]["writer_batches_returned"] == 3 and not ok["inserted_rows_by_class_proven"]; assert fail["status"] == "INCONCLUSIVE" and not fail["production_execution_authorized"]'
+
       - name: Stage B1 synthetic overhead (non-gating)
         run: |
           set -o pipefail
@@ -87,6 +94,8 @@ jobs:
             stage-b1-overhead.json
             stage-b1-backport.json
             stage-b1-review-bundle.json
+            stage-b1-fake-pipeline-healthy.json
+            stage-b1-fake-pipeline-failed.json
             stage-b1-preflight-NO-GO.json
             stage-b1-process-cooperative.json
             stage-b1-process-ignore-term.json

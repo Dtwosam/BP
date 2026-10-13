@@ -21,6 +21,19 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**13 October 2026 — Stage B1 real Python pipeline / fake external I/O rehearsal (#589):**
+The new repository-only `scripts/rehearse_stage_b1_real_pipeline_offline.py`
+integrates the actual `RecorderService`, Bybit parser via
+`WebSocketCollectorRunner`, event queue, batch writer and bounded
+one-shot observer with **only in-memory synthetic socket frames and
+a fake no-DB sink**. Test scenarios cover graceful drain, writer failure
+and unresolved cancellation; reports remain aggregate-only and never
+prove inserted rows or a real transaction. No default recorder switch,
+process kill/service rollback, production endpoint, SQL or host access.
+See the Stage B1 integration review. The genuine production fault
+remains unidentified; economic acceptance NOT MET, Phase 14 HOLD,
+live trading disabled.
+
 **13 October 2026 — Stage B1 reproducible *inert* source review packet (#589):**
 The next GitHub-only change makes an offline, digest-pinned, **four-source**
 candidate ZIP containing `websocket_runner.py`, `service.py`,
