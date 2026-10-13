@@ -115,6 +115,61 @@ would not prove what the recorder received.
 | Only ticker socket receives data | Confirms ticker cannot serve as a positive bulk-connection control |
 | No events across all sockets | Consider shared host/network/recorder interruption; more context required |
 
+## 13 October 2026: dormant B1 observer module for offline validation
+
+**Status: CODE PREPARED IN GITHUB ONLY; NOT WIRED INTO DEFAULT RECORDER,
+NOT DEPLOYED, NOT AUTHORIZED FOR PRODUCTION EXECUTION.** The file
+`src/bp_engine/recorder/stage_b1_observer.py` defines an explicit
+`StageB1BulkObserver` with a hard maximum **120-second counting window**.
+It creates no sockets, connections, files, logs or background tasks.
+Its fixed, allowlisted counter categories and single in-memory report
+exclude raw WebSocket messages, event payloads, prices, instrument-specific
+identifiers beyond the hardcoded Bybit-linear BTCUSDT filter, secrets,
+account IDs and trade/order contents.
+
+The three caller-owned wrappers are **not activated** by any code path
+in `build_default_recorder_service`:
+
+1. `wrap_parser` around `parse_bybit_message` on **the same existing
+   `bybit_linear` bulk runner** counts exact safe wire classes
+   (publicTrade/orderbook/liquidation), socket-level subscribe ACK
+   success/rejection/unknown, parser errors and parsed events with
+   nullable timestamps. ACK outcomes are **not topic-by-topic proof**
+   because a Bybit socket ACK may not contain authoritative per-topic
+   attribution.
+2. `wrap_event_sink` calls the unchanged routed/buffered sink and counts
+   an event **only after successful return**. A full queue/blocked
+   enqueue must not be counted as successfully enqueued until accepted.
+   Errors propagate without changing queue/backpressure semantics.
+3. `wrap_writer_sink` can wrap only the existing `_DatabaseSink.write_events`
+   **after its `engine.begin()` transaction context returns**. The
+   observer counts category attempts in completed transactions and
+   tracks failed/cancelled and still-in-flight batches. **It does not
+   count actual per-category inserted rows.** The current repository
+   returns only total inserted rows per mixed-source batch, and
+   deduplication can make attempted rows differ from inserted rows.
+   Inventing per-topic post-commit insert counts from this interface
+   would be misleading; resolving them would require separately
+   reviewed DB instrumentation and tests.
+
+`tests/recorder/test_stage_b1_observer.py` exercises synthetic ACK
+failures, unknown responses, topic-silent cases, null timestamp and
+parser failure, real event routing and backpressure, a fake Bybit
+WebSocket runner, transactional SQLite commit/dedupe and writer
+failure/cancellation. None contacts real Bybit or production PostgreSQL.
+
+**Before any possible future Stage B1 deployment**, reviewers must still
+produce exact minimum source and runtime diffs from deployed
+`a352c66e`, a safe inactive-by-default wiring mechanism and
+instrumented interval/stop/export contract, an actual per-topic
+insert/commit discriminator (if needed), performance/overhead budget,
+fail-closed settings/research guards, test for restoration of unmodified
+components, and an exact authorized rollback/restart plan. The
+optional observer itself grants **no production approval**; it is
+not installed, enabled or scheduled. Both Stage A and B0 approvals
+are spent. Any real B1 production change and observations need
+**fresh separate user authorization**.
+
 ### Rollout/rollback boundaries
 
 **No Stage B1 deployment, process restart, SQL probe, socket capture,
