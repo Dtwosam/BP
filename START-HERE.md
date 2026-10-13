@@ -21,6 +21,22 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**13 October 2026 — Stage B1 full Python recorder-component overhead
+rehearsal (#589):** `scripts/benchmark_stage_b1_recorder_queue_offline.py`
+compares baseline and B1-instrumented **real supervised recorder
+runner, parser, queue and writer tasks** using only 128 fixed
+in-memory Bybit-like frames and an artificial 2ms async fake writer.
+The bounded 32-event queue, 16-event batches and one/three workers
+are alternated for three samples per arm in CI. The benchmark reports
+enqueue backpressure, queue peaks, synthetic writer p95/drain,
+process CPU, `tracemalloc` peaks and throughput-like wall times,
+and checks full synthetic queue drain. **No real DB, socket, VM,
+RSS, worker-thread cancellation or representative production
+throughput** is measured; any delta is non-gating, never production
+approval. No recorder default activation, host query/restart/deploy,
+shadow, model/source change or trading. #589 OPEN; Phase 14 HOLD,
+economics NOT MET, live disabled.
+
 **13 October 2026 — PR #616 external Historical Backfill Smoke blocker:**
 The original historical smoke selected the *first* recently closed BTC
 Up/Down market and failed twice when one or both authentic CLOB outcome
