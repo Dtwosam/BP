@@ -94,6 +94,10 @@ class StageB1BulkObserver:
             "writer_batches_in_flight": 0,
         }
 
+    def remaining_seconds(self) -> float:
+        """Monotonic counting budget, including all elapsed setup time."""
+        return max(0.0, self._duration - (self._clock() - self._start))
+
     def _active(self) -> bool:
         return self._clock() - self._start < self._duration
 

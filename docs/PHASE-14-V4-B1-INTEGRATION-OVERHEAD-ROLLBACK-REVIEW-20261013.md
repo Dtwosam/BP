@@ -151,6 +151,49 @@ PID/start/restart counters and the exact previous deployed tree/rollback
 checksum. These are prerequisites, **not statements of current host
 state**.
 
+## One-shot library rehearsal candidate (NOT an operator launcher)
+
+`src/bp_engine/recorder/stage_b1_one_shot.py` is a new **library only**;
+it is never imported by `bp_engine.recorder.__main__` and cannot
+autostart via an environment flag, cron, systemd or any CLI. It accepts
+a **preconstructed, explicitly injected service** in tests; all tests use
+fake services. `StageB1BulkObserver.remaining_seconds()` measures the
+real monotonic budget left after construction; it cannot reset the
+clock or extend the observer's 1–120 second recording window.
+
+The lifecycle rehearsal waits only for the remaining counter window,
+signals the service's normal stop, and allows a bounded 0–10 second
+cooperative shutdown grace. After that it cancels the **Python task**
+with a separate 0–2 second wait, and marks a nonterminating task
+`unresolved_task`. Service failure, premature exit and forced
+cancellation are **INCONCLUSIVE**. The only positive lifecycle record
+`COMPLETE_AGGREGATES_ONLY` requires a full expired counter window,
+cooperative service return and zero writer in-flight / unresolved
+cancelled batches. It is never a claim that trading is ready, rows were
+inserted, or a process was killed.
+
+The returned **JSON string is not written or printed** by the library.
+Its exporter copies only explicitly enumerated topic-group and batch
+integer counters and fixed enums; unknown object keys, error messages,
+raw frames, prices and payloads are discarded. It validates each group,
+sets `inserted_rows_by_class_proven=false`,
+`subscribe_ack_per_topic_proven=false`, and
+`process_terminated_proven=false`, and refuses any report above
+4,096 UTF-8 bytes. Tests cover a cooperative exit, silent early exit,
+exception detail non-disclosure, forced cancellation, stubborn task,
+bad counter injection and an already expired window.
+
+**Major safety distinction:** cancelling an asyncio task **cannot kill**
+an `asyncio.to_thread` DB transaction or an operating-system process.
+This library has no separate-process watchdog, hard wall-time
+termination, or authorized aggregate output sink. A future operator
+candidate must use an independently supervised, exact runtime process
+with explicit safe interruption/forced termination and verified
+service restoration; those mechanisms are NOT provided here. A normal
+recorder restart/stop must never be taken as permission to run this
+candidate. Whether additional actual inserted-row and per-topic ACK
+diagnostics are worth that deployment must be reviewed first.
+
 ## Separate authorization and one-shot control design
 
 A fresh specific user authorization would have to identify the *exact*

@@ -21,6 +21,20 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**13 October 2026 — Stage B1 one-shot lifecycle/readout library candidate (#589):**
+A **repository-only, never auto-invoked** `stage_b1_one_shot.py`
+library now sketches finite collection against an explicitly passed
+service and a validated <=120s observer, returns only fixed-category
+aggregate JSON (max 4 KiB), and marks premature exits, errors, task
+cancellations and outstanding writes as INCONCLUSIVE. It does **not**
+provide a production operator CLI, hard process kill, service rollback,
+current host identity, representative CPU/RSS/queue benchmarks or per-class
+insert proof. A normal production recorder still cannot activate the
+observer. Synthetic fake-service tests and workflow review are required.
+See `docs/PHASE-14-V4-B1-INTEGRATION-OVERHEAD-ROLLBACK-REVIEW-20261013.md`.
+Issue #589 remains open; no VM access/restart/query/new shadow;
+Phase 14 HOLD, economics NOT MET, live trading disabled.
+
 **13 October 2026 — Stage B1 exact source backport rehearsal preparation (#589):** A new **repository-only** offline script, `scripts/rehearse_stage_b1_backport.py`, pins the old operator-reported `a352c66e` and reviewed `75281f2b` Git source blobs for exactly the websocket runner, recorder assembly and dormant Stage B1 observer. It fail-closes on unexpected blobs or paths, rehearses **forward and reverse unified-patch application in a temporary directory**, and produces an aggregate-only source manifest with patch SHA-256. An exact GitHub CI rehearsal is required before claiming this passes. It does **not** attest current on-host service/PID/venv identity, perform a systemd restart/rollback, activate B1, provide the one-shot 120s output, or authorize host access. See `docs/PHASE-14-V4-B1-INTEGRATION-OVERHEAD-ROLLBACK-REVIEW-20261013.md`. Phase 14 HOLD, economic acceptance NOT MET, live disabled.
 
 **13 October 2026 — Stage B1 inactive integration/overhead preparation (#589):** [PR #605](https://github.com/Dtwosam/BP/pull/605) merged to `main=dff7b85d106dd3c2a458646348ff536c8bc918c2` with all four workflows green (**2,527 tests, four warnings**). The ordinary recorder entry point still **does not inject** B1; source-only optional injection now covers the SAME linear bulk socket/parser/enqueue and bulk-or-single writer under explicit RESEARCH/live-disabled/zero-money checks. Dedicated ticker events are excluded from bulk writer counts; cancelled threaded DB work is marked unresolved, not definitely rolled back. A CI-only synthetic microbenchmark measured **25,965 ns baseline vs 34,797 ns instrumented per cycle (+8,832 ns / +34.02%)** using a real parser and no-op sinks, **not representative production CPU/queue/commit overhead**. The exact on-target minimal backport, representative overhead budget, one-shot sanitized report/output, rollback rehearsal and any inserted-row/ACK additions remain unapproved. See `docs/PHASE-14-V4-B1-INTEGRATION-OVERHEAD-ROLLBACK-REVIEW-20261013.md`. No production access, query, restart, activation, shadow, live trade or model/source modification; Stage A/B0 approvals consumed, root cause still unknown, Phase 14 **HOLD**, economic acceptance **NOT MET**.
