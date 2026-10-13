@@ -21,6 +21,23 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**13 October 2026 — Stage B1 reproducible *inert* source review packet (#589):**
+The next GitHub-only change makes an offline, digest-pinned, **four-source**
+candidate ZIP containing `websocket_runner.py`, `service.py`,
+`stage_b1_observer.py` and the uninvoked
+`stage_b1_one_shot.py` library at immutable reviewed commit
+`347db08ee47d113f35fd6a9bc0e4bd85610aea0d`.
+It checks source hashes and forward/reverse source patching against
+previously operator-reported `a352c66e`, and verifies the archive
+without running its contents. This is **not** a live one-shot launcher,
+confirmed host rollback, production resource approval or credential
+safety attestation. No ZIP is produced/uploaded by default in CI;
+the artifact is available by explicit *offline-only* creation.
+This does not supersede the earlier three-file #607 patch digest.
+No VM, database, service, trading, model or shadow contact; Phase 14
+HOLD, economics NOT MET, live disabled. See the Stage B1 integration
+review and Issue #589.
+
 **13 October 2026 — Stage B1 fail-closed offline preflight manifest (#589):**
 A new pure-local validator
 `scripts/review_stage_b1_preflight_manifest.py` checks the fixed
