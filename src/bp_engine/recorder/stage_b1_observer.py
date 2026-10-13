@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import inspect
 import time
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping
 from threading import Lock
 from typing import Any
 
