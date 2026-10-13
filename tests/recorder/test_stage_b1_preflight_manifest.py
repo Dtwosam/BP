@@ -99,6 +99,7 @@ def test_even_synthetically_complete_manifest_is_unverified_and_not_authorized(
         ("operator_evidence", "recorder_service_pid", True, "runtime_identity_attestation"),
         ("operator_evidence", "recorder_restart_count", -1, "runtime_identity_attestation"),
         ("operator_evidence", "recorder_start_utc", "2026-10-13", "runtime_identity_attestation"),
+        ("operator_evidence", "recorder_start_utc", "2026-10-13T14:00:00+01:00", "runtime_identity_attestation"),
         ("rollback_evidence", "previous_commit", "f" * 40, "rollback_material_attestation"),
         ("rollback_evidence", "restore_rehearsed", False, "restore_rehearsal_attestation"),
         ("observation_controls", "proposed_duration_seconds", 121, "one_shot_limits_attestation"),
@@ -125,6 +126,10 @@ def test_input_unknown_fields_or_source_list_reordering_fail_closed() -> None:
         report = preflight.evaluate_manifest(manifest)
         assert not report["checks"]["manifest_shape"]
         assert "value" not in json.dumps(report)
+
+    manifest = _fake_complete_attestation()
+    manifest["unknown_root_secret"] = "PRIVATE_ROOT_FIELD"
+    assert not preflight.evaluate_manifest(manifest)["checks"]["manifest_shape"]
 
     manifest = _fake_complete_attestation()
     manifest["candidate"]["file_blobs"].reverse()
