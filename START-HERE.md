@@ -21,6 +21,22 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**13 October 2026 — Stage B1 local after-commit hook and non-gating
+PostgreSQL overhead review (#589):** The dormant
+`insert_same_batch_attributed_offline()` path now supports a synchronous
+counts-only observer invoked **after successful DB commit**; it reports
+callback delivery failures separately from transaction failures, without
+echoing row IDs, dedupe keys, payloads or exception contents.
+Local PostgreSQL tests cover commit visibility, immutability, rollback,
+hook failure and async rejection. A bounded 18-transaction, alternating
+8/32/64-event local CI benchmark compares baseline versus same-batch
+attribution wall time, process CPU, and `tracemalloc` allocation peaks,
+**without an overhead acceptance threshold**. It is not representative
+VM/recorder performance; regular recorder behavior is unchanged.
+No production VM/DB/restart/deploy, shadow, model/source gate or
+trading action. Issue #589 stays OPEN; Phase 14 HOLD, economics NOT MET,
+live disabled.
+
 **13 October 2026 — Stage B1 same-SQL, per-class after-commit insertion receipt
 rehearsal (#589):** An **opt-in, not-production-wired** repository method
 now exposes only the dedupe keys already returned by partitioned
