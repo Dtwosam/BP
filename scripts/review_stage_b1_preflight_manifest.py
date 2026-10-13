@@ -13,7 +13,7 @@ import argparse
 import hashlib
 import json
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -83,7 +83,7 @@ def _utc(value: object) -> bool:
         return False
     try:
         timestamp = datetime.fromisoformat(value)
-        return timestamp.utcoffset() is not None
+        return timestamp.utcoffset() == timedelta(0)
     except ValueError:
         return False
 
