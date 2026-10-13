@@ -2702,7 +2702,7 @@ def test_b1_postcommit_hook_return_value_is_not_claimed_delivered(engine) -> Non
     assert result["real_local_db_commit_observed"]
 
 
-def test_b1_attribution_benchmark_local_pg_non_gating(engine, capsys) -> None:
+def test_b1_attribution_benchmark_local_pg_non_gating(engine) -> None:
     """No performance threshold; this is CI-local comparative evidence only."""
     import json
 
