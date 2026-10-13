@@ -546,7 +546,8 @@ all fake writes must return, the queue must drain, and observer counts
 must exactly reconcile before a sample is accepted. The output copies
 **only numeric medians/differences** for queue peak, p95 enqueue
 blocking, p95 fake writer batch delay, p95 enqueue-to-fake-writer
-return, wall time, post-producer drain, process CPU and Python
+return, wall time, synthetic events-per-second throughput,
+post-producer drain, process CPU and Python
 `tracemalloc` peak allocation. Measured p95 values are **within
 each short artificial trial**, not production service p95. The fake
 writer does NOT prove durable insert or deduplication.
