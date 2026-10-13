@@ -47,6 +47,11 @@ jobs:
           set -o pipefail
           pytest -vv --junitxml=pytest-results.xml 2>&1 | tee pytest-output.log
 
+      - name: Stage B1 synthetic overhead (non-gating)
+        run: |
+          set -o pipefail
+          python scripts/benchmark_stage_b1_observer.py --iterations 2000 --repeats 5 | tee stage-b1-overhead.json
+
       - name: Upload pytest diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -55,6 +60,7 @@ jobs:
           path: |
             pytest-results.xml
             pytest-output.log
+            stage-b1-overhead.json
           if-no-files-found: warn
           retention-days: 7
 
