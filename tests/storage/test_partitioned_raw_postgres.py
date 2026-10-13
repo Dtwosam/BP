@@ -13,9 +13,6 @@ from sqlalchemy.exc import DBAPIError
 
 from bp_engine.config import Settings
 from bp_engine.recorder.models import RawEvent
-from scripts.benchmark_stage_b1_postcommit_local import (
-    compare_local_postcommit_overhead,
-)
 from bp_engine.recorder.stage_b1_insert_attribution import (
     insert_attributed_offline,
     insert_same_batch_attributed_offline,
@@ -46,6 +43,9 @@ from bp_engine.storage.schema import (
     storage_maintenance_runs,
 )
 from bp_engine.v4_paper.source_time_features import V4SourceTimeReader
+from scripts.benchmark_stage_b1_postcommit_local import (
+    compare_local_postcommit_overhead,
+)
 from scripts.deploy.migrate_partitioned_raw_storage import _exact_raw_parity
 from scripts.report_v4_linear_trade_storage_b0 import build_report as build_linear_b0_report
 
