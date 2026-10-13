@@ -1,0 +1,60 @@
+{
+  "schema": "phase14_b1_source_only_offline_preflight_v1",
+  "candidate": {
+    "baseline_commit": "a352c66ec0110925727bc40de767ee4ba981f965",
+    "source_target_commit": "75281f2b97f19d903f576b973bb7c2236179839e",
+    "source_patch_sha256": "e0a15b1f890233fa6b1228695170f64967b3e9c2899580951242b78ef7ea9b10",
+    "source_patch_bytes": 20045,
+    "file_blobs": [
+      {
+        "path": "src/bp_engine/collectors/websocket_runner.py",
+        "before_git_blob_sha1": "2620416744b46551f31ecd5f593c1b34d125d4a5",
+        "after_git_blob_sha1": "c330695c25f61e07a9981581919b7bf05a701ce9"
+      },
+      {
+        "path": "src/bp_engine/recorder/service.py",
+        "before_git_blob_sha1": "a3f1095bed359e6b05bfeb8b83a8e8cccd829591",
+        "after_git_blob_sha1": "ef5de19c8efb39cf874f5620a0b9098c07824475"
+      },
+      {
+        "path": "src/bp_engine/recorder/stage_b1_observer.py",
+        "before_git_blob_sha1": null,
+        "after_git_blob_sha1": "f5842e1143ca7fc5a2cb201b61d5575e7b9e5959"
+      }
+    ],
+    "includes_one_shot_launcher": false,
+    "includes_process_supervisor": false
+  },
+  "operator_evidence": {
+    "observed_deployed_commit": null,
+    "service_unit_sha256": null,
+    "python_executable_sha256": null,
+    "recorder_service_pid": null,
+    "recorder_start_utc": null,
+    "recorder_restart_count": null,
+    "recorder_health_verified": null,
+    "mode": null,
+    "live_trading_enabled": null,
+    "max_trade_size_usd": null,
+    "max_daily_loss_usd": null,
+    "max_total_exposure_usd": null,
+    "wallet_credentials_accessible": null,
+    "auto_promotion_enabled": null
+  },
+  "rollback_evidence": {
+    "previous_commit": null,
+    "previous_tree_sha256": null,
+    "rollback_bundle_sha256": null,
+    "service_unit_restore_sha256": null,
+    "restore_rehearsal_evidence_sha256": null,
+    "restore_rehearsed": null
+  },
+  "observation_controls": {
+    "proposed_duration_seconds": null,
+    "approved_output_contract_sha256": null,
+    "independent_process_tree_timeout_tested": null,
+    "representative_overhead_review_accepted": null,
+    "stop_owner_acknowledged": null,
+    "queries_allowed": null
+  }
+}

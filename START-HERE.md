@@ -21,6 +21,23 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**13 October 2026 — Stage B1 fail-closed offline preflight manifest (#589):**
+A new pure-local validator
+`scripts/review_stage_b1_preflight_manifest.py` checks the fixed
+three-file **source-only** #607 SHA-256 and Git blob identities,
+strictly structured self-reported host/runtime/research/zero-money
+settings, rollback material, restoration and observation limits.
+Its checked-in template intentionally has **no on-host evidence**,
+and CI must assert the result is `INCOMPLETE_OR_MISMATCHED_NO_GO`.
+Even fully populated synthetic claims yield only
+`STRUCTURE_COMPLETE_UNVERIFIED_NO_GO`, **never authorization**.
+The previously operator-reported VM SHA is not reverified; the #607 patch
+does not enable a timed observation or include #608/#609.
+No production contact, deployment, restart, SQL, shadow, model or
+trading change. See
+`docs/PHASE-14-V4-B1-INTEGRATION-OVERHEAD-ROLLBACK-REVIEW-20261013.md`.
+Phase 14 HOLD; economics NOT MET; live trading disabled.
+
 **13 October 2026 — Stage B1 isolated synthetic process-termination rehearsal (#589):**
 A new **fixed-fake-child-only** POSIX script
 `scripts/rehearse_stage_b1_process_boundary.py` rehearses bounded

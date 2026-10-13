@@ -235,6 +235,62 @@ python scripts/rehearse_stage_b1_process_boundary.py --scenario ignore_term
 pytest -q tests/recorder/test_stage_b1_process_boundary.py
 ```
 
+## Offline-only exact-source preflight manifest (NOT deployment approval)
+
+`scripts/review_stage_b1_preflight_manifest.py` accepts a bounded local JSON
+file and, optionally, the exact **local source-only patch** from PR #607.
+It invokes no Git fetch, network, SSH, systemd, recorder, Python service,
+database or process. There are no execute/deploy/rollback subcommands.
+
+It pins the **old, three-file, non-operational source patch** from #607,
+from operator-*reported* commit `a352c66ec0110925727bc40de767ee4ba981f965`
+to reviewed source commit `75281f2b97f19d903f576b973bb7c2236179839e`,
+SHA-256 `e0a15b1f890233fa6b1228695170f64967b3e9c2899580951242b78ef7ea9b10`
+with **20,045 bytes** and exact before/after Git blob IDs.
+The old patch has **no one-shot activation or OS-process supervisor**.
+It cannot be used to obtain a Stage B1 collection as-is, and **must not**
+be re-described as covering the later #608/#609 modules.
+
+A strictly allowlisted JSON template is stored at
+`docs/evidence/phase14-b1-INCOMPLETE-offline-preflight-template-20261013.json`.
+Its on-target identity, runtime, zero-money, rollback material, actual
+restore rehearsal, output contract, independent process isolation and
+overhead evidence fields are **intentionally all null**. The verifier:
+- rejects unexpected/missing fields, source file reordering, any source hash
+  mismatch, an implied one-shot launcher, malformed hash/UTC/PID,
+  unsafe research/money/credentials conditions, absent rollback or service
+  health assertions, durations above 120 seconds, or any permitted SQL count
+  other than **zero**;
+- can optionally hash the exact local source patch with a bounded 64KiB
+  read and fixed length/digest equality; **without bytes this check fails**;
+- never echoes supplied host values, paths, raw input or errors. Only
+  fixed check names/booleans and canned caveats are returned.
+- always emits `PRODUCTION_NO_GO` semantics: incomplete
+  `INCOMPLETE_OR_MISMATCHED_NO_GO` (CLI exit 2) or complete-but-
+  *self-attested* `STRUCTURE_COMPLETE_UNVERIFIED_NO_GO` (CLI exit 0
+  for schema review **only**). Both explicitly set
+  `production_execution_authorized=false`,
+  `host_claims_independently_verified=false`, and
+  `production_deploy_or_restart_permitted=false`.
+
+This is a **review checklist**, not an independent on-host attestation.
+An operator could falsely fill every field with valid-looking digests;
+the output is still NO GO. No user authorization, credential access
+assessment, operational approval, full process-tree proof, or representative
+host overhead is conferred by this script. Do not place secrets, actual
+environment file contents or private keys in a manifest or in chat.
+
+```sh
+# CI / private non-production checkout only. A failed/blocked exit 2 is EXPECTED.
+python scripts/review_stage_b1_preflight_manifest.py \
+  --manifest docs/evidence/phase14-b1-INCOMPLETE-offline-preflight-template-20261013.json
+```
+
+The current source patch identity is **fixed and dormant**. Before requesting
+production activation, any usable one-shot package needs a separately
+reviewed new candidate+rollback SHA/patch, independent host evidence and
+fresh specific permission, not merely this source-only manifest.
+
 ## Separate authorization and one-shot control design
 
 A fresh specific user authorization would have to identify the *exact*
