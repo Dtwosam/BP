@@ -243,7 +243,8 @@ class StageB1BulkObserver:
                     "ACK counts are socket-level only, not per-topic acceptance proof.",
                     "Writer returned means the injected sink's contract was followed.",
                     "Events in a successful batch may have been deduplicated, not inserted.",
-                    "In-flight includes cancelled/unresolved writes; cancellation may not stop DB threads.",
+                    "In-flight includes cancelled/unresolved writes; "
+                    "cancellation may not stop DB threads.",
                     "No database query, raw payload, frame storage or logging is performed.",
                     "This offline candidate is not wired into the deployed recorder.",
                 ],
