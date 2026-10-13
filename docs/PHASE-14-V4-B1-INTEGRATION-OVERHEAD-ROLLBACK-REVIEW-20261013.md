@@ -194,6 +194,47 @@ recorder restart/stop must never be taken as permission to run this
 candidate. Whether additional actual inserted-row and per-topic ACK
 diagnostics are worth that deployment must be reviewed first.
 
+## POSIX synthetic process watchdog: local kill/reap rehearsal only
+
+The separate `scripts/rehearse_stage_b1_process_boundary.py` is
+**intentionally NOT a general subprocess supervisor or operator launcher**.
+It self-executes only its own fixed fake child modes
+(`cooperative`, `hang`, `ignore_term`, `crash`, `poisoned`,
+`oversized`). It accepts **no recorder command or external executable**.
+The child runs in a new POSIX session under the same Python interpreter
+with `-I -B`; standard input, output and errors are discarded.
+An inherited temporary anonymous file descriptor carries only a fixed
+synthetic aggregate fixture and is read up to **4,097 bytes**, failing
+closed on oversized/malformed/injected content. The parent **never copies
+arbitrary child output** into its JSON summary.
+
+The parent bounds its initial wait (at most 3 seconds), sends SIGTERM
+to the new child process group, waits up to 1 second, then escalates
+to SIGKILL with a bounded 2-second reaping check. If cancellation or
+interruption occurs, it attempts a final SIGKILL and wait in `finally`.
+The output differentiates clean fake exit, TERM, KILL and an unresolved
+leader and never claims all descendants have stopped. The code cannot
+claim a production hard-wall deadline, safe shutdown of a live DB writer,
+or actual on-host rollback; no such process is launched.
+
+Offline CI exercises both clean exit and an uncooperative fake process;
+unit tests cover crashes and attempts to smuggle secret-like data in
+stderr or an output document. A good result demonstrates only the
+**test subprocess leader** was reaped and a fixed fixture passed the
+bounded schema check. A larger operator package would still need
+a separately reviewed process tree/cgroup lifetime guarantee, retained
+service health, exact on-host runtime provenance, meaningful counter
+output, safe restoration, acceptable overhead, and **new authorization**.
+The #607 patch hash is unchanged and does **not include** either
+this test-only watchdog or the #608 one-shot library.
+
+```sh
+# Never a production or on-target command.
+python scripts/rehearse_stage_b1_process_boundary.py --scenario cooperative
+python scripts/rehearse_stage_b1_process_boundary.py --scenario ignore_term
+pytest -q tests/recorder/test_stage_b1_process_boundary.py
+```
+
 ## Separate authorization and one-shot control design
 
 A fresh specific user authorization would have to identify the *exact*

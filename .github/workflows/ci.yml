@@ -52,6 +52,11 @@ jobs:
           git fetch --no-tags --depth=1 origin a352c66ec0110925727bc40de767ee4ba981f965 75281f2b97f19d903f576b973bb7c2236179839e
           python scripts/rehearse_stage_b1_backport.py | tee stage-b1-backport.json
 
+      - name: Stage B1 isolated fake process timeout rehearsal
+        run: |
+          python scripts/rehearse_stage_b1_process_boundary.py --scenario cooperative | tee stage-b1-process-cooperative.json
+          python scripts/rehearse_stage_b1_process_boundary.py --scenario ignore_term | tee stage-b1-process-ignore-term.json
+
       - name: Stage B1 synthetic overhead (non-gating)
         run: |
           set -o pipefail
@@ -67,6 +72,8 @@ jobs:
             pytest-output.log
             stage-b1-overhead.json
             stage-b1-backport.json
+            stage-b1-process-cooperative.json
+            stage-b1-process-ignore-term.json
           if-no-files-found: warn
           retention-days: 7
 
