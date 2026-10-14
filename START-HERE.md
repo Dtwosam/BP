@@ -21,6 +21,18 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**14 October 2026 — Stage B1 lifecycle/restoration acceptance proposal (#589):**
+The review-only
+`docs/PHASE-14-V4-B1-OPERATOR-LIFECYCLE-RESTORE-CONTRACT-20261014.md`
+defines 17 explicit before/during/after/restore evidence gates, independent
+witnesses, aborts, hard process/DB-worker quiescence requirements, feed
+health and audit receipts. Its bounded local JSON checker accepts only
+untrusted claim tokens and **always exits NO GO** even when all are
+filled. No operator launcher, current host attestation, true service
+restoration or production deployment is provided; the dormant observer
+still cannot diagnose the actual Bybit-linear failure. Phase 14 HOLD,
+economic acceptance NOT MET, live trading disabled.
+
 **14 October 2026 — Stage B1 independent fake service read-back (#589):**
 A new fixed offline in-memory restoration rehearsal separates a fake
 controller's success claim from a read-only fake service-state probe.
