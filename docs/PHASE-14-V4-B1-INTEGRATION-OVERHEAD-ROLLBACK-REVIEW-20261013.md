@@ -717,3 +717,54 @@ python scripts/rehearse_stage_b1_db_thread_boundary.py --scenario late_failure
 No VM/production SQL/network, restart/deploy, paper shadow, holdout,
 source/model gate or trading. **#589 OPEN; Phase 14 HOLD; economic
 acceptance NOT MET; live trading disabled.**
+
+## 14 October 2026 — independent fake restoration read-back
+
+The original source-only preflight validates claimed hashes and claimed
+rollback rehearsal fields, but **self-reported success is not independent
+confirmation of service restoration**. The synthetic process-group
+watchdog (#619/#620) and fake DB-thread cancellation witness (#621)
+also do not validate a real service unit or database-worker quiescence.
+
+A separate *in-memory, fixed-scenario* read-back fixture
+`scripts/rehearse_stage_b1_fake_service_restoration.py` now uses a fake
+controller and a read-only fake probe over an isolated state object.
+It observes a clean baseline, applies a synthetic perturbation, attempts
+a fake restore, and evaluates the resulting state **without trusting the
+controller's acknowledgement alone**. The fixed contract requires:
+fresh read-back after the perturbation, active/healthy service,
+unchanged fake unit/source digests, exactly one planned synthetic
+restart, no known fake descendant and no known fake synchronous writer.
+The fixture deliberately fails closed when the controller ACKs without
+restoring, the read-back is stale, any fingerprint differs, service
+health fails, an unexpected restart occurs, or a known fake child/writer
+remains. Failure of restore or missing read-back also remains NO GO.
+
+The `restored` case means **only that all synthetic in-memory
+conditions match**; its output is
+`FAKE_READBACK_MATCH_UNVERIFIED_NO_GO`, *never production-ready*.
+It does not prove OS process-tree cleanup, cancellation of actual
+`asyncio.to_thread` DB work, a systemd unit transition, persistent
+health of live data feeds or a VM/runtime/source identity. Revision
+freshness in this toy state is not cryptographic attestation and not
+an authenticated external monitoring channel. No real systemd command,
+subprocess, thread, network endpoint, DB engine, host probe, report
+publisher or deployable operator launcher is added.
+
+Run only against synthetic repository fixtures:
+
+```sh
+python -m pytest -q tests/recorder/test_stage_b1_fake_service_restoration.py
+python scripts/rehearse_stage_b1_fake_service_restoration.py --scenario restored
+python scripts/rehearse_stage_b1_fake_service_restoration.py --scenario ack_only
+python scripts/rehearse_stage_b1_fake_service_restoration.py --scenario stale_readback
+python scripts/rehearse_stage_b1_fake_service_restoration.py --scenario db_worker_pending
+```
+
+**Next decision boundary remains unchanged:** separate explicit operator
+authorization, attested on-host identity, actual independently enforced
+service/process/DB-thread stop and restoration, representative CPU/RSS/
+queue/writer overhead, bounded one-shot output and topic-specific
+per-class insertion diagnostics. No production contact, mutation, paper
+shadow, model/source gate or trading. #589 OPEN; **Phase 14 HOLD,
+economic acceptance NOT MET, live trading disabled.**

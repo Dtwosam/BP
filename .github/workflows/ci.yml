@@ -85,6 +85,16 @@ jobs:
           python scripts/rehearse_stage_b1_db_thread_boundary.py --scenario late_failure > stage-b1-fake-thread-failure.json
           python -c 'import json; a=json.load(open("stage-b1-fake-thread-success.json")); b=json.load(open("stage-b1-fake-thread-failure.json")); assert a["fake_transaction_outcome_after_release"]=="fake_committed" and b["fake_transaction_outcome_after_release"]=="fake_rolled_back"; assert all(x["awaiting_task_cancelled"] and x["fake_worker_pending_after_task_cancellation"] and x["fake_worker_finished_after_release"] and x["writer_batches_cancelled_unresolved"]==1 and x["writer_batches_in_flight_conservative"]==1 and x["writer_batches_returned"]==0 and x["writer_attempts_marked_committed"]==0 and not x["actual_database_commit_or_rollback_proven"] and not x["production_db_threads_terminated_proven"] and not x["systemd_restore_proven"] and not x["production_execution_authorized"] for x in (a,b))'
 
+      - name: Stage B1 independent fake service restoration readback (NO GO)
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/recorder/test_stage_b1_fake_service_restoration.py
+          python scripts/rehearse_stage_b1_fake_service_restoration.py --scenario restored > stage-b1-fake-restore-matched.json
+          python scripts/rehearse_stage_b1_fake_service_restoration.py --scenario ack_only > stage-b1-fake-restore-ack-only.json
+          python scripts/rehearse_stage_b1_fake_service_restoration.py --scenario stale_readback > stage-b1-fake-restore-stale.json
+          python scripts/rehearse_stage_b1_fake_service_restoration.py --scenario db_worker_pending > stage-b1-fake-restore-worker.json
+          python -c 'import json; files=["stage-b1-fake-restore-matched.json","stage-b1-fake-restore-ack-only.json","stage-b1-fake-restore-stale.json","stage-b1-fake-restore-worker.json"]; rows=[json.load(open(p)) for p in files]; assert rows[0]["status"]=="FAKE_READBACK_MATCH_UNVERIFIED_NO_GO" and all(rows[0]["checks"].values()); assert all(x["status"]=="FAKE_RESTORE_MISMATCH_NO_GO" for x in rows[1:]); assert rows[1]["checks"]["restore_ack_received"] and not rows[1]["checks"]["service_active"]; assert not rows[2]["checks"]["fresh_separate_readback"]; assert not rows[3]["checks"]["no_known_fake_db_workers"]; assert all(not x["actual_systemd_restoration_proven"] and not x["actual_db_thread_quiescence_proven"] and not x["production_execution_authorized"] for x in rows)'
+
       - name: Stage B1 real recorder pipeline with fake in-memory socket only
         run: |
           set -o pipefail
@@ -130,6 +140,10 @@ jobs:
             stage-b1-process-orphan-kill.json
             stage-b1-fake-thread-success.json
             stage-b1-fake-thread-failure.json
+            stage-b1-fake-restore-matched.json
+            stage-b1-fake-restore-ack-only.json
+            stage-b1-fake-restore-stale.json
+            stage-b1-fake-restore-worker.json
           if-no-files-found: warn
           retention-days: 7
 
