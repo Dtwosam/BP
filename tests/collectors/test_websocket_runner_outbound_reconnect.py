@@ -282,7 +282,7 @@ async def test_ready_outbound_subscription_survives_same_turn_frame_processing_f
     await asyncio.wait_for(runner.run(stop), timeout=1)
 
     assert [incident.incident_type for incident in incidents] == [
-        "connected", "error", "disconnected", "reconnect",
+        "connected", "error", "reconnect", "disconnected",
         "connected", "disconnected",
     ]
     assert incidents[1].details["error_type"] == "RuntimeError"
