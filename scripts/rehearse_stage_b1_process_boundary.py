@@ -175,14 +175,16 @@ async def supervise_synthetic(
                 # before returning the handle needed for group cleanup.
                 # This remains a fixed fake-only invocation, never a recorder.
                 process = subprocess.Popen(
-                    sys.executable,
-                    "-I",
-                    "-B",
-                    str(_SCRIPT),
-                    "--synthetic-child",
-                    scenario,
-                    str(output.fileno()),
-                    str(write_fd),
+                    [
+                        sys.executable,
+                        "-I",
+                        "-B",
+                        str(_SCRIPT),
+                        "--synthetic-child",
+                        scenario,
+                        str(output.fileno()),
+                        str(write_fd),
+                    ],
                     stdin=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
