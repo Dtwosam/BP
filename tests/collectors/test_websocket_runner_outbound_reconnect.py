@@ -1,7 +1,7 @@
 import asyncio
 import json
-from datetime import datetime
 from collections.abc import Sequence
+from datetime import datetime
 
 import pytest
 
