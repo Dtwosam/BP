@@ -1,7 +1,7 @@
 import math
+from datetime import UTC, datetime, timedelta
 
 import pytest
-from datetime import UTC, datetime, timedelta
 
 from bp_engine.collectors.reliability import ClockSkewGuard, FeedWatchdog, ReconnectPolicy
 
