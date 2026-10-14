@@ -14,6 +14,7 @@ import json
 import math
 import os
 import signal
+import subprocess
 import sys
 import tempfile
 import time
@@ -117,11 +118,14 @@ def _signal_group(pid: int, sig: signal.Signals) -> None:
         pass
 
 
-async def _wait_exit(process: asyncio.subprocess.Process, timeout: float) -> bool:
-    try:
-        await asyncio.wait_for(process.wait(), timeout=timeout)
-    except TimeoutError:
-        return False
+async def _wait_exit(process: subprocess.Popen[bytes], timeout: float) -> bool:
+    """Bounded, non-threaded polling of a fixed synthetic process leader."""
+    end = time.monotonic() + timeout
+    while process.poll() is None:
+        remaining = end - time.monotonic()
+        if remaining <= 0:
+            return False
+        await asyncio.sleep(min(0.015, remaining))
     return True
 
 
@@ -166,7 +170,11 @@ async def supervise_synthetic(
         os.set_blocking(read_fd, False)
         try:
             try:
-                process = await asyncio.create_subprocess_exec(
+                # Acquire the handle synchronously before any cancellation point.
+                # Async subprocess creation may spawn a child yet be cancelled
+                # before returning the handle needed for group cleanup.
+                # This remains a fixed fake-only invocation, never a recorder.
+                process = subprocess.Popen(
                     sys.executable,
                     "-I",
                     "-B",
@@ -175,9 +183,9 @@ async def supervise_synthetic(
                     scenario,
                     str(output.fileno()),
                     str(write_fd),
-                    stdin=asyncio.subprocess.DEVNULL,
-                    stdout=asyncio.subprocess.DEVNULL,
-                    stderr=asyncio.subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
                     pass_fds=(output.fileno(), write_fd),
                     start_new_session=True,
                 )
@@ -218,14 +226,14 @@ async def supervise_synthetic(
                                 else "sigkill"
                             )
             finally:
-                if process.returncode is None or not pipe_closed:
+                if process.poll() is None or not pipe_closed:
+                    # Includes cancellation after the synchronous spawn:
+                    # try to kill/reap the known isolated fake group before
+                    # propagating cancellation to the caller.
                     _signal_group(process.pid, signal.SIGKILL)
-                    try:
-                        await asyncio.shield(
-                            asyncio.wait_for(process.wait(), timeout=kill)
-                        )
-                        pipe_closed = await _wait_pipe_eof(read_fd, kill)
-                    except TimeoutError:
+                    leader_stopped = await _wait_exit(process, kill)
+                    pipe_closed = await _wait_pipe_eof(read_fd, kill)
+                    if not leader_stopped or not pipe_closed:
                         outcome = "unresolved"
 
             reaped = process.returncode is not None
@@ -251,6 +259,8 @@ async def supervise_synthetic(
                 "limitations": [
                     "No production recorder or database subprocess is launched.",
                     "Inherited pipe EOF covers only known fake descendants.",
+                    "One cancellation can trigger cleanup after synchronous spawn; "
+                    "repeated cancellation/loop shutdown is not proven.",
                     "An unrelated or escaped process could close its pipe early.",
                     "No DB thread, actual process tree, or systemd restore is proven.",
                 ],
