@@ -44,7 +44,7 @@ def _read_pinned_file(root: Path, relative_path: str, expected_blob: str) -> str
         if len(raw) > MAX_FILE_BYTES:
             return None
         blob = hashlib.sha1(
-            b"blob " + str(len(raw)).encode("ascii") + b"\\x00" + raw
+            b"blob " + str(len(raw)).encode("ascii") + b"\x00" + raw
         ).hexdigest()
         if blob != expected_blob:
             return None
@@ -77,12 +77,12 @@ def review_source_feasibility(*, root: Path = ROOT) -> dict[str, object]:
                 and "StageB1BulkObserver" not in entrypoint
             ),
             "repo_unit_restarts_recorder_always": (
-                "\\nRestart=always\\n" in unit
+                "\nRestart=always\n" in unit
                 and "ExecStart=/opt/bp/.venv/bin/python -m bp_engine.recorder" in unit
             ),
             "repo_unit_has_60_second_stop_grace": (
-                "\\nTimeoutStopSec=60\\n" in unit
-                and "\\nKillSignal=SIGTERM\\n" in unit
+                "\nTimeoutStopSec=60\n" in unit
+                and "\nKillSignal=SIGTERM\n" in unit
             ),
             "repo_unit_lacks_approved_independent_b1_watchdog": (
                 "RuntimeMaxSec=" not in unit
