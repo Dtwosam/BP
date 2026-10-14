@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -15,6 +16,24 @@ class ReconnectPolicy:
     def delay_for_attempt(self, attempt: int) -> float:
         if attempt < 0:
             raise ValueError("attempt must be non-negative")
+        if self.initial_seconds >= 0 and self.maximum_seconds >= 0:
+            if self.multiplier > 1:
+                if self.initial_seconds == 0 or self.initial_seconds >= self.maximum_seconds:
+                    return min(self.initial_seconds, self.maximum_seconds)
+                # Check the cap before exponentiation: long failure streaks
+                # must not overflow and permanently terminate the collector.
+                log_delay = math.log(self.initial_seconds) + attempt * math.log(
+                    self.multiplier
+                )
+                if log_delay > math.log(self.maximum_seconds):
+                    return self.maximum_seconds
+                try:
+                    delay = self.initial_seconds * (self.multiplier**attempt)
+                except OverflowError:
+                    # Tiny initial delays can require large exponents while
+                    # their product remains finite and below the cap.
+                    delay = math.exp(log_delay)
+                return min(delay, self.maximum_seconds)
         delay = self.initial_seconds * (self.multiplier**attempt)
         return min(delay, self.maximum_seconds)
 
