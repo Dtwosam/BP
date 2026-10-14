@@ -21,6 +21,20 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**14 October 2026 — Stage B1 postcommit receipt delivery review (owner-closed #589):**
+The existing local-test-only same-batch inserted-count callback occurs
+after commit but carries only immutable class counts, **not** a
+transaction/batch identity or delivery acknowledgement. A fixed
+in-memory rehearsal now demonstrates lost callbacks after commit,
+double-counted duplicates, conflicting redelivery, notification before
+commit, late receipts past readout, and awaited-coro cancellation
+preceding a late fake commit. Every report is explicitly **NO GO**;
+neither an observed nor a missing callback proves actual production
+inserts. The owner **closed #589 on 14 October 2026**; do not reopen
+without explicit direction. The technical root cause remains
+unverified; Phase 14 HOLD, economics NOT MET, live disabled. No
+production action, SQL, deployment or trading.
+
 **14 October 2026 — Stage B1 fixed diagnostic distinguishability (#589):**
 A new offline-only six-world counterexample shows that a **separate**
 Bybit bulk wire probe can produce the **same** positive ACK/wire/parser
