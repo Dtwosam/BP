@@ -211,6 +211,19 @@ class WebSocketCollectorRunner:
                 if stop_requested and not recv_succeeded:
                     return
 
+                # Queue.get() has already consumed ready outbound controls.
+                # Retain their reconnect subscription state BEFORE parsing or
+                # sinking a simultaneous frame can fail; network sends remain
+                # AFTER successful frame processing.
+                outbound_ready = outbound_task is not None and outbound_task in done
+                outbound_message: object | None = None
+                if outbound_ready:
+                    outbound_message = outbound_task.result()
+                    self.subscription = _apply_market_subscription_update(
+                        self.subscription,
+                        outbound_message,
+                    )
+
                 if recv_task in done and recv_succeeded:
                     message = recv_task.result()
                     received_at = self.now()
@@ -241,15 +254,6 @@ class WebSocketCollectorRunner:
                     if stop.is_set():
                         return
                     recv_task = asyncio.create_task(websocket.recv())
-
-                outbound_ready = outbound_task is not None and outbound_task in done
-                outbound_message: object | None = None
-                if outbound_ready:
-                    outbound_message = outbound_task.result()
-                    self.subscription = _apply_market_subscription_update(
-                        self.subscription,
-                        outbound_message,
-                    )
 
                 if heartbeat_task is not None and heartbeat_task in done:
                     assert self.heartbeat_message is not None
