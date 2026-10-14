@@ -91,7 +91,11 @@ def test_cli_only_emits_sanitized_bounded_fixture(scenario: str) -> None:
     data = json.loads(run.stdout)
     assert data == review.review_fake_receipts(scenario)
     assert len(run.stdout.encode("utf-8")) < 2500
-    for forbidden in ("postgresql://", "private_key", "secret", "DATABASE_URL", "FIXED_FAKE_BATCH_01"):
+    forbidden_values = (
+        "postgresql://", "private_key", "secret",
+        "DATABASE_URL", "FIXED_FAKE_BATCH_01",
+    )
+    for forbidden in forbidden_values:
         assert forbidden not in run.stdout
 
 
