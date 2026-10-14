@@ -21,6 +21,19 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**14 October 2026 — Stage B1 real DB-sink to-thread cancellation boundary,
+fake transaction ONLY (#589):** A fixed offline script runs the actual
+`_DatabaseSink.write_events` through the dormant B1 writer observer,
+but injects only an in-memory fake engine/repository; there is no SQL
+or DB connection. It cancels the awaited async writer while its fake
+synchronous worker is still blocked, then releases that worker to
+finish with either a fake commit or fake rollback. Both count as
+unresolved at the observer boundary, and neither authorizes production
+termination or service recovery claims. Stage B1 remains inactive;
+current VM identity, real DB threads, systemd restore and representative
+overhead remain unverified. No host/deploy/restart/SQL/trading; Phase
+14 HOLD, economics NOT MET, live disabled.
+
 **14 October 2026 — Stage B1 fake supervisor cancellation boundary (#589):**
 The fixed synthetic POSIX watchdog now obtains its subprocess process
 handle synchronously before any asyncio cancellation point, then uses
