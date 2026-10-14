@@ -21,6 +21,18 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**14 October 2026 — Stage B1 real local PostgreSQL concurrent postcommit replay:**
+Added a targeted existing-fixture test that starts two same-batch
+local PostgreSQL writes concurrently, verifies dedupe means three
+physical rows and three claims rather than two copies, and checks
+per-class postcommit counts under contention. One notification
+callback deliberately fails after commit; both transactions still
+commit and the report retains a sanitized `FAILED_AFTER_COMMIT`
+status. This is a substantive **local SQL** proof, NOT production
+insert evidence, independent receipt delivery, or new authorization.
+Owner-closed #589 remains closed; root cause unknown, Phase 14 HOLD,
+economic acceptance NOT MET, live trading disabled.
+
 **14 October 2026 — Stage B1 postcommit receipt delivery review (owner-closed #589):**
 The existing local-test-only same-batch inserted-count callback occurs
 after commit but carries only immutable class counts, **not** a
