@@ -4,7 +4,7 @@ import asyncio
 import os
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from datetime import UTC, datetime, timedelta
-from threading import Barrier
+from threading import Barrier, Event
 from time import monotonic, sleep
 
 import pytest
@@ -2643,6 +2643,115 @@ def test_b1_same_batch_concurrent_duplicate_replay_callback_failure_keeps_commit
     assert "PRIVATE_LOCAL_CALLBACK_FAILURE" not in str(reports)
     assert all(
         event.dedupe_key not in str(reports) for event in events
+    )
+
+
+
+
+def test_b1_concurrent_rollback_replay_has_no_orphan_dedupe_claims(engine) -> None:
+    """An uncommitted writer must not strand dedupe claims during a rival replay."""
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now, migrate_existing=False)
+
+    def bulk(kind: str, sequence: str) -> RawEvent:
+        return RawEvent.build(
+            source="bybit", stream="linear", instrument="BTCUSDT",
+            event_type=kind, source_timestamp=now, received_at=now,
+            sequence=sequence, payload={"local_only": sequence},
+        )
+
+    trade = bulk("trade", "shared-trade")
+    book = bulk("orderbook_delta", "shared-book")
+    liquidation = bulk("liquidation", "shared-liquidation")
+    failing_only = bulk("trade", "rolled-back-only")
+    succeeding_only = bulk("orderbook_delta", "committed-only")
+    failed_batch = [trade, trade, book, liquidation, failing_only]
+    successful_batch = [trade, trade, book, liquidation, succeeding_only]
+    failed_has_inserted = Event()
+    rival_attempting_insert = Event()
+    callbacks: list[dict[str, int]] = []
+
+    class RollBackAfterRawInsert(RecorderRepository):
+        def insert_partitioned_events_with_claim_keys(self, connection, events):
+            claimed = super().insert_partitioned_events_with_claim_keys(
+                connection, events
+            )
+            assert claimed[0] == 4
+            # Raw rows and dedupe claims exist INSIDE the open transaction.
+            failed_has_inserted.set()
+            if not rival_attempting_insert.wait(timeout=10):
+                raise AssertionError("rival local PostgreSQL writer never arrived")
+            raise RuntimeError("fixed local rollback after raw insert")
+
+    class SignalCompetingWriter(RecorderRepository):
+        def insert_partitioned_events_with_claim_keys(self, connection, events):
+            rival_attempting_insert.set()
+            return super().insert_partitioned_events_with_claim_keys(
+                connection, events
+            )
+
+    def write_failing() -> None:
+        # Its callback MUST NOT run when its transaction rolls back.
+        insert_same_batch_attributed_offline(
+            engine, failed_batch, repository=RollBackAfterRawInsert(),
+            on_committed_counts=lambda _counts: pytest.fail(
+                "callback for rolled-back local transaction"
+            ),
+        )
+
+    def write_succeeding() -> dict[str, object]:
+        def on_commit(counts) -> None:
+            with engine.connect() as reader:
+                assert reader.execute(
+                    text("SELECT count(*) FROM raw_market_events")
+                ).scalar_one() == 4
+            with pytest.raises(TypeError):
+                counts["trade"] = 999
+            callbacks.append(dict(counts))
+
+        return insert_same_batch_attributed_offline(
+            engine, successful_batch, repository=SignalCompetingWriter(),
+            on_committed_counts=on_commit,
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        failing = executor.submit(write_failing)
+        assert failed_has_inserted.wait(timeout=10)
+        succeeding = executor.submit(write_succeeding)
+        result = succeeding.result(timeout=15)
+        with pytest.raises(RuntimeError, match="fixed local rollback"):
+            failing.result(timeout=15)
+
+    assert result["status"] == "LOCAL_TEST_TRANSACTION_COMMITTED_NO_GO"
+    assert result["postcommit_notification_status"] == "DELIVERED"
+    assert result["attempted_by_class"]["trade"] == 2
+    assert result["deduplicated_by_class"]["trade"] == 1
+    assert result["inserted_by_class"] == {
+        "trade": 1, "orderbook": 2, "liquidation": 1,
+        "other": 0, "excluded_non_bulk": 0,
+    }
+    assert callbacks == [result["inserted_by_class"]]
+    assert result["additional_db_statements_vs_normal_insert"] == 0
+    assert result["production_execution_authorized"] is False
+    assert result["production_insert_attribution_proven"] is False
+    with engine.connect() as reader:
+        assert reader.execute(
+            text("SELECT count(*) FROM raw_market_events")
+        ).scalar_one() == 4
+        assert reader.execute(
+            text("SELECT count(*) FROM raw_event_dedupe")
+        ).scalar_one() == 4
+        for table in ("raw_market_events", "raw_event_dedupe"):
+            assert reader.execute(
+                text(f"SELECT count(*) FROM {table} WHERE dedupe_key = :key"),
+                {"key": failing_only.dedupe_key},
+            ).scalar_one() == 0
+            assert reader.execute(
+                text(f"SELECT count(*) FROM {table} WHERE dedupe_key = :key"),
+                {"key": succeeding_only.dedupe_key},
+            ).scalar_one() == 1
+    assert all(
+        raw.dedupe_key not in str(result) for raw in successful_batch
     )
 
 

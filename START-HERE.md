@@ -21,6 +21,18 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**14 October 2026 — Stage B1 local PostgreSQL rollback/replay race:**
+A new targeted test exercises an in-flight uncommitted Bybit-linear
+bulk insertion alongside a competing retry in the same isolated
+partitioned PostgreSQL fixture. The first writer inserts claims and
+raw rows then fails/rolls back; the rival must commit four distinct
+rows, with **zero orphan claims** from the failed writer, matching
+postcommit counts and no callback for the rolled-back transaction.
+This is CI-owned local SQL only, not an instrumented production
+recorder or a new deployment authorization. #589 remains
+owner-closed; root cause UNKNOWN, Phase 14 HOLD, economics NOT MET,
+live trading disabled.
+
 **14 October 2026 — Stage B1 real local PostgreSQL concurrent postcommit replay:**
 Added a targeted existing-fixture test that starts two same-batch
 local PostgreSQL writes concurrently, verifies dedupe means three

@@ -122,6 +122,29 @@ pytest -q tests/storage/test_partitioned_raw_postgres.py::test_b1_same_batch_con
 This requires the existing isolated CI PostgreSQL fixture and its
 `BP_TEST_DATABASE_URL`; it is not a script to run against production.
 
+## Concurrent local PostgreSQL rollback-versus-replay boundary
+
+An additional fixed local-PG regression starts a failing writer,
+waits until its transaction holds real raw rows and dedupe claims
+**without commit**, then starts a competing writer using the same
+three bulk topic event identities plus its own fourth event. The
+failing transaction rolls back after the raw insert. The surviving
+writer must insert the shared trade, order book and liquidation
+and its own extra order book; final local raw and dedupe table counts
+must both equal **four**. The rolled-back writer's unique trade
+must be absent from both tables; the surviving writer's unique
+order book must be present in both. Its postcommit callback checks
+a separate connection's committed-row visibility and immutable counts;
+the failing transaction's callback must **never** run.
+
+This exercises real local PostgreSQL lock/rollback/dedupe interplay,
+not only independently sequenced fake callback outcomes. It remains
+**nonproduction**; one controlled race is not an exhaustive concurrency
+proof, a source identity attestation, or evidence about the live
+recorder's actual queue/DB behavior. It does not establish that
+async cancellation kills underlying database writes. The helper is
+not enabled in production, and Phase 14 stays HOLD.
+
 ## Repository disposition
 
 [Issue #589](https://github.com/Dtwosam/BP/issues/589) was
