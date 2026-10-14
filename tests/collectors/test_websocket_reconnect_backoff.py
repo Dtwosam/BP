@@ -199,3 +199,63 @@ async def test_control_only_receive_does_not_reset_consecutive_failure_streak(
     assert reconnect_attempts == expected_attempts
     assert [event.sequence for event in events] == expected_events
     assert [incident.incident_type for incident in incidents].count("error") == 2
+
+
+@pytest.mark.asyncio
+async def test_runner_keeps_reconnecting_after_1024_consecutive_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The real runner must not die while calculating capped backoff."""
+    failure_count = 1025
+    sockets = [
+        FakeWebSocket([RuntimeError("fixed synthetic disconnect")])
+        for _ in range(failure_count)
+    ]
+    sockets.append(FakeWebSocket(['{"sequence": 999}']))
+    connector = FakeConnector(sockets)
+    incidents: list[FeedIncident] = []
+    delivered: list[RawEvent] = []
+    scheduled_delays: list[float] = []
+    stop = asyncio.Event()
+
+    def parser(message: object, received_at: datetime) -> list[RawEvent]:
+        assert isinstance(message, dict)
+        stop.set()
+        return [raw_event(int(message["sequence"]), received_at)]
+
+    runner = WebSocketCollectorRunner(
+        source="test",
+        stream="market",
+        url="wss://fixed-fake.test/ws",
+        connector=connector,
+        subscription={"type": "market"},
+        parser=parser,
+        event_sink=delivered.append,
+        incident_sink=incidents.append,
+        heartbeat_message=None,
+        heartbeat_interval_seconds=None,
+        reconnect_policy=ReconnectPolicy(),
+    )
+
+    async def fake_no_wait(_stop: asyncio.Event, delay: float) -> None:
+        scheduled_delays.append(delay)
+        await asyncio.sleep(0)
+
+    # Exercise the real runner/error loop and real default delay policy;
+    # only the wait duration is replaced to avoid a 30-second test sleep.
+    monkeypatch.setattr(runner, "_wait_before_reconnect", fake_no_wait)
+    await asyncio.wait_for(runner.run(stop), timeout=10)
+
+    attempts = [
+        incident.details["attempt"]
+        for incident in incidents
+        if incident.incident_type == "reconnect"
+    ]
+    assert len(attempts) == failure_count
+    assert attempts[:6] == list(range(6))
+    assert attempts[-1] == 1024
+    assert scheduled_delays[:7] == [1, 2, 4, 8, 16, 30, 30]
+    assert scheduled_delays[-1] == 30
+    assert len(delivered) == 1
+    assert delivered[0].sequence == "999"
+    assert not connector.websockets
