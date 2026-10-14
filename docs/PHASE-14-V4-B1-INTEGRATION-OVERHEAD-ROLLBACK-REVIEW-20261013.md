@@ -670,3 +670,50 @@ or arbitrary process trees. No real recorder, thread-based DB write, host,
 production SQL, report publishing, credentials, network, deployment or
 restart is touched. **No operator launcher or production authorization;
 #589 OPEN; Phase 14 HOLD, economics NOT MET, live trading disabled.**
+
+## 14 October 2026 — real DB-sink async cancellation with a fake transaction
+
+The Stage B1 synthetic POSIX watchdog now tests known process-group
+descendants (#619/#620), but those tests cannot demonstrate the fate of
+the synchronous DB worker launched by the recorder's existing
+`_DatabaseSink.write_events()` via `asyncio.to_thread()`. Cancellation
+of the awaiting coroutine does **not** stop that worker.
+
+An additional **strictly offline in-memory witness** now calls the real
+`_DatabaseSink.write_events()` through the actual dormant
+`StageB1BulkObserver.wrap_writer_sink()`, with a fixed fake transaction
+engine and repository. No SQL engine, database connection, settings
+factory, recorder service, host or network is used. A bounded
+`threading.Event` handshake proves the synchronous fake insert started;
+the async task is cancelled while the fake transaction remains blocked.
+Only after the cancelled task has exited is the fake worker released.
+Fixed scenarios prove that the fake transaction can **commit** or **raise
+and roll back** afterward, while the observer correctly retains
+`writer_batches_cancelled_unresolved=1`,
+`writer_batches_in_flight=1`, zero returned writer batches and zero
+post-return committed attempt counts. Both paths must be a production
+**NO GO**, regardless of the fake worker's eventual outcome.
+
+The fixed-schema readout deliberately distinguishes known fixture
+completion from any claim about production DB thread termination,
+real transaction outcome, systemd restoration, or resource/rollback
+acceptance. There is no user-supplied command, URL, connection string,
+payload or credential; the worker has a finite synthetic release timeout.
+CI validates both fake outcomes and the NO-GO flags. These tests do
+**not** discover whether production DB transactions persist after a
+real recorder stop, and they do not solve cancellation or thread
+lifetime. An independently enforced process/service stop and rollback
+plan, current VM identity attestation, and representative overhead
+remain prerequisites for separately authorized production diagnostics.
+
+Offline-only review commands:
+
+```sh
+python -m pytest -q tests/recorder/test_stage_b1_db_thread_boundary.py
+python scripts/rehearse_stage_b1_db_thread_boundary.py --scenario late_success
+python scripts/rehearse_stage_b1_db_thread_boundary.py --scenario late_failure
+```
+
+No VM/production SQL/network, restart/deploy, paper shadow, holdout,
+source/model gate or trading. **#589 OPEN; Phase 14 HOLD; economic
+acceptance NOT MET; live trading disabled.**
