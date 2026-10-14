@@ -66,7 +66,14 @@ def evaluate_contract(manifest: object) -> dict[str, object]:
         and type(manifest["gate_claims"]) is dict
         and set(manifest["gate_claims"]) == set(GATE_NAMES)
     )
-    scope_matches = bool(shape and manifest["proposed_scope"] == _PROPOSED_SCOPE)
+    scope_matches = bool(
+        shape
+        and all(
+            type(manifest["proposed_scope"][key]) is type(expected)
+            and manifest["proposed_scope"][key] == expected
+            for key, expected in _PROPOSED_SCOPE.items()
+        )
+    )
     token_valid = bool(
         shape
         and all(
