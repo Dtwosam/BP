@@ -66,6 +66,15 @@ jobs:
           test "$exit_status" -eq 2
           python -c 'import json; d=json.load(open("stage-b1-preflight-NO-GO.json")); assert d["status"] == "INCOMPLETE_OR_MISMATCHED_NO_GO" and not d["production_execution_authorized"] and not d["host_claims_independently_verified"]'
 
+      - name: Stage B1 pinned recorder source feasibility (NO GO)
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/recorder/test_stage_b1_operator_feasibility.py
+          status=0
+          python scripts/review_stage_b1_operator_feasibility.py > stage-b1-pinned-operator-NO-GO.json || status=$?
+          test "$status" -eq 2
+          python -c 'import json; x=json.load(open("stage-b1-pinned-operator-NO-GO.json")); assert x["status"]=="PINNED_SOURCE_REVIEW_ONLY_NO_GO" and x["file_count"]==5 and all(x["checks"].values()) and not x["on_host_identity_verified"] and not x["safe_existing_recorder_restart_candidate_available"] and not x["safe_parallel_full_recorder_candidate_available"] and not x["db_thread_quiescence_verified"] and not x["production_execution_authorized"]'
+
       - name: Stage B1 lifecycle/restoration review must remain NO GO
         run: |
           set -euo pipefail
@@ -145,6 +154,7 @@ jobs:
             stage-b1-fake-pipeline-failed.json
             stage-b1-preflight-NO-GO.json
             stage-b1-lifecycle-review-NO-GO.json
+            stage-b1-pinned-operator-NO-GO.json
             stage-b1-process-cooperative.json
             stage-b1-process-ignore-term.json
             stage-b1-process-orphan-kill.json

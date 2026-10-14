@@ -21,6 +21,20 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**14 October 2026 — Stage B1 five-file pinned operator feasibility (#589):**
+The checked-in `bp-recorder.service` has `Restart=always`,
+`TimeoutStopSec=60` and the ordinary recorder module as `ExecStart`;
+the normal Python entry point never injects B1, and the full recorder
+builder can initialize DB/schema and multiple feed writers. Existing
+`asyncio.to_thread` writes remain unproved stopped after task cancellation.
+A five-file exact-Git-blob local static checker now records those source
+facts, rejects drift, and **always returns NO GO**, including on a match.
+Neither modifying/restarting the active recorder nor running a parallel
+full recorder is an approved diagnostic. No on-host service/unit identity
+has been verified; source-only review does not replace the 17-gate
+contract, live B1 observations or fresh specific authorization. Phase
+14 HOLD, economics NOT MET, live trading disabled.
+
 **14 October 2026 — Stage B1 lifecycle/restoration acceptance proposal (#589):**
 The review-only
 `docs/PHASE-14-V4-B1-OPERATOR-LIFECYCLE-RESTORE-CONTRACT-20261014.md`
