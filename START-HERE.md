@@ -21,6 +21,15 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**14 October 2026 — WebSocket reconnect recovery semantics (offline code/test):**
+The existing runner now resets escalating reconnect failures only after
+market events have been successfully parsed and sunk. PONG/ACK/control
+frames that parse to zero events cannot mask consecutive reconnect
+failures; positive market-data delivery still resets backoff as before.
+Fake-socket tests cover both sides without live service interaction.
+The source change is not deployed; issue #589 remains owner-closed,
+Phase 14 HOLD, economics NOT MET, live trading disabled.
+
 **14 October 2026 — Stage B1 local PostgreSQL rollback/replay race:**
 A new targeted test exercises an in-flight uncommitted Bybit-linear
 bulk insertion alongside a competing retry in the same isolated

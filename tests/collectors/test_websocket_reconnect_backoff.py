@@ -138,3 +138,64 @@ async def test_reconnect_streak_keeps_escalating_until_a_connection_receives_dat
         if incident.incident_type == "reconnect"
     ]
     assert reconnect_attempts == [0, 1]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("first_healthy_market", "expected_attempts", "expected_events"),
+    [
+        (False, [0, 1], ["10"]),
+        (True, [0, 0], ["9", "10"]),
+    ],
+)
+async def test_control_only_receive_does_not_reset_consecutive_failure_streak(
+    first_healthy_market: bool,
+    expected_attempts: list[int],
+    expected_events: list[str],
+) -> None:
+    """PONG/ACK traffic is not successful market-data recovery."""
+    first = FakeWebSocket([RuntimeError("initial socket failure")])
+    middle_messages: list[object] = ['{"type": "PONG"}']
+    if first_healthy_market:
+        middle_messages.append('{"sequence": 9}')
+    middle_messages.append(RuntimeError("control-only or market-data socket drop"))
+    second = FakeWebSocket(middle_messages)
+    third = FakeWebSocket(['{"sequence": 10}'])
+    connector = FakeConnector([first, second, third])
+    incidents: list[FeedIncident] = []
+    events: list[RawEvent] = []
+    stop = asyncio.Event()
+
+    def parser(message: object, received_at: datetime) -> list[RawEvent]:
+        assert isinstance(message, dict)
+        if message.get("type") == "PONG":
+            return []
+        sequence = int(message["sequence"])
+        if sequence == 10:
+            stop.set()
+        return [raw_event(sequence, received_at)]
+
+    runner = WebSocketCollectorRunner(
+        source="test",
+        stream="market",
+        url="wss://example.test/ws",
+        connector=connector,
+        subscription={"type": "market"},
+        parser=parser,
+        event_sink=events.append,
+        incident_sink=incidents.append,
+        heartbeat_message=None,
+        heartbeat_interval_seconds=None,
+        reconnect_policy=ReconnectPolicy(initial_seconds=0, maximum_seconds=0),
+    )
+
+    await asyncio.wait_for(runner.run(stop), timeout=1)
+
+    reconnect_attempts = [
+        incident.details["attempt"]
+        for incident in incidents
+        if incident.incident_type == "reconnect"
+    ]
+    assert reconnect_attempts == expected_attempts
+    assert [event.sequence for event in events] == expected_events
+    assert [incident.incident_type for incident in incidents].count("error") == 2

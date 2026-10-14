@@ -235,7 +235,8 @@ class WebSocketCollectorRunner:
                         )
                         if recovery is not None:
                             await self._emit_incident(recovery)
-                    if on_receive is not None:
+                    if events and on_receive is not None:
+                        # Control-only frames do not prove market-data recovery.
                         on_receive()
                     if stop.is_set():
                         return
