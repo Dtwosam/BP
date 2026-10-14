@@ -639,3 +639,34 @@ one-shot activation/snapshot export, actual representative overhead
 results and explicit backport/restore rehearsal. No current evidence
 identifies the actual production fault or the October 7–8 cause.
 **Phase 14 HOLD; economic acceptance NOT MET; live trading disabled.**
+
+## 14 October 2026 — cancelled fake supervisor startup (OFFLINE ONLY)
+
+The previously merged fake POSIX process watchdog #619 acquired its leader
+through `await asyncio.create_subprocess_exec(...)`. Cancellation could
+interrupt that await after a kernel process existed but before Python returned
+a usable process handle. An outer `finally` could close file descriptors
+without knowing which process group to signal. This was a **remaining
+cancellation-sensitive synthetic launch window**, not evidence that the
+production recorder had been launched or was uncleanly terminated.
+
+The fake-only script now starts its single fixed `-I -B` self-exec child with
+**synchronous `subprocess.Popen` handle acquisition before the first await**.
+It then performs bounded non-threaded async `poll()` loops, existing
+TERM→KILL group escalation, known inherited-FD pipe EOF checks and direct
+leader reaping. If its supervising task is cancelled after the child is
+started, its `finally` attempts group KILL, bounded leader reap and pipe
+EOF before propagating cancellation; a cancelled run never returns an
+accepted aggregate. CI exercises cancellation with a still-running leader
+and with a reaped leader whose TERM-ignoring fake descendant is alive.
+
+**Limitations:** A single cooperative cancellation during normal event-loop
+operation is the tested case; repeated cancellation, signal-driven interpreter
+exit, event-loop destruction, abnormal process death and unresponsive OS
+processes are not covered. Synchronous `Popen` does not provide a bounded
+wall-clock deadline for OS-level spawn itself. Pipe EOF still covers only
+fixed synthetic FD holders, not escaped children, threads, systemd units
+or arbitrary process trees. No real recorder, thread-based DB write, host,
+production SQL, report publishing, credentials, network, deployment or
+restart is touched. **No operator launcher or production authorization;
+#589 OPEN; Phase 14 HOLD, economics NOT MET, live trading disabled.**

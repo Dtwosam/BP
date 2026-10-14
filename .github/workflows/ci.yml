@@ -73,6 +73,10 @@ jobs:
           python scripts/rehearse_stage_b1_process_boundary.py --scenario leader_exits_descendant_ignores_term | tee stage-b1-process-orphan-kill.json
           python -c 'import json; x=json.load(open("stage-b1-process-orphan-kill.json")); assert x["termination"] == "descendant_sigkill" and x["known_fixture_group_pipe_eof"] and x["process_leader_reaped"] and not x["fixed_synthetic_aggregate_valid"] and not x["production_execution_authorized"]'
 
+      - name: Stage B1 fake supervisor cancellation cleanup regression
+        run: |
+          python -m pytest -q tests/recorder/test_stage_b1_process_boundary.py::test_cancelled_supervisor_reaps_live_fake_descendant tests/recorder/test_stage_b1_process_boundary.py::test_cancelled_supervisor_reaps_hanging_fake_leader
+
       - name: Stage B1 real recorder pipeline with fake in-memory socket only
         run: |
           set -o pipefail

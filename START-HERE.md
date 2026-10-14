@@ -21,6 +21,18 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**14 October 2026 — Stage B1 fake supervisor cancellation boundary (#589):**
+The fixed synthetic POSIX watchdog now obtains its subprocess process
+handle synchronously before any asyncio cancellation point, then uses
+bounded non-threaded polling and cleanup. A cancellation after the known
+fake starts must attempt group SIGKILL, direct leader reaping and inherited
+pipe EOF, including a leader that exits while a TERM-ignoring descendant
+stays alive. This does NOT verify OS spawn deadlines, repeated cancellation,
+arbitrary process trees, asyncio-to-thread DB writes or systemd restoration.
+The real Bybit-linear ingestion failure remains unobserved. No host, SQL,
+service restart, deployment or trading action; Phase 14 HOLD, economics
+NOT MET, live disabled. Separate authorization remains required.
+
 **13 October 2026 — Stage B1 offline process-group descendant safety (#589):**
 The fake-only POSIX watchdog now tests a leader that exits 0 while
 a forked descendant stays alive, with both TERM-cooperative and
