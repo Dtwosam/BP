@@ -11,8 +11,8 @@ from pathlib import Path
 import pytest
 
 from scripts.rehearse_stage_b1_inert_wire_only import (
-    SCENARIOS,
     _FAKE_URL,
+    SCENARIOS,
     _FakeSocket,
     _frames,
     run_fake_wire_only,
