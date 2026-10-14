@@ -1,3 +1,6 @@
+import math
+
+import pytest
 from datetime import UTC, datetime, timedelta
 
 from bp_engine.collectors.reliability import ClockSkewGuard, FeedWatchdog, ReconnectPolicy
@@ -7,6 +10,44 @@ def test_reconnect_policy_exponential_backoff_caps_at_maximum() -> None:
     policy = ReconnectPolicy(initial_seconds=1, multiplier=2, maximum_seconds=5)
 
     assert [policy.delay_for_attempt(i) for i in range(6)] == [1, 2, 4, 5, 5, 5]
+
+
+
+def test_reconnect_policy_does_not_overflow_on_long_failure_streaks() -> None:
+    policy = ReconnectPolicy()
+    assert [policy.delay_for_attempt(i) for i in range(7)] == [
+        1, 2, 4, 8, 16, 30, 30,
+    ]
+    for attempt in (1023, 1024, 10_000, 10**400):
+        assert policy.delay_for_attempt(attempt) == 30
+
+
+def test_reconnect_policy_zero_delay_stays_zero_after_many_failures() -> None:
+    immediate = ReconnectPolicy(initial_seconds=0, maximum_seconds=0)
+    assert immediate.delay_for_attempt(10_000) == 0
+    assert ReconnectPolicy(
+        initial_seconds=0, multiplier=2, maximum_seconds=30
+    ).delay_for_attempt(10_000) == 0
+
+
+def test_reconnect_policy_tiny_initial_delay_with_large_finite_power() -> None:
+    policy = ReconnectPolicy(
+        initial_seconds=1e-300, multiplier=2, maximum_seconds=1e300
+    )
+    delay = policy.delay_for_attempt(1500)
+    assert 0 < delay < 1e300
+    assert math.isclose(
+        math.log(delay), math.log(1e-300) + 1500 * math.log(2),
+        abs_tol=1e-10,
+    )
+    assert policy.delay_for_attempt(10_000) == 1e300
+
+
+def test_reconnect_policy_still_rejects_negative_attempts() -> None:
+
+    with pytest.raises(ValueError, match="attempt must be non-negative"):
+        ReconnectPolicy().delay_for_attempt(-1)
+
 
 
 def test_watchdog_emits_stale_once_then_recovered_on_next_event() -> None:
