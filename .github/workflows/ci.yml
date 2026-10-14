@@ -152,6 +152,11 @@ jobs:
           python scripts/rehearse_stage_b1_real_pipeline_offline.py --scenario writer_failure | tee stage-b1-fake-pipeline-failed.json
           python -c 'import json; ok=json.load(open("stage-b1-fake-pipeline-healthy.json")); fail=json.load(open("stage-b1-fake-pipeline-failed.json")); assert ok["status"] == "COMPLETE_AGGREGATES_ONLY" and ok["counts"]["writer_batches_returned"] == 3 and not ok["inserted_rows_by_class_proven"]; assert fail["status"] == "INCONCLUSIVE" and not fail["production_execution_authorized"]'
 
+      - name: Stage B1 local PostgreSQL rollback versus replay (NO GO)
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/storage/test_partitioned_raw_postgres.py::test_b1_concurrent_rollback_replay_has_no_orphan_dedupe_claims
+
       - name: Stage B1 local PostgreSQL concurrent duplicate replay (NO GO)
         run: |
           set -euo pipefail
