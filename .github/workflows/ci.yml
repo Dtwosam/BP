@@ -113,6 +113,16 @@ jobs:
           python scripts/rehearse_stage_b1_fake_service_restoration.py --scenario db_worker_pending > stage-b1-fake-restore-worker.json
           python -c 'import json; files=["stage-b1-fake-restore-matched.json","stage-b1-fake-restore-ack-only.json","stage-b1-fake-restore-stale.json","stage-b1-fake-restore-worker.json"]; rows=[json.load(open(p)) for p in files]; assert rows[0]["status"]=="FAKE_READBACK_MATCH_UNVERIFIED_NO_GO" and all(rows[0]["checks"].values()); assert all(x["status"]=="FAKE_RESTORE_MISMATCH_NO_GO" for x in rows[1:]); assert rows[1]["checks"]["restore_ack_received"] and not rows[1]["checks"]["service_active"]; assert not rows[2]["checks"]["fresh_separate_readback"]; assert not rows[3]["checks"]["no_known_fake_db_workers"]; assert all(not x["actual_systemd_restoration_proven"] and not x["actual_db_thread_quiescence_proven"] and not x["production_execution_authorized"] for x in rows)'
 
+      - name: Stage B1 inert bulk wire-only fixed fake (NO GO)
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/recorder/test_stage_b1_inert_wire_only.py
+          python scripts/rehearse_stage_b1_inert_wire_only.py --scenario bulk_all > stage-b1-wire-only-bulk.json
+          python scripts/rehearse_stage_b1_inert_wire_only.py --scenario ack_only > stage-b1-wire-only-ack.json
+          python scripts/rehearse_stage_b1_inert_wire_only.py --scenario parse_failure > stage-b1-wire-only-error.json
+          python scripts/rehearse_stage_b1_inert_wire_only.py --scenario ticker_excluded > stage-b1-wire-only-ticker.json
+          python -c 'import json; a=json.load(open("stage-b1-wire-only-bulk.json")); b=json.load(open("stage-b1-wire-only-ack.json")); c=json.load(open("stage-b1-wire-only-error.json")); d=json.load(open("stage-b1-wire-only-ticker.json")); xs=(a,b,c,d); assert a["fake_wire_messages_by_class"]=={"trade":1,"orderbook":1,"liquidation":1,"other":0} and a["fake_discarded_events_not_written"]==3; assert b["classification"]=="fake_no_bulk_frames" and b["fake_subscribe_ack_socket_outcome"]["success"]==1; assert c["classification"]=="fake_parser_exception" and c["fake_parser_errors"]==1; assert d["fake_discarded_events_not_written"]==1 and sum(d["fake_parsed_events_by_class"].values())==0; assert all(x["status"]=="OFFLINE_FIXED_FAKE_WIRE_ONLY_NO_GO" and not x["real_exchange_frames_received"] and not x["per_topic_subscription_accepted_proven"] and not x["database_write_or_commit_proven"] and not x["production_execution_authorized"] for x in xs)'
+
       - name: Stage B1 real recorder pipeline with fake in-memory socket only
         run: |
           set -o pipefail
@@ -164,6 +174,10 @@ jobs:
             stage-b1-fake-restore-ack-only.json
             stage-b1-fake-restore-stale.json
             stage-b1-fake-restore-worker.json
+            stage-b1-wire-only-bulk.json
+            stage-b1-wire-only-ack.json
+            stage-b1-wire-only-error.json
+            stage-b1-wire-only-ticker.json
           if-no-files-found: warn
           retention-days: 7
 

@@ -21,6 +21,20 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**14 October 2026 — Stage B1 fixed offline wire-only diagnostic feasibility (#589):**
+`scripts/rehearse_stage_b1_inert_wire_only.py` now exercises the
+existing WebSocket runner, Bybit-linear bulk parser/subscription and
+dormant aggregate observer with a **fixed in-memory socket** and
+discard-only event sink. Synthetic frames distinguish topic receipt,
+parser failures, socket-level ACK-only and excluded ticker frames,
+without queue, database, recorder service, real endpoint or writer.
+This is **not a production probe or approved operator**; all reports
+remain NO GO, and no ACK proves per-topic acceptance. Any future
+wire-only design still cannot attribute queue/DB/dedupe loss, so it
+does not close #589. No host, production SQL, live network, service
+restart/deploy or trading. Phase 14 HOLD, economics NOT MET, live
+disabled.
+
 **14 October 2026 — Stage B1 five-file pinned operator feasibility (#589):**
 The checked-in `bp-recorder.service` has `Restart=always`,
 `TimeoutStopSec=60` and the ordinary recorder module as `ExecStart`;
