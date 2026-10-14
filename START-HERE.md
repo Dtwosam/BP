@@ -21,6 +21,20 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**14 October 2026 — Overflow-safe WebSocket reconnect backoff (offline):**
+The default exponential reconnect delay previously evaluated
+`2**attempt` **before** applying its 30-second ceiling. After 1,024
+consecutive failures this raises `OverflowError`, terminating the
+collector's reconnect loop rather than preserving its capped retry.
+The policy now checks saturation before exponentiation, while
+preserving normal short-attempt delays, the zero-delay test mode,
+and tiny-start configurations requiring large but finite powers.
+Deterministic tests also run the real WebSocket runner through 1,025
+synthetic connection failures and recover on the next in-memory frame.
+No production host/SQL/socket/service access or deployment; owner-closed
+#589 unchanged, Phase 14 HOLD, economic acceptance NOT MET, live trading
+disabled.
+
 **14 October 2026 — WebSocket same-turn parser/sink failure and outbound-control preservation:**
 A dynamic subscription already removed from its async queue is now
 retained for reconnect before a simultaneous market frame can raise
