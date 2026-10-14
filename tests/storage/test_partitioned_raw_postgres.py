@@ -2560,6 +2560,93 @@ def test_b1_same_batch_rejects_unexpected_claim_key_and_rolls_back(engine) -> No
 
 
 
+
+def test_b1_same_batch_concurrent_duplicate_replay_callback_failure_keeps_commit(
+    engine,
+) -> None:
+    """Two local PG writers race on the same batch, not on a fake database."""
+    now = datetime(2026, 9, 4, 11, 15, tzinfo=UTC)
+    ensure_partitioned_raw_storage(engine, now=now, migrate_existing=False)
+
+    def bulk(event_type: str, sequence: str) -> RawEvent:
+        return RawEvent.build(
+            source="bybit",
+            stream="linear",
+            instrument="BTCUSDT",
+            event_type=event_type,
+            source_timestamp=now,
+            received_at=now,
+            sequence=sequence,
+            payload={"fixture_only": sequence},
+        )
+
+    trade = bulk("trade", "shared-trade")
+    events = [
+        trade, trade,
+        bulk("orderbook_delta", "shared-orderbook"),
+        bulk("liquidation", "shared-liquidation"),
+    ]
+    barrier = Barrier(2)
+    callback_receipts: list[tuple[int, dict[str, int], int]] = []
+
+    def write_once(index: int) -> dict[str, object]:
+        def after_commit(counts) -> None:
+            with engine.connect() as reader:
+                # The other competing transaction must never surface a
+                # callback before its own claimed rows are committed.
+                committed_rows = reader.execute(
+                    text("SELECT count(*) FROM raw_market_events")
+                ).scalar_one()
+            callback_receipts.append((index, dict(counts), committed_rows))
+            with pytest.raises(TypeError):
+                counts["trade"] = 999
+            if index == 0:
+                # Notification failure occurs AFTER real local commit.
+                raise RuntimeError("PRIVATE_LOCAL_CALLBACK_FAILURE")
+
+        barrier.wait(timeout=10)
+        return insert_same_batch_attributed_offline(
+            engine, events, on_committed_counts=after_commit
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(write_once, index) for index in range(2)]
+        reports = [future.result(timeout=15) for future in futures]
+
+    assert all(
+        report["status"] == "LOCAL_TEST_TRANSACTION_COMMITTED_NO_GO"
+        and not report["production_execution_authorized"]
+        and report["additional_db_statements_vs_normal_insert"] == 0
+        for report in reports
+    )
+    assert [report["postcommit_notification_status"] for report in reports] == [
+        "FAILED_AFTER_COMMIT", "DELIVERED"
+    ]
+    assert sorted(sum(report["inserted_by_class"].values()) for report in reports) == [
+        0, 3
+    ]
+    for category in ("trade", "orderbook", "liquidation"):
+        assert sum(report["inserted_by_class"][category] for report in reports) == 1
+    assert all(report["attempted_by_class"]["trade"] == 2 for report in reports)
+    assert len(callback_receipts) == 2
+    assert sorted(index for index, _, _ in callback_receipts) == [0, 1]
+    assert all(committed_rows == 3 for _, _, committed_rows in callback_receipts)
+    assert sum(sum(counts.values()) for _, counts, _ in callback_receipts) == 3
+
+    with engine.connect() as reader:
+        assert reader.execute(
+            text("SELECT count(*) FROM raw_market_events")
+        ).scalar_one() == 3
+        assert reader.execute(
+            text("SELECT count(*) FROM raw_event_dedupe")
+        ).scalar_one() == 3
+    assert "PRIVATE_LOCAL_CALLBACK_FAILURE" not in str(reports)
+    assert all(
+        event.dedupe_key not in str(reports) for event in events
+    )
+
+
+
 def test_b1_postcommit_hook_cannot_run_before_commit_and_returns_only_counts(
     engine,
 ) -> None:
