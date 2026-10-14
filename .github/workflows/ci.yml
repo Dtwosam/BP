@@ -113,6 +113,19 @@ jobs:
           python scripts/rehearse_stage_b1_fake_service_restoration.py --scenario db_worker_pending > stage-b1-fake-restore-worker.json
           python -c 'import json; files=["stage-b1-fake-restore-matched.json","stage-b1-fake-restore-ack-only.json","stage-b1-fake-restore-stale.json","stage-b1-fake-restore-worker.json"]; rows=[json.load(open(p)) for p in files]; assert rows[0]["status"]=="FAKE_READBACK_MATCH_UNVERIFIED_NO_GO" and all(rows[0]["checks"].values()); assert all(x["status"]=="FAKE_RESTORE_MISMATCH_NO_GO" for x in rows[1:]); assert rows[1]["checks"]["restore_ack_received"] and not rows[1]["checks"]["service_active"]; assert not rows[2]["checks"]["fresh_separate_readback"]; assert not rows[3]["checks"]["no_known_fake_db_workers"]; assert all(not x["actual_systemd_restoration_proven"] and not x["actual_db_thread_quiescence_proven"] and not x["production_execution_authorized"] for x in rows)'
 
+      - name: Stage B1 fake postcommit receipt delivery gap (NO GO)
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/recorder/test_stage_b1_fake_receipt_delivery.py
+          python scripts/rehearse_stage_b1_fake_receipt_delivery.py --scenario normal > stage-b1-fake-receipt-normal.json
+          python scripts/rehearse_stage_b1_fake_receipt_delivery.py --scenario lost_callback > stage-b1-fake-receipt-lost.json
+          python scripts/rehearse_stage_b1_fake_receipt_delivery.py --scenario duplicate_callback > stage-b1-fake-receipt-duplicated.json
+          python scripts/rehearse_stage_b1_fake_receipt_delivery.py --scenario conflicting_retry > stage-b1-fake-receipt-conflicting.json
+          python scripts/rehearse_stage_b1_fake_receipt_delivery.py --scenario before_commit > stage-b1-fake-receipt-before.json
+          python scripts/rehearse_stage_b1_fake_receipt_delivery.py --scenario late_after_readout > stage-b1-fake-receipt-late.json
+          python scripts/rehearse_stage_b1_fake_receipt_delivery.py --scenario cancelled_await_late_commit > stage-b1-fake-receipt-cancelled.json
+          python -c 'import json; prefix="stage-b1-fake-receipt-"; names=("normal","lost","duplicated","conflicting","before","late","cancelled"); a,b,c,d,e,f,g=[json.load(open(prefix+n+".json")) for n in names]; assert b["fake_delivery_count"]==0 and b["fixed_fake_committed_inserted_by_class"]["trade"]==1; assert c["naive_double_count_prone_delivery_trade_total"]==2 and c["idempotently_grouped_fake_trade_total"]==1; assert d["fake_conflicting_delivery_count"]==1; assert e["fake_before_commit_delivery_count"]==1; assert f["fake_late_after_readout_delivery_count"]==1; assert g["fake_coroutine_cancelled_before_commit"]; assert all(x["status"].endswith("_NO_GO") and not x["current_local_callback_has_batch_identifier"] and not x["real_commit_or_insertion_proven"] and not x["production_execution_authorized"] for x in (a,b,c,d,e,f,g))'
+
       - name: Stage B1 synthetic diagnostic equivalence (NO GO)
         run: |
           set -euo pipefail
@@ -190,6 +203,7 @@ jobs:
             stage-b1-equivalence-independent-probe.json
             stage-b1-equivalence-recorder.json
             stage-b1-equivalence-hypothetical-receipts.json
+            stage-b1-fake-receipt-*.json
           if-no-files-found: warn
           retention-days: 7
 
