@@ -87,6 +87,41 @@ CI exercises the fixed scenarios, ensures the normal report is still
 NO GO and checks that the lost, repeated, premature, late and
 cancellation cases never become claims of real inserted rows.
 
+## New real local PostgreSQL concurrency proof (nonproduction)
+
+A follow-up regression now exercises the **existing**
+`insert_same_batch_attributed_offline()` helper against the CI-owned
+partitioned PostgreSQL fixture with two genuine concurrent Python
+writers that start together. Both submit the **identical** four-event
+batch (two copies of a trade, one book, one liquidation). The intended
+and asserted SQL outcome is **three inserted rows total** and three
+dedupe claims, not six, even though both transactions return normally
+from the local helper. Per-class inserted counts across both
+transactions sum to exactly one trade, one book and one liquidation;
+the losing writer's callback still executes after its zero-insertion
+commit. These are real **local test transactions**, not the production
+database.
+
+One callback deliberately raises after seeing committed local rows.
+Its report marks `FAILED_AFTER_COMMIT` while the other callback is
+`DELIVERED`; both the raw and dedupe tables retain their three
+committed rows. A separate connection inside each callback checks
+committed-row visibility, callback maps are immutable, and no dedupe
+key, payload or arbitrary exception string leaves the fixed numeric
+local result. This supplements the earlier synthetic notification
+examples with actual SQL contention behavior; it does **not** provide
+a batch ID, exactly-once callback delivery, an independent commit
+witness, host identity, process termination or production authorization.
+
+The dedicated CI-local execution is:
+
+```sh
+pytest -q tests/storage/test_partitioned_raw_postgres.py::test_b1_same_batch_concurrent_duplicate_replay_callback_failure_keeps_commit
+```
+
+This requires the existing isolated CI PostgreSQL fixture and its
+`BP_TEST_DATABASE_URL`; it is not a script to run against production.
+
 ## Repository disposition
 
 [Issue #589](https://github.com/Dtwosam/BP/issues/589) was
