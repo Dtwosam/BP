@@ -21,6 +21,17 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**14 October 2026 — Stage B1 independent fake service read-back (#589):**
+A new fixed offline in-memory restoration rehearsal separates a fake
+controller's success claim from a read-only fake service-state probe.
+Cases reject an ACK without actual fake restoration, stale read-back,
+unit or recorder identity mismatch, unhealthy fake service, unexpected
+restart count, surviving fake descendant and unresolved fake DB worker.
+A fully matched fixture is still explicitly `UNVERIFIED_NO_GO`:
+no real process group, DB thread, service unit or host has been checked,
+and no operator CLI or production mutation is added. Stage B1 remains
+inactive. Phase 14 HOLD, economics NOT MET, live trading disabled.
+
 **14 October 2026 — Stage B1 real DB-sink to-thread cancellation boundary,
 fake transaction ONLY (#589):** A fixed offline script runs the actual
 `_DatabaseSink.write_events` through the dormant B1 writer observer,
