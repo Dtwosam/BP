@@ -21,6 +21,21 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**14 October 2026 — Stage B1 fixed diagnostic distinguishability (#589):**
+A new offline-only six-world counterexample shows that a **separate**
+Bybit bulk wire probe can produce the **same** positive ACK/wire/parser
+counts across six different hypothetical production recorder outcomes.
+Thus isolated wire-only evidence cannot locate the actual recorder's
+queue, writer or database failure. Hypothetical same-recorder B1
+counters distinguish some synthetic boundaries, but transaction
+returns still cannot distinguish deduped from inserted rows; separately
+verified after-commit receipts would be needed. The strict offline
+checker demonstrates 15/15 ambiguous pairs for independent wire,
+1/15 for same-recorder counters and 0/15 for **hypothetical** postcommit
+receipts. These are illustrative fixed worlds, **not actual evidence
+or diagnostic accuracy**. No production action or fresh authorization;
+#589 OPEN, Phase 14 HOLD, economics NOT MET, live disabled.
+
 **14 October 2026 — Stage B1 fixed offline wire-only diagnostic feasibility (#589):**
 `scripts/rehearse_stage_b1_inert_wire_only.py` now exercises the
 existing WebSocket runner, Bybit-linear bulk parser/subscription and
