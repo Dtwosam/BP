@@ -66,6 +66,15 @@ jobs:
           test "$exit_status" -eq 2
           python -c 'import json; d=json.load(open("stage-b1-preflight-NO-GO.json")); assert d["status"] == "INCOMPLETE_OR_MISMATCHED_NO_GO" and not d["production_execution_authorized"] and not d["host_claims_independently_verified"]'
 
+      - name: Stage B1 lifecycle/restoration review must remain NO GO
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/recorder/test_stage_b1_lifecycle_contract.py
+          exit_status=0
+          python scripts/review_stage_b1_lifecycle_contract.py --manifest docs/evidence/phase14-b1-INCOMPLETE-lifecycle-review-template-20261014.json > stage-b1-lifecycle-review-NO-GO.json || exit_status=$?
+          test "$exit_status" -eq 2
+          python -c 'import json; d=json.load(open("stage-b1-lifecycle-review-NO-GO.json")); assert d["status"]=="INCOMPLETE_OR_INVALID_NO_GO" and d["total_gate_count"]==17 and d["claimed_gate_count"]==0 and not d["claims_independently_authenticated"] and not d["production_execution_authorized"] and not d["production_deploy_or_restart_permitted"] and not d["actual_db_worker_quiescence_verified"] and not d["actual_systemd_restoration_verified"]'
+
       - name: Stage B1 isolated fake process timeout rehearsal
         run: |
           python scripts/rehearse_stage_b1_process_boundary.py --scenario cooperative | tee stage-b1-process-cooperative.json
@@ -135,6 +144,7 @@ jobs:
             stage-b1-fake-pipeline-healthy.json
             stage-b1-fake-pipeline-failed.json
             stage-b1-preflight-NO-GO.json
+            stage-b1-lifecycle-review-NO-GO.json
             stage-b1-process-cooperative.json
             stage-b1-process-ignore-term.json
             stage-b1-process-orphan-kill.json
