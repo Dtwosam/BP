@@ -21,6 +21,16 @@ If you are opening a new ChatGPT/Codex chat, upload/add this pack to the project
 
 ## Current next step
 
+**14 October 2026 — WebSocket same-turn parser/sink failure and outbound-control preservation:**
+A dynamic subscription already removed from its async queue is now
+retained for reconnect before a simultaneous market frame can raise
+during parsing or event-sink delivery. The runner still processes ready
+market data before sending heartbeat/control messages; errors still
+cause the existing reconnect policy. Fake-socket tests cover both
+parser and awaited sink errors, with no live contact. Repository-only
+code/test change, not deployed. Owner-closed #589 remains untouched;
+Phase 14 HOLD, economic acceptance NOT MET, live trading disabled.
+
 **14 October 2026 — WebSocket reconnect recovery semantics (offline code/test):**
 The existing runner now resets escalating reconnect failures only after
 market events have been successfully parsed and sunk. PONG/ACK/control

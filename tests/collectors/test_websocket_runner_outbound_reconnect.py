@@ -1,12 +1,13 @@
 import asyncio
 import json
 from collections.abc import Sequence
+from datetime import datetime
 
 import pytest
 
 from bp_engine.collectors.reliability import ReconnectPolicy
 from bp_engine.collectors.websocket_runner import WebSocketCollectorRunner
-from bp_engine.recorder.models import FeedIncident
+from bp_engine.recorder.models import FeedIncident, RawEvent
 
 
 class FakeWebSocket:
@@ -213,3 +214,81 @@ async def test_ready_outbound_subscription_is_retained_when_heartbeat_send_fails
     assert len(second.sent) == 1
     reconnect_subscription = json.loads(second.sent[0])
     assert reconnect_subscription["assets_ids"] == ["current", "next"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure_phase", ["parser", "async_sink"])
+async def test_ready_outbound_subscription_survives_same_turn_frame_processing_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    failure_phase: str,
+) -> None:
+    """A consumed control must survive parser and awaited sink failures."""
+    stop = asyncio.Event()
+    first = FakeWebSocket(messages=[{"sequence": 1}])
+    second = FakeWebSocket(stop=stop, stop_on_first_send=True)
+    connector = SequenceConnector([first, second])
+    outbound: asyncio.Queue[object] = asyncio.Queue()
+    outbound.put_nowait({"operation": "subscribe", "assets_ids": ["next"]})
+    incidents: list[FeedIncident] = []
+    original_wait = asyncio.wait
+    waits = 0
+
+    async def simultaneous_first_wait(fs, *, return_when):
+        nonlocal waits
+        waits += 1
+        if waits == 1:
+            # The first receive and outbound Queue.get have completed.
+            await asyncio.sleep(0.003)
+        return await original_wait(fs, return_when=return_when)
+
+    monkeypatch.setattr(asyncio, "wait", simultaneous_first_wait)
+
+    def parser(message: object, received_at: datetime) -> list[RawEvent]:
+        if failure_phase == "parser":
+            raise RuntimeError("fixed parser failure")
+        assert isinstance(message, dict)
+        return [
+            RawEvent.build(
+                source="polymarket",
+                stream="market",
+                instrument="BTC",
+                event_type="trade",
+                source_timestamp=received_at,
+                received_at=received_at,
+                sequence=message["sequence"],
+                payload={"synthetic": True},
+            )
+        ]
+
+    async def fail_sink(_event: RawEvent) -> None:
+        await asyncio.sleep(0)
+        raise RuntimeError("fixed async sink failure")
+
+    runner = WebSocketCollectorRunner(
+        source="polymarket",
+        stream="market",
+        url="wss://example.test/ws",
+        connector=connector,
+        subscription={"type": "market", "assets_ids": ["current"]},
+        parser=parser,
+        event_sink=fail_sink,
+        incident_sink=incidents.append,
+        heartbeat_message=None,
+        heartbeat_interval_seconds=None,
+        outbound_messages=outbound,
+        reconnect_policy=ReconnectPolicy(initial_seconds=0, maximum_seconds=0),
+    )
+
+    await asyncio.wait_for(runner.run(stop), timeout=1)
+
+    assert [incident.incident_type for incident in incidents] == [
+        "connected", "error", "reconnect", "disconnected",
+        "connected", "disconnected",
+    ]
+    assert incidents[1].details["error_type"] == "RuntimeError"
+    assert len(first.sent) == 1  # no control send after parse/sink failure
+    assert json.loads(first.sent[0])["assets_ids"] == ["current"]
+    assert len(second.sent) == 1
+    assert json.loads(second.sent[0])["assets_ids"] == ["current", "next"]
+    assert runner.subscription["assets_ids"] == ["current", "next"]
+    assert outbound.empty()
