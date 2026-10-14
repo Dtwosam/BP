@@ -113,6 +113,15 @@ jobs:
           python scripts/rehearse_stage_b1_fake_service_restoration.py --scenario db_worker_pending > stage-b1-fake-restore-worker.json
           python -c 'import json; files=["stage-b1-fake-restore-matched.json","stage-b1-fake-restore-ack-only.json","stage-b1-fake-restore-stale.json","stage-b1-fake-restore-worker.json"]; rows=[json.load(open(p)) for p in files]; assert rows[0]["status"]=="FAKE_READBACK_MATCH_UNVERIFIED_NO_GO" and all(rows[0]["checks"].values()); assert all(x["status"]=="FAKE_RESTORE_MISMATCH_NO_GO" for x in rows[1:]); assert rows[1]["checks"]["restore_ack_received"] and not rows[1]["checks"]["service_active"]; assert not rows[2]["checks"]["fresh_separate_readback"]; assert not rows[3]["checks"]["no_known_fake_db_workers"]; assert all(not x["actual_systemd_restoration_proven"] and not x["actual_db_thread_quiescence_proven"] and not x["production_execution_authorized"] for x in rows)'
 
+      - name: Stage B1 synthetic diagnostic equivalence (NO GO)
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/recorder/test_stage_b1_observability_equivalence.py
+          python scripts/review_stage_b1_observability_equivalence.py --view separate_wire_only > stage-b1-equivalence-independent-probe.json
+          python scripts/review_stage_b1_observability_equivalence.py --view same_recorder_dormant_b1 > stage-b1-equivalence-recorder.json
+          python scripts/review_stage_b1_observability_equivalence.py --view same_recorder_plus_verified_postcommit > stage-b1-equivalence-hypothetical-receipts.json
+          python -c 'import json; files=("stage-b1-equivalence-independent-probe.json","stage-b1-equivalence-recorder.json","stage-b1-equivalence-hypothetical-receipts.json"); rows=[json.load(open(f)) for f in files]; assert [x["ambiguous_hypothesis_pair_count"] for x in rows]==[15,1,0]; assert [x["equivalence_class_count"] for x in rows]==[1,5,6]; assert all(x["status"]=="FIXED_SYNTHETIC_DECISION_REVIEW_NO_GO" and x["separate_probe_is_not_same_recorder_evidence"] and x["same_recorder_counts_are_hypothetical"] and not x["production_root_cause_identified"] and not x["production_execution_authorized"] and not x["independent_stop_restoration_verified"] for x in rows)'
+
       - name: Stage B1 inert bulk wire-only fixed fake (NO GO)
         run: |
           set -euo pipefail
@@ -178,6 +187,9 @@ jobs:
             stage-b1-wire-only-ack.json
             stage-b1-wire-only-error.json
             stage-b1-wire-only-ticker.json
+            stage-b1-equivalence-independent-probe.json
+            stage-b1-equivalence-recorder.json
+            stage-b1-equivalence-hypothetical-receipts.json
           if-no-files-found: warn
           retention-days: 7
 
