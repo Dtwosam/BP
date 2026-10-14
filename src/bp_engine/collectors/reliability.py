@@ -22,17 +22,19 @@ class ReconnectPolicy:
                     return min(self.initial_seconds, self.maximum_seconds)
                 # Check the cap before exponentiation: long failure streaks
                 # must not overflow and permanently terminate the collector.
-                log_delay = math.log(self.initial_seconds) + attempt * math.log(
-                    self.multiplier
-                )
-                if log_delay > math.log(self.maximum_seconds):
+                log_initial = math.log(self.initial_seconds)
+                log_multiplier = math.log(self.multiplier)
+                log_maximum = math.log(self.maximum_seconds)
+                # Compare the integer attempt to the saturation threshold
+                # without converting an arbitrarily large attempt to float.
+                if attempt > (log_maximum - log_initial) / log_multiplier:
                     return self.maximum_seconds
                 try:
                     delay = self.initial_seconds * (self.multiplier**attempt)
                 except OverflowError:
-                    # Tiny initial delays can require large exponents while
-                    # their product remains finite and below the cap.
-                    delay = math.exp(log_delay)
+                    # Tiny initial delays can need an unrepresentable power
+                    # even when the final product is finite and below cap.
+                    delay = math.exp(log_initial + attempt * log_multiplier)
                 return min(delay, self.maximum_seconds)
         delay = self.initial_seconds * (self.multiplier**attempt)
         return min(delay, self.maximum_seconds)
