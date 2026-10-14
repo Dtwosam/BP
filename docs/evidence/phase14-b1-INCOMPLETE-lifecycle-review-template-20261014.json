@@ -1,0 +1,31 @@
+{
+  "schema": "phase14_b1_lifecycle_restoration_review_v1",
+  "proposed_scope": {
+    "target": "unresolved_bybit_linear_bulk_only",
+    "observer_duration_upper_bound_seconds": 120,
+    "database_queries_allowed": 0,
+    "real_money_operations_allowed": false,
+    "live_trading_enabled": false,
+    "approved_operator_launcher_available": false,
+    "host_operations_permitted_by_this_review": false
+  },
+  "gate_claims": {
+    "fresh_exact_scope_authorization": null,
+    "independent_operator_and_stop_owner": null,
+    "current_host_service_venv_code_identity": null,
+    "research_zero_money_no_wallet_auto_promotion": null,
+    "exact_candidate_and_rollback_material": null,
+    "independently_evidenced_restoration_rehearsal": null,
+    "external_process_group_cgroup_hard_timeout_design": null,
+    "db_worker_transaction_quiescence_design": null,
+    "bounded_aggregate_only_output_and_zero_sql": null,
+    "same_host_baseline_cpu_rss_queue_writer_p95": null,
+    "baseline_service_feed_and_storage_health": null,
+    "during_run_independent_deadline_and_abort_watch": null,
+    "after_stop_process_tree_quiescent": null,
+    "after_stop_db_workers_transactions_resolved": null,
+    "source_unit_venv_and_expected_restart_restored": null,
+    "after_restore_feed_writer_queue_storage_health": null,
+    "immutable_sanitized_rollback_and_review_receipts": null
+  }
+}
